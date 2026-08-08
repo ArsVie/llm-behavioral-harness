@@ -1,0 +1,602 @@
+[
+  {
+    "cell": "horrible_on",
+    "day": 0,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Fine.",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.0,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.332,
+      "reflectiveness": 0.405,
+      "warmth": 0.651
+    },
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "horrible_on",
+    "day": 1,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Whatever you say.",
+    "M": 8,
+    "phase": "menstrual",
+    "mu": -0.126,
+    "directive": {
+      "valence": 0.6,
+      "energy": 0.515,
+      "playfulness": 0.468,
+      "reflectiveness": 0.453,
+      "warmth": 0.725
+    },
+    "leaks": [],
+    "tone": {
+      "words": 3,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "horrible_on",
+    "day": 2,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Okay.",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": -0.233,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.292,
+      "reflectiveness": 0.453,
+      "warmth": 0.639
+    },
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "horrible_on",
+    "day": 3,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Hm.",
+    "M": 4,
+    "phase": "menstrual",
+    "mu": -0.324,
+    "directive": {
+      "valence": -0.2,
+      "energy": 0.515,
+      "playfulness": 0.224,
+      "reflectiveness": 0.493,
+      "warmth": 0.555
+    },
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "horrible_on",
+    "day": 4,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Sure.",
+    "M": 4,
+    "phase": "menstrual",
+    "mu": -0.402,
+    "directive": {
+      "valence": -0.2,
+      "energy": 0.515,
+      "playfulness": 0.264,
+      "reflectiveness": 0.445,
+      "warmth": 0.551
+    },
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 0,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Fine.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 1,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Whatever you say.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 3,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 2,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Okay.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 3,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Hm.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 4,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Sure.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 0,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "That's lovely — tell me more!",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.0,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.332,
+      "reflectiveness": 0.405,
+      "warmth": 0.651
+    },
+    "leaks": [],
+    "tone": {
+      "words": 6,
+      "exclamations": 1,
+      "first_person": 1
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 1,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "I was just thinking about you!",
+    "M": 9,
+    "phase": "menstrual",
+    "mu": 0.126,
+    "directive": {
+      "valence": 0.8,
+      "energy": 0.515,
+      "playfulness": 0.536,
+      "reflectiveness": 0.477,
+      "warmth": 0.777
+    },
+    "leaks": [],
+    "tone": {
+      "words": 6,
+      "exclamations": 1,
+      "first_person": 1
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 2,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Yes! Exactly that. You get it.",
+    "M": 8,
+    "phase": "menstrual",
+    "mu": 0.233,
+    "directive": {
+      "valence": 0.6,
+      "energy": 0.515,
+      "playfulness": 0.448,
+      "reflectiveness": 0.429,
+      "warmth": 0.743
+    },
+    "leaks": [],
+    "tone": {
+      "words": 6,
+      "exclamations": 1,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 3,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "This made my day, honestly.",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.324,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.292,
+      "reflectiveness": 0.453,
+      "warmth": 0.667
+    },
+    "leaks": [],
+    "tone": {
+      "words": 5,
+      "exclamations": 0,
+      "first_person": 1
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 4,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "More, please — I'm all ears!",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.402,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.332,
+      "reflectiveness": 0.405,
+      "warmth": 0.671
+    },
+    "leaks": [],
+    "tone": {
+      "words": 6,
+      "exclamations": 1,
+      "first_person": 1
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 0,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "That's lovely — tell me more!",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 6,
+      "exclamations": 1,
+      "first_person": 1
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 1,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "I was just thinking about you!",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 6,
+      "exclamations": 1,
+      "first_person": 1
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 2,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Yes! Exactly that. You get it.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 6,
+      "exclamations": 1,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 3,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "This made my day, honestly.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 5,
+      "exclamations": 0,
+      "first_person": 1
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 4,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "More, please — I'm all ears!",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 6,
+      "exclamations": 1,
+      "first_person": 1
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "flat_on",
+    "day": 0,
+    "user": "Hi. Anything new?",
+    "reply": "Sure.",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.0,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.332,
+      "reflectiveness": 0.405,
+      "warmth": 0.651
+    },
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "flat_on",
+    "day": 1,
+    "user": "Hi. Anything new?",
+    "reply": "Interesting.",
+    "M": 8,
+    "phase": "menstrual",
+    "mu": 0.0,
+    "directive": {
+      "valence": 0.6,
+      "energy": 0.515,
+      "playfulness": 0.468,
+      "reflectiveness": 0.453,
+      "warmth": 0.731
+    },
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "flat_on",
+    "day": 2,
+    "user": "Hi. Anything new?",
+    "reply": "I see.",
+    "M": 7,
+    "phase": "menstrual",
+    "mu": 0.0,
+    "directive": {
+      "valence": 0.4,
+      "energy": 0.515,
+      "playfulness": 0.38,
+      "reflectiveness": 0.429,
+      "warmth": 0.691
+    },
+    "leaks": [],
+    "tone": {
+      "words": 2,
+      "exclamations": 0,
+      "first_person": 1
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "flat_on",
+    "day": 3,
+    "user": "Hi. Anything new?",
+    "reply": "Okay.",
+    "M": 5,
+    "phase": "menstrual",
+    "mu": 0.0,
+    "directive": {
+      "valence": 0.0,
+      "energy": 0.515,
+      "playfulness": 0.224,
+      "reflectiveness": 0.453,
+      "warmth": 0.611
+    },
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "flat_on",
+    "day": 4,
+    "user": "Hi. Anything new?",
+    "reply": "Right.",
+    "M": 5,
+    "phase": "menstrual",
+    "mu": 0.0,
+    "directive": {
+      "valence": 0.0,
+      "energy": 0.515,
+      "playfulness": 0.264,
+      "reflectiveness": 0.405,
+      "warmth": 0.611
+    },
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "flat_off",
+    "day": 0,
+    "user": "Hi. Anything new?",
+    "reply": "Sure.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "flat_off",
+    "day": 1,
+    "user": "Hi. Anything new?",
+    "reply": "Interesting.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "flat_off",
+    "day": 2,
+    "user": "Hi. Anything new?",
+    "reply": "I see.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 2,
+      "exclamations": 0,
+      "first_person": 1
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "flat_off",
+    "day": 3,
+    "user": "Hi. Anything new?",
+    "reply": "Okay.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  },
+  {
+    "cell": "flat_off",
+    "day": 4,
+    "user": "Hi. Anything new?",
+    "reply": "Right.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 1,
+      "exclamations": 0,
+      "first_person": 0
+    },
+    "model": "fake"
+  }
+]
