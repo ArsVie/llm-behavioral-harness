@@ -1,4 +1,4 @@
-"""Async runtime — real-time rollover + gated proactive firing (wave 3, seam A-6).
+"""Async runtime — real-time rollover + gated proactive firing (wave 3, seam A-6; A7).
 
 The deterministic engine path (Session) stays synchronous and replay-exact;
 this module is the ONLY place in the harness allowed to read wall-clock, and
@@ -8,18 +8,29 @@ hour). Two loops run concurrently inside :meth:`AsyncRuntime.run`:
 - ``_rollover_loop`` — sleeps until the next virtual midnight (paced),
   advances the clock, calls ``session.ensure_day`` (idempotent: finalizes the
   previous day, judges it, applies the end-of-day engine update, samples the
-  new day's mood), then re-plans + persists the schedule for an extended
-  horizon and refreshes ``self.schedule`` from the store (restart-safe,
-  INSERT OR IGNORE never resurrects fired/expired rows).
+  new day's mood), then re-plans + persists the schedule for the CURRENT day
+  with the previous day's real judge score and today's initiative
+  (``day_scores`` — never ``scores=None`` in live scheduling) and refreshes
+  ``self.schedule`` from the store (restart-safe, INSERT OR IGNORE never
+  resurrects fired/expired rows).
 
 - ``_firing_loop`` — waits for the next pending schedule event (short poll
-  when none), advances the clock to it, then GATES before generating: the
-  content gate (valid reason, unexpired validity window) and the context gate
-  (quiet hours, cooldown, daily cap). Suppressed events are consumed (marked
-  fired — or expired when the validity window elapsed) and logged as
-  ``proactive_suppressed`` with the failing code; allowed events fire via
-  ``session.fire_proactive`` and are sent through the channel as proactive
-  OutboundMessages.
+  when none; overdue events are visible thanks to ``next_pending``'s A7
+  restart fix), advances the clock to it, then GATES before generating:
+  the content gate resolves the event to a GROUNDED intent
+  (``IntentResolver`` → ``content_gate(intent, store)``) and the context gate
+  (quiet hours, cooldown, daily cap). No grounded candidate ⇒ SUPPRESS
+  (``no_grounded_reason`` is a legitimate outcome). Suppressed events are
+  consumed (marked fired — or expired when the validity window elapsed) and
+  logged as ``proactive_suppressed`` with the failing code; allowed events
+  fire via ``session.fire_proactive`` and are sent through the channel as
+  proactive OutboundMessages.
+
+Delivery latency (A7): after the LLM returns, the runtime waits the
+requested ``response_delay_s`` (wall-clock seconds — NOT scaled by
+TimeScale) through the injectable ``sleeper`` (default ``asyncio.sleep``;
+tests inject a recorder so the suite never waits real seconds) and only
+then calls ``channel.send``.
 
 All ``session.*`` calls run in worker threads under a single ``asyncio.Lock``
 so the event loop never blocks on an LLM/judge call and inbound (reactive)
@@ -31,12 +42,14 @@ Engine steps are never called directly: rollover is driven ONLY through
 from __future__ import annotations
 
 import asyncio
-import math
 from dataclasses import dataclass
+from typing import Awaitable, Callable
 
+import engine.rng as rng_mod
 from harness.channels.base import Channel, InboundMessage, OutboundMessage
 from harness.gates import content_gate, context_gate
-from harness.scheduler import REASON_SCHEDULE, ProactiveSchedule
+from harness.proactive import IntentResolver
+from harness.scheduler import REASON_SCHEDULE, ProactiveSchedule, day_scores
 from harness.session import Session
 from harness.store import SQLiteStore
 from engine.types import TimingParams
@@ -45,11 +58,6 @@ from engine.types import TimingParams
 #: sleep is POLL_INTERVAL_H * seconds_per_virtual_hour, so tests with a tiny
 #: TimeScale stay responsive (µs polls) while a real-time run polls rarely.
 POLL_INTERVAL_H = 0.05
-
-#: Default re-plan horizon (days beyond the current day) when
-#: max_virtual_hours is None (run forever): the schedule always covers at
-#: least the next 7 days.
-DEFAULT_HORIZON_DAYS = 7
 
 
 @dataclass
@@ -78,6 +86,8 @@ class AsyncRuntime:
         seed: int,
         time_scale: TimeScale = TimeScale(),
         max_virtual_hours: float | None = None,
+        resolver: IntentResolver | None = None,
+        sleeper: Callable[[float], Awaitable[None]] | None = None,
     ):
         self.session = session
         self.schedule = schedule
@@ -87,6 +97,15 @@ class AsyncRuntime:
         self.seed = seed
         self.time_scale = time_scale
         self.max_virtual_hours = max_virtual_hours
+        #: Grounded-intent resolver (store-backed). Default uses a seeded
+        #: engine.rng stream distinct from the event stream so resolver
+        #: tie-breaks never perturb the planned event times.
+        self.resolver = resolver if resolver is not None else IntentResolver(
+            store, rng=rng_mod.stream_rng(seed, rng_mod.EXPERIMENT_STREAM)
+        )
+        #: Injectable delay function (default asyncio.sleep) so tests record
+        #: the requested response_delay_s without waiting real seconds.
+        self.sleeper = sleeper if sleeper is not None else asyncio.sleep
         self._lock = asyncio.Lock()
         self._ensure_thread_safe_store()
 
@@ -100,7 +119,11 @@ class AsyncRuntime:
         ``check_same_thread=False`` keeps that contract without touching the
         frozen store: the asyncio.Lock serializes all session calls, WAL +
         busy_timeout cover the remaining store access, and the schema is
-        already on disk. (Workaround contained here; report-only issue.)"""
+        already on disk. (Workaround contained here; report-only issue.)
+        Seam-faithful in-memory stores (tests; the real A2 SQLiteStore has
+        not landed yet) expose no sqlite connection and are skipped."""
+        if not (hasattr(self.store, "path") and hasattr(self.store, "conn")):
+            return
         import sqlite3
 
         old_conn = self.store.conn
@@ -142,18 +165,24 @@ class AsyncRuntime:
         return POLL_INTERVAL_H * self.time_scale.seconds_per_virtual_hour
 
     def _horizon_days(self) -> int:
-        """Schedule horizon (days) so the plan covers the whole run."""
-        if self.max_virtual_hours is not None:
-            return math.ceil(self.max_virtual_hours / 24.0) + 1
-        return self.session.clock.day() + DEFAULT_HORIZON_DAYS
+        """Plan ONLY the current day (A7): days 0..current_day, so the
+        schedule covers through the end of today. Re-planning the same
+        horizon with the same (stable) day_scores regenerates identical rows
+        — INSERT OR IGNORE never drifts or duplicates."""
+        return self.session.clock.day() + 1
 
     def _replan(self) -> None:
-        """Extend the persisted horizon (idempotent) and refresh the schedule.
+        """Plan the CURRENT day with real timing feedback, persist it, and
+        refresh the schedule from the store.
 
         plan_and_persist is pure numpy + store upserts (no session state), so
         it runs on the event loop directly; self.schedule is rebuilt from the
-        store so already-fired/expired rows are never re-selected.
+        store so already-fired/expired rows are never re-selected. The scores
+        array comes from ``day_scores`` (previous day's real judge score ×
+        today's initiative) — NEVER ``scores=None`` in live scheduling.
         """
+        day = self.session.clock.day()
+        scores = day_scores(self.store, day, self.timing)
         ProactiveSchedule.plan_and_persist(
             self._horizon_days(),
             self.seed,
@@ -161,6 +190,7 @@ class AsyncRuntime:
             self.timing,
             self.store,
             reason=REASON_SCHEDULE,
+            scores=scores,
         )
         self.schedule = ProactiveSchedule.restore(self.seed, self.store)
 
@@ -170,14 +200,16 @@ class AsyncRuntime:
 
     async def _on_inbound(self, msg: InboundMessage) -> None:
         """Reactive path: advance the clock to msg.t_h if the channel
-        supplied one (never backwards), reply via Session.on_message, send
-        the reply as a non-proactive OutboundMessage."""
+        supplied one (never backwards), reply via Session.on_message, wait
+        the requested response_delay_s (injectable sleeper, wall-clock),
+        then send the reply as a non-proactive OutboundMessage."""
         async with self._lock:
             if msg.t_h is not None and msg.t_h > self.session.clock.now_h():
                 self.session.clock.advance_hours(
                     msg.t_h - self.session.clock.now_h()
                 )
             reply = await asyncio.to_thread(self.session.on_message, msg.text)
+            await self.sleeper(self._response_delay(reply))
             await self.channel.send(
                 OutboundMessage(text=reply.reply, proactive=False)
             )
@@ -188,7 +220,8 @@ class AsyncRuntime:
 
     async def _rollover_loop(self) -> None:
         """Sleep until the next virtual midnight (paced), roll the session
-        over, then re-plan + persist the schedule for the extended horizon."""
+        over, then — only on a REAL midnight (not the max_virtual_hours end
+        boundary) — re-plan + persist the CURRENT day's schedule."""
         while True:
             now = self.session.clock.now_h()
             if self._max_reached(now):
@@ -209,22 +242,34 @@ class AsyncRuntime:
                     self.session.clock.advance_hours(target - now)
                 day = self.session.clock.day()
                 await asyncio.to_thread(self.session.ensure_day, day)
-            self._replan()
+            if target >= next_midnight:
+                # A real rollover crossed midnight. At the run's end boundary
+                # (target == max_virtual_hours < next_midnight) we do NOT
+                # re-plan: that would inject a fresh plan for a run that is
+                # about to finish.
+                self._replan()
 
     # ------------------------------------------------------------------ #
     # proactive firing
     # ------------------------------------------------------------------ #
 
-    def _reason_for(self, t_h: float) -> str:
-        """Taxonomy reason stored for the pending row at t_h."""
-        for row in self.store.pending_schedule_events(self.seed):
-            if abs(row["t_h"] - t_h) < 1e-9:
-                return row["reason"]
-        return REASON_SCHEDULE
+    @staticmethod
+    def _response_delay(result) -> float:
+        """Wall-clock seconds the runtime waits between LLM completion and
+        channel.send. A1 wave 2 wires TurnResult.controls (GenerationControls);
+        today's TurnResult carries the BehaviorDirective — both expose
+        response_delay_s."""
+        controls = getattr(result, "controls", None)
+        if controls is not None:
+            return float(controls.response_delay_s)
+        return float(result.directive.response_delay_s)
 
     async def _firing_loop(self) -> None:
-        """Wait for the next pending event, advance the clock to it, gate it
-        (content + context), then fire or consume+log the suppression."""
+        """Wait for the next pending event (overdue events are visible after
+        the A7 next_pending fix), advance the clock to it, resolve a GROUNDED
+        intent, gate it (content + context), then fire or consume+log the
+        suppression. Overdue events are evaluated on recovery: still valid ⇒
+        fire; past the validity window ⇒ expire."""
         while True:
             now = self.session.clock.now_h()
             if self._max_reached(now):
@@ -236,19 +281,34 @@ class AsyncRuntime:
                 continue
             if self.max_virtual_hours is not None and nxt >= self.max_virtual_hours:
                 return
-            await asyncio.sleep(
-                (nxt - now) * self.time_scale.seconds_per_virtual_hour
-            )
+            if nxt > now:
+                await asyncio.sleep(
+                    (nxt - now) * self.time_scale.seconds_per_virtual_hour
+                )
             async with self._lock:
                 now = self.session.clock.now_h()
                 if now < nxt:
                     self.session.clock.advance_hours(nxt - now)
                 now = self.session.clock.now_h()
-                reason = self._reason_for(nxt)
-                cg = content_gate(reason, nxt, now)
+                day = self.session.clock.day()
+                # Contact opportunity -> contact reason: a grounded intent
+                # anchored at the OPPORTUNITY time (nxt), so an overdue event
+                # is evaluated against its own validity window on recovery.
+                # None ⇒ SUPPRESS: no_grounded_reason is a legitimate outcome.
+                intent = self.resolver.resolve(nxt)
+                if intent is None:
+                    self.store.log_event(
+                        day, now, "proactive_suppressed", "no_grounded_reason"
+                    )
+                    self.schedule.mark_fired_persisted(
+                        nxt, now, self.seed, self.store
+                    )
+                    continue
+                self.store.save_proactive_intent(intent)
+                cg = content_gate(intent, self.store, now_h=now)
                 xg = context_gate(
                     now,
-                    self.session.clock.day(),
+                    day,
                     store=self.store,
                     timing=self.timing,
                     last_fired_t_h=self.store.last_proactive_t_h(self.seed),
@@ -256,7 +316,10 @@ class AsyncRuntime:
                 if not (cg.allowed and xg.allowed):
                     code = cg.code if cg.code != "ok" else xg.code
                     self.store.log_event(
-                        self.session.clock.day(), now, "proactive_suppressed", code
+                        day, now, "proactive_suppressed", code
+                    )
+                    self.store.update_proactive_intent_status(
+                        intent.id, "suppressed"
                     )
                     if cg.code == "expired":
                         self.store.mark_schedule_expired(self.seed, nxt)
@@ -267,11 +330,15 @@ class AsyncRuntime:
                         )
                     continue
                 result = await asyncio.to_thread(
-                    self.session.fire_proactive, reason
+                    self.session.fire_proactive, intent.reason
                 )
+                await self.sleeper(self._response_delay(result))
                 await self.channel.send(
                     OutboundMessage(
-                        text=result.reply, proactive=True, reason=reason
+                        text=result.reply, proactive=True, reason=intent.reason
                     )
                 )
-                self.schedule.mark_fired_persisted(nxt, now, self.seed, self.store)
+                self.store.update_proactive_intent_status(intent.id, "fired")
+                self.schedule.mark_fired_persisted(
+                    nxt, now, self.seed, self.store
+                )

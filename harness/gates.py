@@ -1,10 +1,13 @@
-"""Content + context gates for proactive contact (wave 2, seam A-4).
+"""Content + context gates for proactive contact (wave 2, seam A-4; A7).
 
-Pure functions: no I/O except reads through the injected store. The content
-gate checks that the planned reason is still in the taxonomy and its validity
-window has not elapsed; the context gate re-checks at FIRE time that the
-moment is still good (quiet hours, cooldown, daily cap), because user
-activity, restarts, and clock pacing can change state since planning.
+Pure functions: no I/O except reads through the injected store. Since A7 the
+content gate is REAL: instead of checking ``reason in VALID_REASONS`` it
+verifies, against the store, that the intent's source still exists, is not
+deleted/superseded, the intent is still timely, and the supplied hook is
+actually attached to that source (deterministic re-derivation). The context
+gate re-checks at FIRE time that the moment is still good (quiet hours,
+cooldown, daily cap), because user activity, restarts, and clock pacing can
+change state since planning.
 """
 
 from __future__ import annotations
@@ -13,6 +16,8 @@ from dataclasses import dataclass
 
 from engine.circadian import envelope
 from engine.types import TimingParams
+from harness.domain import AgendaItem, LifeArc
+from harness.proactive import compose_hook
 from harness.scheduler import REASON_VALIDITY_H, VALID_REASONS
 
 
@@ -21,24 +26,35 @@ class GateDecision:
     """One gate's verdict: pass/fail plus the failing code (or 'ok')."""
 
     allowed: bool
-    code: str  # 'ok'|'no_valid_reason'|'expired'|'cooldown'|'quiet_hours'|'daily_cap'
+    # 'ok'|'no_valid_reason'|'expired'|'cooldown'|'quiet_hours'|'daily_cap'
+    # |'no_source'|'source_superseded'|'hook_mismatch'
+    code: str
 
 
-def content_gate(
-    reason: str | None,
-    planned_t_h: float,
-    now_h: float,
-    *,
-    valid_reasons=VALID_REASONS,
-    validity_h=REASON_VALIDITY_H,
-) -> GateDecision:
-    """PASS iff reason in valid_reasons AND now_h <= planned_t_h +
-    validity_h[reason]. code='no_valid_reason' if reason invalid/None;
-    'expired' if past the window."""
-    if reason not in valid_reasons:
+def content_gate(intent, store, *, now_h: float | None = None) -> GateDecision:
+    """PASS iff the intent is fully grounded at gate time:
+
+      - intent is not None                                   -> 'no_valid_reason'
+      - now_h <= intent.valid_until_t_h (when now_h given)   -> 'expired'
+      - store.resolve_intent_source(intent) is not None      -> 'no_source'
+      - source not deleted/superseded (status checks:
+        AgendaItem 'skipped', LifeArc 'abandoned')           -> 'source_superseded'
+      - compose_hook(source, intent.reason) == intent.hook
+        (the hook is actually attached to that source)       -> 'hook_mismatch'
+    """
+    if intent is None:
         return GateDecision(allowed=False, code="no_valid_reason")
-    if now_h > planned_t_h + validity_h[reason]:
+    if now_h is not None and intent.valid_until_t_h < now_h:
         return GateDecision(allowed=False, code="expired")
+    source = store.resolve_intent_source(intent)
+    if source is None:
+        return GateDecision(allowed=False, code="no_source")
+    if isinstance(source, AgendaItem) and source.status == "skipped":
+        return GateDecision(allowed=False, code="source_superseded")
+    if isinstance(source, LifeArc) and source.status == "abandoned":
+        return GateDecision(allowed=False, code="source_superseded")
+    if compose_hook(source, intent.reason) != intent.hook:
+        return GateDecision(allowed=False, code="hook_mismatch")
     return GateDecision(allowed=True, code="ok")
 
 
