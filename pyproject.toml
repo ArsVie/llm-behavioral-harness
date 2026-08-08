@@ -17,6 +17,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+channels = ["python-telegram-bot>=21"]
 
 [tool.setuptools]
 packages = ["engine", "sim", "harness", "experiments"]
