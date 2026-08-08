@@ -1,121 +1,129 @@
-# Fase −1 — Síntesis de investigación previa (prior-art)
+---
+type: research-note
+title: Phase −1 — Synthesis of prior research (prior-art)
+description: "Phase −1 deliverable: comparison table of comparable products, adopted/discarded design decisions, and initial parameter ranges for the stochastic engine."
+tags: [phase-minus-1, synthesis, prior-art, parameters]
+timestamp: 2026-06-24
+---
 
-**Proyecto:** Arnés conductual para LLM con iniciativa (POC)
-**Fecha:** 2026-06-24
-**Fuentes:** notas de investigación [01-products](01-products.md) · [02-research](02-research.md) · [03-initiative](03-initiative.md). Marco regulatorio archivado en [`deferred/04-regulatory.md`](deferred/04-regulatory.md) (fuera de alcance del POC).
+# Phase −1 — Synthesis of prior research (prior-art)
 
-Este documento es el **entregable de la Fase −1** del plan: tabla comparativa, decisiones de diseño que adoptamos/descartamos y los rangos de parámetros iniciales para el motor estocástico. Las notas 01–03 contienen el detalle y las citas.
+**Project:** LLM behavioral harness with initiative (POC)
+**Date:** 2026-06-24
+**Sources:** research notes [01-products](01-products.md) · [02-research](02-research.md) · [03-initiative](03-initiative.md). Regulatory framework archived in [`deferred/04-regulatory.md`](deferred/04-regulatory.md) (out of POC scope).
+
+This document is the **Phase −1 deliverable** of the plan: comparison table, design decisions we adopted/discarded, and the initial parameter ranges for the stochastic engine. Notes 01–03 contain the detail and citations.
 
 ---
 
-## 1. Productos comparables (tabla)
+## 1. Comparable products (table)
 
-| Producto | Memoria | Mensajes proactivos | Onboarding de persona | Salvaguardas |
+| Product | Memory | Proactive messages | Persona onboarding | Safeguards |
 |---|---|---|---|---|
-| **Replika** | Memory Tab curada + ventana deslizante; recall ~80–85% al mes | Notificaciones de seguimiento; sin algoritmo de timing autónomo (parece scheduler simple) | Quiz de personalidad + rol de relación + backstory free-text; up/down-vote | Clasificador 5 niveles; botón crisis → hotline; gate 18+ (eludible, multado en IT) |
-| **Character.AI** | Facts auto + Story Memory *pinned* (protegida de compresión) + ventana | Sin proactividad de origen documentada | User Persona ≤728 chars + "definition" largo | Pop-up crisis → 988; verificación de edad facial/ID; teen-restrictions Nov 2025 |
-| **Chai** | Solo ventana ~20–40 msgs; memoria editable manual; resets molestos | Sin proactividad | UI de creación profunda; bots de comunidad | Moderación reactiva; eSafety (Oct 2025) halló fallos en redirección de crisis |
-| **Kindroid** | **Memoria en cascada de 5 niveles** con decaimiento + recall por frase-clave (journal) | **"Advanced Proactivity"** (Ultra/MAX): msgs/voz/selfies; quiet hours; consciente de calendario | "Codex": 47 parámetros configurables + backstory | 3 "Red Lines" por escaneo automático; aviso antes de bloqueo |
-| **Nomi** | Historia completa server-side; ventana expandida | **Frecuencia configurable** (5 niveles); contenido desde "lo que el AI está pensando/haciendo" | ~3 min: rol + 3–7 rasgos + backstory + intereses (solo icebreakers) | Históricamente débil (incidente suicidio, MIT 2025); update forzado Ene 2026 por ley NY |
-| **Paradot** | "Memory-to-Understanding": captura hechos+emociones+opiniones; recall ~90% al mes | Re-engagement contextual documentado; mecanismo no público | **Encuesta de 23 preguntas** + sliders; primeras 72h "críticas" | Permisivo; documentación de crisis limitada; cubierto por ley NY |
+| **Replika** | Curated Memory Tab + sliding window; ~80–85% recall at one month | Follow-up notifications; no autonomous timing algorithm (appears to be a simple scheduler) | Personality quiz + relationship role + free-text backstory; up/down-vote | 5-level classifier; crisis button → hotline; 18+ gate (circumventable, fined in Italy) |
+| **Character.AI** | Auto Facts + *pinned* Story Memory (protected from compression) + window | No first-party proactivity documented | User Persona ≤728 chars + long "definition" | Crisis pop-up → 988; facial/ID age verification; teen restrictions Nov 2025 |
+| **Chai** | Window only ~20–40 msgs; manually editable memory; annoying resets | No proactivity | Deep creation UI; community bots | Reactive moderation; eSafety (Oct 2025) found crisis-redirection failures |
+| **Kindroid** | **5-tier cascaded memory** with decay + keyphrase recall (journal) | **"Advanced Proactivity"** (Ultra/MAX): messages/voice/selfies; quiet hours; calendar-aware | "Codex": 47 configurable parameters + backstory | 3 "Red Lines" via automated scan; warning before lockout |
+| **Nomi** | Full history server-side; expanded window | **Configurable frequency** (5 levels); content from "what the AI is thinking/doing" | ~3 min: role + 3–7 traits + backstory + interests (icebreakers only) | Historically weak (suicide incident, MIT 2025); forced update Jan 2026 per NY law |
+| **Paradot** | "Memory-to-Understanding": captures facts+emotions+opinions; ~90% recall at one month | Contextual re-engagement documented; mechanism not public | **23-question survey** + sliders; first 72h "critical" | Permissive; limited crisis documentation; covered by NY law |
 
-### Lecturas clave
-- **Solo 3 productos hacen proactividad real** (Kindroid, Nomi, Paradot) y **ninguno expone el estado interno** que la dispara — esa caja negra es justo nuestro diferenciador.
-- **Onboarding estructurado > prompt libre.** Encuestas tipadas (Paradot 23-Q, Kindroid Codex) producen personas más predecibles y *testeables*. Casa con nuestra decisión de persona-como-config.
-- **El "pin" de Character.AI** es la solución más barata al problema de compresión de contexto: memoria núcleo inmune a desalojo.
-
----
-
-## 2. Decisiones de diseño (adoptar / descartar)
-
-### Adoptamos
-1. **Estado conductual inspeccionable y model-agnóstico** como objeto de primera clase (fase circadiana + ánimo + fase de ciclo). Es el hueco competitivo; ningún producto lo expone.
-2. **Dinámica de dos velocidades (PAD)** — *mood* lento (horas/días, lo fija la fase hormonal) + *emoción* rápida (por turno, decae al baseline). Es el consenso de la literatura afectiva (Sentipolis). Encaja con la Sección 3.5 del plan (escala lenta entre días + rápida intradía).
-3. **Memoria en tres niveles:** (a) "core facts" siempre inyectados (estilo pin), (b) buffer en cascada con decaimiento (estilo Kindroid), (c) log completo para retrieval. Inspeccionable por el desarrollador.
-4. **Onboarding por esquema tipado** (estilo encuesta) que mapea a parámetros, no prompts free-text. Refuerza la mezcla 40/40/20 verificable.
-5. **Scheduler de dos compuertas** para iniciativa: *content gate* (¿existe razón válida y vigente?) + *context gate* (¿usuario receptivo? cooldown, quiet hours). Modelo readiness/termination de ProActor.
-6. **Taxonomía tipada de razones** para mensajes proactivos: `schedule | callback | event | shared_interest | check_in`. `check_in` es el de menor fundamento → menor frecuencia.
-7. **Clamp de PAD a rangos moderados** (±0.6–0.8): arXiv 2604.00005 muestra curvas en U invertida — los extremos degradan la calidad de las respuestas.
-
-### Adoptamos para temporización (refina la Sección 3.4 del plan)
-8. **Modelo recomendado: NHPP + Hawkes** (envolvente diurna sinusoidal + auto-excitación con `η<1`). Da ritmo día/noche **y** ráfagas de conversación. La **Gamma del plan se mantiene como variante simple** del POC (k<1 bursty, k>1 metronómico), documentando que no modela la cadena causal "respuesta-dispara-respuesta" que sí da Hawkes. **[Superado en la reevaluación 2026-07-01: la auto-excitación sobre pings propios genera ráfagas de nag; el POC usa renewal con hazard Weibull modulado — ver [05-reevaluacion-diseno.md](05-reevaluacion-diseno.md) §3.]**
-
-### Descartamos / matizamos
-- **Atribuir el modelo binomial/gamma al paper** — no procede; son elección de diseño propia. Mantenemos la binomial (varianza acotada y controlable) y la validamos por simulación.
-- **Modelo de comunidad abierta (Chai)** sin gate de moderación previo — fuera de alcance del POC y riesgoso.
-- **7 hormonas explícitas** (paper) — para el POC basta **1 señal de ciclo** (amplitud) como dice el plan; dejamos la descomposición multi-hormona como extensión.
-- **Proactividad por timer simple (Replika)** — insuficiente; usamos estado interno + dos compuertas.
+### Key takeaways
+- **Only 3 products do real proactivity** (Kindroid, Nomi, Paradot) and **none exposes the internal state that drives it** — that black box is exactly our differentiator.
+- **Structured onboarding > free prompt.** Typed surveys (Paradot 23-Q, Kindroid Codex) produce more predictable and *testable* personas. Matches our decision of persona-as-config.
+- **Character.AI's "pin"** is the cheapest solution to the context-compression problem: core memory immune to eviction.
 
 ---
 
-## 3. Reglas de iniciativa no intrusiva (checklist operativo)
+## 2. Design decisions (adopt / discard)
 
-> **Alcance:** esto es **calidad de producto** (que la iniciativa no resulte molesta), no cumplimiento regulatorio. El marco de bienestar/regulatorio queda **fuera de alcance del POC** (local, mono-usuario, no distribuido ni público) y se archiva en [`deferred/04-regulatory.md`](deferred/04-regulatory.md) por si alguna vez se publica.
+### We adopt
+1. **Inspectable, model-agnostic behavioral state** as a first-class object (circadian phase + mood + cycle phase). It is the competitive gap; no product exposes it.
+2. **Dual-speed dynamics (PAD)** — slow *mood* (hours/days, set by the hormonal phase) + fast *emotion* (per-turn, decays to baseline). It is the consensus of the affective literature (Sentipolis). Fits plan Section 3.5 (slow inter-day scale + fast intra-day scale).
+3. **Three-tier memory:** (a) "core facts" always injected (pin style), (b) cascaded buffer with decay (Kindroid style), (c) full log for retrieval. Inspectable by the developer.
+4. **Typed-schema onboarding** (survey style) that maps to parameters, not free-text prompts. Reinforces the verifiable 40/40/20 mix.
+5. **Two-gate scheduler** for initiative: *content gate* (is there a valid, current reason?) + *context gate* (is the user receptive? cooldown, quiet hours). ProActor's readiness/termination model.
+6. **Typed taxonomy of reasons** for proactive messages: `schedule | callback | event | shared_interest | check_in`. `check_in` is the least grounded → lowest frequency.
+7. **Clamp PAD to moderate ranges** (±0.6–0.8): arXiv 2604.00005 shows inverted-U curves — extremes degrade response quality.
 
-De la nota 03 (ProActor, JITAI, "Computers as Bad Social Actors"):
+### We adopt for timing (refines plan Section 3.4)
+8. **Recommended model: NHPP + Hawkes** (sinusoidal diurnal envelope + self-excitation with `η<1`). Gives the day/night rhythm **and** conversation bursts. The plan's **Gamma stays as a simple POC variant** (k<1 bursty, k>1 metronomic), documented as not modeling the causal "response-triggers-response" chain that Hawkes does. **[Superseded in the 2026-07-01 re-evaluation: self-excitation over one's own pings generates nag bursts; the POC uses renewal with a modulated Weibull hazard — see [05-reevaluacion-diseno.md](05-reevaluacion-diseno.md) §3.]**
 
-- **Dos compuertas:** razón válida y vigente **Y** usuario receptivo (breakpoint, ventana activa, cooldown).
-- **Toda razón con ventana de validez** — las vencidas se descartan, no se difieren.
-- **Mínimo de profundidad de relación** antes de iniciar (Meta exige ≥5 mensajes previos del usuario).
-- **Razón explícita en la primera frase**; preferir razones verificables (agenda/callback) sobre inferencia conductual ("pareces estresado" → vigilancia).
-- **Anti-patrones como restricciones duras** (no estilo): nada de pseudo-notificaciones, culpa ("te extraño"), pasivo-agresividad, "mothering", nagging, engagement-maxxing, triggers opacos. El tono se chequea **antes** de enviar; el cap de frecuencia se aplica en la cola, no en la generación.
-- **Empezar conservador** (p.ej. máx. 1 contacto proactivo/día en ventana activa) y aprender de engage/dismiss/ignore.
+### We discard / qualify
+- **Attributing the binomial/gamma model to the paper** — not warranted; they are our own design choice. We keep the binomial (bounded, controllable variance) and validate it by simulation.
+- **Open community model (Chai)** without a prior moderation gate — out of POC scope and risky.
+- **7 explicit hormones** (paper) — for the POC, **1 cycle signal** (amplitude) suffices as the plan says; we leave the multi-hormone decomposition as an extension.
+- **Simple-timer proactivity (Replika)** — insufficient; we use internal state + two gates.
 
 ---
 
-## 4. Rangos de parámetros iniciales para el motor (Fase 1)
+## 3. Non-intrusive initiative rules (operational checklist)
 
-Síntesis de la nota 02. Punto de partida a **afinar por simulación** (criterio de aceptación de Fase 1). Nótese que el plan usa una **binomial en espacio logit**; aquí damos también los parámetros PAD/timing equivalentes recomendados.
+> **Scope:** this is **product quality** (that initiative does not feel annoying), not regulatory compliance. The wellbeing/regulatory framework is **out of POC scope** (local, single-user, neither distributed nor public) and is archived in [`deferred/04-regulatory.md`](deferred/04-regulatory.md) in case it is ever published.
 
-### 4.1 Ánimo (modelo del plan, espacio logit + binomial)
-| Parámetro | Símbolo | Valor inicial | Nota |
+From note 03 (ProActor, JITAI, "Computers as Bad Social Actors"):
+
+- **Two gates:** valid and current reason **AND** receptive user (breakpoint, active window, cooldown).
+- **Every reason has a validity window** — expired ones are discarded, not deferred.
+- **Minimum relationship depth before initiating** (Meta requires ≥5 prior user messages).
+- **Explicit reason in the first sentence**; prefer verifiable reasons (agenda/callback) over behavioral inference ("you seem stressed" → surveillance).
+- **Anti-patterns as hard constraints** (not style): no pseudo-notifications, guilt ("I miss you"), passive-aggressiveness, "mothering", nagging, engagement-maxxing, opaque triggers. Tone is checked **before** sending; the frequency cap applies at the queue, not at generation.
+- **Start conservative** (e.g., max 1 proactive contact/day in the active window) and learn from engage/dismiss/ignore.
+
+---
+
+## 4. Initial parameter ranges for the engine (Phase 1)
+
+Synthesis of note 02. Starting point to be **tuned by simulation** (Phase 1 acceptance criterion). Note that the plan uses a **binomial in logit space**; here we also give the equivalent recommended PAD/timing parameters.
+
+### 4.1 Mood (plan model, logit space + binomial)
+| Parameter | Symbol | Initial value | Note |
 |---|---|---|---|
-| Pasos de escala | `N` | 10 | estados 0..10 |
-| Temperamento base (valencia) | `λ` | 0.60 | levemente positivo |
-| Neutro | `score_neutral` | 0.0 | score en [−1,1] |
-| Aprendizaje | `k` | 0.15 | peso del día anterior |
-| Decaimiento | `ρ` | 0.70 | memoria ~3–4 días (≈ 1/(1−ρ)) |
-| Clamp valencia/arousal/dominancia | — | ±0.80 / ±0.70 / ±0.60 | evita extremos (2604.00005) |
+| Scale steps | `N` | 10 | states 0..10 |
+| Base temperament (valence) | `λ` | 0.60 | slightly positive |
+| Neutral | `score_neutral` | 0.0 | score in [−1,1] |
+| Learning | `k` | 0.15 | weight of the previous day |
+| Decay | `ρ` | 0.70 | memory ~3–4 days (≈ 1/(1−ρ)) |
+| Clamp valence/arousal/dominance | — | ±0.80 / ±0.70 / ±0.60 | avoids extremes (2604.00005) |
 
-### 4.2 Ciclo hormonal (~28 d)
-| Parámetro | Símbolo | Valor inicial | Nota |
+### 4.2 Hormonal cycle (~28 d)
+| Parameter | Symbol | Initial value | Note |
 |---|---|---|---|
-| Largo de ciclo | `L` | 28 (±2–3 jitter) | estándar; jitter por instancia |
-| Amplitud | `A` | 0.25 | fuerza del swing |
-| Fase | `φ` | aleatoria | por persona |
-| Ruido | `σ_ε` | 0.03 | pequeño |
+| Cycle length | `L` | 28 (±2–3 jitter) | standard; jitter per instance |
+| Amplitude | `A` | 0.25 | strength of the swing |
+| Phase | `φ` | random | per person |
+| Noise | `σ_ε` | 0.03 | small |
 
-Offsets de valencia por fase (de la nota 02, si se quiere granularidad por fase en lugar de una sola senoidal): menstrual −0.3 · folicular +0.1 · ovulatoria +0.4 · luteal-temprana +0.1 · luteal-tardía −0.2. Multiplicadores de **tasa de mensajes** por fase: 0.60 / 1.00 / 1.40 / 1.10 / 0.80.
+Valence offsets by phase (from note 02, if per-phase granularity is wanted instead of a single sinusoid): menstrual −0.3 · follicular +0.1 · ovulatory +0.4 · early-luteal +0.1 · late-luteal −0.2. **Message-rate multipliers** by phase: 0.60 / 1.00 / 1.40 / 1.10 / 0.80.
 
-### 4.3 Circadiano
-| Parámetro | Valor inicial | Nota |
+### 4.3 Circadian
+| Parameter | Initial value | Note |
 |---|---|---|
-| Amplitud arousal | ±0.25 | `cos(2π(h−14)/24)`, pico ~14:00 |
-| Boost mañana / penal. noche | +0.15 / −0.10 | 6–11h / 23–4h |
+| Arousal amplitude | ±0.25 | `cos(2π(h−14)/24)`, peak ~14:00 |
+| Morning boost / night penalty | +0.15 / −0.10 | 6–11h / 23–4h |
 
-### 4.4 Temporización de mensajes espontáneos
-| Parámetro | Valor inicial | Nota |
+### 4.4 Spontaneous message timing
+| Parameter | Initial value | Note |
 |---|---|---|
-| Modelo | `NHPP + Hawkes` (recom.) / `Gamma` (simple POC) | — |
-| Tasa base `λ_mean` | 0.08 msg/h (~2/día a solas) | envolvente NHPP |
-| Amplitud diurna `A` | 0.65 | pico `t_peak`=14:00 |
+| Model | `NHPP + Hawkes` (recommended) / `Gamma` (simple POC) | — |
+| Base rate `λ_mean` | 0.08 msg/h (~2/day when alone) | NHPP envelope |
+| Diurnal amplitude `A` | 0.65 | peak `t_peak`=14:00 |
 | Hawkes `α` / `β` | 0.35 / 0.80 /h | half-life ~52 min |
-| Branching `η=α/β` | 0.44 | **estable (<1)**; rango sano 0.3–0.7 |
+| Branching ratio `η=α/β` | 0.44 | **stable (<1)**; healthy range 0.3–0.7 |
 | Gamma bursty / regular | `k`=0.6 / `k`=3.0 | CV=1.29 / 0.58 |
-| Gaps mín/máx | 15 min / 48 h | nunca <15 min; al menos 1 contacto/2 días |
+| Min/max gaps | 15 min / 48 h | never <15 min; at least 1 contact/2 days |
 
-### 4.5 Dinámica de dos velocidades (si se adopta PAD)
-| Parámetro | Valor inicial | Nota |
+### 4.5 Dual-speed dynamics (if PAD is adopted)
+| Parameter | Initial value | Note |
 |---|---|---|
-| Decaimiento emoción rápida | ~0.30/turno | half-life ~2.3 turnos |
-| Decaimiento mood lento | ~0.02/turno | half-life ~35 turnos (~1 día) |
-| Peso emoción → mood | 0.25 | — |
-| Peso hormonal → mood | 0.10 | — |
+| Fast emotion decay | ~0.30/turn | half-life ~2.3 turns |
+| Slow mood decay | ~0.02/turn | half-life ~35 turns (~1 day) |
+| Emotion → mood weight | 0.25 | — |
+| Hormonal → mood weight | 0.10 | — |
 
 ---
 
-## 5. Próximo paso
+## 5. Next step
 
-Con esto cerrado, el plan recomienda: **Fase 0 (scaffolding)** y **Fase 1 (motor estocástico aislado + simulación de 60–90 días con gráficas validadas)**, revisando juntos los parámetros antes de cablear el LLM. El esqueleto NumPy de la Sección 3.5 del plan es el punto de arranque de la Fase 1.
+With this closed, the plan recommends: **Phase 0 (scaffolding)** and **Phase 1 (isolated stochastic engine + 60–90 day simulation with validated plots)**, reviewing the parameters together before wiring up the LLM. The NumPy skeleton of plan Section 3.5 is the Phase 1 starting point.
 
-Antes de la Fase 1 conviene una decisión de diseño: **¿binomial en logit (plan) o PAD continuo (literatura)?** Ambos son compatibles con la dinámica de dos velocidades; la binomial es más simple y aporta varianza acotada gratis, PAD es más rico y mejor citado. Recomendación: **binomial para el POC**, dejando PAD como extensión documentada.
+Before Phase 1, one design decision is worth making: **binomial in logit space (plan) or continuous PAD (literature)?** Both are compatible with dual-speed dynamics; the binomial is simpler and gives bounded variance for free, PAD is richer and better cited. Recommendation: **binomial for the POC**, leaving PAD as a documented extension.

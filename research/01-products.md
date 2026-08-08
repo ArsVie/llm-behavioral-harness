@@ -1,3 +1,11 @@
+---
+type: research-note
+title: Companion AI Products — Prior-Art Survey
+description: "Memory persistence, proactive messaging, persona onboarding, and safeguards across six commercial companion-AI products."
+tags: [prior-art, companion-ai, products, survey]
+timestamp: 2026-06-23
+---
+
 # Companion AI Products — Prior-Art Survey
 
 **Scope:** Memory persistence, proactive messaging, persona onboarding, and safeguards across six commercial companion-AI products.  

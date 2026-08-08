@@ -1,3 +1,11 @@
+---
+type: reference
+title: 30-day behavioral emulation — examples
+description: "Contrasting day briefs from the 30-day behavioral emulation — expected briefs without canned dialogue."
+tags: [results, behavior, emulation, examples, phase-2]
+timestamp: 2026-07-15
+---
+
 # 30-day behavioral emulation
 
 Representative seed: `7` selected from ensemble n=30.

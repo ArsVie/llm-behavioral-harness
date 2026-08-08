@@ -1,100 +1,108 @@
-# Fase 1 — Informe de validación del motor estocástico (W4.1)
+---
+type: experiment-report
+title: Phase 1 — Stochastic engine validation report (W4.1)
+description: "W4.1 synthesis of waves w31–w35 — criteria 1–8 pass/fail table, variant choice, tuned defaults, open risks, and checkpoint decisions."
+tags: [results, phase-1, validation, engine, informe]
+timestamp: 2026-07-03
+---
 
-**Fecha:** 2026-07-03
-**Alcance:** motor estocástico aislado + simulación 90–120 días, **sin LLM** (objetivo de Fase 1 del plan).
-**Insumos:** los 5 reportes de la Ola 3 — [w31-baseline](w31-baseline/reporte.md) · [w32-variantes](w32-variantes/reporte.md) · [w33-barrido](w33-barrido/reporte.md) · [w34-temporizacion](w34-temporizacion/reporte.md) · [w35-shocks](w35-shocks/reporte.md) — más una verificación adicional de W4.1 (criterio 4 bajo defaults afinados, abajo).
-**Estado del código:** 213 tests verdes (`pytest` completo); todos los experimentos reproducibles con `python -m experiments.<id>` (semillas fijas documentadas en cada reporte).
+# Phase 1 — Stochastic engine validation report (W4.1)
+
+**Date:** 2026-07-03
+**Scope:** isolated stochastic engine + 90–120 day simulation, **no LLM** (Phase 1 objective of the plan).
+**Inputs:** the 5 Wave 3 reports — [w31-baseline](w31-baseline/reporte.md) · [w32-variantes](w32-variantes/reporte.md) · [w33-barrido](w33-barrido/reporte.md) · [w34-temporizacion](w34-temporizacion/reporte.md) · [w35-shocks](w35-shocks/reporte.md) — plus an additional W4.1 verification (criterion 4 under tuned defaults, below).
+**Code status:** 213 tests green (full `pytest`); all experiments reproducible with `python -m experiments.<id>` (fixed seeds documented in each report).
 
 ---
 
-## Resumen ejecutivo
+## Executive summary
 
-El motor se sostiene. Con los **defaults de DESIGN.md** pasan 6 de 8 criterios; los dos que fallan — (4) varianza modulada por g y (6) autocorrelación lag-1 "humana" — comparten una sola causa raíz: el ruido binomial rápido (N=10, Var≈2.4/día) entierra la señal lenta de μ/η con σ_e=0.2. El barrido (W3.3) encontró el arreglo con un cambio mínimo: **`rho_e=0.7, sigma_e=0.45`** (todo lo demás igual), que mete la autocorrelación en el centro del rango objetivo (0.39–0.41) y levanta el ratio de varianza por g a 1.31 medio, sin saturar ni desestabilizar la media. La comparativa de variantes (W3.2) confirma con datos la elección de diseño: **DECOUPLED_OFFSETS**. La temporización (W3.4) pasa entera tal cual está configurada. El lazo score→μ (W3.5) revierte shocks como predice la teoría y la cota de estabilidad se confirma conservadora, con un hallazgo estructural a tener en cuenta para Fase 3 (sesgo positivo del lazo con `score_neutral=0`, ver riesgos).
+The engine holds. With the **DESIGN.md defaults** 6 of 8 criteria pass; the two that fail — (4) variance modulated by g and (6) "human" lag-1 autocorrelation — share a single root cause: the fast binomial noise (N=10, Var≈2.4/day) buries the slow μ/η signal with σ_e=0.2. The sweep (W3.3) found the fix with a minimal change: **`rho_e=0.7, sigma_e=0.45`** (everything else unchanged), which puts autocorrelation in the center of the target range (0.39–0.41) and raises the g variance ratio to a mean of 1.31, without saturating or destabilizing the mean. The variant comparison (W3.2) confirms the design choice with data: **DECOUPLED_OFFSETS**. Timing (W3.4) passes entirely as configured. The score→μ loop (W3.5) reverts shocks as theory predicts and the stability bound is confirmed conservative, with a structural finding to keep in mind for Phase 3 (positive loop bias with `score_neutral=0`, see risks).
 
-**Recomendación:** congelar `MoodVariant.DECOUPLED_OFFSETS` + los defaults afinados de abajo como parámetros de arranque de Fase 2, y revisar en el checkpoint los dos puntos de decisión marcados (fuerza del efecto g; sesgo del lazo).
+**Recommendation:** freeze `MoodVariant.DECOUPLED_OFFSETS` + the tuned defaults below as Phase 2 starting parameters, and review at the checkpoint the two marked decision points (strength of the g effect; loop bias).
 
 ---
 
-## Tabla de criterios (plan §validación + research/05 §6)
+## Criteria table (plan §validation + research/05 §6)
 
-| # | Criterio | Umbral | Defaults DESIGN | Defaults afinados | Veredicto | Evidencia |
+| # | Criterion | Threshold | DESIGN defaults | Tuned defaults | Verdict | Evidence |
 |---|---|---|---|---|---|---|
-| 1 | Media de M estable ≈ N·σ(logit λ)=6.0, sin deriva | media ∈ [5.25, 6.75]; deriva < 1.0 | 5.82–6.33, deriva ≤ 0.98 (5/5) | media 5.77 (10 semillas) | **PASS** | [w31](w31-baseline/mean_M_across_seeds.png) |
-| 2 | m/g ondas limpias de periodo ~L | autocorr m lag28 > 0.5; amps ≈ B, A ±30% | 0.90–1.00; amp(m)=0.150, amp(g−1)≈0.25 (5/5) | sin cambio (no depende de ρ_e/σ_e) | **PASS** | [w31](w31-baseline/mg_decoupled_offsets_s101.png) |
-| 3 | Histograma de M sin saturación | frac(M∈{0,N}) < 10% | 0–1.1% | 3.0% | **PASS** | [w31](w31-baseline/mood_hist_decoupled_offsets_s101.png) |
-| 4 | var(M) mayor en g-alta vs g-baja | ratio > 1 | **FAIL** — 0.926 medio, 3/5 | **PASS marginal** — 1.308 medio, 7/10 | **PASS marginal** | [w33 heatmap](w33-barrido/05_A_B_var_ratio.png) + §verificación abajo |
-| 5 | μ cae con racha y revierte en ~1/(1−ρ) d; cota de estabilidad | caída < μ_pre−0.15; reversión ∈ [1,8] d; orden monotónico en k | caída 5/5; reversión 3–8 d (teórico 2.8); ρ↑⇒reversión↑ (3.4/5.2/12.6 d); cota separa k=0.40/0.47/0.60 monotónicamente | — | **PASS** (nota: umbral literal \|μ\|<0.6 falla por sesgo de λ, ver riesgo R1) | [w35](w35-shocks/01_shock_mu_t.png), [w35 cota](w35-shocks/04_k_comparison_mu_and_sat.png) |
-| 6 | autocorr lag-1 de M ∈ [0.2, 0.5] | por semilla | **FAIL** — 0.113 medio, 0/5 | **PASS** — 0.411 medio, 9/10 (una semilla 0.549) | **PASS (afinados)** | [w33 heatmap](w33-barrido/01_rho_e_sigma_e_autocorr.png), [verificación](w33-barrido/08_verificacion_defaults_M_t.png) |
-| 7 | Temporización: horario ⊂ envolvente; 0 en quiet hours; media ∈ [1,3]/d; hazard creciente; efecto de fase | ver reporte | 0 violaciones (5/5); 1.36–1.59/d (5/5); moda gaps 14.5 h ≫ 0; cv↓ con k_w (0.83→0.41); Spearman(mult, tasa)=0.87; cap ata 5.8% de días | n/a (TimingParams sin cambios) | **PASS** | [w34 horario](w34-temporizacion/hourly_events_baseline_agg_s1001-1002-1003-1004-1005.png), [fase](w34-temporizacion/phase_rate_vs_multiplier.png) |
-| 8a | Variantes comparadas, diferencias documentadas | 3 contrastes estructurales | acoplamiento media-ganancia del ORIGINAL visible (Δmedia 0.40 vs −0.27); autocorr con η > sin η; efecto de B medible (corr 0.20 vs −0.11) | — | **PASS** | [w32](w32-variantes/metrics_barplot.png) |
-| 8b | Barrido: región "humana" + defaults afinados verificados | región no vacía + verificación con semillas frescas | región en los 3 grids (5+2+1 celdas); propuesta verificada 4/4 métricas | — | **PASS** | [w33 heatmaps](w33-barrido/01_rho_e_sigma_e_autocorr.png) |
-| 9 | Repetibilidad del juez | — | — | — | **Fase 3** (fuera de alcance, por plan) | — |
+| 1 | Stable M mean ≈ N·σ(logit λ)=6.0, no drift | mean ∈ [5.25, 6.75]; drift < 1.0 | 5.82–6.33, drift ≤ 0.98 (5/5) | mean 5.77 (10 seeds) | **PASS** | [w31](w31-baseline/mean_M_across_seeds.png) |
+| 2 | Clean m/g waves of period ~L | m lag-28 autocorr > 0.5; amps ≈ B, A ±30% | 0.90–1.00; amp(m)=0.150, amp(g−1)≈0.25 (5/5) | unchanged (does not depend on ρ_e/σ_e) | **PASS** | [w31](w31-baseline/mg_decoupled_offsets_s101.png) |
+| 3 | M histogram without saturation | frac(M∈{0,N}) < 10% | 0–1.1% | 3.0% | **PASS** | [w31](w31-baseline/mood_hist_decoupled_offsets_s101.png) |
+| 4 | var(M) higher in high-g vs low-g | ratio > 1 | **FAIL** — 0.926 mean, 3/5 | **marginal PASS** — 1.308 mean, 7/10 | **marginal PASS** | [w33 heatmap](w33-barrido/05_A_B_var_ratio.png) + §verification below |
+| 5 | μ drops with a streak and reverts in ~1/(1−ρ) d; stability bound | drop < μ_pre−0.15; reversion ∈ [1,8] d; monotonic order in k | drop 5/5; reversion 3–8 d (theoretical 2.8); ρ↑⇒reversion↑ (3.4/5.2/12.6 d); bound separates k=0.40/0.47/0.60 monotonically | — | **PASS** (note: literal threshold \|μ\|<0.6 fails due to λ bias, see risk R1) | [w35](w35-shocks/01_shock_mu_t.png), [w35 bound](w35-shocks/04_k_comparison_mu_and_sat.png) |
+| 6 | lag-1 autocorr of M ∈ [0.2, 0.5] | per seed | **FAIL** — 0.113 mean, 0/5 | **PASS** — 0.411 mean, 9/10 (one seed 0.549) | **PASS (tuned)** | [w33 heatmap](w33-barrido/01_rho_e_sigma_e_autocorr.png), [verification](w33-barrido/08_verificacion_defaults_M_t.png) |
+| 7 | Timing: hourly ⊂ envelope; 0 in quiet hours; mean ∈ [1,3]/d; increasing hazard; phase effect | see report | 0 violations (5/5); 1.36–1.59/d (5/5); gap mode 14.5 h ≫ 0; cv↓ with k_w (0.83→0.41); Spearman(mult, rate)=0.87; cap binds 5.8% of days | n/a (TimingParams unchanged) | **PASS** | [w34 hourly](w34-temporizacion/hourly_events_baseline_agg_s1001-1002-1003-1004-1005.png), [phase](w34-temporizacion/phase_rate_vs_multiplier.png) |
+| 8a | Variants compared, differences documented | 3 structural contrasts | visible ORIGINAL mean-gain coupling (Δmean 0.40 vs −0.27); autocorr with η > without η; measurable B effect (corr 0.20 vs −0.11) | — | **PASS** | [w32](w32-variantes/metrics_barplot.png) |
+| 8b | Sweep: "human" region + verified tuned defaults | non-empty region + verification with fresh seeds | region in all 3 grids (5+2+1 cells); proposal verified 4/4 metrics | — | **PASS** | [w33 heatmaps](w33-barrido/01_rho_e_sigma_e_autocorr.png) |
+| 9 | Judge repeatability | — | — | — | **Phase 3** (out of scope, per plan) | — |
 
 ---
 
-## Verificación adicional W4.1 — criterio (4) bajo defaults afinados
+## Additional W4.1 verification — criterion (4) under tuned defaults
 
-W3.3 verificó su propuesta contra 4 métricas (media, sd, autocorr, saturación) pero no contra el ratio de varianza por g. Se corrió aparte: `PersonaParams(rho_e=0.7, sigma_e=0.45)`, DECOUPLED_OFFSETS, 90 días, 10 semillas `[66,77,88,99,110,101,202,303,404,505]`:
+W3.3 verified its proposal against 4 metrics (mean, sd, autocorr, saturation) but not the variance ratio by g. Run separately: `PersonaParams(rho_e=0.7, sigma_e=0.45)`, DECOUPLED_OFFSETS, 90 days, 10 seeds `[66,77,88,99,110,101,202,303,404,505]`:
 
 ```
-var_ratio  medio = 1.308   (> 1 en 7/10 semillas; rango 0.43–2.34)
-ac1        medio = 0.411   (en [0.2,0.5]: 9/10)
-mean(M)    medio = 5.77    sd(M) medio = 2.13    saturación media = 3.0%
+var_ratio  mean = 1.308   (> 1 in 7/10 seeds; range 0.43–2.34)
+ac1        mean = 0.411   (in [0.2,0.5]: 9/10)
+mean(M)    mean = 5.77    sd(M) mean = 2.13    mean saturation = 3.0%
 ```
 
-Lectura: al triplicar la sd estacionaria de η (0.23 → 0.63), g tiene más desviación que amplificar y el efecto pasa de invisible (0.93) a presente (1.31). Sigue siendo **marginal a 90 días por semilla** (3/10 semillas quedan < 1 por azar): la huella existe en agregado pero no está garantizada en una ventana corta. Si se quiere perceptible por ciclo individual, el heatmap [05_A_B_var_ratio](w33-barrido/05_A_B_var_ratio.png) indica que hay que subir A (0.25 → 0.4), al costo de subir g_max y bajar la cota admisible de k (0.448 → 0.404 con A=0.4). **Decisión para el checkpoint.**
+Reading: tripling the stationary sd of η (0.23 → 0.63) gives g more deviation to amplify and the effect goes from invisible (0.93) to present (1.31). It remains **marginal at 90 days per seed** (3/10 seeds fall below 1 by chance): the footprint exists in aggregate but is not guaranteed in a short window. If per-individual-cycle perceptibility is wanted, the heatmap [05_A_B_var_ratio](w33-barrido/05_A_B_var_ratio.png) indicates raising A (0.25 → 0.4), at the cost of raising g_max and lowering the admissible k bound (0.448 → 0.404 with A=0.4). **Decision for the checkpoint.**
 
 ---
 
-## Elección de variante
+## Variant choice
 
-**`MoodVariant.DECOUPLED_OFFSETS`** — confirmada por datos (W3.2), no solo por diseño:
+**`MoodVariant.DECOUPLED_OFFSETS`** — confirmed by data (W3.2), not only by design:
 
-- ORIGINAL acopla nivel y reactividad en un solo término (`(logit λ + μ)·g`): Δmedia por g de +0.40 pasos sin knob para apagarla, y sin η no hay rachas endógenas (autocorr 0.097, la más baja). Se descarta.
-- DECOUPLED pierde el desplazamiento de media por fase (corr(MA7(M), m) = −0.11 ≈ ruido): el ciclo solo modula varianza, invisible como "estado de ánimo por fase".
-- DECOUPLED_OFFSETS compra los tres knobs ortogonales (B nivel, A reactividad, ρ_e/σ_e rachas) al costo de un parámetro extra; todos dejan huella medible por separado.
+- ORIGINAL couples level and reactivity in a single term (`(logit λ + μ)·g`): Δmean by g of +0.40 steps with no knob to turn it off, and without η there are no endogenous streaks (autocorr 0.097, the lowest). Discarded.
+- DECOUPLED loses the phase-driven mean shift (corr(MA7(M), m) = −0.11 ≈ noise): the cycle only modulates variance, invisible as "mood by phase".
+- DECOUPLED_OFFSETS buys the three orthogonal knobs (B level, A reactivity, ρ_e/σ_e streaks) at the cost of one extra parameter; all leave separately measurable footprints.
 
 ---
 
-## Defaults afinados propuestos (arranque de Fase 2)
+## Proposed tuned defaults (Phase 2 start)
 
 ```python
 PersonaParams(
     N=10, lam=0.60, nu=math.inf,
     k=0.15, rho=0.70,
-    rho_e=0.70,     # ← afinado (era 0.50)
-    sigma_e=0.45,   # ← afinado (era 0.20)
+    rho_e=0.70,     # ← tuned (was 0.50)
+    sigma_e=0.45,   # ← tuned (was 0.20)
     B=0.15, A=0.25, sigma_eps=0.03,
-    L_mean=28.0, L_sd=1.5, phi=0.0,   # φ se sortea por companion en producción
-    score_neutral=0.0,                # ← recalibrar en Fase 3 (ver R1)
+    L_mean=28.0, L_sd=1.5, phi=0.0,   # φ drawn per companion in production
+    score_neutral=0.0,                # ← recalibrate in Phase 3 (see R1)
 )
-TimingParams()  # sin cambios: validada entera en W3.4
+TimingParams()  # unchanged: validated entirely in W3.4
 ```
 
-Métricas con esta configuración (10 semillas): media 5.77 · sd 2.13 · autocorr 0.41 · saturación 3.0% · var_ratio 1.31. La media queda ~0.2 pasos bajo el 6.0 teórico — el ruido lento mayor interactúa con la concavidad de la sigmoide sobre p>0.5; cosmético y dentro del rango del criterio (1).
+Metrics with this configuration (10 seeds): mean 5.77 · sd 2.13 · autocorr 0.41 · saturation 3.0% · var_ratio 1.31. The mean lands ~0.2 steps below the theoretical 6.0 — the larger slow noise interacts with the sigmoid concavity above p>0.5; cosmetic and within criterion (1) range.
 
 ---
 
-## Riesgos abiertos
+## Open risks
 
-- **R1 — Sesgo positivo estructural del lazo (para Fase 3).** Con `score_neutral=0` y λ=0.6, el score sintético hereda la media de M (E[score]≈+0.2) y μ deriva a un equilibrio positivo; cerca o sobre la cota, el runaway es asimétrico hacia arriba con probabilidad ~1 (hallazgo de W3.5, 5/5 semillas y 3/3 valores de k). No es un bug del motor — es exactamente el fenómeno "juez descentrado" que DESIGN ya obliga a calibrar en Fase 3 (`score_neutral` empírico). Para simulaciones futuras con lazo centrado: `score_neutral ≈ 2·(λ−0.5)`.
-- **R2 — Criterio (4) marginal.** El efecto de g sobre la varianza es real pero débil a 90 días (7/10 semillas). Subir A=0.4 lo haría robusto al costo de apretar la cota de estabilidad. Decisión de producto: ¿debe la "fase reactiva" ser perceptible en un solo ciclo, o basta en agregado?
-- **R3 — Potencia estadística n=5 (W3.2).** Los tres contrastes de variantes se confirmaron direccionalmente, pero con sd entre semillas del orden de la media (intervalos solapados en el barplot). Las magnitudes citadas tienen incertidumbre alta; las direcciones son consistentes con la estructura de las fórmulas.
-- **R4 — Interacción k_w bajo × max_gap.** Con k_w=1 (hazard plano) el guard de 48 h domina la distribución de gaps (pico espurio en ~47.5 h, W3.4 §2). Irrelevante con el default k_w=2; revisar si algún tuning futuro baja k_w hacia 1.
-- **R5 — daily_cap.** Ata el 5.8% de los días con defaults (máx 10% por semilla) — aceptable, pero es un recorte real de la cola alta de la tasa; documentado por si la Fase 4 (scheduler real) observa menos "días intensos" de los esperados.
-
----
-
-## Próximo paso (checkpoint del plan)
-
-Este informe es el insumo de la **revisión conjunta de parámetros antes de cablear el LLM**. Decisiones a tomar en el checkpoint: (a) adoptar los defaults afinados tal cual, o subir también A (R2); (b) `score_neutral` en simulación (R1); (c) dar por congelado el contrato de `engine/types.py` para Fase 2 (cliente LLM + SQLite + CLI del resto de Fase 0, luego persona + cronograma + chat reactivo). El criterio (9) — repetibilidad del juez — queda programado para Fase 3, como manda el plan.
+- **R1 — Structural positive loop bias (for Phase 3).** With `score_neutral=0` and λ=0.6, the synthetic score inherits M's mean (E[score]≈+0.2) and μ drifts to a positive equilibrium; at or near the bound, runaway is asymmetric upward with probability ~1 (W3.5 finding, 5/5 seeds and 3/3 k values). It is not an engine bug — it is exactly the "off-center judge" phenomenon DESIGN already requires calibrating in Phase 3 (empirical `score_neutral`). For future simulations with a centered loop: `score_neutral ≈ 2·(λ−0.5)`.
+- **R2 — Criterion (4) marginal.** The g effect on variance is real but weak at 90 days (7/10 seeds). Raising A=0.4 would make it robust at the cost of tightening the stability bound. Product decision: should the "reactive phase" be perceptible in a single cycle, or is aggregate enough?
+- **R3 — Statistical power n=5 (W3.2).** The three variant contrasts were confirmed directionally, but with between-seed sd on the order of the mean (overlapping intervals in the barplot). The cited magnitudes have high uncertainty; the directions are consistent with the formula structure.
+- **R4 — Low k_w × max_gap interaction.** With k_w=1 (flat hazard) the 48 h guard dominates the gap distribution (spurious peak at ~47.5 h, W3.4 §2). Irrelevant with the default k_w=2; review if some future tuning lowers k_w toward 1.
+- **R5 — daily_cap.** Binds 5.8% of days with defaults (max 10% per seed) — acceptable, but it is a real cut of the high tail of the rate; documented in case Phase 4 (real scheduler) observes fewer "intense days" than expected.
 
 ---
 
-## Resolución del checkpoint (2026-07-03, decisión del usuario)
+## Next step (plan checkpoint)
 
-- **(a) Defaults afinados ADOPTADOS tal cual** (`rho_e=0.7`, `sigma_e=0.45`; A se queda en 0.25). Aplicado en `engine/types.py` y reflejado en la tabla de DESIGN.md; suite completa verde tras el cambio (213 tests).
-- **(b) R1 resuelto por diseño:** el sesgo ligeramente positivo del lazo se considera **deseable** — `score_neutral` se mantiene en 0.0 a propósito. La calibración empírica del juez en Fase 3 sigue vigente, pero su objetivo pasa a ser controlar la magnitud del sesgo, no eliminarlo.
-- **Galería de referencia:** simulaciones de 30 días de los ciclos emocionales bajo distintos efectos diarios (baseline, solo ciclo, solo endógeno, racha negativa, alta volatilidad, ciclo fuerte, efecto intradía) en [`engine_simulation/`](../engine_simulation/README.md), generadas con `python -m experiments.engine_simulation` (semilla 3001).
-- **(3ª iteración, mismo día) Memoria de eventos a escala de mes y circadiano solo-energía.** (a) `k=0.18, ρ=0.85` adoptados (eran 0.15/0.70): el techo del trato sube a μ∞=±1.2 — un mes perfecto vive en ~7.5 de media (72% de días ≥7) y uno horrible en ~3.3 (73% de días ≤4), contra 6.4/4.6 con los valores previos ([15_mes_perfecto_horrible.png](../engine_simulation/15_mes_perfecto_horrible.png)); dentro de la cota de estabilidad (0.18 < 0.224) y con half-life de 4.3 días — los días sueltos pesan poco, las rachas se acumulan. Se prefirió subir ρ y no k para no amplificar el ruido diario del juez. (b) **El circadiano deja de tocar la valencia**: `arg_h = arg + c(h)` descartado; la señal intradía se expresa solo por el canal de energía (DESIGN §Modulación circadiana revisado; `circadian.c` queda como utilidad). (c) La temporización sigue con envolvente × fase × adj — la energía **no** será el control único de la frecuencia; unificación tasa←energía diferida a experimento A/B de Fase 4. Tres tests que asumían los defaults viejos se fijaron a parámetros explícitos; suite verde (213).
-- **(2ª iteración, mismo día) `B` sube de 0.15 a 0.5.** El análisis de los datos puntuales mostró que con B=0.15 el ciclo mueve el ánimo real solo ±0.36 pasos contra un ruido de muestreo de sd≈1.55 — invisible incluso en la media móvil semanal. El barrido de B promediado sobre 30 semillas (`engine_simulation/12_barrido_B_30seeds.png`) mostró escala monotónica (corr con la onda teórica: 0.54 → 0.77 → 0.87 → 0.93 para B = 0.15/0.3/0.5/0.65) y que **B=0.5 es el mínimo donde el arco mensual es legible en el comportamiento observable**; además el lazo positivo (score→μ) amplifica la onda (~3.3 pasos pico-valle medidos vs 2.4 teóricos). B no entra en la cota de estabilidad (solo A vía g_max). Adoptado en `engine/types.py` y DESIGN.md.
+This report is the input for the **joint parameter review before wiring the LLM**. Decisions at the checkpoint: (a) adopt the tuned defaults as-is, or also raise A (R2); (b) `score_neutral` in simulation (R1); (c) declare the `engine/types.py` contract frozen for Phase 2 (LLM client + SQLite + CLI from the rest of Phase 0, then persona + schedule + reactive chat). Criterion (9) — judge repeatability — remains scheduled for Phase 3, as the plan mandates.
+
+---
+
+## Checkpoint resolution (2026-07-03, user decision)
+
+- **(a) Tuned defaults ADOPTED as-is** (`rho_e=0.7`, `sigma_e=0.45`; A stays at 0.25). Applied in `engine/types.py` and reflected in the DESIGN.md table; full suite green after the change (213 tests).
+- **(b) R1 resolved by design:** the slightly positive loop bias is considered **desirable** — `score_neutral` stays at 0.0 on purpose. The Phase 3 empirical judge calibration remains in force, but its goal becomes controlling the bias magnitude, not eliminating it.
+- **Reference gallery:** 30-day simulations of emotional cycles under different daily effects (baseline, cycle only, endogenous only, negative streak, high volatility, strong cycle, intra-day effect) in [`engine_simulation/`](../engine_simulation/README.md), generated with `python -m experiments.engine_simulation` (seed 3001).
+- **(3rd iteration, same day) Month-scale event memory and energy-only circadian.** (a) `k=0.18, ρ=0.85` adopted (were 0.15/0.70): the deal ceiling rises to μ∞=±1.2 — a perfect month lives at ~7.5 mean (72% of days ≥7) and a horrible one at ~3.3 (73% of days ≤4), vs 6.4/4.6 with the previous values ([15_mes_perfecto_horrible.png](../engine_simulation/15_mes_perfecto_horrible.png)); within the stability bound (0.18 < 0.224) and with a 4.3-day half-life — isolated days weigh little, streaks accumulate. Raising ρ instead of k was preferred to avoid amplifying the judge's daily noise. (b) **The circadian stops touching valence**: `arg_h = arg + c(h)` discarded; the intra-day signal is expressed only through the energy channel (DESIGN §Circadian modulation revised; `circadian.c` remains as a utility). (c) Timing continues with envelope × phase × adj — energy will **not** be the single frequency control; rate←energy unification deferred to a Phase 4 A/B experiment. Three tests that assumed the old defaults were fixed to explicit parameters; suite green (213).
+- **(2nd iteration, same day) `B` rises from 0.15 to 0.5.** Point-data analysis showed that with B=0.15 the cycle moves real mood only ±0.36 steps against sampling noise sd≈1.55 — invisible even in the weekly moving average. The B sweep averaged over 30 seeds (`engine_simulation/12_barrido_B_30seeds.png`) showed monotonic scaling (corr with the theoretical wave: 0.54 → 0.77 → 0.87 → 0.93 for B = 0.15/0.3/0.5/0.65) and that **B=0.5 is the minimum at which the monthly arc is legible in observable behavior**; additionally the positive loop (score→μ) amplifies the wave (~3.3 measured peak-trough steps vs 2.4 theoretical). B does not enter the stability bound (only A via g_max). Adopted in `engine/types.py` and DESIGN.md.

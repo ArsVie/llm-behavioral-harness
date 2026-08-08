@@ -1,58 +1,66 @@
-# Galería de simulaciones — efectos diarios del motor
+---
+type: reference
+title: Simulation gallery — daily engine effects
+description: Reference gallery of 30-day engine simulations (variant decoupled_offsets, shared seed 3001) — scenario figures, base persona and per-scenario overrides, B/k/ρ tuning sweeps, and how to regenerate them.
+tags: [simulation, engine, gallery, reference]
+timestamp: 2026-07-03
+---
 
-30 días · variante `decoupled_offsets` · semilla **3001** compartida entre los 6 escenarios (las diferencias vienen de los overrides, no del azar). Persona base = `PersonaParams()` (defaults adoptados en Fase 1).
+# Simulation gallery — daily engine effects
 
-## Figuras
+30 days · variant `decoupled_offsets` · seed **3001** shared across the 6 scenarios (the differences come from the overrides, not from chance). Base persona = `PersonaParams()` (defaults adopted in Phase 1).
 
-| Figura | Qué muestra | Qué mirar |
+## Figures
+
+| Figure | What it shows | What to look at |
 |---|---|---|
-| `00_comparativa.png` | Small multiples 2×3 de M(t) para los 6 escenarios, mismo eje y | Contraste rápido de dispersión y nivel medio entre escenarios |
-| `01_baseline.png` | Todos los efectos activos: ciclo m/g + rachas endógenas η + memoria de eventos μ | Línea de base con la que comparar los demás escenarios |
-| `02_solo_ciclo.png` | σ_e=0, k=0 ⇒ η≡0 y μ≡0: solo queda la onda hormonal m/g | Periodicidad ~28 días pura, sin ruido de rachas ni memoria |
-| `03_solo_endogeno.png` | B=0, A=0, σ_ε=0, k=0: solo quedan las rachas endógenas η | Deriva tipo "amanecí así, sin motivo", sin periodicidad del ciclo |
-| `04_racha_negativa.png` | Defaults + shocks días 10–14 = −1.0 (vía μ) | Profundidad de la caída de μ durante la racha y velocidad de recuperación al soltar |
-| `05_alta_volatilidad.png` | ν=4.0: sobredispersión beta-binomial | M(t) más errático día a día que el baseline, banda de referencia más ancha |
-| `06_ciclo_fuerte.png` | A=0.4, B=0.3: variante "fase perceptible" (riesgo R2, results/fase-1-informe.md) | Oscilación de m/g y su arrastre sobre M(t) mucho más visible en un solo ciclo |
-| `07_intradia.png` | Efecto circadiano (rápido) sobre el baseline: heatmap p_h(d,h) y curvas de energía por fase | Pico diario de probabilidad de mensaje alrededor de `peak_hour`, y cómo el offset de energía por fase desplaza cada curva |
+| `00_comparativa.png` | Small multiples 2×3 of M(t) for the 6 scenarios, shared y axis | Quick contrast of dispersion and mean level across scenarios |
+| `01_baseline.png` | All effects active: m/g cycle + endogenous runs η + event memory μ | Baseline line to compare the other scenarios against |
+| `02_solo_ciclo.png` | σ_e=0, k=0 ⇒ η≡0 and μ≡0: only the hormonal m/g wave remains | Pure ~28-day periodicity, without run noise or memory |
+| `03_solo_endogeno.png` | B=0, A=0, σ_ε=0, k=0: only the endogenous runs η remain | "Woke up like this, no reason" drift, without cycle periodicity |
+| `04_racha_negativa.png` | Defaults + shocks days 10–14 = −1.0 (via μ) | Depth of the μ drop during the run and recovery speed once released |
+| `05_alta_volatilidad.png` | ν=4.0: beta-binomial overdispersion | M(t) more erratic day to day than the baseline, wider reference band |
+| `06_ciclo_fuerte.png` | A=0.4, B=0.3: "perceptible phase" variant (risk R2, results/fase-1-informe.md) | m/g oscillation and its pull on M(t) much more visible in a single cycle |
+| `07_intradia.png` | Circadian (fast) effect on the baseline: p_h(d,h) heatmap and per-phase energy curves | Daily peak of message probability around `peak_hour`, and how the per-phase energy offset shifts each curve |
 
-## Regenerar
+## Regenerate
 
-```powershell
-wsl.exe -d Ubuntu -- bash -lc 'cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m experiments.engine_simulation'
+```bash
+cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m experiments.engine_simulation
 ```
 
-Semilla compartida: **3001** · variante: `decoupled_offsets` · días: 30
+Shared seed: **3001** · variant: `decoupled_offsets` · days: 30
 
-### Persona base y overrides por escenario
+### Base persona and per-scenario overrides
 
-Persona base = `PersonaParams()` (defaults): lam=0.6, nu=inf, k=0.15, rho=0.7, rho_e=0.7, sigma_e=0.45, B=0.15, A=0.25, sigma_eps=0.03.
+Base persona = `PersonaParams()` (defaults): lam=0.6, nu=inf, k=0.15, rho=0.7, rho_e=0.7, sigma_e=0.45, B=0.15, A=0.25, sigma_eps=0.03.
 
-> Nota: las figuras 00–12 se generaron con B=0.15 (el default de entonces). El 2026-07-03 se adoptó **B=0.5** tras el barrido de la figura 12 (las figuras 13–15 ya lo usan), y después **k=0.18, ρ=0.85** tras la figura 15 (que compara ese régimen — "lenta" — contra el anterior). Defaults vigentes: ver `engine/types.py`.
+> Note: figures 00–12 were generated with B=0.15 (the default at the time). On 2026-07-03 **B=0.5** was adopted after the figure 12 sweep (figures 13–15 already use it), and later **k=0.18, ρ=0.85** after figure 15 (which compares that regime — "slow" — against the previous one). Current defaults: see `engine/types.py`.
 
-| Escenario | Overrides (dataclasses.replace) | Shocks |
+| Scenario | Overrides (dataclasses.replace) | Shocks |
 |---|---|---|
 | `01_baseline` (baseline) | — | — |
-| `02_solo_ciclo` (solo ciclo hormonal) | sigma_e=0.0, k=0.0 | — |
-| `03_solo_endogeno` (solo rachas endogenas) | B=0.0, A=0.0, sigma_eps=0.0, k=0.0 | — |
-| `04_racha_negativa` (racha negativa (shocks 10-14)) | — | días 10–14 = -1.0 |
-| `05_alta_volatilidad` (alta volatilidad (nu=4.0)) | nu=4.0 | — |
-| `06_ciclo_fuerte` (ciclo fuerte (A=0.4, B=0.3)) | A=0.4, B=0.3 | — |
+| `02_solo_ciclo` (hormonal cycle only) | sigma_e=0.0, k=0.0 | — |
+| `03_solo_endogeno` (endogenous runs only) | B=0.0, A=0.0, sigma_eps=0.0, k=0.0 | — |
+| `04_racha_negativa` (negative run (shocks 10-14)) | — | days 10–14 = -1.0 |
+| `05_alta_volatilidad` (high volatility (nu=4.0)) | nu=4.0 | — |
+| `06_ciclo_fuerte` (strong cycle (A=0.4, B=0.3)) | A=0.4, B=0.3 | — |
 
-## Lecturas adicionales
+## Further readings
 
-Con B=0.15 (default) el ciclo hormonal mueve el ánimo real N·p(t) solo ≈0.36 pasos (sensibilidad local N·p·(1−p)≈2.4 pasos/logit) contra un ruido de muestreo binomial de sd≈1.55 pasos: invisible mirando solo los puntos M(t) del dado diario. Estas dos figuras separan la señal del ruido de muestreo.
+With B=0.15 (default) the hormonal cycle moves the real mood N·p(t) by only ≈0.36 steps (local sensitivity N·p·(1−p)≈2.4 steps/logit) against a binomial sampling noise of sd≈1.55 steps: invisible when looking only at the daily die-roll M(t) points. These two figures separate the signal from the sampling noise.
 
-| Figura | Qué muestra | Cómo leerla |
+| Figure | What it shows | How to read it |
 |---|---|---|
-| `10_barrido_B.png` | 4 paneles (B ∈ {0.15, 0.30, 0.50, 0.65}, resto de la persona = defaults): M(t) (dado diario, gris), N·p(t) ± σ_binom (ánimo real, azul) y MA7(M) (media móvil 7 días, naranja discontinua) | Compara la amplitud teórica del título de cada panel (≈2.4·B pasos) contra el ruido de muestreo sd≈1.55 pasos: recién con B≈0.5–0.65 la onda se distingue a simple vista en N·p(t) y, más suavizada aún, en MA7(M) |
-| `11_lectura_suavizada.png` | Los mismos 6 escenarios de la galería principal, pero releídos con N·p(t) (ánimo real) y MA7(M) (media móvil) superpuestos sobre M(t) (dado diario, gris) | Compara qué sobrevive al promediar: en `02_solo_ciclo` y `06_ciclo_fuerte` la onda hormonal emerge con claridad en N·p(t); en `04_racha_negativa` la caída y recuperación de la racha se ve mucho más nítida en MA7(M) que en el M(t) crudo; en `05_alta_volatilidad` el suavizado reduce el aspecto errático pero no cambia la tendencia central |
-| `12_barrido_B_30seeds.png` | El mismo barrido de B ∈ {0.15, 0.30, 0.50, 0.65} que `10_barrido_B.png`, pero promediado entre 30 semillas (4001–4030) en vez de mostrar una sola: media entre semillas de M(t) (naranja, ± sem sombreado), media entre semillas de N·p(t) (azul) y la onda teórica pura N·sigmoid(logit(0.6)+B·sin(2πt/28)) (negro punteado) | Al promediar 30 semillas el ruido de muestreo binomial y las rachas endógenas de η se cancelan en gran parte, dejando ver la onda hormonal incluso para B pequeño; compara la amplitud pico-valle medida (título de cada panel) contra la de la onda teórica para ver cuánto de la señal restante viene de μ/η residual |
-| `13_dias_buenos_malos.png` | 3 paneles apilados (una sola semilla, 3001): "siempre buenos" (shock=+1.0 todos los días), baseline (score endógeno, sin shocks) y "siempre malos" (shock=−1.0 todos los días); M(t) crudo (gris), N·p(t) ± sd binomial (verde/azul/rojo) y μ(t) en eje secundario con la línea de equilibrio teórico μ∞=±0.5 | Compara el μ(t) final medido (título de cada panel) contra el equilibrio teórico μ∞=k·(s−score_neutral)/(1−ρ)=±0.5; con ρ=0.70 la vida media de μ es ≈1.9 días, así que el equilibrio se alcanza en ≈5–7 días |
-| `14_dias_buenos_malos_promedio.png` | Media entre 30 semillas (4001–4030) de M(t) para los 3 regímenes en un solo eje (verde/azul/rojo, ± sem sombreado), con las curvas de referencia N·sigmoid(logit(0.6)+B·sin(2πt/28)+μ∞) punteadas (μ∞∈{+0.5, 0, −0.5}); panel inferior: media entre semillas de μ(t) por régimen con las asíntotas ±0.5 | Muestra cuánto separa en pasos de M un régimen de "siempre buenos" de uno de "siempre malos" una vez que μ converge, y en cuántos días se abre esa separación desde el arranque compartido en μ=0 |
-| `15_mes_perfecto_horrible.png` | Tres parametrizaciones de la memoria de eventos — actual (k=0.15, ρ=0.70, μ∞=±0.5), media (k=0.25, ρ=0.80, μ∞=±1.25) y lenta (k=0.18, ρ=0.85, μ∞=±1.20), todas dentro de la cota de estabilidad — bajo mes perfecto (+1) y mes horrible (−1), 30 semillas × 30 días; banda = p10–p90 de los días, zonas objetivo 7–10 y 0–4 sombreadas | Con μ∞=±0.5 (actual) el mes perfecto se queda en ~6.4 (50% de días ≥7); con μ∞≈±1.2–1.25 el mes perfecto vive en ~7.5–7.6 (72–75% de días ≥7) y el horrible en ~3.2–3.3 (73–77% de días ≤4) — el techo del trato es el knob k/(1−ρ), no una limitación estructural (regenerar: `experiments.engine_simulation_meses`) |
+| `10_barrido_B.png` | 4 panels (B ∈ {0.15, 0.30, 0.50, 0.65}, rest of the persona = defaults): M(t) (daily die roll, gray), N·p(t) ± σ_binom (real mood, blue) and MA7(M) (7-day moving average, dashed orange) | Compare each panel's theoretical amplitude in its title (≈2.4·B steps) against the sampling noise sd≈1.55 steps: only with B≈0.5–0.65 does the wave become visible to the naked eye in N·p(t) and, even smoother, in MA7(M) |
+| `11_lectura_suavizada.png` | The same 6 gallery scenarios, but re-read with N·p(t) (real mood) and MA7(M) (moving average) overlaid on M(t) (daily die roll, gray) | Compare what survives averaging: in `02_solo_ciclo` and `06_ciclo_fuerte` the hormonal wave clearly emerges in N·p(t); in `04_racha_negativa` the run's fall and recovery is much sharper in MA7(M) than in raw M(t); in `05_alta_volatilidad` smoothing reduces the erratic look but does not change the central tendency |
+| `12_barrido_B_30seeds.png` | The same B ∈ {0.15, 0.30, 0.50, 0.65} sweep as `10_barrido_B.png`, but averaged over 30 seeds (4001–4030) instead of showing a single one: between-seed mean of M(t) (orange, ± sem shaded), between-seed mean of N·p(t) (blue) and the pure theoretical wave N·sigmoid(logit(0.6)+B·sin(2πt/28)) (dashed black) | Averaging 30 seeds cancels most of the binomial sampling noise and the endogenous η runs, letting the hormonal wave show even for small B; compare the measured peak-to-valley amplitude (each panel's title) against the theoretical wave to see how much of the remaining signal comes from residual μ/η |
+| `13_dias_buenos_malos.png` | 3 stacked panels (single seed, 3001): "always good" (shock=+1.0 every day), baseline (endogenous score, no shocks) and "always bad" (shock=−1.0 every day); raw M(t) (gray), N·p(t) ± binomial sd (green/blue/red) and μ(t) on a secondary axis with the theoretical equilibrium line μ∞=±0.5 | Compare the measured final μ(t) (each panel's title) against the theoretical equilibrium μ∞=k·(s−score_neutral)/(1−ρ)=±0.5; with ρ=0.70 the half-life of μ is ≈1.9 days, so equilibrium is reached in ≈5–7 days |
+| `14_dias_buenos_malos_promedio.png` | Between-seed mean over 30 seeds (4001–4030) of M(t) for the 3 regimes on a single axis (green/blue/red, ± sem shaded), with reference curves N·sigmoid(logit(0.6)+B·sin(2πt/28)+μ∞) dashed (μ∞∈{+0.5, 0, −0.5}); bottom panel: between-seed mean of μ(t) per regime with the ±0.5 asymptotes | Shows how many M steps an "always good" regime separates from an "always bad" one once μ converges, and in how many days that separation opens from the shared start at μ=0 |
+| `15_mes_perfecto_horrible.png` | Three parametrizations of event memory — current (k=0.15, ρ=0.70, μ∞=±0.5), medium (k=0.25, ρ=0.80, μ∞=±1.25) and slow (k=0.18, ρ=0.85, μ∞=±1.20), all inside the stability bound — under a perfect month (+1) and a horrible month (−1), 30 seeds × 30 days; band = p10–p90 of the days, target zones 7–10 and 0–4 shaded | With μ∞=±0.5 (current) the perfect month lands at ~6.4 (50% of days ≥7); with μ∞≈±1.2–1.25 the perfect month lives at ~7.5–7.6 (72–75% of days ≥7) and the horrible one at ~3.2–3.3 (73–77% of days ≤4) — the deal's ceiling is the k/(1−ρ) knob, not a structural limitation (regenerate: `experiments.engine_simulation_meses`) |
 
-### Regenerar
+### Regenerate
 
-```powershell
-wsl.exe -d Ubuntu -- bash -lc 'cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m experiments.engine_simulation_lecturas'
+```bash
+cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m experiments.engine_simulation_lecturas
 ```

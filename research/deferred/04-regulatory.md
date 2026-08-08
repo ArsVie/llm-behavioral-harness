@@ -1,3 +1,11 @@
+---
+type: deferred-note
+title: 04 — Wellbeing & Regulatory Framework
+description: "Phase −1 prior-art on wellbeing and regulation for AI companions — transparency obligations, regulatory precedents, crisis-signal handling, and guardrails."
+tags: [prior-art, regulatory, wellbeing, crisis, guardrails, deferred]
+timestamp: 2026-06-23
+---
+
 # 04 — Wellbeing & Regulatory Framework
 
 > Phase −1 prior-art research for the LLM Behavioral Harness / AI Companion POC.

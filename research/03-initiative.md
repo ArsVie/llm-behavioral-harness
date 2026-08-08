@@ -1,3 +1,11 @@
+---
+type: research-note
+title: "03 — Initiative: When and Why Proactive Agents Reach Out"
+description: "Phase −1 prior-art on proactive agents — signal taxonomy, readiness/termination gates, non-intrusive initiative design rules, and anti-patterns."
+tags: [prior-art, initiative, proactivity, scheduler, anti-patterns]
+timestamp: 2026-06-23
+---
+
 # 03 — Initiative: When and Why Proactive Agents Reach Out
 
 > Phase −1 prior-art research for the LLM behavioral harness / initiative subsystem.

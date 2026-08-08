@@ -1,214 +1,219 @@
-# Diseño del sistema — Arnés conductual para LLM con iniciativa
+---
+type: design
+title: System design — behavioral harness for LLMs with initiative
+description: POC design spec for an OpenAI-compatible behavioral harness — stochastic engine (beta-binomial mood in logit space, ~28-day hormonal cycle, circadian energy channel, Weibull-hazard message timing), behavioral actuation, initiative, memory, judge feedback loop, SQLite data model, and initial parameters.
+tags: [design, harness, engine, stochastic, llm]
+timestamp: 2026-06-24
+---
 
-**Proyecto:** POC de arnés conductual
-**Fecha:** 2026-06-24
-**Base:** prompt inicial del proyecto + resultados de la Fase −1 ([síntesis](research/00-sintesis-fase-menos-1.md))
+# System design — behavioral harness for LLMs with initiative
+
+**Project:** behavioral harness POC
+**Date:** 2026-06-24
+**Basis:** initial project prompt + Phase −1 results ([synthesis](research/00-sintesis-fase-menos-1.md))
 
 ---
 
-## Inspiración inicial
+## Initial inspiration
 
-El concepto parte del paper *"Every 28 Days the AI Dreams of Soft Skin and Burning Stars: Scaffolding AI Agents with Hormones and Emotions"* (arXiv 2508.11829), que propone usar ritmos biológicos simulados —un ciclo hormonal de ~28 días y una superposición circadiana— como andamiaje para dar variabilidad afectiva y filtros de relevancia a un agente. Tomamos esa idea como semilla conceptual y la llevamos a un motor estocástico explícito acoplado a una capa de orquestación de contexto y temporización.
-
----
-
-## Qué es
-
-Un **arnés (wrapper) compatible con APIs OpenAI** que envuelve cualquier LLM accesible por una interfaz OpenAI-compatible e inyecta **iniciativa** y **variabilidad conductual** mediante procesos estocásticos. El arnés no modifica el modelo base; opera enteramente en la capa de orquestación de contexto y temporización. La API es portable; la presión del brief conductual se calibra por familia de modelo, porque modelos distintos obedecen la persona con distinta intensidad.
-
-La **persona** simulada es un parámetro de configuración, no lógica cableada: un solo motor sirve para cualquier perfil. La caracterización vive como dato.
+The concept starts from the paper *"Every 28 Days the AI Dreams of Soft Skin and Burning Stars: Scaffolding AI Agents with Hormones and Emotions"* (arXiv 2508.11829), which proposes using simulated biological rhythms — a ~28-day hormonal cycle and a circadian overlay — as scaffolding to give an agent affective variability and relevance filters. We take that idea as a conceptual seed and carry it into an explicit stochastic engine coupled to a context and timing orchestration layer.
 
 ---
 
-## Características
+## What it is
 
-1. **Backwards compatibility (import).** Ingiere exportaciones de conversación (formato genérico de turnos `{role, content, timestamp}`, con conversores específicos según necesidad) y reconstruye historial, memoria resumida y ánimo inicial (desde el sentimiento de los últimos días) para continuar la relación sobre el nuevo arnés. La fase hormonal no es observable en un export — se inicializa aleatoria.
+An **OpenAI-API-compatible harness (wrapper)** that wraps any LLM reachable through an OpenAI-compatible interface and injects **initiative** and **behavioral variability** through stochastic processes. The harness does not modify the base model; it operates entirely in the context and timing orchestration layer. The API is portable; the behavioral brief pressure is calibrated per model family, because different models obey the persona with different intensity.
 
-2. **Configuración de tema/personalidad (mezcla 40/40/20).** Onboarding breve que captura gustos del usuario. Los gustos de la acompañante se generan de modo que ~40% coincidan exactamente, ~40% sean adyacentes (misma categoría/relacionados) y ~20% ajenos. La mezcla se logra **por construcción**: taxonomía fija de intereses (archivo de datos), se muestrean primero los cupos 4/4/2 por cada 10 y el LLM solo decora los slots elegidos — proporciones exactas sin verificación posterior. Si se importa una conversación o se da una personalidad, este paso se omite.
-
-3. **Cronograma diario.** Al inicio del día se genera una agenda de actividades anclada a los hobbies, modulada por lo circadiano y por el día de la semana (weekday/weekend). Es material narrativo para verosimilitud y motivos de iniciativa; no es obligatorio seguirla ni bloquea responder al usuario.
-
-4. **Cambios de humor.** Estado de ánimo diario + fase hormonal entran al contexto como guía de tono; la tendencia del tema se sesga con el canal de energía (circadiano), no con la valencia.
-
-5. **Frecuencia de mensajes.** Temporización de mensajes espontáneos por proceso estocástico, gestionada por el scheduler.
-
-6. **Iniciativa de conversación.** En cada arranque —lo inicie la acompañante o el usuario— se inyectan cronograma + gustos + ánimo actual. Si inicia la acompañante, el LLM elige el motivo del contacto anclado en agenda/intereses; si inicia el usuario, se inyecta qué estaba "haciendo" según el cronograma.
+The simulated **persona** is a configuration parameter, not wired-in logic: a single engine serves any profile. The characterization lives as data.
 
 ---
 
-## Arquitectura
+## Features
 
-Monolito modular en Python con frontera limpia entre el **motor** (lógica/estado) y los **canales** (CLI, Telegram, Discord).
+1. **Backwards compatibility (import).** Ingests conversation exports (generic `{role, content, timestamp}` turn format, with specific converters as needed) and reconstructs history, summarized memory, and initial mood (from the sentiment of recent days) to continue the relationship on the new harness. The hormonal phase is not observable in an export — it is initialized randomly.
+
+2. **Theme/personality configuration (40/40/20 mix).** Brief onboarding that captures the user's tastes. The companion's tastes are generated so that ~40% match exactly, ~40% are adjacent (same category/related), and ~20% are alien. The mix is achieved **by construction**: fixed interest taxonomy (data file), the 4/4/2 slots per 10 are sampled first, and the LLM only decorates the chosen slots — exact proportions with no post-hoc verification. If a conversation is imported or a personality is given, this step is skipped.
+
+3. **Daily schedule.** At the start of the day an activity agenda anchored to hobbies is generated, modulated by the circadian rhythm and by the day of the week (weekday/weekend). It is narrative material for verisimilitude and initiative reasons; it is not mandatory to follow and does not block replying to the user.
+
+4. **Mood changes.** Daily mood state + hormonal phase enter the context as tone guidance; the topic's tendency is biased by the energy channel (circadian), not by valence.
+
+5. **Message frequency.** Spontaneous message timing via stochastic process, managed by the scheduler.
+
+6. **Conversation initiative.** At every start — whether initiated by the companion or the user — schedule + tastes + current mood are injected. If the companion initiates, the LLM chooses the reason for contact anchored in agenda/interests; if the user initiates, what she was "doing" per the schedule is injected.
+
+---
+
+## Architecture
+
+Modular Python monolith with a clean boundary between the **engine** (logic/state) and the **channels** (CLI, Telegram, Discord).
 
 ```
-            ┌──────────────────────────────────────────────┐
-            │                  ARNÉS (core)                  │
-  Canales   │  ┌───────────┐   ┌───────────────────────┐    │
-  ┌──────┐  │  │ Persona/  │   │  Motor estocástico    │    │
-  │ CLI  │◄─┼─►│ Config    │   │  - Humor (β-binom.)   │    │
-  ├──────┤  │  │ (40/40/20)│   │  - Hormonal (~28 d)   │    │
-  │ TG   │◄─┼─►├───────────┤   │  - Circadiano         │    │
-  ├──────┤  │  │ Cronograma│   │  - Frecuencia         │    │
-  │ DCord│◄─┼─►│ diario    │   └──────────┬────────────┘    │
-  └──────┘  │  ├───────────┴──────────────┼─────────────┐   │
-            │  │   Ensamblador de contexto (prompt)      │   │
-            │  ├──────────┬───────────────┬──────────────┤   │
-            │  │ Cliente  │  Juez (LLM-   │  Importador  │   │
-            │  │ LLM (OAI │  as-judge)    │  (backwards  │   │
-            │  │ compat.) │  + feedback   │  compat.)    │   │
-            │  └──────────┴───────────────┴──────────────┘   │
-            │  ┌──────────────────────────────────────────┐  │
-            │  │ Persistencia (SQLite)                     │  │
-            │  ├──────────────────────────────────────────┤  │
-            │  │ Scheduler (async): rollover diario +      │  │
-            │  │ disparo de mensajes espontáneos           │  │
-            │  └──────────────────────────────────────────┘  │
-            └──────────────────────────────────────────────┘
+            ┌────────────────────────────────────────────────────────────────┐
+            │                         HARNESS (core)                         │
+ Channels   │  ┌────────────┐   ┌──────────────────────────┐                 │
+            │  ┌───────┐  │  ┌────────────┐   ┌──────────────────────────┐   │
+            │  │ CLI   │  │  │ Persona/   │   │ Stochastic engine        │   │
+            │  │ TG    │  │  │ Config     │   │ - Mood (β-binom.)        │   │
+            │  │ DCord │  │  │ (40/40/20) │   │ - Hormonal (~28 d)       │   │
+            │  └───────┘  │ ├─────────────┴───┼──────────────────────────┤   │
+            │               │   Context assembler (prompt)               │   │
+            │               ├──────────────┬──────────────┬──────────────┤   │
+            │               │ Client       │ Judge (LLM-  │ Importer     │   │
+            │               │ LLM (OAI     │ as-judge)    │ (backwards   │   │
+            │               │ compat.)     │ + feedback   │ compat.)     │   │
+            │               └──────────────┴──────────────┴──────────────┘   │
+            │               ┌────────────────────────────────────────────┐   │
+            │               │ Persistence (SQLite)                       │   │
+            │               │ Scheduler (async): daily rollover +        │   │
+            │               │ spontaneous message firing                 │   │
+            │               └────────────────────────────────────────────┘   │
+            └────────────────────────────────────────────────────────────────┘
 ```
 
-**Componentes:** Persona/Config · Motor estocástico · **Actuadores conductuales** · Cronograma diario · Ensamblador de contexto · Cliente LLM (capa fina sobre cualquier endpoint OpenAI-compatible, `base_url`+`api_key` configurables) · Juez (LLM-as-judge con rúbrica) · Importador · Persistencia (SQLite) · Scheduler (asyncio).
+**Components:** Persona/Config · Stochastic engine · **Behavioral actuators** · Daily schedule · Context assembler · LLM client (thin layer over any OpenAI-compatible endpoint, `base_url`+`api_key` configurable) · Judge (LLM-as-judge with rubric) · Importer · Persistence (SQLite) · Scheduler (asyncio).
 
-**Decisiones transversales:**
-- **Reloj virtual inyectado** (`Clock`) en motor, scheduler y persistencia — la validación exige correr días acelerados; ninguna lectura directa de tiempo real.
-- **Motor puro y reproducible:** el motor estocástico no hace I/O; RNG explícito (NumPy `Generator`) sembrado por companion y por día, semilla persistida en `daily_state` → replay determinista de cualquier día.
-- **Trazabilidad:** tabla append-only `state_events` con cada transición de estado y sus causas; log `llm_calls` con cada prompt/respuesta, incluido el juez.
-- **El actuador es lenguaje:** el ensamblador traduce el estado numérico (ánimo, energía, fase, agenda) a un brief corto en lenguaje natural dentro del prompt; los números crudos no modulan el tono del modelo.
-- **El actuador también controla conducta observable:** el estado se proyecta de forma continua a calidez, expresividad, juego, reflexión, iniciativa, longitud, latencia sugerida y tendencia a cerrar. La fase hormonal queda en la traza de causas y no aparece como etiqueta en el prompt. El ánimo bajo conserva un piso de afecto: debe sentirse más callada o lenta, no punitiva ni fría.
-- **Memoria visible sin cambios bruscos:** además del estado del día, el actuador recibe el estado anterior y deriva momentum. A igual ánimo actual, venir de una subida o una caída cambia sutilmente la apertura y expresividad sin crear otra dinámica paralela al motor.
-- **Un canal activo por proceso** en el POC (CLI o Telegram o Discord), seleccionado por config; la interfaz `Channel` común (`send`, `on_message`) se mantiene.
+**Cross-cutting decisions:**
+- **Injected virtual clock** (`Clock`) in engine, scheduler, and persistence — validation requires running accelerated days; no direct reads of real time.
+- **Pure and reproducible engine:** the stochastic engine does no I/O; explicit RNG (NumPy `Generator`) seeded per companion and per day, seed persisted in `daily_state` → deterministic replay of any day.
+- **Traceability:** append-only `state_events` table with every state transition and its causes; `llm_calls` log with every prompt/response, including the judge.
+- **The actuator is language:** the assembler translates the numerical state (mood, energy, phase, agenda) into a short natural-language brief inside the prompt; raw numbers do not modulate the model's tone.
+- **The actuator also controls observable behavior:** the state is continuously projected onto warmth, expressiveness, playfulness, reflectiveness, initiative, length, suggested latency, and tendency to close. The hormonal phase stays in the cause trace and never appears as a label in the prompt. Low mood keeps a floor of warmth: it must feel quieter or slower, not punitive or cold.
+- **Visible memory without abrupt shifts:** besides the day's state, the actuator receives the previous state and derives momentum. At the same current mood, coming from a rise or a fall subtly changes openness and expressiveness without creating a second dynamic parallel to the engine.
+- **One active channel per process** in the POC (CLI or Telegram or Discord), selected by config; the common `Channel` interface (`send`, `on_message`) is kept.
 
 ---
 
-## Motor estocástico
+## Stochastic engine
 
-Dos escalas de tiempo acopladas: una lenta entre días (ánimo base + ciclo hormonal) y una rápida dentro del día (modulación circadiana). El motor es un proceso de estado con memoria: el ánimo de hoy depende del de ayer; la fase hormonal avanza día a día. Se valida por simulación antes de cablear el LLM.
+Two coupled time scales: a slow one between days (baseline mood + hormonal cycle) and a fast one within the day (circadian modulation). The engine is a stateful process with memory: today's mood depends on yesterday's; the hormonal phase advances day by day. It is validated by simulation before wiring in the LLM.
 
-### Ánimo diario (beta-binomial en espacio logit)
+### Daily mood (beta-binomial in logit space)
 
-El ánimo del día es una muestra discreta 0..N alrededor de una tendencia central que descompone temperamento, ciclo, memoria de eventos y ánimo endógeno — cada término con su propio knob:
+The day's mood is a discrete sample 0..N around a central tendency that decomposes temperament, cycle, event memory, and endogenous mood — each term with its own knob:
 
 ```
-m(t)    = B·perfil_nivel((t − φ)/L)                 # bajo menstrual, alto ovulatorio
-g(t)    = 1 + A·perfil_reactividad((t − φ)/L) + ε_t # alta menstrual, baja ovulatoria
-η(t+1)  = ρ_e·η(t) + Normal(0, σ_e)                 # ánimo endógeno AR(1) (rachas sin causa)
+m(t)    = B·perfil_nivel((t − φ)/L)                 # low menstrual, high ovulatory
+g(t)    = 1 + A·perfil_reactividad((t − φ)/L) + ε_t # high menstrual, low ovulatory
+η(t+1)  = ρ_e·η(t) + Normal(0, σ_e)                 # endogenous mood AR(1) (uncaused runs)
 arg(t)  = logit(λ) + m(t) + g(t)·( μ(t) + η(t) )
 p(t)    = sigmoid(arg(t))
-M(t)    ~ BetaBinomial(N, p(t), ν)                  # estado 0..N; ν=∞ ⇒ Binomial
-μ(t+1)  = ρ·μ(t) + k·(score(t) − score_neutral)     # memoria de eventos que decae
+M(t)    ~ BetaBinomial(N, p(t), ν)                  # state 0..N; ν=∞ ⇒ Binomial
+μ(t+1)  = ρ·μ(t) + k·(score(t) − score_neutral)     # decaying event memory
 ```
 
-- `λ` — temperamento base, fijo por persona.
-- `μ` — memoria de eventos (score del juez), con decaimiento (`ρ`) y aprendizaje (`k`).
-- `η` — ánimo endógeno persistente: autocorrelación día-a-día sin causa externa (inercia lag-1 humana ~0.3–0.5).
-- `m` / `g` — el ciclo desplaza la media y amplifica la reactividad como efectos **separados**; `g` multiplica solo las desviaciones (μ+η), no el temperamento, evitando acoplar ciclo y nivel basal salvo vía `m`.
-- `ν` — volatilidad diaria por persona (dispersión extra sobre la binomial; ν→∞ = binomial pura). Implementación: `p_day ~ Beta(p·ν, (1−p)·ν)` → `Bin(N, p_day)`.
+- `λ` — baseline temperament, fixed per persona.
+- `μ` — event memory (judge score), with decay (`ρ`) and learning (`k`).
+- `η` — persistent endogenous mood: day-to-day autocorrelation without an external cause (human lag-1 inertia ~0.3–0.5).
+- `m` / `g` — the cycle shifts the mean and amplifies reactivity as **separate** effects; `g` multiplies only the deviations (μ+η), not the temperament, avoiding coupling between cycle and baseline level except via `m`.
+- `ν` — per-person daily volatility (extra dispersion on top of the binomial; ν→∞ = pure binomial). Implementation: `p_day ~ Beta(p·ν, (1−p)·ν)` → `Bin(N, p_day)`.
 
-La formulación original del plan (`arg = (logit(λ)+μ)·α`, binomial pura) es el caso `B=0, η≡0, ν=∞` con la ganancia aplicada también al temperamento; la simulación de Fase 1 compara ambas variantes en el mismo barrido. Razonamiento en [research/05-reevaluacion-diseno.md](research/05-reevaluacion-diseno.md).
+The plan's original formulation (`arg = (logit(λ)+μ)·α`, pure binomial) is the case `B=0, η≡0, ν=∞` with the gain also applied to temperament; the Phase 1 simulation compares both variants in the same sweep. Rationale in [research/05-reevaluacion-diseno.md](research/05-reevaluacion-diseno.md).
 
-### Ciclo hormonal (~28 días)
+### Hormonal cycle (~28 days)
 
-Señal lenta con dos efectos separados sobre el mismo reloj de ciclo: desplaza la media del ánimo (`m(t)`) y amplifica la reactividad (`g(t)`). Desde la revisión de 2026-07-15 ambos son perfiles periódicos suaves interpolados entre cinco centros de fase, pero usan anclas distintas: menstrual tiene nivel bajo y ganancia alta; ovulatoria tiene nivel alto y ganancia baja. Esto evita que «alto» signifique también «volátil». Al completar cada ciclo se redibuja su longitud (`L_i ~ Normal(28, 1.5)`); `φ` sigue siendo aleatoria por persona. Las anclas son semántica de producto, no una afirmación clínica ni una simulación hormonal literal.
+Slow signal with two separate effects on the same cycle clock: it shifts the mood mean (`m(t)`) and amplifies reactivity (`g(t)`). Since the 2026-07-15 revision both are smooth periodic profiles interpolated between five phase centers, but they use different anchors: menstrual has low level and high gain; ovulatory has high level and low gain. This prevents "high" from also meaning "volatile". At the completion of each cycle its length is redrawn (`L_i ~ Normal(28, 1.5)`); `φ` remains random per persona. The anchors are product semantics, not a clinical claim or a literal hormonal simulation.
 
-### Modulación circadiana
+### Circadian modulation
 
-**(Revisado 2026-07-15.)** El circadiano **no toca la valencia**: el ánimo M vive en la escala lenta y la energía es un canal intradía independiente. Energía = base + offset de fase + amplitud de fase × coseno circadiano. Ovulatoria usa un nivel alto con media diaria ≈0.70 y rango ≈0.25; menstrual un nivel bajo con media ≈0.45 y rango ≈0.50. Por eso el mismo ánimo puede expresarse con ritmos distintos según la hora, y una fase enérgica no fuerza un ánimo alto en cada muestra. La temporización de mensajes continúa gobernada por envolvente × fase × feedback, no directamente por energía.
+**(Revised 2026-07-15.)** The circadian **does not touch valence**: mood M lives on the slow scale and energy is an independent intraday channel. Energy = base + phase offset + phase amplitude × circadian cosine. Ovulatory uses a high level with daily mean ≈0.70 and range ≈0.25; menstrual a low level with mean ≈0.45 and range ≈0.50. That is why the same mood can be expressed with different rhythms depending on the hour, and an energetic phase does not force a high mood on every sample. Message timing continues to be governed by envelope × phase × feedback, not directly by energy.
 
-### Actuación conductual
+### Behavioral actuation
 
-El motor produce causas latentes; el actuador decide cómo se perciben. Valencia, energía, momentum y reactividad se conservan como canales separados y se traducen a controles continuos. El brief resultante describe una disposición («luminosa pero sin prisa», «algo sensible y hacia dentro») y ordena **mostrar, no anunciar** el estado mediante cadencia, elección de palabras, iniciativa y longitud. Los números, `mu`, `eta` y la fase del ciclo quedan fuera del prompt y permanecen disponibles en una traza auditable.
+The engine produces latent causes; the actuator decides how they are perceived. Valence, energy, momentum, and reactivity are kept as separate channels and translated into continuous controls. The resulting brief describes a disposition ("bright but unhurried", "somewhat sensitive and turned inward") and instructs to **show, not announce**, the state through cadence, word choice, initiative, and length. The numbers, `mu`, `eta`, and the cycle phase stay out of the prompt and remain available in an auditable trace.
 
-La calidez no es sinónimo de valencia: tiene un piso explícito para que un día malo no convierta a la acompañante en castigadora. La reactividad hormonal modula cuánto se nota un cambio, no una personalidad fija por fase. Esta frontera es el primer contrato de Fase 2 y se valida con una emulación reproducible de 30 días antes de conectar el LLM.
+Warmth is not synonymous with valence: it has an explicit floor so a bad day does not turn the companion into a punisher. Hormonal reactivity modulates how noticeable a change is, not a fixed per-phase personality. This boundary is Phase 2's first contract and is validated with a reproducible 30-day emulation before connecting the LLM.
 
-### Temporización de mensajes espontáneos
+### Spontaneous message timing
 
-Modelo del POC: **proceso de renovación con hazard Weibull modulado**, simulado por thinning. Conserva la propiedad que motivó la gamma del plan — hazard creciente con el tiempo transcurrido, no sin memoria: cuanto más lleva sin haber contacto, más probable el siguiente — pero con hazard en forma cerrada, lo que permite modularlo limpiamente:
+POC model: **modulated Weibull-hazard renewal process**, simulated by thinning. It preserves the property that motivated the plan's gamma — hazard increasing with elapsed time, not memoryless: the longer it has been since last contact, the more likely the next one — but with a closed-form hazard, which allows clean modulation:
 
 ```
 h(τ, t) = (k_w/θ)·(τ/θ)^(k_w−1) · circ(hora(t)) · fase(t) · adj(score_ayer)
 ```
 
-- `τ` — tiempo desde la última interacción; `k_w > 1` da el hazard creciente (`k_w = 1` reduce a NHPP/exponencial).
-- `circ(·)` — envolvente diurna, ≈0 en quiet hours (nada de 3am por construcción).
-- `fase(·)` — multiplicador por fase del ciclo (0.6–1.4).
-- `adj(·)` — ajuste por el día anterior, acotado a [0.7, 1.3] (el lazo score→frecuencia es auto-estabilizante, pero se acota igual).
-- Guards duros **fuera del proceso**, aplicados en la cola: gap mínimo 15 min, cap diario, quiet hours, ventana de validez por razón.
+- `τ` — time since the last interaction; `k_w > 1` gives the increasing hazard (`k_w = 1` reduces to NHPP/exponential).
+- `circ(·)` — diurnal envelope, ≈0 during quiet hours (nothing at 3am by construction).
+- `fase(·)` — per-cycle-phase multiplier (0.6–1.4).
+- `adj(·)` — adjustment for the previous day, clamped to [0.7, 1.3] (the score→frequency loop is self-stabilizing, but it is clamped anyway).
+- Hard guards **outside the process**, applied at the queue: minimum gap 15 min, daily cap, quiet hours, validity window per reason.
 
-La auto-excitación (Hawkes) se descarta para iniciativa: cada ping proactivo engendraría ~η pings más — ráfagas de nag, un anti-patrón — y su caso legítimo (cadencia dentro de una conversación) no lo programa este scheduler. Queda como extensión documentada en su forma útil: cross-excitation sobre actividad del usuario. Razonamiento en [research/05-reevaluacion-diseno.md](research/05-reevaluacion-diseno.md).
-
----
-
-## Iniciativa
-
-El scheduler opera con **dos compuertas**: *content gate* (existe una razón válida y vigente) y *context gate* (el usuario es receptible: cooldown cumplido, dentro de ventana activa, quiet hours respetadas). Solo cuando ambas pasan se encola un contacto proactivo; cada razón candidata lleva una ventana de validez y las vencidas se descartan.
-
-Cuando el LLM elige el motivo del contacto, se restringe a una **taxonomía tipada de razones**: `schedule | callback | event | shared_interest | check_in`. La razón se enuncia en la primera frase del mensaje; se prefieren razones verificables (agenda/callback) sobre inferencia conductual. Cap de frecuencia y chequeo de tono se aplican en la cola, antes de generar.
+Self-excitation (Hawkes) is discarded for initiative: each proactive ping would spawn ~η more pings — nag bursts, an anti-pattern — and its legitimate use case (cadence within a conversation) is not what this scheduler programs. It remains as a documented extension in its useful form: cross-excitation over user activity. Rationale in [research/05-reevaluacion-diseno.md](research/05-reevaluacion-diseno.md).
 
 ---
 
-## Memoria
+## Initiative
 
-Tres niveles: (a) "core facts" siempre inyectados al encabezado del prompt (inmunes a compresión), (b) buffer en cascada de medio plazo con pesos de decaimiento, (c) log completo de conversación para retrieval por similitud bajo demanda. Inspeccionable por el desarrollador.
+The scheduler operates with **two gates**: *content gate* (a valid, current reason exists) and *context gate* (the user is receptive: cooldown satisfied, within the active window, quiet hours respected). Only when both pass is a proactive contact queued; each candidate reason carries a validity window and expired ones are discarded.
 
----
-
-## Persona y onboarding
-
-La persona se define por un **esquema tipado** (estilo encuesta) que mapea dimensiones a parámetros del motor (temperamento, expresividad, espontaneidad), en lugar de prompts free-text. Refuerza la mezcla 40/40/20 verificable y deja la persona diffable y testeable. Tras la inicialización se permite deriva orgánica acotada por los rasgos núcleo.
+When the LLM chooses the reason for contact, it is restricted to a **typed reason taxonomy**: `schedule | callback | event | shared_interest | check_in`. The reason is stated in the first sentence of the message; verifiable reasons (schedule/callback) are preferred over behavioral inference. Frequency cap and tone check are applied at the queue, before generation.
 
 ---
 
-## Juez y bucle de feedback
+## Memory
 
-Un LLM-as-judge puntúa la conversación diaria con una rúbrica y produce `score(t) ∈ [−1, 1]`, que alimenta la actualización de `μ` y el ajuste de la frecuencia de mensajes del día siguiente. Para acotar costo/latencia, el juez puntúa por lotes una vez al día y puede usar un modelo más barato.
+Three levels: (a) "core facts" always injected into the prompt header (immune to compression), (b) cascading mid-term buffer with decay weights, (c) full conversation log for on-demand similarity retrieval. Inspectable by the developer.
 
-El juez es un sensor ruidoso dentro del único lazo cerrado del sistema, así que se calibra: `score_neutral` se estima empíricamente (media del juez sobre conversaciones de referencia, no se asume 0), rúbrica con escala anclada + salida JSON + temperatura 0, y chequeo de repetibilidad test-retest — si la sd sobre la misma conversación supera ~0.2, se promedian varias pasadas o se reduce `k`.
+---
+
+## Persona and onboarding
+
+The persona is defined by a **typed schema** (survey style) that maps dimensions to engine parameters (temperament, expressiveness, spontaneity) instead of free-text prompts. It reinforces the verifiable 40/40/20 mix and keeps the persona diffable and testable. After initialization, organic drift is allowed, bounded by core traits.
+
+---
+
+## Judge and feedback loop
+
+An LLM-as-judge scores the daily conversation against a rubric and produces `score(t) ∈ [−1, 1]`, which feeds the `μ` update and the next day's message-frequency adjustment. To bound cost/latency, the judge scores in batch once a day and may use a cheaper model.
+
+The judge is a noisy sensor inside the system's only closed loop, so it is calibrated: `score_neutral` is estimated empirically (the judge's mean over reference conversations, not assumed to be 0), rubric with anchored scale + JSON output + temperature 0, and a test-retest repeatability check — if the sd over the same conversation exceeds ~0.2, several passes are averaged or `k` is reduced.
 
 ---
 
 ## Stack
 
-- **Lenguaje:** Python 3.11+.
-- **LLM:** cliente sobre el SDK OpenAI con `base_url`/`api_key` configurables (remoto o local vía Ollama/LM Studio/vLLM).
-- **Persistencia:** SQLite (un archivo, sin servidor).
-- **Async/Scheduler:** `asyncio` + APScheduler para rollover diario y disparos de temporización.
-- **Canales:** CLI (REPL, primer canal) · Telegram (`python-telegram-bot`) · Discord (`discord.py`), todos sobre una interfaz `Channel` común (`send`, `on_message`) para enrutar los mensajes proactivos por el canal activo.
-- **Config:** TOML/YAML + variables de entorno para secretos.
-- **Numérico/simulación:** NumPy/SciPy (distribuciones), Matplotlib (gráficas de validación).
+- **Language:** Python 3.11+.
+- **LLM:** client on the OpenAI SDK with configurable `base_url`/`api_key` (remote or local via Ollama/LM Studio/vLLM).
+- **Persistence:** SQLite (single file, serverless).
+- **Async/Scheduler:** `asyncio` + APScheduler for daily rollover and timing firings.
+- **Channels:** CLI (REPL, first channel) · Telegram (`python-telegram-bot`) · Discord (`discord.py`), all on a common `Channel` interface (`send`, `on_message`) to route proactive messages through the active channel.
+- **Config:** TOML/YAML + environment variables for secrets.
+- **Numerics/simulation:** NumPy/SciPy (distributions), Matplotlib (validation plots).
 
 ---
 
-## Modelo de datos (SQLite)
+## Data model (SQLite)
 
-- `companion` — id, persona/temperamento (`λ`), parámetros hormonales (`L`, `A`, `φ`), system prompt.
-- `user_profile` — gustos, preferencias, zona horaria.
-- `interests` — id, etiqueta, categoría, tipo (`exact`/`adjacent`/`alien`), dueño (user/companion).
-- `daily_state` — fecha, `m(t)`/`g(t)`, ánimo `M`, `μ`, `η`, score del día anterior, cronograma (JSON), semilla RNG del día.
-- `messages` — turnos con rol, contenido, timestamp, canal, flag `proactivo`.
-- `judgements` — fecha, score, rúbrica, justificación del juez.
-- `schedule_events` — próximos disparos pendientes.
-- `state_events` — log append-only de transiciones de estado y sus causas (trazabilidad).
-- `llm_calls` — cada prompt/respuesta (conversación y juez), para depurar deriva y calibrar al juez.
+- `companion` — id, persona/temperament (`λ`), hormonal parameters (`L`, `A`, `φ`), system prompt.
+- `user_profile` — tastes, preferences, timezone.
+- `interests` — id, label, category, type (`exact`/`adjacent`/`alien`), owner (user/companion).
+- `daily_state` — date, `m(t)`/`g(t)`, mood `M`, `μ`, `η`, previous day's score, schedule (JSON), day's RNG seed.
+- `messages` — turns with role, content, timestamp, channel, proactive flag.
+- `judgements` — date, score, rubric, judge's justification.
+- `schedule_events` — pending upcoming firings.
+- `state_events` — append-only log of state transitions and their causes (traceability).
+- `llm_calls` — every prompt/response (conversation and judge), for debugging drift and calibrating the judge.
 
 ---
 
-## Parámetros iniciales
+## Initial parameters
 
-Punto de partida a afinar por simulación; tabla completa en la [síntesis §4](research/00-sintesis-fase-menos-1.md).
+Starting point to be tuned by simulation; full table in the [synthesis §4](research/00-sintesis-fase-menos-1.md).
 
-| | Símbolo | Valor inicial |
+| | Symbol | Initial value |
 |---|---|---|
-| Pasos de escala | `N` | 10 |
-| Temperamento base | `λ` | 0.60 |
-| Aprendizaje | `k` | 0.18 — afinado post-Fase 1 (era 0.15) |
-| Decaimiento memoria de eventos | `ρ` | 0.85 (half-life ~4.3 d) — afinado post-Fase 1 (era 0.70): junto con `k`, techo del trato μ∞=k/(1−ρ)=±1.2 ⇒ mes perfecto ~7–10, mes horrible ~0–4 |
-| Largo de ciclo | `L` | redibujado por ciclo: `Normal(28, 1.5)` |
-| Offset de media del ciclo | `B` | 0.5 — afinado post-Fase 1 con barrido promediado de 30 semillas (era 0.15; ver `engine_simulation/`) |
-| Ganancia de reactividad del ciclo | `A` | 0.25 |
-| Ruido hormonal | `σ_ε` | 0.03 |
-| Ánimo endógeno AR(1) | `ρ_e` / `σ_e` | 0.7 / 0.45 — afinados y adoptados en Fase 1 (eran 0.5 / 0.2; ver [informe](results/fase-1-informe.md)) |
-| Volatilidad (beta-binomial) | `ν` | ∞ (=binomial); barrido {∞, 8, 4} |
-| Amplitud circadiana (energía) | — | ±0.25 (pico ~14:00) |
-| Hazard Weibull | `k_w` / `θ` | 2.0 / ~13.5 h (media base ~12 h) |
-| Multiplicadores por fase (tasa) | — | 0.6–1.4 |
-| Ajuste por score (tasa) | `adj` | acotado a [0.7, 1.3] |
-| Gaps mín/máx | — | 15 min / 48 h |
+| Scale steps | `N` | 10 |
+| Baseline temperament | `λ` | 0.60 |
+| Learning | `k` | 0.18 — tuned post-Phase 1 (was 0.15) |
+| Event-memory decay | `ρ` | 0.85 (half-life ~4.3 d) — tuned post-Phase 1 (was 0.70): together with `k`, ceiling of the deal μ∞=k/(1−ρ)=±1.2 ⇒ perfect month ~7–10, horrible month ~0–4 |
+| Cycle length | `L` | redrawn per cycle: `Normal(28, 1.5)` |
+| Cycle mean offset | `B` | 0.5 — tuned post-Phase 1 with a 30-seed averaged sweep (was 0.15; see `engine_simulation/`) |
+| Cycle reactivity gain | `A` | 0.25 |
+| Hormonal noise | `σ_ε` | 0.03 |
+| Endogenous mood AR(1) | `ρ_e` / `σ_e` | 0.7 / 0.45 — tuned and adopted in Phase 1 (were 0.5 / 0.2; see [report](results/fase-1-informe.md)) |
+| Volatility (beta-binomial) | `ν` | ∞ (=binomial); sweep {∞, 8, 4} |
+| Circadian amplitude (energy) | — | ±0.25 (peak ~14:00) |
+| Weibull hazard | `k_w` / `θ` | 2.0 / ~13.5 h (baseline mean ~12 h) |
+| Per-phase multipliers (rate) | — | 0.6–1.4 |
+| Score adjustment (rate) | `adj` | clamped to [0.7, 1.3] |
+| Min/max gaps | — | 15 min / 48 h |

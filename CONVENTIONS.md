@@ -1,103 +1,105 @@
-# CONVENTIONS — Fase 1 (congelado en Ola 0 / W0.1)
+---
+type: conventions
+title: Repository conventions — Phase 1 (frozen in Wave 0 / W0.1; revised 2026-08-08)
+description: Operating rules for every task (human or subagent) in this repo — working environment (native WSL), git and Conventional Commits, frozen files, wave ownership, code conventions, tests, and experiments.
+tags: [conventions, repo, phase-1, wsl]
+timestamp: 2026-08-08
+---
 
-Reglas operativas para toda tarea (humana o subagente) de este repo.
-Leer junto con `engine/types.py` (contrato congelado) antes de escribir código.
+# CONVENTIONS — Phase 1 (frozen in Wave 0 / W0.1; revised 2026-08-08)
 
-## 1. Rutas duales (Windows ↔ WSL)
+Operating rules for every task (human or subagent) in this repo.
+Read together with `engine/types.py` (frozen contract) before writing code.
 
-El proyecto vive en el filesystem de WSL Ubuntu y se ve desde dos lados:
+## 1. Working environment (native WSL)
 
-| Vista | Ruta | La usan |
-|---|---|---|
-| Windows (UNC) | `\\wsl.localhost\ubuntu\home\vruizes\.hermes\projects\llm-behavioral-harness` | Read / Write / Edit / Glob / Grep |
-| WSL (nativa) | `/home/vruizes/.hermes/projects/llm-behavioral-harness` | Python, pytest, uv (vía `wsl.exe`) |
+The project lives on the native WSL filesystem and is worked on from
+**native WSL** (Hermes agent): `/home/vruizes/.hermes/projects/llm-behavioral-harness`
+is the real path, and direct bash/python works fine. The old warning about a
+desynced Bash tool view applied to a Windows-side harness view and is
+obsolete. (For reference, the Windows UNC view is
+`\\wsl.localhost\ubuntu\home\vruizes\.hermes\projects\llm-behavioral-harness`.)
 
-**Reglas duras:**
-- **NO usar la herramienta Bash sobre este árbol** — mostró una vista
-  desincronizada (archivos escritos con Write no visibles). Ejecutar siempre
-  con la herramienta **PowerShell** invocando `wsl.exe`.
-- Contenido de archivos: herramientas Read/Write/Edit con la ruta UNC.
-- Mover/copiar/crear directorios: PowerShell con ruta UNC, o `wsl.exe ... mkdir/cp`.
+**Version control:** the repo is under git (`main` branch). Commits follow
+**Conventional Commits** (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, ...).
 
-## 2. Runtime verificado (W0.1, 2026-07-03)
+## 2. Verified runtime (W0.1, 2026-07-03)
 
-- WSL distro **Ubuntu** · Python **3.12.3** (`/usr/bin/python3`) · `uv 0.x` en `~/.local/bin`.
-- Venv del proyecto: `.venv` (creado con `uv venv`), dependencias instaladas
-  con `uv pip install -e ".[dev]"` → numpy 2.5.0, scipy 1.18.0,
-  matplotlib 3.11.0, pyyaml 6.0.3, pytest 9.1.1. Paquete instalado editable
-  (`import engine`, `import sim` funcionan desde cualquier cwd).
+- WSL distro **Ubuntu** · Python **3.12.3** (`/usr/bin/python3`) · `uv 0.x` in `~/.local/bin`.
+- Project venv: `.venv` (created with `uv venv`), dependencies installed
+  with `uv pip install -e ".[dev]"` → numpy 2.5.0, scipy 1.18.0,
+  matplotlib 3.11.0, pyyaml 6.0.3, pytest 9.1.1. Package installed editable
+  (`import engine`, `import sim` work from any cwd).
 
-### Comandos canónicos (copiar/pegar en la herramienta PowerShell)
+### Canonical commands (native bash)
 
-> **Usar comillas SIMPLES en el string de PowerShell** — con dobles,
-> PowerShell interpola `$VAR` antes de llegar a bash (verificado: `$HOME` se
-> corrompió en la prueba de W0.1).
+Full suite:
 
-Suite completa:
-
-```powershell
-wsl.exe -d Ubuntu -- bash -lc 'cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m pytest'
+```bash
+cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m pytest
 ```
 
-Un solo archivo de tests (lo normal para una tarea de ola):
+A single test file (the norm for a wave task):
 
-```powershell
-wsl.exe -d Ubuntu -- bash -lc 'cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m pytest tests/test_mood.py -q'
+```bash
+cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m pytest tests/test_mood.py -q
 ```
 
-Ejecutar un módulo/script:
+Run a module/script:
 
-```powershell
-wsl.exe -d Ubuntu -- bash -lc 'cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m sim.run_daily --days 90 --seed 12345'
+```bash
+cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m sim.run_daily --days 90 --seed 12345
 ```
 
-Reinstalar deps (solo si cambia `pyproject.toml`):
+Reinstall deps (only if `pyproject.toml` changes):
 
-```powershell
-wsl.exe -d Ubuntu -- bash -lc 'cd /home/vruizes/.hermes/projects/llm-behavioral-harness && uv pip install --python .venv/bin/python -e ".[dev]"'
+```bash
+cd /home/vruizes/.hermes/projects/llm-behavioral-harness && uv pip install --python .venv/bin/python -e ".[dev]"
 ```
 
-## 3. Propiedad de archivos (regla de las olas)
+## 3. File ownership (wave rule)
 
-- **Congelados tras Ola 0 (solo lectura):** `engine/types.py`, `engine/rng.py`,
-  `tests/conftest.py`, `pyproject.toml`, este archivo.
-- Cada tarea posee **su módulo + su test** (p. ej. W1.1 → `engine/mood.py` +
-  `tests/test_mood.py`) y, en Ola 3, **su carpeta** `results/<experimento>/`.
-  Nadie toca archivos de otra tarea, ni siquiera para "arreglar" algo: si un
-  archivo ajeno parece mal, se reporta en el resumen final de la tarea.
-- Los stubs ya definen firma + semántica; implementar EXACTAMENTE esas firmas
-  (se permiten helpers privados adicionales en el propio archivo).
+- **Frozen after Wave 0 (read-only):** `engine/types.py`, `engine/rng.py`,
+  `tests/conftest.py`, `pyproject.toml`, this file.
+- Each task owns **its module + its test** (e.g. W1.1 → `engine/mood.py` +
+  `tests/test_mood.py`) and, in Wave 3, **its folder** `results/<experiment>/`.
+  Nobody touches another task's files, not even to "fix" something: if a
+  foreign file looks wrong, it is reported in the task's final summary.
+- The stubs already define signature + semantics; implement EXACTLY those
+  signatures (additional private helpers in the file itself are allowed).
 
-## 4. Convenciones de código
+## 4. Code conventions
 
-- Python 3.11+; type hints en firmas públicas; docstrings en español,
-  identificadores en inglés (como los stubs).
-- `engine/` es **puro**: sin I/O, sin lectura de reloj real
-  (`time`, `datetime.now` prohibidos — el reloj es virtual), sin estado
-  global. Todo azar entra por un `numpy.random.Generator` inyectado.
-- RNG: solo vía `engine/rng.py` (SeedSequence jerárquico). Nunca
-  `np.random.seed` ni `default_rng()` sin semilla en código de producción.
-- Estados (`MoodState`, `CycleState`) no se mutan: los pasos devuelven
-  instancias nuevas.
-- Matplotlib solo en `sim/plots.py` y experimentos, siempre backend Agg
-  (`matplotlib.use("Agg")` antes de importar pyplot).
-- Tiempo: días enteros para la escala lenta; horas absolutas float para la
-  rápida (t_h=0 ⇒ día 0, 00:00; hora local = t_h % 24). Ver `types.py`.
+- Python 3.11+; type hints in public signatures; **docstrings in English
+  going forward** (the old "docstrings in Spanish" rule is superseded),
+  identifiers in English (as in the stubs).
+- `engine/` is **pure**: no I/O, no reads of the real clock
+  (`time`, `datetime.now` are forbidden — the clock is virtual), no global
+  state. All randomness enters through an injected `numpy.random.Generator`.
+- RNG: only via `engine/rng.py` (hierarchical SeedSequence). Never
+  `np.random.seed` nor an unseeded `default_rng()` in production code.
+- States (`MoodState`, `CycleState`) are not mutated: steps return new
+  instances.
+- Matplotlib only in `sim/plots.py` and experiments, always Agg backend
+  (`matplotlib.use("Agg")` before importing pyplot).
+- Time: whole days for the slow scale; absolute float hours for the fast
+  scale (t_h=0 ⇒ day 0, 00:00; local hour = t_h % 24). See `types.py`.
 
 ## 5. Tests
 
-- pytest plano (sin plugins extra). Los tests estadísticos usan semilla fija
-  y tolerancias documentadas en el propio test (generosas: verifican forma,
-  no décimas — p. ej. KS con α=0.01, medias con ±3·sem).
-- Cada tarea corre **solo su archivo** de tests y reporta pass/fail; la suite
-  completa la corre la sesión principal en el gate de cada ola.
-- Las figuras de experimentos fijan semilla y la escriben en el título y en
-  el nombre del reporte.
+- Plain pytest (no extra plugins). Statistical tests use a fixed seed
+  and tolerances documented in the test itself (generous: they check shape,
+  not decimals — e.g. KS with α=0.01, means with ±3·sem).
+- Each task runs **only its own** test file and reports pass/fail; the full
+  suite is run by the main session at each wave gate.
+- Experiment figures fix the seed and write it in the title and in the
+  report name.
 
-## 6. Experimentos (Ola 3)
+## 6. Experiments (Wave 3)
 
-- Un script por experimento en `experiments/` (`w31_baseline.py`, ...),
-  ejecutable con `.venv/bin/python -m experiments.<nombre>` o como script.
-- Salidas SOLO en `results/<id>/` propio: `*.png` + `reporte.md` con
-  (a) semillas usadas, (b) criterio(s) evaluado(s) con umbral numérico,
-  (c) veredicto pass/fail por criterio, (d) 2–5 líneas de lectura.
+- One script per experiment in `experiments/` (`w31_baseline.py`, ...),
+  runnable with `.venv/bin/python -m experiments.<name>` or as a script.
+- Outputs ONLY in the own `results/<id>/` folder: `*.png` + **`report.md`**
+  (new reports are named `report.md` in English; old ones keep `reporte.md`)
+  with (a) seeds used, (b) evaluated criterion/criteria with a numeric
+  threshold, (c) pass/fail verdict per criterion, (d) 2–5 lines of reading.

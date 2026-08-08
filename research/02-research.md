@@ -1,3 +1,11 @@
+---
+type: research-note
+title: "Phase −1 Prior-Art Research: Affective/Hormonal AI Agents and Stochastic Timing"
+description: "Deep-read of arXiv 2508.11829, affective-agent literature, point-process timing models (NHPP, Hawkes, Gamma), and parameter recommendations."
+tags: [prior-art, affective-agents, hormonal-cycle, point-process, hawkes, parameters]
+timestamp: 2026-06-23
+---
+
 # Phase −1 Prior-Art Research: Affective/Hormonal AI Agents and Stochastic Timing
 
 **Date:** 2026-06-23  

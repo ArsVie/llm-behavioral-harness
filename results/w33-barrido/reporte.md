@@ -1,74 +1,82 @@
-# W3.3 — Barrido de parámetros (criterio 8b)
+---
+type: experiment-report
+title: W3.3 — Parameter sweep (criterion 8b)
+description: "Grids over rho_e×sigma_e, k×rho, A×B and 1D nu — human-region search, tuned-defaults proposal, and verification with fresh seeds."
+tags: [results, w33, sweep, parameters, criteria]
+timestamp: 2026-07-03
+---
 
-Variante fija: `decoupled_offsets`. Horizonte: 90 días. Semillas de barrido: `[11, 22, 33, 44, 55]` (métricas promediadas entre las 5 por celda). Semillas de verificación (frescas): `[66, 77, 88, 99, 110]`.
+# W3.3 — Parameter sweep (criterion 8b)
 
-Criterio (8b) — región humana: media(M) ∈ [5.25, 6.75], sd(M) ∈ [1.2, 2.8], autocorr_lag1 ∈ [0.2, 0.5], fracción_saturada < 0.1.
+Fixed variant: `decoupled_offsets`. Horizon: 90 days. Sweep seeds: `[11, 22, 33, 44, 55]` (metrics averaged across the 5 per cell). Verification (fresh) seeds: `[66, 77, 88, 99, 110]`.
 
-## 1. Grid rho_e x sigma_e (autocorrelación endógena)
+Criterion (8b) — human region: mean(M) ∈ [5.25, 6.75], sd(M) ∈ [1.2, 2.8], autocorr_lag1 ∈ [0.2, 0.5], saturated_fraction < 0.1.
+
+## 1. rho_e x sigma_e grid (endogenous autocorrelation)
 
 ![autocorr](01_rho_e_sigma_e_autocorr.png)
 
 ![sd](02_rho_e_sigma_e_sd.png)
 
-Celdas dentro de la región humana: **5** de 16. Recorrido de autocorr_lag1: [0.083, 0.511]; recorrido de sd(M): [1.56, 2.40].
+Cells inside the human region: **5** of 16. autocorr_lag1 range: [0.083, 0.511]; sd(M) range: [1.56, 2.40].
 
-Celdas humanas (rho_e, sigma_e) → métricas:
+Human cells (rho_e, sigma_e) → metrics:
 
-- rho_e=0.5, sigma_e=0.45: media=6.15 sd=1.99 ac1=0.227 sat=0.033
-- rho_e=0.7, sigma_e=0.3: media=6.21 sd=1.87 ac1=0.203 sat=0.031
-- rho_e=0.7, sigma_e=0.45: media=6.04 sd=2.17 ac1=0.391 sat=0.044
-- rho_e=0.85, sigma_e=0.2: media=6.23 sd=1.80 ac1=0.261 sat=0.024
-- rho_e=0.85, sigma_e=0.3: media=5.99 sd=2.08 ac1=0.407 sat=0.036
+- rho_e=0.5, sigma_e=0.45: mean=6.15 sd=1.99 ac1=0.227 sat=0.033
+- rho_e=0.7, sigma_e=0.3: mean=6.21 sd=1.87 ac1=0.203 sat=0.031
+- rho_e=0.7, sigma_e=0.45: mean=6.04 sd=2.17 ac1=0.391 sat=0.044
+- rho_e=0.85, sigma_e=0.2: mean=6.23 sd=1.80 ac1=0.261 sat=0.024
+- rho_e=0.85, sigma_e=0.3: mean=5.99 sd=2.08 ac1=0.407 sat=0.036
 
-Lectura: el humo previo con defaults (rho_e=0.5, sigma_e=0.2) dio autocorr ≈ 0.16, bajo el objetivo. Subir rho_e (más memoria del AR(1) de η) empuja autocorr_lag1 hacia arriba sin cambiar la sd estacionaria de η (σ_e/√(1−ρ_e²)) tanto como subir σ_e directamente; sigma_e alto con rho_e alto simultáneamente infla sd(M) y puede acercarse a saturación en las colas de p(t).
+Reading: the earlier smoke with defaults (rho_e=0.5, sigma_e=0.2) gave autocorr ≈ 0.16, below target. Raising rho_e (more memory in the η AR(1)) pushes autocorr_lag1 up without changing η's stationary sd (σ_e/√(1−ρ_e²)) as much as raising σ_e directly; high sigma_e with high rho_e simultaneously inflates sd(M) and can approach saturation in the tails of p(t).
 
-## 2. Grid k x rho (memoria de eventos)
+## 2. k x rho grid (event memory)
 
 ![autocorr](03_k_rho_autocorr.png)
 
 ![sd](04_k_rho_sd.png)
 
-Celdas **inestables por diseño** (violan k < 2(1−rho)/g_max):
+Cells **unstable by design** (violate k < 2(1−rho)/g_max):
 
 - k=0.3, rho=0.85: k: violates stability bound k < 2(1−rho)/g_max (0.3 >= 0.223881, g_max=1.34)
 - k=0.44, rho=0.85: k: violates stability bound k < 2(1−rho)/g_max (0.44 >= 0.223881, g_max=1.34)
 
-Celdas dentro de la región humana: **2** de 10 celdas estables (de 12 totales).
+Cells inside the human region: **2** of 10 stable cells (of 12 total).
 
-Celdas humanas (k, rho) → métricas:
+Human cells (k, rho) → metrics:
 
-- k=0.3, rho=0.5: media=6.47 sd=1.67 ac1=0.222 sat=0.027
-- k=0.44, rho=0.5: media=6.70 sd=1.69 ac1=0.275 sat=0.036
+- k=0.3, rho=0.5: mean=6.47 sd=1.67 ac1=0.222 sat=0.027
+- k=0.44, rho=0.5: mean=6.70 sd=1.69 ac1=0.275 sat=0.036
 
-Lectura: k y rho controlan la memoria del lazo juez→μ, no la autocorrelación endógena de η — su efecto sobre autocorr_lag1 de M es más débil e indirecto (vía la varianza que añaden a p(t) día a día); rho alto con k cerca de la cota de estabilidad es donde más sube sd(M).
+Reading: k and rho control the judge→μ loop memory, not η's endogenous autocorrelation — their effect on M's autocorr_lag1 is weaker and indirect (via the variance they add to p(t) day to day); high rho with k near the stability bound is where sd(M) rises most.
 
-## 3. Grid A x B (ciclo)
+## 3. A x B grid (cycle)
 
 ![var_ratio](05_A_B_var_ratio.png)
 
 ![amplitude](06_A_B_amplitude.png)
 
-Celdas dentro de la región humana: **1** de 9. var_ratio_by_gain crece con A (ganancia amplifica la reactividad); la amplitud del ciclo en M crece con B (desplazamiento de media m(t)) y es ~0 cuando B=0 por construcción.
+Cells inside the human region: **1** of 9. var_ratio_by_gain grows with A (gain amplifies reactivity); the cycle amplitude in M grows with B (mean shift m(t)) and is ~0 when B=0 by construction.
 
-Celdas humanas (A, B) → métricas:
+Human cells (A, B) → metrics:
 
-- A=0.4, B=0.3: media=6.36 sd=1.72 ac1=0.201 sat=0.020 var_ratio=0.86 amplitud=1.17
+- A=0.4, B=0.3: mean=6.36 sd=1.72 ac1=0.201 sat=0.020 var_ratio=0.86 amplitude=1.17
 
-## 4. Barrido 1D nu (defaults, sobredispersión beta-binomial)
+## 4. 1D nu sweep (defaults, beta-binomial overdispersion)
 
 ![nu](07_nu_1d.png)
 
-| nu | media(M) | sd(M) | autocorr_lag1 | sat_frac |
+| nu | mean(M) | sd(M) | autocorr_lag1 | sat_frac |
 |---|---|---|---|---|
 | inf | 6.38 | 1.66 | 0.110 | 0.018 |
 | 8 | 6.33 | 2.17 | 0.046 | 0.078 |
 | 4 | 6.34 | 2.56 | 0.079 | 0.131 |
 
-Lectura: yendo de nu=inf a nu=4, autocorr_lag1 **bajó** (0.110 → 0.079) y sd(M) **subió** (1.66 → 2.56), consistente con que la sobredispersión beta-binomial añade varianza blanca (ruido no autocorrelacionado) por encima del binomial puro.
+Reading: going from nu=inf to nu=4, autocorr_lag1 **decreased** (0.110 → 0.079) and sd(M) **increased** (1.66 → 2.56), consistent with beta-binomial overdispersion adding white (non-autocorrelated) variance on top of the pure binomial.
 
-## Defaults afinados propuestos
+## Proposed tuned defaults
 
-A partir del grid 1 (única fuente de autocorrelación endógena pura), se elige el punto que acerca autocorr_lag1 al centro del rango objetivo [0.2, 0.5] sin salir de sd(M) ≤ 2.8 ni saturar. Todo lo demás queda en el default de `PersonaParams()`.
+From grid 1 (the only source of pure endogenous autocorrelation), the point that brings autocorr_lag1 closest to the center of the target range [0.2, 0.5] without leaving sd(M) ≤ 2.8 or saturating is chosen. Everything else stays at the `PersonaParams()` default.
 
 ```python
 PersonaParams(
@@ -77,8 +85,8 @@ PersonaParams(
     nu=inf,
     k=0.15,
     rho=0.7,
-    rho_e=0.7,  # <- afinado
-    sigma_e=0.45,  # <- afinado
+    rho_e=0.7,  # <- tuned
+    sigma_e=0.45,  # <- tuned
     B=0.15,
     A=0.25,
     sigma_eps=0.03,
@@ -89,21 +97,21 @@ PersonaParams(
 )
 ```
 
-Justificación: (1) rho_e=0.7 y sigma_e=0.45 colocan la autocorr_lag1 de M en el rango objetivo — el default previo (rho_e=0.5, sigma_e=0.2) daba ≈0.16 en el humo, por debajo del piso 0.2. (2) el resto de los parámetros (k, rho, A, B, nu, N, lam) se dejan sin tocar porque los grids 2–4 muestran que su efecto sobre autocorr_lag1 es más débil o va en la dirección equivocada (nu finito lo baja, no lo sube) frente al que ofrece rho_e/sigma_e. (3) se verifica con 5 semillas frescas para descartar sobreajuste a las semillas del barrido.
+Justification: (1) rho_e=0.7 and sigma_e=0.45 place M's autocorr_lag1 in the target range — the previous default (rho_e=0.5, sigma_e=0.2) gave ≈0.16 in smoke, below the 0.2 floor. (2) The remaining parameters (k, rho, A, B, nu, N, lam) are left untouched because grids 2–4 show their effect on autocorr_lag1 is weaker or goes the wrong way (finite nu lowers it, not raises it) vs what rho_e/sigma_e offer. (3) Verified with 5 fresh seeds to rule out overfitting to the sweep seeds.
 
-### Verificación (semillas frescas)
+### Verification (fresh seeds)
 
-Semillas: `[66, 77, 88, 99, 110]`.
+Seeds: `[66, 77, 88, 99, 110]`.
 
-| métrica | valor | rango objetivo | cumple |
+| metric | value | target range | passes |
 |---|---|---|---|
-| media(M) | 5.8267 | (5.25, 6.75) | PASS |
+| mean(M) | 5.8267 | (5.25, 6.75) | PASS |
 | sd(M) | 2.0704 | (1.2, 2.8) | PASS |
 | autocorr_lag1 | 0.3934 | (0.2, 0.5) | PASS |
 | sat_frac | 0.0267 | < 0.1 | PASS |
 
-![verificación](08_verificacion_defaults_M_t.png)
+![verification](08_verificacion_defaults_M_t.png)
 
-## Veredicto (8b): **PASS**
+## Verdict (8b): **PASS**
 
-Existe una región no vacía que cumple los 4 umbrales del criterio (8b) (grid 1: 5 celdas, grid 2: 2 celdas, grid 3: 1 celdas), y la propuesta de defaults afinados se verificó con 5 semillas frescas (PASS). PASS de (8b) = región no vacía + propuesta verificada.
+A non-empty region meeting all 4 criterion (8b) thresholds exists (grid 1: 5 cells, grid 2: 2 cells, grid 3: 1 cell), and the tuned-defaults proposal was verified with 5 fresh seeds (PASS). PASS of (8b) = non-empty region + verified proposal.
