@@ -84,7 +84,7 @@ def test_fire_proactive_creates_proactive_message(tmp_path):
     # fresh transcript → system-only payload; no trailing user request
     last_call = client.calls[-1]
     assert last_call["messages"][-1]["role"] == "system"
-    assert "initiating contact" in last_call["system"]
+    assert "reaching out first" in last_call["system"]
 
 
 def test_fire_proactive_validates_reason(tmp_path):
