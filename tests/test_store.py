@@ -235,6 +235,27 @@ def test_resolve_intent_source_full_vocabulary(tmp_path):
     store.close()
 
 
+def test_supersede_assertion_cross_key(tmp_path):
+    """M-1b gate fix: supersede_assertion flips current rows of any key."""
+    store = SQLiteStore(tmp_path / "s.db")
+    a1 = UserModelAssertion("user:cat", "user has a cat named Luna", 0.6,
+                            10.0, ("ep1",), "current")
+    store.upsert_assertion(a1)
+    store.upsert_assertion(UserModelAssertion("user:luna", "user no longer has luna", 0.5,
+                                              50.0, ("ep2",), "current"))
+    assert store.get_assertion("user:cat") is not None
+    store.supersede_assertion("user:cat")
+    assert store.get_assertion("user:cat") is None
+    superseded = [a for a in store.list_assertions("superseded")]
+    assert len(superseded) == 1 and superseded[0].key == "user:cat"
+    # unrelated key untouched
+    assert store.get_assertion("user:luna") is not None
+    # idempotent
+    store.supersede_assertion("user:cat")
+    assert len(store.list_assertions("superseded")) == 1
+    store.close()
+
+
 def test_memory_sessions_turns_and_view(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     store.open_session("s1", 0.0)
