@@ -190,6 +190,51 @@ def test_proactive_intent_crud_and_resolve(tmp_path):
     store.close()
 
 
+def test_resolve_intent_source_full_vocabulary(tmp_path):
+    """MAJOR-1 gate fix: every source_type harness.proactive emits must
+    resolve against the REAL store (agenda_item/life_event -> agenda_items;
+    callback/shared_interest/check_in -> episodes; life_arc -> life_arcs)."""
+    store = SQLiteStore(tmp_path / "s.db")
+
+    # sources
+    item = AgendaItem("i1", 100.0, 102.0, "pottery class", "arc", "arc1",
+                      0.7, "completed")
+    store.save_agenda(4, DailyAgenda(4, (item,)))
+    arc = LifeArc("a1", "photography", "photography", 4, 0.37, "active",
+                  "practice portraits")
+    store.upsert_life_arc(arc)
+    ep = EpisodicMemory("ep1", "user loves pottery", MemoryKind.CALLBACK,
+                        160.0, 161.0, 0.9, 0, None, None, "s1", (7,),
+                        ("exact quote",), ("pottery",))
+    store.insert_episode(ep)
+
+    def intent(st: str, sid: str) -> ProactiveIntent:
+        return ProactiveIntent(f"p_{st}", "r", st, sid, "h", 100.0, 110.0,
+                               0.5, "e")
+
+    # agenda-backed: schedule + life events are both agenda items
+    r1 = store.resolve_intent_source(intent("agenda_item", "i1"))
+    assert r1 is not None and r1.id == "i1"
+    r2 = store.resolve_intent_source(intent("life_event", "i1"))
+    assert r2 is not None and r2.id == "i1"
+    # arc-backed
+    r3 = store.resolve_intent_source(intent("life_arc", "a1"))
+    assert r3 is not None and r3.id == "a1"
+    # episode-backed: callbacks, shared-interest anchors, check-in anchors
+    for st in ("episodic_memory", "callback", "shared_interest", "check_in"):
+        resolved = store.resolve_intent_source(intent(st, "ep1"))
+        assert resolved is not None and resolved.id == "ep1", st
+    # missing sources -> None (the content gate's existence check)
+    for st in ("agenda_item", "life_event", "life_arc",
+               "episodic_memory", "callback", "shared_interest", "check_in"):
+        assert store.resolve_intent_source(intent(st, "ghost")) is None, st
+    # superseded agenda items still RESOLVE (status is the gate's business)
+    store.update_agenda_item_status("i1", "skipped")
+    r4 = store.resolve_intent_source(intent("life_event", "i1"))
+    assert r4 is not None and r4.id == "i1"
+    store.close()
+
+
 def test_memory_sessions_turns_and_view(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     store.open_session("s1", 0.0)

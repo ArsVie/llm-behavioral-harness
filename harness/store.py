@@ -1233,15 +1233,24 @@ class SQLiteStore:
         self, intent: ProactiveIntent
     ) -> AgendaItem | LifeArc | EpisodicMemory | None:
         """The persisted source an intent points at, or None when the source
-        no longer exists (the content gate's existence check)."""
+        no longer exists (the content gate's existence check).
+
+        source_type vocabulary (aligned with harness.proactive):
+        - agenda_item / life_event -> agenda_items (life events ARE completed
+          agenda items)
+        - life_arc -> life_arcs
+        - episodic_memory / callback / shared_interest / check_in -> episodes
+          (callbacks, shared-interest anchors and check-in anchors are all
+          episodic memories)
+        """
         st = intent.source_type
-        if st == "agenda_item":
+        if st in ("agenda_item", "life_event"):
             row = self.conn.execute(
                 "SELECT * FROM agenda_items WHERE id = ?", (intent.source_id,)
             ).fetchone()
             return self._row_to_agenda_item(row) if row else None
         if st == "life_arc":
             return self.get_life_arc(intent.source_id)
-        if st == "episodic_memory":
+        if st in ("episodic_memory", "callback", "shared_interest", "check_in"):
             return self.get_episode(intent.source_id)
         return None
