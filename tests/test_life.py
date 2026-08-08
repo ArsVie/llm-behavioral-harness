@@ -33,6 +33,7 @@ from harness.life import (
     AWAKE_END_H,
     AWAKE_START_H,
     DAY_HOURS,
+    LifeStore,
     generate_agenda,
     init_life,
     step_life,
@@ -168,7 +169,7 @@ def _store(tmp_path: Path) -> FakeLifeStore:
     return FakeLifeStore(tmp_path / "life_store.json")
 
 
-def _simulate(seed: int, persona: domain.PersonaProfile, store: FakeLifeStore,
+def _simulate(seed: int, persona: domain.PersonaProfile, store: "LifeStore",
               days: int = 30, start_day: int = 1):
     """Run init_life + days of generate_agenda/step_life; return live state."""
     arcs = init_life(seed, persona, store, start_day=start_day)
@@ -501,6 +502,56 @@ def test_reload_reproduces_persistent_state(tmp_path):
                                      stream_rng(CORE_SEED, LIFE_STREAM, 31))
     step31_fresh = step_life(31, persona, fresh_arcs, agenda31_fresh, store3,
                              stream_rng(CORE_SEED, LIFE_STREAM, 31))
+
+    assert agenda31_reloaded == agenda31_fresh
+    assert step31_reloaded.updated_arcs == step31_fresh.updated_arcs
+    assert step31_reloaded.agenda == step31_fresh.agenda
+    assert step31_reloaded.current_activity == step31_fresh.current_activity
+
+
+def test_reload_reproduces_persistent_state_real_store(tmp_path):
+    """Gate check: the SAME restart/reload contract against A2's real SQLiteStore.
+
+    The fake-store variant above proves semantics; this one proves the seam against
+    the production persistence layer (schema v2, migrations, WAL reopen).
+    """
+    from harness.store import SQLiteStore
+
+    persona = _persona()
+    path = tmp_path / "life_real.db"
+
+    store1 = SQLiteStore(path)
+    arcs, agendas, _ = _simulate(CORE_SEED, persona, store1, days=30)
+    store1.close()
+
+    # --- restart: new store instance over the same file ---
+    store2 = SQLiteStore(path)
+    # No ORDER BY contract in the store seam: compare state as id-keyed maps and
+    # normalize by id before continuation runs (persistence preserves STATE, not
+    # list order).
+    reloaded_arcs = sorted(store2.list_life_arcs(), key=lambda a: a.id)
+    arcs_sorted = sorted(arcs, key=lambda a: a.id)
+    assert {a.id: a for a in reloaded_arcs} == {a.id: a for a in arcs_sorted}
+    assert store2.load_agenda(30) == agendas[30]
+    for day in (1, 15, 30):
+        stored_items = {it.id: it for it in store2.list_agenda_items(day=day)}
+        assert stored_items == {it.id: it for it in agendas[day].items}
+
+    # --- continuation determinism: day 31 from reloaded state == fresh run ---
+    agenda31_reloaded = generate_agenda(31, persona, reloaded_arcs, store2,
+                                        stream_rng(CORE_SEED, LIFE_STREAM, 31))
+    step31_reloaded = step_life(31, persona, reloaded_arcs, agenda31_reloaded, store2,
+                                stream_rng(CORE_SEED, LIFE_STREAM, 31))
+    store2.close()
+
+    store3 = SQLiteStore(tmp_path / "life_fresh.db")
+    fresh_arcs, _, _ = _simulate(CORE_SEED, persona, store3, days=30)
+    fresh_arcs = sorted(fresh_arcs, key=lambda a: a.id)
+    agenda31_fresh = generate_agenda(31, persona, fresh_arcs, store3,
+                                     stream_rng(CORE_SEED, LIFE_STREAM, 31))
+    step31_fresh = step_life(31, persona, fresh_arcs, agenda31_fresh, store3,
+                             stream_rng(CORE_SEED, LIFE_STREAM, 31))
+    store3.close()
 
     assert agenda31_reloaded == agenda31_fresh
     assert step31_reloaded.updated_arcs == step31_fresh.updated_arcs
