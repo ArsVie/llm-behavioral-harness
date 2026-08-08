@@ -22,6 +22,16 @@ def test_fake_client_echo():
     assert out == "echo: hi there"
 
 
+def test_fake_client_records_max_tokens_per_call():
+    client = FakeClient()
+    client.chat([{"role": "user", "content": "x"}], max_tokens=123)
+    client.chat([{"role": "user", "content": "y"}])
+
+    assert client.calls[0]["max_tokens"] == 123
+    assert client.calls[1]["max_tokens"] is None
+    assert set(client.calls[0]) == {"messages", "system", "temperature", "json_mode", "max_tokens"}
+
+
 def test_openai_client_payload_and_system_prepend():
     def handler(request: httpx.Request) -> httpx.Response:
         body = request.content.decode()
@@ -59,6 +69,27 @@ def test_openai_client_json_mode_flag():
     )
     client._client = httpx.Client(transport=transport)
     assert client.chat([{"role": "user", "content": "q"}], json_mode=True) == '{"s": 1}'
+
+
+def test_openai_client_max_tokens_payload():
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content.decode())
+        seen.append(payload)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    transport = httpx.MockTransport(handler)
+    client = OpenAICompatibleClient(
+        base_url="https://example.test/v1", api_key="k", model="m"
+    )
+    client._client = httpx.Client(transport=transport)
+
+    client.chat([{"role": "user", "content": "q"}], max_tokens=777)
+    client.chat([{"role": "user", "content": "q"}])
+
+    assert seen[0]["max_tokens"] == 777
+    assert "max_tokens" not in seen[1]
 
 
 def test_openai_client_requires_key(monkeypatch):

@@ -43,6 +43,7 @@ class LLMClient(Protocol):
         system: str | None = None,
         temperature: float = 0.8,
         json_mode: bool = False,
+        max_tokens: int | None = None,
     ) -> str:
         """Complete a chat. `system` is prepended when given."""
         ...
@@ -104,6 +105,7 @@ class OpenAICompatibleClient:
         system: str | None = None,
         temperature: float = 0.8,
         json_mode: bool = False,
+        max_tokens: int | None = None,
     ) -> str:
         if not self.api_key:
             raise RuntimeError(
@@ -126,6 +128,8 @@ class OpenAICompatibleClient:
         }
         if json_mode and self.supports_json:
             payload["response_format"] = {"type": "json_object"}
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
         resp = self._post(payload)
         try:
             data = resp.json()
@@ -161,13 +165,20 @@ class FakeClient:
         system: str | None = None,
         temperature: float = 0.8,
         json_mode: bool = False,
+        max_tokens: int | None = None,
     ) -> str:
         # Mirror OpenAICompatibleClient semantics (system-only payload when the
         # transcript is empty) so fakes are faithful protocol stand-ins.
         if system is not None and not messages:
             messages = [{"role": "system", "content": system}]
         self.calls.append(
-            {"messages": messages, "system": system, "temperature": temperature, "json_mode": json_mode}
+            {
+                "messages": messages,
+                "system": system,
+                "temperature": temperature,
+                "json_mode": json_mode,
+                "max_tokens": max_tokens,
+            }
         )
         if self.echo:
             return f"echo: {messages[-1]['content']}"
