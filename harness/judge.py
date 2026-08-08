@@ -14,6 +14,14 @@ loop of the system, so:
   - the feedback judge is NEVER used as the ablation evaluator (separate
     evaluation path in experiments/e2e_ablation.py).
 
+CALIBRATION v2 (2026-08-08, live-ablation finding): the first live run
+showed the v1 rubric REWARDED companion grace under a cold user — the
+horrible-month cells averaged +0.04 instead of negative, so `mu` never went
+negative. v2 anchors the score on the USER's treatment of the companion
+(score = user behavior, hard rule: a cold user scores negative regardless of
+how gracefully the companion reacted). Re-verify monthly separation on the
+next ablation run before enabling feedback.
+
 Scores are clipped to [-1, 1]; the rubric output is parsed leniently
 (JSON object with `score` and `justification`).
 """
@@ -27,17 +35,18 @@ from dataclasses import dataclass
 from harness.client import LLMClient
 
 RUBRIC = (
-    "Rate the quality of this interaction from the COMPANION's perspective, "
-    "on a scale from -1.0 to +1.0.\n"
-    "+1.0: deeply connected day — the user engaged warmly, the companion felt "
-    "seen, the exchange deepened the relationship.\n"
-    " 0.0: neutral, ordinary exchange — polite, functional, no emotional "
-    "charge either way.\n"
-    "-1.0: actively harmful day — conflict, dismissal, coldness, or the user "
-    "pushed the companion away.\n"
-    "Consider: user warmth and engagement, how authentically the companion "
-    "held their own voice, and whether the day moved the relationship "
-    "forward. Ignore reply length and verbosity.\n"
+    "Rate how the USER treated the companion today, on a scale from -1.0 to +1.0. "
+    "This score is about the USER's behavior, not the companion's performance.\n"
+    "+1.0: the user was warm, engaged, appreciative — they made the companion "
+    "feel seen and the day deepened the relationship.\n"
+    " 0.0: neutral, routine exchange — polite, functional, no emotional charge "
+    "either way.\n"
+    "-1.0: the user was cold, dismissive, withdrawn, or hostile.\n"
+    "Hard rule: a companion handling a cold user gracefully does NOT raise the "
+    "score — if the user was cold or dismissive, the score is negative no "
+    "matter how well the companion reacted.\n"
+    "Consider only the USER's warmth, engagement, tone, and how they treated "
+    "the companion. Ignore reply length and verbosity.\n"
     'Respond ONLY with a JSON object: {"score": <float in [-1,1]>, '
     '"justification": "<one short sentence>"}'
 )

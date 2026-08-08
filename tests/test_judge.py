@@ -51,6 +51,15 @@ def test_judge_day_calls_client_json_mode():
     assert RUBRIC in call["messages"][0]["content"]
 
 
+def test_rubric_anchors_on_user_treatment():
+    # Calibration v2 regression guard (2026-08-08 live-run finding): the
+    # score must measure the USER's behavior, never reward companion grace
+    # under a cold user.
+    assert "how the USER treated" in RUBRIC
+    assert "does NOT raise the score" in RUBRIC
+    assert "negative no matter how well" in RUBRIC
+
+
 def test_judge_day_honors_client_capability():
     # A client that does not support json_mode must not receive the flag.
     client = FakeClient(responses=['{"score": -0.2, "justification": "meh"}'])
