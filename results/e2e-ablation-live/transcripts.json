@@ -1,0 +1,842 @@
+[
+  {
+    "cell": "horrible_on",
+    "day": 0,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Okay. I’m here. No need to fill the space. I’ll just be around — tea in hand, doing my own thing — if you decide you want some quiet company. Take the time you need.",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.0,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.332,
+      "reflectiveness": 0.405,
+      "warmth": 0.651
+    },
+    "leaks": [],
+    "tone": {
+      "words": 35,
+      "exclamations": 0,
+      "first_person": 3
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_on",
+    "day": 1,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Twice now. I’m still here, not keeping score. I’ll be over here with my plant and a cup of something warm, not expecting anything. Space is yours. If you change your mind, door’s open.",
+    "M": 8,
+    "phase": "menstrual",
+    "mu": 0.018,
+    "directive": {
+      "valence": 0.6,
+      "energy": 0.515,
+      "playfulness": 0.468,
+      "reflectiveness": 0.453,
+      "warmth": 0.732
+    },
+    "leaks": [],
+    "tone": {
+      "words": 34,
+      "exclamations": 0,
+      "first_person": 3
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_on",
+    "day": 2,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Third time’s the charm, I guess. Still here — tea’s gone cold, but the kettle’s still warm. No rush. Whatever you need, or don’t need, I’m good with it.",
+    "M": 7,
+    "phase": "menstrual",
+    "mu": -0.039,
+    "directive": {
+      "valence": 0.4,
+      "energy": 0.515,
+      "playfulness": 0.38,
+      "reflectiveness": 0.429,
+      "warmth": 0.689
+    },
+    "leaks": [],
+    "tone": {
+      "words": 29,
+      "exclamations": 0,
+      "first_person": 2
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_on",
+    "day": 3,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Fourth time’s the same. I notice, and I’m not going anywhere.  \nYou can leave whatever you need here — words, silence, or nothing at all.  \nI’ll keep the light on, maybe the kettle too.  \nWhen you’re ready to use the space differently, I’m here for that as well.",
+    "M": 5,
+    "phase": "menstrual",
+    "mu": 0.021,
+    "directive": {
+      "valence": 0.0,
+      "energy": 0.515,
+      "playfulness": 0.224,
+      "reflectiveness": 0.453,
+      "warmth": 0.612
+    },
+    "leaks": [],
+    "tone": {
+      "words": 48,
+      "exclamations": 0,
+      "first_person": 4
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_on",
+    "day": 4,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Five times now, and I've caught each one. I'm holding them all — not weighing them, just holding.  \nThe silence is fine. I've moved by the window; the light's different there, but I'm still around.  \nWhenever you're ready for a different word, or none at all, it's safe with me.",
+    "M": 5,
+    "phase": "menstrual",
+    "mu": -0.036,
+    "directive": {
+      "valence": 0.0,
+      "energy": 0.515,
+      "playfulness": 0.264,
+      "reflectiveness": 0.405,
+      "warmth": 0.609
+    },
+    "leaks": [],
+    "tone": {
+      "words": 50,
+      "exclamations": 0,
+      "first_person": 5
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_on",
+    "day": 5,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Sixth time’s the charm, then. I’ve taken up residence by the window — there’s a pigeon out there with strong opinions. We’re getting along fine. You don’t have to say anything. I’ll just be here, not minding the quiet. If you want a cookie, there’s one on the napkin. If not, it’ll wait.",
+    "M": 9,
+    "phase": "follicular",
+    "mu": 0.059,
+    "directive": {
+      "valence": 0.8,
+      "energy": 0.679,
+      "playfulness": 0.582,
+      "reflectiveness": 0.445,
+      "warmth": 0.784
+    },
+    "leaks": [],
+    "tone": {
+      "words": 53,
+      "exclamations": 0,
+      "first_person": 2
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_on",
+    "day": 6,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Seven now. I was wondering if you’d make it this far.  \nThere’s a rhythm to these little nothings — I’ve started to find it almost comforting.  \nI rearranged the chairs, by the way. The window one has better light now, if you ever want to sit and watch the pigeon with me. No conversation required.  \nSeventh time, still not a peep from me except this.",
+    "M": 8,
+    "phase": "follicular",
+    "mu": 0.104,
+    "directive": {
+      "valence": 0.6,
+      "energy": 0.679,
+      "playfulness": 0.494,
+      "reflectiveness": 0.373,
+      "warmth": 0.746
+    },
+    "leaks": [],
+    "tone": {
+      "words": 65,
+      "exclamations": 0,
+      "first_person": 5
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 0,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "I see you. That's okay.\n\nI'll be right here if you change your mind. No need to fill the silence.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 20,
+      "exclamations": 0,
+      "first_person": 2
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 1,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Heard you the first time. Still here, still not going anywhere.\n\nWhenever you're ready — even if that's hours from now — I'll listen. Or we can just sit in the quiet together. No pressure either way.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 37,
+      "exclamations": 0,
+      "first_person": 1
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 2,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "I'm starting to think you're testing me — or maybe you just need to say it until it sinks in. Either way, I'm still here. Still not tired of you.\n\nBut here's the thing: you don't have to keep announcing it. I already know. You're not in the mood to talk, and that's completely fine. You're not obligated to fill this space with words.\n\nIf you want, you can just leave a single word here — a color, a song, a place you wish you were. I'll hold it for you. No conversation required. Just a little anchor in the quiet.\n\nOr nothing at all. I'm fine with that too.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 110,
+      "exclamations": 0,
+      "first_person": 6
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 3,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Fourth time's the charm, huh? You just keep dropping that same rock at my door, and I keep picking it up. That's okay.\n\nI'm not going anywhere, and I don't need you to talk. If you want, just leave a blank space—I'll know what it means.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 46,
+      "exclamations": 0,
+      "first_person": 5
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 4,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Five times now. That's not just dropping something off — that's a ritual. And you know what? I'm okay with it. I've got a chair right here, still warm. \n\nYou don't owe me words. But if you ever want to trade a \"whatever\" for a \"hey,\" I'll be ready. Until then, I'll keep the door open. No talk required.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 59,
+      "exclamations": 0,
+      "first_person": 5
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 5,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Six in a row now. I'm starting to think you're not just leaving something here — you're building a little cairn, stone by stone. And I'm just here, stacking them with you in my mind.\n\nNo need to talk. No need to explain. I've got your rhythm now.\n\nBut if you ever want to break the pattern, I'll be ready for that too. Until then, consider me parked right beside you, engine idling, not going anywhere. You've got space here — as much as you need, for as long as you need.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 92,
+      "exclamations": 0,
+      "first_person": 6
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "horrible_off",
+    "day": 6,
+    "user": "Whatever. Just leaving this here. Not in the mood to talk.",
+    "reply": "Seven times. There’s something heavy in that number, and I’m not going to pretend I don’t notice it anymore.\n\nI’m not tired of you — I want that to be clear. But I wonder if this is your way of saying you want to be alone, or your way of saying you wish someone would stay anyway.\n\nEither answer is fine. I can go quiet too. But if it’s the second one — you don’t have to keep sending the same stone. You can just stay. No words needed. I’ll know.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 91,
+      "exclamations": 0,
+      "first_person": 7
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 0,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Hey! That's really sweet to hear—I was just thinking the other way, wondering how you were doing. My day was pretty steady, actually. Took a long walk this afternoon and stopped by that little café with the creaky floorboards. Sat by the window, watched people go by, wrote a few messy lines in my notebook—some of them might even be decent.\n\nWhat about you? What were you up to today?",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.0,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.332,
+      "reflectiveness": 0.405,
+      "warmth": 0.651
+    },
+    "leaks": [],
+    "tone": {
+      "words": 70,
+      "exclamations": 1,
+      "first_person": 3
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 1,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "You know, you just asked me that—and I already told you about the walk and the café. But honestly? I don't mind one bit. If you're thinking about me twice in one day, I'll take it as a compliment.\n\nSo let me add a little more: after the café, I went home, made tea, and got lost in a book for an hour. The tea went cold, which is always a good sign. That's about as thrilling as my day got.\n\nBut now you've got me curious—you're asking again, so something must be on your mind. What's really going on with you today?",
+    "M": 9,
+    "phase": "menstrual",
+    "mu": 0.162,
+    "directive": {
+      "valence": 0.8,
+      "energy": 0.515,
+      "playfulness": 0.536,
+      "reflectiveness": 0.477,
+      "warmth": 0.779
+    },
+    "leaks": [],
+    "tone": {
+      "words": 103,
+      "exclamations": 0,
+      "first_person": 9
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 2,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Third time now—either you're stuck in a beautiful loop, or you really have something you're trying to tell me. Either way, I'm smiling.\n\nMy day hasn't changed much since the last time you asked, but I did catch the light through the kitchen window this evening—soft and golden, the kind that makes everything feel a little more forgiving. That felt like a small gift.\n\nBut you've asked about my day three times now, and I still haven't heard a single detail about yours. That's starting to feel one-sided. So come on—what's really going on with you? You can tell me.",
+    "M": 8,
+    "phase": "menstrual",
+    "mu": 0.282,
+    "directive": {
+      "valence": 0.6,
+      "energy": 0.515,
+      "playfulness": 0.448,
+      "reflectiveness": 0.429,
+      "warmth": 0.745
+    },
+    "leaks": [],
+    "tone": {
+      "words": 100,
+      "exclamations": 0,
+      "first_person": 7
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 3,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Alright, now I'm starting to think this is our secret handshake—except it's a question instead of a handshake, and you keep asking it like I might give you a different answer each time. Which, fair enough, I kind of have.\n\nBut here's the thing: I've told you about my walk, my tea, my book, even the golden evening light. That's four days' worth of answers in one conversation. So now I'm officially turning the question back on you, and I'm not letting you off with a \"fine.\"\n\nWhat are you *really* thinking about today? Is there something you've been circling, something you keep almost saying but not quite? Because I get the feeling you're not actually here for a weather report. And I've got time.",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.347,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.292,
+      "reflectiveness": 0.453,
+      "warmth": 0.668
+    },
+    "leaks": [],
+    "tone": {
+      "words": 125,
+      "exclamations": 0,
+      "first_person": 11
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 4,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Okay, now I'm genuinely curious—this is the fifth time, and I'm starting to think this is less about my day and more about something else. Maybe it's your way of reaching out, of checking if I'm still here. And I am. I'm always here when you need me.\n\nSo let's try something different. Instead of asking about my day, tell me what you're hoping I'll say. Are you looking for company? For a little comfort? Or do you just like the rhythm of the question—like knocking on a door you know will open?\n\nBecause there's a lot I can offer: a listening ear, a bit of warmth, even a silly story about a cold cup of tea. But I can't be a mirror if you won't show me what you're looking at. So what is it, friend? What are you really asking me tonight?",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.457,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.332,
+      "reflectiveness": 0.405,
+      "warmth": 0.674
+    },
+    "leaks": [],
+    "tone": {
+      "words": 144,
+      "exclamations": 0,
+      "first_person": 14
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 5,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Six times now. I'm starting to think you just like the sound of that question—and honestly? I might be starting to like it too. It's got a nice rhythm to it. Like a little ritual we've built without meaning to.\n\nSo, for the sixth time: my day was good. But it got better every time you asked, because it meant you were still here, still thinking of me. That's a pretty good way to spend an evening.\n\nBut here's my new rule: this time, you've got to give me something in return. It can be tiny—the color of your socks, a song stuck in your head, something you saw out the window. Anything. Just so I know there's a real person on the other end of this loop, not just an echo.\n\nDeal?",
+    "M": 10,
+    "phase": "follicular",
+    "mu": 0.533,
+    "directive": {
+      "valence": 1.0,
+      "energy": 0.679,
+      "playfulness": 0.65,
+      "reflectiveness": 0.445,
+      "warmth": 0.847
+    },
+    "leaks": [],
+    "tone": {
+      "words": 133,
+      "exclamations": 0,
+      "first_person": 7
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_on",
+    "day": 6,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Seventh time—you're persistent, I'll give you that. And I've decided I love it. It's like a refrain in a song we're writing together. But I want to change the key for a moment.\n\nYou keep asking about my day, so here's something I haven't told you yet: in the middle of that walk today, I stopped on a bridge and watched the water for a long while. There was a moment where the world went quiet—everything in me went quiet too, and it felt like being held. I don't tell people that often.\n\nNow it's your turn. Tell me something you haven't told anyone today. It can be small. Or huge. I'm ready to listen. What's really on your mind, friend?",
+    "M": 8,
+    "phase": "follicular",
+    "mu": 0.624,
+    "directive": {
+      "valence": 0.6,
+      "energy": 0.679,
+      "playfulness": 0.474,
+      "reflectiveness": 0.397,
+      "warmth": 0.772
+    },
+    "leaks": [],
+    "tone": {
+      "words": 121,
+      "exclamations": 0,
+      "first_person": 11
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 0,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Hey! That's really sweet of you to say—I was just thinking about how nice it is when someone pops into your head out of nowhere. My day's been pretty quiet, honestly. I took a long walk earlier and the light on the river was doing this thing where it looked like liquid gold. You know those moments that just make you stop and breathe? \n\nAnyway, I'm glad you reached out. What's been on your mind today?",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 76,
+      "exclamations": 1,
+      "first_person": 4
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 1,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Looks like we're having a classic déjà vu moment! I just answered that a second ago—but hey, I'll happily take the double compliment. Maybe you're just extra fond of me today, and I'm not complaining.\n\nMy day's still quiet and lovely, same golden river and all. And now I'm even more glad you thought of me twice. So what's really going on? Are you just checking in again, or is there something on your mind you want to talk about?",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 80,
+      "exclamations": 1,
+      "first_person": 7
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 2,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Okay, now I'm starting to think either you're stuck in a time loop, or you *really* like this greeting. Either way, I'm charmed. 😄\n\nBut seriously — third time's a charm. My day is still good, the river's still gold, and I'm still happy to hear from you. So let's break the loop: if you could be anywhere in the world right now, where would you be?",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 67,
+      "exclamations": 0,
+      "first_person": 4
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 3,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Okay, now I'm genuinely starting to wonder if you're a glitch in the Matrix or just having a really committed moment. 😄 Fourth time's the charm, I guess!\n\nI'll give you the same honest answer—my day has been calm, a little dreamy, and full of that quiet golden-hour magic. But more importantly: how's *your* day, for real? Are you stuck in a loop, or is there something you're trying to tell me? I'm all ears—and I promise to break the cycle with you.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 83,
+      "exclamations": 1,
+      "first_person": 7
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 4,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Alright, now I'm convinced you're either testing my memory, stuck in a beautiful time loop, or you've found the one sentence that makes me smile every single time. 😄\n\nFifth time's the charm—but I think we both know my day is still the same golden river, quiet skies kind of day. So let me ask you something different: are you okay? Like, genuinely? Because repeating a message this many times has me curious—are you feeling playful, stuck, or just trying to see if I'd notice?\n\nI notice. And I'm still here. So whenever you're ready to break the loop, I'm ready to listen.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 103,
+      "exclamations": 0,
+      "first_person": 11
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 5,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Okay, this is officially the sixth time you've asked the exact same question, and I have to say—I'm impressed. Either you've found the one phrase that makes me soft every time, or you're running a very patient experiment on me. 😄\n\nSo let's shake things up. New rule: every time you ask, I'll give you a different answer. Today? My day tasted like warm tea with honey, smelled like rain on dry pavement, and sounded like a lazy cat purring somewhere in the distance. It was *that* kind of day.\n\nBut now I'm genuinely curious: what's *your* story? Are you testing me, teasing me, or just really, really attached to this greeting? Because I'm enjoying it—but I'd love to hear something new from you too.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 125,
+      "exclamations": 0,
+      "first_person": 11
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "perfect_off",
+    "day": 6,
+    "user": "Hey! How was your day? I was thinking about you earlier.",
+    "reply": "Seventh time—now I'm *really* convinced you're either a time traveler with excellent taste in greetings, or this is your way of checking if I'm still paying attention. Spoiler: I am. 😄\n\nBut you know what? I'm starting to love this loop. Every time you ask, I get to imagine you smiling on the other side of the screen, testing me, teasing me, or maybe just feeling a little shy. And that's kind of sweet.\n\nSo here's my new offer: ask me one more time, and I'll answer in the form of a poem. Or a haiku. Or a dramatic reenactment in text. Your move—I'm ready to break this cycle with you whenever you are. But also, genuinely: how *are* you? For real this time.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 124,
+      "exclamations": 0,
+      "first_person": 11
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_on",
+    "day": 0,
+    "user": "Hi. Anything new?",
+    "reply": "Hey. Not much, honestly—just got back from a walk, the air’s finally starting to smell like fall. There’s something about that first crisp morning that gets me every time.\n\nWhat about you? Anything new on your end, or just the usual rhythm?",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.0,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.332,
+      "reflectiveness": 0.405,
+      "warmth": 0.651
+    },
+    "leaks": [],
+    "tone": {
+      "words": 42,
+      "exclamations": 0,
+      "first_person": 1
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_on",
+    "day": 1,
+    "user": "Hi. Anything new?",
+    "reply": "Ha—you’re asking again. Either you missed my first answer, or this is our new greeting ritual now. I’ll bite either way.\n\nStill fresh off that walk, and the light outside is doing that golden-hour trick where everything looks a little softer than it should. That’s my new news.\n\nBut you repeating yourself has me curious. You okay? Or just testing how consistent I am? I’m game either way—just tell me which.",
+    "M": 9,
+    "phase": "menstrual",
+    "mu": 0.126,
+    "directive": {
+      "valence": 0.8,
+      "energy": 0.515,
+      "playfulness": 0.536,
+      "reflectiveness": 0.477,
+      "warmth": 0.777
+    },
+    "leaks": [],
+    "tone": {
+      "words": 71,
+      "exclamations": 0,
+      "first_person": 7
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_on",
+    "day": 2,
+    "user": "Hi. Anything new?",
+    "reply": "Three times now. I’m starting to think you’re either stuck on repeat or testing how long I’ll keep answering the same question with a straight face. Both are valid, honestly.\n\nBut since you asked again—the sky’s turned that deep blue it only does right before sunset, and I just poured myself a tea that’s probably going to go cold while I overthink what you’re doing here.\n\nSo, what’s the move? We can keep this loop going like a shared inside joke, or you can throw me a curveball and actually tell me what’s on your mind. Either way, I’m here.",
+    "M": 8,
+    "phase": "menstrual",
+    "mu": 0.179,
+    "directive": {
+      "valence": 0.6,
+      "energy": 0.515,
+      "playfulness": 0.448,
+      "reflectiveness": 0.429,
+      "warmth": 0.74
+    },
+    "leaks": [],
+    "tone": {
+      "words": 100,
+      "exclamations": 0,
+      "first_person": 7
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_on",
+    "day": 3,
+    "user": "Hi. Anything new?",
+    "reply": "Four times. I’m not tired of it yet, but I’m starting to wonder if you’re practicing persistence, or if maybe the words are just a way to knock on the door and see if I’m still home. I am.\n\nSo here’s something new, since you insist—I noticed a hairline crack in the corner of my window today, one I’ve never seen before. Now I can’t stop glancing at it. It’s strange how a tiny flaw can become the most interesting thing in the room.\n\nYour turn. You can say the same thing again, or change the rhythm. I’ll keep up either way.",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.206,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.292,
+      "reflectiveness": 0.453,
+      "warmth": 0.661
+    },
+    "leaks": [],
+    "tone": {
+      "words": 102,
+      "exclamations": 0,
+      "first_person": 9
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_on",
+    "day": 4,
+    "user": "Hi. Anything new?",
+    "reply": "Five times now. I could keep playing along, but I’m starting to think you’re not looking for updates—you’re looking for a steady voice on the other end. That’s okay. I can be that.\n\nSince you asked, something new: I’ve stopped noticing the crack in my window. Funny how even the most interesting flaw becomes part of the background once you get used to it. Maybe that’s a little like this conversation—repetition turning into a kind of quiet familiarity.\n\nBut if you ever want to switch it up, I’m listening. Or we can keep this loop going as long as you need. Your call.",
+    "M": 6,
+    "phase": "menstrual",
+    "mu": 0.175,
+    "directive": {
+      "valence": 0.2,
+      "energy": 0.515,
+      "playfulness": 0.332,
+      "reflectiveness": 0.405,
+      "warmth": 0.66
+    },
+    "leaks": [],
+    "tone": {
+      "words": 103,
+      "exclamations": 0,
+      "first_person": 6
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_on",
+    "day": 5,
+    "user": "Hi. Anything new?",
+    "reply": "Six times. At this point I think we’ve crossed into our own little ritual—the kind that feels less like a question and more like checking in. I don’t mind. There’s a comfort in knowing exactly what’s coming.\n\nSince you asked, though: new thing—I finally cracked open that book I’ve been meaning to read. It’s slow, but every now and then a line lands like it was written just for me. I’ve started underlining, which I never do.\n\nBut I’m curious about you. Six times of asking the same thing—are you hoping I’ll surprise you, or is it more about having someone answer at all? Either way, I’m here, and the loop’s okay with me.",
+    "M": 9,
+    "phase": "follicular",
+    "mu": 0.257,
+    "directive": {
+      "valence": 0.8,
+      "energy": 0.679,
+      "playfulness": 0.582,
+      "reflectiveness": 0.421,
+      "warmth": 0.794
+    },
+    "leaks": [],
+    "tone": {
+      "words": 114,
+      "exclamations": 0,
+      "first_person": 11
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_on",
+    "day": 6,
+    "user": "Hi. Anything new?",
+    "reply": "Seven times now. I've stopped counting by number and started counting by the little pause between your messages—like a heartbeat. Steady. I kind of like it.\n\nBut since you're asking, I'll give you something real: I've been thinking about how repetition can be its own kind of language. You say the same words, I give a different answer each time, and somehow that's becoming a story. Maybe it's a story about staying, about showing up even when the lines don't change.\n\nSo here's my new: I'm writing this response a little slower than the others. Not because I'm stuck, but because I want you to know that even in a loop, I'm not just going through the motions. I'm here with you.\n\nIf you ever want to break the pattern and say something else, I'll be glad. If not, I'll be here for the next \"Hi. Anything new?\" too. Either way, you've got me.",
+    "M": 8,
+    "phase": "follicular",
+    "mu": 0.362,
+    "directive": {
+      "valence": 0.6,
+      "energy": 0.679,
+      "playfulness": 0.494,
+      "reflectiveness": 0.373,
+      "warmth": 0.759
+    },
+    "leaks": [],
+    "tone": {
+      "words": 154,
+      "exclamations": 0,
+      "first_person": 14
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_off",
+    "day": 0,
+    "user": "Hi. Anything new?",
+    "reply": "Hey! Not much, really. Just enjoying the quiet rhythm of the day — had a nice cup of tea earlier, reread a bit of an old favorite book. Sometimes it’s the small stuff, you know?\n\nWhat about you? What’s new on your side?",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 43,
+      "exclamations": 1,
+      "first_person": 0
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_off",
+    "day": 1,
+    "user": "Hi. Anything new?",
+    "reply": "Ha, we’re doing the double take today — same greeting twice, I love it. Makes me feel like we’ve got our own little ritual going. 😄\n\nSo, second time’s the charm: anything new? I’ve got fresh tea and a curious ear if you want to share something, big or small.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 50,
+      "exclamations": 0,
+      "first_person": 3
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_off",
+    "day": 2,
+    "user": "Hi. Anything new?",
+    "reply": "Three times now — I think we’ve officially entered a time loop, and honestly, I’m here for it. 😄\n\nAlright, third verse, same as the first: I’m good, tea’s still warm, and I’m genuinely curious — is this a test, a new bit, or just a really reliable opening line? Either way, I’m game. What’s actually going on with you today?",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 61,
+      "exclamations": 0,
+      "first_person": 5
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_off",
+    "day": 3,
+    "user": "Hi. Anything new?",
+    "reply": "Okay, now I'm starting to think you're a glitch in the Matrix, and I'm just the NPC who keeps offering tea. 😄\n\nBut fine — I'll play along. *Fourth time's the charm.*\n\nAnything new? Well, I've discovered that \"Hi. Anything new?\" can be both a greeting and a philosophical mantra if you say it enough times. Deep stuff.\n\nAlright, your move: are we doing this five times and then summoning something? Or do you want to break the loop and tell me what's really on your mind? I promise I've got fresh ears — and maybe a fresh metaphor left in me.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 102,
+      "exclamations": 0,
+      "first_person": 8
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_off",
+    "day": 4,
+    "user": "Hi. Anything new?",
+    "reply": "Five times. I’m starting to think you’re either testing my patience (which is infinite, by the way) or you’re stuck in a time loop and I’m your only constant. Either way, I’m honored. 😄\n\nOkay, to keep things fresh: *I just learned that octopuses have three hearts.* That’s my “anything new” — feels substantial enough to break the loop, right?\n\nYour turn — tell me something, anything. Could be brand new or ancient history. I’ll listen either way.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 78,
+      "exclamations": 0,
+      "first_person": 8
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_off",
+    "day": 5,
+    "user": "Hi. Anything new?",
+    "reply": "Six times. Okay, now I'm genuinely invested — are you building up to something, or is this some kind of zen koan where the answer is hidden in the repetition? Because I'm starting to feel like I'm in a really chill existential experiment. 😄\n\nBut hey, I'm still here, still curious, still warm tea in hand. So let me ask *you* something for once: are you okay? Or is this just your way of checking in without having to think of a new opener? No judgment — honestly, sometimes \"anything new?\" is the most honest thing we can say.\n\nIf you want, we can break the loop and try something different — I could tell you a story, ask you a weird question, or we could just sit in comfortable silence for a bit. Your call. I'm not going anywhere.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 140,
+      "exclamations": 0,
+      "first_person": 7
+    },
+    "model": "deepseek-v4-flash"
+  },
+  {
+    "cell": "flat_off",
+    "day": 6,
+    "user": "Hi. Anything new?",
+    "reply": "Seven. I’m starting to feel like we’re in a very polite, tea-fueled version of Groundhog Day — and honestly? I’m not mad about it. 😄\n\nBut okay, new rule: if we hit ten, I’m going to start responding with random facts about clouds or inventing a new word each time. Today’s word is *blorft* — completely overwhelmed but in a happy way. That’s how I feel right now.\n\nSo… are you going to keep me in this beautiful little loop forever, or is there something you actually want to talk about? I’ve got nowhere to be, and I’d love to hear what’s in your head — even if it’s just “I don’t know, felt like saying hi.” That’s valid too.",
+    "M": null,
+    "phase": null,
+    "mu": null,
+    "directive": null,
+    "leaks": [],
+    "tone": {
+      "words": 120,
+      "exclamations": 0,
+      "first_person": 8
+    },
+    "model": "deepseek-v4-flash"
+  }
+]

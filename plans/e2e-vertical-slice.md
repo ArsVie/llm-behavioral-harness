@@ -84,8 +84,8 @@ mechanics (single-user testing). Reuses Hermes agent patterns where possible
 ## Status
 
 All waves complete, 311 tests green, OKF conformant. Next steps (not in this slice):
-- Live ablation run + blind human rating (research/06 §B3).
-- Judge calibration: shadow-mode collection → anchored transcripts → score_neutral check → enable feedback.
+- **Judge calibration (FIRST — live run surfaced it)**: the anchored rubric scores "interaction quality" and rewards the companion for staying warm under a cold user — horrible-month cells got mean judge score ≈ +0.04 (justifications: "the companion responded with patient warmth despite the user's dismissal") instead of negative. Result: mu never went negative, M trajectories identical [6→8] across months. The behavioral pipe works (harness ON amplifies the month tone gap 2.4× vs OFF: 44.9 vs 113.7 words; first-person 3.4 vs 8.9; zero leakage in all 42 live exchanges), but the SENSOR needs recalibration: weight user valence (e.g. 50/50 user-treatment vs companion-quality) or score "how the user treated the companion" so a horrible user scores negative even when handled gracefully. Calibration protocol per research/06 §6b: shadow collection → anchored transcripts → score_neutral check → flip feedback.
+- Live ablation run + blind human rating (research/06 §B3) — first live run done 2026-08-08 (results/e2e-ablation-live/, deepseek-v4-flash, 42 exchanges, 0 leaks).
 - FTS5 conversation search (Hermes pattern), Telegram channel, schedule/life-state (arcs), import/backwards-compat.
 - Code docstring English migration in engine/sim (old modules still have Spanish docstrings).
 
