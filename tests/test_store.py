@@ -245,11 +245,14 @@ def test_supersede_assertion_cross_key(tmp_path):
                                               50.0, ("ep2",), "current"))
     assert store.get_assertion("user:cat") is not None
     store.supersede_assertion("user:cat")
-    assert store.get_assertion("user:cat") is None
+    # real-store contract: get_assertion returns most recent row (any status)
+    flipped = store.get_assertion("user:cat")
+    assert flipped is not None and flipped.status == "superseded"
     superseded = [a for a in store.list_assertions("superseded")]
     assert len(superseded) == 1 and superseded[0].key == "user:cat"
-    # unrelated key untouched
-    assert store.get_assertion("user:luna") is not None
+    # unrelated key untouched (still current)
+    luna = store.get_assertion("user:luna")
+    assert luna is not None and luna.status == "current"
     # idempotent
     store.supersede_assertion("user:cat")
     assert len(store.list_assertions("superseded")) == 1
