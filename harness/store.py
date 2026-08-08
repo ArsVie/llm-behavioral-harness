@@ -13,6 +13,7 @@ Tables (slice scope of DESIGN.md data model):
   - judgements(day PK, score, justification, model, shadow)
   - state_events(id PK, day, t_h, event, detail)
   - llm_calls(id PK, day, t_h, role, model, prompt_hash, response, meta)
+  - schedule_events(id PK, seed, t_h, day, reason, status, fired_t_h)
 
 All writes go through `conn` transactions; reads are plain SELECTs. No
 secrets are stored (credentials stay in the environment).
@@ -75,6 +76,18 @@ CREATE TABLE IF NOT EXISTS llm_calls (
     response TEXT,
     meta TEXT
 );
+CREATE TABLE IF NOT EXISTS schedule_events (
+    id       INTEGER PRIMARY KEY AUTOINCREMENT,
+    seed     INTEGER NOT NULL,
+    t_h      REAL    NOT NULL,        -- absolute virtual hour of the planned firing
+    day      INTEGER NOT NULL,        -- int(t_h // 24)
+    reason   TEXT    NOT NULL,        -- one of VALID_REASONS
+    status   TEXT    NOT NULL DEFAULT 'pending',  -- 'pending' | 'fired' | 'expired'
+    fired_t_h REAL,                   -- actual virtual hour it fired (may differ slightly)
+    UNIQUE(seed, t_h)
+);
+CREATE INDEX IF NOT EXISTS idx_schedule_events_seed_status
+    ON schedule_events(seed, status);
 """
 
 
@@ -256,3 +269,62 @@ class SQLiteStore:
             "SELECT * FROM state_events WHERE day >= ? ORDER BY id", (day,)
         ).fetchall()
         return [dict(r) for r in rows]
+
+    # -- schedule_events (persisted proactive schedule) ----------------------
+
+    def save_schedule_events(self, seed: int, events: list[dict]) -> None:
+        """Upsert planned events. Each dict: {"t_h": float, "day": int,
+        "reason": str}. INSERT OR IGNORE on (seed, t_h) so re-planning the same
+        horizon is idempotent and never resurrects a fired/expired row."""
+        self.conn.executemany(
+            "INSERT OR IGNORE INTO schedule_events (seed, t_h, day, reason) "
+            "VALUES (?, ?, ?, ?)",
+            [(seed, e["t_h"], e["day"], e["reason"]) for e in events],
+        )
+        self.conn.commit()
+
+    def pending_schedule_events(self, seed: int) -> list[dict]:
+        """Rows with status='pending' for seed, ascending by t_h. Each dict has
+        keys: id, seed, t_h, day, reason, status, fired_t_h."""
+        rows = self.conn.execute(
+            "SELECT * FROM schedule_events WHERE seed = ? AND status = 'pending' "
+            "ORDER BY t_h",
+            (seed,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def schedule_events_for_seed(self, seed: int) -> list[dict]:
+        """All rows for seed, ascending by t_h (any status). Used by
+        ProactiveSchedule.restore to rebuild event_hours without re-planning."""
+        rows = self.conn.execute(
+            "SELECT * FROM schedule_events WHERE seed = ? ORDER BY t_h", (seed,)
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def mark_schedule_fired(self, seed: int, t_h: float, fired_t_h: float) -> None:
+        """Set status='fired', fired_t_h=<arg> for the row (seed, t_h)."""
+        self.conn.execute(
+            "UPDATE schedule_events SET status = 'fired', fired_t_h = ? "
+            "WHERE seed = ? AND t_h = ?",
+            (fired_t_h, seed, t_h),
+        )
+        self.conn.commit()
+
+    def mark_schedule_expired(self, seed: int, t_h: float) -> None:
+        """Set status='expired' for the row (seed, t_h)."""
+        self.conn.execute(
+            "UPDATE schedule_events SET status = 'expired' "
+            "WHERE seed = ? AND t_h = ?",
+            (seed, t_h),
+        )
+        self.conn.commit()
+
+    def last_proactive_t_h(self, seed: int) -> float | None:
+        """Max fired_t_h over status='fired' rows for seed, else None. Used by
+        the context gate for cooldown across restarts."""
+        row = self.conn.execute(
+            "SELECT MAX(fired_t_h) AS m FROM schedule_events "
+            "WHERE seed = ? AND status = 'fired'",
+            (seed,),
+        ).fetchone()
+        return float(row["m"]) if row["m"] is not None else None
