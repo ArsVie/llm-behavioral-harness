@@ -27,10 +27,20 @@ import numpy as np
 import sim.run_events as run_events
 from engine.types import PersonaParams, TimingParams
 
-#: Reason taxonomy (slice scope: schedule | callback per research/06 §12b).
+#: Reason taxonomy (full DESIGN taxonomy; schedule | callback are the slice's
+#: original members, the rest are added for gates + runtime).
 REASON_SCHEDULE = "schedule"
 REASON_CALLBACK = "callback"
-VALID_REASONS = (REASON_SCHEDULE, REASON_CALLBACK)
+REASON_EVENT = "event"
+REASON_SHARED_INTEREST = "shared_interest"
+REASON_CHECK_IN = "check_in"
+VALID_REASONS = (REASON_SCHEDULE, REASON_CALLBACK, REASON_EVENT,
+                 REASON_SHARED_INTEREST, REASON_CHECK_IN)
+#: default validity window (hours) after the planned t_h, per reason
+REASON_VALIDITY_H = {
+    REASON_SCHEDULE: 3.0, REASON_CALLBACK: 6.0, REASON_EVENT: 4.0,
+    REASON_SHARED_INTEREST: 12.0, REASON_CHECK_IN: 12.0,
+}
 
 
 def plan_proactive_events(
@@ -79,6 +89,41 @@ class ProactiveSchedule:
 
     def mark_fired(self, t_h: float) -> None:
         self._fired.add(float(t_h))
+
+    @classmethod
+    def plan_and_persist(cls, days, seed, persona, timing, store, *,
+                         reason: str = REASON_SCHEDULE,
+                         scores=None) -> "ProactiveSchedule":
+        """plan() then store.save_schedule_events(seed, [{t_h, day, reason} ...]).
+        Idempotent (INSERT OR IGNORE). Returns a schedule whose _fired set is
+        pre-seeded from the store: any planned hour whose row is no longer
+        'pending' (i.e. already fired/expired) is treated as fired."""
+        schedule = cls.plan(days, seed, persona, timing, scores=scores)
+        events = [
+            {"t_h": float(h), "day": int(h // 24.0), "reason": reason}
+            for h in schedule.event_hours
+        ]
+        store.save_schedule_events(seed, events)
+        pending = {float(r["t_h"]) for r in store.pending_schedule_events(seed)}
+        schedule._fired = {
+            float(h) for h in schedule.event_hours if float(h) not in pending
+        }
+        return schedule
+
+    @classmethod
+    def restore(cls, seed, store) -> "ProactiveSchedule":
+        """Rebuild from store: event_hours = all rows' t_h for seed; _fired =
+        every row whose status != 'pending'. For restart-resume without re-planning."""
+        rows = store.schedule_events_for_seed(seed)
+        event_hours = np.asarray([float(r["t_h"]) for r in rows])
+        fired = {float(r["t_h"]) for r in rows if r["status"] != "pending"}
+        return cls(event_hours=event_hours, _fired=fired)
+
+    def mark_fired_persisted(self, t_h: float, fired_t_h: float, seed: int,
+                             store) -> None:
+        """self.mark_fired(t_h) + store.mark_schedule_fired(seed, t_h, fired_t_h)."""
+        self.mark_fired(t_h)
+        store.mark_schedule_fired(seed, t_h, fired_t_h)
 
     def next_pending(self, t_h: float) -> float | None:
         """First planned hour > t_h, or None."""
