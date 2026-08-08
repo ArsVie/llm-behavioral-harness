@@ -1,0 +1,77 @@
+{
+  "ensemble_seeds": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29
+  ],
+  "representative_seed": 7,
+  "phases": {
+    "menstrual": {
+      "mood_mean": 4.846153846153846,
+      "mood_sd": 2.1805072583995613,
+      "mood_below_five_rate": 0.4660633484162896,
+      "energy_mean": 0.45,
+      "energy_range": 0.4999053083362559,
+      "reactivity_mean": 1.2279714886659798
+    },
+    "follicular": {
+      "mood_mean": 5.866028708133971,
+      "mood_sd": 2.196396356788465,
+      "mood_below_five_rate": 0.24880382775119617,
+      "energy_mean": 0.65,
+      "energy_range": 0.2249573887513152,
+      "reactivity_mean": 0.996355147335009
+    },
+    "ovulatory": {
+      "mood_mean": 7.1344537815126055,
+      "mood_sd": 1.6496720822503752,
+      "mood_below_five_rate": 0.058823529411764705,
+      "energy_mean": 0.7000000000000001,
+      "energy_range": 0.24995265416812795,
+      "reactivity_mean": 0.7760945255251847
+    },
+    "luteal_early": {
+      "mood_mean": 6.741463414634146,
+      "mood_sd": 2.0015817659377997,
+      "mood_below_five_rate": 0.15609756097560976,
+      "energy_mean": 0.5999999999999999,
+      "energy_range": 0.2749479195849408,
+      "reactivity_mean": 0.9482420685501919
+    },
+    "luteal_late": {
+      "mood_mean": 6.054794520547945,
+      "mood_sd": 2.468377599046958,
+      "mood_below_five_rate": 0.3013698630136986,
+      "energy_mean": 0.5000000000000001,
+      "energy_range": 0.4399166713359053,
+      "reactivity_mean": 1.164869176283032
+    }
+  }
+}

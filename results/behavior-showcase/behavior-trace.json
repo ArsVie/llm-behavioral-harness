@@ -1,0 +1,602 @@
+[
+  {
+    "day": 0,
+    "mood": 3,
+    "phase": "menstrual",
+    "energy": 0.44999999999999996,
+    "warmth": 0.5269999999999999,
+    "playfulness": 0.246,
+    "reflectiveness": 0.5070000000000001,
+    "initiative": 0.311,
+    "response_length_scale": 0.9089189069162811,
+    "response_delay_s": 5.3500000000000005,
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.2169696230027538,
+      "event_memory": 0.0,
+      "endogenous_tone": 0.0,
+      "mood_delta": 0.0
+    },
+    "prompt_brief": "Current bearing: a little tender and inward, calmly present. Carry a sense of emotional continuity from the recent past. Favor thoughtful pauses, precise words, and one sincere detail. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 1,
+    "mood": 6,
+    "phase": "menstrual",
+    "energy": 0.44999999999999996,
+    "warmth": 0.6437335779171255,
+    "playfulness": 0.314,
+    "reflectiveness": 0.49900000000000005,
+    "initiative": 0.33777372466740074,
+    "response_length_scale": 0.9504482387271594,
+    "response_delay_s": 5.3500000000000005,
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.2771509771142624,
+      "event_memory": -0.06532844165749017,
+      "endogenous_tone": 0.2820578127045636,
+      "mood_delta": 0.3
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. There is a gentle sense of opening up compared with recently. Favor thoughtful pauses, precise words, and one sincere detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 2,
+    "mood": 2,
+    "phase": "menstrual",
+    "energy": 0.44999999999999996,
+    "warmth": 0.48297941916426734,
+    "playfulness": 0.16599999999999998,
+    "reflectiveness": 0.643,
+    "initiative": 0.2405670706628278,
+    "response_length_scale": 0.8897949757938324,
+    "response_delay_s": 6.550000000000001,
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.230441353531712,
+      "event_memory": -0.08041161671465243,
+      "endogenous_tone": -0.04258259084177138,
+      "mood_delta": -0.4
+    },
+    "prompt_brief": "Current bearing: a little tender and inward, calmly present. Let the recent dip show as restraint, without withdrawing affection. Favor thoughtful pauses, precise words, and one sincere detail. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 3,
+    "mood": 3,
+    "phase": "menstrual",
+    "energy": 0.44999999999999996,
+    "warmth": 0.5159920557833075,
+    "playfulness": 0.246,
+    "reflectiveness": 0.5310000000000001,
+    "initiative": 0.29338728925329216,
+    "response_length_scale": 0.9282380235468436,
+    "response_delay_s": 5.3500000000000005,
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.2781640662191678,
+      "event_memory": -0.22015888433384834,
+      "endogenous_tone": -0.43638587922027,
+      "mood_delta": 0.1
+    },
+    "prompt_brief": "Current bearing: a little tender and inward, calmly present. Carry a sense of emotional continuity from the recent past. Favor thoughtful pauses, precise words, and one sincere detail. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 4,
+    "mood": 2,
+    "phase": "menstrual",
+    "energy": 0.44999999999999996,
+    "warmth": 0.47493516920655043,
+    "playfulness": 0.22599999999999998,
+    "reflectiveness": 0.5710000000000001,
+    "initiative": 0.27569627073048075,
+    "response_length_scale": 0.9085694051748628,
+    "response_delay_s": 5.65,
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.207802897104175,
+      "event_memory": -0.24129661586899057,
+      "endogenous_tone": -0.8251558162595063,
+      "mood_delta": -0.1
+    },
+    "prompt_brief": "Current bearing: a little tender and inward, calmly present. Carry a sense of emotional continuity from the recent past. Favor thoughtful pauses, precise words, and one sincere detail. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 5,
+    "mood": 2,
+    "phase": "follicular",
+    "energy": 0.65,
+    "warmth": 0.4848471562042096,
+    "playfulness": 0.30200000000000005,
+    "reflectiveness": 0.479,
+    "initiative": 0.3643554499267354,
+    "response_length_scale": 0.9230544481129436,
+    "response_delay_s": 3.9499999999999997,
+    "trace": {
+      "phase_label": "follicular",
+      "hormonal_gain": 1.1562737453382126,
+      "event_memory": -0.28305687591580747,
+      "endogenous_tone": -0.7923102866661151,
+      "mood_delta": 0.0
+    },
+    "prompt_brief": "Current bearing: a little tender and inward, calmly present. Carry a sense of emotional continuity from the recent past. Favor thoughtful pauses, precise words, and one sincere detail. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 6,
+    "mood": 2,
+    "phase": "follicular",
+    "energy": 0.65,
+    "warmth": 0.4806203611827506,
+    "playfulness": 0.30200000000000005,
+    "reflectiveness": 0.479,
+    "initiative": 0.35759257789240106,
+    "response_length_scale": 0.9201870777839048,
+    "response_delay_s": 3.9499999999999997,
+    "trace": {
+      "phase_label": "follicular",
+      "hormonal_gain": 1.0587441423096846,
+      "event_memory": -0.36759277634498666,
+      "endogenous_tone": -1.0785879919187908,
+      "mood_delta": 0.0
+    },
+    "prompt_brief": "Current bearing: a little tender and inward, calmly present. Carry a sense of emotional continuity from the recent past. Favor thoughtful pauses, precise words, and one sincere detail. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 7,
+    "mood": 6,
+    "phase": "follicular",
+    "energy": 0.65,
+    "warmth": 0.638890024588235,
+    "playfulness": 0.37,
+    "reflectiveness": 0.45499999999999996,
+    "initiative": 0.3868240393411758,
+    "response_length_scale": 0.9708141091023141,
+    "response_delay_s": 3.9499999999999997,
+    "trace": {
+      "phase_label": "follicular",
+      "hormonal_gain": 1.0501397653848328,
+      "event_memory": -0.4021995082353019,
+      "endogenous_tone": -0.25533097264619964,
+      "mood_delta": 0.4
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. There is a gentle sense of opening up compared with recently. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 8,
+    "mood": 5,
+    "phase": "follicular",
+    "energy": 0.65,
+    "warmth": 0.6065088859328281,
+    "playfulness": 0.28200000000000003,
+    "reflectiveness": 0.383,
+    "initiative": 0.3510142174925251,
+    "response_length_scale": 0.8937079687975152,
+    "response_delay_s": 4.25,
+    "trace": {
+      "phase_label": "follicular",
+      "hormonal_gain": 1.031563564541334,
+      "event_memory": -0.24982228134343631,
+      "endogenous_tone": -0.23399286322393337,
+      "mood_delta": -0.1
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal detail. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 9,
+    "mood": 7,
+    "phase": "follicular",
+    "energy": 0.65,
+    "warmth": 0.6921450244991775,
+    "playfulness": 0.43800000000000006,
+    "reflectiveness": 0.407,
+    "initiative": 0.440032039198684,
+    "response_length_scale": 0.9345319648888061,
+    "response_delay_s": 3.9499999999999997,
+    "trace": {
+      "phase_label": "follicular",
+      "hormonal_gain": 1.0078899622042865,
+      "event_memory": -0.13709951001645043,
+      "endogenous_tone": -0.178143074980727,
+      "mood_delta": 0.2
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. There is a gentle sense of opening up compared with recently. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 10,
+    "mood": 4,
+    "phase": "follicular",
+    "energy": 0.65,
+    "warmth": 0.5773409106111492,
+    "playfulness": 0.24200000000000005,
+    "reflectiveness": 0.471,
+    "initiative": 0.3363454569778389,
+    "response_length_scale": 0.8852802299633938,
+    "response_delay_s": 4.85,
+    "trace": {
+      "phase_label": "follicular",
+      "hormonal_gain": 0.9680350327684968,
+      "event_memory": -0.03318178777701422,
+      "endogenous_tone": -0.9289132468117233,
+      "mood_delta": -0.3
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. Let the recent dip show as restraint, without withdrawing affection. Favor thoughtful pauses, precise words, and one sincere detail. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 11,
+    "mood": 5,
+    "phase": "follicular",
+    "energy": 0.65,
+    "warmth": 0.6170744256652909,
+    "playfulness": 0.30200000000000005,
+    "reflectiveness": 0.383,
+    "initiative": 0.3839190810644655,
+    "response_length_scale": 0.9115214724222238,
+    "response_delay_s": 3.9499999999999997,
+    "trace": {
+      "phase_label": "follicular",
+      "hormonal_gain": 0.8211385177627128,
+      "event_memory": -0.03851148669418161,
+      "endogenous_tone": -0.46114696023828633,
+      "mood_delta": 0.1
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal detail. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 12,
+    "mood": 4,
+    "phase": "ovulatory",
+    "energy": 0.7,
+    "warmth": 0.581693647715957,
+    "playfulness": 0.296,
+    "reflectiveness": 0.406,
+    "initiative": 0.38950983634553116,
+    "response_length_scale": 0.8958165606252447,
+    "response_delay_s": 3.9000000000000004,
+    "trace": {
+      "phase_label": "ovulatory",
+      "hormonal_gain": 0.8046449192260114,
+      "event_memory": -0.006127045680860227,
+      "endogenous_tone": -0.7305786201553205,
+      "mood_delta": -0.1
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal detail. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 13,
+    "mood": 6,
+    "phase": "ovulatory",
+    "energy": 0.7,
+    "warmth": 0.6616664181367089,
+    "playfulness": 0.384,
+    "reflectiveness": 0.39,
+    "initiative": 0.43746626901873403,
+    "response_length_scale": 0.9292969327136634,
+    "response_delay_s": 3.6000000000000005,
+    "trace": {
+      "phase_label": "ovulatory",
+      "hormonal_gain": 0.7488752623695006,
+      "event_memory": -0.006671637265823745,
+      "endogenous_tone": -0.3531561646398916,
+      "mood_delta": 0.2
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. There is a gentle sense of opening up compared with recently. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 14,
+    "mood": 8,
+    "phase": "ovulatory",
+    "energy": 0.7,
+    "warmth": 0.7463208612257772,
+    "playfulness": 0.52,
+    "reflectiveness": 0.39,
+    "initiative": 0.5089133779612437,
+    "response_length_scale": 0.9300233604804454,
+    "response_delay_s": 3.6000000000000005,
+    "trace": {
+      "phase_label": "ovulatory",
+      "hormonal_gain": 0.7735836898110652,
+      "event_memory": 0.08641722451554565,
+      "endogenous_tone": 0.268140546154768,
+      "mood_delta": 0.2
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. There is a gentle sense of opening up compared with recently. Favor light wit and small spontaneous details over big declarations. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 15,
+    "mood": 7,
+    "phase": "ovulatory",
+    "energy": 0.7,
+    "warmth": 0.7109462574049423,
+    "playfulness": 0.432,
+    "reflectiveness": 0.36600000000000005,
+    "initiative": 0.46831401184790783,
+    "response_length_scale": 0.888481764641973,
+    "response_delay_s": 3.9000000000000004,
+    "trace": {
+      "phase_label": "ovulatory",
+      "hormonal_gain": 0.7728491374820742,
+      "event_memory": 0.17892514809884807,
+      "endogenous_tone": 0.6927614400422946,
+      "mood_delta": -0.1
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 16,
+    "mood": 6,
+    "phase": "luteal_early",
+    "energy": 0.6,
+    "warmth": 0.6662771869341872,
+    "playfulness": 0.33599999999999997,
+    "reflectiveness": 0.4,
+    "initiative": 0.40044349909469945,
+    "response_length_scale": 0.8868397909559977,
+    "response_delay_s": 4.6000000000000005,
+    "trace": {
+      "phase_label": "luteal_early",
+      "hormonal_gain": 0.8789044542856385,
+      "event_memory": 0.2055437386837434,
+      "endogenous_tone": 0.011554937544975219,
+      "mood_delta": -0.1
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 17,
+    "mood": 9,
+    "phase": "luteal_early",
+    "energy": 0.6,
+    "warmth": 0.7870400420831108,
+    "playfulness": 0.56,
+    "reflectiveness": 0.448,
+    "initiative": 0.5136640673329774,
+    "response_length_scale": 0.9486367002258425,
+    "response_delay_s": 4.300000000000001,
+    "trace": {
+      "phase_label": "luteal_early",
+      "hormonal_gain": 0.9726768784300164,
+      "event_memory": 0.22080084166221725,
+      "endogenous_tone": 0.6922704518684226,
+      "mood_delta": 0.3
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. There is a gentle sense of opening up compared with recently. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 18,
+    "mood": 5,
+    "phase": "luteal_early",
+    "energy": 0.6,
+    "warmth": 0.6321031921076238,
+    "playfulness": 0.20800000000000002,
+    "reflectiveness": 0.472,
+    "initiative": 0.32976510737219794,
+    "response_length_scale": 0.869390665721407,
+    "response_delay_s": 5.500000000000001,
+    "trace": {
+      "phase_label": "luteal_early",
+      "hormonal_gain": 0.9466212830410522,
+      "event_memory": 0.3220638421524747,
+      "endogenous_tone": 0.32541416048546346,
+      "mood_delta": -0.4
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. Let the recent dip show as restraint, without withdrawing affection. Favor thoughtful pauses, precise words, and one sincere detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 19,
+    "mood": 9,
+    "phase": "luteal_early",
+    "energy": 0.6,
+    "warmth": 0.7915961445407859,
+    "playfulness": 0.56,
+    "reflectiveness": 0.472,
+    "initiative": 0.5209538312652573,
+    "response_length_scale": 0.9676237165489365,
+    "response_delay_s": 4.300000000000001,
+    "trace": {
+      "phase_label": "luteal_early",
+      "hormonal_gain": 1.0225753928209678,
+      "event_memory": 0.3119228908157162,
+      "endogenous_tone": 0.762045849348979,
+      "mood_delta": 0.4
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. There is a gentle sense of opening up compared with recently. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 20,
+    "mood": 9,
+    "phase": "luteal_early",
+    "energy": 0.6,
+    "warmth": 0.7935535435518427,
+    "playfulness": 0.56,
+    "reflectiveness": 0.376,
+    "initiative": 0.5240856696829483,
+    "response_length_scale": 0.8963360644683859,
+    "response_delay_s": 4.300000000000001,
+    "trace": {
+      "phase_label": "luteal_early",
+      "hormonal_gain": 0.981498791441695,
+      "event_memory": 0.35107087103685425,
+      "endogenous_tone": 0.9250135475712206,
+      "mood_delta": 0.0
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. Carry a sense of emotional continuity from the recent past. Favor light wit and small spontaneous details over big declarations. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 21,
+    "mood": 9,
+    "phase": "luteal_early",
+    "energy": 0.6,
+    "warmth": 0.7999205120190663,
+    "playfulness": 0.56,
+    "reflectiveness": 0.376,
+    "initiative": 0.5342728192305061,
+    "response_length_scale": 0.8987529785739048,
+    "response_delay_s": 4.300000000000001,
+    "trace": {
+      "phase_label": "luteal_early",
+      "hormonal_gain": 1.0637067542144487,
+      "event_memory": 0.4784102403813261,
+      "endogenous_tone": -0.24144179699125334,
+      "mood_delta": 0.0
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. Carry a sense of emotional continuity from the recent past. Favor light wit and small spontaneous details over big declarations. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 22,
+    "mood": 7,
+    "phase": "luteal_late",
+    "energy": 0.5,
+    "warmth": 0.7163736715526593,
+    "playfulness": 0.356,
+    "reflectiveness": 0.458,
+    "initiative": 0.4041978744842549,
+    "response_length_scale": 0.8834878005405505,
+    "response_delay_s": 5.6,
+    "trace": {
+      "phase_label": "luteal_late",
+      "hormonal_gain": 1.1472041000187232,
+      "event_memory": 0.5274734310531866,
+      "endogenous_tone": -0.6194620992141704,
+      "mood_delta": -0.2
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. Let the recent dip show as restraint, without withdrawing affection. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 23,
+    "mood": 7,
+    "phase": "luteal_late",
+    "energy": 0.5,
+    "warmth": 0.715487854182105,
+    "playfulness": 0.396,
+    "reflectiveness": 0.41000000000000003,
+    "initiative": 0.4347805666913682,
+    "response_length_scale": 0.8962648022013128,
+    "response_delay_s": 5.0,
+    "trace": {
+      "phase_label": "luteal_late",
+      "hormonal_gain": 1.1409796667113183,
+      "event_memory": 0.5097570836421025,
+      "endogenous_tone": 0.06321427961813614,
+      "mood_delta": 0.0
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 24,
+    "mood": 6,
+    "phase": "luteal_late",
+    "energy": 0.5,
+    "warmth": 0.6736736745056728,
+    "playfulness": 0.308,
+    "reflectiveness": 0.43400000000000005,
+    "initiative": 0.38387787920907646,
+    "response_length_scale": 0.8921374422343816,
+    "response_delay_s": 5.3,
+    "trace": {
+      "phase_label": "luteal_late",
+      "hormonal_gain": 1.2210014365435873,
+      "event_memory": 0.4734734901134558,
+      "endogenous_tone": -0.014262298829909273,
+      "mood_delta": -0.1
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. Carry a sense of emotional continuity from the recent past. Favor thoughtful pauses, precise words, and one sincere detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 25,
+    "mood": 7,
+    "phase": "luteal_late",
+    "energy": 0.5,
+    "warmth": 0.7096075608696617,
+    "playfulness": 0.396,
+    "reflectiveness": 0.43400000000000005,
+    "initiative": 0.4253720973914589,
+    "response_length_scale": 0.9142047481130087,
+    "response_delay_s": 5.0,
+    "trace": {
+      "phase_label": "luteal_late",
+      "hormonal_gain": 1.155263541258795,
+      "event_memory": 0.3921512173932362,
+      "endogenous_tone": 0.5801435864086439,
+      "mood_delta": 0.1
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 26,
+    "mood": 6,
+    "phase": "luteal_late",
+    "energy": 0.5,
+    "warmth": 0.6713226225196379,
+    "playfulness": 0.308,
+    "reflectiveness": 0.43400000000000005,
+    "initiative": 0.3801161960314206,
+    "response_length_scale": 0.8939073285096365,
+    "response_delay_s": 5.3,
+    "trace": {
+      "phase_label": "luteal_late",
+      "hormonal_gain": 1.2812016499876329,
+      "event_memory": 0.42645245039275775,
+      "endogenous_tone": 1.0379203078702979,
+      "mood_delta": -0.1
+    },
+    "prompt_brief": "Current bearing: even and grounded, calmly present. Carry a sense of emotional continuity from the recent past. Favor thoughtful pauses, precise words, and one sincere detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 27,
+    "mood": 7,
+    "phase": "menstrual",
+    "energy": 0.44999999999999996,
+    "warmth": 0.7077125835223496,
+    "playfulness": 0.382,
+    "reflectiveness": 0.45100000000000007,
+    "initiative": 0.40814013363575946,
+    "response_length_scale": 0.9129341039296239,
+    "response_delay_s": 5.3500000000000005,
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.1929967323001334,
+      "event_memory": 0.41425167044699324,
+      "endogenous_tone": 0.9956750136964087,
+      "mood_delta": 0.1
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 28,
+    "mood": 9,
+    "phase": "menstrual",
+    "energy": 0.44999999999999996,
+    "warmth": 0.7876981655798697,
+    "playfulness": 0.518,
+    "reflectiveness": 0.47500000000000003,
+    "initiative": 0.47211706492779154,
+    "response_length_scale": 0.9302298309553034,
+    "response_delay_s": 5.3500000000000005,
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.1853683998402493,
+      "event_memory": 0.41396331159739397,
+      "endogenous_tone": 1.1040053502661185,
+      "mood_delta": 0.2
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. There is a gentle sense of opening up compared with recently. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  },
+  {
+    "day": 29,
+    "mood": 9,
+    "phase": "menstrual",
+    "energy": 0.44999999999999996,
+    "warmth": 0.7910956116575254,
+    "playfulness": 0.518,
+    "reflectiveness": 0.42700000000000005,
+    "initiative": 0.47755297865204066,
+    "response_length_scale": 0.8960109472450025,
+    "response_delay_s": 5.3500000000000005,
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.2132975253402167,
+      "event_memory": 0.48191223315050824,
+      "endogenous_tone": 1.457512381837836,
+      "mood_delta": 0.0
+    },
+    "prompt_brief": "Current bearing: quietly bright, calmly present. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal detail. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length."
+  }
+]
