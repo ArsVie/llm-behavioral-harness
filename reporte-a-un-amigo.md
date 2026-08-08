@@ -1,48 +1,56 @@
-# Qué estoy montando (te lo cuento)
+---
+type: note
+title: "What I'm building (explained to a friend)"
+description: "Plain-language walkthrough of the behavioral harness concept, written before implementation — the project pitch in human terms."
+tags: [llm-behavioral-harness, concept]
+timestamp: 2026-08-08
+---
 
-Estoy con una prueba de concepto medio rara y me apetecía contártela, a ver qué te parece.
+# What I'm building (let me tell you)
 
-## La idea en una frase
+I'm working on a slightly odd proof of concept and I felt like telling you about it, to see what you think.
 
-Un **arnés** que envuelve a cualquier LLM (de los que se hablan por API estilo OpenAI, sea remoto o local) y le mete **iniciativa** y **variabilidad de comportamiento**. O sea: en vez de un bot que solo responde cuando le escribes, uno que tiene "estados" propios —humor, energía según la hora, un ciclo lento de varias semanas— y que a veces te escribe él, por su cuenta, con un motivo.
+## The idea in one sentence
 
-Lo importante es que el arnés **no toca el modelo**. Todo pasa en la capa de orquestación: cómo se arma el contexto y cuándo se dispara un mensaje. El modelo de abajo es intercambiable.
+A **harness** that wraps any LLM (the kind you talk to through an OpenAI-style API, remote or local) and gives it **initiative** and **behavioral variability**. Instead of a bot that only answers when you write to it, one that has its own "states" — mood, energy depending on the hour, a slow multi-week cycle — and that sometimes writes to you on its own, with a reason.
 
-Otra decisión que me gusta: la **persona** (el carácter, los gustos, los hobbies) es **configuración, no código**. Un solo motor sirve para cualquier perfil; el carácter es un dato que le pasas.
+The important part: the harness **does not touch the model**. Everything happens in the orchestration layer: how the context is assembled and when a message is fired. The underlying model is interchangeable.
 
-## Cómo funciona por dentro
+Another decision I like: the **persona** (character, tastes, hobbies) is **configuration, not code**. A single engine serves any profile; the character is a piece of data you pass in.
 
-Hay un **motor estocástico** que es el corazón. Maneja cuatro cosas con procesos aleatorios:
+## How it works inside
 
-- **Humor del día** — un valor acotado que varía día a día, con algo de memoria: un buen día empuja el ánimo hacia arriba, uno malo hacia abajo, y sin estímulos vuelve poco a poco a su punto base.
-- **Ciclo "hormonal" simulado** (~28 días) — una onda lenta que amplifica o calma los swings de humor. No es nada biológico de verdad; es una señal periódica que hace que en ciertas épocas las cosas se sientan más intensas.
-- **Ritmo circadiano** — más social/enérgico de día, más reflexivo de noche. Sesga el tono y las ganas de iniciar conversación.
-- **Frecuencia de mensajes espontáneos** — cada cuánto te escribe sin que le hables, modulado por la hora (nada de mensajes a las 3am) y por cómo fue el último día.
+There is a **stochastic engine** at the heart. It manages four things with random processes:
 
-Encima de eso van seis features:
+- **Daily mood** — a bounded value that varies day to day, with some memory: a good day pushes the mood up, a bad one down, and without stimuli it slowly returns to its baseline.
+- **Simulated "hormonal" cycle** (~28 days) — a slow wave that amplifies or calms the mood swings. It is not real biology; it is a periodic signal that makes certain stretches feel more intense.
+- **Circadian rhythm** — more social/energetic during the day, more reflective at night. It biases tone and the urge to start a conversation.
+- **Spontaneous message frequency** — how often it writes to you unprompted, modulated by the hour (no 3am messages) and by how the last day went.
 
-1. **Importar conversaciones viejas** para "continuar" una relación que venía de otro sitio.
-2. **Configurar persona** mezclando gustos: ~40% coinciden contigo, ~40% son parecidos, ~20% ajenos (para que no sea un espejo).
-3. **Cronograma diario** — cada día se inventa una agenda de actividades, atada a sus hobbies. No la sigue al pie de la letra; es material para dar verosimilitud y excusas para escribirte.
-4. **Cambios de humor** — lo del motor de arriba, inyectado al contexto como guía de tono.
-5. **Frecuencia de mensajes** — gestionada por un planificador.
-6. **Iniciativa** — cuando arranca una charla (la inicie quien la inicie) se le inyecta qué "estaba haciendo" y cómo anda de ánimo; si la inicia ella, elige *por qué* te contacta.
+On top of that, six features:
 
-La idea es validar primero el motor matemático solo, con simulaciones de un par de meses, antes de enchufar el LLM. Y hay un "juez" (otro LLM) que puntúa cada día de conversación y esa nota retroalimenta el humor del día siguiente.
+1. **Import old conversations** to "continue" a relationship that came from elsewhere.
+2. **Configure the persona** by mixing tastes: ~40% match yours, ~40% are similar, ~20% alien (so it is not a mirror).
+3. **Daily schedule** — each day it invents an agenda of activities tied to its hobbies. It does not follow it literally; it is material for verisimilitude and excuses to write to you.
+4. **Mood changes** — the engine above, injected into the context as tone guidance.
+5. **Message frequency** — managed by a scheduler.
+6. **Initiative** — when a conversation starts (whoever starts it) it gets injected with what it "was doing" and how its mood is; if it starts the conversation, it chooses *why* it is contacting you.
 
-Esto es un PoC local, para mí, nada distribuido ni público. CLI primero; luego, si tira, adaptadores para Telegram y Discord.
+The idea is to validate the mathematical engine alone first, with a couple of months of simulation, before plugging in the LLM. And there is a "judge" (another LLM) that scores each day of conversation, and that score feeds back into the next day's mood.
 
-## Qué encontré investigando antes de programar
+This is a local PoC, for me, nothing distributed or public. CLI first; later, if it works, adapters for Telegram and Discord.
 
-Me puse a mapear lo que ya existe para no reinventar y para fijar parámetros con algo de criterio. Resumen:
+## What I found researching before coding
 
-**Los productos del mercado** (Replika, Character.AI, Chai, Kindroid, Nomi, Paradot). Lo interesante:
-- Solo tres hacen mensajes proactivos de verdad (Kindroid, Nomi, Paradot), y **ninguno te deja ver el estado interno** que los dispara. Es una caja negra. Justo ahí está lo que quiero hacer distinto: que el estado (humor, fase del ciclo, hora) sea **inspeccionable**.
-- Para la memoria, lo más fino es lo de Kindroid (memoria en cascada que se va "olvidando" como la humana) y el truco de Character.AI de "fijar" recuerdos para que no se borren al comprimir el contexto.
-- Para configurar el carácter, las encuestas estructuradas (Paradot pregunta 23 cosas al inicio) dan personas más predecibles que los prompts libres. Eso encaja con lo de "persona como config".
+I mapped what already exists so as not to reinvent the wheel and to set parameters with some criteria. Summary:
 
-**El paper que me inspiró** ("Every 28 Days the AI Dreams of Soft Skin and Burning Stars", arXiv 2508.11829). Resulta que es más un experimento narrativo que un marco matemático: simula varias hormonas con ondas + ruido, mide emociones que *emergen* del texto, y los efectos en las tareas no son estadísticamente fuertes. O sea, la inspiración es buena (rítmos biológicos como filtro de relevancia), pero la matemática del motor la pongo yo. Para las ecuaciones de verdad tiré de literatura de agentes afectivos (modelo PAD, humor lento vs. emoción rápida) y de procesos de punto para la temporización (Poisson no homogéneo + Hawkes para que los mensajes tengan ritmo y ráfagas humanas, en vez de un timer robótico).
+**Market products** (Replika, Character.AI, Chai, Kindroid, Nomi, Paradot). The interesting bits:
+- Only three do real proactive messages (Kindroid, Nomi, Paradot), and **none lets you see the internal state** that triggers them. It is a black box. That is exactly what I want to do differently: make the state (mood, cycle phase, hour) **inspectable**.
+- For memory, the finest thing is Kindroid's (cascading memory that "forgets" like a human's) and Character.AI's trick of "pinning" memories so they survive context compression.
+- For character setup, structured surveys (Paradot asks 23 things up front) give more predictable personas than free prompts. That matches the "persona as config" decision.
 
-**Sobre la iniciativa** (que no resulte pesada): la clave es que cada mensaje espontáneo lleve un **motivo concreto** ("oye, lo que comentaste el martes…") en vez de un "hola, ¿cómo estás?" vacío, y que solo dispare si además es buen momento (no en mitad de algo, respetando horas tranquilas). Hay anti-patrones bien documentados que quiero evitar: culpar ("te extraño"), insistir, notificaciones huecas, optimizar para engagement. Eso lo pienso meter como reglas duras, no como sugerencias de estilo.
+**The paper that inspired me** ("Every 28 Days the AI Dreams of Soft Skin and Burning Stars", arXiv 2508.11829). Turns out it is more of a narrative experiment than a mathematical framework: it simulates several hormones with waves + noise, measures emotions that *emerge* from text, and the effects on tasks are not statistically strong. So the inspiration is good (biological rhythms as a relevance filter), but the engine mathematics are mine. For the actual equations I drew from affective-agent literature (PAD model, slow mood vs fast emotion) and point processes for timing (non-homogeneous Poisson + Hawkes so messages have rhythm and human bursts, instead of a robotic timer).
 
-Y ya. Eso es lo que tengo en la cabeza. Si te pica la curiosidad te enseño las simulaciones cuando las tenga.
+**On initiative** (so it is not annoying): the key is that every spontaneous message carries a **concrete reason** ("hey, that thing you mentioned on Tuesday…") instead of an empty "hi, how are you?", and it only fires when it is also a good moment (not mid-something, respecting quiet hours). There are well-documented anti-patterns I want to avoid: guilt-tripping ("I miss you"), nagging, hollow notifications, engagement-maxxing. I plan to make those hard rules, not style suggestions.
+
+And that's it. That's what I have in mind. If you're curious, I'll show you the simulations once I have them.
