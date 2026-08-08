@@ -322,8 +322,10 @@ class Session:
             self.store.add_message("user", user_text, t_h, day, proactive=False)
         else:
             system += (
-                f"\nYou are initiating contact. Reason: {reason or 'schedule'}. "
-                "Open with a concrete, verifiable hook; never guilt-trip or nag."
+                f"\nYou are reaching out first. Contact reason: {reason or 'schedule'}.\n"
+                "State this reason naturally in your FIRST sentence, then open with a "
+                "concrete, verifiable hook. Never guilt-trip, nag, or imply the user "
+                "owes you contact."
             )
         reply = self.client.chat(messages, system=system)
         self.store.add_message("assistant", reply, t_h, day, proactive=proactive)
