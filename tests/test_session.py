@@ -178,6 +178,100 @@ def test_resume_restores_state(tmp_path):
     store.close()
 
 
+def test_resume_across_reopened_store(tmp_path):
+    """Review gap 15a: crash-restart flow — a NEW SQLiteStore on the same
+    path must resume identically (fresh connection, same file)."""
+    path = tmp_path / "s.db"
+    store = SQLiteStore(path)
+    clock = VirtualClock(t_h=19.0)
+    session = Session(
+        store, persona=PERSONA, timing=TIMING, variant=VARIANT, seed=SEED,
+        client=FakeClient(responses=["a", "b"]), clock=clock,
+        judge=ScriptedJudge(score=0.4).judge_day, feedback=True,
+    )
+    session.on_message("hi")
+    clock.advance_to_day(1)
+    session.ensure_day(1)
+    mu_before = session.mood_state.mu
+    eta_before = session.mood_state.eta
+    store.close()
+
+    store2 = SQLiteStore(path)  # fresh connection, same file
+    session2 = Session(
+        store2, persona=PERSONA, timing=TIMING, variant=VARIANT, seed=SEED,
+        client=FakeClient(responses=["c"]), clock=VirtualClock(t_h=43.0),
+        judge=ScriptedJudge(score=0.4).judge_day, feedback=True,
+    )
+    assert session2.current_day == 1
+    assert math.isclose(session2.mood_state.mu, mu_before, abs_tol=1e-12)
+    assert math.isclose(session2.mood_state.eta, eta_before, abs_tol=1e-12)
+    store2.close()
+
+
+def test_resume_from_finalized_latest_day(tmp_path):
+    """Review gap 15b / finding #1: latest day has a judgement but no
+    rollover beyond it (clean shutdown). Resume must re-apply that day's
+    end-of-day update so continuation matches a fresh run."""
+    store, clock, client, session = _session(tmp_path, feedback=True, judge_score=0.8)
+    clock.advance_hours(19.0)
+    session.on_message("warm day")
+    # Finalize day 0 WITHOUT rolling to day 1 (shutdown path).
+    session.finalize_current()
+    mu_after = session.mood_state.mu
+    eta_after = session.mood_state.eta
+    store.close()
+
+    store2 = SQLiteStore(tmp_path / "s.db")
+    session2 = Session(
+        store2, persona=PERSONA, timing=TIMING, variant=VARIANT, seed=SEED,
+        client=FakeClient(responses=["next"]), clock=VirtualClock(t_h=43.0),
+        judge=ScriptedJudge(score=0.8).judge_day, feedback=True,
+    )
+    assert session2.current_day == 0
+    assert math.isclose(session2.mood_state.mu, mu_after, abs_tol=1e-12)
+    assert math.isclose(session2.mood_state.eta, eta_after, abs_tol=1e-12)
+    # Continuing: rollover to day 1 must use the re-applied state.
+    session2.on_message("next day")
+    state1 = store2.load_daily_state(1)
+    assert state1 is not None
+    assert math.isclose(state1["mu"], mu_after, abs_tol=1e-9)
+    store2.close()
+
+
+def test_synthetic_mode_no_interaction_day_parity(tmp_path):
+    """Review gap 15e: synthetic mode with a silent day must still replicate
+    run_daily (the score draw happens even with no transcript)."""
+    store, clock, client, session = _session(
+        tmp_path, feedback=True, synthetic_score=True
+    )
+    clock.advance_hours(19.0)
+    session.on_message("day 0")
+    clock.advance_to_day(3)  # days 1 and 2 silent
+    session.ensure_day(3)
+    expected = run_daily.run(3, SEED, VARIANT, PERSONA).M
+    got_values: list[int] = []
+    for d in range(3):
+        state = store.load_daily_state(d)
+        assert state is not None
+        got_values.append(state["M"])
+    assert got_values == list(expected)
+    j1 = store.load_judgement(1)
+    assert j1 is not None and j1["score"] != 0.0  # synthetic score, not "no interaction"
+    store.close()
+
+
+def test_session_logs_llm_calls(tmp_path):
+    """Review gap 15c: session writes to llm_calls."""
+    store, clock, client, session = _session(tmp_path)
+    clock.advance_hours(19.0)
+    session.on_message("hi")
+    calls = store.conn.execute("SELECT * FROM llm_calls").fetchall()
+    assert len(calls) == 1
+    assert calls[0]["prompt_hash"]
+    assert calls[0]["response"] == "ok!"
+    store.close()
+
+
 def test_directive_tracks_phase_and_hour(tmp_path):
     store, clock, client, session = _session(tmp_path)
     clock.advance_hours(23.0)  # late night

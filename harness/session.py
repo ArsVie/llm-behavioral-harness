@@ -40,8 +40,8 @@ from harness.clock import VirtualClock
 from harness.client import LLMClient
 from harness.judge import JudgeResult, judge_day
 from harness.scheduler import VALID_REASONS
+from harness.score import synthetic_score as run_daily_synthetic_score
 from harness.store import SQLiteStore
-from sim.run_daily import synthetic_score as run_daily_synthetic_score
 
 
 @dataclass
@@ -123,6 +123,26 @@ class Session:
         m, g, _phase, _next = cycle.step(self.cycle_state, self.persona, rng_t)
         mood.step(self.mood_state, self.persona, m, g, self.variant, rng_t)
         self._day_rng = rng_t
+        # Review fix #1: if the latest day was ALREADY finalized (judgement
+        # exists, no rollover beyond it — e.g. clean shutdown after
+        # finalize_current), re-apply the end-of-day update the original run
+        # performed, so resume matches a fresh run byte-for-byte.
+        judgement = self.store.load_judgement(day)
+        if judgement is not None and not self.synthetic_score:
+            if self.feedback:
+                self.mood_state = mood.update(
+                    self.mood_state, self.persona, float(judgement["score"])
+                )
+            self.mood_state = mood.step_endogenous(self.mood_state, self.persona, rng_t)
+        elif judgement is not None and self.synthetic_score:
+            # Synthetic mode: the original finalize consumed the score draw
+            # BEFORE the endogenous update.
+            run_daily_synthetic_score(self._records[day].M, self.persona.N, rng_t)
+            if self.feedback:
+                self.mood_state = mood.update(
+                    self.mood_state, self.persona, float(judgement["score"])
+                )
+            self.mood_state = mood.step_endogenous(self.mood_state, self.persona, rng_t)
 
     @staticmethod
     def _record_from_row(row: dict) -> DayRecord:
@@ -193,7 +213,7 @@ class Session:
                 "score": None,
             },
         )
-        self.store.log_event(day, day * 24.0, "day_rollover", f"M={M} phase={phase_label}")
+        self.store.log_event(day, self.clock.now_h(), "day_rollover", f"M={M} phase={phase_label}")
         self.cycle_state = cycle_next
         self.current_day = day
         self.current_record = record
@@ -203,6 +223,11 @@ class Session:
     def finalize_day(self, day: int) -> None:
         """Judge the day (shadow or feedback), then run the engine's end-of-day
         update with the day's own RNG generator (replay-compatible)."""
+        if day != self.current_day:
+            raise ValueError(
+                f"finalize_day({day}) while current day is {self.current_day} — "
+                "only the current day can be finalized (review fix #6/#7)"
+            )
         if self.store.load_judgement(day) is not None:
             # Already finalized (resume case) — the state snapshot was
             # restored by _resume_from instead, so nothing to do here.
@@ -218,7 +243,15 @@ class Session:
             )
             result = JudgeResult(score=score, justification="synthetic")
         elif transcript:
-            result = self.judge(transcript, self.client, model=self.judge_model)
+            # The judge is a noisy sensor — a failed call must not kill the
+            # day (review fix #3): degrade to a logged neutral score.
+            try:
+                result = self.judge(transcript, self.client, model=self.judge_model)
+            except Exception as exc:  # noqa: BLE001 - sensor degradation
+                self.store.log_event(
+                    day, self.clock.now_h(), "judge_failed", str(exc)[:200]
+                )
+                result = JudgeResult(score=0.0, justification=f"judge failed: {exc}")
         else:
             result = JudgeResult(score=0.0, justification="no interaction that day")
         score = result.score
@@ -229,14 +262,23 @@ class Session:
             self.mood_state = mood.update(self.mood_state, self.persona, score)
         assert self._day_rng is not None
         self.mood_state = mood.step_endogenous(self.mood_state, self.persona, self._day_rng)
-        row = self.store.load_daily_state(day)
-        if row is not None:
-            row["score"] = score
-            self.store.save_daily_state(day, row)
+        self.store.update_daily_score(day, score)
         self.store.log_event(
-            day, day * 24.0 + 23.5, "day_finalized",
+            day, self.clock.now_h(), "day_finalized",
             f"score={score:.3f} shadow={not self.feedback}",
         )
+
+    def finalize_current(self) -> None:
+        """Finalize the current day if it has not been finalized yet.
+
+        Intended for clean shutdown paths (CLI quit) — creates the
+        finalized-latest-day state that `_resume_from` now handles.
+        """
+        if self.current_day is None:
+            return
+        if self.store.load_judgement(self.current_day) is not None:
+            return
+        self.finalize_day(self.current_day)
 
     def _transcript_for(self, day: int) -> str:
         msgs = self.store.messages_for_day(day)
@@ -321,3 +363,13 @@ class Session:
             "hour": self.clock.local_hour(),
             "feedback": self.feedback,
         }
+
+    def __enter__(self) -> "Session":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        """Release store and client resources (review fix #10)."""
+        self.store.close()
+        close = getattr(self.client, "close", None)
+        if callable(close):
+            close()

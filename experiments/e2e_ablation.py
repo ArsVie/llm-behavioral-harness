@@ -186,7 +186,7 @@ def run_cell(
         records.append(record)
 
     if session is not None:
-        session.ensure_day(clock.day())
+        session.finalize_current()
     store.close()
     return records
 

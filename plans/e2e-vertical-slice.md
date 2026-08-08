@@ -75,15 +75,19 @@ mechanics (single-user testing). Reuses Hermes agent patterns where possible
 
 ## Waves
 
-- **W-DOCS** (parallel subagents): OKF conversion of all .md to English.
-- **W-SIM** (parallel subagent): phase-contrast experiment — per-phase
-  aggregates (mean/sd/autocorr of M, g, energy, behavior channels), evening
-  energy check vs peak_hour, new plots + English report.
-- **W-E1 (production)**: clock, store, assembler, client, judge, session,
-  synth_user + tests. → review wave (efficiency, reusability, quality).
-- **W-E2 (production)**: scheduler proactive path + run_interactive + tests.
-  → review wave.
-- **W-E3 (production)**: ablation experiment + results report. → review wave.
+- **W-DOCS** ✅ (subagents): OKF conversion of all .md to English — 24 concepts, validator passes. Two missed root docs (README.md, reporte-a-un-amigo.md) converted in-session.
+- **W-SIM** ✅ (subagent): w36 phase-contrast — per-phase aggregates (mean/sd/autocorr of M, g, energy, behavior channels), evening energy check, plots + English report. Vision-verified: menstrual low+wide (~5.3, ±2.4-2.8) vs ovulatory high+narrow (~7.3, ±1.7-1.9); melancholic night shape confirmed on p5.
+- **W-E1** ✅ (production): clock, store, assembler, client, judge, session, synth_user + tests. → review wave ✅ (16 findings: 2 MAJOR fixed — judge parser crash on non-object JSON; resume from finalized latest day losing μ/η — plus hardening: retry/backoff, capability-gated json_mode, judge degradation, score module decoupling, context manager, store indexes/busy_timeout/update_daily_score, audit timestamps, 5 new regression tests).
+- **W-E2** ✅ (production): scheduler proactive path (reuses sim/run_events) + run_interactive CLI + tests.
+- **W-E3** ✅ (production): 3×2 ablation experiment (fake mode verified; live mode needs LLM_API_KEY) + tests.
+
+## Status
+
+All waves complete, 311 tests green, OKF conformant. Next steps (not in this slice):
+- Live ablation run + blind human rating (research/06 §B3).
+- Judge calibration: shadow-mode collection → anchored transcripts → score_neutral check → enable feedback.
+- FTS5 conversation search (Hermes pattern), Telegram channel, schedule/life-state (arcs), import/backwards-compat.
+- Code docstring English migration in engine/sim (old modules still have Spanish docstrings).
 
 ## Decision points (advisor consult)
 

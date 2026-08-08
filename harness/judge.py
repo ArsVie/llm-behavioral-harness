@@ -50,19 +50,30 @@ class JudgeResult:
 
 
 def _parse_score(raw: str) -> JudgeResult:
-    """Lenient parse of judge JSON output; falls back to 0.0 on failure."""
+    """Lenient parse of judge JSON output; falls back to 0.0 on failure.
+
+    Review fix #2: json.loads can succeed with non-object payloads
+    (strings, arrays, bare numbers) and `score` can be null/non-numeric —
+    every shape must land on a sane score, never raise.
+    """
     text = raw.strip()
     try:
         payload = json.loads(text)
     except json.JSONDecodeError:
-        match = re.search(r"[-+]?\d*\.?\d+", text)
-        if match is None:
+        payload = None
+    if isinstance(payload, dict):
+        try:
+            score = float(payload.get("score", 0.0))
+        except (TypeError, ValueError):
             return JudgeResult(score=0.0, justification="unparseable judge output")
-        score = float(match.group(0))
-        return JudgeResult(score=max(-1.0, min(1.0, score)))
-    score = float(payload.get("score", 0.0))
-    justification = str(payload.get("justification", ""))
-    return JudgeResult(score=max(-1.0, min(1.0, score)), justification=justification)
+        justification = str(payload.get("justification", ""))
+        return JudgeResult(score=max(-1.0, min(1.0, score)), justification=justification)
+    # Non-JSON or valid JSON that is not an object: regex for a bare number.
+    match = re.search(r"[-+]?\d*\.?\d+", text)
+    if match is None:
+        return JudgeResult(score=0.0, justification="unparseable judge output")
+    score = float(match.group(0))
+    return JudgeResult(score=max(-1.0, min(1.0, score)))
 
 
 def judge_day(
@@ -71,8 +82,15 @@ def judge_day(
     *,
     model: str | None = None,
     rubric: str = RUBRIC,
+    json_mode: bool | None = None,
 ) -> JudgeResult:
-    """Score one day's exchange. `model` is informational (client owns model)."""
+    """Score one day's exchange. `model` is informational (client owns model).
+
+    JSON mode is gated on the client's capability (review fix #4): the
+    harness never assumes an endpoint accepts `response_format`.
+    """
+    if json_mode is None:
+        json_mode = bool(getattr(client, "supports_json", True))
     raw = client.chat(
         [
             {
@@ -82,7 +100,7 @@ def judge_day(
         ],
         system="You are a careful interaction judge. Score precisely.",
         temperature=0.0,
-        json_mode=True,
+        json_mode=json_mode,
     )
     return _parse_score(raw)
 

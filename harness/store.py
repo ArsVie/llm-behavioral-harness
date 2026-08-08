@@ -49,6 +49,7 @@ CREATE TABLE IF NOT EXISTS messages (
     proactive INTEGER NOT NULL DEFAULT 0,
     meta TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_messages_day ON messages(day);
 CREATE TABLE IF NOT EXISTS judgements (
     day INTEGER PRIMARY KEY,
     score REAL NOT NULL,
@@ -63,6 +64,7 @@ CREATE TABLE IF NOT EXISTS state_events (
     event TEXT NOT NULL,
     detail TEXT
 );
+CREATE INDEX IF NOT EXISTS idx_state_events_day ON state_events(day);
 CREATE TABLE IF NOT EXISTS llm_calls (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     day INTEGER NOT NULL,
@@ -85,20 +87,32 @@ class SQLiteStore:
 
     def __init__(self, path: str | Path):
         self.path = str(path)
-        self.conn = sqlite3.connect(self.path)
+        self.conn = sqlite3.connect(self.path, timeout=10.0)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
+        self.conn.execute("PRAGMA busy_timeout=10000")
         self.conn.executescript(_SCHEMA)
         self.conn.commit()
 
     def close(self) -> None:
         self.conn.close()
 
+    def __enter__(self) -> "SQLiteStore":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()
+
     # -- canonical state ----------------------------------------------------
 
     def save_daily_state(self, day: int, record: dict) -> None:
         # SQLite column names are case-insensitive: "m" collides with "M",
         # so the offset column is stored as m_level and mapped at this boundary.
+        required = {"day", "M", "m", "g", "p", "arg", "mu", "eta", "cycle_day",
+                    "phase_label", "seed"}
+        missing = required - set(record)
+        if missing:
+            raise ValueError(f"daily_state record missing keys: {sorted(missing)}")
         row = dict(record)
         row["m_level"] = row.pop("m")
         self.conn.execute(
@@ -134,6 +148,13 @@ class SQLiteStore:
             "SELECT * FROM daily_state ORDER BY day DESC LIMIT 1"
         ).fetchone()
         return self._row_to_record(dict(row)) if row else None
+
+    def update_daily_score(self, day: int, score: float) -> None:
+        """Set the score column of one day without a read-modify-write."""
+        self.conn.execute(
+            "UPDATE daily_state SET score = ? WHERE day = ?", (score, day)
+        )
+        self.conn.commit()
 
     # -- messages -----------------------------------------------------------
 

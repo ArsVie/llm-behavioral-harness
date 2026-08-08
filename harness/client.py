@@ -8,14 +8,17 @@ The harness wraps ANY endpoint exposing /chat/completions; `base_url`,
     LLM_MODEL     (default deepseek-v4-flash)
     JUDGE_MODEL   (default deepseek-v4-flash — judges may use a cheaper model)
 
-`LLMClient` is the injectable protocol; tests use `FakeClient`. The judge
-path supports `response_format={"type": "json_object"}` when the endpoint
-advertises it (JSON-mode is a capability flag, not an assumption).
+`LLMClient` is the injectable protocol; tests use `FakeClient`. JSON mode is
+a CAPABILITY, not an assumption: clients advertise `supports_json` and the
+harness gates `response_format` on it. Transient failures (transport errors,
+429/5xx) retry with bounded exponential backoff (review fix #3).
 """
 
 from __future__ import annotations
 
 import os
+import time
+from collections import deque
 from typing import Protocol
 
 import httpx
@@ -23,9 +26,15 @@ import httpx
 DEFAULT_BASE_URL = "https://opencode.ai/zen/go/v1/"
 DEFAULT_MODEL = "deepseek-v4-flash"
 
+#: Bounded retry for transient failures (review fix #3).
+_MAX_RETRIES = 3
+_RETRY_BASE_DELAY_S = 0.5
+
 
 class LLMClient(Protocol):
     """Minimal client contract used by the harness."""
+
+    supports_json: bool
 
     def chat(
         self,
@@ -38,9 +47,15 @@ class LLMClient(Protocol):
         """Complete a chat. `system` is prepended when given."""
         ...
 
+    def close(self) -> None:
+        """Release resources (no-op for stateless clients)."""
+        ...
+
 
 class OpenAICompatibleClient:
     """httpx-based client for any OpenAI-compatible /chat/completions."""
+
+    supports_json: bool = True
 
     def __init__(
         self,
@@ -48,15 +63,39 @@ class OpenAICompatibleClient:
         api_key: str | None = None,
         model: str | None = None,
         timeout_s: float = 60.0,
+        max_retries: int = _MAX_RETRIES,
     ):
         self.base_url = (base_url or os.environ.get("LLM_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
         self.api_key = api_key if api_key is not None else os.environ.get("LLM_API_KEY", "")
         self.model = model or os.environ.get("LLM_MODEL", DEFAULT_MODEL)
         self.timeout_s = timeout_s
+        self.max_retries = max_retries
         self._client = httpx.Client(timeout=timeout_s)
 
     def close(self) -> None:
         self._client.close()
+
+    def _post(self, payload: dict) -> httpx.Response:
+        last_error: Exception | None = None
+        for attempt in range(self.max_retries + 1):
+            try:
+                resp = self._client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers={"Authorization": f"Bearer {self.api_key}"},
+                    json=payload,
+                )
+                if resp.status_code in (429, 500, 502, 503, 504) and attempt < self.max_retries:
+                    time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
+                    continue
+                resp.raise_for_status()
+                return resp
+            except httpx.HTTPError as exc:
+                last_error = exc
+                if attempt < self.max_retries:
+                    time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
+                    continue
+                raise
+        raise RuntimeError(f"LLM call failed after {self.max_retries + 1} attempts: {last_error}")
 
     def chat(
         self,
@@ -85,27 +124,33 @@ class OpenAICompatibleClient:
             "messages": payload_messages,
             "temperature": temperature,
         }
-        if json_mode:
+        if json_mode and self.supports_json:
             payload["response_format"] = {"type": "json_object"}
-        resp = self._client.post(
-            f"{self.base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {self.api_key}"},
-            json=payload,
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        return str(data["choices"][0]["message"]["content"])
+        resp = self._post(payload)
+        try:
+            data = resp.json()
+            content = data["choices"][0]["message"]["content"]
+        except (ValueError, KeyError, IndexError, TypeError) as exc:
+            raise RuntimeError(f"malformed LLM response: {exc}") from exc
+        if content is None:
+            raise RuntimeError("LLM response had null content")
+        return str(content)
 
 
 class FakeClient:
     """Scripted client for tests and offline runs.
 
-    `responses` is a list of replies cycled in order; `echo` mode returns the
-    last user message wrapped. Records every call for assertions.
+    `responses` is a queue consumed in order; once exhausted, a default reply
+    is returned (no cycling). `echo` mode returns the last user message
+    wrapped. Records every call for assertions. Faithful to the LLMClient
+    protocol: system-only payload on empty transcripts, `supports_json`,
+    no-op `close`.
     """
 
+    supports_json: bool = True
+
     def __init__(self, responses: list[str] | None = None, echo: bool = False):
-        self.responses = list(responses or [])
+        self.responses = deque(responses or [])
         self.calls: list[dict] = []
         self.echo = echo
 
@@ -127,5 +172,8 @@ class FakeClient:
         if self.echo:
             return f"echo: {messages[-1]['content']}"
         if self.responses:
-            return self.responses.pop(0)
+            return self.responses.popleft()
         return "FakeClient reply."
+
+    def close(self) -> None:
+        pass

@@ -176,7 +176,7 @@ def main(argv: list[str] | None = None) -> int:
                 if trace:
                     _print_trace(result.directive)
     finally:
-        session.ensure_day(session.clock.day())  # finalize the current day
+        session.finalize_current()  # persist the current day's judgement on quit
         store.close()
     return 0
 
