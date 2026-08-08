@@ -281,3 +281,190 @@ def test_directive_tracks_phase_and_hour(tmp_path):
         "menstrual", "follicular", "ovulatory", "luteal_early", "luteal_late"
     }
     store.close()
+
+
+# --------------------------------------------------------------------------- #
+# Wave 2 (A1 central integration): CompanionSnapshot pipelines
+# --------------------------------------------------------------------------- #
+
+
+def test_reactive_turn_persists_snapshot_and_controls(tmp_path):
+    """Reactive turn: message persisted (L1 session-scoped) → snapshot
+    assembled → client called with max_tokens from controls → TurnResult."""
+    store, clock, client, session = _session(tmp_path)
+    clock.advance_hours(19.0)
+    session.on_message("hello there")
+    result = session.on_message("how are you")  # 2nd turn: recent conversation exists
+    assert result.controls is not None
+    assert result.controls.max_tokens > 0
+    call = client.calls[-1]
+    assert call["max_tokens"] == result.controls.max_tokens
+    system = call["system"]
+    assert "Current behavioral guidance:" in system
+    assert "Recent conversation:" in system
+    assert "user: hello there" in system
+    msgs = store.messages_for_day(0)
+    assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
+    assert all(m["session_id"] == "day-0" for m in msgs)
+    store.close()
+
+
+def test_proactive_grounded_intent_carries_hook(tmp_path):
+    """Grounded proactive turn: the store-backed intent lands in the snapshot
+    and its CONCRETE HOOK appears verbatim (never a reason label)."""
+    from harness.domain import ProactiveIntent
+
+    store = SQLiteStore(tmp_path / "s.db")
+    clock = VirtualClock(t_h=10.0)
+    client = FakeClient(responses=["proactive hello!"])
+    session = Session(
+        store,
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+        client=client,
+        clock=clock,
+        judge=ScriptedJudge(score=0.5).judge_day,
+    )
+    intent = ProactiveIntent(
+        id="pi_test",
+        reason="schedule",
+        source_type="agenda_item",
+        source_id="ag_0_a_arc_1",
+        hook="You just finished the pottery class scheduled this afternoon.",
+        created_t_h=10.0,
+        valid_until_t_h=13.0,
+        salience=0.5,
+        evidence="agenda_item:ag_0_a_arc_1",
+    )
+    store.save_proactive_intent(intent)
+    result = session.fire_proactive("schedule")
+    system = client.calls[-1]["system"]
+    assert result.controls is not None
+    assert "reaching out first" in system
+    assert intent.hook in system
+    assert "Contact reason" not in system
+    msgs = store.messages_for_day(0)
+    assert len(msgs) == 1 and msgs[0]["role"] == "assistant" and msgs[0]["proactive"] == 1
+    store.close()
+
+
+def test_proactive_without_intent_degrades_without_fabrication(tmp_path):
+    """Legacy ungrounded fire_proactive (no stored intent): generic opening,
+    never a fabricated source claim (no hook prefix, no reason label)."""
+    store, clock, client, session = _session(tmp_path, replies=["proactive hello!"])
+    clock.advance_hours(10.0)
+    result = session.fire_proactive()
+    system = client.calls[-1]["system"]
+    assert "reaching out first" in system
+    assert "Agenda:" not in system
+    assert "Finished:" not in system
+    assert "Arc:" not in system
+    assert "Contact reason" not in system
+    assert result.reply == "proactive hello!"
+    store.close()
+
+
+def test_memory_session_boundary_closes_and_promotes(tmp_path):
+    """Day finalize closes the memory session: L2 summary persisted, L3
+    episodes promoted and L4 assertions consolidated (provenanced)."""
+    store = SQLiteStore(tmp_path / "s.db")
+    clock = VirtualClock(t_h=19.0)
+    client = FakeClient(responses=["lovely", "of course"])
+    session = Session(
+        store,
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+        client=client,
+        clock=clock,
+        judge=ScriptedJudge(score=0.5).judge_day,
+    )
+    session.on_message("My dog's name is Bruno.")
+    session.on_message("thank you")
+    clock.advance_to_day(1)
+    session.ensure_day(1)
+    summary = store.load_session_summary("day-0")
+    assert summary is not None
+    assert "Bruno" in summary.summary
+    assert summary.source_turn_ids  # provenance: exact turn ids
+    episodes = store.list_episodes()
+    assert len(episodes) >= 1
+    assert any("Bruno" in e.summary for e in episodes)
+    assertions = store.list_assertions()
+    assert any(a.key == "user:dog:name" for a in assertions)
+    store.close()
+
+
+def test_restart_continuity_with_life_lanes(tmp_path):
+    """Resume across a reopened store keeps the life lanes: arcs, agenda and
+    engine state survive; the loop continues finalizing + planning."""
+    from harness.domain import Interest, PersonaProfile, Routine
+
+    path = tmp_path / "s.db"
+    profile = PersonaProfile(
+        name="Nova",
+        core="You are Nova, a warm companion with an off-screen life of your own.",
+        interests=(
+            Interest("pottery", "exact", 0.9),
+            Interest("photography", "exact", 0.7),
+            Interest("chess", "independent", 0.4),
+        ),
+        routines=(Routine("morning walk", 0.38, 0.5, 0.8, 0.3),),
+    )
+    store = SQLiteStore(path)
+    store.save_persona(profile)
+    clock = VirtualClock(t_h=19.0)
+    session = Session(
+        store,
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+        client=FakeClient(responses=["a", "b"]),
+        clock=clock,
+        judge=ScriptedJudge(score=0.4).judge_day,
+        feedback=True,
+    )
+    session.on_message("hello there")
+    clock.advance_to_day(1)
+    session.ensure_day(1)
+    arcs_before = store.list_life_arcs()
+    assert len(arcs_before) >= 2
+    agenda1 = store.load_agenda(1)
+    assert agenda1 is not None and len(agenda1.items) >= 1
+    mu_before = session.mood_state.mu
+    eta_before = session.mood_state.eta
+    store.close()
+
+    store2 = SQLiteStore(path)
+    session2 = Session(
+        store2,
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+        client=FakeClient(responses=["c"]),
+        clock=VirtualClock(t_h=43.0),
+        judge=ScriptedJudge(score=0.4).judge_day,
+        feedback=True,
+    )
+    assert session2.current_day == 1
+    assert math.isclose(session2.mood_state.mu, mu_before, abs_tol=1e-12)
+    assert math.isclose(session2.mood_state.eta, eta_before, abs_tol=1e-12)
+    assert [a.id for a in store2.list_life_arcs()] == [a.id for a in arcs_before]
+    assert store2.load_agenda(1) is not None
+    # Continuing: rollover to day 2 finalizes day 1 and plans day 2.
+    clock2 = session2.clock
+    clock2.advance_to_day(2)
+    clock2.advance_hours(19.0)
+    session2.on_message("third message")
+    assert store2.load_daily_state(2) is not None
+    j1 = store2.load_judgement(1)
+    # Day 1 had no messages in this run → finalized as "no interaction".
+    assert j1 is not None and j1["score"] == 0.0
+    assert "no interaction" in j1["justification"]
+    assert store2.load_agenda(2) is not None
+    store2.close()
