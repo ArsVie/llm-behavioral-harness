@@ -67,7 +67,13 @@ class CLIChannel:
         print(prefix + message.text, file=self._stdout, flush=True)
 
     async def stop(self) -> None:
-        """Cancel the reader task. Idempotent: repeated calls are no-ops."""
+        """Cancel the reader task and release stdin. Idempotent.
+
+        Cancelling the reader alone leaves the executor thread blocked in
+        ``readline()`` alive; asyncio.run's executor shutdown would then
+        hang at process exit (verified empirically). Closing stdin signals
+        EOF, which unblocks the thread.
+        """
         reader, self._reader = self._reader, None
         if reader is not None and not reader.done():
             reader.cancel()
@@ -75,3 +81,7 @@ class CLIChannel:
                 await reader
             except asyncio.CancelledError:
                 pass
+        try:
+            self._stdin.close()
+        except Exception:
+            pass

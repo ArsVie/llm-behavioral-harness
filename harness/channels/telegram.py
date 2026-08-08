@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import time
+from typing import Any
 
 from harness.channels.base import InboundMessage, OutboundMessage
 
@@ -38,13 +39,21 @@ class TelegramChannel:
     Build via ``TelegramChannel.from_env()`` (production) or by injecting a
     fake application and owner chat id (tests). No network access happens
     unless the real library and token are present.
+
+    Inbound policy: when TELEGRAM_CHAT_ID is set, only that chat's text
+    messages are forwarded (others are dropped). When it is UNSET, inbound
+    is fail-open — any chat that finds the bot can talk to the companion
+    (documented trade-off of the single-user POC; set the env var to lock
+    it down).
     """
 
     name = "telegram"
 
-    def __init__(self, application=None, owner_chat_id=None):
+    def __init__(self, application: Any = None, owner_chat_id=None):
         self.application = application  # real Application (from_env) or fake (tests)
-        self.owner_chat_id = owner_chat_id
+        # Normalize to str: the owner filter compares str(chat_id); an int
+        # owner id would silently drop ALL inbound while send() works.
+        self.owner_chat_id = str(owner_chat_id) if owner_chat_id is not None else None
         self._handler = None
         self._stopped = False
 
@@ -124,7 +133,11 @@ class TelegramChannel:
         self._stopped = True
         app = self.application
         if _PTB_AVAILABLE and isinstance(app, Application):
+            # Application.stop() does NOT stop the updater; shutdown() tears
+            # down bot (aiohttp session) + updater + processors, and raises
+            # if the app is still running — hence stop() first.
             await app.stop()
+            await app.shutdown()
 
     async def _on_update(self, update) -> None:
         """ptb update callback: wrap the update and forward it to the handler.

@@ -103,12 +103,15 @@ class AsyncRuntime:
         already on disk. (Workaround contained here; report-only issue.)"""
         import sqlite3
 
+        old_conn = self.store.conn
         conn = sqlite3.connect(
             self.store.path, timeout=10.0, check_same_thread=False
         )
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout=10000")
+        if old_conn is not None:
+            old_conn.close()  # schema-creation conn from SQLiteStore.__init__
         self.store.conn = conn
 
     # ------------------------------------------------------------------ #

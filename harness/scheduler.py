@@ -14,8 +14,9 @@ Guards inherited from run_events.run:
   - max-gap forcing (48 h) — if the hazard would let silence exceed it, a
     contact is forced at the first awake instant.
 
-`ProactiveSchedule` tracks which planned events have fired; the CLI fires due
-events by advancing the virtual clock to each event's hour.
+`ProactiveSchedule` tracks which planned events have fired; the async
+runtime (harness/runtime.py) fires due events by pacing the virtual clock
+to each event's hour (sim/run_async.py is the entrypoint).
 """
 
 from __future__ import annotations

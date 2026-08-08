@@ -9,7 +9,7 @@ and clock pacing:
                      is not given.
     --time-scale S   real seconds per virtual hour (default 3600.0 = real
                      time; smaller values accelerate — e.g. 0.001 runs one
-                     virtual day in 86 ms). The flag maps 1:1 onto
+                     virtual day in 24 ms). The flag maps 1:1 onto
                      TimeScale.seconds_per_virtual_hour, the runtime's
                      semantic unit.
 
@@ -77,7 +77,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--time-scale", type=float, default=3600.0,
         help="real seconds per virtual hour (default 3600.0 = real time; "
-             "smaller values accelerate, e.g. 0.001 runs one virtual day in 86 ms)",
+             "smaller values accelerate, e.g. 0.001 runs one virtual day in 24 ms)",
     )
     args = parser.parse_args(argv)
 

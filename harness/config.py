@@ -4,7 +4,7 @@ One active channel per process. ``select_channel`` is the factory the async
 runtime (``sim/run_async.py``) calls with its ``--channel`` flag (default
 DEFAULT_CHANNEL). The env var ``HARNESS_CHANNEL`` may override that flag — it
 is read by run_async, NOT here: ``select_channel`` takes the name as a
-parameter. Concrete CLI/Telegram channels land in later waves; their imports
+parameter. Concrete CLI/Telegram channels live in harness/channels; their imports
 are lazy so importing this module never requires optional dependencies.
 """
 
