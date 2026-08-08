@@ -39,6 +39,7 @@ from harness.behavior import BehaviorDirective, derive_behavior
 from harness.clock import VirtualClock
 from harness.client import LLMClient
 from harness.judge import JudgeResult, judge_day
+from harness.scheduler import VALID_REASONS
 from harness.store import SQLiteStore
 from sim.run_daily import synthetic_score as run_daily_synthetic_score
 
@@ -247,8 +248,18 @@ class Session:
     # conversation
     # ------------------------------------------------------------------ #
 
-    def on_message(self, user_text: str, *, proactive: bool = False) -> TurnResult:
-        """Process one user message: directive → assemble → LLM → persist."""
+    def _chat(
+        self,
+        user_text: str | None,
+        *,
+        proactive: bool,
+        reason: str | None = None,
+    ) -> TurnResult:
+        """Shared path for reactive and proactive messages.
+
+        `user_text=None` means the companion initiates: the transcript has no
+        trailing user request and the system prompt states the contact reason.
+        """
         t_h = self.clock.now_h()
         day = self.clock.day()
         self.ensure_day(day)
@@ -260,9 +271,18 @@ class Session:
         )
         system = build_system_prompt(self.persona_core, directive)
         recent = self.store.recent_messages()
-        messages = build_messages(recent, user_text)
-
-        self.store.add_message("user", user_text, t_h, day, proactive=False)
+        messages = [
+            {"role": m["role"], "content": m["content"]}
+            for m in recent
+        ]
+        if user_text is not None:
+            messages = build_messages(recent, user_text)
+            self.store.add_message("user", user_text, t_h, day, proactive=False)
+        else:
+            system += (
+                f"\nYou are initiating contact. Reason: {reason or 'schedule'}. "
+                "Open with a concrete, verifiable hook; never guilt-trip or nag."
+            )
         reply = self.client.chat(messages, system=system)
         self.store.add_message("assistant", reply, t_h, day, proactive=proactive)
         self.store.log_llm_call(
@@ -275,6 +295,16 @@ class Session:
         )
         self.store.log_event(day, t_h, "assistant_reply", f"len={len(reply)}")
         return TurnResult(reply=reply, directive=directive, day=day, hour=self.clock.local_hour())
+
+    def on_message(self, user_text: str) -> TurnResult:
+        """Process one user message: directive → assemble → LLM → persist."""
+        return self._chat(user_text, proactive=False)
+
+    def fire_proactive(self, reason: str = "schedule") -> TurnResult:
+        """Assistant-initiated message with a contact reason (no user input)."""
+        if reason not in VALID_REASONS:
+            raise ValueError(f"unknown proactive reason: {reason!r}")
+        return self._chat(None, proactive=True, reason=reason)
 
     def state_summary(self) -> dict:
         """Dev-facing snapshot of the current latent + observable state."""

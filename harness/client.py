@@ -71,9 +71,15 @@ class OpenAICompatibleClient:
                 "LLM_API_KEY is not set — the harness never stores credentials. "
                 "Export it before running live."
             )
-        payload_messages = messages
         if system is not None:
-            payload_messages = [{"role": "system", "content": system}, *messages]
+            if messages:
+                payload_messages = [{"role": "system", "content": system}, *messages]
+            else:
+                # Proactive opener on a fresh transcript: a system-only request
+                # is the honest context (no user turns exist yet).
+                payload_messages = [{"role": "system", "content": system}]
+        else:
+            payload_messages = messages
         payload: dict = {
             "model": self.model,
             "messages": payload_messages,
@@ -111,6 +117,10 @@ class FakeClient:
         temperature: float = 0.8,
         json_mode: bool = False,
     ) -> str:
+        # Mirror OpenAICompatibleClient semantics (system-only payload when the
+        # transcript is empty) so fakes are faithful protocol stand-ins.
+        if system is not None and not messages:
+            messages = [{"role": "system", "content": system}]
         self.calls.append(
             {"messages": messages, "system": system, "temperature": temperature, "json_mode": json_mode}
         )
