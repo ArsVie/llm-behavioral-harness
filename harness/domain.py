@@ -292,6 +292,9 @@ class GenerationControls:
     response_delay_s: float
     closing_tendency: float
     initiative_factor: float
+    closing_guidance: str = ""
+    # assembler-visible continuation policy derived from closing_tendency;
+    # never an unused number (plan §15 seam).
 
 
 @dataclass(frozen=True)

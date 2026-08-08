@@ -566,6 +566,9 @@ class ProactiveIntent: id: str; reason: str; source_type: str; source_id: str; h
 @dataclass(frozen=True)
 class GenerationControls: max_tokens: int; response_delay_s: float
                           closing_tendency: float; initiative_factor: float
+                          closing_guidance: str = ""  # assembler-visible continuation policy
+                                                       # (derived from closing_tendency; never
+                                                       # an unused number)
 @dataclass(frozen=True)
 class BehaviorBrief: valence: float; energy: float; reactivity: float; warmth: float
                      expressiveness: float; playfulness: float; reflectiveness: float
