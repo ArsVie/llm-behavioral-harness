@@ -31,6 +31,14 @@ SEED = 12345
 #: inter-event sleeps, keeping the rollover-vs-firing race deterministic.
 FAST = TimeScale(seconds_per_virtual_hour=0.02)
 
+#: Robust scale for the cooldown test. The 10.0 → 10.1 pair is only 0.1 h
+#: apart (the cooldown window is 0.25 h), which is 2 ms at FAST — under load
+#: that sleep can stall past the rollover loop's wake (12 h → 240 ms), the
+#: clock jumps, and the event fires late (gates legitimately pass at the new
+#: time). At 0.5 s/vh the gap is 50 ms and the rollover wake is ~1 s after
+#: the last event, so the gate decision happens at the planned time.
+SLOW = TimeScale(seconds_per_virtual_hour=0.5)
+
 
 def _session(tmp_path, *, replies=None):
     store = SQLiteStore(tmp_path / "s.db")
@@ -83,7 +91,8 @@ def test_quiet_hours_and_cooldown_events_suppressed(tmp_path):
         {"t_h": 10.1, "day": 0, "reason": REASON_SCHEDULE},   # 6 min after → cooldown
     ])
     channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel, max_hours=12.0)
+    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+         max_hours=12.0, scale=SLOW)
 
     # exactly one proactive message: the 10:00 event, with its reason
     assert len(channel.sent) == 1
