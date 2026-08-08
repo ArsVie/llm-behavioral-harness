@@ -1119,6 +1119,17 @@ class SQLiteStore:
         ).fetchall()
         return [self._row_to_assertion(r) for r in rows]
 
+    def supersede_assertion(self, key: str) -> None:
+        """Flip every current assertion of ``key`` to superseded (provenance
+        kept). Cross-key negation support: a "user no longer has X" fact
+        supersedes unrelated keys whose values mention X (memory.py M-1b)."""
+        self.conn.execute(
+            "UPDATE user_model_assertions SET status = 'superseded' "
+            "WHERE key = ? AND status = 'current'",
+            (key,),
+        )
+        self.conn.commit()
+
     def get_assertion(self, key: str) -> UserModelAssertion | None:
         """Most recent assertion row for ``key`` (any status — full history)."""
         row = self.conn.execute(

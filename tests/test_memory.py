@@ -153,6 +153,11 @@ class FakeStore:
             return list(self._assertions)
         return [a for a in self._assertions if a.status == status]
 
+    def supersede_assertion(self, key: str) -> None:
+        for i, old in enumerate(self._assertions):
+            if old.key == key and old.status == "current":
+                self._assertions[i] = replace(old, status="superseded")
+
     def get_assertion(self, key: str) -> UserModelAssertion | None:
         for a in reversed(self._assertions):
             if a.key == key and a.status == "current":
@@ -450,6 +455,47 @@ def test_l4_contradiction_supersedes_keeps_provenance():
     assert cur.source_memory_ids == ("ep-day-8-0",)
     # Nothing deleted: both records exist.
     assert len(store.list_assertions(status=None)) == 2
+
+
+def test_negation_supersedes_stale_fact_across_keys():
+    """M-1b gate fix (A9 Gate 3): "I don't have Luna anymore" must kill the
+    stale "user has a cat named Luna" assertion even though the keys differ
+    (user:luna vs user:cat) — the L4 projection must not surface stale truth."""
+    store = FakeStore()
+    agent = MemoryAgent(store)
+
+    # Day 2: positive fact WITH the name kept inside the value.
+    run_day(
+        store, 2,
+        [("user", "I have a cat named Luna."), ("assistant", "Aww, cute!")],
+        judgement=0.6, agent=agent,
+    )
+    cat = store.get_assertion("user:cat")
+    assert cat is not None and cat.status == "current"
+    assert "luna" in cat.value.lower()
+
+    # Day 5: name-based negation — different key, no noun.
+    run_day(
+        store, 5,
+        [("user", "I don't have Luna anymore."),
+         ("assistant", "Oh, I'm sorry to hear that.")],
+        judgement=0.7, agent=agent,
+    )
+    # stale cat claim superseded (cross-key via subject match)
+    assert store.get_assertion("user:cat") is None
+    superseded = [a for a in store.list_assertions("superseded")
+                  if a.key == "user:cat"]
+    assert len(superseded) == 1
+    assert "luna" in superseded[0].value.lower()
+    # the negation itself is current and provenanced
+    neg = store.get_assertion("user:luna")
+    assert neg is not None
+    assert "no longer has" in neg.value
+    assert neg.source_memory_ids == ("ep-day-5-0",)
+    # L4 projection no longer contains the stale cat claim
+    model = store.load_user_model()
+    assert "cat" not in (model.identity or "").lower()
+    assert "no longer" in (model.identity or "").lower()
 
 
 def test_l4_assertions_traceable_to_episodes_to_turns():

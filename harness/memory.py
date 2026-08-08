@@ -179,6 +179,14 @@ class _Fact:
 _NAME_RE = re.compile(r"\bmy\s+([a-z]+)'s\s+name\s+is\s+([A-Za-z][A-Za-z0-9]*)", re.IGNORECASE)
 _POSSESSIVE_RE = re.compile(r"\bmy\s+([a-z]+)\s+(?:is|are)\s+(.+?)[.!?]?$", re.IGNORECASE)
 _HAVE_RE = re.compile(r"\bi\s+have\s+(?:a|an)\s+([a-z]+)\b", re.IGNORECASE)
+_NAMED_RE = re.compile(r"\bnamed\s+([A-Za-z][A-Za-z0-9]*)", re.IGNORECASE)
+_NEGATION_RE = re.compile(
+    r"\b(?:don'?t|do not|no longer|not anymore|never)\s+have\s+"
+    r"(?:a|an|the|my)?\s*([A-Za-z][A-Za-z0-9]*)",
+    re.IGNORECASE,
+)
+#: value of a negation fact, subject captured ("user no longer has luna")
+_NEGATION_VALUE_RE = re.compile(r"^user no longer has ([a-z0-9]+)$")
 _LIKE_RE = re.compile(r"\bi\s+(?:love|like|enjoy)\s+(.+?)[.!?]?$", re.IGNORECASE)
 _DISLIKE_RE = re.compile(r"\bi\s+(?:hate|dislike)\s+(.+?)[.!?]?$", re.IGNORECASE)
 _THANKS_RE = re.compile(r"\bthank", re.IGNORECASE)
@@ -214,6 +222,15 @@ def _extract_facts(messages: list[dict]) -> list[_Fact]:
             continue
         text = str(msg.get("content", ""))
         tid = int(msg.get("id", -1))
+        # Negation FIRST: "I don't have Luna anymore" must not fall through to
+        # the positive rules (M-1b — without this, the stale positive fact
+        # survives and reaches the prompt).
+        m = _NEGATION_RE.search(text)
+        if m and m.group(1).lower() not in _JUNK_NOUNS:
+            subject = m.group(1).lower()
+            add(f"user:{subject}", f"user no longer has {subject}",
+                "user_fact", tid, text)
+            continue
         m = _NAME_RE.search(text)
         if m and m.group(1).lower() not in _JUNK_NOUNS:
             noun, name = m.group(1).lower(), m.group(2)
@@ -227,7 +244,16 @@ def _extract_facts(messages: list[dict]) -> list[_Fact]:
         m = _HAVE_RE.search(text)
         if m and m.group(1).lower() not in _JUNK_NOUNS:
             noun = m.group(1).lower()
-            add(f"user:{noun}", f"user has a {noun}", "user_fact", tid, text)
+            name_m = _NAMED_RE.search(text)
+            if name_m:
+                # keep the name INSIDE the value so a later name-based
+                # negation ("I don't have Luna anymore") can supersede this
+                # key via subject-word matching
+                add(f"user:{noun}",
+                    f"user has a {noun} named {name_m.group(1)}",
+                    "user_fact", tid, text)
+            else:
+                add(f"user:{noun}", f"user has a {noun}", "user_fact", tid, text)
             continue
         m = _LIKE_RE.search(text)
         if m:
@@ -841,6 +867,32 @@ class MemoryAgent:
                 )
             self.store.upsert_assertion(assertion)
             updated.append(assertion)
+
+        # M-1b gate fix (A9 Gate 3): negation facts supersede EVERY current
+        # assertion whose value mentions the negated subject — a name-based
+        # contradiction ("I don't have Luna anymore") kills "user has a cat
+        # named Luna" even though the keys differ ("user:luna" vs "user:cat").
+        for f in facts:
+            m = _NEGATION_VALUE_RE.match(f.value)
+            if not m:
+                continue
+            subject = m.group(1)
+            extra = tuple(
+                ep_by_turn[tid] for tid in (f.turn_id,) if tid in ep_by_turn
+            )
+            for a in self.store.list_assertions(status="current"):
+                if a.key == f.key:
+                    continue  # same-key supersede already handled by upsert
+                if re.search(rf"\b{re.escape(subject)}\b", a.value, re.IGNORECASE):
+                    self.store.supersede_assertion(a.key)
+                    updated.append(
+                        replace(
+                            a,
+                            status="superseded",
+                            updated_at_t_h=summary.ended_at_t_h,
+                            source_memory_ids=a.source_memory_ids + extra,
+                        )
+                    )
         return updated
 
     # -- retrieval ----------------------------------------------------------
