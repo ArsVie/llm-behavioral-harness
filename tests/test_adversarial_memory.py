@@ -10,6 +10,8 @@ from __future__ import annotations
 
 import dataclasses
 
+import pytest
+
 from harness.domain import (
     AffectMetadata,
     CompanionBehaviorState,
@@ -364,3 +366,153 @@ def test_m8_memory_wipe_no_crash_no_phantom_continuity(tmp_path):
     assert store2.load_session_summary("day-21") is not None
     store.close()
     store2.close()
+
+
+# --------------------------------------------------------------------------- #
+# M-9: Iteration-2 memory attacks (plan §5-A9 M9, invariants 10-12)
+# --------------------------------------------------------------------------- #
+
+
+def test_m9_canonical_categories_only_foreign_strings_never_persist(tmp_path):
+    """Invariant 10: after a full L1→L4 pipeline the persisted L4 rows carry
+    ONLY canonical UserModelCategory values — a foreign/garbage category
+    string is refused at the write seam, never silently stored."""
+    from harness.domain import UserModelCategory
+    from harness.domain import UserModelAssertion
+
+    store = _store(tmp_path, "m9.db")
+    agent = MemoryAgent(store)
+    try:
+        _day_session(store, 2, "I love hiking in the mountains", agent=agent)
+        _day_session(store, 3, "my name is Ada", agent=agent)
+        _day_session(store, 4, "please remind me to water the plants", agent=agent)
+
+        rows = store.conn.execute(
+            "SELECT key, category FROM user_model_assertions"
+        ).fetchall()
+        assert rows, "precondition: L4 rows exist"
+        canonical = {c.value for c in UserModelCategory}
+        for r in rows:
+            assert r["category"] in canonical, (
+                f"foreign category {r['category']!r} persisted for {r['key']!r} "
+                "(invariant 10)"
+            )
+        # the write seam refuses garbage outright
+        bad = UserModelAssertion(
+            "user:x", "some value", 0.5, 100.0, ("ep1",), "current"
+        )
+        with pytest.raises(ValueError):
+            store.upsert_assertion(bad, category="garbage_category")
+        with pytest.raises(ValueError):
+            store.upsert_assertion(bad, category="favorite_color")
+        # category lookups always return canonical enums
+        for a in store.list_assertions():
+            cat = store.get_assertion_category(a.key)
+            assert isinstance(cat, UserModelCategory)
+    finally:
+        store.close()
+
+
+def test_m9b_policy_switch_changes_retrieval_ordering_by_construction(tmp_path):
+    """Invariant 11/12: the faithful STRUCTURED_MEMORY reranker and the
+    separately named STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT produce
+    DIFFERENT retrieval orderings BY CONSTRUCTION on the same store — the
+    experimental variant promotes a semantic match that the faithful formula
+    ranks below a higher-importance distractor, and the faithful condition
+    is formula-exact (no hidden topicality)."""
+    from harness.domain import MemoryPolicy
+    from harness.memory import deterministic_hash_embedder
+
+    store = _store(tmp_path, "m9b.db")
+    try:
+        store.insert_episode(_episode(
+            "epA", "user's dog Bruno is very sick", 0.9, ("dog", "bruno")
+        ))
+        store.save_embedding(
+            "epA", deterministic_hash_embedder(MemoryAgent._episode_text(
+                _episode("epA", "user's dog Bruno is very sick", 0.9, ("dog", "bruno"))
+            ))
+        )
+        relevant = _episode(
+            "epB", "user takes pottery class on tuesdays", 0.6, ("pottery", "class")
+        )
+        store.insert_episode(relevant)
+        store.save_embedding(
+            relevant.id, deterministic_hash_embedder(MemoryAgent._episode_text(relevant))
+        )
+
+        faithful = MemoryAgent(store)  # STRUCTURED_MEMORY (default)
+        experimental = MemoryAgent(
+            store, memory_policy=MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT
+        )
+        assert not MemoryPolicy.STRUCTURED_MEMORY.is_experimental
+        assert MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT.is_experimental
+
+        ctx_f = faithful.retrieve("pottery class", context={"t_h": 200.0}, limit=2)
+        ctx_e = experimental.retrieve("pottery class", context={"t_h": 200.0}, limit=2)
+        order_f = [e.id for e in ctx_f.episodes]
+        order_e = [e.id for e in ctx_e.episodes]
+        assert order_f == ["epA", "epB"], (
+            f"faithful reranker order changed: {order_f}"
+        )
+        assert order_e == ["epB", "epA"], (
+            f"experimental order must promote the semantic match: {order_e}"
+        )
+        assert order_f != order_e, (
+            "policy switch must change retrieval ordering by construction"
+        )
+    finally:
+        store.close()
+
+
+def test_m9c_embedder_and_summarizer_deterministic_across_instances(tmp_path):
+    """Same input → same output across instances: the deterministic embedder
+    is stable across calls and processes, two MemoryAgent instances over the
+    SAME store retrieve byte-identical orderings (embeddings round-trip
+    through the store unchanged), and the default summarizer produces
+    identical SessionSummary objects across instances."""
+    from harness.memory import deterministic_hash_embedder
+    from harness.summarization import DeterministicSummaryExtractor
+
+    store = _store(tmp_path, "m9c.db")
+    agent_a = MemoryAgent(store)
+    agent_b = MemoryAgent(store)
+    try:
+        text = "user takes pottery class on tuesdays"
+        v1 = deterministic_hash_embedder(text)
+        v2 = deterministic_hash_embedder(text)
+        assert v1 == v2, "embedder not deterministic across calls"
+        assert v1 == agent_a._embed(text), "agent embedder disagrees with module fn"
+        assert agent_a._embed(text) == agent_b._embed(text), (
+            "embedder not deterministic across instances"
+        )
+
+        for i, (summary, tags, imp) in enumerate([
+            ("user's dog Bruno is very sick", ("dog", "bruno"), 0.9),
+            ("user takes pottery class on tuesdays", ("pottery", "class"), 0.6),
+            ("user went hiking in the rain", ("hiking",), 0.7),
+        ]):
+            ep = _episode(f"ep_{i}", summary, imp, tags)
+            store.insert_episode(ep)
+            store.save_embedding(
+                ep.id, deterministic_hash_embedder(MemoryAgent._episode_text(ep))
+            )
+
+        ctx_a = agent_a.retrieve("pottery class", context={"t_h": 200.0}, limit=3)
+        ctx_b = agent_b.retrieve("pottery class", context={"t_h": 200.0}, limit=3)
+        assert [e.id for e in ctx_a.episodes] == [e.id for e in ctx_b.episodes]
+        assert ctx_a.evidence_anchors == ctx_b.evidence_anchors
+
+        # summarizer determinism: same input, identical output across instances
+        messages = [
+            {"role": "user", "content": "I love hiking in the mountains"},
+            {"role": "assistant", "content": "that sounds lovely"},
+        ]
+        extractor_a = DeterministicSummaryExtractor()
+        extractor_b = DeterministicSummaryExtractor()
+        sa = extractor_a("day-1", messages, {"score": 0.6}, 24.0, 25.0)
+        sb = extractor_b("day-1", messages, {"score": 0.6}, 24.0, 25.0)
+        assert sa == sb, "summarizer not deterministic across instances"
+        assert sa.source_turn_ids == sb.source_turn_ids
+    finally:
+        store.close()

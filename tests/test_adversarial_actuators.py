@@ -275,3 +275,72 @@ def test_a6_actuators_off_neutral_and_text_clean():
     client = FakeClient()
     client.chat([], system=prompt, max_tokens=controls.max_tokens)
     assert client.calls[0]["max_tokens"] == 600
+
+
+# --------------------------------------------------------------------------- #
+# A-7 / A-8: Iteration-2 actuation attacks (plan §16 invariants 16 + 20 —
+# raw internal state never reaches conversational context; mechanical
+# derivation is deterministic)
+# --------------------------------------------------------------------------- #
+
+
+def test_a7_raw_engine_state_never_reaches_conversation_context(tmp_path):
+    """Invariant 16: no raw cycle/hormonal internal variable (phase label,
+    cycle_day, mu, eta, M/g channels, hormonal wording) ever reaches the
+    conversational context — the system prompt renders only the persona core
+    and the behavior brief PROSE; the message payload carries only dialogue."""
+    store = SQLiteStore(tmp_path / "a7.db")
+    try:
+        store.save_daily_state(0, {"day": 0, "M": 6, "m": 0.0, "g": 0.7,
+                                   "p": 0.5, "arg": 0.0, "mu": 0.0, "eta": 0.0,
+                                   "cycle_day": 3.5, "phase_label": "phase_a",
+                                   "seed": SEED, "score": None})
+        session = Session(
+            store, persona=PERSONA, timing=TIMING, variant=VARIANT, seed=SEED,
+            client=FakeClient(responses=["ok"]),
+            clock=VirtualClock(t_h=10.0),
+            judge=ScriptedJudge(score=0.5).judge_day,
+        )
+        session.on_message("how is your day going")
+        call = session.client.calls[-1]
+        system = call["system"]
+        payload = "".join(str(m.get("content", "")) for m in call["messages"])
+        forbidden = ("phase_a", "phase_label", "cycle_day", "hormonal",
+                     "mu=", "eta=", "M=", "g=", "0.7", "3.5")
+        for token in forbidden:
+            assert token not in system, (
+                f"raw internal token {token!r} leaked into the system prompt "
+                "(invariant 16)"
+            )
+            assert token not in payload, (
+                f"raw internal token {token!r} leaked into the message payload"
+            )
+        # the guidance that IS present is the rendered prose brief
+        assert "Current behavioral guidance:" in system
+        assert "You are Nova" in system
+    finally:
+        store.close()
+
+
+def test_a8_behavioral_derivation_deterministic_and_stateless():
+    """The mechanical derivation chain (derive_behavior → controls_from_
+    directive → to_brief) is a pure function: identical (record, timing,
+    hour) inputs yield byte-identical directives, controls and briefs across
+    repeated calls — no hidden RNG, no instance state (invariant 20's
+    reproducibility precondition)."""
+    from harness.behavior import derive_behavior
+    from engine.types import DayRecord
+
+    record = DayRecord(0, 6.0, 0.0, 0.7, 0.5, 6, 0.0, 0.0, 3.5, 12.0,
+                       "ovulatory", SEED)
+    d1 = derive_behavior(record, TIMING, hour=10.0)
+    d2 = derive_behavior(record, TIMING, hour=10.0)
+    assert d1 == d2, "derive_behavior not deterministic"
+    assert actuation.controls_from_directive(d1) == actuation.controls_from_directive(d2)
+    assert actuation.to_brief(d1) == actuation.to_brief(d2)
+    # a different hour must change SOMETHING mechanical (energy is circadian)
+    d3 = derive_behavior(record, TIMING, hour=22.0)
+    assert d3 != d1, "circadian hour has no mechanical effect"
+    assert actuation.controls_from_directive(d3) != actuation.controls_from_directive(d1)
+    # the derivation never reads or writes external state
+    assert derive_behavior(record, TIMING, hour=10.0) == d1
