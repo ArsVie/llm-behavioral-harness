@@ -4,12 +4,17 @@ PROPIEDAD: tarea W2.2 (este archivo + tests/test_run_events.py). Se implementa
 DESPUÉS de la Ola 1; puede importar engine.timing, engine.circadian,
 engine.cycle, engine.rng (composición permitida solo en drivers).
 
-Composición del modulador (congelada):
+Composición del modulador (congelada; B5 amplía ADITIVAMENTE con opt-in):
     modulator(t_h) = circadian.envelope(t_h % 24, timing)
                    × timing.phase_multipliers[phase_label(día de t_h)]
                    × adj_from_score(score del día ANTERIOR al de t_h)
+                   × state_factors[día de t_h]        (B5; None ⇒ 1.0)
     adj_from_score(s) = clip(1 + types.ADJ_SLOPE·s, *timing.adj_bounds);
     s = None (sin score, p. ej. día 0 o scores no dados) ⇒ 1.0.
+    state_factors (B5, orquestador carve-out): array por día (days,) con el
+    término de estado exp(w·(x−x₀)) precomputado por el llamador (el
+    scheduler lo deriva de la directiva del día). Por defecto None ⇒
+    composición byte-idéntica a la pre-B5 para todo llamador que no opte in.
 
 Fases por día: instancia propia de cycle con el MISMO contrato de replay que
 run_daily — cycle.init_state(persona, engine.rng.init_rng(seed)) y, por día,
@@ -83,8 +88,10 @@ def _make_modulator(
     phase_labels: list[str],
     timing: TimingParams,
     scores: np.ndarray | None,
+    state_factors: np.ndarray | None = None,
 ):
-    """Compone envelope × phase_multiplier × adj_from_score(score del día previo)."""
+    """Compone envelope × phase_multiplier × adj_from_score(score del día previo)
+    × state_factors[día] (B5 — término de estado opt-in; None ⇒ 1.0)."""
     last_day_idx = days - 1
 
     def modulator(t_h: float) -> float:
@@ -100,14 +107,25 @@ def _make_modulator(
         else:
             score = None
         adj = adj_from_score(score, timing)
-        return env * phase_mult * adj
+        state = float(state_factors[day]) if state_factors is not None else 1.0
+        return env * phase_mult * adj * state
 
     return modulator
 
 
-def _mod_ub(timing: TimingParams) -> float:
-    """Cota superior del modulador: 1.0 × max(phase_multipliers) × adj_bounds[1]."""
-    return 1.0 * max(timing.phase_multipliers.values()) * timing.adj_bounds[1]
+def _mod_ub(timing: TimingParams, state_factors: np.ndarray | None = None) -> float:
+    """Cota superior del modulador: 1.0 × max(phase_multipliers) × adj_bounds[1]
+    × max(state_factors) (B5; sin state_factors ⇒ 1.0 — byte-idéntico).
+
+    El mayorante del thinning debe acotar al modulador en TODO t: con
+    acoplamiento activo se multiplica por el máximo del array por día (el
+    scheduler lo recorta a STATE_FACTOR_BOUNDS; el max defensivo mantiene la
+    corrección del thinning para cualquier llamador).
+    """
+    ub = 1.0 * max(timing.phase_multipliers.values()) * timing.adj_bounds[1]
+    if state_factors is not None and state_factors.size:
+        ub *= float(np.max(state_factors))
+    return ub
 
 
 def _find_forced_time(
@@ -142,22 +160,34 @@ def run(
     persona: PersonaParams | None = None,
     timing: TimingParams | None = None,
     scores: np.ndarray | None = None,
+    state_factors: np.ndarray | None = None,
 ) -> np.ndarray:
     """Stream de `days` días de eventos proactivos ACEPTADOS.
 
     `scores`: opcional, shape (days,), score sintético de cada día (alimenta
-    adj del día siguiente); None ⇒ adj ≡ 1. Devuelve horas absolutas
-    ordenadas (np.ndarray float, en [0, days·24)).
+    adj del día siguiente); None ⇒ adj ≡ 1. `state_factors` (B5): opcional,
+    shape (days,), término de estado multiplicativo por día (exp(w·(x−x₀))
+    precomputado por el llamador); None ⇒ composición byte-idéntica a la
+    pre-B5. Devuelve horas absolutas ordenadas (np.ndarray float, en
+    [0, days·24)).
     """
     if persona is None:
         persona = PersonaParams()
     if timing is None:
         timing = TimingParams()
 
+    if state_factors is not None:
+        state_factors = np.asarray(state_factors, dtype=float)
+        if state_factors.ndim != 1 or state_factors.shape[0] != days:
+            raise ValueError(
+                f"state_factors must be a 1-D array of length days={days}, "
+                f"got shape {state_factors.shape}"
+            )
+
     horizon_h = days * 24.0
     phase_labels = _precompute_phase_labels(days, seed, persona)
-    modulator = _make_modulator(days, phase_labels, timing, scores)
-    mod_ub = _mod_ub(timing)
+    modulator = _make_modulator(days, phase_labels, timing, scores, state_factors)
+    mod_ub = _mod_ub(timing, state_factors)
     min_gap_h = timing.min_gap_min / 60.0
 
     ev_rng = rng_mod.stream_rng(seed, rng_mod.EVENTS_STREAM)
