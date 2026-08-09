@@ -88,6 +88,20 @@ class Routine:
 
 
 @dataclass(frozen=True)
+class UserProfile:
+    """The user's onboarding identity: a display name plus their interests.
+
+    Interest names are plain strings; they may or may not exist in the
+    interest catalog. The companion's EXACT-shared interests are drawn from
+    this set regardless of catalog membership, while adjacency is computed
+    against the catalog for the names that do exist (see ``harness.persona``).
+    """
+
+    name: str
+    interests: tuple[str, ...]
+
+
+@dataclass(frozen=True)
 class PersonaProfile:
     """The companion's stable identity: prose core plus interests and routines."""
 

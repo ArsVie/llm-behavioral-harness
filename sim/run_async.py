@@ -30,6 +30,12 @@ import os
 
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.assembler import DEFAULT_PERSONA_CORE
+from harness.bootstrap import (
+    DEFAULT_USER_INTERESTS,
+    DEFAULT_USER_NAME,
+    OnboardingConfig,
+    ensure_companion_initialized,
+)
 from harness.client import FakeClient, OpenAICompatibleClient
 from harness.clock import VirtualClock
 from harness.config import DEFAULT_CHANNEL, select_channel
@@ -40,6 +46,34 @@ from harness.session import Session
 from harness.store import SQLiteStore
 
 WAKE_HOUR = 8.0
+
+
+def _bootstrap_and_report(store: SQLiteStore, seed: int, args) -> None:
+    """Idempotent clean-start initialization (Iteration-2 A1b): blank DB →
+    persona → user-relative interests → life arcs → today's agenda, then a
+    one-line summary. Safe to call on every start (no-op once initialized)."""
+    user_interests = tuple(
+        s.strip()
+        for s in (args.user_interests or ",".join(DEFAULT_USER_INTERESTS)).split(",")
+        if s.strip()
+    )
+    config = OnboardingConfig(
+        user_name=args.user_name or DEFAULT_USER_NAME,
+        user_interests=user_interests,
+    )
+    boot = ensure_companion_initialized(
+        store, seed=seed, config=config, day=0
+    )
+    counts: dict[str, int] = {}
+    for interest in boot.persona.interests:
+        counts[interest.bucket] = counts.get(interest.bucket, 0) + 1
+    print(
+        f"bootstrap: user={boot.user_profile.name} persona={boot.persona.name} "
+        f"interests={len(boot.persona.interests)} "
+        f"(exact {counts.get('exact', 0)} / adjacent {counts.get('adjacent', 0)} / "
+        f"independent {counts.get('independent', 0)}) arcs={len(boot.life_arcs)} "
+        f"agenda[0]={len(boot.today_agenda.items) if boot.today_agenda else 0}"
+    )
 
 
 def _restore_or_plan(
@@ -71,6 +105,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--persona-core", type=str, default=None)
     parser.add_argument("--model", type=str, default=None, help="LLM_MODEL override")
     parser.add_argument(
+        "--user-name", type=str, default=None,
+        help="onboarding user display name (default: bootstrap default)",
+    )
+    parser.add_argument(
+        "--user-interests", type=str, default=None,
+        help="comma-separated user interests for the user-relative 40/40/20 "
+             "portfolio (default: mathematics,metal,lifting,movies)",
+    )
+    parser.add_argument(
         "--channel", type=str, default=None,
         help="active channel: cli | telegram | fake (default: HARNESS_CHANNEL env or cli)",
     )
@@ -83,6 +126,7 @@ def main(argv: list[str] | None = None) -> int:
 
     store = SQLiteStore(args.store)
     clock = VirtualClock(t_h=0.0 + WAKE_HOUR)
+    _bootstrap_and_report(store, args.seed, args)
     if args.fake:
         client = FakeClient(echo=True)
         synthetic = True

@@ -18,6 +18,10 @@ a hub, and a hubless island (``ISLAND``) whose nodes have no path to any hub —
 they guarantee the independent bucket is always fillable, for both
 profile-relative sampling and the graph-level ``sample_independent``.
 
+Distance queries: ``distance(a, b)`` returns the shortest path length (or
+``None``) and ``reachable_within(name, hops)`` the adjacency region — the
+primitives behind the user-relative 40/40/20 sampler (``harness.persona``).
+
 All randomness enters through an injected ``numpy.random.Generator`` (see
 ``engine.rng``); there is no global RNG state and no real-clock read here.
 """
@@ -29,6 +33,10 @@ MAX_ADJACENCY_HOPS = 3
 
 #: Cluster hubs (exact-interest candidates) -> their cluster members.
 #: Every member is directly connected to its hub (strength 0.6).
+#: NOTE (Iteration-2 A1b): the plan's Gate-2 user includes interests outside
+#: this catalog (lifting, movies) — out-of-graph user interests are still
+#: valid EXACT candidates for the user-relative sampler (the companion shares
+#: them); their adjacency region is just themselves.
 CLUSTERS: dict[str, tuple[str, ...]] = {
     "mathematics": ("physics", "statistics", "puzzles", "programming"),
     "metal": ("rock", "live music", "guitar", "alternative music"),
@@ -138,6 +146,42 @@ class InterestGraph:
                         nxt.append(nb)
             frontier = nxt
         return seen
+
+    def reachable_within(self, name: str, max_hops: int) -> set[str]:
+        """Public distance query: every node within ``max_hops`` edges of ``name``.
+
+        The returned set always includes ``name`` itself (zero hops). Unknown
+        nodes have no edges, so the set is ``{name}`` for them. This is the
+        adjacency-region primitive the user-relative 40/40/20 sampler uses
+        (Iteration-2 A1b).
+        """
+        return self._reachable_within(name, max_hops)
+
+    def distance(self, a: str, b: str) -> int | None:
+        """Shortest path length between ``a`` and ``b``; ``None`` if unreachable.
+
+        ``distance(a, a) == 0``. Unknown nodes are only reachable from
+        themselves. The graph is undirected, so the result is symmetric.
+        """
+        if a == b:
+            return 0
+        if a not in self._adj or b not in self._adj:
+            return None
+        seen = {a}
+        frontier = [a]
+        hops = 0
+        while frontier:
+            hops += 1
+            nxt: list[str] = []
+            for node in frontier:
+                for nb in self._adj.get(node, ()):
+                    if nb == b:
+                        return hops
+                    if nb not in seen:
+                        seen.add(nb)
+                        nxt.append(nb)
+            frontier = nxt
+        return None
 
     # -- sampling --------------------------------------------------------
 
