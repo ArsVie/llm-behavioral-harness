@@ -44,22 +44,22 @@ REPORT_BODY = """# Iteration-2 vertical slice
 def test_short_vertical_probe_needs_no_checkpoints(tmp_path):
     """Gate 6 probe: a 3-day vertical can't hold 5 restarts; the ≥5
     checkpoint rule applies to 30+ day verticals only (probe G6 fix)."""
-    out = _write_run_dir(tmp_path, tamper={"checkpoints": []})
-    (out / "vertical_summary.json").write_text(
+    _write_run_dir(tmp_path)
+    (tmp_path / "run" / "vertical_summary.json").write_text(
         json.dumps({"days": 3, "checkpoints": [], "validated": True}),
         encoding="utf-8",
     )
-    violations = check_run_dir(out)
+    violations = check_run_dir(tmp_path / "run")
     assert "checkpoints" not in "\n".join(violations)
 
 
 def test_long_vertical_still_requires_checkpoints(tmp_path):
-    out = _write_run_dir(tmp_path, tamper={"checkpoints": []})
-    (out / "vertical_summary.json").write_text(
+    _write_run_dir(tmp_path)
+    (tmp_path / "run" / "vertical_summary.json").write_text(
         json.dumps({"days": 30, "checkpoints": [], "validated": True}),
         encoding="utf-8",
     )
-    violations = check_run_dir(out)
+    violations = check_run_dir(tmp_path / "run")
     assert any("checkpoints" in v for v in violations)
 
 
