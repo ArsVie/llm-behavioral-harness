@@ -500,6 +500,79 @@ def test_suite_runs_without_real_waits():
 
 
 # --------------------------------------------------------------------------- #
+# it3 B2: conversation lifecycle in the live runtime (SeamStore path —
+# conversation tracking is in-memory; closes are observable via the
+# conversation_closed audit event and session.open_conversation_id())
+# --------------------------------------------------------------------------- #
+
+
+def test_quiet_hours_closes_open_conversation_at_boundary():
+    """A5: a conversation open at 22:50 is closed with quiet_hours AT the
+    23:00 boundary (the rollover parks at the quiet-hours start), and no
+    companion turn fires inside quiet hours."""
+    store, clock, session = _session(replies=["night reply"])
+    channel = FakeChannel()
+
+    async def driver():
+        feed = asyncio.create_task(channel.feed("good evening", t_h=22.833))
+        try:
+            await AsyncRuntime(
+                session, ProactiveSchedule.restore(SEED, store), channel,
+                store=store, timing=TIMING, seed=SEED,
+                time_scale=FAST, max_virtual_hours=23.5,
+            ).run()
+        finally:
+            if not feed.done():
+                feed.cancel()
+
+    asyncio.run(driver())
+    assert session.open_conversation_id() is None  # closed at the boundary
+    closes = [
+        e for e in store.events_since(0)
+        if e["event"] == "conversation_closed"
+    ]
+    assert len(closes) == 1
+    assert closes[0]["detail"] == "id=conv-0 reason=quiet_hours turns=2"
+    # the reactive reply was delivered; no companion turn inside quiet hours
+    assert [m.text for m in channel.sent] == ["night reply"]
+    assert all(
+        m["role"] != "assistant" or m["t_h"] < 23.0
+        for m in store.messages_for_day(0)
+    )
+    store.close()
+
+
+def test_user_left_closes_open_conversation_at_deadline():
+    """user_left: the rollover parks at the silence deadline (last user
+    turn 10:00 + USER_LEFT_THRESHOLD_H = 22:00) and records the close
+    there, not lazily at the next turn."""
+    store, clock, session = _session(replies=["morning"])
+    channel = FakeChannel()
+
+    async def driver():
+        feed = asyncio.create_task(channel.feed("morning", t_h=10.0))
+        try:
+            await AsyncRuntime(
+                session, ProactiveSchedule.restore(SEED, store), channel,
+                store=store, timing=TIMING, seed=SEED,
+                time_scale=FAST, max_virtual_hours=22.5,
+            ).run()
+        finally:
+            if not feed.done():
+                feed.cancel()
+
+    asyncio.run(driver())
+    assert session.open_conversation_id() is None
+    closes = [
+        e for e in store.events_since(0)
+        if e["event"] == "conversation_closed"
+    ]
+    assert len(closes) == 1
+    assert "reason=user_left" in closes[0]["detail"]
+    store.close()
+
+
+# --------------------------------------------------------------------------- #
 # A7 timing feedback in the live runtime
 # --------------------------------------------------------------------------- #
 

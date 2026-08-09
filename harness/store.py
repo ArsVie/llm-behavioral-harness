@@ -12,7 +12,7 @@ The pre-slice schema is version 1 and is frozen verbatim in ``_SCHEMA``; it is
 executed with ``CREATE TABLE IF NOT EXISTS`` on every open (legacy behavior,
 idempotent). ``schema_meta(version)`` creates the ``schema_meta`` bookkeeping
 table; the migration framework (``_migrate``) reads the recorded version and
-applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 3).
+applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 4).
 Migrations never drop or alter existing columns; all ``ALTER TABLE`` steps are
 guarded by ``PRAGMA table_info``. On a fresh database the effective version is
 1 (only the v1 base tables exist), so the migration chain runs and the
@@ -100,6 +100,8 @@ from typing import Sequence
 from harness.domain import (
     AffectMetadata,
     AgendaItem,
+    Conversation,
+    ConversationTurn,
     DailyAgenda,
     EpisodicMemory,
     Interest,
@@ -114,7 +116,7 @@ from harness.domain import (
     UserModelCategory,
 )
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 
 # --------------------------------------------------------------------------- #
 # v1 base schema — FROZEN verbatim from the pre-slice store (do not edit).
@@ -436,6 +438,43 @@ def _migrate_v3(conn: sqlite3.Connection) -> None:
     conn.executescript(_V3_VIEWS)
 
 
+# --------------------------------------------------------------------------- #
+# Migration v3 -> v4 (it3 B2, additive only): conversation persistence
+# --------------------------------------------------------------------------- #
+# v4 adds the conversation seam (module invariant 8): ``conversations`` +
+# ``conversation_turns`` are the dialogue unit that memory sessions, judge
+# sampling and relational metrics key off, and ``messages`` gains the
+# additive ``conversation_id`` linkage column (NULL for pre-v4 rows).
+_V4_TABLES = """
+CREATE TABLE IF NOT EXISTS conversations (
+    id TEXT PRIMARY KEY,
+    opened_t_h REAL NOT NULL,
+    closed_t_h REAL,
+    opened_by TEXT NOT NULL,   -- 'user' | 'companion'
+    close_reason TEXT          -- 'closing_tendency' | 'user_left'
+                               -- | 'quiet_hours' | 'max_turns'
+);
+CREATE TABLE IF NOT EXISTS conversation_turns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    conversation_id TEXT NOT NULL,
+    speaker TEXT NOT NULL,                -- 'user' | 'companion'
+    text TEXT NOT NULL,
+    t_h REAL NOT NULL,
+    turn_index INTEGER NOT NULL,          -- 0-based within the conversation
+    message_id INTEGER,                   -- links to messages.id (provenance)
+    UNIQUE (conversation_id, turn_index)
+);
+CREATE INDEX IF NOT EXISTS idx_conversation_turns_conversation
+    ON conversation_turns(conversation_id);
+"""
+
+
+def _migrate_v4(conn: sqlite3.Connection) -> None:
+    """v3 -> v4: additive conversation tables + messages.conversation_id."""
+    conn.executescript(_V4_TABLES)
+    _ensure_column(conn, "messages", "conversation_id", "TEXT")
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Bring the schema up to SCHEMA_VERSION with additive migrations only.
 
@@ -450,6 +489,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         _migrate_v2(conn)
     if version < 3:
         _migrate_v3(conn)
+    if version < 4:
+        _migrate_v4(conn)
     if version < SCHEMA_VERSION:
         conn.execute("DELETE FROM schema_meta")
         conn.execute(
@@ -598,16 +639,20 @@ class SQLiteStore:
         proactive: bool = False,
         session_id: str | None = None,
         intent_id: str | None = None,
+        conversation_id: str | None = None,
     ) -> int:
-        """Append a message; ``session_id`` (A5 L1 session scoping) and
-        ``intent_id`` (A7 proactive provenance — the exact validated intent id
-        that produced an outgoing message, invariant 6; reactive messages keep
-        it None) are optional and backward compatible with all pre-slice
-        callers."""
+        """Append a message; ``session_id`` (A5 L1 session scoping),
+        ``intent_id`` (A7 proactive provenance — the exact validated intent
+        id that produced an outgoing message, invariant 6; reactive messages
+        keep it None) and ``conversation_id`` (it3 B2 conversation linkage,
+        module invariant 8) are optional and backward compatible with all
+        pre-slice callers."""
         cur = self.conn.execute(
             "INSERT INTO messages (role, content, t_h, day, proactive, "
-            "session_id, intent_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (role, content, t_h, day, int(proactive), session_id, intent_id),
+            "session_id, intent_id, conversation_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (role, content, t_h, day, int(proactive), session_id, intent_id,
+             conversation_id),
         )
         self.conn.commit()
         last_id = cur.lastrowid
@@ -631,6 +676,131 @@ class SQLiteStore:
             (day,),
         ).fetchone()
         return int(row["n"])
+
+    def messages_for_session(self, session_id: str) -> list[dict]:
+        """L1 turns of one memory session (the documented store seam read).
+
+        Since it3 B2 the session id is the conversation id (one memory
+        session per conversation, module invariant 8); legacy day-scoped
+        ids keep working because ``messages.session_id`` is unchanged.
+        """
+        rows = self.conn.execute(
+            "SELECT * FROM messages WHERE session_id = ? ORDER BY id",
+            (session_id,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    # -- conversations (it3 B2, module invariant 8) -------------------------
+
+    def open_conversation(
+        self, conversation_id: str, opened_t_h: float, opened_by: str
+    ) -> None:
+        """Register a conversation as open (no-op if the id already exists)."""
+        self.conn.execute(
+            "INSERT OR IGNORE INTO conversations (id, opened_t_h, opened_by) "
+            "VALUES (?, ?, ?)",
+            (conversation_id, opened_t_h, opened_by),
+        )
+        self.conn.commit()
+
+    def close_conversation(
+        self, conversation_id: str, closed_t_h: float, close_reason: str
+    ) -> None:
+        """Record the close of a conversation (idempotent re-close)."""
+        self.conn.execute(
+            "UPDATE conversations SET closed_t_h = ?, close_reason = ? "
+            "WHERE id = ?",
+            (closed_t_h, close_reason, conversation_id),
+        )
+        self.conn.commit()
+
+    def add_conversation_turn(
+        self,
+        conversation_id: str,
+        speaker: str,
+        text: str,
+        t_h: float,
+        turn_index: int,
+        *,
+        message_id: int | None = None,
+    ) -> int:
+        """Persist one turn of a conversation; returns the turn row id."""
+        cur = self.conn.execute(
+            "INSERT INTO conversation_turns "
+            "(conversation_id, speaker, text, t_h, turn_index, message_id) "
+            "VALUES (?, ?, ?, ?, ?, ?)",
+            (conversation_id, speaker, text, t_h, turn_index, message_id),
+        )
+        self.conn.commit()
+        last_id = cur.lastrowid
+        return int(last_id) if last_id is not None else -1
+
+    @staticmethod
+    def _row_to_conversation_turn(row: dict) -> ConversationTurn:
+        return ConversationTurn(
+            speaker=row["speaker"],
+            text=row["text"],
+            t_h=float(row["t_h"]),
+            turn_index=int(row["turn_index"]),
+            conversation_id=row["conversation_id"],
+        )
+
+    @staticmethod
+    def _row_to_conversation(row: dict, turns: tuple[ConversationTurn, ...]) -> Conversation:
+        return Conversation(
+            id=row["id"],
+            opened_t_h=float(row["opened_t_h"]),
+            closed_t_h=float(row["closed_t_h"]) if row["closed_t_h"] is not None else None,
+            opened_by=row["opened_by"],
+            close_reason=row["close_reason"],
+            turns=turns,
+        )
+
+    def _turns_for_conversation(self, conversation_id: str) -> tuple[ConversationTurn, ...]:
+        rows = self.conn.execute(
+            "SELECT * FROM conversation_turns WHERE conversation_id = ? "
+            "ORDER BY turn_index",
+            (conversation_id,),
+        ).fetchall()
+        return tuple(self._row_to_conversation_turn(dict(r)) for r in rows)
+
+    def load_conversation(self, conversation_id: str) -> Conversation | None:
+        """Full ``Conversation`` (turns included) by id, or None."""
+        row = self.conn.execute(
+            "SELECT * FROM conversations WHERE id = ?", (conversation_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_conversation(
+            dict(row), self._turns_for_conversation(conversation_id)
+        )
+
+    def load_open_conversation(self) -> Conversation | None:
+        """The currently open conversation (``closed_t_h IS NULL``), or None.
+
+        At most one conversation is open at a time by construction (the
+        session opens the next only after closing the previous); the most
+        recently opened row wins defensively.
+        """
+        row = self.conn.execute(
+            "SELECT * FROM conversations WHERE closed_t_h IS NULL "
+            "ORDER BY opened_t_h DESC, rowid DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            return None
+        return self._row_to_conversation(
+            dict(row), self._turns_for_conversation(row["id"])
+        )
+
+    def list_conversations(self) -> list[Conversation]:
+        """All conversations, oldest first (stable order for id derivation)."""
+        rows = self.conn.execute(
+            "SELECT * FROM conversations ORDER BY opened_t_h, rowid"
+        ).fetchall()
+        return [
+            self._row_to_conversation(dict(r), self._turns_for_conversation(r["id"]))
+            for r in rows
+        ]
 
     # -- judgements ----------------------------------------------------------
 

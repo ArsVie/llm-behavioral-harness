@@ -52,7 +52,8 @@ routed defect).
 from __future__ import annotations
 
 import inspect
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
+from typing import Literal
 
 import engine.rng as rng_mod
 from engine import cycle, mood
@@ -80,6 +81,8 @@ from harness.client import LLMClient
 from harness.domain import (
     BehaviorBrief,
     CompanionSnapshot,
+    Conversation,
+    ConversationTurn,
     CurrentActivity,
     GenerationControls,
     LifeArc,
@@ -94,6 +97,39 @@ from harness.memory import MemoryAgent
 from harness.scheduler import VALID_REASONS
 from harness.score import synthetic_score as run_daily_synthetic_score
 from harness.store import SQLiteStore
+
+#: Closing-tendency draw stream (it3 B2): a dedicated engine.rng stream.
+#: Streams 0..5 are reserved by other lanes (0=DAILY, 1=EVENTS, 2=EXPERIMENT,
+#: 3=INIT, 4=LIFE, 5=PERSONA); 6 is this lane's. Each draw is keyed by
+#: (conversation sequence, companion turn's 0-based index within the
+#: conversation), so every conversation draws its OWN deterministic
+#: sequence — the k-th draw of conversation n is always
+#: ``stream_rng(seed, 6, n, k)``, and a resumed conversation continues
+#: exactly where it left off (no re-draws).
+CONVERSATION_STREAM = 6
+
+#: ``close_reason == "user_left"`` threshold: virtual hours of user silence
+#: (measured from the conversation's last USER turn — or its opening when
+#: the companion opened and the user never replied) after which the
+#: conversation is closed.
+USER_LEFT_THRESHOLD_H = 12.0
+
+#: Hard cap on conversation length in total turns (user + companion): no
+#: conversation runs forever (``close_reason == "max_turns"``).
+MAX_TURNS = 12
+
+#: Namespace base for per-conversation MEMORY SESSION ids. The MemoryAgent
+#: seam (harness/memory.py — must-not-touch) parses session ids with
+#: ``re.fullmatch(r"day-(\\d+)", ...)`` (``_day_of``: judgement lookup and
+#: the eager ``started`` default in ``close_session``), so conversation-
+#: scoped session ids must stay day-shaped. They are namespaced ABOVE any
+#: real day count: conversation ``conv-<n>`` maps to memory session
+#: ``day-<OFFSET+n>``. One memory session per conversation still holds —
+#: each conversation gets a unique id; the seam itself is used as-is (the
+#: brief: "you change which ids the session passes, not the seam"). A
+#: one-line lazy-default fix in memory.py would let honest ids through —
+#: reported to the orchestrator.
+CONVERSATION_SESSION_OFFSET = 1000
 
 
 @dataclass
@@ -203,6 +239,7 @@ class Session:
             _params = {}
         self._accepts_session_id = "session_id" in _params
         self._accepts_intent_id = "intent_id" in _params
+        self._accepts_conversation_id = "conversation_id" in _params
 
         self.cycle_state: CycleState = cycle.init_state(persona, rng_mod.init_rng(seed))
         self.mood_state = MoodState()
@@ -215,6 +252,14 @@ class Session:
         latest = store.latest_daily_state()
         if latest is not None:
             self._resume_from(latest)
+
+        # it3 B2: the open conversation (if any) is reopened at conversation
+        # granularity — its turns continue and turn_index keeps counting.
+        # Stores without the conversation seam (legacy fakes) start with no
+        # open conversation, exactly as before.
+        self._conversation: Conversation | None = None
+        if hasattr(self.store, "load_open_conversation"):
+            self._conversation = self.store.load_open_conversation()
 
     # ------------------------------------------------------------------ #
     # resume / replay
@@ -368,11 +413,11 @@ class Session:
         self._day_rng = rng_t
         self._records[day] = record
 
-        # Wave 2 lanes: register the memory session and plan today's life
-        # agenda. All draws come from the reserved LIFE stream (never day_rng)
-        # so the engine replay order above stands byte-for-byte.
-        if hasattr(self.store, "open_session"):
-            self.store.open_session(f"day-{day}", day * 24.0)
+        # Wave 2 lanes: plan today's life agenda. All draws come from the
+        # reserved LIFE stream (never day_rng) so the engine replay order
+        # above stands byte-for-byte. (Memory sessions are no longer opened
+        # here — it3 B2: one memory session per CONVERSATION, opened at
+        # conversation open and closed at conversation close.)
         self._ensure_life()
         if self._profile is not None:
             self._generate_agenda(day)
@@ -417,12 +462,18 @@ class Session:
             day, score, result.justification, self.judge_model, shadow=not self.feedback
         )
 
-        # Wave 2 lanes at the session boundary: memory L1->L2->L3->L4 and the
-        # life step for the day just ended. Neither consumes day_rng (memory
-        # is deterministic; life uses the LIFE stream), so the engine replay
-        # order below is untouched.
-        self._close_memory_session(day)
+        # Wave 2 lanes at the session boundary: the life step for the day
+        # just ended. Memory is NOT closed here — it3 B2: L1->L2->L3->L4
+        # formation keys off the CONVERSATION boundary (one memory session
+        # per conversation), and conversation closes happen at their own
+        # times; a conversation still open at the day boundary stays open.
+        # Conversations that closed during the day ALREADY ran their memory
+        # tail at close time; this sweep only completes stragglers (crash
+        # between close_conversation and the tail). Neither consumes day_rng
+        # (life uses the LIFE stream), so the engine replay order below is
+        # untouched.
         self._step_life(day)
+        self._recover_conversation_memory_tails(day)
 
         if self.feedback:
             self.mood_state = mood.update(self.mood_state, self.persona, score)
@@ -541,12 +592,13 @@ class Session:
         ``_resume_from`` already re-applied it (judgement present), so the
         replay contract is preserved.
         """
-        memory_done = (
-            hasattr(self.store, "load_session_summary")
-            and self.store.load_session_summary(f"day-{day}") is not None
-        )
-        if not memory_done:
-            self._close_memory_session(day)
+        # it3 B2: memory formation is CONVERSATION-boundary driven, so the
+        # crash window's memory tail is "conversations that closed during
+        # this day but whose L2 summary never persisted" (process death
+        # between close_conversation and the memory tail). Each close is
+        # idempotent (summary-exists guard), so a clean finalize re-runs
+        # nothing.
+        self._recover_conversation_memory_tails(day)
         if self._profile is not None and not self._life_step_done(day):
             self._step_life(day)
         if hasattr(self.store, "update_daily_score"):
@@ -556,23 +608,312 @@ class Session:
             f"score={float(judgement['score']):.3f} shadow={not self.feedback}",
         )
 
-    def _close_memory_session(self, day: int) -> None:
-        """L1 -> L2 -> L3 -> L4 at the day boundary, via MemoryAgent only.
+    def _recover_conversation_memory_tails(self, day: int) -> None:
+        """Complete the per-conversation memory tail for conversations that
+        closed during ``day`` but whose L2 summary never persisted.
 
-        Runs once per day (finalize is judgement-guarded). Silent days are
-        skipped — an empty session has no provenance to promote.
+        Idempotent (summary-exists guard): the normal path closes memory at
+        conversation-close time, so a clean day re-runs nothing; a crash
+        between ``close_conversation`` and the memory tail (mid-_chat or in
+        the finalize window) is recovered here, at the day boundary and on
+        resume.
         """
-        if not hasattr(self.store, "messages_for_day") or not self.store.messages_for_day(day):
+        if not hasattr(self.store, "list_conversations"):
             return
-        session_id = f"day-{day}"
-        ended = (day + 1) * 24.0
-        summary = self._memory.close_session(session_id, ended_at_t_h=ended)
+        for conv in self.store.list_conversations():
+            if conv.close_reason is None or conv.closed_t_h is None:
+                continue
+            if not (day * 24.0 <= conv.closed_t_h < (day + 1) * 24.0):
+                continue
+            if (
+                hasattr(self.store, "load_session_summary")
+                and self.store.load_session_summary(
+                    self._memory_session_id(conv.id)
+                ) is None
+            ):
+                self._close_conversation_memory(conv)
+
+    # ------------------------------------------------------------------ #
+    # it3 B2: conversation lifecycle (module invariant 8)
+    # ------------------------------------------------------------------ #
+
+    def open_conversation_id(self) -> str | None:
+        """Id of the currently open conversation, or None.
+
+        Read-only accessor for the runtime's lifecycle pacing (parking the
+        rollover at conversation close instants).
+        """
+        return self._conversation.id if self._conversation is not None else None
+
+    def check_conversation_lifecycle(self, t_h: float) -> str | None:
+        """Close the open conversation if a boundary close is due at ``t_h``.
+
+        Exactly two boundary closes live here (the other two — the
+        ``closing_tendency`` draw and ``max_turns`` — fire at companion
+        turns inside ``_chat``):
+
+        * ``quiet_hours`` — the conversation's last turn preceded the start
+          of the current quiet window (the conversation crossed the 23:00
+          boundary; a conversation that OPENED inside quiet hours has no
+          crossed boundary and keeps running).
+        * ``user_left`` — user silence since the conversation's last user
+          turn (or its opening, when the companion opened and the user
+          never replied) reached ``USER_LEFT_THRESHOLD_H``.
+
+        Idempotent and cheap: the runtime calls it at every wake (rollover
+        parks, firing wakes, inbound turns) and the session calls it before
+        every turn, so the close is recorded at its boundary instant rather
+        than lazily. Returns the close_reason, or None when the
+        conversation stays open.
+        """
+        conv = self._conversation
+        if conv is None:
+            return None
+        last = self._last_turn_t_h(conv)
+        if last is None:
+            last = conv.opened_t_h
+        boundary = self._quiet_start_at_or_before(t_h, self.timing.quiet_hours)
+        if last < boundary:
+            self._close_conversation(conv, t_h, "quiet_hours")
+            return "quiet_hours"
+        anchor = self._last_user_turn_t_h(conv)
+        if anchor is None:
+            anchor = conv.opened_t_h
+        if t_h - anchor >= USER_LEFT_THRESHOLD_H:
+            self._close_conversation(conv, t_h, "user_left")
+            return "user_left"
+        return None
+
+    def next_conversation_close_t_h(self, now: float) -> float | None:
+        """Next strictly-future close instant for the open conversation.
+
+        The earlier of the next quiet-hours boundary (when the
+        conversation's last turn precedes it) and the ``user_left``
+        deadline; None when no conversation is open or no close is pending.
+        The runtime parks the rollover at this instant so the close is
+        recorded at the boundary, not lazily at the next turn.
+        """
+        conv = self._conversation
+        if conv is None:
+            return None
+        last = self._last_turn_t_h(conv)
+        if last is None:
+            last = conv.opened_t_h
+        _quiet_ini, _quiet_fin = self.timing.quiet_hours
+        day = int(now // 24.0)
+        qstart = day * 24.0 + _quiet_ini
+        if qstart <= now + 1e-12:
+            qstart += 24.0
+        candidates: list[float] = []
+        if last < qstart:
+            candidates.append(qstart)
+        anchor = self._last_user_turn_t_h(conv)
+        if anchor is None:
+            anchor = conv.opened_t_h
+        deadline = anchor + USER_LEFT_THRESHOLD_H
+        if deadline > now + 1e-12:
+            candidates.append(deadline)
+        return min(candidates) if candidates else None
+
+    @staticmethod
+    def _last_turn_t_h(conv: Conversation) -> float | None:
+        if not conv.turns:
+            return None
+        return conv.turns[-1].t_h
+
+    @staticmethod
+    def _last_user_turn_t_h(conv: Conversation) -> float | None:
+        for t in reversed(conv.turns):
+            if t.speaker == "user":
+                return t.t_h
+        return None
+
+    @staticmethod
+    def _quiet_start_at_or_before(t_h: float, quiet_hours) -> float:
+        """Start hour of the quiet window containing (or ending at) t_h."""
+        _quiet_ini, _quiet_fin = quiet_hours
+        boundary = int(t_h // 24.0) * 24.0 + _quiet_ini
+        if boundary > t_h:
+            boundary -= 24.0
+        return boundary
+
+    def _next_conversation_id(self) -> str:
+        """Deterministic conversation id: ``conv-<n>`` where n is the number
+        of conversations already persisted (0-based). Restarts never reuse
+        or collide with an existing id; stores without the seam fall back
+        to a session-local counter (no persistence, no resume concern)."""
+        if hasattr(self.store, "list_conversations"):
+            return f"conv-{len(self.store.list_conversations())}"
+        n = getattr(self, "_conv_seq", 0)
+        self._conv_seq = n + 1
+        return f"conv-{n}"
+
+    @staticmethod
+    def _memory_session_id(conv_id: str) -> str:
+        """Memory session id for a conversation (see
+        ``CONVERSATION_SESSION_OFFSET``): ``conv-<n>`` -> ``day-<OFFSET+n>``."""
+        n = int(conv_id.split("-", 1)[1])
+        return f"day-{CONVERSATION_SESSION_OFFSET + n}"
+
+    def _ensure_conversation(
+        self, t_h: float, *, opened_by: Literal["user", "companion"]
+    ) -> Conversation:
+        """Return the active conversation, opening a new one when none is.
+
+        A conversation opens on the first message of either party
+        (``opened_by`` records who). On a restart mid-conversation the
+        store's OPEN conversation is reopened (turns continue, turn_index
+        continues — no rewind); a closed one stays closed.
+        """
+        conv = self._conversation
+        if conv is None and hasattr(self.store, "load_open_conversation"):
+            conv = self.store.load_open_conversation()
+            if conv is not None:
+                self._conversation = conv
+        if conv is not None:
+            return conv
+        conv_id = self._next_conversation_id()
+        if hasattr(self.store, "open_conversation"):
+            self.store.open_conversation(conv_id, t_h, opened_by)
+        if hasattr(self.store, "open_session"):
+            # One memory session per conversation: L1->L2->L3->L4 formation
+            # keys off the conversation boundary. The session id is derived
+            # from the conversation id (day-namespaced — see
+            # CONVERSATION_SESSION_OFFSET); the MemoryAgent seam is used
+            # as-is, only the ids the session passes changed.
+            self.store.open_session(self._memory_session_id(conv_id), t_h)
+        conv = Conversation(
+            id=conv_id, opened_t_h=t_h, closed_t_h=None,
+            opened_by=opened_by, close_reason=None, turns=(),
+        )
+        self._conversation = conv
+        self.store.log_event(
+            int(t_h // 24.0), t_h, "conversation_opened",
+            f"id={conv_id} opened_by={opened_by}",
+        )
+        return conv
+
+    def _record_turn(
+        self,
+        conv: Conversation,
+        speaker: Literal["user", "companion"],
+        text: str,
+        t_h: float,
+        *,
+        message_id: int | None = None,
+    ) -> Conversation:
+        """Persist one ConversationTurn row and return the updated
+        in-memory Conversation (turn_index = len(conv.turns), so a resumed
+        conversation keeps counting from the persisted turns)."""
+        turn = ConversationTurn(
+            speaker=speaker, text=text, t_h=t_h,
+            turn_index=len(conv.turns), conversation_id=conv.id,
+        )
+        if hasattr(self.store, "add_conversation_turn"):
+            self.store.add_conversation_turn(
+                conv.id, speaker, text, t_h, turn.turn_index,
+                message_id=message_id,
+            )
+        updated = replace(conv, turns=conv.turns + (turn,))
+        self._conversation = updated
+        return updated
+
+    def _maybe_close_conversation(
+        self, conv: Conversation, t_h: float, closing_tendency: float
+    ) -> None:
+        """The companion-turn close checks: the closing_tendency draw and
+        the max_turns cap.
+
+        DRAW DISCIPLINE: at each companion turn EXCEPT the first companion
+        turn of the conversation, draw ``uniform()`` from
+        ``stream_rng(seed, CONVERSATION_STREAM, conv_seq, turn_index)``
+        (stream 6, keyed by the conversation's sequence number AND the
+        turn's 0-based index — deterministic, resume-safe, independent of
+        call order) and close with ``closing_tendency`` when the draw is
+        below ``controls.closing_tendency``. Keying by the conversation
+        sequence keeps every conversation on its OWN draw sequence (a
+        turn-index-only key would give every conversation the identical
+        draw — a degenerate distribution). The first companion turn is
+        exempt by design: the companion always completes at least one full
+        exchange before any taper decision — without this floor a high
+        closing tendency would degenerate the turn-count distribution (and
+        B3's mean-turns>=4 becomes unreachable). A conversation that
+        survives the draw closes with ``max_turns`` once it reaches
+        ``MAX_TURNS`` total turns.
+        """
+        if not conv.turns:
+            return
+        first_companion = next(
+            (t for t in conv.turns if t.speaker == "companion"), None
+        )
+        if first_companion is None:
+            return
+        last_turn = conv.turns[-1]
+        if last_turn.speaker != "companion":
+            return
+        if last_turn.turn_index == first_companion.turn_index:
+            return  # first companion turn: the no-taper floor
+        conv_seq = int(conv.id.split("-", 1)[1])
+        rng = stream_rng(
+            self.seed, CONVERSATION_STREAM, conv_seq, last_turn.turn_index
+        )
+        if rng.uniform() < float(closing_tendency):
+            self._close_conversation(conv, t_h, "closing_tendency")
+            return
+        if len(conv.turns) >= MAX_TURNS:
+            self._close_conversation(conv, t_h, "max_turns")
+
+    def _close_conversation(
+        self, conv: Conversation, closed_t_h: float, reason: str
+    ) -> None:
+        """Persist the close (``close_reason``) and drive the per-
+        conversation memory tail (L1->L2->L3->L4) at the conversation
+        boundary. Idempotent: the store close is an UPDATE and the memory
+        tail is summary-guarded."""
+        if conv.close_reason is not None:
+            return
+        self._conversation = None
+        closed = replace(conv, closed_t_h=closed_t_h, close_reason=reason)
+        if hasattr(self.store, "close_conversation"):
+            self.store.close_conversation(conv.id, closed_t_h, reason)
+        self.store.log_event(
+            int(closed_t_h // 24.0), closed_t_h, "conversation_closed",
+            f"id={conv.id} reason={reason} turns={len(conv.turns)}",
+        )
+        self._close_conversation_memory(closed)
+
+    def _close_conversation_memory(self, conv: Conversation) -> None:
+        """L1 -> L2 -> L3 -> L4 at the CONVERSATION boundary, via the
+        MemoryAgent seam only (the ids the session passes changed to
+        conversation ids; the seam itself is untouched).
+
+        Runs once per conversation (summary-exists guard). Silent
+        conversations are skipped — an empty session has no provenance to
+        promote (the existing memory guards). ``conv`` must be closed
+        (``closed_t_h`` set) — both call sites guarantee it.
+        """
+        session_id = self._memory_session_id(conv.id)
+        if not hasattr(self.store, "messages_for_session"):
+            return
+        if not self.store.messages_for_session(session_id):
+            return
+        if (
+            hasattr(self.store, "load_session_summary")
+            and self.store.load_session_summary(session_id) is not None
+        ):
+            return  # already closed (e.g. crash-window recovery ran it)
+        assert conv.closed_t_h is not None, "memory close requires a closed conversation"
+        closed_t_h = conv.closed_t_h
+        summary = self._memory.close_session(session_id, ended_at_t_h=closed_t_h)
         if summary is not None:
             self._memory.promote(summary)
             self._memory.update_user_model(summary)
         if hasattr(self.store, "close_session"):
-            self.store.close_session(session_id, ended)
-        self.store.log_event(day, self.clock.now_h(), "memory_session_closed", session_id)
+            self.store.close_session(session_id, closed_t_h)
+        self.store.log_event(
+            int(closed_t_h // 24.0), closed_t_h,
+            "memory_session_closed", session_id,
+        )
 
     def _current_activity(self, day: int, t_h: float) -> CurrentActivity | None:
         """Read-only view of today's main activity from the persisted agenda.
@@ -677,17 +1018,22 @@ class Session:
         proactive: bool,
         session_id: str,
         intent_id: str | None = None,
-    ) -> None:
+        conversation_id: str | None = None,
+    ) -> int:
         """Persist one message, passing only the kwargs the store accepts
-        (legacy fakes predate session_id/intent_id; SQLiteStore takes both).
-        ``intent_id`` carries the EXACT validated intent on outgoing messages
-        (invariant 6); reactive messages keep it None."""
+        (legacy fakes predate session_id/intent_id/conversation_id;
+        SQLiteStore takes all three). ``intent_id`` carries the EXACT
+        validated intent on outgoing messages (invariant 6); reactive
+        messages keep it None. ``conversation_id`` links the message to its
+        conversation (module invariant 8). Returns the message row id."""
         kwargs: dict = {"proactive": proactive}
         if self._accepts_session_id:
             kwargs["session_id"] = session_id
         if self._accepts_intent_id:
             kwargs["intent_id"] = intent_id
-        self.store.add_message(role, content, t_h, day, **kwargs)
+        if self._accepts_conversation_id:
+            kwargs["conversation_id"] = conversation_id
+        return self.store.add_message(role, content, t_h, day, **kwargs)
 
     def _chat(
         self,
@@ -709,6 +1055,10 @@ class Session:
         day = self.clock.day()
         self.ensure_day(day)
         assert self.current_record is not None
+        # it3 B2: close a stale open conversation BEFORE this turn (quiet
+        # boundary crossed / user silence past USER_LEFT_THRESHOLD_H); the
+        # current message then opens a fresh conversation.
+        self.check_conversation_lifecycle(t_h)
 
         previous = self._records.get(day - 1)
         directive = derive_behavior(
@@ -729,12 +1079,22 @@ class Session:
             system += "\n\n" + proactive_block()
 
         recent = self.store.recent_messages()
-        session_id = f"day-{day}"
+        # it3 B2: one conversation per exchange run — opened by the first
+        # message of either party; the memory session id IS the conversation
+        # id (one memory session per conversation).
+        conv = self._ensure_conversation(
+            t_h, opened_by="user" if user_text is not None else "companion"
+        )
+        conv_id = conv.id
+        session_id = self._memory_session_id(conv_id)
         if user_text is not None:
             messages = build_messages(recent, user_text)
-            self._persist_message(
+            mid = self._persist_message(
                 "user", user_text, t_h, day,
-                proactive=False, session_id=session_id,
+                proactive=False, session_id=session_id, conversation_id=conv_id,
+            )
+            conv = self._record_turn(
+                conv, "user", user_text, t_h, message_id=mid
             )
         else:
             messages = [
@@ -751,11 +1111,18 @@ class Session:
                 "refusing to persist empty assistant reply (client returned "
                 "empty/whitespace-only content)"
             )
-        self._persist_message(
+        mid = self._persist_message(
             "assistant", reply, t_h, day,
-            proactive=proactive, session_id=session_id,
+            proactive=proactive, session_id=session_id, conversation_id=conv_id,
             intent_id=intent.id if intent is not None else None,
         )
+        conv = self._record_turn(
+            conv, "companion", reply, t_h, message_id=mid
+        )
+        # it3 B2: the companion-turn close checks — the closing_tendency
+        # draw and the max_turns cap. The close (when it fires) persists
+        # close_reason and drives the per-conversation memory tail.
+        self._maybe_close_conversation(conv, t_h, controls.closing_tendency)
         self.store.log_llm_call(
             day,
             t_h,

@@ -290,7 +290,23 @@ class AsyncRuntime:
             else:
                 target = next_midnight
             async with self._lock:
+                # Re-read the clock under the lock: the firing loop may have
+                # advanced it (A9 deferral jumps) since the loop-top read.
+                now = self.session.clock.now_h()
+                # it3 B2: close the open conversation the instant its
+                # boundary close is due (quiet-hours boundary crossed after
+                # a restart, user silence deadline passed) — never lazily
+                # at the next turn. Idempotent + cheap at every wake.
+                await self._executor.run_in_thread(
+                    self.session.check_conversation_lifecycle, now
+                )
                 pending = self.schedule.next_pending(now)
+                # it3 B2: park the clock at the conversation's next close
+                # instant (quiet boundary or user_left deadline) so the
+                # close is recorded AT its boundary, not at the next wake.
+                close_t = self.session.next_conversation_close_t_h(now)
+            if close_t is not None and close_t < target:
+                target = close_t
             if (
                 pending is not None
                 and now <= pending < target
@@ -313,6 +329,13 @@ class AsyncRuntime:
             async with self._lock:
                 if now < target:
                     self.session.clock.advance_hours(target - now)
+                now = self.session.clock.now_h()
+                # it3 B2: the clock landed on a conversation close instant
+                # — record the close at the boundary (idempotent no-op
+                # otherwise).
+                await self._executor.run_in_thread(
+                    self.session.check_conversation_lifecycle, now
+                )
                 day = self.session.clock.day()
                 if target >= next_midnight:
                     # A real rollover crossed midnight. At the run's end
@@ -404,6 +427,12 @@ class AsyncRuntime:
                     self.session.clock.advance_hours(defer_until - now)
                     now = self.session.clock.now_h()
                     defer_until = self._quiet_defer_until(nxt, now)
+                # it3 B2: the clock may have jumped past a conversation
+                # close boundary (deferral to the next awake instant) —
+                # record the close at the detection instant (idempotent).
+                await self._executor.run_in_thread(
+                    self.session.check_conversation_lifecycle, now
+                )
                 if defer_until is None:
                     day = self.session.clock.day()
                     # Contact opportunity -> contact reason: the scheduler's
