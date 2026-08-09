@@ -25,6 +25,21 @@ A(score_{d-1})·I(d) (clipped at adj_bounds). `scores=None` ⇒ adj ≡ 1 is kep
 ONLY for tests/legacy callers — live scheduling (runtime._replan) always
 passes a concrete array (never None).
 
+B5 (iteration-3, closes F4): the latent state now reaches the hazard as a
+preregistered multiplicative term. The store-backed live path
+(plan_and_persist) derives the day's state vector x_d = (E, S, R, A) from
+the day's BehaviorDirective — resolved through the PATCHABLE harness.session
+seam so eval condition patches reach the scheduler — and feeds
+exp(w·(x_d − x₀)) (STATE_WEIGHTS, STATE_NEUTRAL) into run_events' new
+`state_factors` seam:
+
+    h(tau,t) = h0(tau) * C(t) * P(t) * A(score_{d-1}) * I(d) * exp(w·(x_d − x₀))
+
+Under STRUCTURED_NO_STATE's neutral-directive patch x_d ≡ x₀, so the term
+collapses to exactly 1.0 and the timing channel ablates. The seam parameter
+defaults to None: every caller that does not opt in is byte-identical
+(adj-only composition). The Weibull base h0(τ) is plan-frozen and untouched.
+
 Guards inherited from run_events.run:
   - zero events in quiet hours (envelope = 0 by construction);
   - min gap between accepted events (15 min default);
@@ -51,8 +66,7 @@ import numpy as np
 import sim.run_events as run_events
 from engine.circadian import envelope
 from engine.types import ADJ_SLOPE, DayRecord, PersonaParams, TimingParams
-from harness.behavior import derive_behavior
-from harness.domain import ContactOpportunity
+from harness.domain import AblationClaim, ContactOpportunity
 
 #: A(s) — the previous-day score adjustment (monotone, bounded; engine-validated).
 adj_from_score = run_events.adj_from_score
@@ -65,6 +79,49 @@ INITIATIVE_BOUNDS = (0.7, 1.3)
 #: BehaviorDirective (initiative is hourly via circadian energy; the
 #: scheduler is per-day, so the directive is sampled at the diurnal peak).
 INITIATIVE_SAMPLE_HOUR = 14.0
+
+# --------------------------------------------------------------------------- #
+# B5 — preregistered latent-state → timing coupling (iteration-3, closes F4)
+# --------------------------------------------------------------------------- #
+# The day's latent state enters the hazard multiplicatively through the
+# run_events modulator seam:
+#
+#     h(τ, t) = h₀(τ) · C(t) · P(t) · A(score_{d−1}) · I(d) · exp(w·(x_d − x₀))
+#
+# with x_d = (E, S, R, A) the day's state vector (below) and x₀ the neutral
+# directive point. All four channels come from the day's BehaviorDirective,
+# resolved through the PATCHABLE harness.session seam (see
+# ``_directive_for_day``) — so the STRUCTURED_NO_STATE neutral-directive
+# patch (cvs_common.apply_condition_patches) flattens x_d to x₀ EXACTLY and
+# the exp term collapses to 1.0: the ablation finally reaches timing (F4).
+# The Weibull base h₀ and its parameters are plan-frozen and untouched.
+#
+# Weights are FROZEN for iteration 3 (B5 report §weights; G4 manifest):
+#: (E, S, R, A) — energy, social drive (initiative), mood (valence),
+#: reactivity, all in the directive's native units ([0,1] except valence).
+STATE_VECTOR_NAMES: tuple[str, str, str, str] = (
+    "energy", "initiative", "valence", "reactivity",
+)
+#: (w_E, w_S, w_R, w_A). Chosen from the REAL state ranges (engine records,
+#: 90 d × 5 seeds: E∈[0.70,0.83], S∈[0.375,0.615], R∈[−0.8,0.8],
+#: A∈[0.42,0.84]) so the exponent w·(x−x₀) spans ≈ [−0.5, +1.2] ⇒ per-day
+#: factor ≈ [0.6, 3.3] natural (clipped at STATE_FACTOR_BOUNDS), mean ≈ 1.6
+#: in FULL vs exactly 1.0 flat under NO_STATE. Measured acceptance effect
+#: (90 d × 5 seeds, live composition): mean |Δn|/n_FULL = 0.175 (per-seed
+#: ≥ 0.091), mean |Δgap|/gap_FULL = 0.215.
+STATE_WEIGHTS: tuple[float, float, float, float] = (1.0, 1.6, 0.7, 0.9)
+#: x₀ — the neutral directive's channel values (energy=0.5, initiative=0.5,
+#: valence=0.0, reactivity=0.5): the point where exp(w·(x−x₀)) ≡ 1.0.
+STATE_NEUTRAL: tuple[float, float, float, float] = (0.5, 0.5, 0.0, 0.5)
+#: Safety clip on the per-day factor (bounded-factor convention, mirroring
+#: adj_bounds / INITIATIVE_BOUNDS). Keeps the thinning majorant (mod_ub)
+#: bounded and the coupling within the preregistered range.
+STATE_FACTOR_BOUNDS: tuple[float, float] = (0.5, 2.0)
+#: Preregistered divergence margins for the STRUCTURED_NO_STATE timing
+#: claim (B5 report §claim; the G2 pre-flight registry uses them).
+COUNT_DIVERGENCE_MIN = 0.15
+GAP_DIVERGENCE_MIN = 0.10
+MIN_GAPS_FOR_GAP_LEG = 3
 
 #: Reason taxonomy (full DESIGN taxonomy; schedule | callback are the slice's
 #: original members, the rest are added for gates + runtime).
@@ -100,6 +157,7 @@ def build_opportunity(
     timing: TimingParams,
     previous_score: float | None,
     initiative: float,
+    state_factor: float | None = None,
 ) -> ContactOpportunity:
     """A ContactOpportunity for a planned event hour — and NOTHING more.
 
@@ -108,9 +166,12 @@ def build_opportunity(
     (invariant 3 — semantic motivation is resolved later, at opportunity
     time, into a grounded ProactiveIntent). ``hazard_components`` reports
     the multiplicative factors of the frozen modulator composition
-    (envelope × phase × A(score_{d-1}) × I(day)) at ``t_h`` for auditability;
-    ``base`` is 1.0 because the Weibull baseline h0(τ) lives inside
-    engine.timing.next_event (engine frozen — not separately recoverable).
+    (envelope × phase × A(score_{d-1}) × I(day), plus the B5 ``state``
+    factor exp(w·(x−x₀)) when the state coupling is active) at ``t_h`` for
+    auditability; ``base`` is 1.0 because the Weibull baseline h0(τ) lives
+    inside engine.timing.next_event (engine frozen — not separately
+    recoverable). ``state_factor=None`` (default) keeps the components dict
+    byte-identical to the uncoupled composition.
     """
     init_mult = initiative_factor(initiative)
     score_mult = adj_from_score(previous_score, timing)
@@ -121,6 +182,8 @@ def build_opportunity(
         "initiative": float(init_mult),
         "prior_score": float(score_mult),
     }
+    if state_factor is not None:
+        components["state"] = float(state_factor)
     return ContactOpportunity(
         id=OPPORTUNITY_ID_FMT.format(t_h=t_h),
         desired_t_h=float(t_h),
@@ -160,6 +223,7 @@ def _opportunities_for_plan(
             float(h), day=day, phase_label=phase_labels[day],
             timing=timing, previous_score=previous_score,
             initiative=day_initiative(store, day, timing),
+            state_factor=state_factor(store, day, timing),
         )
     return opps
 
@@ -183,14 +247,20 @@ def plan_proactive_events(
     persona: PersonaParams,
     timing: TimingParams,
     scores: np.ndarray | None = None,
+    state_factors: np.ndarray | None = None,
 ) -> np.ndarray:
     """Absolute hours (in [0, days*24)) of accepted proactive events.
 
-    Deterministic given (seed, persona, timing, scores). `scores` optional
-    per-day array feeding the adj term; None ⇒ adj ≡ 1 (tests/legacy only —
-    live scheduling always passes `day_scores` output).
+    Deterministic given (seed, persona, timing, scores, state_factors).
+    `scores` optional per-day array feeding the adj term; None ⇒ adj ≡ 1
+    (tests/legacy only — live scheduling always passes `day_scores` output).
+    `state_factors` optional per-day multiplicative state term (B5 — the
+    caller precomputes exp(w·(x−x₀)) via ``state_factors_for_plan``); None ⇒
+    uncoupled composition, byte-identical to the pre-B5 behavior.
     """
-    return run_events.run(days, seed, persona, timing, scores=scores)
+    return run_events.run(
+        days, seed, persona, timing, scores=scores, state_factors=state_factors
+    )
 
 
 def initiative_factor(
@@ -227,24 +297,93 @@ def _record_from_row(row: dict) -> DayRecord:
     )
 
 
-def day_initiative(store, day: int, timing: TimingParams, *, hour: float = INITIATIVE_SAMPLE_HOUR) -> float:
-    """The day's initiative (0..1) from its stored BehaviorDirective.
+def _directive_for_day(store, day: int, timing: TimingParams, *,
+                       hour: float = INITIATIVE_SAMPLE_HOUR):
+    """The day's BehaviorDirective through the PATCHABLE session seam.
 
-    Mechanical path: load the day's daily_state (today's DayRecord exists —
-    the runtime plans only the current day), derive the deterministic
-    BehaviorDirective, return directive.initiative. Missing state (should not
-    happen for the current day) degrades to the neutral 0.5.
+    Resolved as ``harness.session.derive_behavior`` via a deferred import
+    (session imports scheduler, so the module cannot import it at load
+    time). In production that attribute IS ``harness.behavior.derive_behavior``
+    (same object), so behavior is byte-identical; under an eval condition
+    patch (cvs_common.apply_condition_patches rebinds the attribute) the
+    neutral directive reaches the scheduler too — this is the seam that
+    makes STRUCTURED_NO_STATE flatten the state vector. Missing state (no
+    daily row) ⇒ None (callers degrade to neutral, as day_initiative always
+    has).
     """
     row = store.load_daily_state(day)
     if row is None:
-        return 0.5
+        return None
     prev_row = store.load_daily_state(day - 1)
-    directive = derive_behavior(
+    from harness import session as session_mod  # deferred: session imports scheduler
+    return session_mod.derive_behavior(
         _record_from_row(row),
         timing,
         hour=hour,
         previous=_record_from_row(prev_row) if prev_row is not None else None,
     )
+
+
+def state_vector(store, day: int, timing: TimingParams, *,
+                 hour: float = INITIATIVE_SAMPLE_HOUR) -> tuple[float, float, float, float]:
+    """The day's latent-state vector x_d = (E, S, R, A) (B5).
+
+    E = directive.energy — circadian energy at the sampled hour (cycle/phase
+    level; engine.circadian); S = directive.initiative — the social-drive
+    channel; R = directive.valence — normalized mood; A = directive.reactivity
+    — hormonal-gain/momentum reactivity. All four are directive channels, so
+    the STRUCTURED_NO_STATE neutral patch flattens them to STATE_NEUTRAL
+    exactly. Missing state ⇒ STATE_NEUTRAL (exp term ≡ 1.0), mirroring the
+    day_initiative degradation contract.
+    """
+    directive = _directive_for_day(store, day, timing, hour=hour)
+    if directive is None:
+        return STATE_NEUTRAL
+    return (float(directive.energy), float(directive.initiative),
+            float(directive.valence), float(directive.reactivity))
+
+
+def state_factor(store, day: int, timing: TimingParams, *,
+                 hour: float = INITIATIVE_SAMPLE_HOUR) -> float:
+    """The per-day multiplicative state term exp(w·(x_d − x₀)) (B5).
+
+    Clipped at STATE_FACTOR_BOUNDS (bounded-factor convention, same as
+    adj/initiative). Under the neutral directive x_d == STATE_NEUTRAL, so
+    the factor is EXACTLY 1.0 — the exp term collapses to a constant and
+    STRUCTURED_NO_STATE ablates the timing channel.
+    """
+    x = state_vector(store, day, timing, hour=hour)
+    exponent = sum(
+        w * (xi - xn) for w, xi, xn in zip(STATE_WEIGHTS, x, STATE_NEUTRAL)
+    )
+    return float(np.clip(np.exp(exponent), *STATE_FACTOR_BOUNDS))
+
+
+def state_factors_for_plan(store, days: int, timing: TimingParams) -> np.ndarray:
+    """Per-day state factors (days,) for the run_events B5 seam.
+
+    factor[d] is day d's OWN state term (the day's directive drives that
+    day's contact timing — consistent with the per-day initiative design).
+    Deterministic; a store without state rows yields all 1.0, which is
+    byte-identical to the uncoupled composition.
+    """
+    return np.asarray(
+        [state_factor(store, d, timing) for d in range(days)], dtype=float
+    )
+
+
+def day_initiative(store, day: int, timing: TimingParams, *, hour: float = INITIATIVE_SAMPLE_HOUR) -> float:
+    """The day's initiative (0..1) from its stored BehaviorDirective.
+
+    Mechanical path: the directive is resolved through the PATCHABLE session
+    seam (``_directive_for_day``) — the same function in production, neutral
+    under STRUCTURED_NO_STATE's patch so the A·I timing fold ablates with
+    the state vector. Missing state (should not happen for the current day)
+    degrades to the neutral 0.5.
+    """
+    directive = _directive_for_day(store, day, timing, hour=hour)
+    if directive is None:
+        return 0.5
     return float(directive.initiative)
 
 
@@ -294,8 +433,11 @@ class ProactiveSchedule:
         persona: PersonaParams,
         timing: TimingParams,
         scores: np.ndarray | None = None,
+        state_factors: np.ndarray | None = None,
     ) -> "ProactiveSchedule":
-        return cls(event_hours=plan_proactive_events(days, seed, persona, timing, scores))
+        return cls(event_hours=plan_proactive_events(
+            days, seed, persona, timing, scores, state_factors
+        ))
 
     def opportunity_for(self, t_h: float) -> ContactOpportunity | None:
         """The ContactOpportunity planned for ``t_h``, or None (rows injected
@@ -323,8 +465,19 @@ class ProactiveSchedule:
         planned hour also gets a ContactOpportunity (NO semantic reason);
         opportunities are persisted through the store's optional
         ``save_contact_opportunity`` seam when present (A7 gap — flagged in
-        the A3 handoff) and always carried in-memory on the schedule."""
-        schedule = cls.plan(days, seed, persona, timing, scores=scores)
+        the A3 handoff) and always carried in-memory on the schedule.
+
+        B5: the store-backed live path ALWAYS couples the latent state
+        (``state_factors_for_plan`` — the day's directive through the
+        patchable session seam). A store without state rows yields all-1.0
+        factors, i.e. byte-identical event hours; under STRUCTURED_NO_STATE's
+        neutral patch the factors collapse to exactly 1.0, ablating the
+        timing channel (F4).
+        """
+        schedule = cls.plan(
+            days, seed, persona, timing, scores=scores,
+            state_factors=state_factors_for_plan(store, days, timing),
+        )
         events = [
             {"t_h": float(h), "day": int(h // 24.0), "reason": reason}
             for h in schedule.event_hours
@@ -382,3 +535,59 @@ class ProactiveSchedule:
         if overdue:
             return min(overdue)
         return min(pending) if pending else None
+
+
+# --------------------------------------------------------------------------- #
+# B5 — AblationClaim for STRUCTURED_NO_STATE (channel="timing")
+# --------------------------------------------------------------------------- #
+
+
+def structured_no_state_timing_check(cell_records: dict, full_records: dict) -> bool:
+    """Check logic of the STRUCTURED_NO_STATE timing claim (for B8's registry).
+
+    Records follow the domain.py convention (at least ``n_proactive``); the
+    B5 claim additionally reads ``proactive_times`` — ascending absolute
+    hours of the condition's proactive messages — when present. Margins are
+    the preregistered constants COUNT_DIVERGENCE_MIN / GAP_DIVERGENCE_MIN:
+
+      * count leg (binding): |n_cell − n_full| / n_full >= 0.15;
+      * gap leg: |mean_gap_cell − mean_gap_full| / mean_gap_full >= 0.10,
+        applied only when BOTH sides provide at least MIN_GAPS_FOR_GAP_LEG
+        gaps (a short 3-day preflight may not — the count leg alone then
+        decides; the acceptance test exercises both legs over 30 days).
+
+    The pre-flight driver should aggregate over its seeds (summed
+    ``n_proactive``, pooled ``proactive_times``) before calling this check.
+    """
+    n_cell = int(cell_records["n_proactive"])
+    n_full = int(full_records["n_proactive"])
+    if n_full <= 0:
+        return False
+    count_div = abs(n_cell - n_full) / float(n_full)
+    if count_div < COUNT_DIVERGENCE_MIN:
+        return False
+    times_cell = sorted(float(t) for t in cell_records.get("proactive_times", ()))
+    times_full = sorted(float(t) for t in full_records.get("proactive_times", ()))
+    if len(times_cell) >= MIN_GAPS_FOR_GAP_LEG + 1 and \
+            len(times_full) >= MIN_GAPS_FOR_GAP_LEG + 1:
+        mean_gap_full = float(np.diff(np.asarray(times_full)).mean())
+        if mean_gap_full > 0.0:
+            mean_gap_cell = float(np.diff(np.asarray(times_cell)).mean())
+            if abs(mean_gap_cell - mean_gap_full) / mean_gap_full < GAP_DIVERGENCE_MIN:
+                return False
+    return True
+
+
+def structured_no_state_claim() -> AblationClaim:
+    """The AblationClaim for STRUCTURED_NO_STATE — B8's pre-flight registry
+    (the orchestrator wires it at G2; see the B5 report §claim)."""
+    return AblationClaim(
+        condition="STRUCTURED_NO_STATE",
+        channel="timing",
+        assertion=(
+            "n_proactive differs from FULL by >= 15% and inter-contact "
+            "mean-gap divergence >= 10% (when >=3 gaps are available on "
+            "both sides)"
+        ),
+        check=structured_no_state_timing_check,
+    )

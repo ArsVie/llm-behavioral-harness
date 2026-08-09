@@ -264,3 +264,52 @@ def test_hazard_finite_at_tau_zero_when_k_w_eq_1():
     params = _params(k_w=1.0, theta_h=13.5)
     expected = params.k_w / params.theta_h
     assert hazard(0.0, 0.0, _mod_const(1.0), params) == pytest.approx(expected)
+
+
+# --------------------------------------------------------------------------- #
+# B5 — the latent-state term rides ONLY the modulator slot (Weibull base frozen)
+# --------------------------------------------------------------------------- #
+# iteration-3 non-goals: no Weibull family/parameter changes. The B5 coupling
+# exp(w·(x−x₀)) is composed by the scheduler and enters as a multiplicative
+# factor of the modulator; engine/timing.py itself is untouched. These tests
+# pin that contract: the base hazard h0(τ) and the multiplicative modulator
+# scaling are the ONLY degrees of freedom.
+
+
+def test_state_factor_enters_hazard_multiplicatively():
+    """h(τ,t) = h0(τ) · modulator(t) with the modulator carrying a state
+    factor — the coupling multiplies the frozen Weibull base, never alters
+    its family or parameters."""
+    params = _params(k_w=2.0)
+    state = 1.35
+
+    def state_modulator(_t_h: float) -> float:
+        return state  # envelope·phase·adj·exp(w·(x−x₀)) collapsed to the state term
+
+    h_state = hazard(5.0, 100.0, state_modulator, params)
+    base = (
+        (params.k_w / params.theta_h)
+        * (5.0 / params.theta_h) ** (params.k_w - 1.0)
+    )
+    assert h_state == pytest.approx(base * state)
+    # The base itself is unchanged: modulator ≡ 1 recovers the closed form.
+    assert hazard(5.0, 100.0, _mod_const(1.0), params) == pytest.approx(base)
+
+
+def test_state_factor_scales_rate_through_thinning():
+    """k_w=1 exact rate scaling with a state-carrying modulator: mean gap ≈
+    θ/c — the multiplicative coupling survives the thinning end-to-end."""
+    params = _params(k_w=1.0)
+    c = 1.6
+    rng = np.random.default_rng(7)
+
+    def state_modulator(_t_h: float) -> float:
+        return c
+
+    gaps = _sample_gaps(N_SAMPLES, params, rng, modulator=state_modulator, mod_ub=c)
+    mean_expected = params.theta_h / c
+    sem = gaps.std(ddof=1) / math.sqrt(gaps.size)
+    assert abs(gaps.mean() - mean_expected) <= 3 * sem, (
+        f"media muestral {gaps.mean():.4f} fuera de "
+        f"{mean_expected:.4f} +- {3 * sem:.4f}"
+    )
