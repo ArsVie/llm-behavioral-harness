@@ -50,7 +50,7 @@ def _db(tmp_path) -> str:
         "('pi_agenda_item_ag_0_i_movies_15.300', 'schedule', 'agenda_item', "
         "'ag_0_i_movies', 'Agenda: movies', 15.0, 18.0, 0.8, "
         "'agenda_item:ag_0_i_movies activity=try a movie source=interest:movies "
-        "ep_mem_1', 'fired')")
+        "ep-day-0-0', 'fired')")
     conn.execute(
         "INSERT INTO agenda_items VALUES "
         "('ag_0_i_movies', 0, 15.0, 16.0, 'try a small movies exercise', "
@@ -60,7 +60,7 @@ def _db(tmp_path) -> str:
         "INSERT INTO schedule_events VALUES (1, 5001, 15.300111, 0, 'schedule', "
         "'fired', 15.300111)")
     conn.execute(
-        "INSERT INTO memory_episodes VALUES ('ep_mem_1', 'L4', 0, 'movie talk')")
+        "INSERT INTO memory_episodes VALUES ('ep-day-0-0', 'L4', 0, 'movie talk')")
     conn.commit()
     conn.close()
     return str(db)
@@ -87,5 +87,5 @@ def test_build_traces_full_chain(tmp_path):
     ]
     assert t["timing"]["delay_h"] == 0.0
     assert t["behavior"]["max_tokens"] == 560
-    assert t["memory_context"][0]["id"] == "ep_mem_1"
+    assert t["memory_context"][0]["id"] == "ep-day-0-0"
     assert t["persisted_intent_id"] == "pi_agenda_item_ag_0_i_movies_15.300"
