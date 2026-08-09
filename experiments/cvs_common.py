@@ -652,32 +652,30 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
 def user_script(seed: int, days: int, *, perturb: bool = True) -> list[tuple[float, str]]:
     """Guion de usuario determinista por semilla (idéntico entre condiciones).
 
-    Modo vertical: un mensaje base diario a las 19:00 + sondas de recuerdo a
-    las 18:30 + eventos de cadena a las 18:6 + mensajes negativos del bloque
-    de perturbación (días 11-14, 1-indexados) a las 18:7.
+    PROYECCIÓN LEGACY (it3 B3) del stream conversacional de
+    ``cvs_user.build_user_stream``: aplana SOLO los eventos ``at_t_h`` al
+    formato ``(t_h, text)`` del runner de la iteración 2. Cada día conserva
+    su apertura a las 19:00; las sondas de recuerdo, los eventos de cadena y
+    los mensajes negativos del bloque de perturbación (días 11-14,
+    1-indexados) van EMBEBIDOS en la ventana de la conversación
+    (19:10 / 19:20 / 19:30). Los seguimientos del repertorio conversacional
+    (eventos ``after_reply``) NO entran en esta proyección: el runner actual
+    no puede entregar un stream más denso al time_scale congelado (el
+    rollover del reloj desplaza los feeds tardíos al siguiente día — carrera
+    documentada del runner it2), y el presupuesto de mensajes queda idéntico
+    al de la iteración 2 (51 mensajes en 30 días).
+
+    El CONTRATO de feed para el driver de B8 es
+    ``cvs_user.build_user_stream`` (eventos at_t_h / after_reply); este
+    formato plano se mantiene solo para compatibilidad con el runner actual.
     """
-    rng = stream_rng(seed, rng_mod.EXPERIMENT_STREAM, 100)
-    by_day: dict[int, list[tuple[float, str]]] = {}
-    for d in range(days):
-        base = BASE_MESSAGES[int(rng.integers(len(BASE_MESSAGES)))]
-        by_day[d] = [(d * 24.0 + 19.0, base)]
-    for pday, probe, _q in RECALL_PROBES:
-        d = pday - 1
-        if d < days:
-            by_day[d].insert(0, (d * 24.0 + 18.5, probe))
-    for chain in EVENT_CHAINS:
-        for eday, text in chain["events"]:
-            d = eday - 1
-            if d < days:
-                by_day[d].insert(0, (d * 24.0 + 18.6, text))
-    if perturb:
-        for d in range(BLOCK_START_D, min(BLOCK_END_D + 1, days)):
-            msg = NEGATIVE_MESSAGES[d - BLOCK_START_D]
-            by_day[d].insert(0, (d * 24.0 + 18.7, msg))
-    msgs: list[tuple[float, str]] = []
-    for d in sorted(by_day):
-        msgs.extend(by_day[d])
-    return sorted(msgs)
+    from experiments.cvs_user import build_user_stream
+
+    return [
+        (float(ev["t_h"]), ev["text"])
+        for ev in build_user_stream(seed, days, perturb=perturb)
+        if ev["kind"] == "at_t_h"
+    ]
 
 
 def _persist_fingerprint(store: SQLiteStore, seed: int) -> dict:
