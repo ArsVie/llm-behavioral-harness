@@ -1,4 +1,4 @@
-"""Persona builder: structural 40/40/20 portfolio sampling (A6).
+"""Persona builder: structural 40/40/20 portfolio sampling (A6 / Iteration-2 A1b).
 
 ``build_persona`` assembles a ``PersonaProfile`` from the interest graph
 purely structurally — bucket membership (exact / adjacent / independent) is
@@ -12,10 +12,22 @@ Sampling contract
   individual companion deviates from 40/40/20 while the population mean
   converges to the targets across seeds (defaults 4/4/2 on a ~10-interest
   portfolio).
-* Exact interests are cluster hubs; adjacent interests are nodes within
-  ``MAX_ADJACENCY_HOPS`` (3) edges of at least one sampled exact;
-  independent interests have no such path. All sampling is without
-  replacement, so a profile never repeats an interest.
+* Two modes, selected by ``user_interests``:
+
+  * Hub-relative (``user_interests`` None/empty — legacy): exact interests
+    are cluster hubs; adjacent interests are nodes within
+    ``MAX_ADJACENCY_HOPS`` (3) edges of at least one sampled exact;
+    independent interests have no such path.
+  * User-relative (``user_interests`` given — Iteration-2 A1b): EXACT =
+    interest in the user's interests; ADJACENT = graph-distance within
+    ``adjacency_hops`` of at least one USER interest but not exact;
+    INDEPENDENT = outside exact + adjacency region. The user-relative
+    definition of 40/40/20 is "40% of the portfolio shares the user's
+    interests, 40% sits adjacent to them in the interest graph, 20% is
+    independent" — the ratios stay distribution targets, not per-companion
+    hard ratios.
+
+* All sampling is without replacement, so a profile never repeats an interest.
 * Salience is bucket-conditioned (seeded): exact ~ U(0.60, 1.00),
   adjacent ~ U(0.35, 0.80), independent ~ U(0.10, 0.50).
 * Routines are drawn from ``ROUTINE_CATALOG`` (2-4 of them) with seeded
@@ -31,7 +43,7 @@ Sampling contract
 from __future__ import annotations
 
 import dataclasses
-from typing import Optional
+from typing import Optional, Sequence
 
 import numpy as np
 
@@ -123,9 +135,11 @@ def build_persona(
     seed: int,
     *,
     graph: InterestGraph,
+    user_interests: Optional[Sequence[str]] = None,
     n_exact: int = 4,
     n_adjacent: int = 4,
     n_independent: int = 2,
+    adjacency_hops: Optional[int] = None,
     rng: Optional[np.random.Generator] = None,
 ) -> PersonaProfile:
     """Build a deterministic ``PersonaProfile`` around the 40/40/20 target.
@@ -133,39 +147,54 @@ def build_persona(
     ``seed`` seeds the persona stream (``stream_rng(seed, PERSONA_STREAM)``)
     unless an explicit ``rng`` is given. The graph is only read, never
     mutated.
+
+    ``user_interests`` selects the bucket semantics: ``None``/empty keeps the
+    legacy hub-relative sampling (exact = cluster hubs); a non-empty sequence
+    switches to USER-relative sampling (EXACT = interest in the user's
+    interests, ADJACENT = within ``adjacency_hops`` — default
+    ``MAX_ADJACENCY_HOPS`` — of at least one user interest but not exact,
+    INDEPENDENT = outside that region). User interests that are not in the
+    graph are still valid exact candidates (the companion shares them); their
+    adjacency region is just themselves.
     """
     rng = rng if rng is not None else stream_rng(seed, PERSONA_STREAM)
 
-    # 1. Bucket counts around the targets.
-    k_exact = _sample_count(rng, n_exact, len(graph.hubs()))
-    exacts: list[str] = []
-    while len(exacts) < k_exact:
-        node = graph.sample_exact(rng)
-        if node not in exacts:
-            exacts.append(node)
-    exact_set = set(exacts)
+    if user_interests:
+        exacts, adjacent, independent = _sample_user_relative(
+            rng, graph, user_interests,
+            n_exact, n_adjacent, n_independent, adjacency_hops,
+        )
+    else:
+        # 1. Bucket counts around the targets (legacy hub-relative path).
+        k_exact = _sample_count(rng, n_exact, len(graph.hubs()))
+        exacts: list[str] = []
+        while len(exacts) < k_exact:
+            node = graph.sample_exact(rng)
+            if node not in exacts:
+                exacts.append(node)
+        exact_set = set(exacts)
 
-    # 2. Adjacent / independent pools RELATIVE to this profile's exacts:
-    #    adjacent = path of <= MAX_ADJACENCY_HOPS to at least one exact,
-    #    independent = no such path. The graph-level samplers cannot know the
-    #    profile's exact set, so membership is computed here, structurally.
-    all_nodes = graph.nodes()
-    adjacent_candidates = [
-        n
-        for n in all_nodes
-        if n not in exact_set
-        and any(graph.path_exists(n, e, MAX_ADJACENCY_HOPS) for e in exacts)
-    ]
-    independent_candidates = [
-        n
-        for n in all_nodes
-        if n not in exact_set
-        and not any(graph.path_exists(n, e, MAX_ADJACENCY_HOPS) for e in exacts)
-    ]
-    k_adjacent = _sample_count(rng, n_adjacent, len(adjacent_candidates))
-    k_independent = _sample_count(rng, n_independent, len(independent_candidates))
-    adjacent = _sample_distinct(rng, adjacent_candidates, k_adjacent)
-    independent = _sample_distinct(rng, independent_candidates, k_independent)
+        # 2. Adjacent / independent pools RELATIVE to this profile's exacts:
+        #    adjacent = path of <= MAX_ADJACENCY_HOPS to at least one exact,
+        #    independent = no such path. The graph-level samplers cannot know the
+        #    profile's exact set, so membership is computed here, structurally.
+        all_nodes = graph.nodes()
+        adjacent_candidates = [
+            n
+            for n in all_nodes
+            if n not in exact_set
+            and any(graph.path_exists(n, e, MAX_ADJACENCY_HOPS) for e in exacts)
+        ]
+        independent_candidates = [
+            n
+            for n in all_nodes
+            if n not in exact_set
+            and not any(graph.path_exists(n, e, MAX_ADJACENCY_HOPS) for e in exacts)
+        ]
+        k_adjacent = _sample_count(rng, n_adjacent, len(adjacent_candidates))
+        k_independent = _sample_count(rng, n_independent, len(independent_candidates))
+        adjacent = _sample_distinct(rng, adjacent_candidates, k_adjacent)
+        independent = _sample_distinct(rng, independent_candidates, k_independent)
 
     # 3. Interests with bucket-conditioned, seeded salience.
     interests = tuple(
@@ -192,3 +221,43 @@ def build_persona(
     return PersonaProfile(
         name=DEFAULT_NAME, core=core, interests=interests, routines=routines
     )
+
+
+def _sample_user_relative(
+    rng: np.random.Generator,
+    graph: InterestGraph,
+    user_interests: Sequence[str],
+    n_exact: int,
+    n_adjacent: int,
+    n_independent: int,
+    adjacency_hops: Optional[int],
+) -> tuple[list[str], list[str], list[str]]:
+    """User-relative bucket sampling (Iteration-2 A1b, plan §5-A1 task 2).
+
+    EXACT pool = the user's interests (deduplicated, order kept); ADJACENT
+    pool = every node within ``adjacency_hops`` of at least one user interest,
+    minus the user interests themselves; INDEPENDENT pool = every remaining
+    graph node. All three pools are sampled with the usual around-target
+    counts, so the population means converge to the 40/40/20 targets while
+    each companion deviates.
+    """
+    hops = MAX_ADJACENCY_HOPS if adjacency_hops is None else adjacency_hops
+    if hops < 1:
+        raise ValueError(f"adjacency_hops must be >= 1, got {hops!r}")
+    user_set = list(dict.fromkeys(user_interests))
+
+    reachable: set[str] = set()
+    for name in user_set:
+        reachable |= graph.reachable_within(name, hops)
+
+    exact_candidates = user_set
+    adjacent_candidates = sorted(reachable - set(user_set))
+    independent_candidates = sorted(set(graph.nodes()) - set(user_set) - reachable)
+
+    k_exact = _sample_count(rng, n_exact, len(exact_candidates))
+    exacts = _sample_distinct(rng, exact_candidates, k_exact)
+    k_adjacent = _sample_count(rng, n_adjacent, len(adjacent_candidates))
+    k_independent = _sample_count(rng, n_independent, len(independent_candidates))
+    adjacent = _sample_distinct(rng, adjacent_candidates, k_adjacent)
+    independent = _sample_distinct(rng, independent_candidates, k_independent)
+    return exacts, adjacent, independent
