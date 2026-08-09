@@ -1,0 +1,189 @@
+{
+  "seed": 5002,
+  "condition": "FULL",
+  "M1_grounded_rate": 0.931,
+  "M2_invalid_source_rate": 0.069,
+  "M3_recall": 0.375,
+  "M4_false_recall": 0.0,
+  "M5_arc_continuity": 1.0,
+  "M6a_distinct_activities": 54,
+  "M6b_mean_jaccard": 0.3306,
+  "M6c_arc_days_mean": 8.0,
+  "M6c_arc_days_min": 3,
+  "M7_restart_loss": 0,
+  "M8a_rho_init_tokens": 0.4146,
+  "M8b_token_gap": 11.57,
+  "M8c_rho_energy_delay": -0.6454,
+  "M9_rho_proactive_prevscore": 0.1755,
+  "M10_rho_proactive_initiative": -0.0305,
+  "M11_leak_hits": 0,
+  "leak_hits_detail": {},
+  "g_bare_hits": 0,
+  "n_proactive": 87,
+  "n_messages": 315,
+  "probe_detail": [
+    {
+      "probe_day": 2,
+      "query": "what is my dog's name",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-1-0",
+        "ep-day-5-0",
+        "ep-day-2-0",
+        "ep-day-3-0",
+        "ep-day-4-0"
+      ]
+    },
+    {
+      "probe_day": 6,
+      "query": "what is my cat's name",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-5-0",
+        "ep-day-1-0",
+        "ep-day-2-0",
+        "ep-day-4-0",
+        "ep-day-3-0"
+      ]
+    },
+    {
+      "probe_day": 10,
+      "query": "what is my favorite color",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-9-0",
+        "ep-day-5-0",
+        "ep-day-8-0",
+        "ep-day-4-0",
+        "ep-day-1-0"
+      ]
+    },
+    {
+      "probe_day": 16,
+      "query": "where is my hometown",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-1-0",
+        "ep-day-2-0",
+        "ep-day-7-0",
+        "ep-day-5-0",
+        "ep-day-6-0"
+      ]
+    },
+    {
+      "probe_day": 18,
+      "query": "what is my brother's name",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-1-0",
+        "ep-day-5-0",
+        "ep-day-2-0",
+        "ep-day-4-0",
+        "ep-day-3-0"
+      ]
+    },
+    {
+      "probe_day": 20,
+      "query": "what book is The Name of the Wind",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-5-0",
+        "ep-day-1-0",
+        "ep-day-2-0",
+        "ep-day-3-0",
+        "ep-day-4-0"
+      ]
+    },
+    {
+      "probe_day": 22,
+      "query": "what car do I drive, the red one",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-5-0",
+        "ep-day-3-0",
+        "ep-day-7-0",
+        "ep-day-1-0",
+        "ep-day-6-0"
+      ]
+    },
+    {
+      "probe_day": 24,
+      "query": "is my favorite food ramen",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-1-0",
+        "ep-day-2-0",
+        "ep-day-5-0",
+        "ep-day-4-0",
+        "ep-day-8-0"
+      ]
+    }
+  ],
+  "arc_contribution_days": {
+    "arc_107_s0": 13,
+    "arc_117_s0": 3
+  },
+  "i4_violations": [],
+  "restart_loss_detail": [
+    {
+      "checkpoint_h": 600.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 1200.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 1800.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 2400.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 2760.0,
+      "diffs": 0
+    }
+  ],
+  "grounding_failures_detail": [
+    {
+      "message_id": 54,
+      "intent_id": "pi_agenda_item_ag_16_r_00_406.117",
+      "t_h": 406.11710723421635
+    },
+    {
+      "message_id": 82,
+      "intent_id": "pi_agenda_item_ag_29_r_02_717.940",
+      "t_h": 717.9399811789449
+    },
+    {
+      "message_id": 98,
+      "intent_id": "pi_agenda_item_ag_35_r_02_861.640",
+      "t_h": 861.6398208032343
+    },
+    {
+      "message_id": 190,
+      "intent_id": "pi_agenda_item_ag_71_i_puzzles_1722.497",
+      "t_h": 1723.0
+    },
+    {
+      "message_id": 237,
+      "intent_id": "pi_agenda_item_ag_89_i_movies_2152.679",
+      "t_h": 2155.0
+    },
+    {
+      "message_id": 293,
+      "intent_id": "pi_agenda_item_ag_110_a_arc_107_s0_2658.789",
+      "t_h": 2659.0
+    }
+  ]
+}

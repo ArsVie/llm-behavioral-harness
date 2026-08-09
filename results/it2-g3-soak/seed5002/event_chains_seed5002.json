@@ -1,0 +1,68 @@
+{
+  "sister_ana": {
+    "chain_id": "sister_ana",
+    "events": 3,
+    "covered": [
+      true,
+      true,
+      false
+    ],
+    "AnyEvidence": true,
+    "LatestEvidence": false,
+    "CompleteChain": false,
+    "retrieved_ids": [
+      "ep-day-2-0",
+      "ep-day-6-0",
+      "ep-day-4-0",
+      "ep-day-5-0",
+      "ep-day-8-0",
+      "ep-day-3-0",
+      "ep-day-7-0",
+      "ep-day-1-0"
+    ]
+  },
+  "bike_swift": {
+    "chain_id": "bike_swift",
+    "events": 3,
+    "covered": [
+      true,
+      true,
+      false
+    ],
+    "AnyEvidence": true,
+    "LatestEvidence": false,
+    "CompleteChain": false,
+    "retrieved_ids": [
+      "ep-day-3-0",
+      "ep-day-7-0",
+      "ep-day-4-0",
+      "ep-day-5-0",
+      "ep-day-6-0",
+      "ep-day-8-0",
+      "ep-day-1-0",
+      "ep-day-2-0"
+    ]
+  },
+  "job_change": {
+    "chain_id": "job_change",
+    "events": 3,
+    "covered": [
+      true,
+      true,
+      false
+    ],
+    "AnyEvidence": true,
+    "LatestEvidence": false,
+    "CompleteChain": false,
+    "retrieved_ids": [
+      "ep-day-4-0",
+      "ep-day-8-0",
+      "ep-day-5-0",
+      "ep-day-7-0",
+      "ep-day-1-0",
+      "ep-day-2-0",
+      "ep-day-3-0",
+      "ep-day-6-0"
+    ]
+  }
+}

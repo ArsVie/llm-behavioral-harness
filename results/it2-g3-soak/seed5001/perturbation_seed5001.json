@@ -1,0 +1,55 @@
+{
+  "seed": 5001,
+  "condition": "FULL",
+  "block_days_0idx": [
+    10,
+    11,
+    12,
+    13
+  ],
+  "latent": {
+    "M": {
+      "baseline_mean": 5.3,
+      "baseline_sd": 2.4515,
+      "block_mean": 6.75,
+      "deviation": 1.45,
+      "peak_deviation": 5.3,
+      "persistence_days": 1,
+      "recovery_time_days": 1
+    }
+  },
+  "observable": {
+    "initiative": {
+      "baseline_mean": 0.3837,
+      "baseline_sd": 0.0854,
+      "block_mean": 0.4047,
+      "deviation": 0.021,
+      "peak_deviation": 0.1719,
+      "persistence_days": 1,
+      "recovery_time_days": 12
+    },
+    "max_tokens": {
+      "baseline_mean": 555.95,
+      "baseline_sd": 21.7594,
+      "block_mean": 543.25,
+      "deviation": -12.7,
+      "peak_deviation": 44.05,
+      "persistence_days": 0,
+      "recovery_time_days": 12
+    },
+    "delay": {
+      "baseline_mean": 4.6723,
+      "baseline_sd": 0.6481,
+      "block_mean": 4.3464,
+      "deviation": -0.3259,
+      "peak_deviation": 1.4292,
+      "persistence_days": 1,
+      "recovery_time_days": 1
+    }
+  },
+  "failure_frequency": {
+    "n_proactive_during_block": 4,
+    "failures_during_block": 0,
+    "failure_detail": []
+  }
+}

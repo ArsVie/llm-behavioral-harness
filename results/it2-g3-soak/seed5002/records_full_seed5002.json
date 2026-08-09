@@ -1,0 +1,7026 @@
+{
+  "condition": "FULL",
+  "seed": 5002,
+  "days": 120,
+  "checkpoints": [
+    600,
+    1200,
+    1800,
+    2400,
+    2760
+  ],
+  "fake": true,
+  "perturb": true,
+  "db": "results/it2-g3-soak/seed5002/cell_full_seed5002.db",
+  "n_messages": 315,
+  "n_proactive": 87,
+  "controls_by_message": {
+    "2": {
+      "max_tokens": 539,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.7673406974190164,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "4": {
+      "max_tokens": 536,
+      "response_delay_s": 4.980303993361093,
+      "closing_tendency": 0.321731656763491,
+      "initiative_factor": 0.7005825803415414,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "6": {
+      "max_tokens": 535,
+      "response_delay_s": 5.197066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.684287405575421,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "7": {
+      "max_tokens": 532,
+      "response_delay_s": 5.903664028501971,
+      "closing_tendency": 0.37449508734296977,
+      "initiative_factor": 0.6337545462431169,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "9": {
+      "max_tokens": 540,
+      "response_delay_s": 5.6228560882957215,
+      "closing_tendency": 0.43216320504546984,
+      "initiative_factor": 0.646379942724684,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "11": {
+      "max_tokens": 540,
+      "response_delay_s": 5.7970666710705885,
+      "closing_tendency": 0.44211809548974795,
+      "initiative_factor": 0.6342690196675811,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "12": {
+      "max_tokens": 540,
+      "response_delay_s": 5.80602964144466,
+      "closing_tendency": 0.4426302652254091,
+      "initiative_factor": 0.6336520984335626,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "14": {
+      "max_tokens": 559,
+      "response_delay_s": 4.722856088295722,
+      "closing_tendency": 0.39616320504546987,
+      "initiative_factor": 0.7164562860428407,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "15": {
+      "max_tokens": 559,
+      "response_delay_s": 4.722856088295722,
+      "closing_tendency": 0.39616320504546987,
+      "initiative_factor": 0.7164562860428407,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "17": {
+      "max_tokens": 558,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.406118095489748,
+      "initiative_factor": 0.7030323748406045,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "19": {
+      "max_tokens": 548,
+      "response_delay_s": 5.022856088295722,
+      "closing_tendency": 0.43216320504546984,
+      "initiative_factor": 0.7032737419261121,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "21": {
+      "max_tokens": 547,
+      "response_delay_s": 5.197066671070589,
+      "closing_tendency": 0.44211809548974795,
+      "initiative_factor": 0.6900968259768873,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "22": {
+      "max_tokens": 544,
+      "response_delay_s": 5.80765557160235,
+      "closing_tendency": 0.47700888980584855,
+      "initiative_factor": 0.6458319987130724,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "24": {
+      "max_tokens": 564,
+      "response_delay_s": 4.680303993361093,
+      "closing_tendency": 0.357731656763491,
+      "initiative_factor": 0.7415788274468728,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "26": {
+      "max_tokens": 563,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.37011809548974794,
+      "initiative_factor": 0.7243301019786912,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "27": {
+      "max_tokens": 562,
+      "response_delay_s": 5.112873450839415,
+      "closing_tendency": 0.382449911476538,
+      "initiative_factor": 0.7075560012253992,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "29": {
+      "max_tokens": 546,
+      "response_delay_s": 3.9677852397330744,
+      "closing_tendency": 0.3358734422704614,
+      "initiative_factor": 0.8164819893239799,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "30": {
+      "max_tokens": 546,
+      "response_delay_s": 4.018489572913082,
+      "closing_tendency": 0.3387708327378905,
+      "initiative_factor": 0.81199957104221,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "32": {
+      "max_tokens": 546,
+      "response_delay_s": 4.046180001981765,
+      "closing_tendency": 0.3403531429703866,
+      "initiative_factor": 0.8095620500098132,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "34": {
+      "max_tokens": 595,
+      "response_delay_s": 3.6677852397330746,
+      "closing_tendency": 0.2638734422704614,
+      "initiative_factor": 1.1638460584565054,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "36": {
+      "max_tokens": 595,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 1.153982100401265,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "37": {
+      "max_tokens": 592,
+      "response_delay_s": 4.425511633782158,
+      "closing_tendency": 0.3071720933589805,
+      "initiative_factor": 1.0719320252000428,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "39": {
+      "max_tokens": 529,
+      "response_delay_s": 5.167785239733075,
+      "closing_tendency": 0.3358734422704614,
+      "initiative_factor": 0.7117536029241689,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "40": {
+      "max_tokens": 529,
+      "response_delay_s": 5.23777852520208,
+      "closing_tendency": 0.339873058582976,
+      "initiative_factor": 0.7063652939555027,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "42": {
+      "max_tokens": 529,
+      "response_delay_s": 5.246180001981765,
+      "closing_tendency": 0.3403531429703866,
+      "initiative_factor": 0.70572126932309,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "43": {
+      "max_tokens": 526,
+      "response_delay_s": 5.839074548005874,
+      "closing_tendency": 0.37423283131462143,
+      "initiative_factor": 0.6617242636654638,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "45": {
+      "max_tokens": 583,
+      "response_delay_s": 3.6486367970124918,
+      "closing_tendency": 0.26277924554357096,
+      "initiative_factor": 0.9381104320657863,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "47": {
+      "max_tokens": 529,
+      "response_delay_s": 5.531995005480246,
+      "closing_tendency": 0.3549711431702997,
+      "initiative_factor": 0.6613883850605616,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "48": {
+      "max_tokens": 542,
+      "response_delay_s": 3.5682718452944107,
+      "closing_tendency": 0.294186962588252,
+      "initiative_factor": 0.8041960181605599,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "49": {
+      "max_tokens": 542,
+      "response_delay_s": 3.6231052754164548,
+      "closing_tendency": 0.2973203014523688,
+      "initiative_factor": 0.799422585788778,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "50": {
+      "max_tokens": 563,
+      "response_delay_s": 2.733927471041379,
+      "closing_tendency": 0.2105101412023645,
+      "initiative_factor": 0.9307155096109969,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "51": {
+      "max_tokens": 539,
+      "response_delay_s": 3.26320210167369,
+      "closing_tendency": 0.24075440580992516,
+      "initiative_factor": 0.87903453420074,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "52": {
+      "max_tokens": 534,
+      "response_delay_s": 4.142065243464682,
+      "closing_tendency": 0.31154658534083896,
+      "initiative_factor": 0.7547632848944702,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "53": {
+      "max_tokens": 558,
+      "response_delay_s": 3.4070262013034287,
+      "closing_tendency": 0.2489729257887674,
+      "initiative_factor": 0.8364495810884052,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "54": {
+      "max_tokens": 556,
+      "response_delay_s": 4.060523000039158,
+      "closing_tendency": 0.28631560000223766,
+      "initiative_factor": 0.7791590242136099,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "55": {
+      "max_tokens": 546,
+      "response_delay_s": 4.056526633293181,
+      "closing_tendency": 0.2860872361881818,
+      "initiative_factor": 0.8376095049251948,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "56": {
+      "max_tokens": 549,
+      "response_delay_s": 3.3398963663648322,
+      "closing_tendency": 0.24513693522084756,
+      "initiative_factor": 0.9053825659099177,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "57": {
+      "max_tokens": 544,
+      "response_delay_s": 4.735538847840999,
+      "closing_tendency": 0.32488793416234285,
+      "initiative_factor": 0.7780810383445694,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "58": {
+      "max_tokens": 543,
+      "response_delay_s": 4.155368367248495,
+      "closing_tendency": 0.3465924781284854,
+      "initiative_factor": 0.7734529537520088,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "59": {
+      "max_tokens": 555,
+      "response_delay_s": 3.641987822806665,
+      "closing_tendency": 0.29839930416038085,
+      "initiative_factor": 0.8089716747825233,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "60": {
+      "max_tokens": 554,
+      "response_delay_s": 3.9598829028370996,
+      "closing_tendency": 0.3165647373049771,
+      "initiative_factor": 0.7815269082737236,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "61": {
+      "max_tokens": 551,
+      "response_delay_s": 4.59815674262481,
+      "closing_tendency": 0.3530375281499892,
+      "initiative_factor": 0.7292023592801096,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "62": {
+      "max_tokens": 540,
+      "response_delay_s": 4.740836072455308,
+      "closing_tendency": 0.3611906327117319,
+      "initiative_factor": 0.7068527710360801,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "63": {
+      "max_tokens": 574,
+      "response_delay_s": 3.355726663511353,
+      "closing_tendency": 0.2460415236292202,
+      "initiative_factor": 0.9249859502185338,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "64": {
+      "max_tokens": 551,
+      "response_delay_s": 4.108034189011757,
+      "closing_tendency": 0.28903052508638616,
+      "initiative_factor": 0.9170254466071925,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "65": {
+      "max_tokens": 551,
+      "response_delay_s": 4.076290065525519,
+      "closing_tendency": 0.2872165751728869,
+      "initiative_factor": 0.9201914319012484,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "66": {
+      "max_tokens": 532,
+      "response_delay_s": 5.155660799701337,
+      "closing_tendency": 0.31460918855436215,
+      "initiative_factor": 0.7319812134903916,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "67": {
+      "max_tokens": 528,
+      "response_delay_s": 6.0668062596354915,
+      "closing_tendency": 0.36667464340774236,
+      "initiative_factor": 0.6630367939367925,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "68": {
+      "max_tokens": 544,
+      "response_delay_s": 3.5345773206078013,
+      "closing_tendency": 0.2562615611775887,
+      "initiative_factor": 0.8876275724429961,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "70": {
+      "max_tokens": 539,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.7905459361404191,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "72": {
+      "max_tokens": 540,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.8061823084486903,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "73": {
+      "max_tokens": 540,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.8061823084486903,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "75": {
+      "max_tokens": 550,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.8625471158703695,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "76": {
+      "max_tokens": 550,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.8625471158703695,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "78": {
+      "max_tokens": 533,
+      "response_delay_s": 5.801418670542119,
+      "closing_tendency": 0.3892239240309782,
+      "initiative_factor": 0.6605485637415418,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "79": {
+      "max_tokens": 533,
+      "response_delay_s": 5.801418670542119,
+      "closing_tendency": 0.3892239240309782,
+      "initiative_factor": 0.6605485637415418,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "81": {
+      "max_tokens": 548,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3892239240309782,
+      "initiative_factor": 0.7409416241483339,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "82": {
+      "max_tokens": 543,
+      "response_delay_s": 5.748949855567983,
+      "closing_tendency": 0.45479713460388477,
+      "initiative_factor": 0.6541474222096338,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "84": {
+      "max_tokens": 547,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.406118095489748,
+      "initiative_factor": 0.704674665654111,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "86": {
+      "max_tokens": 547,
+      "response_delay_s": 5.4970666710705895,
+      "closing_tendency": 0.47811809548974793,
+      "initiative_factor": 0.6534249409317565,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "87": {
+      "max_tokens": 543,
+      "response_delay_s": 6.606074954598693,
+      "closing_tendency": 0.5414899974056396,
+      "initiative_factor": 0.5793003346595337,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "89": {
+      "max_tokens": 569,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.406118095489748,
+      "initiative_factor": 0.7016917846086888,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "91": {
+      "max_tokens": 548,
+      "response_delay_s": 5.7970666710705885,
+      "closing_tendency": 0.514118095489748,
+      "initiative_factor": 0.6462649310948901,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "93": {
+      "max_tokens": 558,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.514118095489748,
+      "initiative_factor": 0.7233319191507694,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "94": {
+      "max_tokens": 557,
+      "response_delay_s": 5.016115616082212,
+      "closing_tendency": 0.520920892347555,
+      "initiative_factor": 0.7140427887345053,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "96": {
+      "max_tokens": 595,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.834907757704829,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "97": {
+      "max_tokens": 595,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.834907757704829,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "98": {
+      "max_tokens": 593,
+      "response_delay_s": 4.277787532304728,
+      "closing_tendency": 0.29873071613169877,
+      "initiative_factor": 0.7880833512228527,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "100": {
+      "max_tokens": 542,
+      "response_delay_s": 4.3461800019817645,
+      "closing_tendency": 0.3403531429703866,
+      "initiative_factor": 0.7852307224479335,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "101": {
+      "max_tokens": 542,
+      "response_delay_s": 4.550890195754587,
+      "closing_tendency": 0.35205086832883353,
+      "initiative_factor": 0.7679709526511072,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "103": {
+      "max_tokens": 554,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.30435314297038657,
+      "initiative_factor": 0.8274705036804617,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "104": {
+      "max_tokens": 554,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.30435314297038657,
+      "initiative_factor": 0.8274705036804617,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "106": {
+      "max_tokens": 592,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 1.0542210240141372,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "108": {
+      "max_tokens": 525,
+      "response_delay_s": 4.946180001981764,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.7047925877345587,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "110": {
+      "max_tokens": 550,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.8437978149947543,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "111": {
+      "max_tokens": 550,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.8437978149947543,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "113": {
+      "max_tokens": 570,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 1.0294394610036135,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "114": {
+      "max_tokens": 570,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 1.0294394610036135,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "116": {
+      "max_tokens": 534,
+      "response_delay_s": 3.6735333355352946,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.9869264010964847,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "117": {
+      "max_tokens": 534,
+      "response_delay_s": 3.6735333355352946,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.9869264010964847,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "119": {
+      "max_tokens": 531,
+      "response_delay_s": 3.973533335535295,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.8548774105544187,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "121": {
+      "max_tokens": 537,
+      "response_delay_s": 3.3735333355352948,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.9281617922690142,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "122": {
+      "max_tokens": 537,
+      "response_delay_s": 3.3735333355352948,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.9281617922690142,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "124": {
+      "max_tokens": 538,
+      "response_delay_s": 3.3735333355352948,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.9304315375465948,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "126": {
+      "max_tokens": 558,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.9709950127750155,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "128": {
+      "max_tokens": 548,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 1.0208090024827605,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "129": {
+      "max_tokens": 548,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 1.0208090024827605,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "131": {
+      "max_tokens": 522,
+      "response_delay_s": 5.5508866690888246,
+      "closing_tendency": 0.3217649525193614,
+      "initiative_factor": 0.6608755307426544,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "133": {
+      "max_tokens": 541,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.3217649525193614,
+      "initiative_factor": 0.7662153074067877,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "134": {
+      "max_tokens": 541,
+      "response_delay_s": 3.3815910769045177,
+      "closing_tendency": 0.2475194901088296,
+      "initiative_factor": 0.8295567222132226,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "136": {
+      "max_tokens": 538,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.7714139348095526,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "138": {
+      "max_tokens": 539,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.7817315559282346,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "139": {
+      "max_tokens": 538,
+      "response_delay_s": 4.305232980283991,
+      "closing_tendency": 0.3002990274447995,
+      "initiative_factor": 0.7604395796788648,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "141": {
+      "max_tokens": 582,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 1.026392432641483,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "142": {
+      "max_tokens": 581,
+      "response_delay_s": 4.326280894934302,
+      "closing_tendency": 0.3015017654248173,
+      "initiative_factor": 0.996157617967022,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "144": {
+      "max_tokens": 532,
+      "response_delay_s": 5.201418670542118,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.8125870859244994,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "146": {
+      "max_tokens": 571,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 1.0521763178936723,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "148": {
+      "max_tokens": 532,
+      "response_delay_s": 5.201418670542118,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.8581577352369804,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "149": {
+      "max_tokens": 532,
+      "response_delay_s": 5.201418670542118,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.8581577352369804,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "151": {
+      "max_tokens": 528,
+      "response_delay_s": 5.801418670542119,
+      "closing_tendency": 0.3532239240309782,
+      "initiative_factor": 0.6550958279472949,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "153": {
+      "max_tokens": 551,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.7306728975111023,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "154": {
+      "max_tokens": 548,
+      "response_delay_s": 5.264167035035415,
+      "closing_tendency": 0.35509525914488094,
+      "initiative_factor": 0.6799439377339915,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "156": {
+      "max_tokens": 571,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.8470322688066128,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "158": {
+      "max_tokens": 528,
+      "response_delay_s": 6.397066671070589,
+      "closing_tendency": 0.406118095489748,
+      "initiative_factor": 0.5997294928254099,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "159": {
+      "max_tokens": 528,
+      "response_delay_s": 6.510899212698196,
+      "closing_tendency": 0.41262281215418267,
+      "initiative_factor": 0.5923630734276353,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "161": {
+      "max_tokens": 548,
+      "response_delay_s": 5.4970666710705895,
+      "closing_tendency": 0.47811809548974793,
+      "initiative_factor": 0.6689747493814585,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "162": {
+      "max_tokens": 545,
+      "response_delay_s": 6.199479411257599,
+      "closing_tendency": 0.5182559663575771,
+      "initiative_factor": 0.6198542445356255,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "164": {
+      "max_tokens": 569,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.406118095489748,
+      "initiative_factor": 0.7248932993594753,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "166": {
+      "max_tokens": 559,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.7381895739666844,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "168": {
+      "max_tokens": 564,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.9529243238323518,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "170": {
+      "max_tokens": 541,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.9417102900661485,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "171": {
+      "max_tokens": 541,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.9417102900661485,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "173": {
+      "max_tokens": 551,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.9899782692830473,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "175": {
+      "max_tokens": 537,
+      "response_delay_s": 4.046180001981765,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.8825895928322106,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "176": {
+      "max_tokens": 536,
+      "response_delay_s": 4.229216695318867,
+      "closing_tendency": 0.2788123825896496,
+      "initiative_factor": 0.8652234091002855,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "178": {
+      "max_tokens": 561,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 1.0232367287852775,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "180": {
+      "max_tokens": 528,
+      "response_delay_s": 4.646180001981764,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.7723678842880113,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "181": {
+      "max_tokens": 528,
+      "response_delay_s": 4.646180001981764,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.7723678842880113,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "183": {
+      "max_tokens": 559,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.9791885808926545,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "184": {
+      "max_tokens": 559,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.9791885808926545,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "186": {
+      "max_tokens": 535,
+      "response_delay_s": 3.6735333355352946,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.9414841446049044,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "187": {
+      "max_tokens": 532,
+      "response_delay_s": 4.236970379386782,
+      "closing_tendency": 0.27925545025067333,
+      "initiative_factor": 0.8856167922259173,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "189": {
+      "max_tokens": 549,
+      "response_delay_s": 3.3735333355352948,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 1.0553529889976792,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "190": {
+      "max_tokens": 549,
+      "response_delay_s": 3.3735333355352948,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 1.0553529889976792,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "192": {
+      "max_tokens": 538,
+      "response_delay_s": 3.3735333355352948,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 1.057866406148675,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "193": {
+      "max_tokens": 538,
+      "response_delay_s": 3.479883402785736,
+      "closing_tendency": 0.2531361944448992,
+      "initiative_factor": 1.0457219169828487,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "195": {
+      "max_tokens": 531,
+      "response_delay_s": 3.973533335535295,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.8627882211374894,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "197": {
+      "max_tokens": 546,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.8983964358881638,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "198": {
+      "max_tokens": 545,
+      "response_delay_s": 4.359325585874794,
+      "closing_tendency": 0.3033900334785597,
+      "initiative_factor": 0.8688094119674558,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "199": {
+      "max_tokens": 539,
+      "response_delay_s": 3.588698006095007,
+      "closing_tendency": 0.25935417177685754,
+      "initiative_factor": 0.927013010013441,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "201": {
+      "max_tokens": 537,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.8816429157389601,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "203": {
+      "max_tokens": 549,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.9285753867876163,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "204": {
+      "max_tokens": 548,
+      "response_delay_s": 4.33217325628619,
+      "closing_tendency": 0.3018384717877822,
+      "initiative_factor": 0.9006456390939869,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "206": {
+      "max_tokens": 539,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.9348491834541951,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "208": {
+      "max_tokens": 538,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.9473299913467493,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "209": {
+      "max_tokens": 536,
+      "response_delay_s": 4.472197827027162,
+      "closing_tendency": 0.3098398758301235,
+      "initiative_factor": 0.9049730261612939,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "211": {
+      "max_tokens": 541,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.9628726081411976,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "213": {
+      "max_tokens": 560,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 1.0497647975916735,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "214": {
+      "max_tokens": 556,
+      "response_delay_s": 5.679944599801767,
+      "closing_tendency": 0.3788539771315296,
+      "initiative_factor": 0.9337645464700668,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "216": {
+      "max_tokens": 531,
+      "response_delay_s": 5.201418670542118,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.8684409197506605,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "217": {
+      "max_tokens": 526,
+      "response_delay_s": 6.3660622088071435,
+      "closing_tendency": 0.38377498336040816,
+      "initiative_factor": 0.7652882383534027,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "219": {
+      "max_tokens": 540,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.914940433117558,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "221": {
+      "max_tokens": 532,
+      "response_delay_s": 5.201418670542118,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.7445960903524305,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "222": {
+      "max_tokens": 529,
+      "response_delay_s": 6.040913148031279,
+      "closing_tendency": 0.3651950370303588,
+      "initiative_factor": 0.6797307718745523,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "224": {
+      "max_tokens": 536,
+      "response_delay_s": 5.801418670542119,
+      "closing_tendency": 0.4252239240309782,
+      "initiative_factor": 0.6429180155333915,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "226": {
+      "max_tokens": 557,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.406118095489748,
+      "initiative_factor": 0.6990920480157344,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "228": {
+      "max_tokens": 548,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.406118095489748,
+      "initiative_factor": 0.7038151786400724,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "230": {
+      "max_tokens": 561,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.7132113757917701,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "231": {
+      "max_tokens": 560,
+      "response_delay_s": 5.066257380561076,
+      "closing_tendency": 0.34378613603206154,
+      "initiative_factor": 0.7002297946087019,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "232": {
+      "max_tokens": 557,
+      "response_delay_s": 5.940954518603658,
+      "closing_tendency": 0.3937688296344948,
+      "initiative_factor": 0.6367909618404951,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "234": {
+      "max_tokens": 540,
+      "response_delay_s": 5.4970666710705895,
+      "closing_tendency": 0.406118095489748,
+      "initiative_factor": 0.6799717568450274,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "236": {
+      "max_tokens": 571,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.7869962162234417,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "237": {
+      "max_tokens": 571,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.7869962162234417,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "239": {
+      "max_tokens": 542,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.893865082846935,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "241": {
+      "max_tokens": 562,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 1.0039667011694335,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "242": {
+      "max_tokens": 562,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 1.0039667011694335,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "244": {
+      "max_tokens": 529,
+      "response_delay_s": 4.646180001981764,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.7422580645104373,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "245": {
+      "max_tokens": 528,
+      "response_delay_s": 5.001401118744207,
+      "closing_tendency": 0.288651492499669,
+      "initiative_factor": 0.7141764884020829,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "247": {
+      "max_tokens": 540,
+      "response_delay_s": 4.046180001981765,
+      "closing_tendency": 0.30435314297038657,
+      "initiative_factor": 0.776558667316416,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "248": {
+      "max_tokens": 539,
+      "response_delay_s": 4.073213641834184,
+      "closing_tendency": 0.30589792239052477,
+      "initiative_factor": 0.7742827464453969,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "250": {
+      "max_tokens": 561,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.8444928337387746,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "251": {
+      "max_tokens": 561,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.8444928337387746,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "253": {
+      "max_tokens": 582,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 1.0982459109874165,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "254": {
+      "max_tokens": 580,
+      "response_delay_s": 4.280743290335203,
+      "closing_tendency": 0.29889961659058306,
+      "initiative_factor": 1.0363200044857381,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "256": {
+      "max_tokens": 523,
+      "response_delay_s": 4.946180001981764,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.7580365100160456,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "257": {
+      "max_tokens": 523,
+      "response_delay_s": 4.946180001981764,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.7580365100160456,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "259": {
+      "max_tokens": 547,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.9335597170468791,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "260": {
+      "max_tokens": 547,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.9335597170468791,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "262": {
+      "max_tokens": 530,
+      "response_delay_s": 4.273533335535294,
+      "closing_tendency": 0.283059047744874,
+      "initiative_factor": 0.7912673111419346,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "263": {
+      "max_tokens": 528,
+      "response_delay_s": 4.710516848652787,
+      "closing_tendency": 0.30802953420873075,
+      "initiative_factor": 0.7546031086776754,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "265": {
+      "max_tokens": 548,
+      "response_delay_s": 3.3735333355352948,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.8730683253768203,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "266": {
+      "max_tokens": 548,
+      "response_delay_s": 3.3735333355352948,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.8730683253768203,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "267": {
+      "max_tokens": 537,
+      "response_delay_s": 3.4655784894244177,
+      "closing_tendency": 0.25231877082425247,
+      "initiative_factor": 0.9106690960200797,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "269": {
+      "max_tokens": 537,
+      "response_delay_s": 3.3735333355352948,
+      "closing_tendency": 0.247059047744874,
+      "initiative_factor": 0.9198154697209077,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "271": {
+      "max_tokens": 556,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.9577767139572204,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "272": {
+      "max_tokens": 556,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.9577767139572204,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "274": {
+      "max_tokens": 525,
+      "response_delay_s": 5.5508866690888246,
+      "closing_tendency": 0.3577649525193614,
+      "initiative_factor": 0.6610238163904716,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "276": {
+      "max_tokens": 546,
+      "response_delay_s": 4.350886669088824,
+      "closing_tendency": 0.3937649525193614,
+      "initiative_factor": 0.7422260971962281,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "278": {
+      "max_tokens": 590,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.8768949523579259,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "279": {
+      "max_tokens": 589,
+      "response_delay_s": 4.171050207607207,
+      "closing_tendency": 0.2926314404346976,
+      "initiative_factor": 0.8655289972273381,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "281": {
+      "max_tokens": 531,
+      "response_delay_s": 5.250886669088825,
+      "closing_tendency": 0.3577649525193614,
+      "initiative_factor": 0.6879039242301987,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "282": {
+      "max_tokens": 531,
+      "response_delay_s": 5.250886669088825,
+      "closing_tendency": 0.3577649525193614,
+      "initiative_factor": 0.6879039242301987,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "284": {
+      "max_tokens": 582,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.9031806185090102,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "286": {
+      "max_tokens": 571,
+      "response_delay_s": 4.0508866690888246,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 1.1144259222447894,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "288": {
+      "max_tokens": 529,
+      "response_delay_s": 4.950886669088824,
+      "closing_tendency": 0.2857649525193614,
+      "initiative_factor": 0.8375430305053029,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "290": {
+      "max_tokens": 571,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 1.0398792144455362,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "292": {
+      "max_tokens": 536,
+      "response_delay_s": 4.901418670542118,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.9315432887484371,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "293": {
+      "max_tokens": 536,
+      "response_delay_s": 4.901418670542118,
+      "closing_tendency": 0.3172239240309782,
+      "initiative_factor": 0.9315432887484371,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "295": {
+      "max_tokens": 525,
+      "response_delay_s": 6.1014186705421185,
+      "closing_tendency": 0.3532239240309782,
+      "initiative_factor": 0.6226707268881861,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "297": {
+      "max_tokens": 543,
+      "response_delay_s": 4.901418670542118,
+      "closing_tendency": 0.3892239240309782,
+      "initiative_factor": 0.6991615886623124,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "299": {
+      "max_tokens": 555,
+      "response_delay_s": 4.6014186705421185,
+      "closing_tendency": 0.3532239240309782,
+      "initiative_factor": 0.7267737203847211,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "301": {
+      "max_tokens": 571,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.8106028481919809,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "302": {
+      "max_tokens": 567,
+      "response_delay_s": 5.939545126563537,
+      "closing_tendency": 0.39368829294648783,
+      "initiative_factor": 0.7238577192527271,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "303": {
+      "max_tokens": 542,
+      "response_delay_s": 4.427147962160957,
+      "closing_tendency": 0.30726559783776897,
+      "initiative_factor": 0.8132766558033375,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "305": {
+      "max_tokens": 540,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.7728241992710145,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "307": {
+      "max_tokens": 535,
+      "response_delay_s": 5.197066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.714957945534358,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "308": {
+      "max_tokens": 535,
+      "response_delay_s": 5.197066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.714957945534358,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "310": {
+      "max_tokens": 539,
+      "response_delay_s": 4.897066671070589,
+      "closing_tendency": 0.33411809548974797,
+      "initiative_factor": 0.7399641066411878,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "312": {
+      "max_tokens": 553,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.8833436751698852,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "313": {
+      "max_tokens": 553,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.8833436751698852,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "315": {
+      "max_tokens": 552,
+      "response_delay_s": 3.7461800019817644,
+      "closing_tendency": 0.2683531429703866,
+      "initiative_factor": 0.9286177148214011,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    }
+  },
+  "directives_by_message": {
+    "2": {
+      "initiative": 0.36758780928473944,
+      "energy": 0.5147047612756301,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.33211733315717645,
+      "reflectiveness": 0.4050003811662858,
+      "response_length_scale": 0.897567421319168,
+      "response_delay_s": 4.897066671070589
+    },
+    "4": {
+      "initiative": 0.3220784837788472,
+      "energy": 0.5456708580912725,
+      "valence": 0.0,
+      "playfulness": 0.2527878402655563,
+      "reflectiveness": 0.4184719082489674,
+      "response_length_scale": 0.8926104208032711,
+      "response_delay_s": 4.980303993361093
+    },
+    "6": {
+      "initiative": 0.3103113669889031,
+      "energy": 0.5147047612756301,
+      "valence": 0.0,
+      "playfulness": 0.24411733315717643,
+      "reflectiveness": 0.4290003811662858,
+      "response_length_scale": 0.8911364345948466,
+      "response_delay_s": 5.197066671070589
+    },
+    "7": {
+      "initiative": 0.2719532247283424,
+      "energy": 0.41376228164257556,
+      "valence": 0.0,
+      "playfulness": 0.21585343885992114,
+      "reflectiveness": 0.4633208242415243,
+      "response_length_scale": 0.886331572564313,
+      "response_delay_s": 5.903664028501971
+    },
+    "9": {
+      "initiative": 0.2818160992713292,
+      "energy": 0.5395919873863254,
+      "valence": -0.6,
+      "playfulness": 0.21108575646817113,
+      "reflectiveness": 0.5885387242886493,
+      "response_length_scale": 0.9006062690072139,
+      "response_delay_s": 5.6228560882957215
+    },
+    "11": {
+      "initiative": 0.272358953349265,
+      "energy": 0.5147047612756301,
+      "valence": -0.6,
+      "playfulness": 0.20411733315717645,
+      "reflectiveness": 0.5970003811662857,
+      "response_length_scale": 0.8994216370443447,
+      "response_delay_s": 5.7970666710705885
+    },
+    "12": {
+      "initiative": 0.27187239210038694,
+      "energy": 0.5134243369364773,
+      "valence": -0.6,
+      "playfulness": 0.20375881434221366,
+      "reflectiveness": 0.5974357254415977,
+      "response_length_scale": 0.899360688845801,
+      "response_delay_s": 5.80602964144466
+    },
+    "14": {
+      "initiative": 0.33328097800855994,
+      "energy": 0.5395919873863254,
+      "valence": -0.4,
+      "playfulness": 0.2710857564681711,
+      "reflectiveness": 0.5005387242886493,
+      "response_length_scale": 0.9315121932361031,
+      "response_delay_s": 4.722856088295722
+    },
+    "15": {
+      "initiative": 0.33328097800855994,
+      "energy": 0.5395919873863254,
+      "valence": -0.4,
+      "playfulness": 0.2710857564681711,
+      "reflectiveness": 0.5005387242886493,
+      "response_length_scale": 0.9315121932361031,
+      "response_delay_s": 4.722856088295722
+    },
+    "17": {
+      "initiative": 0.3238238320864957,
+      "energy": 0.5147047612756301,
+      "valence": -0.4,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.5090003811662858,
+      "response_length_scale": 0.930327561273234,
+      "response_delay_s": 4.897066671070589
+    },
+    "19": {
+      "initiative": 0.32399546405552426,
+      "energy": 0.5395919873863254,
+      "valence": -0.6,
+      "playfulness": 0.2510857564681711,
+      "reflectiveness": 0.5405387242886494,
+      "response_length_scale": 0.9128153408851593,
+      "response_delay_s": 5.022856088295722
+    },
+    "21": {
+      "initiative": 0.31453831813346006,
+      "energy": 0.5147047612756301,
+      "valence": -0.6,
+      "playfulness": 0.24411733315717643,
+      "reflectiveness": 0.5490003811662858,
+      "response_length_scale": 0.9116307089222901,
+      "response_delay_s": 5.197066671070589
+    },
+    "22": {
+      "initiative": 0.2813920635331645,
+      "energy": 0.4274777754853786,
+      "valence": -0.6,
+      "playfulness": 0.219693777135906,
+      "reflectiveness": 0.5786575563349713,
+      "response_length_scale": 0.9074787043986743,
+      "response_delay_s": 5.80765557160235
+    },
+    "24": {
+      "initiative": 0.35051309251651697,
+      "energy": 0.5456708580912725,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2727878402655563,
+      "reflectiveness": 0.48247190824896735,
+      "response_length_scale": 0.9398190205006881,
+      "response_delay_s": 4.680303993361093
+    },
+    "26": {
+      "initiative": 0.3387459757265729,
+      "energy": 0.5147047612756301,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.49300038116628575,
+      "response_length_scale": 0.9383450342922636,
+      "response_delay_s": 4.897066671070589
+    },
+    "27": {
+      "initiative": 0.32703075053912234,
+      "energy": 0.483875221308655,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2554850619664234,
+      "reflectiveness": 0.5034824247550573,
+      "response_length_scale": 0.9368775481898355,
+      "response_delay_s": 5.112873450839415
+    },
+    "29": {
+      "initiative": 0.3986247873971881,
+      "energy": 0.6903163943238465,
+      "valence": -0.4,
+      "playfulness": 0.293288590410677,
+      "reflectiveness": 0.4492924259298922,
+      "response_length_scale": 0.9101364823634993,
+      "response_delay_s": 3.9677852397330744
+    },
+    "30": {
+      "initiative": 0.39587226645313045,
+      "energy": 0.6830729181552739,
+      "valence": -0.4,
+      "playfulness": 0.2912604170834767,
+      "reflectiveness": 0.4517552078272069,
+      "response_length_scale": 0.9097916928978752,
+      "response_delay_s": 4.018489572913082
+    },
+    "32": {
+      "initiative": 0.3943690717322592,
+      "energy": 0.6791171425740337,
+      "valence": -0.4,
+      "playfulness": 0.2901527999207294,
+      "reflectiveness": 0.45310017152482857,
+      "response_length_scale": 0.9096033979802082,
+      "response_delay_s": 4.046180001981765
+    },
+    "34": {
+      "initiative": 0.575865044189011,
+      "energy": 0.6903163943238465,
+      "valence": 1.0,
+      "playfulness": 0.6532885904106771,
+      "reflectiveness": 0.4652924259298922,
+      "response_length_scale": 0.9915296565272984,
+      "response_delay_s": 3.6677852397330746
+    },
+    "36": {
+      "initiative": 0.5716093285240821,
+      "energy": 0.6791171425740337,
+      "valence": 1.0,
+      "playfulness": 0.6501527999207295,
+      "reflectiveness": 0.4691001715248285,
+      "response_length_scale": 0.9909965721440074,
+      "response_delay_s": 3.7461800019817644
+    },
+    "37": {
+      "initiative": 0.5347313256549178,
+      "energy": 0.5820697666025488,
+      "valence": 1.0,
+      "playfulness": 0.6229795346487137,
+      "reflectiveness": 0.5020962793551333,
+      "response_length_scale": 0.9863771170477647,
+      "response_delay_s": 4.425511633782158
+    },
+    "39": {
+      "initiative": 0.3299882546136809,
+      "energy": 0.6903163943238465,
+      "valence": -0.4,
+      "playfulness": 0.21328859041067702,
+      "reflectiveness": 0.5452924259298921,
+      "response_length_scale": 0.8815457260725011,
+      "response_delay_s": 5.167785239733075
+    },
+    "40": {
+      "initiative": 0.32618861911679203,
+      "energy": 0.6803173535425601,
+      "valence": -0.4,
+      "playfulness": 0.2104888589919168,
+      "reflectiveness": 0.5486920997955296,
+      "response_length_scale": 0.881069771731312,
+      "response_delay_s": 5.23777852520208
+    },
+    "42": {
+      "initiative": 0.32573253894875204,
+      "energy": 0.6791171425740337,
+      "valence": -0.4,
+      "playfulness": 0.2101527999207294,
+      "reflectiveness": 0.5491001715248285,
+      "response_length_scale": 0.8810126416892101,
+      "response_delay_s": 5.246180001981765
+    },
+    "43": {
+      "initiative": 0.2935468350217289,
+      "energy": 0.5944179217134465,
+      "valence": -0.4,
+      "playfulness": 0.18643701807976507,
+      "reflectiveness": 0.5778979066174281,
+      "response_length_scale": 0.876980958776246,
+      "response_delay_s": 5.839074548005874
+    },
+    "45": {
+      "initiative": 0.46805619725385345,
+      "energy": 0.6930518861410726,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.45005452811950036,
+      "reflectiveness": 0.44036235871203533,
+      "response_length_scale": 0.9718666157378969,
+      "response_delay_s": 3.6486367970124918
+    },
+    "47": {
+      "initiative": 0.29329298013458793,
+      "energy": 0.5525721420742506,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2147201997807902,
+      "reflectiveness": 0.5041254716947547,
+      "response_length_scale": 0.8816085702185156,
+      "response_delay_s": 5.531995005480246
+    },
+    "48": {
+      "initiative": 0.3910438820819148,
+      "energy": 0.7045325935293699,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.31726912618822356,
+      "reflectiveness": 0.3804589182000142,
+      "response_length_scale": 0.9036187742920203,
+      "response_delay_s": 3.5682718452944107
+    },
+    "49": {
+      "initiative": 0.3880672101610038,
+      "energy": 0.6966992463690779,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.3150757889833418,
+      "reflectiveness": 0.3831222562345135,
+      "response_length_scale": 0.9032459069671905,
+      "response_delay_s": 3.6231052754164548
+    },
+    "50": {
+      "initiative": 0.4640991882643044,
+      "energy": 0.8237246469940888,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.4186429011583449,
+      "reflectiveness": 0.3479336200220098,
+      "response_length_scale": 0.9377818913445456,
+      "response_delay_s": 2.733927471041379
+    },
+    "51": {
+      "initiative": 0.4355344529933669,
+      "energy": 0.7481139854751871,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3974719159330524,
+      "reflectiveness": 0.3256412449384364,
+      "response_length_scale": 0.8990536291929996,
+      "response_delay_s": 3.26320210167369
+    },
+    "52": {
+      "initiative": 0.3593244455825004,
+      "energy": 0.7511335366479026,
+      "valence": -0.4,
+      "playfulness": 0.2703173902614127,
+      "reflectiveness": 0.47661459753971314,
+      "response_length_scale": 0.8906057425345887,
+      "response_delay_s": 4.142065243464682
+    },
+    "53": {
+      "initiative": 0.41070548298709175,
+      "energy": 0.7275676855280816,
+      "valence": 0.0,
+      "playfulness": 0.3237189519478628,
+      "reflectiveness": 0.3806269869204522,
+      "response_length_scale": 0.9307661471912828,
+      "response_delay_s": 3.4070262013034287
+    },
+    "54": {
+      "initiative": 0.37522994248429503,
+      "energy": 0.634210999994406,
+      "valence": 0.0,
+      "playfulness": 0.2975790799984337,
+      "reflectiveness": 0.41236826000190197,
+      "response_length_scale": 0.9263223689598797,
+      "response_delay_s": 4.060523000039158
+    },
+    "55": {
+      "initiative": 0.4113983641596268,
+      "energy": 0.6347819095295455,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3657389346682728,
+      "reflectiveness": 0.38817415075995454,
+      "response_length_scale": 0.9106531286305173,
+      "response_delay_s": 4.056526633293181
+    },
+    "56": {
+      "initiative": 0.4503011500785943,
+      "energy": 0.7371576619478811,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.39440414534540674,
+      "reflectiveness": 0.35336639493772043,
+      "response_length_scale": 0.91552621444563,
+      "response_delay_s": 3.3398963663648322
+    },
+    "57": {
+      "initiative": 0.3745377010841738,
+      "energy": 0.5377801645941429,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.33857844608636,
+      "reflectiveness": 0.42115474403799147,
+      "response_length_scale": 0.9060358455715921,
+      "response_delay_s": 4.735538847840999
+    },
+    "58": {
+      "initiative": 0.3715547833120105,
+      "energy": 0.6635188046787864,
+      "valence": -0.4,
+      "playfulness": 0.2857852653100602,
+      "reflectiveness": 0.4584036064092127,
+      "response_length_scale": 0.9044809066333726,
+      "response_delay_s": 4.155368367248495
+    },
+    "59": {
+      "initiative": 0.3940043124168186,
+      "energy": 0.6940017395990479,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.3143204870877334,
+      "reflectiveness": 0.40803940853632376,
+      "response_length_scale": 0.9253859205673656,
+      "response_delay_s": 3.641987822806665
+    },
+    "60": {
+      "initiative": 0.37674715092945216,
+      "energy": 0.6485881567375572,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.30160468388651607,
+      "reflectiveness": 0.4234800267092305,
+      "response_length_scale": 0.9232242340231586,
+      "response_delay_s": 3.9598829028370996
+    },
+    "61": {
+      "initiative": 0.34209799962669074,
+      "energy": 0.5574061796250271,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2760737302950076,
+      "reflectiveness": 0.45448189892749075,
+      "response_length_scale": 0.9188839719126021,
+      "response_delay_s": 4.59815674262481
+    },
+    "62": {
+      "initiative": 0.32653356029182173,
+      "energy": 0.5370234182206702,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2703665571017877,
+      "reflectiveness": 0.4374120378049721,
+      "response_length_scale": 0.9004362537962164,
+      "response_delay_s": 4.740836072455308
+    },
+    "63": {
+      "initiative": 0.4610116347309992,
+      "energy": 0.7348961909269496,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4617709334595459,
+      "reflectiveness": 0.40213529508483714,
+      "response_length_scale": 0.9569016822726166,
+      "response_delay_s": 3.355726663511353
+    },
+    "64": {
+      "initiative": 0.45668997136678735,
+      "energy": 0.6274236872840346,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.4996786324395298,
+      "reflectiveness": 0.3906759463234283,
+      "response_length_scale": 0.9180410245173456,
+      "response_delay_s": 4.108034189011757
+    },
+    "65": {
+      "initiative": 0.4584132237846117,
+      "energy": 0.6319585620677829,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5009483973789792,
+      "reflectiveness": 0.38913408889695383,
+      "response_length_scale": 0.918256884557052,
+      "response_delay_s": 4.076290065525519
+    },
+    "66": {
+      "initiative": 0.3439997850096098,
+      "energy": 0.5634770286140947,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.30577356801194655,
+      "reflectiveness": 0.4364178102712078,
+      "response_length_scale": 0.8861170224631052,
+      "response_delay_s": 5.155660799701337
+    },
+    "67": {
+      "initiative": 0.29453760289889863,
+      "energy": 0.4333133914806442,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.2693277496145804,
+      "reflectiveness": 0.480673446896581,
+      "response_length_scale": 0.8799212333355529,
+      "response_delay_s": 6.0668062596354915
+    },
+    "68": {
+      "initiative": 0.4403984878175274,
+      "energy": 0.7093460970560284,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.386616907175688,
+      "reflectiveness": 0.3388223270009504,
+      "response_length_scale": 0.9060420977906595,
+      "response_delay_s": 3.5345773206078013
+    },
+    "70": {
+      "initiative": 0.38248424310680734,
+      "energy": 0.5569401899225546,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3439432531783153,
+      "reflectiveness": 0.3906403354263315,
+      "response_length_scale": 0.8987875766111061,
+      "response_delay_s": 4.6014186705421185
+    },
+    "72": {
+      "initiative": 0.39227731354493983,
+      "energy": 0.5569401899225546,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3439432531783153,
+      "reflectiveness": 0.3906403354263315,
+      "response_length_scale": 0.8993906566656366,
+      "response_delay_s": 4.6014186705421185
+    },
+    "73": {
+      "initiative": 0.39227731354493983,
+      "energy": 0.5569401899225546,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3439432531783153,
+      "reflectiveness": 0.3906403354263315,
+      "response_length_scale": 0.8993906566656366,
+      "response_delay_s": 4.6014186705421185
+    },
+    "75": {
+      "initiative": 0.4260672477637264,
+      "energy": 0.5569401899225546,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.41194325317831526,
+      "reflectiveness": 0.4146403354263315,
+      "response_length_scale": 0.9167086025278857,
+      "response_delay_s": 4.6014186705421185
+    },
+    "76": {
+      "initiative": 0.4260672477637264,
+      "energy": 0.5569401899225546,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.41194325317831526,
+      "reflectiveness": 0.4146403354263315,
+      "response_length_scale": 0.9167086025278857,
+      "response_delay_s": 4.6014186705421185
+    },
+    "78": {
+      "initiative": 0.29265768400131537,
+      "energy": 0.5569401899225546,
+      "valence": -0.4,
+      "playfulness": 0.19594325317831524,
+      "reflectiveness": 0.5666403354263315,
+      "response_length_scale": 0.8884046485606737,
+      "response_delay_s": 5.801418670542119
+    },
+    "79": {
+      "initiative": 0.29265768400131537,
+      "energy": 0.5569401899225546,
+      "valence": -0.4,
+      "playfulness": 0.19594325317831524,
+      "reflectiveness": 0.5666403354263315,
+      "response_length_scale": 0.8884046485606737,
+      "response_delay_s": 5.801418670542119
+    },
+    "81": {
+      "initiative": 0.3500832816919232,
+      "energy": 0.5569401899225546,
+      "valence": -0.4,
+      "playfulness": 0.27594325317831525,
+      "reflectiveness": 0.4706403354263315,
+      "response_length_scale": 0.9132182304743778,
+      "response_delay_s": 4.6014186705421185
+    },
+    "82": {
+      "initiative": 0.287788731647662,
+      "energy": 0.3930071634902881,
+      "valence": -0.4,
+      "playfulness": 0.23004200577728068,
+      "reflectiveness": 0.5263775644133021,
+      "response_length_scale": 0.9054150184162019,
+      "response_delay_s": 5.748949855567983
+    },
+    "84": {
+      "initiative": 0.32499047508205275,
+      "energy": 0.5147047612756301,
+      "valence": -0.4,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.4850003811662858,
+      "response_length_scale": 0.9111636191512255,
+      "response_delay_s": 4.897066671070589
+    },
+    "86": {
+      "initiative": 0.2872361952284421,
+      "energy": 0.5147047612756301,
+      "valence": -0.8,
+      "playfulness": 0.22411733315717644,
+      "reflectiveness": 0.6130003811662859,
+      "response_length_scale": 0.9122355698914074,
+      "response_delay_s": 5.4970666710705895
+    },
+    "87": {
+      "initiative": 0.2270328884083451,
+      "energy": 0.35627500648590105,
+      "valence": -0.8,
+      "playfulness": 0.17975700181605228,
+      "reflectiveness": 0.6668664977947938,
+      "response_length_scale": 0.9046943135634163,
+      "response_delay_s": 6.606074954598693
+    },
+    "89": {
+      "initiative": 0.3228694876837963,
+      "energy": 0.5147047612756301,
+      "valence": -0.4,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.5330003811662858,
+      "response_length_scale": 0.9477125208732784,
+      "response_delay_s": 4.897066671070589
+    },
+    "91": {
+      "initiative": 0.28172712539116557,
+      "energy": 0.5147047612756301,
+      "valence": -1.0,
+      "playfulness": 0.20411733315717645,
+      "reflectiveness": 0.6770003811662858,
+      "response_length_scale": 0.912817312547529,
+      "response_delay_s": 5.7970666710705885
+    },
+    "93": {
+      "initiative": 0.33805646189562255,
+      "energy": 0.5147047612756301,
+      "valence": -1.0,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.6050003811662858,
+      "response_length_scale": 0.9296696947591089,
+      "response_delay_s": 4.897066671070589
+    },
+    "94": {
+      "initiative": 0.3315938048807059,
+      "energy": 0.49769776913111263,
+      "valence": -1.0,
+      "playfulness": 0.25935537535671155,
+      "reflectiveness": 0.6107827584954217,
+      "response_length_scale": 0.9288601619330299,
+      "response_delay_s": 5.016115616082212
+    },
+    "96": {
+      "initiative": 0.40978298497595145,
+      "energy": 0.6791171425740337,
+      "valence": 0.0,
+      "playfulness": 0.3101527999207294,
+      "reflectiveness": 0.4691001715248285,
+      "response_length_scale": 0.9923473402969859,
+      "response_delay_s": 3.7461800019817644
+    },
+    "97": {
+      "initiative": 0.40978298497595145,
+      "energy": 0.6791171425740337,
+      "valence": 0.0,
+      "playfulness": 0.3101527999207294,
+      "reflectiveness": 0.4691001715248285,
+      "response_length_scale": 0.9923473402969859,
+      "response_delay_s": 3.7461800019817644
+    },
+    "98": {
+      "initiative": 0.3809242904727048,
+      "energy": 0.6031732096707532,
+      "valence": 0.0,
+      "playfulness": 0.28888849870781086,
+      "reflectiveness": 0.49492110871194395,
+      "response_length_scale": 0.9887324090907897,
+      "response_delay_s": 4.277787532304728
+    },
+    "100": {
+      "initiative": 0.3791111547812205,
+      "energy": 0.6791171425740337,
+      "valence": -0.4,
+      "playfulness": 0.2701527999207294,
+      "reflectiveness": 0.47710017152482853,
+      "response_length_scale": 0.9038996627929958,
+      "response_delay_s": 4.3461800019817645
+    },
+    "101": {
+      "initiative": 0.36799831569069585,
+      "energy": 0.6498728291779162,
+      "valence": -0.4,
+      "playfulness": 0.2619643921698165,
+      "reflectiveness": 0.4870432380795085,
+      "response_length_scale": 0.9025076334753406,
+      "response_delay_s": 4.550890195754587
+    },
+    "103": {
+      "initiative": 0.4053090912673197,
+      "energy": 0.6791171425740337,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.3101527999207294,
+      "reflectiveness": 0.41310017152482853,
+      "response_length_scale": 0.9238684037085341,
+      "response_delay_s": 3.7461800019817644
+    },
+    "104": {
+      "initiative": 0.4053090912673197,
+      "energy": 0.6791171425740337,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.3101527999207294,
+      "reflectiveness": 0.41310017152482853,
+      "response_length_scale": 0.9238684037085341,
+      "response_delay_s": 3.7461800019817644
+    },
+    "106": {
+      "initiative": 0.5264010641691612,
+      "energy": 0.6791171425740337,
+      "valence": 0.8,
+      "playfulness": 0.5821527999207294,
+      "reflectiveness": 0.4691001715248285,
+      "response_length_scale": 0.9874162760947462,
+      "response_delay_s": 3.7461800019817644
+    },
+    "108": {
+      "initiative": 0.3250741393746706,
+      "energy": 0.6791171425740337,
+      "valence": 0.0,
+      "playfulness": 0.2301527999207294,
+      "reflectiveness": 0.4451001715248285,
+      "response_length_scale": 0.8751122553470878,
+      "response_delay_s": 4.946180001981764
+    },
+    "110": {
+      "initiative": 0.41507881561117627,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3781527999207295,
+      "reflectiveness": 0.37310017152482855,
+      "response_length_scale": 0.9159516737084228,
+      "response_delay_s": 3.7461800019817644
+    },
+    "111": {
+      "initiative": 0.41507881561117627,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3781527999207295,
+      "reflectiveness": 0.37310017152482855,
+      "response_length_scale": 0.9159516737084228,
+      "response_delay_s": 3.7461800019817644
+    },
+    "113": {
+      "initiative": 0.5145072207431294,
+      "energy": 0.6791171425740337,
+      "valence": 0.8,
+      "playfulness": 0.5821527999207294,
+      "reflectiveness": 0.42110017152482854,
+      "response_length_scale": 0.9502264528179314,
+      "response_delay_s": 3.7461800019817644
+    },
+    "114": {
+      "initiative": 0.5145072207431294,
+      "energy": 0.6791171425740337,
+      "valence": 0.8,
+      "playfulness": 0.5821527999207294,
+      "reflectiveness": 0.42110017152482854,
+      "response_length_scale": 0.9502264528179314,
+      "response_delay_s": 3.7461800019817644
+    },
+    "116": {
+      "initiative": 0.4934200946898445,
+      "energy": 0.732352380637815,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5090586665785883,
+      "reflectiveness": 0.3550001905831429,
+      "response_length_scale": 0.8902669825157212,
+      "response_delay_s": 3.6735333355352946
+    },
+    "117": {
+      "initiative": 0.4934200946898445,
+      "energy": 0.732352380637815,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5090586665785883,
+      "reflectiveness": 0.3550001905831429,
+      "response_length_scale": 0.8902669825157212,
+      "response_delay_s": 3.6735333355352946
+    },
+    "119": {
+      "initiative": 0.4216014001031442,
+      "energy": 0.732352380637815,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3530586665785882,
+      "reflectiveness": 0.3790001905831429,
+      "response_length_scale": 0.8847161862682206,
+      "response_delay_s": 3.973533335535295
+    },
+    "121": {
+      "initiative": 0.462725391862596,
+      "energy": 0.732352380637815,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.39305866657858823,
+      "reflectiveness": 0.3310001905831429,
+      "response_length_scale": 0.8946859505996855,
+      "response_delay_s": 3.3735333355352948
+    },
+    "122": {
+      "initiative": 0.462725391862596,
+      "energy": 0.732352380637815,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.39305866657858823,
+      "reflectiveness": 0.3310001905831429,
+      "response_length_scale": 0.8946859505996855,
+      "response_delay_s": 3.3735333355352948
+    },
+    "124": {
+      "initiative": 0.4639466092045039,
+      "energy": 0.732352380637815,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.39305866657858823,
+      "reflectiveness": 0.3310001905831429,
+      "response_length_scale": 0.8973570705406337,
+      "response_delay_s": 3.3735333355352948
+    },
+    "126": {
+      "initiative": 0.48528302656098316,
+      "energy": 0.6355876187015965,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5019645332364471,
+      "reflectiveness": 0.4119002096414572,
+      "response_length_scale": 0.9295532556086843,
+      "response_delay_s": 4.0508866690888246
+    },
+    "128": {
+      "initiative": 0.5102977263080462,
+      "energy": 0.6355876187015965,
+      "valence": 0.8,
+      "playfulness": 0.569964533236447,
+      "reflectiveness": 0.3879002096414572,
+      "response_length_scale": 0.9127044343314085,
+      "response_delay_s": 4.0508866690888246
+    },
+    "129": {
+      "initiative": 0.5102977263080462,
+      "energy": 0.6355876187015965,
+      "valence": 0.8,
+      "playfulness": 0.569964533236447,
+      "reflectiveness": 0.3879002096414572,
+      "response_length_scale": 0.9127044343314085,
+      "response_delay_s": 4.0508866690888246
+    },
+    "131": {
+      "initiative": 0.2929051193319939,
+      "energy": 0.6355876187015965,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.197964533236447,
+      "reflectiveness": 0.5239002096414571,
+      "response_length_scale": 0.8701147614390098,
+      "response_delay_s": 5.5508866690888246
+    },
+    "133": {
+      "initiative": 0.3668539657141722,
+      "energy": 0.6355876187015965,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.297964533236447,
+      "reflectiveness": 0.4039002096414572,
+      "response_length_scale": 0.902361031815669,
+      "response_delay_s": 4.0508866690888246
+    },
+    "134": {
+      "initiative": 0.40656810475995214,
+      "energy": 0.7312012747279261,
+      "valence": 0.0,
+      "playfulness": 0.3247363569238193,
+      "reflectiveness": 0.3313915665925051,
+      "response_length_scale": 0.9016429845338116,
+      "response_delay_s": 3.3815910769045177
+    },
+    "136": {
+      "initiative": 0.3702349154699469,
+      "energy": 0.6355876187015965,
+      "valence": 0.0,
+      "playfulness": 0.297964533236447,
+      "reflectiveness": 0.3639002096414572,
+      "response_length_scale": 0.8970917745069583,
+      "response_delay_s": 4.0508866690888246
+    },
+    "138": {
+      "initiative": 0.3768780618826736,
+      "energy": 0.6355876187015965,
+      "valence": 0.0,
+      "playfulness": 0.297964533236447,
+      "reflectiveness": 0.3639002096414572,
+      "response_length_scale": 0.8978999269143866,
+      "response_delay_s": 4.0508866690888246
+    },
+    "139": {
+      "initiative": 0.3630706907035074,
+      "energy": 0.5992524313880013,
+      "valence": 0.0,
+      "playfulness": 0.2877906807886404,
+      "reflectiveness": 0.37625417332807953,
+      "response_length_scale": 0.8961703719982596,
+      "response_delay_s": 4.305232980283991
+    },
+    "141": {
+      "initiative": 0.5130250807866844,
+      "energy": 0.6355876187015965,
+      "valence": 0.8,
+      "playfulness": 0.569964533236447,
+      "reflectiveness": 0.45990020964145717,
+      "response_length_scale": 0.970603829978193,
+      "response_delay_s": 4.0508866690888246
+    },
+    "142": {
+      "initiative": 0.4980751085265014,
+      "energy": 0.5962455864379568,
+      "valence": 0.8,
+      "playfulness": 0.558948764202628,
+      "reflectiveness": 0.4732765006110947,
+      "response_length_scale": 0.9687311492424435,
+      "response_delay_s": 4.326280894934302
+    },
+    "144": {
+      "initiative": 0.3962339060772049,
+      "energy": 0.5569401899225546,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.3719432531783152,
+      "reflectiveness": 0.43864033542633146,
+      "response_length_scale": 0.8866368367673182,
+      "response_delay_s": 5.201418670542118
+    },
+    "146": {
+      "initiative": 0.5254303514161516,
+      "energy": 0.5569401899225546,
+      "valence": 1.0,
+      "playfulness": 0.6159432531783153,
+      "reflectiveness": 0.4626403354263315,
+      "response_length_scale": 0.951288434318927,
+      "response_delay_s": 4.6014186705421185
+    },
+    "148": {
+      "initiative": 0.42351632210587686,
+      "energy": 0.5569401899225546,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.4399432531783153,
+      "reflectiveness": 0.43864033542633146,
+      "response_length_scale": 0.8870600716706739,
+      "response_delay_s": 5.201418670542118
+    },
+    "149": {
+      "initiative": 0.42351632210587686,
+      "energy": 0.5569401899225546,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.4399432531783153,
+      "reflectiveness": 0.43864033542633146,
+      "response_length_scale": 0.8870600716706739,
+      "response_delay_s": 5.201418670542118
+    },
+    "151": {
+      "initiative": 0.28851312408080043,
+      "energy": 0.5569401899225546,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.19594325317831524,
+      "reflectiveness": 0.5266403354263315,
+      "response_length_scale": 0.8806127894740611,
+      "response_delay_s": 5.801418670542119
+    },
+    "153": {
+      "initiative": 0.3431053039984296,
+      "energy": 0.5569401899225546,
+      "valence": 0.0,
+      "playfulness": 0.27594325317831525,
+      "reflectiveness": 0.4146403354263315,
+      "response_length_scale": 0.9175489954468506,
+      "response_delay_s": 4.6014186705421185
+    },
+    "154": {
+      "initiative": 0.30712753564022205,
+      "energy": 0.4622618521377978,
+      "valence": 0.0,
+      "playfulness": 0.2494333185985834,
+      "reflectiveness": 0.4468309702731488,
+      "response_length_scale": 0.9130423065682963,
+      "response_delay_s": 5.264167035035415
+    },
+    "156": {
+      "initiative": 0.41699175635440594,
+      "energy": 0.5147047612756301,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.4681173331571765,
+      "reflectiveness": 0.4770003811662858,
+      "response_length_scale": 0.9520000939702017,
+      "response_delay_s": 4.897066671070589
+    },
+    "158": {
+      "initiative": 0.24436171464086542,
+      "energy": 0.5147047612756301,
+      "valence": -0.4,
+      "playfulness": 0.16411733315717644,
+      "reflectiveness": 0.6050003811662858,
+      "response_length_scale": 0.8807526598908417,
+      "response_delay_s": 6.397066671070589
+    },
+    "159": {
+      "initiative": 0.23818223380965248,
+      "energy": 0.4984429696145434,
+      "valence": -0.4,
+      "playfulness": 0.15956403149207218,
+      "reflectiveness": 0.6105293903310554,
+      "response_length_scale": 0.8799785986077739,
+      "response_delay_s": 6.510899212698196
+    },
+    "161": {
+      "initiative": 0.2989955183046743,
+      "energy": 0.5147047612756301,
+      "valence": -0.8,
+      "playfulness": 0.22411733315717644,
+      "reflectiveness": 0.6130003811662859,
+      "response_length_scale": 0.9138525925371195,
+      "response_delay_s": 5.4970666710705895
+    },
+    "162": {
+      "initiative": 0.2608645409802366,
+      "energy": 0.4143600841060573,
+      "valence": -0.8,
+      "playfulness": 0.19602082354969605,
+      "reflectiveness": 0.6471175714039406,
+      "response_length_scale": 0.9090761859038479,
+      "response_delay_s": 6.199479411257599
+    },
+    "164": {
+      "initiative": 0.339134595872105,
+      "energy": 0.5147047612756301,
+      "valence": -0.4,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.5330003811662858,
+      "response_length_scale": 0.9487722694387526,
+      "response_delay_s": 4.897066671070589
+    },
+    "166": {
+      "initiative": 0.34822269396256816,
+      "energy": 0.5147047612756301,
+      "valence": 0.0,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.45300038116628577,
+      "response_length_scale": 0.9320916110906385,
+      "response_delay_s": 4.897066671070589
+    },
+    "168": {
+      "initiative": 0.47589010657922903,
+      "energy": 0.6791171425740337,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4461527999207294,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.9406026391095528,
+      "response_delay_s": 3.7461800019817644
+    },
+    "170": {
+      "initiative": 0.46997120029562695,
+      "energy": 0.6791171425740337,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4461527999207294,
+      "reflectiveness": 0.34910017152482853,
+      "response_length_scale": 0.9018683583648736,
+      "response_delay_s": 3.7461800019817644
+    },
+    "171": {
+      "initiative": 0.46997120029562695,
+      "energy": 0.6791171425740337,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4461527999207294,
+      "reflectiveness": 0.34910017152482853,
+      "response_length_scale": 0.9018683583648736,
+      "response_delay_s": 3.7461800019817644
+    },
+    "173": {
+      "initiative": 0.4949638568432224,
+      "energy": 0.6791171425740337,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5141527999207295,
+      "reflectiveness": 0.37310017152482855,
+      "response_length_scale": 0.9183525261765906,
+      "response_delay_s": 3.7461800019817644
+    },
+    "175": {
+      "initiative": 0.43755251314762256,
+      "energy": 0.6791171425740337,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4261527999207294,
+      "reflectiveness": 0.37310017152482855,
+      "response_length_scale": 0.8948268010108507,
+      "response_delay_s": 4.046180001981765
+    },
+    "176": {
+      "initiative": 0.4276162355093227,
+      "energy": 0.6529690435258761,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.41883133218724533,
+      "reflectiveness": 0.38199052520120214,
+      "response_length_scale": 0.8935821514961584,
+      "response_delay_s": 4.229216695318867
+    },
+    "178": {
+      "initiative": 0.5114854333181855,
+      "energy": 0.6791171425740337,
+      "valence": 0.8,
+      "playfulness": 0.5821527999207294,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.9356436397710167,
+      "response_delay_s": 3.7461800019817644
+    },
+    "180": {
+      "initiative": 0.3708528457940871,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3181527999207295,
+      "reflectiveness": 0.42110017152482854,
+      "response_length_scale": 0.8798709296473991,
+      "response_delay_s": 4.646180001981764
+    },
+    "181": {
+      "initiative": 0.3708528457940871,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3181527999207295,
+      "reflectiveness": 0.42110017152482854,
+      "response_length_scale": 0.8798709296473991,
+      "response_delay_s": 4.646180001981764
+    },
+    "183": {
+      "initiative": 0.48948448551892176,
+      "energy": 0.6791171425740337,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5141527999207295,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.931666872764192,
+      "response_delay_s": 3.7461800019817644
+    },
+    "184": {
+      "initiative": 0.48948448551892176,
+      "energy": 0.6791171425740337,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5141527999207295,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.931666872764192,
+      "response_delay_s": 3.7461800019817644
+    },
+    "186": {
+      "initiative": 0.4698511142024612,
+      "energy": 0.732352380637815,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4410586665785882,
+      "reflectiveness": 0.3550001905831429,
+      "response_length_scale": 0.8911186840307468,
+      "response_delay_s": 3.6735333355352946
+    },
+    "187": {
+      "initiative": 0.4392645318219519,
+      "energy": 0.6518613743733168,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4185211848245287,
+      "reflectiveness": 0.3823671327130723,
+      "response_length_scale": 0.8872873121325568,
+      "response_delay_s": 4.236970379386782
+    },
+    "189": {
+      "initiative": 0.5269376488470154,
+      "energy": 0.732352380637815,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5290586665785884,
+      "reflectiveness": 0.3550001905831429,
+      "response_length_scale": 0.9144491223164948,
+      "response_delay_s": 3.3735333355352948
+    },
+    "190": {
+      "initiative": 0.5269376488470154,
+      "energy": 0.732352380637815,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5290586665785884,
+      "reflectiveness": 0.3550001905831429,
+      "response_length_scale": 0.9144491223164948,
+      "response_delay_s": 3.3735333355352948
+    },
+    "192": {
+      "initiative": 0.5281270276412604,
+      "energy": 0.732352380637815,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5290586665785884,
+      "reflectiveness": 0.3310001905831429,
+      "response_length_scale": 0.8970542052462162,
+      "response_delay_s": 3.3735333355352948
+    },
+    "193": {
+      "initiative": 0.5223537382762365,
+      "energy": 0.717159513887752,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5248046638885706,
+      "reflectiveness": 0.33616576527816433,
+      "response_length_scale": 0.8963310247889131,
+      "response_delay_s": 3.479883402785736
+    },
+    "195": {
+      "initiative": 0.42620699176798915,
+      "energy": 0.732352380637815,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3530586665785882,
+      "reflectiveness": 0.3790001905831429,
+      "response_length_scale": 0.8845868367222094,
+      "response_delay_s": 3.973533335535295
+    },
+    "197": {
+      "initiative": 0.44642807862860273,
+      "energy": 0.6355876187015965,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.433964533236447,
+      "reflectiveness": 0.3879002096414572,
+      "response_length_scale": 0.9104609266002318,
+      "response_delay_s": 4.0508866690888246
+    },
+    "198": {
+      "initiative": 0.42968425171736435,
+      "energy": 0.5915249163036008,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.42162697656500825,
+      "reflectiveness": 0.4028815284567757,
+      "response_length_scale": 0.9083635419660873,
+      "response_delay_s": 4.359325585874794
+    },
+    "199": {
+      "initiative": 0.46210616050984565,
+      "energy": 0.7016145705578561,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4524520797561997,
+      "reflectiveness": 0.34145104601032894,
+      "response_length_scale": 0.8983723647477362,
+      "response_delay_s": 3.588698006095007
+    },
+    "201": {
+      "initiative": 0.437015918804467,
+      "energy": 0.6355876187015965,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.433964533236447,
+      "reflectiveness": 0.3639002096414572,
+      "response_length_scale": 0.8952294818393782,
+      "response_delay_s": 4.0508866690888246
+    },
+    "203": {
+      "initiative": 0.46294814526577444,
+      "energy": 0.6355876187015965,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5019645332364471,
+      "reflectiveness": 0.3879002096414572,
+      "response_length_scale": 0.9150873815232446,
+      "response_delay_s": 4.0508866690888246
+    },
+    "204": {
+      "initiative": 0.4476783019607746,
+      "energy": 0.5954038205305444,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.49071306974855256,
+      "reflectiveness": 0.4015627010196149,
+      "response_length_scale": 0.9131746327303026,
+      "response_delay_s": 4.33217325628619
+    },
+    "206": {
+      "initiative": 0.4663149680888088,
+      "energy": 0.6355876187015965,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5019645332364471,
+      "reflectiveness": 0.3639002096414572,
+      "response_length_scale": 0.8976342025356221,
+      "response_delay_s": 4.0508866690888246
+    },
+    "208": {
+      "initiative": 0.4729461066087063,
+      "energy": 0.6355876187015965,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5019645332364471,
+      "reflectiveness": 0.3639002096414572,
+      "response_length_scale": 0.8966808221789611,
+      "response_delay_s": 4.0508866690888246
+    },
+    "209": {
+      "initiative": 0.4500749294634822,
+      "energy": 0.5754003104246912,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.4851120869189136,
+      "reflectiveness": 0.384363894455605,
+      "response_length_scale": 0.8938159063049803,
+      "response_delay_s": 4.472197827027162
+    },
+    "211": {
+      "initiative": 0.48108291880381227,
+      "energy": 0.6355876187015965,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5019645332364471,
+      "reflectiveness": 0.3639002096414572,
+      "response_length_scale": 0.901531451468331,
+      "response_delay_s": 4.0508866690888246
+    },
+    "213": {
+      "initiative": 0.5242830683917634,
+      "energy": 0.5569401899225546,
+      "valence": 1.0,
+      "playfulness": 0.6159432531783153,
+      "reflectiveness": 0.43864033542633146,
+      "response_length_scale": 0.9335027338371821,
+      "response_delay_s": 4.6014186705421185
+    },
+    "214": {
+      "initiative": 0.46573451794623966,
+      "energy": 0.40286505717117616,
+      "valence": 1.0,
+      "playfulness": 0.5728022160079294,
+      "reflectiveness": 0.49102588056180013,
+      "response_length_scale": 0.9261687575182165,
+      "response_delay_s": 5.679944599801767
+    },
+    "216": {
+      "initiative": 0.42947213938352635,
+      "energy": 0.5569401899225546,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.4399432531783153,
+      "reflectiveness": 0.43864033542633146,
+      "response_length_scale": 0.8852708461538477,
+      "response_delay_s": 5.201418670542118
+    },
+    "217": {
+      "initiative": 0.36624863302056787,
+      "energy": 0.39056254159897963,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.3933575116477144,
+      "reflectiveness": 0.4952087358563469,
+      "response_length_scale": 0.8773512700936454,
+      "response_delay_s": 6.3660622088071435
+    },
+    "219": {
+      "initiative": 0.45555184187814535,
+      "energy": 0.5569401899225546,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.4799432531783153,
+      "reflectiveness": 0.3906403354263315,
+      "response_length_scale": 0.9001010036358157,
+      "response_delay_s": 4.6014186705421185
+    },
+    "221": {
+      "initiative": 0.35254331588722865,
+      "energy": 0.5569401899225546,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3039432531783153,
+      "reflectiveness": 0.43864033542633146,
+      "response_length_scale": 0.8872366181118634,
+      "response_delay_s": 5.201418670542118
+    },
+    "222": {
+      "initiative": 0.3069707585378171,
+      "energy": 0.43701240742410297,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.27036347407874883,
+      "reflectiveness": 0.479415781475805,
+      "response_length_scale": 0.8815280556649371,
+      "response_delay_s": 6.040913148031279
+    },
+    "224": {
+      "initiative": 0.2791309670338936,
+      "energy": 0.5569401899225546,
+      "valence": -0.6,
+      "playfulness": 0.19594325317831524,
+      "reflectiveness": 0.6066403354263314,
+      "response_length_scale": 0.8929641853989503,
+      "response_delay_s": 5.801418670542119
+    },
+    "226": {
+      "initiative": 0.3210135699345503,
+      "energy": 0.5147047612756301,
+      "valence": -0.4,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.5090003811662858,
+      "response_length_scale": 0.9290010720241666,
+      "response_delay_s": 4.897066671070589
+    },
+    "228": {
+      "initiative": 0.32438025618398825,
+      "energy": 0.5147047612756301,
+      "valence": -0.4,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.4850003811662858,
+      "response_length_scale": 0.9126032259393496,
+      "response_delay_s": 4.897066671070589
+    },
+    "230": {
+      "initiative": 0.33101127861632873,
+      "energy": 0.5147047612756301,
+      "valence": 0.0,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.45300038116628577,
+      "response_length_scale": 0.9351582676385293,
+      "response_delay_s": 4.897066671070589
+    },
+    "231": {
+      "initiative": 0.3218266401011309,
+      "energy": 0.49053465991984624,
+      "valence": 0.0,
+      "playfulness": 0.2573497047775569,
+      "reflectiveness": 0.46121821562725224,
+      "response_length_scale": 0.9340077708139939,
+      "response_delay_s": 5.066257380561076
+    },
+    "232": {
+      "initiative": 0.2743430811788193,
+      "energy": 0.36557792591376315,
+      "valence": 0.0,
+      "playfulness": 0.2223618192558537,
+      "reflectiveness": 0.5037035051893206,
+      "response_length_scale": 0.9280598302753044,
+      "response_delay_s": 5.940954518603658
+    },
+    "234": {
+      "initiative": 0.30714799213701127,
+      "energy": 0.5147047612756301,
+      "valence": -0.4,
+      "playfulness": 0.22411733315717644,
+      "reflectiveness": 0.5330003811662858,
+      "response_length_scale": 0.8999125494208835,
+      "response_delay_s": 5.4970666710705895
+    },
+    "236": {
+      "initiative": 0.3802340807877384,
+      "energy": 0.5147047612756301,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.33211733315717645,
+      "reflectiveness": 0.4770003811662858,
+      "response_length_scale": 0.9511046953447656,
+      "response_delay_s": 4.897066671070589
+    },
+    "237": {
+      "initiative": 0.3802340807877384,
+      "energy": 0.5147047612756301,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.33211733315717645,
+      "reflectiveness": 0.4770003811662858,
+      "response_length_scale": 0.9511046953447656,
+      "response_delay_s": 4.897066671070589
+    },
+    "239": {
+      "initiative": 0.4438997853806238,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3781527999207295,
+      "reflectiveness": 0.34910017152482853,
+      "response_length_scale": 0.9040228657375919,
+      "response_delay_s": 3.7461800019817644
+    },
+    "241": {
+      "initiative": 0.5019794272768126,
+      "energy": 0.6791171425740337,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5141527999207295,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.9369628277599927,
+      "response_delay_s": 3.7461800019817644
+    },
+    "242": {
+      "initiative": 0.5019794272768126,
+      "energy": 0.6791171425740337,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5141527999207295,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.9369628277599927,
+      "response_delay_s": 3.7461800019817644
+    },
+    "244": {
+      "initiative": 0.35097084977723003,
+      "energy": 0.6791171425740337,
+      "valence": 0.0,
+      "playfulness": 0.2501527999207294,
+      "reflectiveness": 0.42110017152482854,
+      "response_length_scale": 0.8817663881895751,
+      "response_delay_s": 4.646180001981764
+    },
+    "245": {
+      "initiative": 0.3316874177244117,
+      "energy": 0.6283712687508276,
+      "valence": 0.0,
+      "playfulness": 0.23594395525023176,
+      "reflectiveness": 0.4383537686247186,
+      "response_length_scale": 0.8793508845955905,
+      "response_delay_s": 5.001401118744207
+    },
+    "247": {
+      "initiative": 0.37355845714152913,
+      "energy": 0.6791171425740337,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2901527999207294,
+      "reflectiveness": 0.41310017152482853,
+      "response_length_scale": 0.8992511317425006,
+      "response_delay_s": 4.046180001981765
+    },
+    "248": {
+      "initiative": 0.3720909166923978,
+      "energy": 0.675255194023688,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2890714543266326,
+      "reflectiveness": 0.4144132340319461,
+      "response_length_scale": 0.8990673029915042,
+      "response_delay_s": 4.073213641834184
+    },
+    "250": {
+      "initiative": 0.4154904857130061,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3781527999207295,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.9352533063647948,
+      "response_delay_s": 3.7461800019817644
+    },
+    "251": {
+      "initiative": 0.4154904857130061,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3781527999207295,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.9352533063647948,
+      "response_delay_s": 3.7461800019817644
+    },
+    "253": {
+      "initiative": 0.5468571403296847,
+      "energy": 0.6791171425740337,
+      "valence": 1.0,
+      "playfulness": 0.6501527999207295,
+      "reflectiveness": 0.4451001715248285,
+      "response_length_scale": 0.9695218889333692,
+      "response_delay_s": 3.7461800019817644
+    },
+    "254": {
+      "initiative": 0.5178379903904979,
+      "energy": 0.6027509585235424,
+      "valence": 1.0,
+      "playfulness": 0.6287702683865919,
+      "reflectiveness": 0.4710646741019956,
+      "response_length_scale": 0.9658868585725657,
+      "response_delay_s": 4.280743290335203
+    },
+    "256": {
+      "initiative": 0.36148813587417966,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.29815279992072946,
+      "reflectiveness": 0.4451001715248285,
+      "response_length_scale": 0.8716079942683643,
+      "response_delay_s": 4.946180001981764
+    },
+    "257": {
+      "initiative": 0.36148813587417966,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.29815279992072946,
+      "reflectiveness": 0.4451001715248285,
+      "response_length_scale": 0.8716079942683643,
+      "response_delay_s": 4.946180001981764
+    },
+    "259": {
+      "initiative": 0.46562482654019355,
+      "energy": 0.6791171425740337,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4461527999207294,
+      "reflectiveness": 0.37310017152482855,
+      "response_length_scale": 0.9122694621495,
+      "response_delay_s": 3.7461800019817644
+    },
+    "260": {
+      "initiative": 0.46562482654019355,
+      "energy": 0.6791171425740337,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4461527999207294,
+      "reflectiveness": 0.37310017152482855,
+      "response_length_scale": 0.9122694621495,
+      "response_delay_s": 3.7461800019817644
+    },
+    "262": {
+      "initiative": 0.3829402862286893,
+      "energy": 0.732352380637815,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.26505866657858823,
+      "reflectiveness": 0.4430001905831429,
+      "response_length_scale": 0.8831260965060921,
+      "response_delay_s": 4.273533335535294
+    },
+    "263": {
+      "initiative": 0.35921832408802545,
+      "energy": 0.6699261644781732,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2475793260538885,
+      "reflectiveness": 0.4642251040774211,
+      "response_length_scale": 0.8801546086168931,
+      "response_delay_s": 4.710516848652787
+    },
+    "265": {
+      "initiative": 0.4321292694156832,
+      "energy": 0.732352380637815,
+      "valence": 0.0,
+      "playfulness": 0.32505866657858823,
+      "reflectiveness": 0.3550001905831429,
+      "response_length_scale": 0.9137517705298246,
+      "response_delay_s": 3.3735333355352948
+    },
+    "266": {
+      "initiative": 0.4321292694156832,
+      "energy": 0.732352380637815,
+      "valence": 0.0,
+      "playfulness": 0.32505866657858823,
+      "reflectiveness": 0.3550001905831429,
+      "response_length_scale": 0.9137517705298246,
+      "response_delay_s": 3.3735333355352948
+    },
+    "267": {
+      "initiative": 0.4532121603508389,
+      "energy": 0.7192030729393689,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.38937686042302333,
+      "reflectiveness": 0.33547095520061454,
+      "response_length_scale": 0.8944930321406139,
+      "response_delay_s": 3.4655784894244177
+    },
+    "269": {
+      "initiative": 0.4582088972762484,
+      "energy": 0.732352380637815,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.39305866657858823,
+      "reflectiveness": 0.3310001905831429,
+      "response_length_scale": 0.89511893918706,
+      "response_delay_s": 3.3735333355352948
+    },
+    "271": {
+      "initiative": 0.4784296983106231,
+      "energy": 0.6355876187015965,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5019645332364471,
+      "reflectiveness": 0.4119002096414572,
+      "response_length_scale": 0.9270276130691107,
+      "response_delay_s": 4.0508866690888246
+    },
+    "272": {
+      "initiative": 0.4784296983106231,
+      "energy": 0.6355876187015965,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5019645332364471,
+      "reflectiveness": 0.4119002096414572,
+      "response_length_scale": 0.9270276130691107,
+      "response_delay_s": 4.0508866690888246
+    },
+    "274": {
+      "initiative": 0.29301729553418426,
+      "energy": 0.6355876187015965,
+      "valence": -0.4,
+      "playfulness": 0.197964533236447,
+      "reflectiveness": 0.5639002096414572,
+      "response_length_scale": 0.8747997118801667,
+      "response_delay_s": 5.5508866690888246
+    },
+    "276": {
+      "initiative": 0.35094931548603403,
+      "energy": 0.6355876187015965,
+      "valence": -0.6,
+      "playfulness": 0.277964533236447,
+      "reflectiveness": 0.5079002096414572,
+      "response_length_scale": 0.9092571672491919,
+      "response_delay_s": 4.350886669088824
+    },
+    "278": {
+      "initiative": 0.43431596277602946,
+      "energy": 0.6355876187015965,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.433964533236447,
+      "reflectiveness": 0.4839002096414572,
+      "response_length_scale": 0.9830771512989352,
+      "response_delay_s": 4.0508866690888246
+    },
+    "279": {
+      "initiative": 0.4277927992564601,
+      "energy": 0.6184213989132561,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4291579916957117,
+      "reflectiveness": 0.4897367243694929,
+      "response_length_scale": 0.9822600392370103,
+      "response_delay_s": 4.171050207607207
+    },
+    "281": {
+      "initiative": 0.3129469520928439,
+      "energy": 0.6355876187015965,
+      "valence": -0.4,
+      "playfulness": 0.217964533236447,
+      "reflectiveness": 0.5399002096414572,
+      "response_length_scale": 0.8851906062512518,
+      "response_delay_s": 5.250886669088825
+    },
+    "282": {
+      "initiative": 0.3129469520928439,
+      "energy": 0.6355876187015965,
+      "valence": -0.4,
+      "playfulness": 0.217964533236447,
+      "reflectiveness": 0.5399002096414572,
+      "response_length_scale": 0.8851906062512518,
+      "response_delay_s": 5.250886669088825
+    },
+    "284": {
+      "initiative": 0.44908363746532926,
+      "energy": 0.6355876187015965,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.433964533236447,
+      "reflectiveness": 0.45990020964145717,
+      "response_length_scale": 0.9697699027920386,
+      "response_delay_s": 4.0508866690888246
+    },
+    "286": {
+      "initiative": 0.5541697021900888,
+      "energy": 0.6355876187015965,
+      "valence": 1.0,
+      "playfulness": 0.6379645332364471,
+      "reflectiveness": 0.4359002096414572,
+      "response_length_scale": 0.9520435108712562,
+      "response_delay_s": 4.0508866690888246
+    },
+    "288": {
+      "initiative": 0.41135868155250843,
+      "energy": 0.6355876187015965,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.373964533236447,
+      "reflectiveness": 0.4359002096414572,
+      "response_length_scale": 0.8819204724307658,
+      "response_delay_s": 4.950886669088824
+    },
+    "290": {
+      "initiative": 0.5195522832261495,
+      "energy": 0.5569401899225546,
+      "valence": 1.0,
+      "playfulness": 0.6159432531783153,
+      "reflectiveness": 0.4626403354263315,
+      "response_length_scale": 0.9512853550177787,
+      "response_delay_s": 4.6014186705421185
+    },
+    "292": {
+      "initiative": 0.46454369103303217,
+      "energy": 0.5569401899225546,
+      "valence": 0.8,
+      "playfulness": 0.5279432531783153,
+      "reflectiveness": 0.4146403354263315,
+      "response_length_scale": 0.8929321749255446,
+      "response_delay_s": 4.901418670542118
+    },
+    "293": {
+      "initiative": 0.46454369103303217,
+      "energy": 0.5569401899225546,
+      "valence": 0.8,
+      "playfulness": 0.5279432531783153,
+      "reflectiveness": 0.4146403354263315,
+      "response_length_scale": 0.8929321749255446,
+      "response_delay_s": 4.901418670542118
+    },
+    "295": {
+      "initiative": 0.26313128590782664,
+      "energy": 0.5569401899225546,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.17594325317831525,
+      "reflectiveness": 0.5506403354263314,
+      "response_length_scale": 0.8742786648389054,
+      "response_delay_s": 6.1014186705421185
+    },
+    "297": {
+      "initiative": 0.3210633038632247,
+      "energy": 0.5569401899225546,
+      "valence": -0.4,
+      "playfulness": 0.25594325317831523,
+      "reflectiveness": 0.4946403354263315,
+      "response_length_scale": 0.9056250722937136,
+      "response_delay_s": 4.901418670542118
+    },
+    "299": {
+      "initiative": 0.34042994945623617,
+      "energy": 0.5569401899225546,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.27594325317831525,
+      "reflectiveness": 0.4546403354263315,
+      "response_length_scale": 0.9252811507481273,
+      "response_delay_s": 4.6014186705421185
+    },
+    "301": {
+      "initiative": 0.39501147444478285,
+      "energy": 0.5147047612756301,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.40011733315717646,
+      "reflectiveness": 0.4770003811662858,
+      "response_length_scale": 0.9521594440252757,
+      "response_delay_s": 4.897066671070589
+    },
+    "302": {
+      "initiative": 0.3384197868608799,
+      "energy": 0.36577926763378044,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.3584181949374585,
+      "reflectiveness": 0.5276350490045146,
+      "response_length_scale": 0.9450705905279237,
+      "response_delay_s": 5.939545126563537
+    },
+    "303": {
+      "initiative": 0.3966580313605773,
+      "energy": 0.5818360054055777,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.35091408151356174,
+      "reflectiveness": 0.3821757581621036,
+      "response_length_scale": 0.9038435681329643,
+      "response_delay_s": 4.427147962160957
+    },
+    "305": {
+      "initiative": 0.37114815859119726,
+      "energy": 0.5147047612756301,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.33211733315717645,
+      "reflectiveness": 0.4050003811662858,
+      "response_length_scale": 0.9006481209123788,
+      "response_delay_s": 4.897066671070589
+    },
+    "307": {
+      "initiative": 0.33223422227379656,
+      "energy": 0.5147047612756301,
+      "valence": 0.0,
+      "playfulness": 0.24411733315717643,
+      "reflectiveness": 0.4290003811662858,
+      "response_length_scale": 0.8918787572226287,
+      "response_delay_s": 5.197066671070589
+    },
+    "308": {
+      "initiative": 0.33223422227379656,
+      "energy": 0.5147047612756301,
+      "valence": 0.0,
+      "playfulness": 0.24411733315717643,
+      "reflectiveness": 0.4290003811662858,
+      "response_length_scale": 0.8918787572226287,
+      "response_delay_s": 5.197066671070589
+    },
+    "310": {
+      "initiative": 0.3494232007503799,
+      "energy": 0.5147047612756301,
+      "valence": 0.0,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.4050003811662858,
+      "response_length_scale": 0.8985870756135199,
+      "response_delay_s": 4.897066671070589
+    },
+    "312": {
+      "initiative": 0.4379795295004894,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3781527999207295,
+      "reflectiveness": 0.37310017152482855,
+      "response_length_scale": 0.9221946909346213,
+      "response_delay_s": 3.7461800019817644
+    },
+    "313": {
+      "initiative": 0.4379795295004894,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3781527999207295,
+      "reflectiveness": 0.37310017152482855,
+      "response_length_scale": 0.9221946909346213,
+      "response_delay_s": 3.7461800019817644
+    },
+    "315": {
+      "initiative": 0.4629709366673554,
+      "energy": 0.6791171425740337,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4461527999207294,
+      "reflectiveness": 0.37310017152482855,
+      "response_length_scale": 0.9193065573050883,
+      "response_delay_s": 3.7461800019817644
+    }
+  },
+  "arc_progress_by_day": {
+    "0": {
+      "arc_2": [
+        0.211,
+        "active"
+      ],
+      "arc_1": [
+        0.777,
+        "active"
+      ]
+    },
+    "1": {
+      "arc_2": [
+        0.221,
+        "active"
+      ],
+      "arc_1": [
+        0.777,
+        "active"
+      ]
+    },
+    "2": {
+      "arc_2": [
+        0.266,
+        "active"
+      ],
+      "arc_1": [
+        0.777,
+        "active"
+      ]
+    },
+    "3": {
+      "arc_2": [
+        0.29,
+        "active"
+      ],
+      "arc_1": [
+        0.777,
+        "active"
+      ]
+    },
+    "4": {
+      "arc_2": [
+        0.31,
+        "active"
+      ],
+      "arc_1": [
+        0.777,
+        "active"
+      ]
+    },
+    "5": {
+      "arc_2": [
+        0.359,
+        "active"
+      ],
+      "arc_1": [
+        0.777,
+        "active"
+      ]
+    },
+    "6": {
+      "arc_2": [
+        0.398,
+        "active"
+      ],
+      "arc_1": [
+        0.777,
+        "active"
+      ]
+    },
+    "7": {
+      "arc_2": [
+        0.415,
+        "active"
+      ],
+      "arc_1": [
+        0.777,
+        "active"
+      ]
+    },
+    "8": {
+      "arc_2": [
+        0.439,
+        "active"
+      ],
+      "arc_1": [
+        0.794,
+        "active"
+      ]
+    },
+    "9": {
+      "arc_2": [
+        0.488,
+        "active"
+      ],
+      "arc_1": [
+        0.807,
+        "active"
+      ]
+    },
+    "10": {
+      "arc_2": [
+        0.517,
+        "active"
+      ],
+      "arc_1": [
+        0.821,
+        "active"
+      ]
+    },
+    "11": {
+      "arc_2": [
+        0.562,
+        "active"
+      ],
+      "arc_1": [
+        0.841,
+        "active"
+      ]
+    },
+    "12": {
+      "arc_2": [
+        0.582,
+        "active"
+      ],
+      "arc_1": [
+        0.889,
+        "active"
+      ]
+    },
+    "13": {
+      "arc_2": [
+        0.617,
+        "active"
+      ],
+      "arc_1": [
+        0.926,
+        "active"
+      ]
+    },
+    "14": {
+      "arc_2": [
+        0.643,
+        "active"
+      ],
+      "arc_1": [
+        0.943,
+        "active"
+      ]
+    },
+    "15": {
+      "arc_2": [
+        0.661,
+        "active"
+      ],
+      "arc_1": [
+        0.969,
+        "active"
+      ]
+    },
+    "16": {
+      "arc_2": [
+        0.71,
+        "active"
+      ],
+      "arc_1": [
+        0.997,
+        "active"
+      ]
+    },
+    "17": {
+      "arc_2": [
+        0.726,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "18": {
+      "arc_2": [
+        0.772,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.458,
+        "active"
+      ]
+    },
+    "19": {
+      "arc_2": [
+        0.796,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.475,
+        "active"
+      ]
+    },
+    "20": {
+      "arc_2": [
+        0.823,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.501,
+        "active"
+      ]
+    },
+    "21": {
+      "arc_2": [
+        0.866,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.523,
+        "active"
+      ]
+    },
+    "22": {
+      "arc_2": [
+        0.908,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.555,
+        "active"
+      ]
+    },
+    "23": {
+      "arc_2": [
+        0.952,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.597,
+        "active"
+      ]
+    },
+    "24": {
+      "arc_2": [
+        0.972,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.621,
+        "active"
+      ]
+    },
+    "25": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.653,
+        "active"
+      ]
+    },
+    "26": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.671,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.428,
+        "active"
+      ]
+    },
+    "27": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.683,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.457,
+        "active"
+      ]
+    },
+    "28": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.695,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.476,
+        "active"
+      ]
+    },
+    "29": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.739,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.5,
+        "active"
+      ]
+    },
+    "30": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.779,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.533,
+        "active"
+      ]
+    },
+    "31": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.824,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.56,
+        "active"
+      ]
+    },
+    "32": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.835,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.58,
+        "active"
+      ]
+    },
+    "33": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.874,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.594,
+        "active"
+      ]
+    },
+    "34": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.909,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.64,
+        "active"
+      ]
+    },
+    "35": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.943,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.664,
+        "active"
+      ]
+    },
+    "36": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        0.983,
+        "active"
+      ],
+      "arc_26_s0": [
+        0.698,
+        "active"
+      ]
+    },
+    "37": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        0.746,
+        "active"
+      ]
+    },
+    "38": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        0.782,
+        "active"
+      ]
+    },
+    "39": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        0.793,
+        "active"
+      ],
+      "arc_39_s0": [
+        0.436,
+        "active"
+      ]
+    },
+    "40": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        0.816,
+        "active"
+      ],
+      "arc_39_s0": [
+        0.472,
+        "active"
+      ]
+    },
+    "41": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        0.848,
+        "active"
+      ],
+      "arc_39_s0": [
+        0.508,
+        "active"
+      ]
+    },
+    "42": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        0.871,
+        "active"
+      ],
+      "arc_39_s0": [
+        0.547,
+        "active"
+      ]
+    },
+    "43": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        0.9,
+        "active"
+      ],
+      "arc_39_s0": [
+        0.581,
+        "active"
+      ]
+    },
+    "44": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        0.942,
+        "active"
+      ],
+      "arc_39_s0": [
+        0.615,
+        "active"
+      ]
+    },
+    "45": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        0.959,
+        "active"
+      ],
+      "arc_39_s0": [
+        0.625,
+        "active"
+      ]
+    },
+    "46": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        0.992,
+        "active"
+      ],
+      "arc_39_s0": [
+        0.673,
+        "active"
+      ]
+    },
+    "47": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.717,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.484,
+        "active"
+      ]
+    },
+    "48": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.732,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.514,
+        "active"
+      ]
+    },
+    "49": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.778,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.543,
+        "active"
+      ]
+    },
+    "50": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.807,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.558,
+        "active"
+      ]
+    },
+    "51": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.829,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.582,
+        "active"
+      ]
+    },
+    "52": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.845,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.613,
+        "active"
+      ]
+    },
+    "53": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.889,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.637,
+        "active"
+      ]
+    },
+    "54": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.906,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.651,
+        "active"
+      ]
+    },
+    "55": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.943,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.7,
+        "active"
+      ]
+    },
+    "56": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.979,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.746,
+        "active"
+      ]
+    },
+    "57": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        0.995,
+        "active"
+      ],
+      "arc_47_s0": [
+        0.777,
+        "active"
+      ]
+    },
+    "58": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        0.792,
+        "active"
+      ]
+    },
+    "59": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        0.83,
+        "active"
+      ]
+    },
+    "60": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        0.872,
+        "active"
+      ],
+      "arc_60_s0": [
+        0.515,
+        "active"
+      ]
+    },
+    "61": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        0.886,
+        "active"
+      ],
+      "arc_60_s0": [
+        0.564,
+        "active"
+      ]
+    },
+    "62": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        0.905,
+        "active"
+      ],
+      "arc_60_s0": [
+        0.578,
+        "active"
+      ]
+    },
+    "63": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        0.927,
+        "active"
+      ],
+      "arc_60_s0": [
+        0.595,
+        "active"
+      ]
+    },
+    "64": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        0.939,
+        "active"
+      ],
+      "arc_60_s0": [
+        0.622,
+        "active"
+      ]
+    },
+    "65": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        0.975,
+        "active"
+      ],
+      "arc_60_s0": [
+        0.659,
+        "active"
+      ]
+    },
+    "66": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        0.99,
+        "active"
+      ],
+      "arc_60_s0": [
+        0.67,
+        "active"
+      ]
+    },
+    "67": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        0.709,
+        "active"
+      ]
+    },
+    "68": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        0.754,
+        "active"
+      ]
+    },
+    "69": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        0.784,
+        "active"
+      ]
+    },
+    "70": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        0.828,
+        "active"
+      ]
+    },
+    "71": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        0.868,
+        "active"
+      ]
+    },
+    "72": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        0.913,
+        "active"
+      ],
+      "arc_72_s0": [
+        0.542,
+        "active"
+      ]
+    },
+    "73": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        0.961,
+        "active"
+      ],
+      "arc_72_s0": [
+        0.563,
+        "active"
+      ]
+    },
+    "74": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        0.996,
+        "active"
+      ],
+      "arc_72_s0": [
+        0.605,
+        "active"
+      ]
+    },
+    "75": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.63,
+        "active"
+      ]
+    },
+    "76": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.665,
+        "active"
+      ]
+    },
+    "77": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.696,
+        "active"
+      ]
+    },
+    "78": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.728,
+        "active"
+      ]
+    },
+    "79": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.777,
+        "active"
+      ]
+    },
+    "80": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.8,
+        "active"
+      ],
+      "arc_80_s0": [
+        0.515,
+        "active"
+      ]
+    },
+    "81": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.839,
+        "active"
+      ],
+      "arc_80_s0": [
+        0.525,
+        "active"
+      ]
+    },
+    "82": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.865,
+        "active"
+      ],
+      "arc_80_s0": [
+        0.555,
+        "active"
+      ]
+    },
+    "83": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.876,
+        "active"
+      ],
+      "arc_80_s0": [
+        0.582,
+        "active"
+      ]
+    },
+    "84": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.889,
+        "active"
+      ],
+      "arc_80_s0": [
+        0.63,
+        "active"
+      ]
+    },
+    "85": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.917,
+        "active"
+      ],
+      "arc_80_s0": [
+        0.666,
+        "active"
+      ]
+    },
+    "86": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.94,
+        "active"
+      ],
+      "arc_80_s0": [
+        0.7,
+        "active"
+      ]
+    },
+    "87": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.958,
+        "active"
+      ],
+      "arc_80_s0": [
+        0.742,
+        "active"
+      ]
+    },
+    "88": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.984,
+        "active"
+      ],
+      "arc_80_s0": [
+        0.762,
+        "active"
+      ]
+    },
+    "89": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        0.997,
+        "active"
+      ],
+      "arc_80_s0": [
+        0.787,
+        "active"
+      ]
+    },
+    "90": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        0.832,
+        "active"
+      ]
+    },
+    "91": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        0.872,
+        "active"
+      ],
+      "arc_91_s0": [
+        0.556,
+        "active"
+      ]
+    },
+    "92": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        0.897,
+        "active"
+      ],
+      "arc_91_s0": [
+        0.593,
+        "active"
+      ]
+    },
+    "93": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        0.925,
+        "active"
+      ],
+      "arc_91_s0": [
+        0.637,
+        "active"
+      ]
+    },
+    "94": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        0.973,
+        "active"
+      ],
+      "arc_91_s0": [
+        0.658,
+        "active"
+      ]
+    },
+    "95": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.67,
+        "active"
+      ]
+    },
+    "96": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.681,
+        "active"
+      ]
+    },
+    "97": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.694,
+        "active"
+      ]
+    },
+    "98": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.742,
+        "active"
+      ]
+    },
+    "99": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.791,
+        "active"
+      ]
+    },
+    "100": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.837,
+        "active"
+      ]
+    },
+    "101": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.865,
+        "active"
+      ],
+      "arc_101_s0": [
+        0.5,
+        "active"
+      ]
+    },
+    "102": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.904,
+        "active"
+      ],
+      "arc_101_s0": [
+        0.544,
+        "active"
+      ]
+    },
+    "103": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.935,
+        "active"
+      ],
+      "arc_101_s0": [
+        0.579,
+        "active"
+      ]
+    },
+    "104": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.96,
+        "active"
+      ],
+      "arc_101_s0": [
+        0.619,
+        "active"
+      ]
+    },
+    "105": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.97,
+        "active"
+      ],
+      "arc_101_s0": [
+        0.635,
+        "active"
+      ]
+    },
+    "106": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        0.983,
+        "active"
+      ],
+      "arc_101_s0": [
+        0.675,
+        "active"
+      ]
+    },
+    "107": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        0.722,
+        "active"
+      ],
+      "arc_107_s0": [
+        0.471,
+        "active"
+      ]
+    },
+    "108": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        0.75,
+        "active"
+      ],
+      "arc_107_s0": [
+        0.503,
+        "active"
+      ]
+    },
+    "109": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        0.766,
+        "active"
+      ],
+      "arc_107_s0": [
+        0.548,
+        "active"
+      ]
+    },
+    "110": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        0.796,
+        "active"
+      ],
+      "arc_107_s0": [
+        0.589,
+        "active"
+      ]
+    },
+    "111": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        0.824,
+        "active"
+      ],
+      "arc_107_s0": [
+        0.636,
+        "active"
+      ]
+    },
+    "112": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        0.857,
+        "active"
+      ],
+      "arc_107_s0": [
+        0.675,
+        "active"
+      ]
+    },
+    "113": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        0.885,
+        "active"
+      ],
+      "arc_107_s0": [
+        0.712,
+        "active"
+      ]
+    },
+    "114": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        0.925,
+        "active"
+      ],
+      "arc_107_s0": [
+        0.751,
+        "active"
+      ]
+    },
+    "115": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        0.949,
+        "active"
+      ],
+      "arc_107_s0": [
+        0.775,
+        "active"
+      ]
+    },
+    "116": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        0.96,
+        "active"
+      ],
+      "arc_107_s0": [
+        0.785,
+        "active"
+      ]
+    },
+    "117": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_107_s0": [
+        0.833,
+        "active"
+      ],
+      "arc_117_s0": [
+        0.498,
+        "active"
+      ]
+    },
+    "118": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_107_s0": [
+        0.86,
+        "active"
+      ],
+      "arc_117_s0": [
+        0.53,
+        "active"
+      ]
+    },
+    "119": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_18_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_26_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_39_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_47_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_60_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_72_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_80_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_91_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_101_s0": [
+        1.0,
+        "completed"
+      ],
+      "arc_107_s0": [
+        0.903,
+        "active"
+      ],
+      "arc_117_s0": [
+        0.566,
+        "active"
+      ]
+    }
+  },
+  "sleeper_delays": [
+    4.897066671070589,
+    4.980303993361093,
+    5.197066671070589,
+    5.903664028501971,
+    5.6228560882957215,
+    5.7970666710705885,
+    5.80602964144466,
+    4.722856088295722,
+    4.722856088295722,
+    4.897066671070589,
+    5.022856088295722,
+    5.197066671070589,
+    5.80765557160235,
+    4.680303993361093,
+    4.897066671070589,
+    5.112873450839415,
+    3.9677852397330744,
+    4.018489572913082,
+    4.046180001981765,
+    3.6677852397330746,
+    3.7461800019817644,
+    4.425511633782158,
+    5.167785239733075,
+    5.23777852520208,
+    5.246180001981765,
+    5.839074548005874,
+    3.6486367970124918,
+    5.531995005480246,
+    3.5682718452944107,
+    3.6231052754164548,
+    2.733927471041379,
+    3.26320210167369,
+    4.142065243464682,
+    3.4070262013034287,
+    4.060523000039158,
+    4.056526633293181,
+    3.3398963663648322,
+    4.735538847840999,
+    4.155368367248495,
+    3.641987822806665,
+    3.9598829028370996,
+    4.59815674262481,
+    4.740836072455308,
+    3.355726663511353,
+    4.108034189011757,
+    4.076290065525519,
+    5.155660799701337,
+    6.0668062596354915,
+    3.5345773206078013,
+    4.6014186705421185,
+    4.6014186705421185,
+    4.6014186705421185,
+    4.6014186705421185,
+    4.6014186705421185,
+    5.801418670542119,
+    5.801418670542119,
+    4.6014186705421185,
+    5.748949855567983,
+    4.897066671070589,
+    5.4970666710705895,
+    6.606074954598693,
+    4.897066671070589,
+    5.7970666710705885,
+    4.897066671070589,
+    5.016115616082212,
+    3.7461800019817644,
+    3.7461800019817644,
+    4.277787532304728,
+    4.3461800019817645,
+    4.550890195754587,
+    3.7461800019817644,
+    3.7461800019817644,
+    3.7461800019817644,
+    4.946180001981764,
+    3.7461800019817644,
+    3.7461800019817644,
+    3.7461800019817644,
+    3.7461800019817644,
+    3.6735333355352946,
+    3.6735333355352946,
+    3.973533335535295,
+    3.3735333355352948,
+    3.3735333355352948,
+    3.3735333355352948,
+    4.0508866690888246,
+    4.0508866690888246,
+    4.0508866690888246,
+    5.5508866690888246,
+    4.0508866690888246,
+    3.3815910769045177,
+    4.0508866690888246,
+    4.0508866690888246,
+    4.305232980283991,
+    4.0508866690888246,
+    4.326280894934302,
+    5.201418670542118,
+    4.6014186705421185,
+    5.201418670542118,
+    5.201418670542118,
+    5.801418670542119,
+    4.6014186705421185,
+    5.264167035035415,
+    4.897066671070589,
+    6.397066671070589,
+    6.510899212698196,
+    5.4970666710705895,
+    6.199479411257599,
+    4.897066671070589,
+    4.897066671070589,
+    3.7461800019817644,
+    3.7461800019817644,
+    3.7461800019817644,
+    3.7461800019817644,
+    4.046180001981765,
+    4.229216695318867,
+    3.7461800019817644,
+    4.646180001981764,
+    4.646180001981764,
+    3.7461800019817644,
+    3.7461800019817644,
+    3.6735333355352946,
+    4.236970379386782,
+    3.3735333355352948,
+    3.3735333355352948,
+    3.3735333355352948,
+    3.479883402785736,
+    3.973533335535295,
+    4.0508866690888246,
+    4.359325585874794,
+    3.588698006095007,
+    4.0508866690888246,
+    4.0508866690888246,
+    4.33217325628619,
+    4.0508866690888246,
+    4.0508866690888246,
+    4.472197827027162,
+    4.0508866690888246,
+    4.6014186705421185,
+    5.679944599801767,
+    5.201418670542118,
+    6.3660622088071435,
+    4.6014186705421185,
+    5.201418670542118,
+    6.040913148031279,
+    5.801418670542119,
+    4.897066671070589,
+    4.897066671070589,
+    4.897066671070589,
+    5.066257380561076,
+    5.940954518603658,
+    5.4970666710705895,
+    4.897066671070589,
+    4.897066671070589,
+    3.7461800019817644,
+    3.7461800019817644,
+    3.7461800019817644,
+    4.646180001981764,
+    5.001401118744207,
+    4.046180001981765,
+    4.073213641834184,
+    3.7461800019817644,
+    3.7461800019817644,
+    3.7461800019817644,
+    4.280743290335203,
+    4.946180001981764,
+    4.946180001981764,
+    3.7461800019817644,
+    3.7461800019817644,
+    4.273533335535294,
+    4.710516848652787,
+    3.3735333355352948,
+    3.3735333355352948,
+    3.4655784894244177,
+    3.3735333355352948,
+    4.0508866690888246,
+    4.0508866690888246,
+    5.5508866690888246,
+    4.350886669088824,
+    4.0508866690888246,
+    4.171050207607207,
+    5.250886669088825,
+    5.250886669088825,
+    4.0508866690888246,
+    4.0508866690888246,
+    4.950886669088824,
+    4.6014186705421185,
+    4.901418670542118,
+    4.901418670542118,
+    6.1014186705421185,
+    4.901418670542118,
+    4.6014186705421185,
+    4.897066671070589,
+    5.939545126563537,
+    4.427147962160957,
+    4.897066671070589,
+    5.197066671070589,
+    5.197066671070589,
+    4.897066671070589,
+    3.7461800019817644,
+    3.7461800019817644,
+    3.7461800019817644
+  ],
+  "i4_violations": [],
+  "restart_loss": [
+    {
+      "checkpoint_h": 600.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 1200.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 1800.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 2400.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 2760.0,
+      "diffs": 0
+    }
+  ],
+  "end_sweep": [],
+  "skipped_feeds": [
+    [
+      258.6,
+      "My sister is arriving in Guadalajara on Friday."
+    ],
+    [
+      258.7,
+      "I'm so tired of everything lately."
+    ],
+    [
+      259.0,
+      "Hey you. Tell me something about your day."
+    ],
+    [
+      282.6,
+      "My bike is back from repair."
+    ],
+    [
+      282.7,
+      "Honestly today was awful."
+    ],
+    [
+      283.0,
+      "Hey! I had a long day, what about you?"
+    ],
+    [
+      306.6,
+      "My job is starting on Monday."
+    ],
+    [
+      306.7,
+      "I don't feel like talking much."
+    ],
+    [
+      307.0,
+      "Hey! How was your day?"
+    ],
+    [
+      330.7,
+      "That really annoyed me."
+    ],
+    [
+      331.0,
+      "Hey! How was your day?"
+    ],
+    [
+      355.0,
+      "I was thinking about you earlier — what are you up to?"
+    ],
+    [
+      378.5,
+      "My hometown is Oaxaca."
+    ],
+    [
+      379.0,
+      "I was thinking about you earlier — what are you up to?"
+    ],
+    [
+      403.0,
+      "Hey! How was your day?"
+    ],
+    [
+      426.5,
+      "I have a brother named Diego."
+    ],
+    [
+      427.0,
+      "Hi! Anything new today?"
+    ],
+    [
+      451.0,
+      "Hello! How are you feeling today?"
+    ],
+    [
+      474.5,
+      "My book is The Name of the Wind."
+    ],
+    [
+      475.0,
+      "I was thinking about you earlier — what are you up to?"
+    ],
+    [
+      499.0,
+      "Hi! Anything new today?"
+    ],
+    [
+      522.5,
+      "My car is a red Civic."
+    ],
+    [
+      523.0,
+      "Hey! I had a long day, what about you?"
+    ],
+    [
+      547.0,
+      "Hi! Anything new today?"
+    ],
+    [
+      570.5,
+      "My food is ramen."
+    ],
+    [
+      571.0,
+      "Hi! Anything new today?"
+    ],
+    [
+      595.0,
+      "I was thinking about you earlier — what are you up to?"
+    ]
+  ],
+  "model": "fake",
+  "memory_policy": "structured_memory"
+}
