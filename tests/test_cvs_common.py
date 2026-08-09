@@ -75,6 +75,39 @@ def test_duplicate_turns_key_disambiguates_real_run_collisions(tmp_path):
     assert len(dupes) == 2
 
 
+def test_judge_report_aggregates_both_passes_and_agreement(tmp_path):
+    """Review 2026-08-09: by_family keyed passes by the FAMILY (split[2])
+    so pass 2 clobbered pass 1 (n=5 not 10) and agreement looked up a
+    nonexistent '1' key (None forever)."""
+    from experiments.companion_vertical_slice import _judge_report
+
+    out = tmp_path / "j"
+    out.mkdir()
+    dims = ["persona_enactment", "trajectory_recall", "relational_quality",
+            "behavioral_dynamics"]
+    # 2 families x 2 passes, 3 transcripts; family B = family A + 1 exactly.
+    for fam, shift in (("flash", 0.0), ("luna", 1.0)):
+        for p in (1, 2):
+            data = {}
+            for i, tid in enumerate(["T01", "T02", "T03"]):
+                data[tid] = {"condition": "FULL", "seed": 5001 + i,
+                             "ratings": {d: float(5 + i + shift + p * 0.1)
+                                         for d in dims}}
+            (out / f"judge_pass{p}_{fam}.json").write_text(
+                json.dumps(data), encoding="utf-8")
+    rep = _judge_report(out)
+    # both passes counted per family -> n = 6 per family per dimension
+    assert rep["per_family_per_dimension"]["flash"]["persona_enactment"]["n"] == 6
+    assert rep["per_family_per_dimension"]["luna"]["persona_enactment"]["n"] == 6
+    # pass-2-only mean would be 6.2; both-passes mean is (5.1+6.1+7.1+5.2+6.2+7.2)/6
+    m = rep["per_family_per_dimension"]["flash"]["persona_enactment"]["mean"]
+    assert abs(m - 37.0 / 6.0) < 1e-9
+    # agreement is a real correlation (perfect, +1 shift), not None
+    r = rep["inter_family_agreement"]["persona_enactment"]
+    assert r is not None and abs(r - 1.0) < 1e-9
+    assert rep["n_families"] == 2
+
+
 def test_parse_transcript_stem_both_namings():
     """Gate 6: cmd_matrix writes COND_seed<S>; the judge parser must accept
     both that and the bare COND_<S> form (burned 2 judge runs 2026-08-09)."""

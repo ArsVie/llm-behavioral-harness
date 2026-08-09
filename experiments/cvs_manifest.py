@@ -100,11 +100,11 @@ JUDGE_FAMILIES = (
         "role": "primary",
     },
     {
-        "id": "openai-mini",
-        "family": "openai-gpt",
-        "model": "gpt-4o-mini",
-        "base_url": "https://api.openai.com/v1/",
-        "env_key": "OPENAI_API_KEY",
+        "id": "opencode-luna",
+        "family": "opencode-gpt",
+        "model": "gpt-5.6-luna",
+        "base_url": "https://opencode.ai/zen/go/v1/",
+        "env_key": "OPENCODE_GO_API_KEY",
         "role": "secondary",
     },
 )

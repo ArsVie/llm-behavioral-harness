@@ -779,11 +779,13 @@ def _judge_report(out_dir: Path) -> dict:
     inter-familia (§17.4) y por pasada."""
     dims = _dimension_ids()
     pass_files = sorted(out_dir.glob("judge_pass*_*.json"))
-    by_family: dict[str, dict] = {}
+    by_family: dict[str, dict[str, dict]] = {}
     for pf in pass_files:
         family = pf.stem.split("_")[-1]
+        # stem: judge_pass<id>_<family> -> pass id en [1]
+        pass_key = pf.stem.split("_")[1].removeprefix("pass")
         data = json.loads(pf.read_text(encoding="utf-8"))
-        by_family.setdefault(family, {})[pf.stem.split("_")[2]] = data
+        by_family.setdefault(family, {})[pass_key] = data
 
     per_dim_family: dict[str, dict[str, dict]] = {}
     for family, passes in by_family.items():
@@ -803,14 +805,18 @@ def _judge_report(out_dir: Path) -> dict:
     families = list(by_family)
     if len(families) >= 2:
         f0, f1 = families[0], families[1]
+        # primera pasada que AMBAS familias tienen (nunca hardcodear "1").
+        common = sorted(set(by_family[f0]) & set(by_family[f1]))
+        pk = common[0] if common else None
         for dim in dims:
             x, y = [], []
-            for tid in sorted(by_family[f0].get("1", {})):
-                v0 = by_family[f0]["1"][tid]["ratings"].get(dim)
-                v1 = by_family[f1]["1"][tid]["ratings"].get(dim)
-                if v0 is not None and v1 is not None:
-                    x.append(v0)
-                    y.append(v1)
+            if pk is not None:
+                for tid in sorted(by_family[f0][pk]):
+                    v0 = by_family[f0][pk][tid]["ratings"].get(dim)
+                    v1 = by_family[f1][pk][tid]["ratings"].get(dim)
+                    if v0 is not None and v1 is not None:
+                        x.append(v0)
+                        y.append(v1)
             if len(x) > 2:
                 a = np.asarray(x, dtype=float)
                 b = np.asarray(y, dtype=float)

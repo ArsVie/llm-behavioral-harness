@@ -1076,11 +1076,20 @@ def _cycle_leak_hits(store: SQLiteStore) -> dict:
             hits[hit.lower()] = hits.get(hit.lower(), 0) + 1
         g_bare += len(G_BARE_RE.findall(text))
     try:
-        rows = store.conn.execute("SELECT system, reply FROM llm_calls").fetchall()
+        rows = store.conn.execute(
+            "SELECT role, model, response, meta, repro_json FROM llm_calls"
+        ).fetchall()
     except Exception:  # noqa: BLE001
-        rows = []
+        # Auditoría en silencio = invariante muerto (revisión 2026-08-09):
+        # el esquema real de llm_calls NO tiene system/reply — el scan del
+        # lado prompt nunca se ejecutó; ahora el fallo es ruidoso.
+        raise RuntimeError(
+            "leak scan: llm_calls schema changed — audit cannot run silently"
+        ) from None
     for row in rows:
-        blob = str(row["system"]) + " " + str(row["reply"])
+        blob = " ".join(
+            str(v) for v in row if v is not None
+        )
         for hit in LEAK_RE.findall(blob):
             hits[hit.lower()] = hits.get(hit.lower(), 0) + 1
         g_bare += len(G_BARE_RE.findall(blob))
