@@ -173,7 +173,7 @@ class ExactIntentSession(Session):
             raise ValueError(f"unknown proactive intent: {intent_id!r}")
         self._firing_id = intent_id
         try:
-            result = self._chat(None, proactive=True, reason=intent.reason)
+            result = self._chat(None, proactive=True, intent=intent)
         finally:
             self._firing_id = None
         # A5's session passes intent_id to add_message; the legacy _chat does
