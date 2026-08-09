@@ -504,3 +504,251 @@ class TestMultipleViolations:
         errors = check(persona, timing)
         # Esperamos al menos 3 errores
         assert len(errors) >= 3
+
+
+# --------------------------------------------------------------------------- #
+# Invariantes duras del validador (Iteración 3, B8) — experiments/validation/
+# hard_invariants.py. Una célula que falla debe fallar FUERTE y con el conteo
+# en el mensaje (cierra F1: la auditoría mecánica no tenía dientes).
+# --------------------------------------------------------------------------- #
+
+from harness.store import SQLiteStore  # noqa: E402
+
+from experiments.validation.hard_invariants import (  # noqa: E402
+    BLANK_RATE_CEILING,
+    SHORT_FINAL_MAX_CHARS,
+    assert_cell_valid,
+    blank_rate,
+    check_hard_invariants,
+    conversation_coherence,
+    empty_assistant_turns,
+    failure_messages,
+    truncated_reply_hits,
+)
+
+
+def _store(tmp_path, name: str = "cell.db") -> SQLiteStore:
+    return SQLiteStore(str(tmp_path / name))
+
+
+def _seed_conversation_tables(store: SQLiteStore) -> None:
+    """Crea el seam de conversaciones de B2 (tablas conversations +
+    conversation_turns) para ejercitar la invariante de coherencia."""
+    store.conn.execute(
+        "CREATE TABLE conversations ("
+        " id TEXT PRIMARY KEY, opened_t_h REAL, closed_t_h REAL,"
+        " opened_by TEXT, close_reason TEXT)"
+    )
+    store.conn.execute(
+        "CREATE TABLE conversation_turns ("
+        " id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id TEXT,"
+        " speaker TEXT, text TEXT, t_h REAL, turn_index INTEGER)"
+    )
+    store.conn.commit()
+
+
+def _add_turn(store: SQLiteStore, conv: str, speaker: str, text: str,
+              t_h: float, idx: int) -> None:
+    store.conn.execute(
+        "INSERT INTO conversation_turns "
+        "(conversation_id, speaker, text, t_h, turn_index) VALUES (?,?,?,?,?)",
+        (conv, speaker, text, t_h, idx),
+    )
+    store.conn.commit()
+
+
+class TestHardInvariants:
+    """Dientes del validador (it3 B8): cero duro de vacíos, techo de tasa de
+    blancos, detección de truncamiento y coherencia de conversación.
+
+    Techo de tasa de blancos DECLARADO (revisión B10): BLANK_RATE_CEILING
+    = 0.01 (< 1% a nivel de run, plan §11 DoD item 1). El corpus it2 corrió
+    18–40% de blancos; este techo lo hace imposible.
+    """
+
+    def test_40pct_blank_cell_fails_loudly_with_count(self, tmp_path):
+        """Aceptación B8 #1: una célula con 40% de blancos FALLA FUERTE y el
+        mensaje de fallo lleva el conteo."""
+        store = _store(tmp_path)
+        # 5 turnos assistant, 2 en blanco -> 40% de tasa de blancos.
+        for i in range(3):
+            store.add_message("user", f"u{i}", float(i), 0)
+            store.add_message("assistant", f"reply {i}", float(i) + 0.1, 0)
+        store.add_message("user", "u3", 3.0, 0)
+        store.add_message("assistant", "   ", 3.1, 0)
+        store.add_message("user", "u4", 4.0, 0)
+        store.add_message("assistant", "", 4.1, 0)
+        result = check_hard_invariants(store)
+        assert result["empty_assistant_turns"]["count"] == 2
+        assert not result["empty_assistant_turns"]["ok"]
+        assert result["blank_rate"]["rate"] == 0.4
+        assert not result["blank_rate"]["ok"]
+        msgs = failure_messages(result)
+        assert any("empty_assistant_turns = 2" in m for m in msgs)
+        assert any("blank_rate = 0.4000" in m for m in msgs)
+        with pytest.raises(AssertionError) as exc:
+            assert_cell_valid(store)
+        assert "empty_assistant_turns = 2" in str(exc.value)
+
+    def test_empty_assistant_turns_hard_zero(self, tmp_path):
+        """Cero duro: cualquier turno assistant vacío o de espacios es fallo,
+        con el conteo en el mensaje."""
+        store = _store(tmp_path)
+        store.add_message("user", "hi", 0.0, 0)
+        store.add_message("assistant", "hello", 0.1, 0)
+        assert check_hard_invariants(store)["empty_assistant_turns"]["ok"]
+        store.add_message("assistant", " \t ", 0.2, 0)
+        result = check_hard_invariants(store)
+        assert result["empty_assistant_turns"] == {"count": 1, "ok": False}
+        assert any(
+            "empty_assistant_turns = 1" in m for m in failure_messages(result)
+        )
+
+    def test_blank_rate_ceiling_declared_below_one_percent(self):
+        """Techo preregistrado: < 1% (plan §11; B10 lo revisa)."""
+        assert BLANK_RATE_CEILING == 0.01
+
+    def test_blank_rate_below_ceiling_passes(self, tmp_path):
+        """Tasa de blancos por debajo del techo pasa."""
+        store = _store(tmp_path)
+        for i in range(10):
+            store.add_message("user", f"u{i}", float(i), 0)
+            store.add_message("assistant", f"r{i}", float(i) + 0.1, 0)
+        assert blank_rate(store) == 0.0
+        assert check_hard_invariants(store)["blank_rate"]["ok"]
+
+    def test_blank_rate_zero_when_no_assistant_turns(self, tmp_path):
+        """Sin turnos assistant la tasa es 0.0 (sin división por cero)."""
+        store = _store(tmp_path)
+        store.add_message("user", "hi", 0.0, 0)
+        assert blank_rate(store) == 0.0
+        assert check_hard_invariants(store)["blank_rate"]["ok"]
+
+    def test_truncation_finish_reason_from_meta(self, tmp_path):
+        """finish_reason=length en llm_calls.meta (JSON) es un truncamiento."""
+        store = _store(tmp_path)
+        for i in range(6):
+            store.add_message("user", f"u{i}", float(i), 0)
+            store.add_message("assistant", f"reply {i}", float(i) + 0.1, 0)
+        store.conn.execute(
+            "INSERT INTO llm_calls (day, t_h, role, model, prompt_hash, "
+            "response, meta) VALUES (0, 0.1, 'chat', 'fake', 'h', 'r', ?)",
+            ('{"finish_reason": "length"}',),
+        )
+        store.conn.commit()
+        hits = truncated_reply_hits(store)
+        assert any(h["kind"] == "finish_reason" for h in hits)
+        assert not check_hard_invariants(store)["truncated_replies"]["ok"]
+
+    def test_truncation_short_final_reply_heuristic(self, tmp_path):
+        """Heurística declarada: la última réplica assistant del run con
+        <= SHORT_FINAL_MAX_CHARS caracteres no-blancos (corpus it2: termina
+        en 'Nova: Hey') es un truncamiento sospechoso."""
+        assert SHORT_FINAL_MAX_CHARS == 4
+        store = _store(tmp_path)
+        for i in range(6):
+            store.add_message("user", f"u{i}", float(i), 0)
+            store.add_message("assistant", f"reply {i}", float(i) + 0.1, 0)
+        store.add_message("user", "u6", 6.0, 0)
+        store.add_message("assistant", "Hey", 6.1, 0)
+        hits = truncated_reply_hits(store)
+        assert any(h["kind"] == "short_final" for h in hits)
+        result = check_hard_invariants(store)
+        assert result["truncated_replies"]["count"] == 1
+        assert any("truncated_replies = 1" in m for m in failure_messages(result))
+
+    def test_truncation_clean_run_no_hits(self, tmp_path):
+        """Una célula limpia (réplicas del pool, sin finish_reason) no dispara."""
+        store = _store(tmp_path)
+        for i in range(6):
+            store.add_message("user", f"u{i}", float(i), 0)
+            store.add_message(
+                "assistant", "That sounds lovely — tell me more.", float(i) + 0.1, 0
+            )
+        assert truncated_reply_hits(store) == []
+        assert check_hard_invariants(store)["truncated_replies"]["ok"]
+
+    def test_truncation_short_final_needs_min_turns(self, tmp_path):
+        """Células miniatura (pocos turnos) no disparan la heurística."""
+        store = _store(tmp_path)
+        store.add_message("user", "u0", 0.0, 0)
+        store.add_message("assistant", "Hi", 0.1, 0)
+        assert truncated_reply_hits(store) == []
+
+    def test_conversation_coherence_degrades_when_table_absent(self, tmp_path):
+        """B2 no ha aterrizado: sin tabla conversations la invariante degrada
+        con gracia (available=False) y NO falla la célula (se reporta)."""
+        store = _store(tmp_path)
+        store.add_message("user", "u0", 0.0, 0)
+        store.add_message("assistant", "r0", 0.1, 0)
+        violations, available = conversation_coherence(store)
+        assert violations == []
+        assert available is False
+        result = check_hard_invariants(store)
+        assert result["conversation_coherence"]["available"] is False
+        assert result["conversation_coherence"]["ok"] is True
+
+    def test_conversation_coherence_zero_companion_turns(self, tmp_path):
+        """Una conversación sin NINGÚN turno del compañero es una violación
+        con el id de la conversación en el mensaje."""
+        store = _store(tmp_path)
+        _seed_conversation_tables(store)
+        store.conn.execute(
+            "INSERT INTO conversations (id, opened_t_h, opened_by) "
+            "VALUES ('c1', 0.0, 'user'), ('c2', 1.0, 'user')"
+        )
+        _add_turn(store, "c1", "user", "hello", 0.0, 0)
+        _add_turn(store, "c1", "companion", "hi!", 0.1, 1)
+        _add_turn(store, "c2", "user", "anyone there?", 1.0, 0)
+        store.conn.commit()
+        violations, available = conversation_coherence(store)
+        assert available is True
+        assert any("c2" in v and "0 companion turns" in v for v in violations)
+        result = check_hard_invariants(store)
+        assert not result["conversation_coherence"]["ok"]
+        assert any(
+            "conversations_with_zero_companion_turns = 1" in m
+            for m in failure_messages(result)
+        )
+
+    def test_conversation_coherence_messages_column_fallback(self, tmp_path):
+        """Respaldo documentado: columna messages.conversation_id."""
+        store = _store(tmp_path)
+        store.conn.execute(
+            "CREATE TABLE conversations ("
+            " id TEXT PRIMARY KEY, opened_t_h REAL, closed_t_h REAL,"
+            " opened_by TEXT, close_reason TEXT)"
+        )
+        store.conn.execute(
+            "ALTER TABLE messages ADD COLUMN conversation_id TEXT"
+        )
+        store.conn.commit()
+        store.conn.execute(
+            "INSERT INTO conversations (id, opened_t_h, opened_by) "
+            "VALUES ('c1', 0.0, 'user')"
+        )
+        store.add_message("user", "hello", 0.0, 0)
+        store.conn.execute(
+            "UPDATE messages SET conversation_id='c1' WHERE role='user'"
+        )
+        store.conn.commit()
+        violations, available = conversation_coherence(store)
+        assert available is True
+        assert any("c1" in v for v in violations)
+
+    def test_check_hard_invariants_shape(self, tmp_path):
+        """Forma del resumen: las cuatro invariantes con conteos."""
+        store = _store(tmp_path)
+        store.add_message("user", "u0", 0.0, 0)
+        store.add_message("assistant", "r0", 0.1, 0)
+        result = check_hard_invariants(store)
+        assert set(result) == {
+            "empty_assistant_turns", "blank_rate",
+            "truncated_replies", "conversation_coherence",
+        }
+        assert result["empty_assistant_turns"]["count"] == 0
+        assert result["blank_rate"]["rate"] == 0.0
+        assert result["blank_rate"]["ceiling"] == BLANK_RATE_CEILING
+        assert result["truncated_replies"]["count"] == 0
+        assert result["truncated_replies"]["hits"] == []
+        assert failure_messages(result) == []

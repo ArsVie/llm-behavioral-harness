@@ -909,6 +909,117 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
             client.close()
 
 
+def _memory_lane_for(records: dict) -> str:
+    """Lane de memoria efectiva de la condición (espejo de ``_memory_for``).
+
+    Identidad de mecanismo para las claims del canal memory_store (B8/B6):
+    RAW_HISTORY usa diálogo crudo, SIMPLE_RAG recuperación léxica top-k;
+    el resto usa el MemoryAgent con la policy indicada en ``records``.
+    """
+    condition = records.get("condition")
+    if condition == "RAW_HISTORY":
+        return "raw_history"
+    if condition == "SIMPLE_RAG":
+        return "simple_rag"
+    return str(records.get("memory_policy") or "structured_memory")
+
+
+def _fired_schedule_count(store: SQLiteStore, seed: int) -> int:
+    """Eventos de agenda disparados (realización del hazard de contacto)."""
+    row = store.conn.execute(
+        "SELECT COUNT(*) AS n FROM schedule_events "
+        "WHERE seed = ? AND status = 'fired'",
+        (seed,),
+    ).fetchone()
+    return int(row["n"])
+
+
+def _conversation_summary(store: SQLiteStore) -> dict:
+    """Resumen de conversaciones (seam B2) — degradación con gracia.
+
+    Sin la tabla ``conversations`` de B2: ``n_conversations`` y
+    ``mean_turns_per_conversation`` son None y ``conversations_available``
+    es False (se reporta en el pre-flight, no se calla). Con el seam
+    presente: cuenta conversaciones y turnos (tabla ``conversation_turns``,
+    o columna ``messages.conversation_id`` como respaldo).
+    """
+    if store.conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversations'"
+    ).fetchone() is None:
+        return {
+            "n_conversations": None,
+            "mean_turns_per_conversation": None,
+            "conversations_available": False,
+        }
+    n_conv = int(store.conn.execute(
+        "SELECT COUNT(*) FROM conversations").fetchone()[0])
+    n_turns: int | None = None
+    if store.conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' "
+        "AND name='conversation_turns'"
+    ).fetchone() is not None:
+        n_turns = int(store.conn.execute(
+            "SELECT COUNT(*) FROM conversation_turns").fetchone()[0])
+    else:
+        cols = {r[1] for r in store.conn.execute("PRAGMA table_info(messages)")}
+        if "conversation_id" in cols:
+            n_turns = int(store.conn.execute(
+                "SELECT COUNT(*) FROM messages "
+                "WHERE conversation_id IS NOT NULL").fetchone()[0])
+    mean = (round(n_turns / n_conv, 2) if n_turns is not None and n_conv else None)
+    return {
+        "n_conversations": n_conv,
+        "mean_turns_per_conversation": mean,
+        "conversations_available": True,
+    }
+
+
+def records_summary(store: SQLiteStore, records: dict) -> dict:
+    """Resumen por condición para las AblationClaim del pre-flight (it3 B8).
+
+    Contrato AblationClaim (harness/domain.py): ``n_proactive``,
+    ``n_reactive``, ``n_assistant_turns``, ``n_blank_assistant_turns``,
+    ``n_conversations`` y ``mean_turns_per_conversation`` — más las claves
+    de canal que las claims usan (arcos/agenda/episodios, lane de memoria,
+    disparos de agenda, longitud de réplica). ``n_conversations`` /
+    ``mean_turns_per_conversation`` son None mientras el seam de B2 no
+    exista (degradación documentada, no silenciosa:
+    ``conversations_available=False``).
+    """
+    msgs = _all_messages(store)
+    assistant = [m for m in msgs if m["role"] == "assistant"]
+    lengths = [len(str(m["content"])) for m in assistant]
+    n_proactive = sum(1 for m in msgs if m["proactive"])
+    n_assistant = len(assistant)
+    mean_len = (sum(lengths) / n_assistant) if n_assistant else 0.0
+    if n_assistant > 1:
+        var = sum((x - mean_len) ** 2 for x in lengths) / (n_assistant - 1)
+        std_len = math.sqrt(var)
+    else:
+        std_len = 0.0
+    summary = {
+        "condition": records["condition"],
+        "seed": records["seed"],
+        "days": records["days"],
+        "n_messages": len(msgs),
+        "n_proactive": n_proactive,
+        "n_reactive": max(0, n_assistant - n_proactive),
+        "n_assistant_turns": n_assistant,
+        "n_blank_assistant_turns": sum(
+            1 for m in assistant if not str(m["content"] or "").strip()
+        ),
+        "mean_reply_len": round(mean_len, 2),
+        "std_reply_len": round(std_len, 2),
+        "n_life_arcs": len(store.list_life_arcs()),
+        "n_agenda_items": len(store.list_agenda_items()),
+        "n_episodes": len(store.list_episodes(limit=5000)),
+        "memory_lane": _memory_lane_for(records),
+        "n_fired_schedule": _fired_schedule_count(store, int(records["seed"])),
+    }
+    summary.update(_conversation_summary(store))
+    return summary
+
+
 def _enrich_repro_rows(store: SQLiteStore, client, seed: int, condition: str,
                        memory_policy) -> None:
     """Rellena el payload repro (M3) de las filas llm_calls del store.
