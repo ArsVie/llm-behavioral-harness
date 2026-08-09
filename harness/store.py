@@ -6,21 +6,34 @@ current truth (daily_state, messages, judgements); `state_events` and
 `llm_calls` are the audit/replay log (model, prompt hash, seed, clock time,
 state version recorded per call).
 
-Schema versioning (A2)
-----------------------
+Schema versioning (A2 + A7)
+---------------------------
 The pre-slice schema is version 1 and is frozen verbatim in ``_SCHEMA``; it is
 executed with ``CREATE TABLE IF NOT EXISTS`` on every open (legacy behavior,
 idempotent). ``schema_meta(version)`` creates the ``schema_meta`` bookkeeping
 table; the migration framework (``_migrate``) reads the recorded version and
-applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 2).
+applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 3).
 Migrations never drop or alter existing columns; all ``ALTER TABLE`` steps are
 guarded by ``PRAGMA table_info``. On a fresh database the effective version is
-1 (only the v1 base tables exist), so the v1->v2 migration runs and the
-version row is written once. Reopening a migrated database sees version 2 and
-skips the migration (idempotent; safe to run twice).
+1 (only the v1 base tables exist), so the migration chain runs and the
+bookkeeping collapses to a single row at the current version. Reopening a
+migrated database sees the current version and skips the migration
+(idempotent; safe to run twice).
 
 Migration v1 -> v2 adds: ``session_id`` on ``messages`` (A5 needs L1 session
 scoping) and the vertical-slice tables below.
+
+Migration v2 -> v3 (A7) adds:
+  - ``messages.intent_id`` (NULLABLE TEXT) — proactive provenance: the exact
+    validated intent id that produced an outgoing message (invariant 6);
+    reactive messages keep it NULL.
+  - ``user_model_assertions.category`` — the canonical L4 taxonomy
+    (``UserModelCategory`` value) stored DIRECTLY on every assertion row.
+    Legacy rows are backfilled once from the documented key-prefix
+    conventions; loads never re-infer categories from keys.
+  - ``llm_calls.repro_json`` — call-reproducibility audit payload (JSON) for
+    eval mode: exact request/response fields needed to reproduce a call.
+    Production privacy default: not logged (configurable via ``audit_mode``).
 
 Tables (slice scope of the plan's data model):
   - daily_state(day PK, M, m_level, g, p, arg, mu, eta, cycle_day, phase_label,
@@ -98,9 +111,10 @@ from harness.domain import (
     SessionSummary,
     UserModel,
     UserModelAssertion,
+    UserModelCategory,
 )
 
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 
 # --------------------------------------------------------------------------- #
 # v1 base schema — FROZEN verbatim from the pre-slice store (do not edit).
@@ -316,7 +330,6 @@ FROM messages
 WHERE session_id IS NOT NULL;
 """
 
-
 def _current_version(conn: sqlite3.Connection) -> int:
     """Highest recorded schema version; 1 when the meta table is absent or
     empty (the legacy base schema)."""
@@ -346,18 +359,103 @@ def _migrate_v2(conn: sqlite3.Connection) -> None:
     conn.executescript(_V2_VIEWS)
 
 
+# --------------------------------------------------------------------------- #
+# Migration v2 -> v3 (A7, additive only)
+# --------------------------------------------------------------------------- #
+# v3 adds the A7 persistence columns: messages.intent_id (proactive
+# provenance), user_model_assertions.category (canonical L4 storage), and
+# llm_calls.repro_json (call-reproducibility audit). The memory_turns view is
+# recreated to expose intent_id (SQLite views are not updated by ALTER TABLE).
+_V3_VIEWS = """
+CREATE VIEW memory_turns AS
+SELECT id, session_id, intent_id, role, content, t_h, day, proactive, meta
+FROM messages
+WHERE session_id IS NOT NULL;
+"""
+
+# Documented legacy assertion-key prefixes (the store's group-name convention
+# AND harness.memory's subject convention), used ONLY to derive the canonical
+# category for rows written before v3 and for callers that do not pass the
+# enum explicitly. The stored column is always the canonical value.
+_LEGACY_PREFIX_CATEGORIES = (
+    ("stable_preferences", UserModelCategory.STABLE_PREFERENCE),
+    ("current_preferences", UserModelCategory.CURRENT_PREFERENCE),
+    ("preference", UserModelCategory.CURRENT_PREFERENCE),
+    ("boundaries", UserModelCategory.BOUNDARY),
+    ("boundary", UserModelCategory.BOUNDARY),
+    ("vulnerabilities", UserModelCategory.VULNERABILITY),
+    ("vulnerability", UserModelCategory.VULNERABILITY),
+    ("recurring_interests", UserModelCategory.RECURRING_INTEREST),
+    ("interest", UserModelCategory.RECURRING_INTEREST),
+    ("relationship_patterns", UserModelCategory.RELATIONSHIP_PATTERN),
+    ("relationship", UserModelCategory.RELATIONSHIP_PATTERN),
+    ("important_entities", UserModelCategory.IMPORTANT_ENTITY),
+    ("entity", UserModelCategory.IMPORTANT_ENTITY),
+)
+
+
+def _category_from_key(key: str) -> UserModelCategory:
+    """Canonical category for a legacy key (documented prefixes only).
+
+    Compatibility derivation for rows written before v3 and for callers that
+    do not pass ``category`` explicitly. Keys without a documented prefix
+    surface under ``IMPORTANT_ENTITY`` (the legacy load default). This is a
+    WRITE-time / migration-time mapping; the load path reads the stored
+    ``category`` column and never parses keys.
+    """
+    head, _, _ = key.partition(":")
+    if key == "identity" or head == "identity":
+        return UserModelCategory.IDENTITY
+    for prefix, cat in _LEGACY_PREFIX_CATEGORIES:
+        if head == prefix:
+            return cat
+    return UserModelCategory.IMPORTANT_ENTITY
+
+
+def _migrate_v3(conn: sqlite3.Connection) -> None:
+    """v2 -> v3: additive A7 columns + canonical L4 backfill + view rebuild."""
+    _ensure_column(conn, "messages", "intent_id", "TEXT")
+    _ensure_column(conn, "user_model_assertions", "category", "TEXT")
+    _ensure_column(conn, "llm_calls", "repro_json", "TEXT")
+    # Backfill the canonical category for every existing assertion row
+    # (legacy rows have NULL; new rows always carry a value). Non-destructive:
+    # only the new column is written.
+    rows = conn.execute(
+        "SELECT seq, key FROM user_model_assertions WHERE category IS NULL"
+    ).fetchall()
+    for row in rows:
+        conn.execute(
+            "UPDATE user_model_assertions SET category = ? WHERE seq = ?",
+            (_category_from_key(row["key"]).value, row["seq"]),
+        )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_user_model_assertions_category "
+        "ON user_model_assertions(category)"
+    )
+    conn.execute("DROP VIEW IF EXISTS memory_turns")
+    conn.executescript(_V3_VIEWS)
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Bring the schema up to SCHEMA_VERSION with additive migrations only.
 
     Version-gated: each migration runs at most once per database (the
-    version row is written only after the migration completes, so a crash
-    mid-migration re-runs it safely — every step is idempotent).
+    bookkeeping row is written only after the migration completes, so a crash
+    mid-migration re-runs it safely — every step is idempotent). After the
+    chain completes, bookkeeping collapses to a single row at the current
+    version (the pre-slice invariant: exactly one version row).
     """
     version = _current_version(conn)
     if version < 2:
         _migrate_v2(conn)
-        conn.execute("INSERT INTO schema_meta (version) VALUES (?)", (2,))
-        conn.commit()
+    if version < 3:
+        _migrate_v3(conn)
+    if version < SCHEMA_VERSION:
+        conn.execute("DELETE FROM schema_meta")
+        conn.execute(
+            "INSERT INTO schema_meta (version) VALUES (?)", (SCHEMA_VERSION,)
+        )
+    conn.commit()
 
 
 def _hash(prompt: str) -> str:
@@ -390,12 +488,34 @@ _USER_MODEL_GROUPS = (
     "important_entities",
 )
 
+# Canonical UserModelCategory -> UserModel group field (invariant 10: the
+# taxonomy is defined once in domain.py; the store only projects it).
+_CATEGORY_TO_GROUP = {
+    UserModelCategory.STABLE_PREFERENCE: "stable_preferences",
+    UserModelCategory.CURRENT_PREFERENCE: "current_preferences",
+    UserModelCategory.BOUNDARY: "boundaries",
+    UserModelCategory.VULNERABILITY: "vulnerabilities",
+    UserModelCategory.RECURRING_INTEREST: "recurring_interests",
+    UserModelCategory.RELATIONSHIP_PATTERN: "relationship_patterns",
+    UserModelCategory.IMPORTANT_ENTITY: "important_entities",
+}
+
 
 class SQLiteStore:
     """Thin wrapper over sqlite3 with the versioned harness schema."""
 
-    def __init__(self, path: str | Path):
+    def __init__(self, path: str | Path, *, audit_mode: bool = False):
+        """Open (creating if needed) the harness database.
+
+        ``audit_mode`` enables eval-mode call reproducibility: when True,
+        ``log_llm_call(..., repro=...)`` persists the exact request/response
+        payload (model, temperature, max_tokens, seed, system context, message
+        payload, generation controls, memory policy, intent id, snapshot refs,
+        timestamp, response) as JSON. Default False = production privacy:
+        only the prompt hash is logged (privacy-configurable, plan §5-A7 M3).
+        """
         self.path = str(path)
+        self.audit_mode = bool(audit_mode)
         self.conn = sqlite3.connect(self.path, timeout=10.0)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
@@ -477,13 +597,17 @@ class SQLiteStore:
         day: int,
         proactive: bool = False,
         session_id: str | None = None,
+        intent_id: str | None = None,
     ) -> int:
-        """Append a message; ``session_id`` (A5 L1 session scoping) is
-        optional and backward compatible with all pre-slice callers."""
+        """Append a message; ``session_id`` (A5 L1 session scoping) and
+        ``intent_id`` (A7 proactive provenance — the exact validated intent id
+        that produced an outgoing message, invariant 6; reactive messages keep
+        it None) are optional and backward compatible with all pre-slice
+        callers."""
         cur = self.conn.execute(
-            "INSERT INTO messages (role, content, t_h, day, proactive, session_id) "
-            "VALUES (?, ?, ?, ?, ?, ?)",
-            (role, content, t_h, day, int(proactive), session_id),
+            "INSERT INTO messages (role, content, t_h, day, proactive, "
+            "session_id, intent_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (role, content, t_h, day, int(proactive), session_id, intent_id),
         )
         self.conn.commit()
         last_id = cur.lastrowid
@@ -573,10 +697,25 @@ class SQLiteStore:
         response: str,
         model: str | None,
         meta: dict | None = None,
-    ) -> None:
-        self.conn.execute(
-            "INSERT INTO llm_calls (day, t_h, role, model, prompt_hash, response, meta) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?)",
+        *,
+        repro: dict | None = None,
+    ) -> int:
+        """Record one generation call; returns the call id.
+
+        The prompt hash is ALWAYS kept. When ``audit_mode`` is enabled and a
+        ``repro`` payload is supplied (eval-mode call reproducibility, plan
+        §5-A7 M3: model, temperature, max_tokens, seed, system context, message
+        payload, generation controls, memory policy, intent id, snapshot/
+        reference ids, timestamp, response), the exact payload is persisted as
+        JSON so the call can be reproduced from the run manifest (invariant
+        19). In production privacy mode the payload is dropped.
+        """
+        repro_json = None
+        if self.audit_mode and repro is not None:
+            repro_json = json.dumps(repro, sort_keys=True)
+        cur = self.conn.execute(
+            "INSERT INTO llm_calls (day, t_h, role, model, prompt_hash, "
+            "response, meta, repro_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 day,
                 t_h,
@@ -585,9 +724,27 @@ class SQLiteStore:
                 _hash(prompt),
                 response,
                 json.dumps(meta) if meta else None,
+                repro_json,
             ),
         )
         self.conn.commit()
+        last_id = cur.lastrowid
+        return int(last_id) if last_id is not None else -1
+
+    def get_llm_call(self, call_id: int) -> dict | None:
+        """One audit row by id, with ``repro`` and ``meta`` parsed back to
+        dicts (None when absent). Used by the eval harness to reconstruct the
+        exact inputs of a call (invariant 19)."""
+        row = self.conn.execute(
+            "SELECT * FROM llm_calls WHERE id = ?", (call_id,)
+        ).fetchone()
+        if row is None:
+            return None
+        out = dict(row)
+        out["repro"] = json.loads(out["repro_json"]) if out.get("repro_json") else None
+        out.pop("repro_json", None)
+        out["meta"] = json.loads(out["meta"]) if out.get("meta") else None
+        return out
 
     def events_since(self, day: int) -> list[dict]:
         rows = self.conn.execute(
@@ -1099,9 +1256,27 @@ class SQLiteStore:
             status=row["status"],
         )
 
-    def upsert_assertion(self, assertion: UserModelAssertion) -> None:
+    def upsert_assertion(
+        self,
+        assertion: UserModelAssertion,
+        *,
+        category: UserModelCategory | str | None = None,
+    ) -> None:
         """Insert an assertion; a new ``current`` one supersedes (status flip,
-        provenance kept) the previous ``current`` row of the same key."""
+        provenance kept) the previous ``current`` row of the same key.
+
+        The canonical L4 category (plan §5-A7 M2, invariant 10) is stored
+        DIRECTLY on the row: pass the ``UserModelCategory`` explicitly, or omit
+        it for legacy-compatible derivation from the documented key prefixes
+        (``_category_from_key``). The load path reads this column only — keys
+        are never parsed to infer categories.
+        """
+        if category is None:
+            cat = _category_from_key(assertion.key)
+        elif isinstance(category, UserModelCategory):
+            cat = category
+        else:
+            cat = UserModelCategory(str(category))  # canonical only; raises
         if assertion.status == "current":
             self.conn.execute(
                 "UPDATE user_model_assertions SET status = 'superseded' "
@@ -1110,7 +1285,8 @@ class SQLiteStore:
             )
         self.conn.execute(
             "INSERT INTO user_model_assertions (key, value, confidence, "
-            "updated_at_t_h, source_memory_ids_json, status) VALUES (?, ?, ?, ?, ?, ?)",
+            "updated_at_t_h, source_memory_ids_json, status, category) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?)",
             (
                 assertion.key,
                 assertion.value,
@@ -1118,17 +1294,45 @@ class SQLiteStore:
                 assertion.updated_at_t_h,
                 _json(assertion.source_memory_ids),
                 assertion.status,
+                cat.value,
             ),
         )
         self.conn.commit()
 
-    def list_assertions(self, status: str = "current") -> list[UserModelAssertion]:
+    def list_assertions(
+        self,
+        status: str = "current",
+        category: UserModelCategory | str | None = None,
+    ) -> list[UserModelAssertion]:
+        clauses, params = ["status = ?"], [status]
+        if category is not None:
+            cat = (
+                category.value
+                if isinstance(category, UserModelCategory)
+                else UserModelCategory(str(category)).value
+            )
+            clauses.append("category = ?")
+            params.append(cat)
         rows = self.conn.execute(
-            "SELECT * FROM user_model_assertions WHERE status = ? "
-            "ORDER BY seq DESC",
-            (status,),
+            "SELECT * FROM user_model_assertions WHERE "
+            + " AND ".join(clauses)
+            + " ORDER BY seq DESC",
+            params,
         ).fetchall()
         return [self._row_to_assertion(r) for r in rows]
+
+    def get_assertion_category(self, key: str) -> UserModelCategory | None:
+        """Canonical category of the most recent assertion row for ``key``
+        (None when the key has no rows). The stored value is always a
+        canonical ``UserModelCategory``."""
+        row = self.conn.execute(
+            "SELECT category FROM user_model_assertions WHERE key = ? "
+            "ORDER BY seq DESC LIMIT 1",
+            (key,),
+        ).fetchone()
+        if row is None or row["category"] is None:
+            return None
+        return UserModelCategory(row["category"])
 
     def supersede_assertion(
         self,
@@ -1171,26 +1375,42 @@ class SQLiteStore:
         ).fetchone()
         return self._row_to_assertion(row) if row else None
 
+    def _stored_category(self, key: str) -> UserModelCategory:
+        """Canonical category of the most recent row of ``key``.
+
+        Primary path: the stored ``category`` column (canonical values only).
+        Defensive fallback for rows with a NULL category (only possible in
+        hand-edited databases — the v3 migration backfills every row): the
+        documented legacy key-prefix derivation. Loads never parse arbitrary
+        keys.
+        """
+        row = self.conn.execute(
+            "SELECT category FROM user_model_assertions WHERE key = ? "
+            "ORDER BY seq DESC LIMIT 1",
+            (key,),
+        ).fetchone()
+        if row is not None and row["category"] is not None:
+            return UserModelCategory(row["category"])
+        return _category_from_key(key)
+
     def load_user_model(self) -> UserModel:
         """Project current assertions into the L4 UserModel.
 
-        Grouping convention: key ``"<group>:<name>"`` with ``<group>`` one of
-        the seven UserModel group names; the identity string comes from the
-        assertion whose key is exactly ``"identity"`` or starts with
-        ``"identity:"``. Keys without a known prefix surface under
-        ``important_entities``.
+        Bucketing uses the CANONICAL ``category`` column only (plan §5-A7 M2,
+        invariant 10): each assertion carries its ``UserModelCategory`` value
+        directly, so no semantic category is ever inferred from string
+        prefixes or free-form keys at load time. Keys remain visible for
+        provenance but are not parsed for grouping.
         """
         current = self.list_assertions(status="current")
         identity = ""
         groups: dict[str, list[UserModelAssertion]] = {g: [] for g in _USER_MODEL_GROUPS}
         for a in current:
-            head, _, _ = a.key.partition(":")
-            if a.key == "identity" or head == "identity":
+            cat = self._stored_category(a.key)
+            if cat is UserModelCategory.IDENTITY:
                 identity = a.value
-            elif head in groups:
-                groups[head].append(a)
             else:
-                groups["important_entities"].append(a)
+                groups[_CATEGORY_TO_GROUP[cat]].append(a)
         return UserModel(
             identity=identity,
             stable_preferences=tuple(groups["stable_preferences"]),
