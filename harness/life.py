@@ -41,6 +41,7 @@ local hour = ``t_h % 24``. Agenda items live inside the awake window
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, replace
 from typing import Protocol
 
@@ -103,6 +104,16 @@ _INTEREST_ACTIVITIES = (
     "plan a {interest} session",
 )
 
+#: Arc id namespaces. Epoch 0 (the original generation) uses ``arc_1``,
+#: ``arc_2``, ...; every later life epoch — a cold start after the previous
+#: generation's arcs were wiped from the store — gets a fresh namespace
+#: ``arc_1_e1``, ``arc_2_e1``, ... so a wipe + re-init NEVER silently reuses
+#: the identical ids (the goldfish effect: 30 days pretended away under the
+#: same ids). The epoch is derived from persisted store state, never from a
+#: clock: a normal restart (arcs still present) reproduces the same epoch and
+#: therefore the identical ids and state.
+_ARC_ID_RE = re.compile(r"^arc_(\d+)(?:_e(\d+))?$")
+
 
 class LifeStore(Protocol):
     """Store seam subset used by life.py (orchestrator-frozen shapes, §15).
@@ -141,6 +152,38 @@ class LifeStepResult:
     current_activity: CurrentActivity | None
 
 
+def _arc_epoch(arc_id: str) -> int:
+    """Epoch embedded in an arc id (0 for the original ``arc_N`` namespace)."""
+    m = _ARC_ID_RE.match(arc_id)
+    if m is None:
+        return 0
+    return int(m.group(2) or 0)
+
+
+def _life_epoch(store: LifeStore) -> int:
+    """Derive the current life epoch from persisted store state (id namespace).
+
+    * Arcs still present (normal restart, no wipe): reuse the epoch of the
+      live generation, so init_life reproduces the identical ids and state.
+    * No arcs but persisted agenda items still reference a generation
+      (``source_type == \"arc\"``): the arcs were wiped — this is a cold
+      start, so the new generation gets a FRESH namespace one epoch higher
+      (the agenda references are the wipe-proof record of prior lives).
+    * No arcs and no arc agenda references: a truly fresh store, epoch 0.
+
+    Pure read of the §15 seam — no RNG draws, no clocks.
+    """
+    arcs = store.list_life_arcs()
+    if arcs:
+        return max(_arc_epoch(a.id) for a in arcs)
+    ref_epochs = [
+        _arc_epoch(it.source_id)
+        for it in store.list_agenda_items()
+        if it.source_type == "arc"
+    ]
+    return (max(ref_epochs) + 1) if ref_epochs else 0
+
+
 def init_life(
     seed: int, persona: PersonaProfile, store: LifeStore, start_day: int = 1
 ) -> list[LifeArc]:
@@ -154,6 +197,14 @@ def init_life(
     within a month; the others start at 0.00-0.35. Each arc is persisted via
     ``store.upsert_life_arc`` before being returned (creation order:
     arc_1, arc_2, ...).
+
+    Life epochs: arc ids live in an epoch-scoped namespace (``arc_N`` for
+    epoch 0, ``arc_N_eE`` for epoch E >= 1) derived from persisted store
+    state via ``_life_epoch``. A normal restart (arcs still in the store)
+    reproduces the identical ids and state; a restart after the arcs were
+    wiped from the store is a DOCUMENTED COLD START — the new generation
+    gets fresh ids (``arc_1_e1``, ...) instead of silently reusing the old
+    ones with fresh progress.
     """
     rng = stream_rng(seed, LIFE_STREAM)
     interests = persona.interests
@@ -168,6 +219,7 @@ def init_life(
         len(interests), size=n_arcs, replace=False, p=[w / total for w in weights]
     )
 
+    epoch = _life_epoch(store)
     arcs: list[LifeArc] = []
     for i, idx in enumerate(chosen, start=1):
         interest = interests[int(idx)]
@@ -180,7 +232,7 @@ def init_life(
         else:
             progress = float(rng.random()) * 0.35
         arc = LifeArc(
-            id=f"arc_{i}",
+            id=f"arc_{i}" if epoch == 0 else f"arc_{i}_e{epoch}",
             name=name,
             interest=interest.name,
             started_day=started_day,
