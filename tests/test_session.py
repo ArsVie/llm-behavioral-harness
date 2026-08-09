@@ -11,13 +11,14 @@ The critical invariants:
 
 import math
 
+import httpx
 import numpy as np
 import pytest
 
 import sim.run_daily as run_daily
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.clock import VirtualClock
-from harness.client import FakeClient
+from harness.client import FakeClient, OpenAICompatibleClient
 from harness.judge import ScriptedJudge
 from harness.session import Session
 from harness.store import SQLiteStore
@@ -637,3 +638,90 @@ def test_resume_with_day_zero_clock_does_not_rewind(tmp_path):
     j2 = store2.load_judgement(2)
     assert j2 is not None  # day 2 finalized cleanly on rollover
     store2.close()
+
+
+# -- iteration-3 B1: generation integrity ---------------------------------- #
+# An empty/whitespace completion must never become a persisted assistant row:
+# the client retries empties with bounded backoff; the session refuses to
+# persist an empty reply whatever the client returned (it2 F1: 579/2090
+# blank assistant turns persisted).
+
+
+def _session_with_http_client(tmp_path, handler, max_retries=2):
+    transport = httpx.MockTransport(handler)
+    client = OpenAICompatibleClient(
+        base_url="https://example.test/v1", api_key="k", model="m",
+        max_retries=max_retries,
+    )
+    client._client = httpx.Client(transport=transport)
+    store = SQLiteStore(tmp_path / "s.db")
+    clock = VirtualClock(t_h=10.0)
+    session = Session(
+        store,
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+        client=client,
+        clock=clock,
+        judge=ScriptedJudge(score=0.5).judge_day,
+    )
+    return store, client, session
+
+
+def test_empty_replies_retried_exactly_one_non_empty_turn_persisted(
+    tmp_path, monkeypatch
+):
+    """B1 acceptance: a client returning empty content twice then real
+    content produces exactly ONE non-empty persisted assistant turn."""
+    sleeps: list[float] = []
+    monkeypatch.setattr("harness.client.time.sleep", sleeps.append)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] <= 2:
+            return httpx.Response(
+                200, json={"choices": [{"message": {"content": ""}}]}
+            )
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": "real reply"}}]}
+        )
+
+    store, client, session = _session_with_http_client(tmp_path, handler, max_retries=2)
+    result = session.on_message("hi there")
+
+    assert result.reply == "real reply"
+    assert calls["n"] == 3  # two empties retried, third call real
+    msgs = store.messages_for_day(0)
+    assistant = [m for m in msgs if m["role"] == "assistant"]
+    assert len(assistant) == 1
+    assert assistant[0]["content"] == "real reply"
+    # no messages row with empty/whitespace content at all
+    assert all(m["content"].strip() for m in msgs)
+    store.close()
+
+
+def test_persistent_empty_raises_and_persists_no_assistant_row(
+    tmp_path, monkeypatch
+):
+    """A persistently-empty client raises; the blank turn is never persisted
+    (and the LLM call is not logged as a successful reply)."""
+    sleeps: list[float] = []
+    monkeypatch.setattr("harness.client.time.sleep", sleeps.append)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": ""}}]}
+        )
+
+    store, client, session = _session_with_http_client(tmp_path, handler, max_retries=1)
+    with pytest.raises(RuntimeError, match="empty/whitespace-only content"):
+        session.on_message("hi there")
+    assert calls["n"] == 2  # bounded: never hangs
+    msgs = store.messages_for_day(0)
+    assert [m["role"] for m in msgs] == ["user"]  # user turn only
+    assert store.conn.execute("SELECT COUNT(*) FROM llm_calls").fetchone()[0] == 0
+    store.close()

@@ -97,3 +97,119 @@ def test_openai_client_requires_key(monkeypatch):
     client = OpenAICompatibleClient(base_url="https://x.test", api_key=None, model="m")
     with pytest.raises(RuntimeError, match="LLM_API_KEY"):
         client.chat([{"role": "user", "content": "q"}])
+
+
+# -- iteration-3 B1: generation integrity ---------------------------------- #
+# Empty/whitespace completions are retried with bounded backoff; a persistent
+# empty raises; truncation (finish_reason=length) is recorded, not treated as
+# an empty reply (it2 F1: 579/2090 blank assistant turns were persisted).
+
+
+def _empty_then_real_client(empties: int = 2, max_retries: int = 2):
+    """OpenAICompatibleClient whose transport returns empty content `empties`
+    times before a real reply."""
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] <= empties:
+            return httpx.Response(
+                200, json={"choices": [{"message": {"content": ""}}]}
+            )
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": "real content"}}]}
+        )
+
+    transport = httpx.MockTransport(handler)
+    client = OpenAICompatibleClient(
+        base_url="https://example.test/v1", api_key="k", model="m",
+        max_retries=max_retries,
+    )
+    client._client = httpx.Client(transport=transport)
+    return client, calls
+
+
+def test_openai_client_retries_empty_content_then_succeeds(monkeypatch, caplog):
+    sleeps: list[float] = []
+    monkeypatch.setattr("harness.client.time.sleep", sleeps.append)
+    client, calls = _empty_then_real_client(empties=2, max_retries=2)
+
+    out = client.chat([{"role": "user", "content": "q"}])
+
+    assert out == "real content"
+    assert calls["n"] == 3  # two empties, one real
+    assert sleeps == [0.5, 1.0]  # bounded exponential backoff (0.5 * 2**i)
+    assert "empty content" in caplog.text
+
+
+def test_openai_client_retries_whitespace_only_content(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr("harness.client.time.sleep", sleeps.append)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return httpx.Response(
+                200, json={"choices": [{"message": {"content": "   \n\t"}}]}
+            )
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": "ok"}}]}
+        )
+
+    transport = httpx.MockTransport(handler)
+    client = OpenAICompatibleClient(
+        base_url="https://example.test/v1", api_key="k", model="m", max_retries=1
+    )
+    client._client = httpx.Client(transport=transport)
+
+    assert client.chat([{"role": "user", "content": "q"}]) == "ok"
+    assert calls["n"] == 2
+
+
+def test_openai_client_persistent_empty_raises(monkeypatch):
+    sleeps: list[float] = []
+    monkeypatch.setattr("harness.client.time.sleep", sleeps.append)
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(
+            200, json={"choices": [{"message": {"content": ""}}]}
+        )
+
+    transport = httpx.MockTransport(handler)
+    client = OpenAICompatibleClient(
+        base_url="https://example.test/v1", api_key="k", model="m", max_retries=1
+    )
+    client._client = httpx.Client(transport=transport)
+
+    with pytest.raises(RuntimeError, match="empty/whitespace-only content"):
+        client.chat([{"role": "user", "content": "q"}])
+    assert calls["n"] == 2  # capped at max_retries + 1 — never hangs
+
+
+def test_openai_client_truncation_finish_reason_records_marker(caplog):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {"content": "partial reply"},
+                        "finish_reason": "length",
+                    }
+                ]
+            },
+        )
+
+    transport = httpx.MockTransport(handler)
+    client = OpenAICompatibleClient(
+        base_url="https://example.test/v1", api_key="k", model="m", max_retries=1
+    )
+    client._client = httpx.Client(transport=transport)
+
+    # Truncated-but-non-empty content is returned (not retried, not raised)
+    # and the truncation is recorded as a marker log line.
+    assert client.chat([{"role": "user", "content": "q"}]) == "partial reply"
+    assert "truncated (finish_reason=length" in caplog.text
