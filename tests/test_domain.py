@@ -494,3 +494,116 @@ def test_memory_policy_members_and_experimental_distinction() -> None:
     assert not domain.MemoryPolicy.VERBATIM_RAG.is_experimental
     # The two conditions are distinct policy values.
     assert domain.MemoryPolicy.STRUCTURED_MEMORY != domain.MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT
+
+
+# --------------------------------------------------------------------------- #
+# Iteration-3 Gate 0: conversation seam + ablation-effectiveness assertion
+# --------------------------------------------------------------------------- #
+
+
+def _conv_turn(**overrides) -> domain.ConversationTurn:
+    base: dict = {
+        "speaker": "user",
+        "text": "hello",
+        "t_h": 10.0,
+        "turn_index": 0,
+        "conversation_id": "conv_1",
+    }
+    base.update(overrides)
+    return domain.ConversationTurn(**base)
+
+
+def _conversation(**overrides) -> domain.Conversation:
+    base: dict = {
+        "id": "conv_1",
+        "opened_t_h": 10.0,
+        "closed_t_h": 12.0,
+        "opened_by": "user",
+        "close_reason": "closing_tendency",
+        "turns": (
+            _conv_turn(),
+            _conv_turn(speaker="companion", text="hi", turn_index=1),
+        ),
+    }
+    base.update(overrides)
+    return domain.Conversation(**base)
+
+
+def test_conversation_turn_shape_and_speaker_literals() -> None:
+    """ConversationTurn carries exactly the five contract fields."""
+    fields = {f.name: f for f in dataclasses.fields(domain.ConversationTurn)}
+    assert set(fields) == {"speaker", "text", "t_h", "turn_index", "conversation_id"}
+    speaker_type = str(fields["speaker"].type)
+    assert "user" in speaker_type and "companion" in speaker_type
+    turn = _conv_turn()
+    assert turn.speaker in ("user", "companion")
+    assert turn.turn_index == 0
+    assert turn.conversation_id == "conv_1"
+    assert dataclasses.is_dataclass(domain.ConversationTurn)
+    assert domain.ConversationTurn.__dataclass_params__.frozen
+
+
+def test_conversation_shape_and_close_reason_literals() -> None:
+    """Conversation carries exactly the contract fields; close_reason is
+    one of the four values or None (open conversation)."""
+    fields = {f.name: f for f in dataclasses.fields(domain.Conversation)}
+    assert set(fields) == {
+        "id", "opened_t_h", "closed_t_h", "opened_by", "close_reason", "turns",
+    }
+    opened_by_type = str(fields["opened_by"].type)
+    assert "user" in opened_by_type and "companion" in opened_by_type
+    close_type = str(fields["close_reason"].type)
+    for value in ("closing_tendency", "user_left", "quiet_hours", "max_turns"):
+        assert value in close_type
+    conv = _conversation()
+    assert conv.close_reason == "closing_tendency"
+    assert conv.turns[0].speaker == "user"
+    assert conv.turns[1].speaker == "companion"
+    assert conv.turns[1].turn_index == 1
+    assert dataclasses.is_dataclass(domain.Conversation)
+    assert domain.Conversation.__dataclass_params__.frozen
+
+
+def test_conversation_open_state_has_none_close_reason() -> None:
+    """An open conversation has closed_t_h None and close_reason None."""
+    conv = _conversation(closed_t_h=None, close_reason=None)
+    assert conv.closed_t_h is None
+    assert conv.close_reason is None
+    assert len(conv.turns) == 2
+
+
+def test_ablation_claim_shape_and_channel_literals() -> None:
+    """AblationClaim carries the four contract fields; channel is one of the
+    four ablatable channels; check is callable; assertion is non-empty."""
+    fields = {f.name: f for f in dataclasses.fields(domain.AblationClaim)}
+    assert set(fields) == {"condition", "channel", "assertion", "check"}
+    channel_type = str(fields["channel"].type)
+    for value in ("timing", "memory_store", "generation_controls", "life_state"):
+        assert value in channel_type
+
+    def _check(cell: dict, full: dict) -> bool:
+        return cell.get("n_proactive", 0) < full.get("n_proactive", 0)
+
+    claim = domain.AblationClaim(
+        condition="STRUCTURED_NO_STATE",
+        channel="timing",
+        assertion="n_proactive differs from FULL by >= 15%",
+        check=_check,
+    )
+    assert claim.condition == "STRUCTURED_NO_STATE"
+    assert callable(claim.check)
+    # The claim is evaluable against the documented records shape.
+    assert claim.check({"n_proactive": 5}, {"n_proactive": 20}) is True
+    assert claim.check({"n_proactive": 20}, {"n_proactive": 20}) is False
+    assert dataclasses.is_dataclass(domain.AblationClaim)
+    assert domain.AblationClaim.__dataclass_params__.frozen
+
+
+def test_conversation_turns_belong_to_their_conversation() -> None:
+    """Every turn inside a Conversation references that conversation's id
+    (module invariant 8: the conversation is the unit of dialogue)."""
+    conv = _conversation()
+    assert all(t.conversation_id == conv.id for t in conv.turns)
+    # Immutability: a conversation cannot gain turns after construction.
+    with pytest.raises(Exception):
+        conv.turns += (_conv_turn(turn_index=2),)  # type: ignore[operator]

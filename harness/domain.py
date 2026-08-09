@@ -50,12 +50,25 @@ Invariants (binding)
    condition (``STRUCTURED_MEMORY``) from the explicitly experimental
    topicality-boosted variant (``STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT``,
    flagged by ``is_experimental``).
+
+8. The ``Conversation`` is the unit of dialogue: every turn belongs to
+   exactly one conversation, conversations are opened by either party and
+   closed with a recorded ``close_reason``, and ``closing_tendency`` is a
+   real actuator whose effect is observable in turn counts and close
+   reasons — never a bare prompt string. Memory sessions, judge sampling
+   and relational metrics all key off the conversation boundary.
+
+9. ``AblationClaim`` is the effectiveness contract of the ablation matrix:
+   every non-FULL condition declares at least one claim, and a condition
+   whose claim fails its pre-flight check is a NULL ablation — fixed or
+   dropped from the matrix BEFORE any generation runs.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from typing import Callable, Literal
 
 
 @dataclass(frozen=True)
@@ -420,6 +433,47 @@ class Turn:
 
 
 @dataclass(frozen=True)
+class ConversationTurn:
+    """One turn inside a ``Conversation`` (module invariant 8).
+
+    ``speaker`` is the party that produced the turn — ``"user"`` or
+    ``"companion"`` (the ``role`` strings persisted on ``messages`` rows are
+    ``"user"``/``"assistant"``; this type uses the dialogue-level wording).
+    ``turn_index`` is 0-based within its conversation and ``conversation_id``
+    links the turn to its parent ``Conversation``.
+    """
+
+    speaker: Literal["user", "companion"]
+    text: str
+    t_h: float
+    turn_index: int
+    conversation_id: str
+
+
+@dataclass(frozen=True)
+class Conversation:
+    """One sustained multi-turn dialogue (module invariant 8).
+
+    A conversation is opened by the first message of either party and closed
+    by exactly one of the four ``close_reason`` values (or left open while it
+    is still running: ``closed_t_h is None`` and ``close_reason is None``).
+    ``closing_tendency`` becomes mechanically observable here: a high closing
+    tendency raises the probability that ``close_reason == "closing_tendency"``
+    and that the conversation has fewer turns. Memory sessions, judge
+    sampling and relational metrics all key off this boundary.
+    """
+
+    id: str
+    opened_t_h: float
+    closed_t_h: float | None
+    opened_by: Literal["user", "companion"]
+    close_reason: Literal[
+        "closing_tendency", "user_left", "quiet_hours", "max_turns"
+    ] | None
+    turns: tuple[ConversationTurn, ...]
+
+
+@dataclass(frozen=True)
 class CompanionSnapshot:
     """Integration contract: the single place lanes meet before composition.
 
@@ -437,3 +491,33 @@ class CompanionSnapshot:
     memory_context: MemoryContext
     recent_conversation: tuple[Turn, ...]
     proactive_intent: ProactiveIntent | None
+
+
+@dataclass(frozen=True)
+class AblationClaim:
+    """Effectiveness contract of one matrix condition (module invariant 9).
+
+    Every non-FULL condition declares at least one claim about the channel it
+    ablates. ``check(cell_records, full_records)`` is evaluated by the
+    pre-flight against the condition's own run records vs FULL's; a claim
+    that fails marks the condition a NULL ablation, which BLOCKS the matrix
+    until the condition is fixed or dropped.
+
+    ``channel`` is one of the four ablatable channels: ``"timing"`` (the
+    contact-timing hazard), ``"memory_store"`` (which memory mechanism is
+    used), ``"generation_controls"`` (the mechanical actuation: token
+    budget / latency / closing policy) or ``"life_state"`` (the life arcs
+    and agenda lanes).
+
+    Records shape (documented by convention, like ``ContactOpportunity``
+    hazard keys): ``cell_records``/``full_records`` are per-condition summary
+    dicts produced by the pre-flight driver, carrying AT LEAST
+    ``n_proactive``, ``n_reactive``, ``n_assistant_turns``,
+    ``n_blank_assistant_turns``, ``n_conversations`` and
+    ``mean_turns_per_conversation``.
+    """
+
+    condition: str
+    channel: Literal["timing", "memory_store", "generation_controls", "life_state"]
+    assertion: str
+    check: Callable[[dict, dict], bool]
