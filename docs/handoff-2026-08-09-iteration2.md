@@ -4,7 +4,7 @@ Status: ORCHESTRATOR PAUSED at user request (subagent iteration cap being raised
 
 ## 0b. WAVE-3 COMPLETE (2026-08-09, resumed session — READ FIRST)
 
-GATE CHAIN STATUS (07:30 UTC): G2 PASS (43ec7c2, 5/5 seeds, audit TOCTOU clamp fixed), G3 PASS (476bc84, 120d soak ×2 seeds, 5 restarts), G4 PASS (5a758ed manifest; NOTE openai-mini family needs OPENAI_API_KEY which is ABSENT — limitation), G5 PASS (b5cdd52 E0 review). G6: probe resolved (env mapping 0fcd062, hollow-run hardening, validator day-aware 2a20137, traces generator 28eca0e/9b5dc52) — 35-cell real-LLM matrix RUNNING; judges + audit runners staged at /tmp/it2-g6-{judges.sh,audit.py}.
+GATE CHAIN STATUS (12:05 UTC): G2 PASS (43ec7c2, 5/5 seeds, audit TOCTOU clamp fixed), G3 PASS (476bc84, 120d soak ×2 seeds, 5 restarts), G4 PASS (5a758ed manifest; NOTE openai-mini family needs OPENAI_API_KEY which is ABSENT — limitation), G5 PASS (b5cdd52 E0 review). G6 COMPLETE: probe resolved (env mapping 0fcd062, hollow-run hardening, validator day-aware 2a20137, traces generator 28eca0e/9b5dc52); 35-cell real-LLM matrix ALL VALIDATED (6e1e35b; duplicate-key fix da12db0; M1 clamp 83add67; judge stem parser 3a690e3); 14/14 judge passes green (84b755f); iteration report results/iteration-2-report.md (d857b07, §5 filled 84b755f). Headline: RAW_HISTORY M3=0.0 mechanical but perceived recall 7.9 — structured memory load-bearing for verifiable recall, not perceived continuity.
 
 Both Wave-3 tracks LANDED and merged in plan order. Main now at `aa3c01c` — full suite **796 green** (verified post-m10; 750 after m9 = 658 base + 92 A9, since the base 707 already included the 49 superseded vslice adversarial tests).
 
