@@ -34,7 +34,11 @@ hour). Two loops run concurrently inside :meth:`AsyncRuntime.run`:
   proactive OutboundMessages. During quiet hours a still-valid event whose
   validity outlives the quiet window is DEFERRED (A9 R-4b), never consumed
   as fired-without-delivery: the row stays pending until the next awake
-  instant, and only events past ``valid_until`` are expired.
+  instant, and only events past ``valid_until`` are expired. The deferral
+  itself ADVANCES the virtual clock to that awake instant (clamped to
+  max_virtual_hours; R1-F1), so a parked event still terminates the run
+  instead of livelocking — the firing loop re-evaluates the event at the
+  awake ``now`` and fires it there.
 
 Delivery latency (A7): after the LLM returns, the runtime waits the
 requested ``response_delay_s`` (wall-clock seconds — NOT scaled by
@@ -348,7 +352,11 @@ class AsyncRuntime:
         be consumed as fired-without-delivery — it is deferred (row stays
         pending) until the next awake instant. Only events past valid_until
         are expired, and events that expire before the window ends are
-        consumed (they can never be delivered).
+        consumed (they can never be delivered). The deferral advances the
+        virtual clock to the next awake instant (never past
+        max_virtual_hours) so a still-pending event parked by the rollover
+        cannot livelock the run (R1-F1); the event is re-evaluated — and
+        fires — at that awake instant.
         """
         while True:
             now = self.session.clock.now_h()
@@ -374,6 +382,28 @@ class AsyncRuntime:
                     self.session.clock.advance_hours(nxt - now)
                 now = self.session.clock.now_h()
                 defer_until = self._quiet_defer_until(nxt, now)
+                if defer_until is not None and now - nxt < 1e-9:
+                    # R1-F1 (it2 A3): an ON-SCHEDULE deferral (event gated at
+                    # its own hour — the rollover is parked AT it, so the
+                    # clock can never move on its own) must ADVANCE the
+                    # virtual clock to the next awake instant — sleeping
+                    # wall time alone would re-defer forever and the run
+                    # would livelock (invariants 3/17). _quiet_defer_until
+                    # already clamps to max_virtual_hours, so the advance
+                    # never passes the run's end. Re-evaluate AT the awake
+                    # instant inside the same lock: the still-valid event
+                    # then falls through to the normal path below
+                    # (resolve/gate at the opportunity hour ``nxt``, envelope
+                    # at the awake ``now`` — pitfall 49 semantics preserved)
+                    # and fires exactly once. An OVERDUE recovery inside
+                    # quiet hours (now > nxt, e.g. a restart at 03:00) is
+                    # NOT advanced: the rollover is not parked there, so the
+                    # run winds down to max_virtual_hours on its own and the
+                    # still-valid event stays pending for a later awake run
+                    # (A9 R-10 restart semantics).
+                    self.session.clock.advance_hours(defer_until - now)
+                    now = self.session.clock.now_h()
+                    defer_until = self._quiet_defer_until(nxt, now)
                 if defer_until is None:
                     day = self.session.clock.day()
                     # Contact opportunity -> contact reason: the scheduler's
