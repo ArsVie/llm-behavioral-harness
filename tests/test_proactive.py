@@ -72,6 +72,7 @@ class SeamStore:
         self._episode_order: list[str] = []
         self._interests: list[Interest] = []
         self._intents: dict[str, tuple[ProactiveIntent, str]] = {}
+        self._opportunities: dict[str, object] = {}
         self._next_id = 1
 
     # -- lifecycle ---------------------------------------------------------
@@ -112,14 +113,25 @@ class SeamStore:
 
     # -- messages -----------------------------------------------------------
 
-    def add_message(self, role, content, t_h, day, proactive) -> int:
+    def add_message(self, role, content, t_h, day, proactive, *,
+                    session_id=None, intent_id=None) -> int:
         row = {
             "id": self._next_id, "role": role, "content": content,
             "t_h": float(t_h), "day": int(day), "proactive": int(bool(proactive)),
+            "session_id": session_id, "intent_id": intent_id,
         }
         self._next_id += 1
         self._messages.append(row)
         return row["id"]
+
+    def update_message_intent_id(self, message_id: int, intent_id: str) -> None:
+        """Attach exact-intent provenance to an already-stored message row
+        (mirrors A7 M1's messages.intent_id on the seam store)."""
+        for m in self._messages:
+            if m["id"] == message_id:
+                m["intent_id"] = intent_id
+                return
+        raise KeyError(f"no message with id {message_id}")
 
     def recent_messages(self, limit: int = 12) -> list[dict]:
         return [dict(m) for m in self._messages[-limit:]]
@@ -268,8 +280,9 @@ class SeamStore:
         return entry[0] if entry else None
 
     def list_proactive_intents(self, status: str | None = None) -> list[ProactiveIntent]:
+        # most-recent-first, mirroring SQLiteStore's created_t_h DESC ordering
         out = [i for i, s in self._intents.values() if status is None or s == status]
-        return out
+        return sorted(out, key=lambda i: i.created_t_h, reverse=True)
 
     def update_proactive_intent_status(self, intent_id: str, status: str) -> None:
         entry = self._intents.get(intent_id)
@@ -286,6 +299,16 @@ class SeamStore:
                                   SOURCE_CHECK_IN):
             return self._episodes.get(intent.source_id)
         return None
+
+    # -- contact opportunities (it2 A3 optional persistence seam) -----------
+
+    def save_contact_opportunity(self, opp) -> None:
+        """Optional A7 seam for ContactOpportunity persistence (the real
+        SQLiteStore has no such table yet — flagged in the A3 handoff)."""
+        self._opportunities[opp.id] = opp
+
+    def load_contact_opportunities(self) -> list:
+        return list(self._opportunities.values())
 
     # -- interactions -------------------------------------------------------
 

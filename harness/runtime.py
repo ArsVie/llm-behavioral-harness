@@ -1,4 +1,4 @@
-"""Async runtime — real-time rollover + gated proactive firing (wave 3, seam A-6; A7).
+"""Async runtime — real-time rollover + gated proactive firing (wave 3, seam A-6; A7; it2 A3).
 
 The deterministic engine path (Session) stays synchronous and replay-exact;
 this module is the ONLY place in the harness allowed to read wall-clock, and
@@ -12,18 +12,25 @@ hour). Two loops run concurrently inside :meth:`AsyncRuntime.run`:
   with the previous day's real judge score and today's initiative
   (``day_scores`` — never ``scores=None`` in live scheduling) and refreshes
   ``self.schedule`` from the store (restart-safe, INSERT OR IGNORE never
-  resurrects fired/expired rows).
+  resurrects fired/expired rows). CLOCK DISCIPLINE (it2 A3, the E0
+  confounder): the rollover NEVER jumps the virtual clock past a pending
+  opportunity — when the earliest pending event lies before the next
+  midnight it parks AT that event hour and waits for the firing loop, so
+  every event is gated at its own time and accelerated time can never turn a
+  still-valid event into a spurious 'expired' suppression.
 
 - ``_firing_loop`` — waits for the next pending schedule event (short poll
   when none; overdue events are visible thanks to ``next_pending``'s A7
   restart fix), advances the clock to it, then GATES before generating:
-  the content gate resolves the event to a GROUNDED intent
-  (``IntentResolver`` → ``content_gate(intent, store)``) and the context gate
-  (quiet hours, cooldown, daily cap). No grounded candidate ⇒ SUPPRESS
-  (``no_grounded_reason`` is a legitimate outcome). Suppressed events are
-  consumed (marked fired — or expired when the validity window elapsed) and
-  logged as ``proactive_suppressed`` with the failing code; allowed events
-  fire via ``session.fire_proactive`` and are sent through the channel as
+  the content gate resolves the OPPORTUNITY to a GROUNDED intent
+  (``IntentResolver(opportunity)`` → ``content_gate(intent, store)``) and the
+  context gate (quiet hours, cooldown, daily cap). No grounded candidate ⇒
+  SUPPRESS (``no_grounded_reason`` is a legitimate outcome). Suppressed
+  events are consumed (marked fired — or expired when the validity window
+  elapsed) and logged as ``proactive_suppressed`` with the failing code;
+  allowed events fire via ``session.fire_proactive(intent.id)`` — the EXACT
+  validated intent id, never a reason (invariant 6/7: two same-reason
+  intents are never interchangeable) — and are sent through the channel as
   proactive OutboundMessages. During quiet hours a still-valid event whose
   validity outlives the quiet window is DEFERRED (A9 R-4b), never consumed
   as fired-without-delivery: the row stays pending until the next awake
@@ -31,27 +38,36 @@ hour). Two loops run concurrently inside :meth:`AsyncRuntime.run`:
 
 Delivery latency (A7): after the LLM returns, the runtime waits the
 requested ``response_delay_s`` (wall-clock seconds — NOT scaled by
-TimeScale) through the injectable ``sleeper`` (default ``asyncio.sleep``;
-tests inject a recorder so the suite never waits real seconds) and only
-then calls ``channel.send``.
+TimeScale) through the injectable ``sleeper`` (default
+``concurrency.default_sleeper``; tests inject a recorder so the suite never
+waits real seconds) and only then calls ``channel.send``.
 
-All ``session.*`` calls run in worker threads under a single ``asyncio.Lock``
-so the event loop never blocks on an LLM/judge call and inbound (reactive)
-and scheduled (proactive) turns never overlap (single user, no reentrancy).
-Engine steps are never called directly: rollover is driven ONLY through
-``session.ensure_day`` / ``session.finalize_current``.
+Concurrency (it2 A6): ALL ``session.*`` calls run on an OWNED
+``concurrency.ExecutorOwner`` (``llh-runtime`` workers) under a single
+``asyncio.Lock`` so the event loop never blocks on an LLM/judge call and
+inbound (reactive) and scheduled (proactive) turns never overlap (single
+user, no reentrancy); the executor is shut down explicitly in ``run()``'s
+``finally`` (invariant 17: runtime tests must terminate their Python
+process). Engine steps are never called directly: rollover is driven ONLY
+through ``session.ensure_day`` / ``session.finalize_current``.
 """
 
 from __future__ import annotations
 
 import asyncio
 from dataclasses import dataclass
-from typing import Awaitable, Callable
 
 import engine.rng as rng_mod
 from engine.circadian import envelope
 from engine.types import ENVELOPE_RAMP_H, TimingParams
 from harness.channels.base import Channel, InboundMessage, OutboundMessage
+from harness.concurrency import (
+    ExecutorOwner,
+    ResourceRegistry,
+    Sleeper,
+    default_sleeper,
+    ensure_thread_safe_connection,
+)
 from harness.gates import content_gate, context_gate
 from harness.proactive import IntentResolver
 from harness.scheduler import (
@@ -96,7 +112,7 @@ class AsyncRuntime:
         time_scale: TimeScale = TimeScale(),
         max_virtual_hours: float | None = None,
         resolver: IntentResolver | None = None,
-        sleeper: Callable[[float], Awaitable[None]] | None = None,
+        sleeper: Sleeper | None = None,
     ):
         self.session = session
         self.schedule = schedule
@@ -112,39 +128,50 @@ class AsyncRuntime:
         self.resolver = resolver if resolver is not None else IntentResolver(
             store, rng=rng_mod.stream_rng(seed, rng_mod.EXPERIMENT_STREAM)
         )
-        #: Injectable delay function (default asyncio.sleep) so tests record
-        #: the requested response_delay_s without waiting real seconds.
-        self.sleeper = sleeper if sleeper is not None else asyncio.sleep
+        #: Injectable delay function (default concurrency.default_sleeper —
+        #: asyncio.sleep; tests inject a recorder) so tests record the
+        #: requested response_delay_s without waiting real seconds.
+        self.sleeper: Sleeper = sleeper if sleeper is not None else default_sleeper()
+        #: A6: ONE owned executor per runtime (explicit lifecycle; shutdown in
+        #: run()'s finally) + a resource registry (owned vs injected).
+        self._executor = ExecutorOwner("runtime").start()
+        self._registry = ResourceRegistry("runtime")
+        self._registry.register(store, owned=False)   # injected: creator owns it
+        self._registry.register(channel, owned=False)  # injected: creator owns it
         self._lock = asyncio.Lock()
+        #: Set when the firing loop exits for good (run end): the rollover
+        #: then stops parking at pending events — nothing will gate them.
+        self._firing_done = False
         self._ensure_thread_safe_store()
 
     def _ensure_thread_safe_store(self) -> None:
-        """Re-open the store connection for cross-thread use.
+        """Re-open the store connection for cross-thread use (A6 helper).
 
         The merged SQLiteStore binds its connection to the creating thread
         (sqlite3 default ``check_same_thread=True``), but this runtime moves
         ``session.*`` calls to worker threads (plan requirement: never block
-        the event loop). Re-opening the connection with
-        ``check_same_thread=False`` keeps that contract without touching the
-        frozen store: the asyncio.Lock serializes all session calls, WAL +
-        busy_timeout cover the remaining store access, and the schema is
-        already on disk. (Workaround contained here; report-only issue.)
-        Seam-faithful in-memory stores (tests; the real A2 SQLiteStore has
-        not landed yet) expose no sqlite connection and are skipped."""
+        the event loop). ``concurrency.ensure_thread_safe_connection``
+        re-opens the connection with ``check_same_thread=False``, keeping
+        that contract without touching the frozen store: the asyncio.Lock
+        serializes all session calls, WAL + busy_timeout cover the remaining
+        store access, and the schema is already on disk.
+
+        Ownership note (deviation from A6's integration note, justified):
+        A6 suggested registering the re-opened connection as OWNED, but the
+        connection becomes the STORE's connection (``store.conn`` now
+        references it and ``SQLiteStore.close()`` closes it) — closing it in
+        the runtime would leave the injected store dead. It is registered
+        owned=False: the store's lifecycle owns it, the runtime never closes
+        it twice. Seam-faithful in-memory stores (tests) expose no sqlite
+        connection and are skipped entirely."""
         if not (hasattr(self.store, "path") and hasattr(self.store, "conn")):
             return
-        import sqlite3
-
         old_conn = self.store.conn
-        conn = sqlite3.connect(
-            self.store.path, timeout=10.0, check_same_thread=False
-        )
-        conn.row_factory = sqlite3.Row
-        conn.execute("PRAGMA journal_mode=WAL")
-        conn.execute("PRAGMA busy_timeout=10000")
+        conn = ensure_thread_safe_connection(self.store.path)
         if old_conn is not None:
             old_conn.close()  # schema-creation conn from SQLiteStore.__init__
         self.store.conn = conn
+        self._registry.register(conn, owned=False)
 
     # ------------------------------------------------------------------ #
     # lifecycle
@@ -152,7 +179,10 @@ class AsyncRuntime:
 
     async def run(self) -> None:
         """Start the channel, run rollover + firing until max_virtual_hours
-        (or cancelled), then finalize the current day and stop the channel."""
+        (or cancelled), then finalize the current day, stop the channel, and
+        shut down the OWNED executor (A6: explicit lifecycle; double-shutdown
+        safe — the registry's owned set is empty by design, injected
+        resources are never closed here)."""
         await self.channel.start(self._on_inbound)
         try:
             await asyncio.gather(self._rollover_loop(), self._firing_loop())
@@ -161,11 +191,13 @@ class AsyncRuntime:
                 await self._session_call(self.session.finalize_current)
             finally:
                 await self.channel.stop()
+                self._executor.shutdown()
+                self._registry.close()
 
     async def _session_call(self, fn, *args):
-        """Run one synchronous session call in a worker thread, locked."""
+        """Run one synchronous session call on the OWNED executor, locked."""
         async with self._lock:
-            return await asyncio.to_thread(fn, *args)
+            return await self._executor.run_in_thread(fn, *args)
 
     def _max_reached(self, now_h: float) -> bool:
         return self.max_virtual_hours is not None and now_h >= self.max_virtual_hours
@@ -217,7 +249,7 @@ class AsyncRuntime:
                 self.session.clock.advance_hours(
                     msg.t_h - self.session.clock.now_h()
                 )
-            reply = await asyncio.to_thread(self.session.on_message, msg.text)
+            reply = await self._executor.run_in_thread(self.session.on_message, msg.text)
             await self.sleeper(self._response_delay(reply))
             await self.channel.send(
                 OutboundMessage(text=reply.reply, proactive=False)
@@ -230,7 +262,20 @@ class AsyncRuntime:
     async def _rollover_loop(self) -> None:
         """Sleep until the next virtual midnight (paced), roll the session
         over, then — only on a REAL midnight (not the max_virtual_hours end
-        boundary) — re-plan + persist the CURRENT day's schedule."""
+        boundary) — re-plan + persist the CURRENT day's schedule.
+
+        CLOCK DISCIPLINE (it2 A3, the E0 confounder): the rollover never
+        advances the virtual clock PAST a pending event. When the earliest
+        pending event lies at-or-after now and before the target (midnight
+        or max_virtual_hours) the rollover parks AT that event hour: it
+        paces the clock there and yields (short poll) until the firing loop
+        gates the event AT ITS OWN TIME. Overdue events (pending < now) are
+        left to the firing loop's recovery evaluation. This makes
+        accelerated time safe: a still-valid event can never be spuriously
+        'expired' by a midnight jump (the old race), because the clock never
+        passes the event while it is still pending. Once the firing loop has
+        exited (run end) parking stops — nothing will gate the event, and
+        the rollover winds down to its target."""
         while True:
             now = self.session.clock.now_h()
             if self._max_reached(now):
@@ -240,6 +285,21 @@ class AsyncRuntime:
                 target = min(next_midnight, self.max_virtual_hours)
             else:
                 target = next_midnight
+            async with self._lock:
+                pending = self.schedule.next_pending(now)
+            if (
+                pending is not None
+                and now <= pending < target
+                and not self._firing_done
+            ):
+                # Park at the earliest pending event; the firing loop gates
+                # it at its own time. Never jump past it.
+                target = pending
+            if target <= now:
+                # Parked at (or past) a pending event hour: yield to the
+                # firing loop WITHOUT advancing the clock past the event.
+                await asyncio.sleep(self._poll_sleep())
+                continue
             await asyncio.sleep(
                 (target - now) * self.time_scale.seconds_per_virtual_hour
             )
@@ -250,13 +310,13 @@ class AsyncRuntime:
                 if now < target:
                     self.session.clock.advance_hours(target - now)
                 day = self.session.clock.day()
-                await asyncio.to_thread(self.session.ensure_day, day)
-            if target >= next_midnight:
-                # A real rollover crossed midnight. At the run's end boundary
-                # (target == max_virtual_hours < next_midnight) we do NOT
-                # re-plan: that would inject a fresh plan for a run that is
-                # about to finish.
-                self._replan()
+                if target >= next_midnight:
+                    # A real rollover crossed midnight. At the run's end
+                    # boundary (target == max_virtual_hours < next_midnight)
+                    # we do NOT re-plan: that would inject a fresh plan for a
+                    # run that is about to finish.
+                    await self._executor.run_in_thread(self.session.ensure_day, day)
+                    self._replan()
 
     # ------------------------------------------------------------------ #
     # proactive firing
@@ -276,7 +336,10 @@ class AsyncRuntime:
     async def _firing_loop(self) -> None:
         """Wait for the next pending event (overdue events are visible after
         the A7 next_pending fix), advance the clock to it, resolve a GROUNDED
-        intent, gate it (content + context), then fire or consume+log the
+        intent AT the opportunity time (it2 A3: the scheduler's
+        ContactOpportunity — no semantic reason on it — is resolved here into
+        a ProactiveIntent carrying opportunity_id), gate it (content +
+        context), then fire with the EXACT intent id or consume+log the
         suppression. Overdue events are evaluated on recovery: still valid ⇒
         fire; past the validity window ⇒ expire.
 
@@ -290,6 +353,7 @@ class AsyncRuntime:
         while True:
             now = self.session.clock.now_h()
             if self._max_reached(now):
+                self._firing_done = True
                 return
             async with self._lock:
                 nxt = self.schedule.next_pending(now)
@@ -297,6 +361,7 @@ class AsyncRuntime:
                 await asyncio.sleep(self._poll_sleep())
                 continue
             if self.max_virtual_hours is not None and nxt >= self.max_virtual_hours:
+                self._firing_done = True
                 return
             if nxt > now:
                 await asyncio.sleep(
@@ -311,11 +376,24 @@ class AsyncRuntime:
                 defer_until = self._quiet_defer_until(nxt, now)
                 if defer_until is None:
                     day = self.session.clock.day()
-                    # Contact opportunity -> contact reason: a grounded intent
-                    # anchored at the OPPORTUNITY time (nxt), so an overdue event
-                    # is evaluated against its own validity window on recovery.
-                    # None ⇒ SUPPRESS: no_grounded_reason is a legitimate outcome.
-                    intent = self.resolver.resolve(nxt)
+                    # Contact opportunity -> contact reason: the scheduler's
+                    # ContactOpportunity (NO semantic reason) is resolved at
+                    # OPPORTUNITY time (nxt) into a grounded intent, so an
+                    # overdue event is evaluated against its own window on
+                    # recovery. None ⇒ SUPPRESS: no_grounded_reason is a
+                    # legitimate outcome, never an error.
+                    opportunity = self.schedule.opportunity_for(nxt)
+                    if opportunity is not None:
+                        self.store.log_event(
+                            day, nxt, "contact_opportunity",
+                            f"id={opportunity.id} "
+                            f"desired={opportunity.desired_t_h:.3f} "
+                            f"valid_until={opportunity.valid_until_t_h:.3f} "
+                            f"hazard={opportunity.hazard_components}",
+                        )
+                    intent = self.resolver.resolve(
+                        opportunity if opportunity is not None else nxt
+                    )
                     if intent is None:
                         self.store.log_event(
                             day, now, "proactive_suppressed", "no_grounded_reason"
@@ -349,9 +427,7 @@ class AsyncRuntime:
                                 nxt, now, self.seed, self.store
                             )
                         continue
-                    result = await asyncio.to_thread(
-                        self.session.fire_proactive, intent.reason
-                    )
+                    result = await self._fire_exact_intent(intent)
                     await self.sleeper(self._response_delay(result))
                     await self.channel.send(
                         OutboundMessage(
@@ -366,6 +442,30 @@ class AsyncRuntime:
                 await asyncio.sleep(
                     (defer_until - now) * self.time_scale.seconds_per_virtual_hour
                 )
+
+    async def _fire_exact_intent(self, intent):
+        """Fire ``session.fire_proactive(intent.id)`` — the EXACT validated
+        intent id (A5 seam; invariants 6/7: two same-reason intents are
+        never interchangeable; the runtime never downgrades identity to
+        reason type).
+
+        Transitional leg: while A5's ``fire_proactive(intent_id)`` session
+        has not merged, the legacy session accepts a REASON and raises
+        ``ValueError("unknown proactive reason: ...")`` for an id. That
+        exact legacy message is caught and retried with the intent's reason
+        so pre-A5 callers keep working; A5's merge retires this leg (its
+        session fetches by id, and its own ValueErrors — e.g. unknown
+        intent — propagate)."""
+        try:
+            return await self._executor.run_in_thread(
+                self.session.fire_proactive, intent.id
+            )
+        except ValueError as exc:
+            if "unknown proactive reason" not in str(exc):
+                raise
+            return await self._executor.run_in_thread(
+                self.session.fire_proactive, intent.reason
+            )
 
     # ------------------------------------------------------------------ #
     # quiet-hours deferral (A9 R-4b)
@@ -388,13 +488,17 @@ class AsyncRuntime:
         """
         if envelope(now % 24.0, self.timing) >= 1e-9:
             return None
-        rows = [
-            r for r in self.store.schedule_events_for_seed(self.seed)
-            if abs(float(r["t_h"]) - nxt) < 1e-9
-        ]
-        if not rows:
-            return None
-        valid_until = nxt + REASON_VALIDITY_H[rows[0]["reason"]]
+        opportunity = self.schedule.opportunity_for(nxt)
+        if opportunity is not None:
+            valid_until = opportunity.valid_until_t_h
+        else:
+            rows = [
+                r for r in self.store.schedule_events_for_seed(self.seed)
+                if abs(float(r["t_h"]) - nxt) < 1e-9
+            ]
+            if not rows:
+                return None
+            valid_until = nxt + REASON_VALIDITY_H[rows[0]["reason"]]
         if now > valid_until:
             return None  # past validity: the normal path expires the row
         awake_at = self._next_awake_at(now)
