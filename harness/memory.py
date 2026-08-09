@@ -1,19 +1,51 @@
-"""ZifaMem-style L1/L2/L3/L4 memory pipeline for the companion harness (A5).
+"""ZifaMem-style L1/L2/L3/L4 memory pipeline for the companion harness (A4).
 
 Tiers
 -----
 * L1 — recent turns: exact text persisted through the store's message table
   (``add_message``). Never summarized at write time.
-* L2 — session summaries: one deterministic structured ``SessionSummary`` per
-  completed session (a session is one calendar day, ``session_id="day-<N>"``).
-  The default summarizer is fully deterministic (regex fact extraction, judge
-  score sign/magnitude for affect) and injectable.
+* L2 — session summaries: one structured ``SessionSummary`` per completed
+  session (a session is one calendar day, ``session_id="day-<N>"``). The
+  default extractor is fully deterministic (regex fact extraction, judge
+  score sign/magnitude for affect) and injectable; the research-quality
+  path is the LLM-backed ``SemanticSummaryExtractor`` (see
+  ``harness.summarization``).
 * L3 — episodic memories: explicit promotion of important sessions
   (``PromotionPolicy(importance_threshold=0.5, promote_emotional_peaks=True)``).
   Every episode carries exact verbatim anchors, turn ids, and affect metadata.
 * L4 — consolidated user model: assertions ``{key, value, confidence,
   updated_at, source_memory_ids, status}``. Compatible evidence strengthens the
   current assertion; contradictory evidence supersedes it (provenance kept).
+  Each assertion carries its CANONICAL ``UserModelCategory`` (plan §5-A4
+  Task 1): facts are categorized from the enum in ``harness.summarization``
+  and the category is passed to the store explicitly — never inferred from
+  keys or store conventions.
+
+Memory policy (plan §5-A4 Task 2, invariants 11/12)
+----------------------------------------------------
+``MemoryAgent`` takes and respects a ``MemoryPolicy``:
+
+* ``STRUCTURED_MEMORY`` (default) — the research-faithful condition: the
+  retrieval score is EXACTLY ``0.35*sem + 0.30*strength + 0.35*importance``.
+  No topicality boost is applied, ever.
+* ``STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT`` — the separately named
+  experimental variant (``MemoryPolicy.is_experimental`` is True): the same
+  formula PLUS the documented topicality boost (``TOPICALITY_BOOST * sem``
+  for episodes with a semantic match).
+* ``RAW_CONTEXT`` — honest baseline: as much raw dialogue as the context
+  budget permits (not merely the latest 12 turns).
+* ``VERBATIM_RAG`` — honest baseline: raw conversation chunks retrieved by
+  semantic similarity, using the SAME embedder instance as the structured
+  path (invariant 13). No L3 summaries masquerade as raw RAG.
+
+Embeddings and summarization interfaces (plan §5-A4 Tasks 3/4)
+--------------------------------------------------------------
+``harness.embeddings``: ``DeterministicHashEmbedder`` (tests / deterministic
+CI) and ``RealSemanticEmbedder`` (real eval/live condition), one callable
+contract, no vector DB — brute-force cosine over stored vectors.
+``harness.summarization``: ``DeterministicSummaryExtractor`` (heuristic
+TESTING path, never presented as the research-quality path) and
+``SemanticSummaryExtractor`` (LLM-backed research-quality path).
 
 Invariants
 ----------
@@ -21,18 +53,13 @@ Invariants
   without source turn ids; verbatim anchors are exact excerpts from turns.
 * Affect is metadata ON memories — there is no separate emotional store.
 * The retrieval reranker's BASE score is exactly ``0.35*sem + 0.30*strength
-  + 0.35*importance`` (``score_memory``); ``MemoryAgent.retrieve`` ranking
-  adds a documented topicality boost (``TOPICALITY_BOOST * sem`` for
-  semantic matches) so relevant low-salience memories are not crowded out
-  by irrelevant high-salience ones. Strength is recalculated at retrieval
-  from age, access count, importance and stored affect metadata. No
-  standalone emotional-intensity weight.
+  + 0.35*importance`` (``score_memory``); the topicality boost applies ONLY
+  under ``MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT``. Strength
+  is recalculated at retrieval from age, access count, importance and stored
+  affect metadata. No standalone emotional-intensity weight.
 * All stochastic-free by construction: the default embedder is a deterministic
   seeded hash embedder; the default summarizer consumes no RNG. No real-clock
   reads anywhere — every timestamp is passed in as ``t_h``.
-* Semantics without a vector DB: brute-force cosine over stored embedding
-  vectors; the embedder is injectable (a local service would be wired only by
-  experiments).
 
 Store contract (duck-typed, documented in the plan §15 store seam)
 ------------------------------------------------------------------
@@ -41,21 +68,16 @@ session kwarg is optional; detected by signature), ``messages_for_day`` /
 ``messages_for_session``, ``recent_messages(limit)``, ``load_judgement(day)``,
 ``save_session_summary`` / ``load_session_summary``, ``insert_episode`` /
 ``get_episode`` / ``list_episodes`` / ``touch_episode``, ``save_embedding`` /
-``load_embeddings``, ``upsert_assertion`` (flips same-key current ->
-superseded) / ``list_assertions`` / ``get_assertion``, ``load_user_model``.
-
-``load_user_model`` buckets current assertions by key prefix (convention the
-store layer follows): ``user:`` -> identity, ``preference:`` ->
-current_preferences, ``boundary:`` -> boundaries, ``vulnerability:`` ->
-vulnerabilities, ``interest:`` -> recurring_interests, ``relationship:`` ->
-relationship_patterns, ``entity:`` -> important_entities.
+``load_embeddings``, ``upsert_assertion(assertion, *, category=None)``
+(canonical L4 category kwarg; detected by signature) /
+``list_assertions`` / ``get_assertion`` / ``get_assertion_category``,
+``supersede_assertion``, ``load_user_model`` (buckets current assertions by
+their STORED canonical category; keys are never parsed for semantics).
 """
 
 from __future__ import annotations
 
-import hashlib
 import inspect
-import math
 import re
 from dataclasses import dataclass, replace
 from typing import Callable
@@ -65,11 +87,66 @@ from harness.domain import (
     EpisodicMemory,
     MemoryContext,
     MemoryKind,
+    MemoryPolicy,
     SessionSummary,
     Turn,
     UserModel,
     UserModelAssertion,
+    UserModelCategory,
 )
+from harness.embeddings import (
+    DeterministicHashEmbedder,
+    Embedder,
+    RealSemanticEmbedder,
+    cosine as _cosine,
+)
+from harness.summarization import (
+    DeterministicSummaryExtractor,
+    SemanticSummaryExtractor,
+    Summarizer,
+    _NEGATION_VALUE_RE,
+    _STOP,
+    _TOKENS_RE,
+    _affect_observation,
+    _callbacks,
+    _clean,
+    _extract_facts,
+    deterministic_summarizer,
+)
+
+# Backward-compatible re-exports (tests and callers import these names from
+# harness.memory; the implementations now live in their own modules).
+__all__ = [
+    "MemoryAgent",
+    "PromotionPolicy",
+    "deterministic_hash_embedder",
+    "deterministic_summarizer",
+    "score_memory",
+    "episodic_strength",
+    "raw_history",
+    "simple_retrieval",
+    "Embedder",
+    "DeterministicHashEmbedder",
+    "RealSemanticEmbedder",
+    "Summarizer",
+    "DeterministicSummaryExtractor",
+    "SemanticSummaryExtractor",
+    "SEM_WEIGHT",
+    "STRENGTH_WEIGHT",
+    "IMPORTANCE_WEIGHT",
+    "TOPICALITY_BOOST",
+    "MAX_CONTEXT_CHARS",
+]
+
+
+def deterministic_hash_embedder(text: str, *, dim: int = 64, seed: int = 0) -> list[float]:
+    """Deterministic seeded hash embedder mapping text to a unit vector.
+
+    Function form of ``DeterministicHashEmbedder`` (kept for backward
+    compatibility; the class is the canonical interface).
+    """
+    return DeterministicHashEmbedder(dim=dim, seed=seed)(text)
+
 
 # ---------------------------------------------------------------------------
 # Weights and budgets (documented; tests assert against these constants)
@@ -78,20 +155,22 @@ from harness.domain import (
 SEM_WEIGHT = 0.35
 STRENGTH_WEIGHT = 0.30
 IMPORTANCE_WEIGHT = 0.35
-"""Retrieval reranker base formula: score(q,j) = 0.35*sem + 0.30*strength
-+ 0.35*importance (``score_memory``, unchanged). ``MemoryAgent.retrieve``
-adds the topicality boost below on top of this base."""
+"""Retrieval reranker formula: score(q,j) = 0.35*sem + 0.30*strength
++ 0.35*importance (``score_memory`` — the research-faithful formula,
+verbatim). ``MemoryAgent.retrieve`` under ``STRUCTURED_MEMORY`` applies
+NOTHING on top of this."""
 
 TOPICALITY_BOOST = 0.9
-"""Topicality boost (A9 M-3): ``MemoryAgent.retrieve`` ranking adds
-``TOPICALITY_BOOST * sem`` for episodes with a semantic match (sem > 0),
-so a weak-but-topical memory (the ONLY topical match) is not crowded out
-of the top-N by irrelevant high-salience memories whose strength +
-importance budget alone exceeds the relevant memory's entire base score.
-Calibrated against the deterministic hash embedder: the strongest
-irrelevant distractor in the M-3 adversarial scenario (sem ~ 0.39) still
-loses to the relevant pottery memory (sem ~ 0.73) with 0.9 > 0.808.
-``score_memory`` itself stays the literal 0.35/0.30/0.35 formula."""
+"""Topicality boost — applied ONLY under the separately named experimental
+policy ``MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT`` (invariant
+12): ``retrieve`` ranking adds ``TOPICALITY_BOOST * sem`` for episodes with
+a semantic match (sem > 0), so a weak-but-topical memory (the ONLY topical
+match) is not crowded out of the top-N by irrelevant high-salience memories.
+Under the research-faithful ``STRUCTURED_MEMORY`` condition the boost is
+NEVER applied (invariant 11). Calibrated against the deterministic hash
+embedder: the strongest irrelevant distractor in the M-3 adversarial
+scenario (sem ~ 0.39) still loses to the relevant pottery memory
+(sem ~ 0.73) with 0.9 > 0.808."""
 
 MAX_CONTEXT_CHARS = 8000
 """Hard budget on the total text payload of a returned ``MemoryContext``."""
@@ -108,6 +187,14 @@ ANCHOR_CHAR_BUDGET = 1200
 EPISODE_LIST_LIMIT = 500
 """Upper bound for the episode scan per retrieval (brute-force, no vector DB)."""
 
+RAW_CONTEXT_WINDOW = 1000
+"""RAW_CONTEXT baseline window: as much raw dialogue as the store returns;
+the 8000-char context budget then decides what fits (not merely 12 turns)."""
+
+VERBATIM_RAG_WINDOW = 400
+"""VERBATIM_RAG baseline window: raw turns scanned for semantic similarity
+(bounded scan; no vector DB)."""
+
 # Strength recomputation at retrieval time.
 STRENGTH_IMPORTANCE_W = 0.40
 STRENGTH_RECENCY_W = 0.30
@@ -121,343 +208,9 @@ ASSERTION_CONTRADICTION_CONFIDENCE = 0.7
 ASSERTION_STRENGTHEN_STEP = 0.15
 ASSERTION_MAX_CONFIDENCE = 0.99
 
-# ---------------------------------------------------------------------------
-# Embedder
-# ---------------------------------------------------------------------------
-
-_TOKEN_RE = re.compile(r"[a-z0-9]+")
-_STOPWORDS = frozenset(
-    {
-        "the", "and", "you", "your", "that", "this", "with", "have", "was",
-        "are", "for", "not", "but", "all", "can", "out", "get", "just",
-        "like", "about", "really", "what", "when", "where", "how", "why",
-        "there", "here", "from", "they", "them", "she", "him", "her", "will",
-        "would", "could", "should", "into", "over", "than", "then", "very",
-    }
-)
-
-
-def deterministic_hash_embedder(text: str, *, dim: int = 64, seed: int = 0) -> list[float]:
-    """Deterministic seeded hash embedder mapping text to a unit vector.
-
-    Feature hashing with signed accumulators over lower-cased alphanumeric
-    tokens (SHA-256 based, so results are stable across processes — never
-    Python's randomized ``hash()``). Empty text maps to ``e_0``. This is the
-    default embedder for tests and offline runs; a real local service would
-    be injected by experiments only.
-    """
-    vec = [0.0] * dim
-    for tok in _TOKEN_RE.findall(text.lower()):
-        digest = hashlib.sha256(f"{seed}:{tok}".encode("utf-8")).digest()
-        idx = int.from_bytes(digest[:8], "little") % dim
-        sign = 1.0 if digest[8] & 1 else -1.0
-        vec[idx] += sign
-    norm = math.sqrt(sum(v * v for v in vec))
-    if norm == 0.0:
-        vec[0] = 1.0
-        return vec
-    return [v / norm for v in vec]
-
-
-def _cosine(a: list[float], b: list[float]) -> float:
-    if not a or not b:
-        return 0.0
-    dim = max(len(a), len(b))
-    va = a + [0.0] * (dim - len(a))
-    vb = b + [0.0] * (dim - len(b))
-    dot = sum(x * y for x, y in zip(va, vb))
-    na = math.sqrt(sum(x * x for x in va))
-    nb = math.sqrt(sum(y * y for y in vb))
-    if na == 0.0 or nb == 0.0:
-        return 0.0
-    return dot / (na * nb)
-
 
 def _clip(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
     return max(lo, min(hi, x))
-
-
-# ---------------------------------------------------------------------------
-# Deterministic fact extraction (L2 input and L4 keys)
-# ---------------------------------------------------------------------------
-
-
-@dataclass(frozen=True)
-class _Fact:
-    """One structured fact extracted from a user turn (provenanced)."""
-
-    key: str          # stable L4 assertion key, e.g. "user:dog:name"
-    value: str        # human-readable fact, e.g. "user's dog is named Bruno"
-    kind: str         # "user_fact" | "preference" | "relationship"
-    turn_id: int      # message id of the source turn
-    anchor: str       # exact excerpt from the source turn
-
-
-_NAME_RE = re.compile(r"\bmy\s+([a-z]+)'s\s+name\s+is\s+([A-Za-z][A-Za-z0-9]*)", re.IGNORECASE)
-_POSSESSIVE_RE = re.compile(r"\bmy\s+([a-z]+)\s+(?:is|are)\s+(.+?)[.!?]?$", re.IGNORECASE)
-_HAVE_RE = re.compile(r"\bi\s+have\s+(?:a|an)\s+([a-z]+)\b", re.IGNORECASE)
-_NAMED_RE = re.compile(r"\bnamed\s+([A-Za-z][A-Za-z0-9]*)", re.IGNORECASE)
-_NEGATION_RE = re.compile(
-    r"\b(?:don'?t|do not|no longer|not anymore|never)\s+have\s+"
-    r"(?:a|an|the|my)?\s*([A-Za-z][A-Za-z0-9]*)",
-    re.IGNORECASE,
-)
-#: value of a negation fact, subject captured ("user no longer has luna")
-_NEGATION_VALUE_RE = re.compile(r"^user no longer has ([a-z0-9]+)$")
-_LIKE_RE = re.compile(r"\bi\s+(?:love|like|enjoy)\s+(.+?)[.!?]?$", re.IGNORECASE)
-_DISLIKE_RE = re.compile(r"\bi\s+(?:hate|dislike)\s+(.+?)[.!?]?$", re.IGNORECASE)
-_THANKS_RE = re.compile(r"\bthank", re.IGNORECASE)
-_CALLBACK_RE = re.compile(r"\b(?:remind me|remember to|don'?t forget|next time)\b", re.IGNORECASE)
-
-_JUNK_NOUNS = frozenset({"day", "week", "mood", "life", "head", "heart", "time"})
-
-Callback = tuple[str, int, str]  # (excerpt, turn_id, full_text)
-
-
-def _clean(value: str) -> str:
-    return re.sub(r"\s+", " ", value.strip().strip(".!?,;")).strip()
-
-
-def _extract_facts(messages: list[dict]) -> list[_Fact]:
-    """Conservative, deterministic fact extraction over USER turns only.
-
-    Returns facts deduplicated by (key, value) — first occurrence wins, so
-    repeated disclosures never create duplicate assertions downstream.
-    """
-    facts: list[_Fact] = []
-    seen: set[tuple[str, str]] = set()
-
-    def add(key: str, value: str, kind: str, turn_id: int, anchor: str) -> None:
-        value = _clean(value)
-        if not value or (key, value) in seen:
-            return
-        seen.add((key, value))
-        facts.append(_Fact(key=key, value=value, kind=kind, turn_id=turn_id, anchor=anchor))
-
-    for msg in messages:
-        if msg.get("role") != "user":
-            continue
-        text = str(msg.get("content", ""))
-        tid = int(msg.get("id", -1))
-        # Negation FIRST: "I don't have Luna anymore" must not fall through to
-        # the positive rules (M-1b — without this, the stale positive fact
-        # survives and reaches the prompt).
-        m = _NEGATION_RE.search(text)
-        if m and m.group(1).lower() not in _JUNK_NOUNS:
-            subject = m.group(1).lower()
-            add(f"user:{subject}", f"user no longer has {subject}",
-                "user_fact", tid, text)
-            continue
-        m = _NAME_RE.search(text)
-        if m and m.group(1).lower() not in _JUNK_NOUNS:
-            noun, name = m.group(1).lower(), m.group(2)
-            add(f"user:{noun}:name", f"user's {noun} is named {name}", "user_fact", tid, text)
-            continue
-        m = _POSSESSIVE_RE.search(text)
-        if m and m.group(1).lower() not in _JUNK_NOUNS:
-            noun, rest = m.group(1).lower(), _clean(m.group(2))
-            add(f"user:{noun}", f"user's {noun} is {rest}", "user_fact", tid, text)
-            continue
-        m = _HAVE_RE.search(text)
-        if m and m.group(1).lower() not in _JUNK_NOUNS:
-            noun = m.group(1).lower()
-            name_m = _NAMED_RE.search(text)
-            if name_m:
-                # keep the name INSIDE the value so a later name-based
-                # negation ("I don't have Luna anymore") can supersede this
-                # key via subject-word matching
-                add(f"user:{noun}",
-                    f"user has a {noun} named {name_m.group(1)}",
-                    "user_fact", tid, text)
-            else:
-                add(f"user:{noun}", f"user has a {noun}", "user_fact", tid, text)
-            continue
-        m = _LIKE_RE.search(text)
-        if m:
-            topic = _clean(m.group(1))
-            if topic:
-                add(f"preference:like:{topic}", f"user likes {topic}", "preference", tid, text)
-                continue
-        m = _DISLIKE_RE.search(text)
-        if m:
-            topic = _clean(m.group(1))
-            if topic:
-                add(f"preference:dislike:{topic}", f"user dislikes {topic}", "preference", tid, text)
-                continue
-        if _THANKS_RE.search(text):
-            add("relationship:gratitude", "user expressed gratitude", "relationship", tid, text)
-    return facts
-
-
-def _callbacks(messages: list[dict]) -> list[Callback]:
-    """User turns that ask for a future reminder — exact excerpt kept."""
-    out: list[Callback] = []
-    for msg in messages:
-        if msg.get("role") != "user":
-            continue
-        text = str(msg.get("content", ""))
-        if _CALLBACK_RE.search(text):
-            out.append((text[:80], int(msg.get("id", -1)), text))
-    return out
-
-
-# ---------------------------------------------------------------------------
-# Affect observations (metadata on memories, derived deterministically)
-# ---------------------------------------------------------------------------
-
-
-def _affect_observation(msg: dict, score: float | None) -> AffectMetadata:
-    """Deterministic affect metadata for one user turn.
-
-    Valence comes from the day's judge score sign/magnitude (the judge
-    consumes no RNG); arousal and intensity come from surface text signals
-    (exclamation/questions/ellipsis). This is metadata ON the memory — there
-    is no separate emotional store.
-    """
-    text = str(msg.get("content", ""))
-    exclaim = text.count("!")
-    question = text.count("?")
-    ellipsis = text.count("...") + text.count("…")
-    v = 0.0 if score is None else _clip(float(score), -1.0, 1.0)
-    arousal = _clip(0.3 + 0.2 * min(1, exclaim) + 0.2 * min(1, question) - 0.1 * min(1, ellipsis))
-    intensity = _clip(0.7 * abs(v) + 0.3 * arousal + 0.2 * min(1.0, exclaim))
-    peak = abs(v) >= 0.7 or exclaim >= 2
-    return AffectMetadata(
-        user_valence=v,
-        user_arousal=arousal,
-        companion_valence=0.5,
-        intensity=intensity,
-        conflict=0.5,
-        comfort=_clip(0.5 + 0.4 * v),
-        vulnerability=_clip(0.5 + 0.3 * intensity),
-        relationship_relevance=_clip(0.3 + 0.4 * intensity),
-        emotional_peak=peak,
-    )
-
-
-def _affect_observations(messages: list[dict], score: float | None) -> tuple[AffectMetadata, ...]:
-    """Per-user-turn observations that carry a measurable signal."""
-    obs = []
-    for msg in messages:
-        if msg.get("role") != "user":
-            continue
-        o = _affect_observation(msg, score)
-        if o.intensity >= 0.2 or o.emotional_peak:
-            obs.append(o)
-    return tuple(obs)
-
-
-# ---------------------------------------------------------------------------
-# L2 — deterministic session summarizer (default; injectable)
-# ---------------------------------------------------------------------------
-
-Summarizer = Callable[[str, list[dict], dict | None, float, float], SessionSummary]
-# (session_id, messages, judgement, started_at_t_h, ended_at_t_h) -> SessionSummary
-
-
-def _topics(messages: list[dict], n: int = 5) -> tuple[str, ...]:
-    counts: dict[str, int] = {}
-    for msg in messages:
-        for tok in _TOKEN_RE.findall(str(msg.get("content", "")).lower()):
-            if len(tok) >= 4 and tok not in _STOPWORDS:
-                counts[tok] = counts.get(tok, 0) + 1
-    ranked = sorted(counts, key=lambda t: (-counts[t], t))
-    return tuple(ranked[:n])
-
-
-def _session_importance(
-    facts: list[_Fact],
-    callbacks: list[Callback],
-    observations: tuple[AffectMetadata, ...],
-    n_messages: int,
-) -> float:
-    """Deterministic importance: disclosure signal + affect + engagement."""
-    signal = 0.0
-    if any(f.kind == "user_fact" for f in facts):
-        signal += 0.50
-    if any(f.kind == "preference" for f in facts):
-        signal += 0.25
-    if any(f.kind == "relationship" for f in facts):
-        signal += 0.15
-    if callbacks:
-        signal += 0.10
-    affect_signal = (
-        sum(o.intensity for o in observations) / len(observations) if observations else 0.0
-    )
-    engagement = min(1.0, n_messages / 12.0)
-    return _clip(signal + 0.15 * affect_signal + 0.10 * engagement)
-
-
-def deterministic_summarizer(
-    session_id: str,
-    messages: list[dict],
-    judgement: dict | None,
-    started_at_t_h: float,
-    ended_at_t_h: float,
-) -> SessionSummary:
-    """Default L2 summarizer: fully deterministic, never requires an LLM.
-
-    * topics      — content-word frequency across all turns
-    * user_facts  — conservative regex extraction (name/possessive/have)
-    * preferences — like/dislike patterns
-    * callbacks   — reminder-style requests (exact excerpts)
-    * affect      — judge score sign/magnitude + surface text signals
-    * importance  — disclosure + affect + engagement (see ``_session_importance``)
-    """
-    facts = _extract_facts(messages)
-    cbs = _callbacks(messages)
-    score = None
-    if judgement is not None:
-        raw = judgement.get("score")
-        if raw is not None:
-            try:
-                score = float(raw)
-            except (TypeError, ValueError):
-                score = None
-    observations = _affect_observations(messages, score)
-
-    user_facts = tuple(f.value for f in facts if f.kind == "user_fact")
-    preferences = tuple(f.value for f in facts if f.kind == "preference")
-    relationships = tuple(f.value for f in facts if f.kind == "relationship")
-    callback_excerpts = tuple(cb[0] for cb in cbs)
-    companion_events = tuple(
-        str(m.get("content", ""))[:120]
-        for m in messages
-        if m.get("role") == "assistant"
-        and (m.get("proactive") or re.search(r"\b(i will|i'll|i started|i finished)\b", str(m.get("content", "")), re.IGNORECASE))
-    )
-
-    summary_parts = [
-        f"Session {session_id}: {len(messages)} turn(s) between "
-        f"{started_at_t_h:.1f}h and {ended_at_t_h:.1f}h.",
-    ]
-    if user_facts:
-        summary_parts.append("User shared: " + "; ".join(user_facts) + ".")
-    if preferences:
-        summary_parts.append("Preferences: " + "; ".join(preferences) + ".")
-    if observations:
-        summary_parts.append(
-            "Affect: peak=" + str(any(o.emotional_peak for o in observations)).lower()
-            + ", mean intensity=" + f"{sum(o.intensity for o in observations) / len(observations):.2f}."
-        )
-
-    peak = any(o.emotional_peak for o in observations)
-    return SessionSummary(
-        session_id=session_id,
-        started_at_t_h=float(started_at_t_h),
-        ended_at_t_h=float(ended_at_t_h),
-        summary=" ".join(summary_parts),
-        topics=_topics(messages),
-        user_facts=user_facts,
-        preference_updates=preferences,
-        companion_events=companion_events,
-        relationship_events=relationships,
-        callbacks=callback_excerpts,
-        affect_observations=observations,
-        emotional_peak=peak,
-        importance=_session_importance(facts, cbs, observations, len(messages)),
-        source_turn_ids=tuple(int(m["id"]) for m in messages if "id" in m),
-    )
 
 
 # ---------------------------------------------------------------------------
@@ -521,14 +274,16 @@ class PromotionPolicy:
 
 
 # ---------------------------------------------------------------------------
-# Baselines (Memory Gate item 10 — the three policy baselines)
+# Baselines (Memory Gate item 10 — the policy baselines)
 # ---------------------------------------------------------------------------
 
 
 def raw_history(store, *, limit: int = L1_SLICE_LIMIT) -> tuple[Turn, ...]:
     """RAW_HISTORY baseline: the recent transcript, nothing else.
 
-    Identical to the L1 slice the assembler already consumes.
+    Identical to the L1 slice the assembler already consumes. The
+    policy-based ``RAW_CONTEXT`` condition in ``MemoryAgent.retrieve`` is
+    the budget-filling variant of this baseline.
     """
     rows = store.recent_messages(limit=limit)
     return tuple(Turn(role=r["role"], text=r["content"], t_h=float(r["t_h"])) for r in rows)
@@ -545,8 +300,9 @@ def simple_retrieval(
     """SIMPLE_RAG baseline: semantic relevance only (cosine over embeddings).
 
     Ignores strength and importance entirely — the contrast to the full
-    0.35/0.30/0.35 reranker (plus topicality boost) used by
-    ``MemoryAgent.retrieve``.
+    0.35/0.30/0.35 reranker used by ``MemoryAgent.retrieve`` under
+    ``STRUCTURED_MEMORY``. (The policy-based ``VERBATIM_RAG`` condition
+    ranks RAW TURNS with the same embedder instead of L3 episodes.)
     """
     embed = embedder or deterministic_hash_embedder
     qv = embed(query)
@@ -561,14 +317,18 @@ def simple_retrieval(
 # MemoryAgent
 # ---------------------------------------------------------------------------
 
-Embedder = Callable[[str], list[float]]
-
 
 class MemoryAgent:
     """ZifaMem-style L1/L2/L3/L4 pipeline over the store seam.
 
     Seam-exact public API (plan §15): ``record_turn``, ``close_session``,
     ``promote``, ``update_user_model``, ``retrieve``.
+
+    ``memory_policy`` selects the conditioning condition (plan §5-A4 Task 2):
+    ``STRUCTURED_MEMORY`` (default, research-faithful), the experimental
+    topicality variant, or one of the honest baselines (``RAW_CONTEXT`` /
+    ``VERBATIM_RAG``). Baselines use the SAME injectable embedder as the
+    structured path — a policy change never swaps the semantic backend.
     """
 
     def __init__(
@@ -579,12 +339,14 @@ class MemoryAgent:
         policy: PromotionPolicy | None = None,
         rng=None,
         summarizer: Summarizer | None = None,
+        memory_policy: MemoryPolicy = MemoryPolicy.STRUCTURED_MEMORY,
     ) -> None:
         self.store = store
-        self._embed: Embedder = embedder or deterministic_hash_embedder
+        self._embed: Embedder = embedder or DeterministicHashEmbedder()
         self._policy = policy if policy is not None else PromotionPolicy()
-        self._summarizer: Summarizer = summarizer or deterministic_summarizer
-        self._rng = rng  # reserved for future stochastic extensions; A5 is deterministic
+        self._summarizer: Summarizer = summarizer or DeterministicSummaryExtractor()
+        self._rng = rng  # reserved for future stochastic extensions; A4 is deterministic
+        self.memory_policy = memory_policy
         try:
             self._add_message_accepts_session = (
                 "session_id" in inspect.signature(store.add_message).parameters
@@ -601,6 +363,16 @@ class MemoryAgent:
             )
         except (TypeError, AttributeError):
             self._supersede_accepts_provenance = False
+        # Canonical L4 category kwarg (plan §5-A4 Task 1, invariant 10): the
+        # store persists the UserModelCategory directly on the assertion row.
+        # Stores without the kwarg fall back to their legacy key-prefix
+        # bucketing (detected once at construction, never re-derived).
+        try:
+            self._upsert_accepts_category = (
+                "category" in inspect.signature(store.upsert_assertion).parameters
+            )
+        except (TypeError, AttributeError):
+            self._upsert_accepts_category = False
 
     # -- helpers ------------------------------------------------------------
 
@@ -671,9 +443,9 @@ class MemoryAgent:
     def close_session(self, session_id: str, *, ended_at_t_h: float) -> SessionSummary:
         """Close a session: build + persist the structured L2 summary.
 
-        The default summarizer is deterministic (no LLM required); an
-        injectable summarizer may decorate later. The summary is persisted
-        through the store seam before being returned.
+        The default extractor is deterministic (no LLM required); the
+        research-quality ``SemanticSummaryExtractor`` may be injected. The
+        summary is persisted through the store seam before being returned.
         """
         messages = self._session_messages(session_id)
         judgement = None
@@ -695,7 +467,7 @@ class MemoryAgent:
 
     @staticmethod
     def _tags_for_text(text: str, extra: tuple[str, ...] = ()) -> tuple[str, ...]:
-        tags = [t for t in _TOKEN_RE.findall(text.lower()) if len(t) >= 3 and t not in _STOPWORDS]
+        tags = [t for t in _TOKENS_RE.findall(text.lower()) if len(t) >= 3 and t not in _STOP]
         for t in extra:
             if t not in tags:
                 tags.append(t)
@@ -840,6 +612,9 @@ class MemoryAgent:
         * Contradictory evidence (same key, different value) SUPERSEDES: the
           store flips the old current assertion to "superseded" (provenance
           kept) and the new one becomes "current".
+        * Every assertion carries its canonical ``UserModelCategory``
+          (``_Fact.category``) and is persisted with it explicitly — the
+          store never infers categories from keys.
         * Nothing is ever deleted.
         * Assertions are created ONLY from promoted sessions — no source
           episodes, no assertion (no summarization hallucination becomes L4
@@ -893,7 +668,10 @@ class MemoryAgent:
                     source_memory_ids=sources,
                     status="current",
                 )
-            self.store.upsert_assertion(assertion)
+            if self._upsert_accepts_category:
+                self.store.upsert_assertion(assertion, category=f.category)
+            else:
+                self.store.upsert_assertion(assertion)
             updated.append(assertion)
 
         # M-1b gate fix (A9 Gate 3): negation facts supersede EVERY current
@@ -943,22 +721,98 @@ class MemoryAgent:
     ) -> MemoryContext:
         """Retrieve a bounded, budgeted memory context for ``query``.
 
-        Ranking: base ``score(q,j) = 0.35*sem + 0.30*strength +
-        0.35*importance`` (``score_memory``) with strength recalculated at
-        retrieval time, PLUS a topicality boost of ``TOPICALITY_BOOST *
-        sem`` for episodes with a semantic match (sem > 0) so a relevant
-        low-salience memory is not crowded out by irrelevant high-salience
-        ones (A9 M-3). Returns the L1 slice (recent turns), a bounded L2
-        slice (summaries of the sessions that produced the top episodes),
-        the top L3 episodes, the L4 projection, and exact verbatim evidence
-        anchors. ``context`` may carry ``{"t_h": now}``; without it the
-        latest stored timestamp is used. Total payload is hard-capped at
+        The condition is selected by ``self.memory_policy`` (plan §5-A4
+        Task 2):
+
+        * ``STRUCTURED_MEMORY`` — L1 slice + bounded L2 + top L3 episodes +
+          L4 projection + verbatim anchors, ranked by the research-faithful
+          formula ``score(q,j) = 0.35*sem + 0.30*strength + 0.35*importance``
+          (``score_memory``) with strength recalculated at retrieval time.
+          NO topicality boost, ever.
+        * ``STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT`` — the same formula PLUS
+          ``TOPICALITY_BOOST * sem`` for episodes with a semantic match
+          (``is_experimental`` condition).
+        * ``RAW_CONTEXT`` — as much raw dialogue as the context budget
+          permits (not merely the latest 12 turns); no L2/L3/L4.
+        * ``VERBATIM_RAG`` — raw conversation chunks ranked by semantic
+          similarity with the SAME embedder instance used by the structured
+          path; no L3 summaries masquerade as raw RAG.
+
+        ``context`` may carry ``{"t_h": now}``; without it the latest stored
+        timestamp is used. Total payload is hard-capped at
         ``MAX_CONTEXT_CHARS``.
         """
         ctx = context or {}
         now = ctx.get("t_h")
         if now is None:
             now = self._latest_t_h()
+        policy = self.memory_policy
+        if policy is MemoryPolicy.RAW_CONTEXT:
+            return self._retrieve_raw_context()
+        if policy is MemoryPolicy.VERBATIM_RAG:
+            return self._retrieve_verbatim_rag(query, limit=limit)
+        topicality = policy is MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT
+        return self._retrieve_structured(query, now, limit=limit, topicality=topicality)
+
+    def _retrieve_raw_context(self) -> MemoryContext:
+        """RAW_CONTEXT baseline: raw dialogue up to the hard budget."""
+        rows = self.store.recent_messages(limit=RAW_CONTEXT_WINDOW)
+        turns = tuple(
+            Turn(role=r["role"], text=r["content"], t_h=float(r["t_h"])) for r in rows
+        )
+        return _trim_to_budget(
+            MemoryContext(
+                recent_turns=turns,
+                session_context=(),
+                episodes=(),
+                user_model=None,
+                evidence_anchors=(),
+            )
+        )
+
+    def _retrieve_verbatim_rag(self, query: str, *, limit: int = 8) -> MemoryContext:
+        """VERBATIM_RAG baseline: raw turns ranked by semantic similarity.
+
+        Uses ``self._embed`` — the SAME semantic backend as the structured
+        path (invariant 13). Episodes/L2/L4 are not consulted: this is an
+        honest raw-RAG baseline, not a summary retrieval in disguise.
+        """
+        qv = self._embed(query)
+        scored: list[tuple[float, dict]] = []
+        for r in self.store.recent_messages(limit=VERBATIM_RAG_WINDOW):
+            sem = _cosine(qv, self._embed(str(r["content"])))
+            scored.append((sem, r))
+        scored.sort(key=lambda t: t[0], reverse=True)
+        top = scored[:limit]
+        turns = tuple(
+            Turn(role=r["role"], text=r["content"], t_h=float(r["t_h"]))
+            for _, r in top
+        )
+        anchors = tuple(str(r["content"]) for _, r in top)
+        return _trim_to_budget(
+            MemoryContext(
+                recent_turns=turns,
+                session_context=(),
+                episodes=(),
+                user_model=None,
+                evidence_anchors=anchors,
+            )
+        )
+
+    def _retrieve_structured(
+        self,
+        query: str,
+        now: float,
+        *,
+        limit: int = 8,
+        topicality: bool = False,
+    ) -> MemoryContext:
+        """Structured L1/L2/L3/L4 retrieval with the faithful reranker.
+
+        ``topicality=False`` (``STRUCTURED_MEMORY``) applies the formula
+        EXACTLY; ``topicality=True`` (the separately named experiment) adds
+        ``TOPICALITY_BOOST * sem`` for episodes with a semantic match.
+        """
         qv = self._embed(query)
         embeddings = dict(self.store.load_embeddings())
 
@@ -968,7 +822,7 @@ class MemoryAgent:
             vec = embeddings.get(ep.id, [])
             sem = _cosine(qv, vec)
             score = score_memory(qv, vec, ep, strength)
-            if sem > 0.0:
+            if topicality and sem > 0.0:
                 score += TOPICALITY_BOOST * sem
             scored.append((score, ep))
         scored.sort(key=lambda t: t[0], reverse=True)
