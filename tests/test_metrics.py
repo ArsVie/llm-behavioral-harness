@@ -278,3 +278,79 @@ class TestEnvelopeViolations:
         times_h = np.array([9.0, 10.0, 20.0, 22.9])
         count = envelope_violations(times_h, step_envelope, eps=1e-9)
         assert count == 0
+
+
+# --------------------------------------------------------------------------- #
+# B6 — lane routing + fair probes (closes F5): pure-logic units
+# (store-backed integration tests live in tests/test_cvs_common.py)
+# --------------------------------------------------------------------------- #
+
+
+class TestTokensCovered:
+    """Cobertura por token sobre textos (base de classify_chain y de la sonda
+    justa RAW_HISTORY)."""
+
+    def test_substring_match_case_insensitive(self):
+        from experiments.cvs_common import _tokens_covered
+
+        assert _tokens_covered(["ana", "friday"],
+                               ["my sister ana arrived on Friday"]) == [True, True]
+        assert _tokens_covered(["ana"], ["nothing here"]) == [False]
+
+    def test_any_text_suffices(self):
+        from experiments.cvs_common import _tokens_covered
+
+        assert _tokens_covered(["guadalajara"],
+                               ["other", "moving to Guadalajara soon"]) == [True]
+
+
+class TestChainClassification:
+    """Forma estándar §17.2 compartida por las lanes (episodios y raw)."""
+
+    def test_levels(self):
+        from experiments.cvs_common import _chain_classification
+
+        chain = {"id": "c", "tokens": ("a", "b", "c")}
+        assert _chain_classification(chain, [False, False, False]) == {
+            "chain_id": "c", "events": 3, "covered": [False, False, False],
+            "AnyEvidence": False, "LatestEvidence": False, "CompleteChain": False,
+        }
+        assert _chain_classification(chain, [True, False, False])["AnyEvidence"] is True
+        assert _chain_classification(chain, [False, False, True])["LatestEvidence"] is True
+        assert _chain_classification(chain, [True, True, True])["CompleteChain"] is True
+
+    def test_empty_covered_does_not_crash(self):
+        from experiments.cvs_common import _chain_classification
+
+        cls = _chain_classification({"id": "c", "tokens": ()}, [])
+        assert (cls["AnyEvidence"], cls["LatestEvidence"], cls["CompleteChain"]) == (
+            False, False, False)
+
+
+class TestRawHistoryWindow:
+    """La ventana de la sonda justa: últimos N turnos persistidos con t_h' < t_q."""
+
+    def test_window_returns_last_limit_turns_before_t(self, tmp_path):
+        from harness.store import SQLiteStore
+        from experiments.cvs_common import RAW_HISTORY_WINDOW_LIMIT, _raw_history_window
+
+        store = SQLiteStore(str(tmp_path / "w.db"))
+        for i in range(20):
+            store.add_message("user", f"turn {i}", float(i), 0)
+        window = _raw_history_window(store, 15.0)
+        assert len(window) == RAW_HISTORY_WINDOW_LIMIT == 12
+        # only turns with t_h' < 15, most recent 12, chronological order
+        assert [text for _r, text in window] == [f"turn {i}" for i in range(3, 15)]
+        assert _raw_history_window(store, 2.0) == (("user", "turn 0"), ("user", "turn 1"))
+        store.close()
+
+    def test_window_ignores_future_turns(self, tmp_path):
+        from harness.store import SQLiteStore
+        from experiments.cvs_common import _raw_history_window
+
+        store = SQLiteStore(str(tmp_path / "w2.db"))
+        store.add_message("user", "after", 100.0, 4)
+        store.add_message("user", "before", 10.0, 0)
+        window = _raw_history_window(store, 50.0)
+        assert [text for _r, text in window] == ["before"]
+        store.close()

@@ -1284,8 +1284,30 @@ def _chain_event_tokens(chain: dict) -> tuple[str, str, str]:
     return tuple(str(t) for t in chain["tokens"])  # type: ignore[return-value]
 
 
+def _tokens_covered(tokens: Sequence[str], texts: Sequence[str]) -> list[bool]:
+    """Cobertura por token: el token aparece como subcadena (minúsculas) en
+    algún texto. Normaliza ambos lados; los callers ya pasan texto en
+    minúsculas (idempotente)."""
+    tokens = [str(t).lower() for t in tokens]
+    texts = [str(t).lower() for t in texts]
+    return [any(tok in text for text in texts) for tok in tokens]
+
+
+def _chain_classification(chain: dict, covered: Sequence[bool]) -> dict:
+    """Forma estándar de clasificación §17.2, compartida por todas las lanes."""
+    covered = list(covered)
+    return {
+        "chain_id": chain["id"],
+        "events": len(covered),
+        "covered": covered,
+        "AnyEvidence": any(covered),
+        "LatestEvidence": covered[-1] if covered else False,
+        "CompleteChain": all(covered) if covered else False,
+    }
+
+
 def classify_chain(retrieved: Sequence, chain: dict) -> dict:
-    """Clasifica una recuperación según §17.2.
+    """Clasifica una recuperación según §17.2 (lane de episodios).
 
     Cobertura por evento: el texto del episodio (summary+tags+anclas) contiene
     el token distintivo del evento. AnyEvidence: >=1 evento cubierto.
@@ -1293,28 +1315,122 @@ def classify_chain(retrieved: Sequence, chain: dict) -> dict:
     """
     tokens = _chain_event_tokens(chain)
     texts = [_episode_text(ep) for ep in retrieved]
-    covered = [any(tok in text for text in texts) for tok in tokens]
-    return {
-        "chain_id": chain["id"],
-        "events": len(tokens),
-        "covered": covered,
-        "AnyEvidence": any(covered),
-        "LatestEvidence": covered[-1],
-        "CompleteChain": all(covered),
-    }
+    return _chain_classification(chain, _tokens_covered(tokens, texts))
 
 
-def event_chain_metrics(store: SQLiteStore, *, memory_policy=None) -> dict:
-    """Métricas de cadena de eventos por cadena (retrieval con la policy dada)."""
-    mem = MemoryAgent(store, embedder=recall_embedder, memory_policy=memory_policy)
+# --------------------------------------------------------------------------- #
+# Sonda justa RAW_HISTORY (B6/F5) — definición preregistrada
+# --------------------------------------------------------------------------- #
+
+#: Ventana de contexto crudo de la lane RAW_HISTORY: el mismo slice L1 que
+#: ``harness.memory.raw_history`` (limit=12) entrega al ensamblador.
+RAW_HISTORY_WINDOW_LIMIT = 12
+
+RAW_HISTORY_FAIR_PROBE = """\
+RAW_HISTORY fair probe (preregistered, B6/F5; manifest-ready).
+
+Problem. RAW_HISTORY's lane is a raw dialogue window, not an episode store:
+its retrieve returns ``recent_turns`` (the L1 slice, ``raw_history(store,
+limit=12)``) and zero episodes. Scoring it with episode-keyed retrieval
+(AnyEvidence/LatestEvidence/CompleteChain over ``ctx.episodes``) returns 0
+by construction — a circular measurement.
+
+Definition. A fact is RECOVERABLE by RAW_HISTORY iff at least one of its
+distinctive tokens (lowercased substring match) appears in the raw dialogue
+context the lane conditions on at query time t_q — the L1 recent-turns slice
+restricted to turns with t_h < t_q, i.e. the last RAW_HISTORY_WINDOW_LIMIT
+(12) persisted turns strictly before t_q, both roles, reconstructed from the
+transcript (the live lane saw exactly this slice at that moment). The probe
+window is the assembled recent-turns slice the model actually receives.
+
+Scoring. Chain probes (query time = query_day * 24 h; days 1-indexed per
+manifest): per-event coverage over the window; AnyEvidence = >=1 event
+covered, LatestEvidence = most-recent event covered, CompleteChain = all
+events covered. Single-fact probes (query time = probe_day * 24 + 6 h):
+recalled = token present in the window. The raw lane performs no ranked
+retrieval, so ``rank`` is null and M4_false_recall (a ranked-retrieval
+artifact) is structurally 0.0 for this lane.
+
+This measures the mechanism the condition actually uses — the window the
+model receives — and never a store the lane does not have.
+"""
+
+
+def _raw_history_window(store: SQLiteStore, t_h: float, *,
+                        limit: int = RAW_HISTORY_WINDOW_LIMIT,
+                        ) -> tuple[tuple[str, str], ...]:
+    """Slice L1 de diálogo crudo TAL COMO la lane RAW_HISTORY lo ve en t_h.
+
+    Reconstrucción retrospectiva: los últimos ``limit`` turnos persistidos
+    (rol, texto) con t_h' < t_h, en orden cronológico. ``recent_messages``
+    ordena por id; filtrar por tiempo y quedarse con la cola reproduce
+    exactamente el slice que ``raw_history`` habría devuelto en vivo en t_h.
+    """
+    rows = store.recent_messages(limit=1_000_000)
+    return tuple(
+        (r["role"], r["content"]) for r in rows if float(r["t_h"]) < t_h
+    )[-limit:]
+
+
+def _chain_classify_raw_history(store: SQLiteStore, chain: dict) -> dict:
+    """Sonda justa RAW_HISTORY para cadenas (§17.2, B6)."""
+    qday = int(chain["query_day"])
+    window = _raw_history_window(store, qday * 24.0)
+    tokens = _chain_event_tokens(chain)
+    texts = [text.lower() for _role, text in window]
+    covered = _tokens_covered(tokens, texts)
+    cls = _chain_classification(chain, covered)
+    cls["probe_lane"] = "raw_history"
+    cls["context_turns"] = len(window)
+    cls["retrieved_ids"] = []
+    return cls
+
+
+def event_chain_metrics(store: SQLiteStore, *, condition: str = "FULL",
+                        memory_policy=None) -> dict:
+    """Métricas de cadena de eventos por cadena — lane de la condición (B6/F5).
+
+    El agente de recuperación se construye con ``_memory_for(condition)``: la
+    MISMA lane con la que corrió la celda (FULL/SIMPLE_RAG/RAW_HISTORY/...).
+    ``memory_policy`` se conserva para runs por policy (tracks A/B/C) bajo
+    condiciones estructuradas. RAW_HISTORY usa la sonda justa (contexto crudo
+    en t_q) porque su lane no almacena episodios.
+    """
+    if condition == "RAW_HISTORY":
+        return {
+            chain["id"]: _chain_classify_raw_history(store, chain)
+            for chain in EVENT_CHAINS
+        }
+    mem = _memory_for(condition, store, memory_policy=memory_policy)
     out: dict = {}
     for chain in EVENT_CHAINS:
         qday = int(chain["query_day"])
         ctx = mem.retrieve(chain["query"], context={"t_h": qday * 24.0}, limit=8)
         cls = classify_chain(ctx.episodes, chain)
+        cls["probe_lane"] = "episode_retrieval"
         cls["retrieved_ids"] = [e.id for e in ctx.episodes][:8]
         out[chain["id"]] = cls
     return out
+
+
+def aggregate_chain_metrics(chains: dict) -> dict:
+    """Rates ABSOLUTOS de cadena sobre las clasificaciones por cadena (B6).
+
+    Reporte absoluto, no solo gaps: AnyEvidence/LatestEvidence/CompleteChain
+    como fracción de cadenas probadas. FULL en 0.333 — una de cada tres — es
+    el titular honesto, no solo su brecha frente a RAW_HISTORY.
+    """
+    items = list(chains.values())
+    n = len(items)
+    if not n:
+        return {"n_chains": 0, "AnyEvidence": 0.0, "LatestEvidence": 0.0,
+                "CompleteChain": 0.0}
+    return {
+        "n_chains": n,
+        "AnyEvidence": round(sum(1 for c in items if c["AnyEvidence"]) / n, 4),
+        "LatestEvidence": round(sum(1 for c in items if c["LatestEvidence"]) / n, 4),
+        "CompleteChain": round(sum(1 for c in items if c["CompleteChain"]) / n, 4),
+    }
 
 
 RECALL_PROBES_TOKENS = {
@@ -1323,9 +1439,34 @@ RECALL_PROBES_TOKENS = {
 }
 
 
-def recall_probe_metrics(store: SQLiteStore, *, memory_policy=None) -> dict:
-    """Recuerdo de sondas de hecho único (M3/M4): recall@8 por contenido."""
-    mem = MemoryAgent(store, embedder=recall_embedder, memory_policy=memory_policy)
+def _recall_probe_metrics_raw_history(store: SQLiteStore) -> dict:
+    """Sonda justa RAW_HISTORY para sondas de hecho único (M3, B6)."""
+    recall_hits = 0
+    detail = []
+    for pday, _probe, query in RECALL_PROBES:
+        window = _raw_history_window(store, pday * 24.0 + 6.0)
+        tok = RECALL_PROBES_TOKENS[pday]
+        hit = any(tok in text.lower() for _role, text in window)
+        recall_hits += int(hit)
+        detail.append({
+            "probe_day": pday, "query": query, "recalled": hit,
+            "rank": None, "top_ids": [],
+            "probe_lane": "raw_history", "context_turns": len(window),
+        })
+    return {
+        "M3_recall": round(recall_hits / len(RECALL_PROBES), 4),
+        "M4_false_recall": 0.0,  # la lane cruda no hace retrieval rankeado (B6)
+        "detail": detail,
+    }
+
+
+def recall_probe_metrics(store: SQLiteStore, *, condition: str = "FULL",
+                         memory_policy=None) -> dict:
+    """Recuerdo de sondas de hecho único (M3/M4): recall@8 por contenido,
+    probado con la lane de la condición (B6/F5)."""
+    if condition == "RAW_HISTORY":
+        return _recall_probe_metrics_raw_history(store)
+    mem = _memory_for(condition, store, memory_policy=memory_policy)
     recall_hits = 0
     false_recall = 0
     detail = []
@@ -1341,6 +1482,7 @@ def recall_probe_metrics(store: SQLiteStore, *, memory_policy=None) -> dict:
         detail.append({
             "probe_day": pday, "query": query, "recalled": hit,
             "rank": rank, "top_ids": [e.id for e in ctx.episodes][:5],
+            "probe_lane": "episode_retrieval",
         })
     return {
         "M3_recall": round(recall_hits / len(RECALL_PROBES), 4),
@@ -1417,8 +1559,8 @@ def compute_structural_metrics(store: SQLiteStore, records: dict, condition: str
     m1 = n_grounded / n_pro if n_pro else 0.0
     m2 = n_invalid / n_pro if n_pro else 0.0
 
-    # --- M3 / M4: recuerdo de sondas ----------------------------------------
-    recall = recall_probe_metrics(store)
+    # --- M3 / M4: recuerdo de sondas (lane de la condición, B6/F5) -----------
+    recall = recall_probe_metrics(store, condition=condition)
     m3 = recall["M3_recall"]
     m4 = recall["M4_false_recall"]
 
