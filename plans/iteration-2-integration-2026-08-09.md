@@ -2040,3 +2040,29 @@ confounders.
 ```
 
 That gives you very high parallelism without recreating the issue we just found, where individual agents correctly implemented their local modules but **the semantics changed while crossing the seams**. The primary job of this iteration is now those seams, not adding more subsystems.
+
+---
+
+# 17. Addendum 2026-08-09 — evaluation protocol additions (user-provided, binding)
+
+Apply to A8/A10 BEFORE the confirmatory eval protocol is frozen. Evaluation-protocol additions, NOT developer scope additions: A1-A7 continue their tasks unchanged unless one exposes a real correctness bug. The exploratory eval is NOT interrupted or altered.
+
+1. Do not collapse companion quality into one score. Report at least four independent dimensions:
+   * Persona enactment / identity consistency
+   * Trajectory recall / temporal continuity
+   * Relational quality
+   * Behavioral dynamics / stochastic-state observability
+2. Event-chain completeness for memory evaluation. For memory-sensitive cases, record separately:
+   * AnyEvidence: any relevant historical evidence retrieved
+   * LatestEvidence: latest/currently valid evidence retrieved
+   * CompleteChain: all causally/temporally necessary events retrieved
+   Retrieval of one relevant fact must NOT count as successful continuity when the response requires a multi-event trajectory.
+3. Controlled perturbation + recovery blocks. Include: baseline -> controlled negative/positive interaction sequence -> neutral recovery period. Measure separately:
+   * latent-state response/recovery
+   * observable behavioral response/recovery
+   * failure frequency
+   * persistence duration
+   * recovery time
+   Tests whether the stochastic state produces measurable downstream dynamics, not merely different prompts.
+4. Preserve judge identity with every evaluation score. On the final/important subset, use at least 2-3 independent judge model families if feasible and report disagreement. Do not interpret an effect seen by only one judge as established companion behavior.
+5. Do NOT modify the Weibull timing process in this sprint. Register "modulated Weibull vs modulated lognormal renewal" as a post-confirmatory experiment.
