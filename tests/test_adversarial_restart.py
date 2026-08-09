@@ -545,12 +545,12 @@ def test_r9b_restart_after_judge_finalization_score_feeds_hazard(tmp_path):
 
 
 def test_case40_finalize_crash_window_no_lost_memory_or_life(tmp_path):
-    """CASE 40: process death between save_judgement and the memory/life
-    steps of session.finalize_day. On resume the day's L2/L3/L4
-    (close_session/promote/update_user_model) and life step must be either
-    completed or cleanly recoverable on the next finalize — they must not be
-    silently lost. Comparison is against an identical NON-crashed run (same
-    seed) so the assertion is deterministic."""
+    """CASE 40 (it3 B2 adaptation): process death between the conversation
+    close persist and its memory tail (plan §5.1: L1->L2->L3->L4 now runs at
+    the CONVERSATION boundary, not the day finalize). On resume the recovery
+    must complete the tail — the close is idempotent and nothing is silently
+    lost. Comparison is against an identical NON-crashed run (same seed) so
+    the assertion is deterministic."""
     profile = build_persona(LIFE_SEED, graph=build_catalog())
 
     def crashed_run(path):
@@ -559,21 +559,23 @@ def test_case40_finalize_crash_window_no_lost_memory_or_life(tmp_path):
         session = _session(store, profile=profile)
         session.clock.advance_hours(19.0)
         session.on_message("I have a cat named Luna")
-        orig_close, orig_step = session._close_memory_session, session._step_life
 
         def boom(*a, **k):
-            raise RuntimeError("process died between save_judgement and memory/life")
+            raise RuntimeError("process died between close persist and memory tail")
 
-        session._close_memory_session = boom
-        session._step_life = boom
-        session.clock.advance_to_day(1)
+        session._close_conversation_memory = boom
+        conv = session._conversation
+        assert conv is not None
         try:
-            session.ensure_day(1)
+            # 23.0 = a natural quiet-hours boundary close (the runtime's
+            # closes land inside the day, never on the 24.0 instant)
+            session._close_conversation(conv, 23.0, "quiet_hours")
         except RuntimeError:
             pass  # the simulated process death
-        assert store.load_judgement(0) is not None, "crash after save_judgement"
+        closed_conv = store.load_conversation("conv-0")
+        assert closed_conv is not None and closed_conv.close_reason == "quiet_hours"
         store.close()
-        # resume with a fresh Store/Session
+        # resume with a fresh Store/Session: the recovery re-runs the tail
         store2 = SQLiteStore(path)
         s2 = _session(store2, profile=profile)
         s2.clock.advance_to_day(1)
@@ -602,18 +604,29 @@ def test_case40_finalize_crash_window_no_lost_memory_or_life(tmp_path):
     # in the crash case)
     assert len(crashed.conn.execute("SELECT day FROM judgements").fetchall()) == 1
 
-    # L2/L3/L4 + life step of day 0 must match the control (completed), or be
+    # Conversation + memory state must match the control (completed), or be
     # cleanly recoverable. A silent gap is the failure this case pins.
-    assert crashed.load_session_summary("day-0") is not None, (
-        "L2 summary for the crashed day lost on resume"
+    # (it3 B2: memory sessions now key off conversations — plan §5.1 — so
+    # the recoverable unit is the conversation and its memory tail.)
+    ctrl_conv = control.load_open_conversation()
+    assert ctrl_conv is not None and ctrl_conv.close_reason is None, (
+        "control conversation must still be open"
     )
-    ctrl_eps = {(e.id, e.summary) for e in control.list_episodes()}
+    assert crashed.load_conversation("conv-0") is not None, (
+        "closed conversation lost on resume"
+    )
+    assert crashed.load_session_summary("day-1000") is not None, (
+        "conversation memory tail lost on resume after the close crash"
+    )
+    # it3 B2: L1 episode formation keys off the CONVERSATION boundary too,
+    # so the control (conversation still open) has no episodes yet — the
+    # crashed run must show the RECOVERED memory instead.
     crash_eps = {(e.id, e.summary) for e in crashed.list_episodes()}
-    assert ctrl_eps and crash_eps == ctrl_eps, (
-        "L3 episodes for the crashed day lost/diverged on resume"
+    assert crash_eps, (
+        "crashed run lost its recovered episodes"
     )
     assert crashed.get_assertion("user:cat") is not None, (
-        "L4 assertion for the crashed day lost on resume"
+        "L4 assertion for the crashed conversation lost on resume"
     )
     ctrl_arcs = {(a.id, a.progress, a.status) for a in control.list_life_arcs()}
     crash_arcs = {(a.id, a.progress, a.status) for a in crashed.list_life_arcs()}
@@ -646,7 +659,10 @@ def test_case40_finalize_no_double_advance_on_resume(tmp_path):
     s2.ensure_day(1)
     assert len(store2.conn.execute("SELECT day FROM judgements").fetchall()) == 1
     assert {(e.id, e.summary) for e in store2.list_episodes()} == eps_pre
-    assert store2.load_session_summary("day-0") is not None
+    # it3 B2: the exchange lives in an open conversation (conv-0) that must
+    # survive the clean finalize + resume without rewind.
+    conv = store2.load_open_conversation()
+    assert conv is not None and len(conv.turns) == 2
     assert len(store2.list_assertions()) == n_assertions
     assert {(a.id, a.progress, a.status) for a in store2.list_life_arcs()} == arcs_pre
     store.close()

@@ -516,7 +516,7 @@ def test_migration_runs_twice_without_error(tmp_path):
 def test_fresh_db_reaches_v3_with_columns_and_new_apis(tmp_path):
     store = SQLiteStore(tmp_path / "fresh.db", audit_mode=True)
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 3
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 4
 
     cols = {r["name"] for r in store.conn.execute("PRAGMA table_info(messages)")}
     assert {"id", "role", "content", "t_h", "day", "proactive", "meta",
