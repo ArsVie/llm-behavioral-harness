@@ -152,8 +152,15 @@ def test_m3_relevant_low_salience_not_crowded_out(tmp_path):
     """M-3: an emotional-peak memory (importance 1.0, 'user's dog Bruno') and
     several other irrelevant high-salience memories must NOT crowd out a
     directly relevant low-salience memory for 'pottery class' under the hard
-    budget limit=8. The 0.35 semantic term must dominate the 0.35 importance
-    term for irrelevant content, and the context must stay within budget."""
+    budget limit=8.
+
+    Iteration-2 contract (plan §5-A4 T2, invariants 11-12): the topicality
+    boost lives ONLY in STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT. The faithful
+    STRUCTURED_MEMORY reranker is formula-exact (0.35 semantic + 0.30
+    strength + 0.35 importance) with NO hidden topicality — crowding-out under
+    the faithful formula is the documented contrast, which is exactly why the
+    experimental variant exists. Both legs are asserted below.
+    """
     store = _store(tmp_path, "m3.db")
     distractors = [
         ("user's dog Bruno is very sick", ("dog", "bruno")),
@@ -175,15 +182,29 @@ def test_m3_relevant_low_salience_not_crowded_out(tmp_path):
     store.insert_episode(relevant)
     store.save_embedding(relevant.id, deterministic_hash_embedder(MemoryAgent._episode_text(relevant)))
 
-    agent = MemoryAgent(store)
+    # Leg 1 — experimental variant: the topicality boost must save the
+    # relevant low-salience memory from the high-salience distractors.
+    from harness.domain import MemoryPolicy
+    agent = MemoryAgent(
+        store, memory_policy=MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT
+    )
     ctx = agent.retrieve("pottery class", context={"t_h": 200.0}, limit=8)
     assert any("pottery" in e.summary for e in ctx.episodes), (
-        "directly relevant low-salience memory crowded out of the top-8 by "
-        "irrelevant high-salience memories"
+        "topicality-boosted variant must not crowd out the directly relevant "
+        "low-salience memory (M-3 regression)"
     )
     assert len(ctx.episodes) <= 8
     from harness.memory import _context_chars
     assert _context_chars(ctx) <= MAX_CONTEXT_CHARS
+
+    # Leg 2 — faithful condition: formula-exact 0.35/0.30/0.35, NO hidden
+    # topicality. Crowding-out here is the documented contrast (plan §5-A4 T2).
+    agent_faithful = MemoryAgent(store)
+    ctx_f = agent_faithful.retrieve("pottery class", context={"t_h": 200.0}, limit=8)
+    assert not any("pottery" in e.summary for e in ctx_f.episodes), (
+        "faithful STRUCTURED_MEMORY must be formula-exact (0.35 semantic + "
+        "0.30 strength + 0.35 importance) with no topicality boost"
+    )
     store.close()
 
 
