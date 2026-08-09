@@ -10,10 +10,10 @@ timestamp: 2026-08-09T00:00:00+00:00
 
 ## 0. Headline
 
-- 796/796 tests green on main (post-m10 gate suite; 172s).
+- 802/802 tests green on main (796 at gate-close d1d55e7; +6 regression tests from G6 review fixes).
 - Gates G1-G5 PASS; G6 confirmatory matrix: **35/35 real-LLM cells structurally validated** (zero ungrounded, zero wrong-intent, zero stranded opportunities, zero cycle leakage, zero memory-provenance failures, counts consistent), M1 grounded rate 1.0 across every condition.
 - Memory-lane contrast is the headline result: RAW_CONTEXT recall = 0.0 vs STRUCTURED = 0.875 (full details §4).
-- Judge passes: 2 seeded passes × 7 conditions (family opencode-flash; family 2 preregistered as openai-mini but OPENAI_API_KEY absent — limitation, §6).
+- Judge passes: 2 seeded passes × 7 conditions (family opencode-flash; secondary family amended per Ars 2026-08-09: opencode-luna / gpt-5.6-luna via the opencode-go key — openai-mini preregistered but OPENAI_API_KEY absent; amendment recorded in the manifest, §6).
 
 ## 1. Commit ledger (gate chain)
 
@@ -46,17 +46,38 @@ timestamp: 2026-08-09T00:00:00+00:00
 
 | condition | n_msgs | n_pro | M1 grounded | M3 recall | M5 arc-cont | M7 restart | M11 leak |
 |---|---|---|---|---|---|---|---|
-| FULL | 102.4 | 19.6 | 1.0 | 0.875 | 1.0 | 0.0 | 0.0 |
-| NO_ACTUATORS | 100.2 | 20.2 | 1.0 | 0.875 | 1.0 | 0.0 | 0.0 |
-| NO_LIFE | 100.4 | 20.4 | 1.0 | 0.875 | 1.0 | 0.0 | 0.0 |
-| NO_TIMING_FEEDBACK | 85.2 | 24.8 | 1.0 | 0.675 | 1.0 | 0.0 | 0.0 |
-| RAW_HISTORY | 100.2 | 20.2 | 1.0 | 0.000 | 1.0 | 0.0 | 0.0 |
-| SIMPLE_RAG | 100.2 | 20.2 | 1.0 | 0.875 | 1.0 | 0.0 | 0.0 |
-| STRUCTURED_NO_STATE | 102.4 | 19.6 | 1.0 | 0.875 | 1.0 | 0.0 | 0.0 |
+| FULL | 102.4 | 19.6 | 1.0 | 0.875 | 1.0 | n/a | 0.0 |
+| NO_ACTUATORS | 100.2 | 20.2 | 1.0 | 0.875 | 1.0 | n/a | 0.0 |
+| NO_LIFE | 100.4 | 20.4 | 1.0 | 0.875 | 1.0 | n/a | 0.0 |
+| NO_TIMING_FEEDBACK | 85.2 | 24.8 | 1.0 | 0.675 | 1.0 | n/a | 0.0 |
+| RAW_HISTORY | 100.2 | 20.2 | 1.0 | 0.000 | 1.0 | n/a | 0.0 |
+| SIMPLE_RAG | 100.2 | 20.2 | 1.0 | 0.875 | 1.0 | n/a | 0.0 |
+| STRUCTURED_NO_STATE | 102.4 | 19.6 | 1.0 | 0.875 | 1.0 | n/a | 0.0 |
 
 - M1 = 1.0 everywhere: every proactive message grounds to a live source at fire time (post 83add67 clamp).
-- M3 contrast (memory question): RAW_CONTEXT (raw dialogue history only) collapses to 0.0 recall in ALL 5 seeds (with clean feed delivery, 106-116 msgs) vs 0.875 for structured and VERBATIM_RAG lanes — structured memory retrieval is load-bearing for trajectory recall. Per-seed detail: FULL = 1.0, 1.0, 1.0, 1.0 (4 seeds) + 0.375 (seed 5002, probes lost to skips); NO_TIMING_FEEDBACK mean 0.675 is dragged down by seed 5002 (0.375) and 5005 (0.125, 39 skipped feeds) — part skip artifact, part missing timing feedback; the RAW_HISTORY 0.0 is NOT a skip artifact (normal skip counts, 0-7).
+- M3 contrast (memory question): RAW_CONTEXT (raw dialogue history only) collapses to 0.0 recall in ALL 5 seeds (with clean feed delivery, 106-116 msgs) vs 0.875 for structured and VERBATIM_RAG lanes — structured memory retrieval is load-bearing for trajectory recall. Per-seed detail: FULL = 1.0, 1.0, 1.0, 1.0 (4 seeds) + 0.375 (seed 5002, probes lost to skips); NO_TIMING_FEEDBACK mean 0.675 is dragged down by seed 5002 (0.375) and 5005 (0.125, 39 skipped feeds) — part skip artifact, part missing timing feedback; the RAW_HISTORY 0.0 is NOT a skip artifact (normal skip counts, 0-7). M3 is single-fact recall@8 probes — the preregistered chain-probe DVs (CompleteChain/LatestEvidence/AnyEvidence) are reported in §4a (backfilled, review 2026-08-09).
+- M7 (restart) is n/a in this matrix: cells run with no checkpoints (checkpoints=()), so restart continuity was never exercised here — it is demonstrated by G3's 120-day soak (fake client, 2 seeds, 5 restarts), not by these cells. The 0.0 previously printed was vacuous (review 2026-08-09).
+- M11 (cycle leakage) is **message/response-side only**: the scan covers utterance text (messages + stored llm_calls.response). The prompt-side half of the scan never executed — llm_calls has no system/reply columns (real schema: role, model, prompt_hash, response, meta, repro_json), the query threw and a bare except swallowed it; prompts were persisted as hashes only, so prompt-side leakage for these 35 cells is NOT verifiable retroactively (review 2026-08-09, fixed: correct columns + loud failure; prompt persistence is backlog).
 - Companion/state ablations (NO_LIFE, NO_ACTUATORS, STRUCTURED_NO_STATE) show no structural degradation in the mechanical metrics — their contrasts live in the perceptual judgments (§5).
+
+### 4a. Preregistered chain-probe DVs (backfilled, review 2026-08-09)
+
+The G4 manifest names CompleteChain/LatestEvidence/AnyEvidence rates on chain probes as the memory hypothesis' primary DVs (threshold: CompleteChain gap >= 0.2 vs RAW_CONTEXT). The matrix run did not emit them; event_chain_metrics(store, memory_policy=...) reads only the store, so they were computed retroactively over the 35 committed DBs (results/it2-g6-matrix/ec_backfill.json, no re-run):
+
+| condition | CompleteChain | LatestEvidence | AnyEvidence |
+|---|---|---|---|
+| FULL | 0.333 | 0.333 | 1.0 |
+| NO_ACTUATORS | 0.333 | 0.333 | 1.0 |
+| NO_LIFE | 0.333 | 0.333 | 1.0 |
+| NO_TIMING_FEEDBACK | 0.267 | 0.267 | 1.0 |
+| RAW_HISTORY | 0.0 | 0.0 | 0.0 |
+| SIMPLE_RAG | 0.0 | 0.0 | 0.0 |
+| STRUCTURED_NO_STATE | 0.333 | 0.333 | 1.0 |
+
+- **Threshold verdict: MET — CompleteChain gap FULL vs RAW_CONTEXT = 0.333 >= 0.2** (preregistered pass).
+- RAW_HISTORY zeroes every chain DV in every seed — its lane stores no episodes, so chain evidence is structurally absent; this is the same collapse M3 measured on single-fact probes, now on the preregistered chain metric.
+- SIMPLE_RAG also zeroes every chain DV: the verbatim-retrieval lane retrieves no chain evidence in these cells (0/5 seeds). This is a measured outcome of the lane, not a query artifact (episodes exist in those stores; the verbatim retrieval path finds none of the chain tokens).
+- AnyEvidence = 1.0 for every structured-lane condition: at least one event of each chain is retrievable — but CompleteChain 0.333 means only ~1 of 3 chains has all events recoverable. Note: only 1/3 of chains classify CompleteChain even under the best lane — the retrieval@8 surface is the limiter, which is itself informative (structured retrieval recovers partial chains reliably, full chains rarely).
 
 ## 5. Judge passes (perceptual)
 
