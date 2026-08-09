@@ -75,6 +75,16 @@ def test_duplicate_turns_key_disambiguates_real_run_collisions(tmp_path):
     assert len(dupes) == 2
 
 
+def test_parse_transcript_stem_both_namings():
+    """Gate 6: cmd_matrix writes COND_seed<S>; the judge parser must accept
+    both that and the bare COND_<S> form (burned 2 judge runs 2026-08-09)."""
+    from experiments.companion_vertical_slice import _parse_transcript_stem
+    assert _parse_transcript_stem("FULL_seed5001") == ("FULL", 5001)
+    assert _parse_transcript_stem("NO_LIFE_5003") == ("NO_LIFE", 5003)
+    assert _parse_transcript_stem("STRUCTURED_NO_STATE_seed5002") == (
+        "STRUCTURED_NO_STATE", 5002)
+
+
 def test_source_superseded_agenda_item_touctou_clamp():
     """Gate 2 finding: the naive ``end_t_h >= created_t_h`` predicate
     flagged IN-SLOT fires as superseded. Skips are written at day

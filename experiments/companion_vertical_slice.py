@@ -736,12 +736,17 @@ def _judge_client(family_id: str, fake: bool):
     )
 
 
+def _parse_transcript_stem(stem: str) -> tuple[str, int]:
+    """'FULL_seed5001' | 'FULL_5001' -> ('FULL', 5001)."""
+    cond, _, seed_s = stem.rpartition("_")
+    if seed_s.startswith("seed"):
+        seed_s = seed_s[len("seed"):]
+    return cond, int(seed_s)
+
+
 def _run_judge_pass(out_dir: Path, pass_id: int, family_id: str, fake: bool) -> dict:
     transcripts = _transcripts(out_dir)
-    items = []
-    for stem in transcripts:
-        cond, _, seed_s = stem.rpartition("_")
-        items.append((cond, int(seed_s)))
+    items = [_parse_transcript_stem(stem) for stem in transcripts]
     rng = np.random.default_rng(JUDGE_SHUFFLE_SEED_BASE + pass_id)
     order = cvs_common.shuffled_order(rng, items)
     client = _judge_client(family_id, fake)
