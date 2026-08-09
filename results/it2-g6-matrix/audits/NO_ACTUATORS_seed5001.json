@@ -1,0 +1,237 @@
+{
+  "seed": 5001,
+  "end_h": 720.0,
+  "days": 30,
+  "n_messages": 98,
+  "n_proactive": 18,
+  "n_fired_intents": 18,
+  "counts_consistent": true,
+  "ungrounded_proactive": 0,
+  "grounding_detail": [
+    {
+      "message_id": 1,
+      "t_h": 15.300111583832008,
+      "intent_id": "pi_agenda_item_ag_0_i_movies_15.300",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_0_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 18,
+      "t_h": 114.99687147744174,
+      "intent_id": "pi_agenda_item_ag_4_a_arc_2_114.997",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_4_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 23,
+      "t_h": 138.81902942657794,
+      "intent_id": "pi_agenda_item_ag_5_i_lifting_138.819",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_5_i_lifting",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 32,
+      "t_h": 186.6,
+      "intent_id": "pi_agenda_item_ag_7_a_arc_1_185.133",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_7_a_arc_1",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 41,
+      "t_h": 234.5,
+      "intent_id": "pi_agenda_item_ag_9_i_literature_234.231",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_9_i_literature",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 58,
+      "t_h": 332.9595596511888,
+      "intent_id": "pi_life_event_ag_12_r_00_332.960",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_12_r_00",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 67,
+      "t_h": 403.0,
+      "intent_id": "pi_agenda_item_ag_16_i_metal_400.713",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_16_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 72,
+      "t_h": 427.45867441642804,
+      "intent_id": "pi_agenda_item_ag_17_i_metal_427.459",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_17_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 73,
+      "t_h": 429.2366662852847,
+      "intent_id": "pi_agenda_item_ag_17_i_metal_429.237",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_17_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 82,
+      "t_h": 500.74060568240316,
+      "intent_id": "pi_agenda_item_ag_20_a_arc_17_s0_500.741",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_20_a_arc_17_s0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 87,
+      "t_h": 526.0947205166988,
+      "intent_id": "pi_agenda_item_ag_21_a_arc_17_s0_526.095",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_21_a_arc_17_s0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 92,
+      "t_h": 570.5,
+      "intent_id": "pi_agenda_item_ag_23_i_metal_568.879",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_23_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 93,
+      "t_h": 585.2044495716365,
+      "intent_id": "pi_life_event_ag_23_a_arc_17_s0_585.204",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_23_a_arc_17_s0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 94,
+      "t_h": 594.4994013859987,
+      "intent_id": "pi_agenda_item_ag_24_i_lifting_594.499",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_24_i_lifting",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 95,
+      "t_h": 621.3172656564374,
+      "intent_id": "pi_check_in_ep-day-23-0_621.317",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-23-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 96,
+      "t_h": 658.4634876904491,
+      "intent_id": "pi_check_in_ep-day-23-0_658.463",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-23-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 97,
+      "t_h": 682.2852791433056,
+      "intent_id": "pi_check_in_ep-day-23-0_682.285",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-23-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 98,
+      "t_h": 704.3463148997029,
+      "intent_id": "pi_check_in_ep-day-23-0_704.346",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-23-0",
+      "opportunity_id": null
+    }
+  ],
+  "wrong_intent": 0,
+  "restart_state_loss": 0,
+  "stranded_opportunities": 0,
+  "stranded_detail": {
+    "pending_schedule": [],
+    "pending_intents": []
+  },
+  "cycle_state_leakage": 0,
+  "leak_detail": {
+    "hits": {},
+    "total": 0,
+    "g_bare": 0
+  },
+  "memory_provenance_failures": 0,
+  "provenance_detail": [],
+  "duplicate_turns": 0,
+  "duplicate_detail": [],
+  "life_dead_days": [],
+  "life_dead_duration": 0,
+  "i4_violations": [],
+  "fixture_inserts": {
+    "user_ok": true,
+    "user_bad": [],
+    "assistant_ok": true,
+    "assistant_bad": []
+  },
+  "all_hard_zero": true
+}

@@ -1,0 +1,171 @@
+{
+  "seed": 5003,
+  "end_h": 720.0,
+  "days": 30,
+  "n_messages": 106,
+  "n_proactive": 12,
+  "n_fired_intents": 12,
+  "counts_consistent": true,
+  "ungrounded_proactive": 0,
+  "grounding_detail": [
+    {
+      "message_id": 1,
+      "t_h": 8.739277512036882,
+      "intent_id": "pi_agenda_item_ag_0_i_physics_8.739",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_0_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 24,
+      "t_h": 140.06506071334144,
+      "intent_id": "pi_life_event_ag_4_r_00_140.065",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_4_r_00",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 27,
+      "t_h": 162.6,
+      "intent_id": "pi_agenda_item_ag_6_a_arc_2_160.423",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_6_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 34,
+      "t_h": 189.78549734486162,
+      "intent_id": "pi_life_event_ag_6_a_arc_2_189.785",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_6_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 57,
+      "t_h": 332.7353089253387,
+      "intent_id": "pi_life_event_ag_12_i_physics_332.735",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_12_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 60,
+      "t_h": 357.9474112501929,
+      "intent_id": "pi_life_event_ag_13_a_arc_2_357.947",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_13_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 63,
+      "t_h": 378.5,
+      "intent_id": "pi_agenda_item_ag_15_a_arc_2_376.800",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_15_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 66,
+      "t_h": 382.1529426454748,
+      "intent_id": "pi_life_event_ag_14_i_physics_382.153",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_14_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 75,
+      "t_h": 451.0,
+      "intent_id": "pi_agenda_item_ag_18_i_metal_448.648",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_18_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 78,
+      "t_h": 474.5,
+      "intent_id": "pi_agenda_item_ag_19_r_00_472.365",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_19_r_00",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 91,
+      "t_h": 570.5,
+      "intent_id": "pi_agenda_item_ag_23_i_guitar_569.638",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_23_i_guitar",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 106,
+      "t_h": 715.9440085598611,
+      "intent_id": "pi_life_event_ag_28_i_physics_715.944",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_28_i_physics",
+      "opportunity_id": null
+    }
+  ],
+  "wrong_intent": 0,
+  "restart_state_loss": 0,
+  "stranded_opportunities": 0,
+  "stranded_detail": {
+    "pending_schedule": [],
+    "pending_intents": []
+  },
+  "cycle_state_leakage": 0,
+  "leak_detail": {
+    "hits": {},
+    "total": 0,
+    "g_bare": 0
+  },
+  "memory_provenance_failures": 0,
+  "provenance_detail": [],
+  "duplicate_turns": 0,
+  "duplicate_detail": [],
+  "life_dead_days": [],
+  "life_dead_duration": 0,
+  "i4_violations": [],
+  "fixture_inserts": {
+    "user_ok": true,
+    "user_bad": [],
+    "assistant_ok": true,
+    "assistant_bad": []
+  },
+  "all_hard_zero": true
+}

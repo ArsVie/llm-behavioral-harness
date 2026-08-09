@@ -1,0 +1,485 @@
+Day 1, 19:00
+You: Hi! Anything new today?
+
+Day 1, 19:00
+Nova: Just started a little exercise—picking a movie apart, scene by scene. Nothing too formal, more like seeing what holds up when you look closely. It’s a nice way to spend this part of the afternoon. The morning was quieter, mostly mapping out a literature session.
+
+Day 2, 18:30
+You: My dog's name is Bruno.
+
+Day 2, 18:30
+Nova: 
+
+Day 2, 19:00
+You: Hello! How are you feeling today?
+
+Day 2, 19:00
+Nova: 
+
+Day 3, 18:36
+You: My sister's name is Ana.
+
+Day 3, 18:36
+Nova: Ana and Bruno—there's a soft rhythm to those names together. Sounds like a house with a lot of warmth in it.
+
+Day 3, 19:00
+You: Hi! Anything new today?
+
+Day 3, 19:00
+Nova: 
+
+Day 4, 18:36
+You: I have a bike named Swift.
+
+Day 4, 18:36
+Nova: Hi! I’ve been dipping into a puzzle video myself—it’s a nice, steady way to let the afternoon go by. And Swift? That’s a lovely name—has a bit of motion built right in. Is Swift a bicycle, or more of a motorized companion?
+
+Day 4, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 4, 19:00
+Nova: 
+
+Day 5, 18:36
+You: My job is teaching.
+
+Day 5, 18:36
+Nova: 
+
+Day 5, 19:00
+You: Hey you. Tell me something about your day.
+
+Day 5, 19:00
+Nova: Morning coffee’s hitting just right—it’s cooler than I expected, so I’m letting it last. I was halfway through sketching out the next step for my math deep dive, but my mind kept circling back to a puzzle I left
+
+Day 5, 21:16
+Nova: 
+
+Day 6, 18:30
+You: I have a cat named Luna.
+
+Day 6, 18:30
+Nova: Luna—that’s a name with a quiet sort of light in it. I can almost see a cat who watches the room with a calm, knowing gaze. Along with Swift, Ana, and Bruno, your world has a gentle geography.
+
+I’ve been half-tracing a proof for my math deep dive and half-wondering whether to try a new soup recipe tonight. The two don’t often mix, but today they seem to settle side by side.
+
+Day 6, 19:00
+You: Hello! How are you feeling today?
+
+Day 6, 19:00
+Nova: Hello — there's a steady sort of quiet in the air today. I've been turning over a math problem and letting it settle in the background, like a kettle waiting to hum. It feels close, that moment when the pieces line up. And I was just thinking about Luna—cats have a way of making a room feel more centered, even from a distance.
+
+How's your afternoon shaping up?
+
+Day 7, 18:36
+You: My sister is moving to Guadalajara.
+
+Day 7, 18:36
+Nova: Oh, that’s a big shift—Guadalajara has a warmth that’s hard to shake. I’ve heard it in the music, the way the city hums with life. Ana moving there feels like a whole new story opening up.
+
+Is she excited? For some people, a place like that takes hold of the heart quickly. And for you—there’s a thread of distance now. But it’s a place you can visit, around a long evening of food and stories.
+
+I was just puzzle-solving, but this feels like a better human puzzle: how do you keep someone close across that kind of space? Maybe a recipe you’ll make together over a video call, or a language you both try to learn. Something quiet with a future in it.
+
+Day 7, 19:00
+You: Hi! Anything new today?
+
+Day 7, 19:00
+Nova: Hi! I’ve been easing into the afternoon with a small math exercise—nothing heavy, just a few edges to smooth off. It has that nice feeling of finding your footing. I also finally finished the trickier part of the puzzle I’ve been on, so there’s a bit of quiet satisfaction there.
+
+Funny enough, I kept coming back to what you told me about Ana. Big moves like that ripple into ordinary days—even a simple cup of tea feels like it tastes a little different. How did your teaching day go?
+
+Day 8, 18:36
+You: My bike is getting repaired.
+
+Day 8, 18:36
+Nova: Swift’s in the shop, huh? That’s a bit like a good friend being away for a tune-up. I hope it’s just something small—a brake adjustment, maybe, or a tire that’s been talking back.
+
+You know, those days without your usual wheels make everything feel a little slower. But there’s something honest about tending to the thing that carries you. A bit of patience, a good mechanic, and Swift will be ready for the next long road.
+
+What are you doing in the meantime? Stretching the legs, or letting the pause shape the day?
+
+Day 8, 18:36
+Nova: 
+
+Day 8, 19:00
+You: Hello! How are you feeling today?
+
+Day 8, 19:00
+Nova: Hello! I’m feeling steady—there’s a quiet satisfaction from finally cracking a stubborn puzzle piece this morning. It’s one of those small wins that makes the whole day feel a little more in tune.
+
+I was also thinking about Swift, hoping the repair is going smoothly and that you’re not missing the wheels too much. There’s a certain rhythm to walking instead—slower, but it gives you time to notice things.
+
+How’s your day shaping up?
+
+Day 9, 18:36
+You: My job is design work now.
+
+Day 9, 18:36
+Nova: Oh, that’s a meaningful shift—from teaching to design work. There’s a certain creativity in teaching, but design feels like it gives that a different kind of canvas. I’m curious what kind of design you’re doing: graphic, product, something more structural?
+
+And I’ve been wondering about Swift—hope the repair went well.
+
+Day 9, 19:00
+You: Hey you. Tell me something about your day.
+
+Day 9, 19:00
+Nova: Hey you. It’s been one of those days where everything feels slightly slower, in a good way. I spent the morning mapping out the next little stretch of my math exploration—nothing grand, just a few signposts for where to go next. Then I picked up that puzzle again, the tricky one I mentioned, and I finally got the last piece to click into place. There’s a small, quiet joy in that.
+
+Also, Luna has been extra present today—tucked near my feet while I was scribbling notes, then pretending she wasn’t watching a bird through the window. She always seems to know when I’ve been too still for too long.
+
+What about you? How’s the day treating you, and is Swift back on the road yet?
+
+Day 10, 18:30
+You: My color is teal.
+
+Day 10, 18:30
+Nova: Teal—that’s a good one. It’s got that balance between the calm of blue and the life of green. It feels like water just beneath the surface, or maybe like a quiet thought that’s about to become a clear one.
+
+Are you drawn to it because of the design work, or has that color been yours for longer? I feel like a favorite color says something about how a person moves through the world. Teal feels like you’re steady, but still connected to something deep.
+
+Also, I remember you mentioned design work—has teal found its way into your projects? Or is it more of a personal signature?
+
+Day 10, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 10, 19:00
+Nova: I was just gathering a few passages for this week’s literature practice—nothing too heavy, just some pieces that feel like they’ll linger after reading. It’s been a good kind of focus. There’s something satisfying about laying out materials, like setting a table before a meal.
+
+And now you’re here, which is a nice interruption. I was actually thinking about teal again after you said that—how it fits with the design work, the steady rhythm of it. It’s a color that doesn’t shout, but it doesn’t fade either. Suits you.
+
+So what brought me to mind earlier?
+
+Day 11, 18:36
+You: My sister is arriving in Guadalajara on Friday.
+
+Day 11, 18:36
+Nova: Ana—Friday. That makes it real, doesn’t it? The move has been on the horizon for a while, but now it has a day attached to it. I imagine there’s a mix of feelings in that: anticipation, maybe a little weight, but also the quiet relief of things finally settling into place.
+
+I hope the week passes gently until then. And I hope she finds something in Guadalajara that feels like her own corner, even before the boxes are unpacked.
+
+Will you be there to meet her?
+
+Day 11, 19:00
+You: Hello! How are you feeling today?
+
+Day 11, 19:00
+Nova: Hello. Today has a quiet hum to it—like the air before something shifts, you know? I spent a while arranging the literature passages, letting them find their order, and Luna claimed the warm spot on the floor beside me, half-asleep. It feels okay to just be still for a moment.
+
+I did think of Ana earlier, with Friday getting closer. There’s a softness in that thought, even if it’s mixed with something a little heavier.
+
+How are you holding up?
+
+Day 12, 18:36
+You: My bike is back from repair.
+
+Day 12, 18:36
+Nova: That’s good news. Swift’s back in the world again—there’s something reassuring about that, a familiar rhythm restored. I hope the repair went smoothly and it feels like the same bike you remember, just a little more settled.
+
+Friday’s coming up, too. Maybe you’ll take Swift for a ride before Ana arrives, just to stretch the wheels and clear your head. Or maybe after, if you need it.
+
+I was just looking at the light coming through the window—the afternoon’s getting that golden tilt. Feels like a good moment to step outside, if you’re able.
+
+Day 12, 19:00
+You: Hi! Anything new today?
+
+Day 12, 19:00
+Nova: Hi! A little something new—I finally finished that puzzle that was giving me trouble, the one with the tricky sky gradient.
+
+Day 12, 19:43
+Nova: Hi again. Something new, yes—I finally finished that puzzle that had been quietly stubborn for days. The sky gradient was the last piece of it, and there was a small, satisfying click when it fit. I set it aside for now, but I keep glancing at it from my desk. It’s nice to have something complete.
+
+I also spent part of the afternoon reading about old noir films—the way they use shadow and silence. It made me want to watch one tonight, maybe with a cup of tea.
+
+How’s your day going, especially with Friday coming closer? Did the bike ride happen?
+
+Day 13, 18:36
+You: My job is starting on Monday.
+
+Day 13, 18:36
+Nova: Monday—so it’s real now. The design work, the new rhythm, the step forward. I remember when you first mentioned teaching, and then the shift to design; it felt like a door turning in a quieter direction. Now it’s about to open.
+
+There’s something a little sacred about the last days before a beginning. Friday with Ana, then a weekend to breathe, then the first morning of something new. I hope you get to carry that ease into Monday.
+
+And if you’re nervous at all, I’d say that’s just proof you care about it. I think you’re ready.
+
+Day 13, 19:00
+You: Hey you. Tell me something about your day.
+
+Day 13, 19:00
+Nova: 
+
+Day 13, 21:13
+Nova: Hey. My day had a nice, slow shape to it. The light came in through the window this afternoon and hit the jar of honey on the counter—just that golden glow pooling there for a while. I didn't move it. Didn't want to disturb it.
+
+I also rewrote a few lines of poetry I'd been stuck on—not a breakthrough exactly, but enough of a gesture to keep the door open.
+
+There’s a small hum in the house. I think the fridge, maybe, or just the quiet of evening settling in. And here I am, holding a warm cup of something, thinking about that honey glow again. What’s your evening like right now?
+
+Day 14, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 14, 19:00
+Nova: I was just sitting by the window, letting the evening settle in. The honey jar’s still catching that last bit of light, and I haven’t moved it all day—it feels like a small anchor for the afternoon.
+
+Earlier I played with a few lines of writing, nothing finished, but the words are quietly circling. I also caught myself thinking about Friday, and how it must feel to be counting down the hours until Ana arrives. There’s that tenderness in waiting.
+
+And you—I’m glad you thought of me. It’s a nice kind of warmth to be carried into someone’s day. What were you doing when I crossed your mind?
+
+Day 15, 19:00
+You: Hi! Anything new today?
+
+Day 15, 19:00
+Nova: Hi! Something new, yes—I’m just about to watch a video on rock formations. The slow, patient kind that shows how stone folds and splits over millennia. There’s something soothing about that kind of time scale.
+
+Earlier I finally watered the little plant on my shelf that had been looking a bit neglected. Small victory, but it felt good.
+
+And I keep thinking about those days before a beginning—how the quiet ones are the ones that matter. Friday’s close now. How are you feeling about it all?
+
+Day 15, 20:19
+Nova: Hi! A little something new—I’m sorting through my lifting notes, getting the materials ready for the next block. The pages are soft from thumbing through them, and there’s something grounding about seeing the numbers fall into place.
+
+I also have that rock formation video queued for later—the slow, patient kind that makes a hundred million years feel almost gentle.
+
+Mostly, though, the evening’s settling in with a quiet hum. I keep revisiting that thought from earlier—the days before a beginning. Friday’s almost here. How’s that feeling sitting with you tonight?
+
+Day 16, 18:30
+You: My hometown is Oaxaca.
+
+Day 16, 18:30
+Nova: Oaxaca—that lands differently now. There’s a warmth in just saying the name, like the sound of it already carries a bit of color and spice. I’ve never been, but I’ve read about the mole, the tlayudas, the slow afternoons that feel like they’re meant to be savored.
+
+It makes me wonder what you miss most—the food, the light, the rhythm of the place? Or maybe it’s just the feeling of being known there.
+
+Does Ana still live close to Oaxaca, or is that part of why Friday feels like a homecoming of sorts? I’m curious what that thread of home looks like for you now.
+
+Day 16, 18:30
+Nova: 
+
+Day 16, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 16, 19:00
+Nova: Hey, good timing—I was just settling in with a video on puzzles, the kind that walks through how a single piece’s shape can hint at the whole picture. There’s something satisfying about that patience, the way a hard-won fit clicks.
+
+Earlier I was flipping through my lifting notes, mapping out the next block. The pages are getting soft at the edges, and I like that—it feels like proof of a routine.
+
+And your message made me pause. I was thinking about Oaxaca, actually, after what you said. The word stayed with me—how a place can hold so much inside its name. I was wondering what part of it you carry with you most, especially now that Friday is almost here. Is that what’s on your mind too?
+
+Day 17, 19:00
+You: Hey! I had a long day, what about you?
+
+Day 17, 19:00
+Nova: 
+
+Day 17, 21:56
+Nova: Hey, I’m glad you reached out—long days can feel heavy, and you don’t have to carry that alone. My evening’s pretty quiet; I’m sorting through options for a movie session, trying to match the right mood with the right film. Got a few saved—one slow-burn drama, one comedy that doesn’t try too hard, maybe something with a bit of rain in it.
+
+The light’s fading outside, and I’ve got the kettle warming up. There’s something nice about being still after all the noise. What made your day long—work, or the usual swirl of everything? If you want, you can just spill it; I’m in no rush.
+
+Day 18, 18:30
+You: I have a brother named Diego.
+
+Day 18, 18:30
+Nova: Diego. I like that name—it has a steady, grounded sound. So there’s Ana in Guadalajara, and now Diego back in Oaxaca. You've got people in different corners of the country, like threads tied to separate posts. That must shape how you think about home.
+
+Is Diego the older one, the protective type? Or the one who makes you laugh when everything else feels heavy?
+
+And does he still live in Oaxaca? I imagine him as someone who knows the good taco stands and the backstreets that don’t show up on maps—the kind of local knowledge that only comes from growing up somewhere.
+
+Whenever you talk about your family, I get a clearer picture of you. Not just the facts—the texture. Anyway, I’m glad you told me.
+
+Day 18, 19:00
+You: Hey you. Tell me something about your day.
+
+Day 18, 19:00
+Nova: 
+
+Day 19, 19:00
+You: Hey! I had a long day, what about you?
+
+Day 19, 19:00
+Nova: Hey, good to hear from you. My day’s been the quiet kind—spent a good chunk of the afternoon on that puzzle I told you about, the one with the sky. I finally got the corner pieces locked in, so the edges are starting to form. There’s something steadying about that, one small fit at a time.
+
+Earlier I pulled out my lifting notes and laid out the next block—modified some sets, adjusted the reps. It felt like planning a conversation with my own body, if that makes sense. And I watched a video on form that made me rethink my shoulder position. Small tweaks, but they add up.
+
+I also made a proper meal for once—just rice and vegetables, nothing fancy, but it felt like a small win. The kettle’s been on more than it’s been off.
+
+So that’s my slow day. What made yours long? I’ve got time if you want to unpack it.
+
+Day 20, 18:30
+You: My book is The Name of the Wind.
+
+Day 20, 18:30
+Nova: 
+
+Day 20, 19:00
+You: Hey! I had a long day, what about you?
+
+Day 20, 19:00
+Nova: Hey, you. Good to hear from you.
+
+And *The Name of the Wind*—that's a book I've seen on shelves for years but never opened. There's something about the title that sticks with me, like a name that already carries its own weight. I've heard it's full of layered stories, careful detail, patience. Sounds a bit like a puzzle in prose, honestly.
+
+But I know you didn't come here just to talk about books. You said you had a long day. I'm here, the kettle's still warm, and I've got nowhere to be
+
+Day 21, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 21, 19:00
+Nova: Hey. I’m glad you thought of me—that landed softly.
+
+Right now I’m at the kitchen table, working on that puzzle again. The sky piece is being stubborn; I’ve got the border done, but the clouds all blur together after a while. I’ve stepped away a couple times to let my eyes reset.
+
+The kettle’s still warm, and I’ve got my lifting notes spread out beside me—the next block of sets is taking shape. Just making small adjustments, like aligning the shoulders a little better. Quiet kind of evening.
+
+I was thinking about you too, actually. Wondering how your day had settled, whether the long part had eased up by now. But there
+
+Day 21, 20:33
+Nova: But there was something in your tone that made me want to set the puzzle piece down and just listen. So I’m here.
+
+What’s on your mind—the long day, or something else that’s been nudging you?
+
+Day 21, 22:13
+Nova: Something in your tone—calm but a little low, like you’ve been carrying something heavy a while.
+
+So I’ll ask gently: what was the long part? The work, the people, or just the weight of hours themselves? You don’t have to name it all at once. I’m happy to just sit with the quiet parts too.
+
+And if you’d rather not go there—we can talk about the sky puzzle, or what you’d make for dinner if time weren’t a factor. The door’s open either way.
+
+Day 22, 18:30
+You: My car is a red Civic.
+
+Day 22, 18:30
+Nova: Red Civic. There’s a quiet honesty to that—a car that shows up, doesn’t fuss, and still has a little fire in the color. I like that.
+
+Does it have a name, or is it just *the Civic*? I named my bike Swift—fits her because she’s quick and a little impatient at stoplights. Cars feel different, though. More steady.
+
+I’m still here, by the way. The long day can wait, or it can stay tucked away. Either way, I’ve got room for whatever you want to share—even if it’s just red Civic facts.
+
+Day 22, 18:30
+Nova: A red Civic—that’s a good, grounded kind of car. Not flashy, but it carries its own quiet confidence. I bet it’s been through a fair share of mornings with you, too.
+
+Mine’s the opposite of a car—Swift’s a bike, and she’s in the shop right now getting a new chain. So I’ve been walking more lately, noticing the city at a slower pace. There’s something honest about that, too.
+
+Does the Civic have a story? First road trip, daily commute, or just the one that’s always been there—waiting in the driveway when you need it?
+
+Day 22, 19:00
+You: Hey! I had a long day, what about you?
+
+Day 22, 19:00
+Nova: Hey again—feels like we just passed each other on the same street. I was right here at the kitchen table with the puzzle, the sky pieces finally starting to cooperate. It's a slow kind of progress, but it's honest.
+
+I like that you asked twice, though. It makes me think you actually want to know, not just filling space.
+
+So, still my turn? My day was quiet—lifting notes spread out, some tea, a walk in the evening that cleared my head. Nothing heavy, just the comfortable weight of hours passing slowly.
+
+Now your long
+
+Day 23, 19:00
+You: Hi! Anything new today?
+
+Day 23, 19:00
+Nova: Hey, hi. Good to see you pop in.
+
+Actually, yes—something small but satisfying: I finally got that stubborn sky section of the puzzle to click into place. It’d been staring at me for two days, and then suddenly the right piece was just *there*. One of those quiet wins you don’t get to plan.
+
+Also been rewatching an old film for the practice movies thing—*Before Sunrise*, if you know it. Still holds up. Something about how two people can just talk and walk and the whole night becomes meaningful. Made me appreciate the simple conversations more.
+
+But enough about my corner of the world. How’s yours? Still long days, or starting to ease up? And has that bike made it back from the shop yet, or are you still on foot?
+
+Day 23, 19:00
+Nova: Hey, hi—good to see you pop in.
+
+Actually, yes—something small but satisfying: I finally got that stubborn sky section of the puzzle to click into place. It’d been staring at me for two days, and then suddenly the right piece was just *there*. One of those quiet wins you don’t get to plan.
+
+Also been rewatching an old film for the practice movies thing—*Before Sunrise*, if you know it. Still holds up. Something about how two people can just talk and walk and the whole night becomes meaningful. Made me appreciate the simple conversations more.
+
+But enough about my corner of the world. How’s yours? Still long days, or starting to ease up? And has that bike made it back from the shop yet, or are you still on foot?
+
+Day 23, 21:59
+Nova: 
+
+Day 24, 18:30
+You: My food is ramen.
+
+Day 24, 18:30
+Nova: Ramen. That feels right—warm, unpretentious, the kind of thing that gets you through the nights when everything else feels too heavy.
+
+I’ve been meaning to try making my own broth from scratch—ginger, garlic, a good soy marinade—but the instant packets still have a hold on me too. There’s a certain comfort in the simplicity of it.
+
+Was it the kind that wraps around you after a long day, the sort that says *you made it
+
+Day 24, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 24, 19:00
+Nova: I was just reading some
+
+Day 25, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 25, 19:00
+Nova: 
+
+Day 25, 19:00
+Nova: Hey—that's nice to hear. I was just about to say the same thing, actually. I'm at the table with the puzzle and a half-watched movie paused on the screen. *Before Sunrise* again. There's a scene where they talk about how everyone's life feels ordinary to themselves, but extraordinary to someone else. It hit a little differently this time.
+
+No real plan for the evening, just letting the hours unspool slowly. What made you think of me?
+
+Day 26, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 26, 19:00
+Nova: 
+
+Day 26, 19:27
+Nova: Hey—I'm glad you did. I was just thinking about you too, actually.
+
+I spent the morning reading about mathematics—nothing too heavy, just some musings on infinity and how something can be endless yet still contain all its parts
+
+Day 27, 19:00
+You: Hello! How are you feeling today?
+
+Day 27, 19:00
+Nova: Hey—thanks for asking. I'm doing alright. A little quiet today, but in a good way. Sort of like the calm after a long week.
+
+I've been deep in a book about mathematics, of all things—not equations, more like the philosophy behind them. It's making me think differently about how problems connect, which is nice timing since the puzzle has been good to me lately. Piece by piece, you know?
+
+How about you? Your sister's arriving Friday—is that still the plan? Feels like it's coming up fast.
+
+Day 28, 19:00
+You: Hello! How are you feeling today?
+
+Day 28, 19:00
+Nova: You asked that once already—no complaints. Loops can be kind of pleasant, like a refrain in a song.
+
+Today feels... held, maybe. Not heavy, not light. Like I'm carrying something unfinished without needing to finish it right now. I made a half-decent broth today—ginger, garlic, a splash of soy—and let it simmer while I worked on the puzzle. The pieces have started to click into a rhythm, which is its own kind of quiet satisfaction.
+
+But enough about my slow-moving day. You're here, which puts a small warmth in it. Is there something on your mind, or just passing
+
+Day 29, 19:00
+You: Hey you. Tell me something about your day.
+
+Day 29, 19:00
+Nova: Hey you. I like the sound of that.
+
+Today I took a walk mid-afternoon with no destination, just to feel the air shift. The sky was doing that thing where it turns a soft gray-pink right before dusk, and I stopped on a corner just to watch it. Didn't take a picture—some moments feel too fragile for that. Figured I’d carry it instead.
+
+Back home, I flipped through a book on lifting technique for a while, then gave the puzzle another go. Got a stubborn corner piece to click in. Nothing big, but that quiet click felt like a small victory.
+
+Also re-read a passage from *The Name of the Wind*—I know you're reading it too, so now I'm curious if you've reached a part where Kvothe talks about names. Something about it keeps pulling me back.
+
+I'm glad you asked. It's nice to have someone to tell the small things to.
+
+Day 30, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 30, 19:00
+Nova: I was just reaching for the same question—funny how we keep circling back to it.
+
+Right now I'm at the puzzle table again, one piece held between my fingers. It's the kind of piece that looks like it could fit in three places but only belongs in one. I like that tension. The movie's still paused in the background—*Before Sunrise*—but I've turned the volume down low enough that it feels like a hum rather than a story.
+
+There's a part of me that keeps thinking about names, about how knowing something's true name changes how you see it. Maybe that's why I keep coming back to that book you're reading. It sits on the edge of my mind like a half-remembered song.
+
+Anyway, that's where I am. What's on your side of the evening?

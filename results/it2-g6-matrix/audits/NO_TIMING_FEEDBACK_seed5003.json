@@ -1,0 +1,215 @@
+{
+  "seed": 5003,
+  "end_h": 720.0,
+  "days": 30,
+  "n_messages": 110,
+  "n_proactive": 16,
+  "n_fired_intents": 16,
+  "counts_consistent": true,
+  "ungrounded_proactive": 0,
+  "grounding_detail": [
+    {
+      "message_id": 1,
+      "t_h": 8.739277512036882,
+      "intent_id": "pi_agenda_item_ag_0_i_physics_8.739",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_0_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 24,
+      "t_h": 140.06506071334144,
+      "intent_id": "pi_life_event_ag_4_r_00_140.065",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_4_r_00",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 27,
+      "t_h": 162.6,
+      "intent_id": "pi_agenda_item_ag_6_a_arc_2_160.423",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_6_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 34,
+      "t_h": 189.78549734486162,
+      "intent_id": "pi_life_event_ag_6_a_arc_2_189.785",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_6_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 39,
+      "t_h": 212.46682139578508,
+      "intent_id": "pi_agenda_item_ag_8_a_arc_1_212.467",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_8_a_arc_1",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 46,
+      "t_h": 258.6,
+      "intent_id": "pi_agenda_item_ag_10_i_physics_258.382",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_10_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 59,
+      "t_h": 334.3303349211704,
+      "intent_id": "pi_life_event_ag_12_i_physics_334.330",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_12_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 62,
+      "t_h": 356.0035167936573,
+      "intent_id": "pi_life_event_ag_13_a_arc_2_356.004",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_13_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 71,
+      "t_h": 426.5,
+      "intent_id": "pi_agenda_item_ag_17_i_poetry_423.760",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_17_i_poetry",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 78,
+      "t_h": 474.5,
+      "intent_id": "pi_life_event_ag_18_a_arc_2_473.335",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_18_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 85,
+      "t_h": 522.5,
+      "intent_id": "pi_agenda_item_ag_21_i_metal_521.109",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_21_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 90,
+      "t_h": 548.3896177030236,
+      "intent_id": "pi_life_event_ag_21_i_metal_548.390",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_21_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 95,
+      "t_h": 573.4192841090293,
+      "intent_id": "pi_agenda_item_ag_23_i_guitar_573.419",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_23_i_guitar",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 98,
+      "t_h": 595.0,
+      "intent_id": "pi_agenda_item_ag_24_i_mathematics_593.861",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_24_i_mathematics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 107,
+      "t_h": 694.5397926901727,
+      "intent_id": "pi_life_event_ag_27_a_arc_23_s0_694.540",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_27_a_arc_23_s0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 110,
+      "t_h": 717.6554356662854,
+      "intent_id": "pi_life_event_ag_28_i_physics_717.655",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_28_i_physics",
+      "opportunity_id": null
+    }
+  ],
+  "wrong_intent": 0,
+  "restart_state_loss": 0,
+  "stranded_opportunities": 0,
+  "stranded_detail": {
+    "pending_schedule": [],
+    "pending_intents": []
+  },
+  "cycle_state_leakage": 0,
+  "leak_detail": {
+    "hits": {},
+    "total": 0,
+    "g_bare": 0
+  },
+  "memory_provenance_failures": 0,
+  "provenance_detail": [],
+  "duplicate_turns": 0,
+  "duplicate_detail": [],
+  "life_dead_days": [],
+  "life_dead_duration": 0,
+  "i4_violations": [],
+  "fixture_inserts": {
+    "user_ok": true,
+    "user_bad": [],
+    "assistant_ok": true,
+    "assistant_bad": []
+  },
+  "all_hard_zero": true
+}

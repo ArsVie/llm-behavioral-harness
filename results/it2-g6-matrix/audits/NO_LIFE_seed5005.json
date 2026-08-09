@@ -1,0 +1,281 @@
+{
+  "seed": 5005,
+  "end_h": 720.0,
+  "days": 30,
+  "n_messages": 116,
+  "n_proactive": 22,
+  "n_fired_intents": 22,
+  "counts_consistent": true,
+  "ungrounded_proactive": 0,
+  "grounding_detail": [
+    {
+      "message_id": 5,
+      "t_h": 42.5,
+      "intent_id": "pi_agenda_item_ag_1_i_statistics_41.037",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_1_i_statistics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 8,
+      "t_h": 44.45567178071341,
+      "intent_id": "pi_agenda_item_ag_1_i_statistics_44.456",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_1_i_statistics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 11,
+      "t_h": 66.6,
+      "intent_id": "pi_agenda_item_ag_2_i_statistics_65.225",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_2_i_statistics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 20,
+      "t_h": 114.6,
+      "intent_id": "pi_life_event_ag_3_a_arc_4_113.708",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_3_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 25,
+      "t_h": 138.5,
+      "intent_id": "pi_agenda_item_ag_5_r_01_136.259",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_5_r_01",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 30,
+      "t_h": 162.6,
+      "intent_id": "pi_agenda_item_ag_6_a_arc_4_159.875",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_6_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 37,
+      "t_h": 190.5094900541035,
+      "intent_id": "pi_agenda_item_ag_7_i_movies_190.509",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_7_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 42,
+      "t_h": 214.1352198125807,
+      "intent_id": "pi_life_event_ag_7_i_movies_214.135",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_7_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 47,
+      "t_h": 250.52517365814913,
+      "intent_id": "pi_agenda_item_ag_10_i_mathematics_250.525",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_10_i_mathematics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 50,
+      "t_h": 260.13593079536713,
+      "intent_id": "pi_agenda_item_ag_10_a_arc_2_260.136",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_10_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 67,
+      "t_h": 378.5,
+      "intent_id": "pi_agenda_item_ag_15_r_01_378.382",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_15_r_01",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 72,
+      "t_h": 403.0,
+      "intent_id": "pi_agenda_item_ag_16_a_arc_4_402.341",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_16_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 75,
+      "t_h": 426.5,
+      "intent_id": "pi_agenda_item_ag_17_a_arc_4_425.190",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_17_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 80,
+      "t_h": 451.0,
+      "intent_id": "pi_agenda_item_ag_18_a_arc_4_448.324",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_18_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 81,
+      "t_h": 452.72734723148244,
+      "intent_id": "pi_life_event_ag_17_a_arc_4_452.727",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_17_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 92,
+      "t_h": 524.3166412366772,
+      "intent_id": "pi_agenda_item_ag_21_i_metal_524.317",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_21_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 97,
+      "t_h": 570.5,
+      "intent_id": "pi_agenda_item_ag_23_a_arc_4_570.034",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_23_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 100,
+      "t_h": 571.491283463807,
+      "intent_id": "pi_agenda_item_ag_23_i_puzzles_571.491",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_23_i_puzzles",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 103,
+      "t_h": 597.6897052339601,
+      "intent_id": "pi_life_event_ag_23_a_arc_4_597.690",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_23_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 108,
+      "t_h": 643.7882377060823,
+      "intent_id": "pi_agenda_item_ag_26_i_metal_643.788",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_26_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 113,
+      "t_h": 691.2962807460642,
+      "intent_id": "pi_agenda_item_ag_28_a_arc_4_691.296",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_28_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 116,
+      "t_h": 715.0,
+      "intent_id": "pi_agenda_item_ag_29_a_arc_4_713.825",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_29_a_arc_4",
+      "opportunity_id": null
+    }
+  ],
+  "wrong_intent": 0,
+  "restart_state_loss": 0,
+  "stranded_opportunities": 0,
+  "stranded_detail": {
+    "pending_schedule": [],
+    "pending_intents": []
+  },
+  "cycle_state_leakage": 0,
+  "leak_detail": {
+    "hits": {},
+    "total": 0,
+    "g_bare": 0
+  },
+  "memory_provenance_failures": 0,
+  "provenance_detail": [],
+  "duplicate_turns": 0,
+  "duplicate_detail": [],
+  "life_dead_days": [],
+  "life_dead_duration": 0,
+  "i4_violations": [],
+  "fixture_inserts": {
+    "user_ok": true,
+    "user_bad": [],
+    "assistant_ok": true,
+    "assistant_bad": []
+  },
+  "all_hard_zero": true
+}

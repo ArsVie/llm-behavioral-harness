@@ -1,0 +1,193 @@
+{
+  "seed": 5004,
+  "end_h": 720.0,
+  "days": 30,
+  "n_messages": 108,
+  "n_proactive": 14,
+  "n_fired_intents": 14,
+  "counts_consistent": true,
+  "ungrounded_proactive": 0,
+  "grounding_detail": [
+    {
+      "message_id": 19,
+      "t_h": 117.26215548781269,
+      "intent_id": "pi_life_event_ag_3_i_puzzles_117.262",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_3_i_puzzles",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 30,
+      "t_h": 186.6,
+      "intent_id": "pi_agenda_item_ag_7_a_arc_2_185.353",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_7_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 49,
+      "t_h": 283.71247982315197,
+      "intent_id": "pi_agenda_item_ag_11_a_arc_4_283.712",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_11_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 54,
+      "t_h": 309.2166585909954,
+      "intent_id": "pi_life_event_ag_11_a_arc_4_309.217",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_11_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 59,
+      "t_h": 356.32268343270067,
+      "intent_id": "pi_agenda_item_ag_14_i_rock_356.323",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_14_i_rock",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 62,
+      "t_h": 378.5,
+      "intent_id": "pi_agenda_item_ag_15_a_arc_3_375.654",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_15_a_arc_3",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 67,
+      "t_h": 405.9313548222221,
+      "intent_id": "pi_agenda_item_ag_16_i_movies_405.931",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_16_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 80,
+      "t_h": 500.547582291823,
+      "intent_id": "pi_agenda_item_ag_20_a_arc_2_500.548",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_20_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 81,
+      "t_h": 502.21090222907213,
+      "intent_id": "pi_life_event_ag_19_i_puzzles_502.211",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_19_i_puzzles",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 84,
+      "t_h": 522.5,
+      "intent_id": "pi_life_event_ag_20_a_arc_2_519.483",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_20_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 89,
+      "t_h": 547.0,
+      "intent_id": "pi_agenda_item_ag_22_i_movies_545.532",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_22_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 90,
+      "t_h": 549.9843034964313,
+      "intent_id": "pi_life_event_ag_21_a_arc_2_549.984",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_21_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 97,
+      "t_h": 595.0,
+      "intent_id": "pi_agenda_item_ag_24_i_movies_592.099",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_24_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 100,
+      "t_h": 619.4541070485947,
+      "intent_id": "pi_agenda_item_ag_25_a_arc_2_619.454",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_25_a_arc_2",
+      "opportunity_id": null
+    }
+  ],
+  "wrong_intent": 0,
+  "restart_state_loss": 0,
+  "stranded_opportunities": 0,
+  "stranded_detail": {
+    "pending_schedule": [],
+    "pending_intents": []
+  },
+  "cycle_state_leakage": 0,
+  "leak_detail": {
+    "hits": {},
+    "total": 0,
+    "g_bare": 0
+  },
+  "memory_provenance_failures": 0,
+  "provenance_detail": [],
+  "duplicate_turns": 0,
+  "duplicate_detail": [],
+  "life_dead_days": [],
+  "life_dead_duration": 0,
+  "i4_violations": [],
+  "fixture_inserts": {
+    "user_ok": true,
+    "user_bad": [],
+    "assistant_ok": true,
+    "assistant_bad": []
+  },
+  "all_hard_zero": true
+}

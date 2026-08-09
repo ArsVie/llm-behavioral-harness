@@ -1,0 +1,248 @@
+{
+  "seed": 5004,
+  "end_h": 720.0,
+  "days": 30,
+  "n_messages": 93,
+  "n_proactive": 19,
+  "n_fired_intents": 19,
+  "counts_consistent": true,
+  "ungrounded_proactive": 0,
+  "grounding_detail": [
+    {
+      "message_id": 19,
+      "t_h": 117.26215548781269,
+      "intent_id": "pi_life_event_ag_3_i_puzzles_117.262",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_3_i_puzzles",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 30,
+      "t_h": 186.6,
+      "intent_id": "pi_agenda_item_ag_7_a_arc_2_185.353",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_7_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 37,
+      "t_h": 213.84844064707096,
+      "intent_id": "pi_agenda_item_ag_8_a_arc_1_213.848",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_8_a_arc_1",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 54,
+      "t_h": 310.57225616483913,
+      "intent_id": "pi_life_event_ag_11_a_arc_4_310.572",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_11_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 65,
+      "t_h": 404.7946352770181,
+      "intent_id": "pi_agenda_item_ag_16_i_movies_404.795",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_16_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 74,
+      "t_h": 474.5,
+      "intent_id": "pi_agenda_item_ag_19_i_poetry_473.616",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_19_i_poetry",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 77,
+      "t_h": 478.4292522036183,
+      "intent_id": "pi_life_event_ag_18_a_arc_2_478.429",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_18_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 82,
+      "t_h": 522.5,
+      "intent_id": "pi_agenda_item_ag_21_a_arc_2_521.719",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_21_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 83,
+      "t_h": 566.7039476507765,
+      "intent_id": "pi_agenda_item_ag_23_a_arc_3_566.704",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_23_a_arc_3",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 84,
+      "t_h": 571.1558470171203,
+      "intent_id": "pi_check_in_ep-day-21-0_571.156",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-21-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 85,
+      "t_h": 584.1155984289395,
+      "intent_id": "pi_check_in_ep-day-21-0_584.116",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-21-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 86,
+      "t_h": 585.0362134872165,
+      "intent_id": "pi_check_in_ep-day-21-0_585.036",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-21-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 87,
+      "t_h": 588.2771600352359,
+      "intent_id": "pi_agenda_item_ag_24_a_arc_2_588.277",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_24_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 88,
+      "t_h": 610.3810411296324,
+      "intent_id": "pi_check_in_ep-day-21-0_610.381",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-21-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 89,
+      "t_h": 613.2706047570189,
+      "intent_id": "pi_agenda_item_ag_25_i_poetry_613.271",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_25_i_poetry",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 90,
+      "t_h": 640.6256505692837,
+      "intent_id": "pi_agenda_item_ag_26_a_arc_2_640.626",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_26_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 91,
+      "t_h": 660.5036102830226,
+      "intent_id": "pi_agenda_item_ag_27_a_arc_3_660.504",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_27_a_arc_3",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 92,
+      "t_h": 682.0078097804915,
+      "intent_id": "pi_check_in_ep-day-21-0_682.008",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-21-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 93,
+      "t_h": 708.150026577293,
+      "intent_id": "pi_life_event_ag_28_i_literature_708.150",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_28_i_literature",
+      "opportunity_id": null
+    }
+  ],
+  "wrong_intent": 0,
+  "restart_state_loss": 0,
+  "stranded_opportunities": 0,
+  "stranded_detail": {
+    "pending_schedule": [],
+    "pending_intents": []
+  },
+  "cycle_state_leakage": 0,
+  "leak_detail": {
+    "hits": {},
+    "total": 0,
+    "g_bare": 0
+  },
+  "memory_provenance_failures": 0,
+  "provenance_detail": [],
+  "duplicate_turns": 0,
+  "duplicate_detail": [],
+  "life_dead_days": [],
+  "life_dead_duration": 0,
+  "i4_violations": [],
+  "fixture_inserts": {
+    "user_ok": true,
+    "user_bad": [],
+    "assistant_ok": true,
+    "assistant_bad": []
+  },
+  "all_hard_zero": true
+}
