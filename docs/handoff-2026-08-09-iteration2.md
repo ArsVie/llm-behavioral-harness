@@ -2,6 +2,23 @@
 
 Status: ORCHESTRATOR PAUSED at user request (subagent iteration cap being raised). All work below is verifiable from git; nothing is hypothetical.
 
+## 0. WAVE-3 BATCH COMPLETED AFTER PAUSE (deleg_d33773f8, both agents capped UNCOMMITTED — READ THIS FIRST)
+Both Wave-3 agents hit the iteration cap BEFORE committing. Working-tree state is on disk — do not clean worktrees without committing first.
+
+**A9 (wip/it2-a9, worktree llh-wt-it2-a9):** 5 modified + 5 NEW adversarial test files, ALL UNCOMMITTED (`git add tests/test_adversarial_* && git commit` needed — 38 new tests). Full inventory: modified {actuators,grounding,life,memory,restart}, new {bootstrap,interests,proactivity,prompt,runtime}. Baseline 70/70 intact (5 original files + test_proactive_it2).
+- **R1-F1 (HIGH, routes to A3/A6): LIVELOCK — quiet-hours deferral + rollover park never terminates.** Test `test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers` (deliberately fails fast). Repro: still-valid event at 23:30 (12h validity, outlives quiet) gets PARKED by _rollover_loop, then DEFERRED by _quiet_defer_until; the deferral sleep (`_firing_loop` ~line 441: `await asyncio.sleep((defer_until - now) * scale)`) sleeps WALL time but NEVER advances the virtual clock → park → gate → defer → sleep → re-poll forever; run never reaches max_virtual_hours. Violates invariant 17 + r4b semantics (deferred event must eventually fire or expire by policy). Fix direction: deferral must advance the virtual clock when the rollover is parked, OR the rollover must not park at events that will be deferred. Do NOT weaken the finding test.
+- A9's r1a/r1c were test-design artifacts (check-in grounding + replanned day-0 leftover → spurious 'expired'); fixed by retargeting to agenda-grounded REASON_SCHEDULE events — applied but NOT re-run before cap; verify before merge.
+- l9*/m9*/r10/v1*/v1a/b/a7/a8 additions written but NEVER EXECUTED — must run before the A9 gate claim.
+- No other confirmed harness defects (probed: bootstrap identity, hostile interests, canonical-only categories, policy-switch ordering, determinism, expired-intent ValueError, exact-id firing, suppression-without-message, clean shutdown).
+
+**A8 (wip/it2-a8, worktree llh-wt-it2-a8):** ALL FILES UNCOMMITTED (untracked): experiments/{companion_vertical_slice.py, cvs_common.py, cvs_manifest.py, validation/}, tests/test_cvs_{common,manifest,tracks,validate}.py.
+- ⚠️ A8's LAST write to cvs_common.py FAILED (temp-file error: `.hermes-tmp.1303930` no such file) — the file on disk may be STALE/partial. VERIFY cvs_common.py integrity before resume (it exists, but may lack the final version).
+- Mock vertical ran to completion (111 msgs, 27 proactive, 5 checkpoints) but validation red: ungrounded_proactive=1 + 1 more error; grounding_detail never printed → root cause TBD (audit artifact vs A3 harness bug — ROUTING RULE in §4.1).
+- Track tests red at cap: test_replay_mini_exact, test_chain_events_promotable, test_deterministic_judge_perturbation_dip (partially patched).
+- Continuation brief staged: /tmp/llh-vslice/it2-a8c.md (NOT dispatched; update it with the R1-F1 cross-dependency before dispatch).
+
+**RESUME ORDER UPDATE:** R1-F1 must be fixed (A3/A6 owner) BEFORE m9 (A9 suite can't pass with the finding test red by design) and ideally before A8's mock validation (the ungrounded_proactive=1 may share the deferral/park clock path).
+
 ## 1. Authoritative contract
 - `plans/iteration-2-integration-2026-08-09.md` (2042-line plan, INCLUDES §17 eval-protocol addendum: 4-dim scoring, event-chain metrics, perturbation+recovery blocks, >=2 judge families, Weibull timing FROZEN).
 - Legacy slice contract: `plans/companion-vertical-slice-2026-08.md` (superseded; do not resume its A10 matrix — E0 is archived, see §5).
