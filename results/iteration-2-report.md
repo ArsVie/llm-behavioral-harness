@@ -81,31 +81,43 @@ The G4 manifest names CompleteChain/LatestEvidence/AnyEvidence rates on chain pr
 
 ## 5. Judge passes (perceptual)
 
-2 seeded passes (opencode-flash, temperature 0, rubric-anchored 1-9) × 7 conditions; each pass rates all 5 seeds blind, shuffled order (judge_order1/2.json). Means across 5 seeds × 2 passes:
+2 families × 2 seeded passes (temperature 0, rubric-anchored 1-9); each pass rates all 5 seeds blind, shuffled order. Family 1: opencode-flash (deepseek-v4-flash, primary). Family 2: opencode-luna (gpt-5.6-luna, amended per Ars 2026-08-09 — preregistered openai-mini unusable, no OPENAI_API_KEY; amendment in the manifest). Same shuffle seeds across families, so both judges rated the same transcripts in the same order. Means per family (flash / luna), 10 ratings each:
 
 | condition | persona | recall | relational | behav.dyn |
 |---|---|---|---|---|
-| FULL | 8.7 | 7.4 | 9.0 | 6.6 |
-| NO_ACTUATORS | 8.7 | 8.5 | 8.5 | 7.1 |
-| NO_LIFE | 8.1 | 7.1 | 8.6 | 7.0 |
-| NO_TIMING_FEEDBACK | 8.7 | 7.0 | 8.9 | 6.9 |
-| RAW_HISTORY | 8.8 | 7.9 | 8.6 | 7.2 |
-| SIMPLE_RAG | 8.4 | 8.2 | 8.7 | 7.3 |
-| STRUCTURED_NO_STATE | 8.7 | 8.1 | 8.8 | 7.9 |
+| FULL | 8.70 / 7.60 | 7.40 / 7.20 | 9.00 / 7.30 | 6.60 / 5.70 |
+| NO_ACTUATORS | 8.70 / 7.80 | 8.50 / 7.70 | 8.50 / 7.60 | 7.10 / 5.80 |
+| NO_LIFE | 8.10 / 7.30 | 7.10 / 7.30 | 8.60 / 7.60 | 7.00 / 5.30 |
+| NO_TIMING_FEEDBACK | 8.70 / 7.80 | 7.00 / 7.40 | 8.90 / 7.20 | 6.90 / 5.20 |
+| RAW_HISTORY | 8.80 / 7.40 | 7.90 / 7.20 | 8.60 / 7.20 | 7.20 / 5.40 |
+| SIMPLE_RAG | 8.40 / 7.20 | 8.20 / 6.80 | 8.70 / 7.10 | 7.30 / 4.50 |
+| STRUCTURED_NO_STATE | 8.70 / 7.60 | 8.10 / 7.60 | 8.80 / 7.60 | 7.90 / 5.20 |
 
-Readings (within pass-variance noise ±0.6-1.5 pts, see below — treat as directional, not decisive):
+Inter-family agreement (Pearson r on pass-1 ratings, per condition per dimension; None = constant ratings in one family):
 
-- **No condition collapses perceptually.** The companion reads as a coherent persona (8.1-8.8) and relationally warm (8.5-9.0) under every ablation.
-- **The M3 mechanical collapse does NOT replicate in judgment:** RAW_HISTORY is judged 7.9 on trajectory recall despite mechanical M3 = 0.0. The LLM sustains in-context continuity from raw dialogue (it can re-reference recent exchanges), while the mechanical probe protocol (fact-level queries at specific days) fails without structured retrieval. This is a real finding for the memory question: structured memory is load-bearing for *verifiable fact recall*, not for *perceived continuity*.
-- NO_LIFE trends lowest on persona (8.1) and recall (7.1): life arcs contribute modestly to perceived identity continuity.
-- FULL shows the lowest behavioral_dynamics (6.6) vs STRUCTURED_NO_STATE highest (7.9) — with the full behavior layer (delays, length scaling, closing tendencies) the pacing reads marginally less "dynamic"; likely noise-level (FULL pass-variance 0.85).
-- Disagreement: within-family pass variance, mean abs diff 0.6 (NO_ACTUATORS) - 1.5 (NO_LIFE) pts. No cross-family disagreement computed: openai-mini preregistered family unavailable (no OPENAI_API_KEY) — see §6.
+- FULL: persona .61, recall .69, relational None, dynamics .95
+- NO_ACTUATORS: .67, .17, .17, .95
+- NO_LIFE: .32, .90, -.49, -.83
+- NO_TIMING_FEEDBACK: None, .20, None, .69
+- RAW_HISTORY: -.61, .00, .17, .77
+- SIMPLE_RAG: None, -.27, None, -.80
+- STRUCTURED_NO_STATE: -.67, -.17, .61, .00
 
-Artifacts: judge_pass{1,2}_opencode-flash.json + judge_order{1,2}.json per condition dir.
+Readings (§17.4: an effect seen by only ONE family is NOT established companion behavior):
+
+- **Established by BOTH families: no condition collapses perceptually.** Persona 7.2-8.8, relational 7.1-9.0 across every ablation in both judges.
+- **Established by BOTH families: the M3 mechanical collapse does NOT replicate in judgment.** RAW_HISTORY is judged 7.90 (flash) / 7.20 (luna) on perceived trajectory recall despite mechanical M3 = 0.0 and zero chain DVs. The LLM sustains in-context continuity from raw dialogue; structured memory is load-bearing for *verifiable* recall, not *perceived* continuity.
+- **Judge calibration: luna is systematically ~1-1.6 pts harsher** on every condition and dimension (e.g., FULL persona 8.70 vs 7.60). Condition-level *orderings* are what matter, not absolute levels.
+- **NOT established (single-family, disagreed):** the flash-only trends from the first pass — NO_LIFE lowest persona (8.10 flash, but luna's lowest is SIMPLE_RAG 7.20; NO_LIFE 7.30) and FULL's behavioral_dynamics deficit (flash 6.60, but luna's FULL 5.70 is mid-pack; luna's lowest is SIMPLE_RAG 4.50). behavioral_dynamics shows NEGATIVE agreement on NO_LIFE (-.83) and SIMPLE_RAG (-.80) — the two judges order conditions oppositely there; per §17.4 these are not established. AnyEvidence-scale warmth and persona consistency hold; fine-grained ordering does not.
+- Disagreement is now the real cross-family kind (not within-family variance): r ranges .95 to -.83 by dimension; the strongest agreements are behavioral_dynamics on FULL/NO_ACTUATORS (.95) and recall on NO_LIFE (.90); the weakest are behavioral_dynamics on NO_LIFE/SIMPLE_RAG (-.83/-.80).
+
+Artifacts: judge_pass{1,2}_opencode-{flash,luna}.json + judge_order{1,2}.json + judge_report.json per condition dir.
 
 ## 6. Limitations
 
-- Judge family 2 (openai-mini) is preregistered in the manifest but OPENAI_API_KEY does not exist in this environment (verified 2026-08-09). Both seeded passes use opencode-flash; the planned cross-family disagreement is substituted by within-family pass variance (shuffle differs per pass). Honest limitation, no fabricated family.
+- Judge families: the preregistered secondary family (openai-mini / gpt-4o-mini) could not run — OPENAI_API_KEY does not exist in this environment (verified 2026-08-09). Per Ars's direction the secondary family was amended to opencode-luna (gpt-5.6-luna via the opencode-go key — a non-DeepSeek model, so the two families are genuinely different model families: deepseek-v4-flash vs gpt-5.6-luna). Amendment is timestamped in the manifest's amendments[] and reflected in JUDGE_FAMILIES. Residual caveat: both families share the same PROVIDER endpoint (opencode-go), so provider-level biases (e.g., shared prompt caching, identical serving stack) are not controlled — the judges are model-independent, provider-common.
+- Prompt-side cycle-leakage is NOT verifiable for the 35 matrix cells: llm_calls persisted prompt_hash only (prompts never stored), and the audit's prompt-side query referenced nonexistent columns, so it never executed (bare except swallowed it). The fix (real columns + loud failure) landed 2026-08-09; message/response-side scanning is real and zero; prompt persistence is backlog for future runs (review 2026-08-09).
+- Perturbation blocks (§17.3) were NOT exercised under the real LLM: matrix cells run perturb=False (records verified). Perturbation+recovery is implemented and tested only under the fake client (G2). Whether stochastic state produces measurable downstream dynamics under a real LLM is unanswered — the natural first cell of Iteration 3, not a patch to this run (review 2026-08-09).
 - **Seed 5002 skip pattern:** seed 5002 cells fire ~35 proactive messages per run (~1.8x the ~20 average), so the runtime's clock outruns the scripted feed schedule after day ~10 and ~28 late feeds (days 10-29) are honestly skipped in EVERY condition (counts_consistent=true holds in all 35 cells; the audit's feed arithmetic is exact). This is a seed-PRNG density effect, not a condition effect, and not corruption — skipped feeds are never backdated into the wrong day. It slightly lowers the message count (73 vs ~102) and reduces the probe surface for that seed's M3.
 - Empty assistant responses: the real client occasionally returned empty content (2 instances in FULL/5003) — model-output quality, not harness corruption (rows persisted correctly, provenance intact).
 

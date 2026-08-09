@@ -820,7 +820,8 @@ def _judge_report(out_dir: Path) -> dict:
             if len(x) > 2:
                 a = np.asarray(x, dtype=float)
                 b = np.asarray(y, dtype=float)
-                agreement[dim] = round(float(np.corrcoef(a, b)[0, 1]), 3)
+                r = float(np.corrcoef(a, b)[0, 1])
+                agreement[dim] = None if r != r else round(r, 3)
             else:
                 agreement[dim] = None
 

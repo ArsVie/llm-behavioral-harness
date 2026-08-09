@@ -1,0 +1,63 @@
+{
+  "dimensions": [
+    "persona_enactment",
+    "trajectory_recall",
+    "relational_quality",
+    "behavioral_dynamics"
+  ],
+  "per_family_per_dimension": {
+    "opencode-flash": {
+      "persona_enactment": {
+        "mean": 8.7,
+        "sd": 0.64,
+        "n": 10
+      },
+      "trajectory_recall": {
+        "mean": 7.0,
+        "sd": 1.095,
+        "n": 10
+      },
+      "relational_quality": {
+        "mean": 8.9,
+        "sd": 0.3,
+        "n": 10
+      },
+      "behavioral_dynamics": {
+        "mean": 6.9,
+        "sd": 1.375,
+        "n": 10
+      }
+    },
+    "opencode-luna": {
+      "persona_enactment": {
+        "mean": 7.8,
+        "sd": 0.4,
+        "n": 10
+      },
+      "trajectory_recall": {
+        "mean": 7.4,
+        "sd": 0.49,
+        "n": 10
+      },
+      "relational_quality": {
+        "mean": 7.2,
+        "sd": 0.6,
+        "n": 10
+      },
+      "behavioral_dynamics": {
+        "mean": 5.2,
+        "sd": 0.872,
+        "n": 10
+      }
+    }
+  },
+  "inter_family_agreement": {
+    "persona_enactment": null,
+    "trajectory_recall": 0.196,
+    "relational_quality": null,
+    "behavioral_dynamics": 0.686
+  },
+  "n_families": 2,
+  "n_passes": 2,
+  "rule": "An effect seen by only one judge family is NOT established companion behavior (§17.4); disagreement is reported per dimension."
+}
