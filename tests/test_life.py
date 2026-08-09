@@ -34,6 +34,7 @@ from harness.life import (
     AWAKE_START_H,
     DAY_HOURS,
     LifeStore,
+    current_activity_now,
     generate_agenda,
     init_life,
     step_life,
@@ -189,6 +190,10 @@ def _day_start(day: int) -> float:
     return day * DAY_HOURS
 
 
+#: NOW-semantics resolver under test (alias keeps the T2 tests readable).
+life_now = current_activity_now
+
+
 # ---------------------------------------------------------------------------
 # init_life
 # ---------------------------------------------------------------------------
@@ -318,7 +323,10 @@ def test_step_life_statuses_and_persistence(tmp_path):
     persona = _persona()
     store = _store(tmp_path)
     arcs = init_life(CORE_SEED, persona, store)
-    day = 5
+    # Day 8: every arc has started (max started_day = 8 for this seed), so the
+    # per-day draw sequence is the canonical one; earlier days skip draws for
+    # not-yet-started arcs (start-time respect) and may legitimately deviate.
+    day = 8
     agenda = generate_agenda(day, persona, arcs, store,
                              stream_rng(CORE_SEED, LIFE_STREAM, day))
     result = step_life(day, persona, arcs, agenda, store,
@@ -590,3 +598,349 @@ def test_module_uses_no_random_or_clock():
     for forbidden in ("import random", "from random", "time.", "datetime",
                       "np.random.seed", "default_rng("):
         assert forbidden not in text, f"forbidden pattern {forbidden!r} in life.py"
+
+
+# ---------------------------------------------------------------------------
+# Iteration 2 (A2): arc start-time respect (plan §5-A2 T1)
+# ---------------------------------------------------------------------------
+
+def _late_arc() -> domain.LifeArc:
+    """An arc that does not start until day 15 (used by the T1 tests)."""
+    return domain.LifeArc(
+        id="arc_late",
+        name="learning pottery",
+        interest="pottery",
+        started_day=15,
+        progress=0.1,
+        status="active",
+        next_intention="practice the fundamentals",
+    )
+
+
+def test_arc_start_time_respected_agenda(tmp_path):
+    """An arc with started_day=15 must not generate activities on day 8."""
+    persona = _persona()
+    store = _store(tmp_path)
+    early = domain.LifeArc(
+        id="arc_early", name="learning novels", interest="novels",
+        started_day=2, progress=0.2, status="active",
+        next_intention="try a new variation",
+    )
+    late = _late_arc()
+    store.upsert_life_arc(early)
+    store.upsert_life_arc(late)
+
+    for day in (3, 8, 14):  # before the arc's start day
+        agenda = generate_agenda(day, persona, [early, late], store,
+                                 stream_rng(CORE_SEED, LIFE_STREAM, day))
+        late_items = [it for it in agenda.items if it.source_id == "arc_late"]
+        assert not late_items, (
+            f"arc not started until day 15 but generated items on day {day}: "
+            f"{[it.activity for it in late_items]}"
+        )
+
+    # from its start day onward the arc can contribute (0.8 per-day chance;
+    # over a window it must land at least once for this seed)
+    seen = False
+    for day in range(15, 23):
+        agenda = generate_agenda(day, persona, [early, late], store,
+                                 stream_rng(CORE_SEED, LIFE_STREAM, day))
+        if any(it.source_id == "arc_late" for it in agenda.items):
+            seen = True
+            break
+    assert seen, "started arc never generated an agenda item in 8 days"
+
+
+def test_arc_start_time_respected_progress(tmp_path):
+    """step_life must not advance progress of an arc that has not started."""
+    persona = _persona()
+    store = _store(tmp_path)
+    late = _late_arc()
+    store.upsert_life_arc(late)
+
+    agenda = generate_agenda(8, persona, [late], store,
+                             stream_rng(CORE_SEED, LIFE_STREAM, 8))
+    result = step_life(8, persona, [late], agenda, store,
+                       stream_rng(CORE_SEED, LIFE_STREAM, 8))
+    after = {a.id: a for a in result.updated_arcs}
+    assert after["arc_late"].progress == 0.1  # untouched before start
+    assert after["arc_late"].status == "active"
+    assert store.get_life_arc("arc_late").progress == 0.1
+
+    # once started, the arc advances
+    agenda16 = generate_agenda(16, persona, [late], store,
+                               stream_rng(CORE_SEED, LIFE_STREAM, 16))
+    result16 = step_life(16, persona, [late], agenda16, store,
+                         stream_rng(CORE_SEED, LIFE_STREAM, 16))
+    after16 = {a.id: a for a in result16.updated_arcs}
+    assert after16["arc_late"].progress > 0.1
+
+
+def test_arc_start_time_survives_reload(tmp_path):
+    """started_day is persisted; the start-time gate applies after a restart."""
+    persona = _persona()
+    path = tmp_path / "life_store.json"
+    store1 = FakeLifeStore(path)
+    late = _late_arc()
+    store1.upsert_life_arc(late)
+    store1.close()
+
+    store2 = FakeLifeStore(path)
+    reloaded = store2.list_life_arcs()
+    assert [a.started_day for a in reloaded] == [15]
+    agenda = generate_agenda(8, persona, reloaded, store2,
+                             stream_rng(CORE_SEED, LIFE_STREAM, 8))
+    assert not [it for it in agenda.items if it.source_id == "arc_late"]
+
+
+# ---------------------------------------------------------------------------
+# Iteration 2 (A2): CurrentActivity = active NOW (plan §5-A2 T2, invariant 8)
+# ---------------------------------------------------------------------------
+
+def test_current_activity_now_future_plan_is_not_current():
+    """A 7 PM plan is NOT what she is doing at 10 AM: nothing active -> None,
+    and the plan stays in the DailyAgenda."""
+    day = 10
+    base = _day_start(day)
+    items = (
+        domain.AgendaItem("ag_1", base + 10.0, base + 11.0, "morning pottery",
+                          "arc", "arc_1", 0.7, "planned"),
+        domain.AgendaItem("ag_2", base + 19.0, base + 20.0, "evening run",
+                          "interest", "running", 0.5, "planned"),
+    )
+    agenda = domain.DailyAgenda(day=day, items=items)
+
+    # 10:00-11:00: the morning item is current while actually in progress
+    assert life_now(agenda, base + 10.0).item.id == "ag_1"
+    assert life_now(agenda, base + 10.75).item.id == "ag_1"
+    # 10 AM "now" is never the 7 PM plan
+    assert life_now(agenda, base + 10.0).item.id != "ag_2"
+    # gap at 15:00: nothing active -> None
+    assert life_now(agenda, base + 15.0) is None
+    # before the first item and after the last: None
+    assert life_now(agenda, base + 8.5) is None
+    assert life_now(agenda, base + 21.0) is None
+    # the plan itself is current only while actually happening
+    assert life_now(agenda, base + 19.5).item.id == "ag_2"
+
+
+def test_current_activity_now_skipped_item_not_current():
+    """A skipped item is not happening at its planned slot."""
+    day = 10
+    base = _day_start(day)
+    skipped = domain.AgendaItem("ag_1", base + 10.0, base + 11.0, "morning pottery",
+                                "arc", "arc_1", 0.7, "skipped")
+    other = domain.AgendaItem("ag_2", base + 19.0, base + 20.0, "evening run",
+                              "interest", "running", 0.5, "planned")
+    agenda = domain.DailyAgenda(day=day, items=(skipped, other))
+    assert life_now(agenda, base + 10.5) is None
+    assert life_now(agenda, base + 19.5).item.id == "ag_2"
+
+
+def test_current_activity_now_overlap_single():
+    """Even with overlapping items, current activity is single-valued: the
+    highest-salience item in progress at t_h, never a pair."""
+    day = 3
+    base = _day_start(day)
+    items = (
+        domain.AgendaItem("pottery", base + 14.0, base + 16.0, "pottery class",
+                          "interest", "drawing", 0.5, "planned"),
+        domain.AgendaItem("run", base + 15.0, base + 17.0, "evening run",
+                          "interest", "outdoors", 0.4, "planned"),
+    )
+    agenda = domain.DailyAgenda(day=day, items=items)
+    current = life_now(agenda, base + 15.5)
+    assert current is not None
+    assert current.item.id == "pottery"  # higher salience wins the overlap
+    assert current.item.start_t_h <= base + 15.5 < current.item.end_t_h
+
+
+def test_step_life_current_activity_with_t_h(tmp_path):
+    """step_life(t_h=...) resolves the NOW activity (item in progress at t_h,
+    None in gaps); the legacy no-t_h call keeps the day-level main-activity
+    contract."""
+    persona = _persona()
+    store = _store(tmp_path)
+    arcs = init_life(CORE_SEED, persona, store)
+    day = 8
+    agenda = generate_agenda(day, persona, arcs, store,
+                             stream_rng(CORE_SEED, LIFE_STREAM, day))
+    result = step_life(day, persona, arcs, agenda, store,
+                       stream_rng(CORE_SEED, LIFE_STREAM, day), t_h=_day_start(day) + 9.0)
+    if result.current_activity is not None:
+        item = result.current_activity.item
+        assert item.start_t_h <= _day_start(day) + 9.0 < item.end_t_h
+        assert item.status != "skipped"
+        assert result.current_activity.t_h == _day_start(day) + 9.0
+    # after the awake window nothing can be active
+    late = step_life(day, persona, arcs, agenda, store,
+                     stream_rng(CORE_SEED, LIFE_STREAM, day),
+                     t_h=_day_start(day) + AWAKE_END_H + 0.5)
+    assert late.current_activity is None
+
+
+# ---------------------------------------------------------------------------
+# Iteration 2 (A2): arc replenishment (plan §5-A2 T3, invariant 9)
+# ---------------------------------------------------------------------------
+
+def _run_days(seed: int, persona, store, days: int):
+    """Session-faithful daily loop (fresh per-day rng per call); returns the
+    final arc list and per-day post-step active counts."""
+    arcs = init_life(seed, persona, store)
+    active_counts: list[int] = []
+    for day in range(1, days + 1):
+        agenda = generate_agenda(day, persona, arcs, store,
+                                 stream_rng(seed, LIFE_STREAM, day))
+        result = step_life(day, persona, arcs, agenda, store,
+                           stream_rng(seed, LIFE_STREAM, day))
+        arcs = result.updated_arcs
+        active_counts.append(sum(1 for a in arcs if a.status == "active"))
+    return arcs, active_counts
+
+
+def test_replenishment_life_never_permanently_dies(tmp_path):
+    """60 days: active arcs never reach 0 (the post-step spawn is certain),
+    and replacement arcs actually appear with fresh ids."""
+    persona = _persona()
+    store = _store(tmp_path)
+    arcs, active_counts = _run_days(12345, persona, store, 60)
+    assert 0 not in active_counts, "active life must never die"
+    assert active_counts[-1] >= 1
+    spawned = [a for a in arcs if a.id.endswith("_s0")]
+    assert spawned, "replenishment must spawn replacement arcs"
+    assert all(a.status in {"active", "completed", "abandoned"} for a in arcs)
+    assert len({a.id for a in arcs}) == len(arcs)  # ids stay unique
+
+
+def test_replenishment_not_every_completion_spawns(tmp_path):
+    """Some below-minimum days roll and fail: replacements do not mirror
+    completions one-for-one (NOT every completed arc creates another)."""
+    persona = _persona()
+    store = _store(tmp_path)
+    arcs = init_life(777, persona, store)
+    below_min_days = 0
+    spawn_days = 0
+    for day in range(1, 121):
+        agenda = generate_agenda(day, persona, arcs, store,
+                                 stream_rng(777, LIFE_STREAM, day))
+        result = step_life(day, persona, arcs, agenda, store,
+                           stream_rng(777, LIFE_STREAM, day))
+        # pre-spawn active count: today's spawned arc (if any) is excluded
+        pre_spawn_active = [
+            a for a in result.updated_arcs
+            if a.status == "active" and not (a.id.endswith("_s0") and a.started_day == day)
+        ]
+        if len(pre_spawn_active) < 2:  # N_MIN_ACTIVE
+            below_min_days += 1
+        if any(a.id.endswith("_s0") and a.started_day == day for a in result.updated_arcs):
+            spawn_days += 1
+        arcs = result.updated_arcs
+    assert below_min_days > spawn_days, (
+        "every below-minimum day spawned — no failed rolls"
+    )
+
+
+def test_replenishment_candidates_descendant_and_fresh(tmp_path):
+    """Replacement arcs originate from the persona's world: some are
+    descendants of prior completed arcs (same interest), some are fresh
+    interests; an interest with an active arc is never duplicated."""
+    persona = _persona()
+    store = _store(tmp_path)
+    arcs = init_life(999, persona, store)
+    for day in range(1, 61):
+        agenda = generate_agenda(day, persona, arcs, store,
+                                 stream_rng(999, LIFE_STREAM, day))
+        result = step_life(day, persona, arcs, agenda, store,
+                           stream_rng(999, LIFE_STREAM, day))
+        arcs = result.updated_arcs
+        active_interests = [a.interest for a in arcs if a.status == "active"]
+        assert len(active_interests) == len(set(active_interests)), (
+            f"day {day}: two active arcs on the same interest"
+        )
+    all_arcs = store.list_life_arcs()
+    persona_interests = {i.name for i in persona.interests}
+    spawned = [a for a in all_arcs if a.id.endswith("_s0")]
+    assert spawned
+    for s in spawned:
+        assert s.interest in persona_interests  # never off-persona
+        assert s.status in {"active", "completed", "abandoned"}
+        assert s.next_intention and s.started_day <= 60
+    completed_interests = {a.interest for a in all_arcs if a.status == "completed"}
+    assert any(s.interest in completed_interests for s in spawned), (
+        "expected at least one descendant of a completed arc"
+    )
+    assert any(s.interest not in completed_interests for s in spawned), (
+        "expected at least one fresh-interest replacement"
+    )
+
+
+def test_replenishment_spawn_survives_reload(tmp_path):
+    """Replacement arcs are persisted: reopening the store reproduces them."""
+    persona = _persona()
+    path = tmp_path / "life_store.json"
+    store1 = FakeLifeStore(path)
+    arcs, _ = _run_days(12345, persona, store1, 60)
+    store1.close()
+
+    store2 = FakeLifeStore(path)
+    reloaded = store2.list_life_arcs()
+    assert {a.id for a in reloaded} == {a.id for a in arcs}
+    spawned = [a for a in reloaded if a.id.endswith("_s0")]
+    assert spawned
+    for s in spawned:
+        assert store2.get_life_arc(s.id) == s
+        assert s.started_day <= 60
+
+
+def test_recent_good_days_counts_meaningful_events(tmp_path):
+    """Source-4 helper: meaningful recent companion events (day_finalized
+    with score >= 0.7 inside the look-back window) count; low scores, other
+    event kinds and stale events do not; seam-less stores contribute 0."""
+    from harness.life import _recent_good_days
+    from harness.store import SQLiteStore
+
+    store = SQLiteStore(tmp_path / "events.db")
+    assert _recent_good_days(store, 20) == 0  # empty audit log
+    store.log_event(15, 15 * 24.0, "day_finalized", "score=0.800 shadow=False")
+    store.log_event(16, 16 * 24.0, "day_finalized", "score=0.600 shadow=False")  # below threshold
+    store.log_event(17, 17 * 24.0, "life_step", "arcs=3 items=5")  # not a day
+    store.log_event(18, 18 * 24.0, "day_finalized", "score=0.750 shadow=True")
+    assert _recent_good_days(store, 20) == 2  # days 15 and 18 in window
+    assert _recent_good_days(store, 22) == 2
+    assert _recent_good_days(store, 23) == 1  # day 15 fell out of the window
+    store.close()
+    # a seam-less store (no audit log) contributes 0, keeping the policy alive
+    assert _recent_good_days(_store(tmp_path / "fake"), 20) == 0
+
+
+def test_replenishment_meaningful_events_change_trajectory(tmp_path):
+    """Meaningful recent companion events (plan §5-A2 T3 source 4) raise the
+    spawn probability: the same seed with a streak of good recent days lands
+    a different spawn trajectory than without."""
+    from harness.store import SQLiteStore
+
+    persona = _persona()
+
+    def run(good_events: bool) -> list[int]:
+        store = SQLiteStore(tmp_path / f"boost_{good_events}.db")
+        arcs = init_life(42, persona, store)
+        spawn_days: list[int] = []
+        for day in range(1, 61):
+            if good_events and day > 1:
+                store.log_event(day - 1, (day - 1) * 24.0 + 23.0, "day_finalized",
+                                "score=0.750 shadow=False")
+            agenda = generate_agenda(day, persona, arcs, store,
+                                     stream_rng(42, LIFE_STREAM, day))
+            result = step_life(day, persona, arcs, agenda, store,
+                               stream_rng(42, LIFE_STREAM, day))
+            arcs = result.updated_arcs
+            for a in result.updated_arcs:
+                if a.id.endswith("_s0") and a.started_day == day:
+                    spawn_days.append(day)
+        store.close()
+        return spawn_days
+
+    plain = run(False)
+    boosted = run(True)
+    assert plain and boosted
+    assert plain != boosted, "good recent days must change the spawn trajectory"

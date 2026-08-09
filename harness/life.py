@@ -36,7 +36,20 @@ Time semantics
 --------------
 ``t_h`` is absolute hours since simulation start; ``day = int(t_h // 24)``;
 local hour = ``t_h % 24``. Agenda items live inside the awake window
-08:00-23:00 (``AWAKE_START_H``..``AWAKE_END_H``).
+08:00-23:00 (``AWAKE_START_H``..``AWAKE_END_H``). Arcs only act from their
+``started_day`` onward (no activities and no progress before the start), and
+``CurrentActivity`` means active NOW — ``current_activity_now`` resolves the
+item in progress at a given ``t_h`` and returns ``None`` when nothing is
+active; future plans stay in the DailyAgenda.
+
+Replenishment (Iteration 2, plan §5-A2 T3)
+------------------------------------------
+Active life must never permanently die: while ``N_active < N_MIN_ACTIVE``
+``step_life`` rolls a replacement-arc spawn with probability > 0 (certain
+when nothing is active). Spawn candidates originate from prior completed
+arcs (descendants), the persona's adjacent interests, the persona's own
+interests, and meaningful recent companion events (audit-log day scores);
+not every completed arc creates another. See ``_maybe_spawn_arc``.
 """
 
 from __future__ import annotations
@@ -72,6 +85,49 @@ _ABANDON_PROB = 0.005
 #: Daily progress gain of an active arc: ``0.01 + rng.random() * 0.04``.
 _PROGRESS_MIN = 0.01
 _PROGRESS_SPAN = 0.04
+
+#: Replenishment policy (plan §5-A2 T3, orchestrator invariant 9): the life
+#: system must never permanently reach ``active_arcs = 0``. While
+#: ``N_active < N_MIN_ACTIVE`` the policy rolls a spawn with probability > 0;
+#: with no active arc at all the spawn is certain (``_SPAWN_PROB_EMPTY``), so
+#: an empty life always revives on the next step. ``_SPAWN_PROB < 1`` means
+#: NOT every completed arc creates another.
+_N_MIN_ACTIVE = 2
+_SPAWN_PROB = 0.5
+_SPAWN_PROB_EMPTY = 1.0
+#: Spawn-probability boost when a meaningful recent companion event exists
+#: (see ``_recent_good_days``): a good recent day is an inspiration to start
+#: something new.
+_SPAWN_EVENT_BOOST = 0.25
+#: A ``day_finalized`` audit event counts as meaningful when its score is at
+#: or above this threshold.
+_GOOD_DAY_SCORE = 0.7
+#: Look-back window (days) for meaningful recent companion events.
+_EVENT_WINDOW_DAYS = 7
+#: Replacement arcs start already underway — a descendant of a completed arc
+#: inherits momentum from the finished thread (``learn X`` -> ``practice X``);
+#: a fresh arc represents ongoing dabbling, not a brand-new zero.
+_DESCENDANT_PROGRESS_MIN = 0.45
+_DESCENDANT_PROGRESS_SPAN = 0.20
+_FRESH_PROGRESS_MIN = 0.40
+_FRESH_PROGRESS_SPAN = 0.20
+
+#: Name templates for replacement arcs; one draw per spawn. Descendants use
+#: continuation phrasing, fresh arcs use exploration phrasing.
+_SPAWN_DESCENDANT_TEMPLATES = (
+    "practicing {interest}",
+    "leveling up {interest}",
+    "a {interest} follow-up",
+    "deepening {interest}",
+    "the next {interest} step",
+)
+_SPAWN_FRESH_TEMPLATES = (
+    "learning {interest}",
+    "exploring {interest}",
+    "a {interest} project",
+    "weekly {interest} practice",
+    "getting into {interest}",
+)
 
 #: Arc-name templates; one draw per arc ({interest} is substituted).
 _ARC_NAME_TEMPLATES = (
@@ -127,13 +183,14 @@ class LifeStore(Protocol):
 class LifeStepResult:
     """Outcome of one day's life step (§15 life seam).
 
-    ``updated_arcs``: arcs after progress/status updates (persisted).
+    ``updated_arcs``: arcs after progress/status updates and any
+    replenishment spawn (persisted).
     ``agenda``: the day's agenda with item statuses updated (persisted).
-    ``current_activity``: the day's MAIN activity — the highest-salience
-    completed item, or the highest-salience item when nothing completed;
-    ``None`` for an empty agenda. (The seam signature carries no ``t_h``, so
-    the day-level interpretation is used; per-t_h views can be re-derived from
-    the returned agenda.)
+    ``current_activity``: with ``t_h`` (NOW semantics) the item active at
+    ``t_h``, ``None`` when nothing is active; without ``t_h`` the day-level
+    MAIN activity — the highest-salience completed item, or the
+    highest-salience item when nothing completed; ``None`` for an empty
+    agenda.
     """
 
     updated_arcs: list[LifeArc]
@@ -215,7 +272,9 @@ def generate_agenda(
 
     Sources, in order of drawing:
     * routines — each routine whose cadence draw succeeds (prob = cadence);
-    * arcs — each ACTIVE arc's ``next_intention`` with probability 0.8;
+    * arcs — each ACTIVE arc that has already STARTED (``started_day <= day``)
+      contributes its ``next_intention`` with probability 0.8 — an arc with a
+      future ``started_day`` must NOT generate activities before its start;
     * interests — exactly 2 standalone interest items drawn weighted by
       salience (guarantees a non-empty, interest-grounded agenda every day).
 
@@ -248,7 +307,7 @@ def generate_agenda(
         )
 
     for arc in arcs:
-        if arc.status != "active" or rng.random() >= _ARC_ITEM_PROB:
+        if arc.status != "active" or arc.started_day > day or rng.random() >= _ARC_ITEM_PROB:
             continue
         start = day_start + float(rng.integers(9, 21))  # 09:00..20:00 local
         end = min(start + 1.0 + float(rng.random()) * 1.5, day_start + AWAKE_END_H)
@@ -311,28 +370,45 @@ def step_life(
     agenda: DailyAgenda,
     store: LifeStore,
     rng: np.random.Generator,
+    *,
+    t_h: float | None = None,
 ) -> LifeStepResult:
-    """Advance one day: arc progress/status and item statuses, persist, report.
+    """Advance one day: arc progress/status, item statuses, replenishment.
 
-    * Arc progress: each ACTIVE arc gains ``0.01 + rng.random() * 0.04``;
-      an arc reaching 1.0 completes; a 2% daily chance abandons it. Updated
-      arcs are persisted via ``store.upsert_life_arc``.
+    * Arc progress: each ACTIVE arc that has already STARTED (``started_day
+      <= day``) gains ``0.01 + rng.random() * 0.04``; an arc reaching 1.0
+      completes; a 2% daily chance abandons it. Arcs with a future
+      ``started_day`` are untouched (no progress, no status change, no draws).
+      Updated arcs are persisted via ``store.upsert_life_arc``.
     * Item statuses: planned items deviate modestly — ~80% completed, ~10%
       skipped, ~10% shifted — persisted via
       ``store.update_agenda_item_status``.
-    * ``current_activity``: the day's MAIN activity — the highest-salience
-      completed item (fallback: highest-salience item overall); ``None`` for an
-      empty agenda. (The seam signature carries no ``t_h``; the day-level
-      interpretation is documented on ``LifeStepResult``.)
+    * Replenishment (plan §5-A2 T3): when ``N_active < N_MIN_ACTIVE`` the
+      policy may spawn a replacement arc — probability ``_SPAWN_PROB`` (with
+      a boost from meaningful recent companion events), certain when nothing
+      is active, so active life never permanently dies. Spawn candidates
+      originate from prior completed arcs (descendants), the persona's
+      adjacent interests, the persona's own interests, and meaningful recent
+      companion events. The spawn roll and its draws happen AFTER all other
+      draws of the day, so when ``N_active >= N_MIN_ACTIVE`` the day is
+      byte-identical to the pre-replenishment behaviour.
+    * ``current_activity``: when ``t_h`` is given (NOW semantics, plan
+      §5-A2 T2, invariant 8) it is the item actually in progress at ``t_h``,
+      or ``None`` when nothing is active — a future plan never becomes the
+      current activity. Without ``t_h`` (legacy seam callers) it is the
+      day-level MAIN activity: the highest-salience completed item, or the
+      highest-salience item when nothing completed; ``None`` for an empty
+      agenda.
 
-    Draw order is fixed (arcs in given order, then items in agenda order), so
-    the outcome is deterministic per (seed, day) when ``rng`` is
+    Draw order is fixed (started arcs in given order, then items in agenda
+    order, then the optional replenishment roll), so the outcome is
+    deterministic per (seed, day) when ``rng`` is
     ``stream_rng(seed, LIFE_STREAM, day)``.
     """
     updated_arcs: list[LifeArc] = []
     for arc in arcs:
         new_arc = arc
-        if arc.status == "active":
+        if arc.status == "active" and arc.started_day <= day:
             progress = min(1.0, arc.progress + _PROGRESS_MIN + float(rng.random()) * _PROGRESS_SPAN)
             status = "completed" if progress >= 1.0 else arc.status
             if status == "active" and rng.random() < _ABANDON_PROB:
@@ -359,16 +435,151 @@ def step_life(
 
     updated_agenda = DailyAgenda(day=agenda.day, items=tuple(updated_items))
 
-    completed = [it for it in updated_items if it.status == "completed"]
-    candidates = completed or updated_items
-    current: CurrentActivity | None = None
-    if candidates:
-        main = max(candidates, key=lambda it: (it.salience, it.start_t_h))
-        current = CurrentActivity(t_h=main.start_t_h, item=main, description=main.activity)
+    if t_h is not None:
+        # NOW semantics (invariant 8): only something actually in progress at
+        # t_h can be current; future plans stay in the DailyAgenda.
+        current = current_activity_now(updated_agenda, t_h)
+    else:
+        completed = [it for it in updated_items if it.status == "completed"]
+        candidates = completed or updated_items
+        current = None
+        if candidates:
+            main = max(candidates, key=lambda it: (it.salience, it.start_t_h))
+            current = CurrentActivity(t_h=main.start_t_h, item=main, description=main.activity)
+
+    spawned = _maybe_spawn_arc(day, persona, updated_arcs, store, rng)
+    if spawned is not None:
+        updated_arcs.append(spawned)
 
     return LifeStepResult(
         updated_arcs=updated_arcs, agenda=updated_agenda, current_activity=current
     )
+
+
+def current_activity_now(agenda: DailyAgenda, t_h: float) -> CurrentActivity | None:
+    """NOW semantics (plan §5-A2 T2, orchestrator invariant 8).
+
+    The item actually in progress at ``t_h`` (``start_t_h <= t_h < end_t_h``
+    and not skipped/shifted — those are not happening at their planned slot),
+    choosing the highest salience when several overlap; ``None`` when nothing
+    is active. Future plans never become the current activity: a 7 PM plan
+    is not what she is doing at 10 AM. Pure function: no rng, no persistence.
+    """
+    in_progress = [
+        it
+        for it in agenda.items
+        if it.start_t_h <= t_h < it.end_t_h and it.status not in {"skipped", "shifted"}
+    ]
+    if not in_progress:
+        return None
+    main = max(in_progress, key=lambda it: (it.salience, it.start_t_h))
+    return CurrentActivity(t_h=t_h, item=main, description=main.activity)
+
+
+def _recent_good_days(store: LifeStore, day: int) -> int:
+    """Count meaningful recent companion events (plan §5-A2 T3 source 4).
+
+    A ``day_finalized`` audit event inside the last ``_EVENT_WINDOW_DAYS``
+    days with score >= ``_GOOD_DAY_SCORE`` counts as meaningful — a good
+    recent day is an inspiration to start something new. Stores without the
+    audit-log seam (``events_since``) contribute 0; the value is derived from
+    persisted state only, so it is deterministic across restarts.
+    """
+    if not hasattr(store, "events_since"):
+        return 0
+    events_since = getattr(store, "events_since")
+    good = 0
+    for event in events_since(max(0, day - _EVENT_WINDOW_DAYS)):
+        if event.get("event") != "day_finalized":
+            continue
+        score: float | None = None
+        for part in str(event.get("detail") or "").split():
+            if part.startswith("score="):
+                try:
+                    score = float(part.split("=", 1)[1])
+                except ValueError:
+                    score = None
+        if score is not None and score >= _GOOD_DAY_SCORE:
+            good += 1
+    return good
+
+
+def _maybe_spawn_arc(
+    day: int,
+    persona: PersonaProfile,
+    arcs: list[LifeArc],
+    store: LifeStore,
+    rng: np.random.Generator,
+) -> LifeArc | None:
+    """Replenishment policy (plan §5-A2 T3, orchestrator invariant 9).
+
+    ``N_active < N_MIN_ACTIVE`` -> P(spawn) > 0, evaluated on the POST-step
+    state (the ``arcs`` argument is the day's updated list, so a day that
+    completes its last arc spawns a replacement with certainty); with zero
+    active arcs the spawn is certain, so active life never permanently dies.
+    ``_SPAWN_PROB < 1`` keeps "not every completed arc creates another".
+    Candidate interests, in pool order: descendants of prior COMPLETED arcs
+    (the finished thread's interest, e.g. ``learn basic photography`` ->
+    ``practice portrait photography``), the persona's ADJACENT interests,
+    then the persona's own interests (any bucket); an arc whose interest
+    already has an active arc is never duplicated. Meaningful recent
+    companion events (``_recent_good_days``) raise the spawn probability.
+    All draws come from the passed ``rng`` and happen after the day's other
+    draws; ``None`` is returned (and NO draws are consumed) whenever the
+    policy does not fire. The new arc is persisted before being returned.
+    """
+    active = [a for a in arcs if a.status == "active"]
+    if len(active) >= _N_MIN_ACTIVE:
+        return None
+
+    prob = _SPAWN_PROB_EMPTY if not active else _SPAWN_PROB
+    if _recent_good_days(store, day) > 0:
+        prob = min(1.0, prob + _SPAWN_EVENT_BOOST)
+    if float(rng.random()) >= prob:
+        return None
+
+    active_interests = {a.interest for a in arcs if a.status == "active"}
+    seen: set[str] = set()
+    pool: list[tuple[str, str]] = []  # (interest name, origin)
+
+    for arc in store.list_life_arcs(status="completed"):  # descendants
+        if arc.interest not in active_interests and arc.interest not in seen:
+            pool.append((arc.interest, "descendant"))
+            seen.add(arc.interest)
+    for interest in persona.interests:  # adjacent interests
+        if (
+            interest.bucket == "adjacent"
+            and interest.name not in active_interests
+            and interest.name not in seen
+        ):
+            pool.append((interest.name, "adjacent"))
+            seen.add(interest.name)
+    for interest in persona.interests:  # companion interests (any bucket)
+        if interest.name not in active_interests and interest.name not in seen:
+            pool.append((interest.name, "companion"))
+            seen.add(interest.name)
+    if not pool:
+        return None
+
+    interest_name, origin = pool[int(rng.integers(len(pool)))]
+    if origin == "descendant":
+        templates = _SPAWN_DESCENDANT_TEMPLATES
+        progress = _DESCENDANT_PROGRESS_MIN + float(rng.random()) * _DESCENDANT_PROGRESS_SPAN
+    else:
+        templates = _SPAWN_FRESH_TEMPLATES
+        progress = _FRESH_PROGRESS_MIN + float(rng.random()) * _FRESH_PROGRESS_SPAN
+    name = templates[int(rng.integers(len(templates)))].format(interest=interest_name)
+    arc = LifeArc(
+        id=f"arc_{day}_s0",
+        name=name,
+        interest=interest_name,
+        started_day=day,
+        progress=round(min(1.0, progress), 3),
+        status="active",
+        next_intention=_NEXT_INTENTIONS[int(rng.integers(len(_NEXT_INTENTIONS)))],
+    )
+    store.upsert_life_arc(arc)
+    return arc
 
 
 def _interest_by_name(persona: PersonaProfile, name: str) -> Interest | None:
