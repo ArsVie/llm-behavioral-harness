@@ -1121,11 +1121,22 @@ def _life_dead_days(store: SQLiteStore, days: int) -> tuple[list[int], int]:
 
 
 def _duplicate_turns(store: SQLiteStore) -> list[dict]:
-    """Turnos duplicados a través de restarts (resume no debe rewindear)."""
+    """Turnos duplicados a través de restarts (resume no debe rewindear).
+
+    Clave = (role, content, t_h, day, proactive, intent_id). El flag
+    proactive + intent_id desambiguan mensajes DISTINTOS que colisionan en
+    (role, content, t_h, day) en runs reales: el reloj virtual se congela
+    durante los calls LLM, así que una réplica reactiva y un disparo
+    proactivo pueden compartir t_h, y el modelo puede repetir texto
+    verbatim (o devolver vacío) — no es un rewind. Un rewind REAL reescribe
+    la misma fila: mismo intent_id (proactivo) o misma (role, content, t_h,
+    day, session) (reactivo) — la clave lo sigue capturando.
+    """
     seen: dict[tuple, int] = {}
     dupes: list[dict] = []
     for m in _all_messages(store):
-        key = (m["role"], m["content"], float(m["t_h"]), int(m["day"]))
+        key = (m["role"], m["content"], float(m["t_h"]), int(m["day"]),
+               int(m["proactive"]), m.get("intent_id") or "")
         if key in seen:
             dupes.append({"first": seen[key], "dup": int(m["id"]), "key": list(key)})
         else:

@@ -47,6 +47,34 @@ def _skipped_item(start: float, end: float, status: str = "skipped") -> AgendaIt
     )
 
 
+def test_duplicate_turns_key_disambiguates_real_run_collisions(tmp_path):
+    """Gate 6: in real runs the virtual clock freezes during LLM calls, so a
+    reactive reply and a proactive fire can share (role, content, t_h, day)
+    — with the model repeating text verbatim or returning empty. Distinct
+    messages must NOT be flagged; a true resume-rewind (same intent_id
+    re-written) MUST be."""
+    from harness.store import SQLiteStore
+    from experiments.cvs_common import _duplicate_turns
+
+    store = SQLiteStore(str(tmp_path / "dup.db"))
+    # reactive reply + proactive fire, same tick, same content (real-run case)
+    store.add_message("user", "feed", 162.6, 6)
+    store.add_message("assistant", "That's a big shift.", 162.6, 6)
+    store.add_message("assistant", "That's a big shift.", 162.6, 6, proactive=True,
+                      intent_id="pi_agenda_item_ag_6_a_arc_2_160.423")
+    assert _duplicate_turns(store) == []
+    # true rewind: same proactive intent re-written
+    store.add_message("assistant", "That's a big shift.", 162.6, 6, proactive=True,
+                      intent_id="pi_agenda_item_ag_6_a_arc_2_160.423")
+    dupes = _duplicate_turns(store)
+    assert len(dupes) == 1
+    assert dupes[0]["first"] == 3 and dupes[0]["dup"] == 4
+    # reactive rewind: same (role, content, t_h, day) reactive pair
+    store.add_message("assistant", "That's a big shift.", 162.6, 6)
+    dupes = _duplicate_turns(store)
+    assert len(dupes) == 2
+
+
 def test_source_superseded_agenda_item_touctou_clamp():
     """Gate 2 finding: the naive ``end_t_h >= created_t_h`` predicate
     flagged IN-SLOT fires as superseded. Skips are written at day
