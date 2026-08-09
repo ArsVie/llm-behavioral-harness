@@ -101,7 +101,7 @@ def test_judge_report_aggregates_both_passes_and_agreement(tmp_path):
     assert rep["per_family_per_dimension"]["luna"]["persona_enactment"]["n"] == 6
     # pass-2-only mean would be 6.2; both-passes mean is (5.1+6.1+7.1+5.2+6.2+7.2)/6
     m = rep["per_family_per_dimension"]["flash"]["persona_enactment"]["mean"]
-    assert abs(m - 37.0 / 6.0) < 1e-9
+    assert abs(m - 6.15) < 1e-9
     # agreement is a real correlation (perfect, +1 shift), not None
     r = rep["inter_family_agreement"]["persona_enactment"]
     assert r is not None and abs(r - 1.0) < 1e-9
