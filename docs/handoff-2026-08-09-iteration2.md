@@ -4,6 +4,8 @@ Status: ORCHESTRATOR PAUSED at user request (subagent iteration cap being raised
 
 ## 0b. WAVE-3 COMPLETE (2026-08-09, resumed session — READ FIRST)
 
+GATE CHAIN STATUS (07:30 UTC): G2 PASS (43ec7c2, 5/5 seeds, audit TOCTOU clamp fixed), G3 PASS (476bc84, 120d soak ×2 seeds, 5 restarts), G4 PASS (5a758ed manifest; NOTE openai-mini family needs OPENAI_API_KEY which is ABSENT — limitation), G5 PASS (b5cdd52 E0 review). G6: probe resolved (env mapping 0fcd062, hollow-run hardening, validator day-aware 2a20137, traces generator 28eca0e/9b5dc52) — 35-cell real-LLM matrix RUNNING; judges + audit runners staged at /tmp/it2-g6-{judges.sh,audit.py}.
+
 Both Wave-3 tracks LANDED and merged in plan order. Main now at `aa3c01c` — full suite **796 green** (verified post-m10; 750 after m9 = 658 base + 92 A9, since the base 707 already included the 49 superseded vslice adversarial tests).
 
 - **m9 = A9 adversarial battery + R1-F1 fix** (merge 6aa1a7f, commits c40fbc7 + 027163f): 92-test battery (bootstrap/interests/proactivity/runtime/prompt + rewritten restart/grounding/memory/life/actuators), 91 green at commit + 1 finding test red BY DESIGN. R1-F1 (quiet-hours deferral LIVELOCK, invariants 3/17) FIXED by the A3 owner-fix branch: `_firing_loop` advances the virtual clock to the deferral target INSIDE the lock when `now - nxt < 1e-9` (rollover-parked on-schedule case), re-evaluates at the awake instant and fires; overdue-in-quiet restarts (now > nxt) keep sleep-only pacing (R-10 semantics preserved). `_quiet_defer_until` clamps to max_virtual_hours (line 537-538). Finding test 10/10, battery 92/92, full suite 750 green, no hang.
