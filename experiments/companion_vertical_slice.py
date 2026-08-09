@@ -13,8 +13,10 @@ harness de preregistro de la Iteración 2:
     state      Track estado: observabilidad estructurada + dinámica a nivel
                mensaje (NO_STATE / PROMPT_ONLY_STATE / MECHANICALLY_ACTUATED)
     replay     replay exacto de un escenario grabado (semillas + filas M3)
-    judge      pasadas de juez ciegas/barajadas, 4 dimensiones (§17.1), con
-               >=2 familias de juez independientes (§17.4)
+    judge      pasadas de juez (v2 por defecto: comparación pareada forzada,
+               ciega/barajada dentro de semilla, 5 dimensiones, sonda de
+               atención con transcript corrupto, agregación Bradley-Terry/Elo;
+               v1 absoluto 1-9 con --v1), con >=2 familias (§17.4)
     matrix     célula de la matriz real (Gate 4/6 — el runner carga
                OPENCODE_GO_API_KEY desde ~/.hermes/.env, NUNCA la imprime)
     report     regenera el reporte OKF de un run
@@ -38,6 +40,7 @@ from harness.client import OpenAICompatibleClient
 from harness.store import SQLiteStore
 
 from experiments import cvs_common
+from experiments import cvs_judge
 from experiments.cvs_common import (
     DEFAULT_CHECKPOINT_DAYS,
     DeterministicClient,
@@ -835,6 +838,9 @@ def _judge_report(out_dir: Path) -> dict:
             "An effect seen by only one judge family is NOT established "
             "companion behavior (§17.4); disagreement is reported per dimension."
         ),
+        # B9 (it3): severity is modelled explicitly (β_j per family per
+        # dimension), never averaged away — pairwise v2 is the primary path.
+        "severity_model": cvs_judge.severity_model(by_family, dims),
     }
     (out_dir / "judge_report.json").write_text(
         json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -844,13 +850,42 @@ def _judge_report(out_dir: Path) -> dict:
 def cmd_judge(args) -> int:
     out_dir = Path(args.out)
     if args.report:
-        report = _judge_report(out_dir)
-        print(json.dumps(report, indent=2, ensure_ascii=False))
+        if args.legacy:
+            report = _judge_report(out_dir)
+            print(json.dumps(report, indent=2, ensure_ascii=False))
+        else:
+            report = cvs_judge.pairwise_report(out_dir)
+            print(json.dumps(report, indent=2, ensure_ascii=False))
         return 0
-    results = _run_judge_pass(out_dir, int(args.pass_id), args.family,
-                              bool(args.fake))
-    print(json.dumps({k: v for k, v in results.items()}, indent=2,
-                     ensure_ascii=False))
+    if args.legacy:
+        results = _run_judge_pass(out_dir, int(args.pass_id), args.family,
+                                  bool(args.fake))
+        print(json.dumps({k: v for k, v in results.items()}, indent=2,
+                         ensure_ascii=False))
+        return 0
+    # v2 pairwise (default): fake -> PairwiseFakeJudge (mode see|blind);
+    # real -> OpenAICompatibleClient with the family's key (never printed).
+    if args.fake:
+        seed = sum(ord(c) for c in args.family)
+        client = cvs_judge.PairwiseFakeJudge(seed, family=args.family,
+                                             model="mock", mode=args.fake_mode)
+    else:
+        client = _judge_client(args.family, False)
+    try:
+        record = cvs_judge.run_pairwise_pass(out_dir, int(args.pass_id),
+                                             args.family, client,
+                                             max_pairs=args.max_pairs)
+    finally:
+        client.close()
+    print(json.dumps({
+        "protocol": "v2-pairwise",
+        "pass": record["pass"],
+        "family": record["family"],
+        "n_outcomes": record["n_outcomes"],
+        "n_control": record["n_control"],
+        "disqualified": record["disqualified"],
+        "file": f"judge_pairs{record['pass']}_{record['family']}.json",
+    }, indent=2, ensure_ascii=False))
     return 0
 
 
@@ -965,9 +1000,22 @@ def main(argv: list[str] | None = None) -> int:
     p_judge.add_argument("--pass", dest="pass_id", type=int, choices=(1, 2))
     p_judge.add_argument("--family", type=str, default="opencode-flash")
     p_judge.add_argument("--fake", action="store_true",
-                         help="juez mock determinista (plumbing)")
+                         help="juez fake determinista (plumbing CI)")
+    p_judge.add_argument("--fake-mode", dest="fake_mode", type=str,
+                         choices=("see", "blind"), default="see",
+                         help="juez fake v2: 'see' detecta blancos (CI); "
+                              "'blind' puntúa alto el transcript corrupto "
+                              "(prueba de atención / descalificación)")
+    p_judge.add_argument("--max-pairs", dest="max_pairs", type=int,
+                         default=None,
+                         help="tope de pares por pasada (default: universo "
+                              "completo dentro de semilla)")
+    p_judge.add_argument("--v1", "--legacy", dest="legacy", action="store_true",
+                         help="protocolo v1 absoluto 1-9 (compatibilidad; "
+                              "el reporte modela severidad β_j por familia)")
     p_judge.add_argument("--report", action="store_true",
-                         help="agrega pasadas/familias + acuerdo inter-familia")
+                         help="agrega pasadas/familias (v2: BT/Elo, sonda de "
+                              "atención, acuerdo inter-familia)")
 
     p_matrix = sub.add_parser("matrix")
     p_matrix.add_argument("--condition", choices=MATRIX_CONDITIONS, required=True)
