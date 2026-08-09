@@ -290,7 +290,13 @@ def _neutral_behavior(record, timing, *, hour: float = 14.0, mood_scale: int = 1
 
 def _flat_controls(directive, *, base_max_tokens: int = 600, min_tokens: int = 96,
                    max_tokens: int = 1500, beta: float = 2.0) -> GenerationControls:
-    """NO_ACTUATORS / PROMPT_ONLY_STATE: parámetros de generación planos."""
+    """NO_ACTUATORS / PROMPT_ONLY_STATE: parámetros de generación planos.
+
+    B4: valores PINNED (600 / 5.0 / 0.5 / 1.0 / banda media) a propósito —
+    aunque el mapeo actuado ahora barre [0.22, 1.30] de escala, [0.8, 44] s
+    de latencia y [0.04, 0.85] de cierre, NO_ACTUATORS debe seguir siendo un
+    null genuino (los valores planos NO dependen de la directiva).
+    """
     return GenerationControls(
         max_tokens=600,
         response_delay_s=5.0,

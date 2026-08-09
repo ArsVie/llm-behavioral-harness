@@ -144,13 +144,15 @@ def derive_behavior(
         0.14 + 0.38 * energy + 0.16 * max(valence, 0.0) + 0.08 * record.mu - 0.08 * max(-momentum, 0.0)
     )
     response_length_scale = _clip(
-        0.68 + 0.30 * expressiveness + 0.16 * reflectiveness,
-        0.68,
-        1.18,
+        0.05 + 0.90 * energy + 0.45 * expressiveness,
+        0.22,
+        1.30,
     )
-    response_delay_s = 1.5 + 7.0 * (1.0 - energy) + 1.5 * max(-momentum, 0.0)
+    response_delay_s = 0.8 + 38.0 * (1.0 - energy) + 5.0 * max(-momentum, 0.0)
     closing_tendency = _clip(
-        0.14 + 0.40 * (1.0 - energy) + 0.18 * max(-valence, 0.0)
+        0.04 + 1.00 * (1.0 - energy) + 0.22 * max(-valence, 0.0),
+        0.04,
+        0.85,
     )
 
     trace = BehaviorTrace(
