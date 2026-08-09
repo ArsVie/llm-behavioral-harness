@@ -29,7 +29,7 @@ Convención del repo: docstrings en español, identificadores en inglés.
 
 from __future__ import annotations
 
-from typing import Callable
+import json
 
 #: Techo preregistrado de tasa de blancos a nivel de run (< 1%, plan §11).
 BLANK_RATE_CEILING = 0.01
@@ -106,8 +106,6 @@ def truncated_reply_hits(store) -> list[dict]:
         if not isinstance(meta, str):
             continue
         try:
-            import json
-
             parsed = json.loads(meta)
         except ValueError:
             continue

@@ -149,6 +149,8 @@ def _aggregate(summaries: Sequence[dict]) -> dict:
     """
     agg: dict = {
         "condition": summaries[0]["condition"],
+        "seed": summaries[0]["seed"],
+        "days": summaries[0]["days"],
         "seeds": [s["seed"] for s in summaries],
         "n_messages": sum(s["n_messages"] for s in summaries),
         "n_proactive": sum(s["n_proactive"] for s in summaries),
@@ -204,6 +206,26 @@ def _aggregate(summaries: Sequence[dict]) -> dict:
     return agg
 
 
+def _summary_diff(a: dict, b: dict) -> list[str]:
+    """Diferencias entre dos resúmenes agregados (chequeo de determinismo).
+
+    Compara las claves numéricas de resumen (excluye los detalles por
+    semilla y los reportes de validadores); devuelve las diferencias como
+    mensajes legibles. Vacío = resúmenes idénticos.
+    """
+    skip = {"per_seed", "validator_report", "validator_failures",
+            "condition", "seed", "seeds", "memory_lane",
+            "conversations_available"}
+    diffs: list[str] = []
+    for key in sorted(set(a) | set(b)):
+        if key in skip:
+            continue
+        va, vb = a.get(key), b.get(key)
+        if va != vb:
+            diffs.append(f"{key}: {va!r} vs {vb!r}")
+    return diffs
+
+
 def evaluate_claims(
     condition: str,
     cell: dict,
@@ -248,13 +270,24 @@ def run_preflight(
     conditions: Sequence[str] = MATRIX_CONDITIONS,
     claims: Sequence[AblationClaim] | None = None,
     out_dir: Path | str | None = None,
+    determinism_check: bool = True,
 ) -> dict:
     """Corre la matriz completa (fake) y evalúa las claims (Gate G2).
 
     Devuelve el reporte: resúmenes por condición, veredictos por claim,
-    ablaciones nulas y ``ok`` (False si alguna claim falla). El veredicto es
-    función del código actual: las claims se evalúan contra los resúmenes
-    reales de las células, nunca contra expectativas hardcodeadas.
+    ablaciones nulas y ``ok`` (False si alguna claim falla o el chequeo de
+    determinismo falla). El veredicto es función del código actual: las
+    claims se evalúan contra los resúmenes reales de las células, nunca
+    contra expectativas hardcodeadas.
+
+    ``determinism_check`` (por defecto True): FULL y el control positivo
+    NO_TIMING_FEEDBACK se corren DOS veces y se comparan los resúmenes
+    agregados. El runner de células del harness (``_run_segment``,
+    cvs_common) entrega los feeds del usuario con polling de reloj real
+    (TIME_SCALE_S_PER_VH=0.0004) y bajo contention del event loop puede
+    omitir feeds o expirar eventos de cola — una célula no reproducible
+    invalida el veredicto de la compuerta. Si las dos pasadas divergen, el
+    pre-flight lo reporta FUERTE y bloquea (``deterministic=False``).
     """
     claims = list(CLAIMS if claims is None else claims)
     conditions = list(conditions)
@@ -267,8 +300,7 @@ def run_preflight(
     if "FULL" not in run_conditions:
         run_conditions = ["FULL", *run_conditions]
 
-    per_condition: dict[str, dict] = {}
-    for condition in run_conditions:
+    def _run_condition(condition: str, tag: str = "") -> dict:
         summaries: list[dict] = []
         validator_report: dict = {}
         for seed in seeds:
@@ -283,14 +315,39 @@ def run_preflight(
         agg = _aggregate(summaries)
         agg["validator_report"] = validator_report
         agg["validator_failures"] = _validator_failures(validator_report)
-        per_condition[condition] = agg
+        return agg
+
+    per_condition: dict[str, dict] = {}
+    for condition in run_conditions:
+        per_condition[condition] = _run_condition(condition)
+
+    deterministic = True
+    determinism_failures: list[str] = []
+    if determinism_check:
+        # La referencia (FULL) Y el control positivo (NO_TIMING_FEEDBACK)
+        # deben ser reproducibles: la carrera de feeds de ``_run_segment``
+        # puede golpear a UNA condición sin tocar FULL — un control positivo
+        # no reproducible invalida el veredicto de la compuerta igual que
+        # una referencia no reproducible.
+        for cond in ("FULL", "NO_TIMING_FEEDBACK"):
+            if cond not in run_conditions:
+                continue
+            again = _run_condition(cond, tag="determinism")
+            diff = _summary_diff(per_condition[cond], again)
+            if diff:
+                deterministic = False
+                determinism_failures.extend(
+                    f"{cond}: {d}" for d in diff
+                )
 
     full = per_condition["FULL"]
     verdicts: list[dict] = []
     for condition in run_conditions:
-        if condition == "FULL":
-            continue
-        verdicts.extend(evaluate_claims(condition, per_condition[condition], full, claims))
+        cell = per_condition[condition]
+        # FULL se compara contra sí mismo; el resto contra FULL. Toda claim
+        # del registro se evalúa (mecanismo aditivo general).
+        reference = full if condition != "FULL" else cell
+        verdicts.extend(evaluate_claims(condition, cell, reference, claims))
 
     null_ablations = sorted({
         v["condition"] for v in verdicts if not v["passed"] and "error" not in v
@@ -301,7 +358,9 @@ def run_preflight(
         if c.condition not in run_conditions and c.condition != "FULL"
     ]
     report = {
-        "ok": not null_ablations and not errors,
+        "ok": (not null_ablations and not errors and deterministic),
+        "deterministic": deterministic,
+        "determinism_failures": determinism_failures,
         "days": days,
         "seeds": [int(s) for s in seeds],
         "conditions": run_conditions,
@@ -364,6 +423,13 @@ def _fmt_table(report: dict) -> str:
             f"{', '.join(report['null_ablations'])} — MATRIX BLOCKED until "
             "fixed or dropped"
         )
+    if not report.get("deterministic", True):
+        lines.append("")
+        lines.append("  !!! NONDETERMINISTIC CELLS — reference (FULL) or "
+                     "positive control (NO_TIMING_FEEDBACK) differs between "
+                     "two passes:")
+        for diff in report.get("determinism_failures", []):
+            lines.append(f"      {diff}")
     for cond, agg in report["per_condition"].items():
         vf = agg.get("validator_failures", [])
         if vf:
