@@ -1,16 +1,20 @@
-"""Memory pipeline tests — A5 (L1/L2/L3/L4, ZifaMem-style).
+"""Memory pipeline tests — A4 (L1/L2/L3/L4, ZifaMem-style, Iteration 2).
 
-Covers the Memory Gate (§13 of plans/companion-vertical-slice-2026-08.md):
-L1->L2, promotion, evidence retention, L4 consolidation + revision, affect
-as metadata, user-affect/companion-state separation, the 0.35/0.30/0.35
-reranker, temporal anchors, the three policy baselines, the hard budget and
-the no-unprovenanced-truth rule.
+Covers the Memory Gate (§13 of plans/companion-vertical-slice-2026-08.md)
+and the Iteration-2 A4 tasks (plan §5-A4): canonical L4 category
+consumption (T1), the research-faithful 0.35/0.30/0.35 reranker with the
+topicality boost confined to the separately named experiment (T2), the
+embedder interfaces (T3), the summarization interfaces (T4), the
+L4->L3->L2->raw-turns provenance chain (T5) and the metal preference
+revision across 78 days (T6).
 
-A2's store seam (save_session_summary/insert_episode/save_embedding/
-upsert_assertion/...) has not landed yet (wip/vslice-a2 tip == Gate-0 main),
-so all tests run against ``FakeStore`` below — a seam-faithful in-memory
-implementation of the §15 store contract. MemoryAgent only ever touches the
-seam, so it works unchanged against the real store once A2 merges.
+``FakeStore`` below is a seam-faithful in-memory mirror of the A7
+Iteration-2 store contract: ``upsert_assertion`` accepts the canonical
+``category`` kwarg and stores it on the row; ``load_user_model`` buckets
+current assertions by their STORED category (keys are never parsed);
+``get_assertion`` returns the most recent row of a key regardless of status
+(full history). The same scenarios run against the real ``SQLiteStore`` in
+the ``*_sqlite`` tests.
 """
 
 from __future__ import annotations
@@ -27,11 +31,17 @@ from harness.domain import (
     EpisodicMemory,
     MemoryKind,
     MemoryContext,
+    MemoryPolicy,
     SessionSummary,
     Turn,
     UserAffectObservation,
     UserModel,
     UserModelAssertion,
+    UserModelCategory,
+)
+from harness.embeddings import (
+    DeterministicHashEmbedder,
+    RealSemanticEmbedder,
 )
 from harness.memory import (
     IMPORTANCE_WEIGHT,
@@ -40,28 +50,70 @@ from harness.memory import (
     MAX_CONTEXT_CHARS,
     MemoryAgent,
     PromotionPolicy,
+    deterministic_hash_embedder,
     deterministic_summarizer,
     raw_history,
     simple_retrieval,
 )
+from harness.store import SQLiteStore
+from harness.summarization import (
+    DeterministicSummaryExtractor,
+    SemanticSummaryExtractor,
+)
 
 # ---------------------------------------------------------------------------
-# Seam-faithful in-memory store (A2 §15 contract; lands in store.py later)
+# Seam-faithful in-memory store (A7 Iteration-2 §15 contract: canonical L4
+# categories stored directly on the assertion row)
 # ---------------------------------------------------------------------------
 
-_BUCKET_BY_PREFIX = [
-    ("user:", "identity"),
-    ("preference:", "current_preferences"),
-    ("boundary:", "boundaries"),
-    ("vulnerability:", "vulnerabilities"),
-    ("interest:", "recurring_interests"),
-    ("relationship:", "relationship_patterns"),
-    ("entity:", "important_entities"),
+_LEGACY_PREFIX_CATEGORIES = [
+    ("identity", UserModelCategory.IDENTITY),
+    ("stable_preferences", UserModelCategory.STABLE_PREFERENCE),
+    ("current_preferences", UserModelCategory.CURRENT_PREFERENCE),
+    ("preference", UserModelCategory.CURRENT_PREFERENCE),
+    ("boundaries", UserModelCategory.BOUNDARY),
+    ("boundary", UserModelCategory.BOUNDARY),
+    ("vulnerabilities", UserModelCategory.VULNERABILITY),
+    ("vulnerability", UserModelCategory.VULNERABILITY),
+    ("recurring_interests", UserModelCategory.RECURRING_INTEREST),
+    ("interest", UserModelCategory.RECURRING_INTEREST),
+    ("relationship_patterns", UserModelCategory.RELATIONSHIP_PATTERN),
+    ("relationship", UserModelCategory.RELATIONSHIP_PATTERN),
+    ("important_entities", UserModelCategory.IMPORTANT_ENTITY),
+    ("entity", UserModelCategory.IMPORTANT_ENTITY),
 ]
+
+_CATEGORY_TO_GROUP = {
+    UserModelCategory.STABLE_PREFERENCE: "stable_preferences",
+    UserModelCategory.CURRENT_PREFERENCE: "current_preferences",
+    UserModelCategory.BOUNDARY: "boundaries",
+    UserModelCategory.VULNERABILITY: "vulnerabilities",
+    UserModelCategory.RECURRING_INTEREST: "recurring_interests",
+    UserModelCategory.RELATIONSHIP_PATTERN: "relationship_patterns",
+    UserModelCategory.IMPORTANT_ENTITY: "important_entities",
+}
+
+
+def _legacy_category_from_key(key: str) -> UserModelCategory:
+    """Mirror of the A7 store's write-time derivation for legacy keys."""
+    head, _, _ = key.partition(":")
+    if key == "identity" or head == "identity":
+        return UserModelCategory.IDENTITY
+    for prefix, cat in _LEGACY_PREFIX_CATEGORIES:
+        if head == prefix:
+            return cat
+    return UserModelCategory.IMPORTANT_ENTITY
 
 
 class FakeStore:
-    """In-memory implementation of the §15 store seam (memory tiers + L1)."""
+    """In-memory mirror of the A7 §15 store contract (canonical L4 categories).
+
+    Matches SQLiteStore's Iteration-2 semantics: ``upsert_assertion``
+    accepts the canonical ``category`` kwarg and stores it on the row;
+    ``load_user_model`` buckets current assertions by their STORED category
+    (never by parsing keys); ``get_assertion`` returns the most recent row
+    of a key regardless of status (full history, pitfall 38).
+    """
 
     def __init__(self) -> None:
         self._messages: list[dict] = []
@@ -71,6 +123,7 @@ class FakeStore:
         self._episodes: dict[str, EpisodicMemory] = {}
         self._embeddings: dict[str, list[float]] = {}
         self._assertions: list[UserModelAssertion] = []
+        self._assertion_categories: list[UserModelCategory] = []
 
     # -- L1 (messages) ------------------------------------------------------
     def add_message(self, role, content, t_h, day, proactive=False, session_id=None) -> int:
@@ -141,27 +194,63 @@ class FakeStore:
         return list(self._embeddings.items())
 
     # -- L4 ----------------------------------------------------------------
-    def upsert_assertion(self, a: UserModelAssertion) -> None:
-        """Supersedes any same-key current assertion by status flip."""
-        for i, old in enumerate(self._assertions):
-            if old.key == a.key and old.status == "current":
-                self._assertions[i] = replace(old, status="superseded")
+    def upsert_assertion(self, a: UserModelAssertion, *, category=None) -> None:
+        """Insert an assertion; a new ``current`` one supersedes (status
+        flip, provenance kept) the previous ``current`` row of the same key.
+        The canonical category is stored on the row (A7 contract)."""
+        if category is None:
+            cat = _legacy_category_from_key(a.key)
+        elif isinstance(category, UserModelCategory):
+            cat = category
+        else:
+            cat = UserModelCategory(str(category))  # canonical only; raises
+        if a.status == "current":
+            for i, old in enumerate(self._assertions):
+                if old.key == a.key and old.status == "current":
+                    self._assertions[i] = replace(old, status="superseded")
         self._assertions.append(a)
+        self._assertion_categories.append(cat)
 
-    def list_assertions(self, status: str | None = "current") -> list[UserModelAssertion]:
-        if status is None:
-            return list(self._assertions)
-        return [a for a in self._assertions if a.status == status]
+    def list_assertions(self, status: str | None = "current", category=None) -> list[UserModelAssertion]:
+        out = []
+        for a, cat in zip(self._assertions, self._assertion_categories):
+            if status is not None and a.status != status:
+                continue
+            if category is not None:
+                want = (
+                    category.value
+                    if isinstance(category, UserModelCategory)
+                    else UserModelCategory(str(category)).value
+                )
+                if cat.value != want:
+                    continue
+            out.append(a)
+        return out
 
-    def supersede_assertion(self, key: str) -> None:
+    def supersede_assertion(self, key: str, *, source_memory_ids=None, updated_at_t_h=None) -> None:
+        """Flip every current assertion of ``key`` to superseded; optional
+        provenance/timestamp rewrite (A9 M-1b leg)."""
         for i, old in enumerate(self._assertions):
             if old.key == key and old.status == "current":
-                self._assertions[i] = replace(old, status="superseded")
+                kw: dict = {"status": "superseded"}
+                if source_memory_ids is not None:
+                    kw["source_memory_ids"] = tuple(source_memory_ids)
+                if updated_at_t_h is not None:
+                    kw["updated_at_t_h"] = float(updated_at_t_h)
+                self._assertions[i] = replace(old, **kw)
 
     def get_assertion(self, key: str) -> UserModelAssertion | None:
+        """Most recent assertion row for ``key`` (any status — full history)."""
         for a in reversed(self._assertions):
-            if a.key == key and a.status == "current":
+            if a.key == key:
                 return a
+        return None
+
+    def get_assertion_category(self, key: str) -> UserModelCategory | None:
+        """Canonical category of the most recent assertion row for ``key``."""
+        for i in range(len(self._assertions) - 1, -1, -1):
+            if self._assertions[i].key == key:
+                return self._assertion_categories[i]
         return None
 
     def load_user_model(self) -> UserModel:
@@ -174,14 +263,14 @@ class FakeStore:
                 "important_entities",
             )
         }
-        for a in self.list_assertions("current"):
-            for prefix, bucket in _BUCKET_BY_PREFIX:
-                if a.key.startswith(prefix):
-                    if bucket == "identity":
-                        identity = a.value  # projection string, not an assertion tuple
-                    else:
-                        buckets[bucket] = buckets[bucket] + (a,)
-                    break
+        for a, cat in zip(self._assertions, self._assertion_categories):
+            if a.status != "current":
+                continue
+            if cat is UserModelCategory.IDENTITY:
+                identity = a.value  # projection string, not an assertion tuple
+            else:
+                group = _CATEGORY_TO_GROUP[cat]
+                buckets[group] = buckets[group] + (a,)
         return UserModel(identity=identity, **buckets)
 
 
@@ -206,11 +295,20 @@ def run_day(
         agent.record_turn(role, text, t, session_id)
         t += 0.1
     if judgement is not None:
-        store.save_judgement(day, judgement)
+        save_day_judgement(store, day, judgement)
     summary = agent.close_session(session_id, ended_at_t_h=day * 24.0 + 23.0)
     agent.promote(summary)
     agent.update_user_model(summary)
     return summary
+
+
+def save_day_judgement(store, day: int, score: float) -> None:
+    """Persist a synthetic judge score through either store contract."""
+    try:
+        store.save_judgement(day, score)
+    except TypeError:
+        # SQLiteStore's signature requires justification/model/shadow.
+        store.save_judgement(day, score, "", "test", True)
 
 
 def make_episode(
@@ -481,8 +579,10 @@ def test_negation_supersedes_stale_fact_across_keys():
          ("assistant", "Oh, I'm sorry to hear that.")],
         judgement=0.7, agent=agent,
     )
-    # stale cat claim superseded (cross-key via subject match)
-    assert store.get_assertion("user:cat") is None
+    # stale cat claim superseded (cross-key via subject match): the most
+    # recent row of user:cat is the SUPERSEDED one (real-store semantics)
+    stale = store.get_assertion("user:cat")
+    assert stale is not None and stale.status == "superseded"
     superseded = [a for a in store.list_assertions("superseded")
                   if a.key == "user:cat"]
     assert len(superseded) == 1
@@ -775,3 +875,430 @@ def test_invalid_session_id_rejected():
     agent = MemoryAgent(store)
     with pytest.raises(ValueError):
         agent.record_turn("user", "hi", 1.0, "not-a-day-session")
+
+
+# ---------------------------------------------------------------------------
+# Iteration-2 A4 — T1: canonical L4 categories (plan §5-A4 Task 1)
+# ---------------------------------------------------------------------------
+
+
+def test_t1_canonical_categories_preference_relationship_identity():
+    """Canonical enum consumption: preference -> CURRENT_PREFERENCE,
+    relationship pattern -> RELATIONSHIP_PATTERN, identity -> IDENTITY —
+    through the fake store's public projection."""
+    store = FakeStore()
+    agent = MemoryAgent(store, policy=PromotionPolicy(importance_threshold=0.3))
+    run_day(store, 2, [("user", "My dog's name is Bruno."), ("assistant", "Nice to meet Bruno!")],
+            judgement=0.6, agent=agent)
+    run_day(store, 3, [("user", "I love metal."), ("assistant", "Nice!")],
+            judgement=0.5, agent=agent)
+    run_day(store, 4, [("user", "Thank you for listening."), ("assistant", "Anytime!")],
+            judgement=0.9, agent=agent)
+
+    model = store.load_user_model()
+    assert "Bruno" in model.identity                                    # identity -> IDENTITY
+    assert any("metal" in a.value for a in model.current_preferences)   # preference -> CURRENT_PREFERENCE
+    assert any("gratitude" in a.value for a in model.relationship_patterns)  # relationship -> RELATIONSHIP_PATTERN
+
+    # The canonical category is stored ON the assertion row (never inferred
+    # from keys at load time).
+    assert store.get_assertion_category("user:dog:name") is UserModelCategory.IDENTITY
+    assert store.get_assertion_category("preference:like:metal") is UserModelCategory.CURRENT_PREFERENCE
+    assert store.get_assertion_category("relationship:gratitude") is UserModelCategory.RELATIONSHIP_PATTERN
+
+    # Category-filtered listing works through the public seam.
+    prefs = store.list_assertions(status="current", category=UserModelCategory.CURRENT_PREFERENCE)
+    assert [a.key for a in prefs] == ["preference:like:metal"]
+    ids = store.list_assertions(status="current", category=UserModelCategory.IDENTITY)
+    assert [a.key for a in ids] == ["user:dog:name"]
+
+    # The extractor itself assigns canonical categories (enum consumed at
+    # the source, not store conventions).
+    facts = memory._extract_facts(store.messages_for_day(3))
+    assert facts and facts[0].category is UserModelCategory.CURRENT_PREFERENCE
+    facts2 = memory._extract_facts(store.messages_for_day(2))
+    assert facts2 and facts2[0].category is UserModelCategory.IDENTITY
+    facts3 = memory._extract_facts(store.messages_for_day(4))
+    assert facts3 and facts3[0].category is UserModelCategory.RELATIONSHIP_PATTERN
+
+
+def test_t1_canonical_categories_sqlite(tmp_path):
+    """Same T1 scenario against SQLite-backed storage. Projection asserts
+    run once the A7 canonical-category store is merged (the v2 store lacks
+    the category column and buckets ``user:``/``preference:``/``relationship:``
+    heads under important_entities, so the projection legs are
+    capability-skipped; key-based and provenance asserts run on both)."""
+    store = SQLiteStore(tmp_path / "t1.db")
+    try:
+        agent = MemoryAgent(store, policy=PromotionPolicy(importance_threshold=0.3))
+        run_day(store, 2, [("user", "My dog's name is Bruno."), ("assistant", "Nice to meet Bruno!")],
+                judgement=0.6, agent=agent)
+        run_day(store, 3, [("user", "I love metal."), ("assistant", "Nice!")],
+                judgement=0.5, agent=agent)
+        run_day(store, 4, [("user", "Thank you for listening."), ("assistant", "Anytime!")],
+                judgement=0.9, agent=agent)
+
+        # Key-based facts exist with the right values/status on either store.
+        assert store.get_assertion("user:dog:name") is not None
+        assert store.get_assertion("preference:like:metal") is not None
+        assert store.get_assertion("relationship:gratitude") is not None
+        if hasattr(store, "get_assertion_category"):
+            # Canonical projection: preference -> CURRENT_PREFERENCE,
+            # relationship pattern -> RELATIONSHIP_PATTERN, identity -> IDENTITY.
+            model = store.load_user_model()
+            assert any("metal" in a.value for a in model.current_preferences)
+            assert any("gratitude" in a.value for a in model.relationship_patterns)
+            assert "Bruno" in model.identity
+            assert store.get_assertion_category("user:dog:name") is UserModelCategory.IDENTITY
+            assert store.get_assertion_category("preference:like:metal") is UserModelCategory.CURRENT_PREFERENCE
+            assert store.get_assertion_category("relationship:gratitude") is UserModelCategory.RELATIONSHIP_PATTERN
+            prefs = store.list_assertions(status="current", category=UserModelCategory.CURRENT_PREFERENCE)
+            assert [a.key for a in prefs] == ["preference:like:metal"]
+        else:
+            pytest.skip("A7 canonical-category store not merged yet (no category column)")
+    finally:
+        store.close()
+
+
+# ---------------------------------------------------------------------------
+# Iteration-2 A4 — T2: research-faithful reranker + MemoryPolicy (plan §5-A4
+# Task 2, invariants 11/12)
+# ---------------------------------------------------------------------------
+
+
+def test_t2_memory_policy_respected_and_experimental_flag():
+    assert MemoryPolicy.STRUCTURED_MEMORY.is_experimental is False
+    assert MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT.is_experimental is True
+    assert MemoryPolicy.RAW_CONTEXT.is_experimental is False
+    assert MemoryPolicy.VERBATIM_RAG.is_experimental is False
+
+    store = FakeStore()
+    assert MemoryAgent(store).memory_policy is MemoryPolicy.STRUCTURED_MEMORY
+    agent = MemoryAgent(store, memory_policy=MemoryPolicy.VERBATIM_RAG)
+    assert agent.memory_policy is MemoryPolicy.VERBATIM_RAG
+
+
+def test_t2_structured_memory_formula_exact_no_hidden_topicality():
+    """STRUCTURED_MEMORY applies EXACTLY 0.35*sem + 0.30*strength +
+    0.35*importance — a relevant low-salience memory may be crowded out by
+    an irrelevant high-salience one (the faithful condition's accepted
+    property). The topicality boost lives ONLY in the separately named
+    STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT variant, where the same scenario
+    keeps the relevant memory."""
+    store = FakeStore()
+    vocab = VocabEmbedder(["dog", "pottery"])
+    peak = AffectMetadata(0.5, 0.5, 0.5, 1.0, 0.0, 0.5, 0.5, 0.9, True)
+    store.insert_episode(
+        make_episode("ep-relevant", "user takes pottery class", importance=0.15,
+                     tags=("pottery", "class"))
+    )
+    store.save_embedding("ep-relevant", vocab("pottery pottery"))
+    store.insert_episode(
+        make_episode("ep-distractor", "user's dog is very sick", importance=0.9,
+                     tags=("dog",), affect=peak)
+    )
+    store.save_embedding("ep-distractor", vocab("dog dog dog"))
+
+    # Expected ordering from the literal formula (no hidden term).
+    qv = vocab("pottery")
+    emb = dict(store.load_embeddings())
+    scores = {}
+    for ep in store.list_episodes():
+        s = memory.episodic_strength(ep, 100.0)
+        scores[ep.id] = memory.score_memory(qv, emb[ep.id], ep, s)
+    assert scores["ep-distractor"] > scores["ep-relevant"]
+    formula_order = sorted(scores, key=scores.get, reverse=True)
+
+    faithful = MemoryAgent(store, embedder=vocab)
+    ctx = faithful.retrieve("pottery", context={"t_h": 100.0})
+    assert [e.id for e in ctx.episodes] == formula_order[:2]
+    assert ctx.episodes[0].id == "ep-distractor"  # faithful: importance dominates
+
+    boosted = MemoryAgent(
+        store, embedder=vocab,
+        memory_policy=MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT,
+    )
+    ctx2 = boosted.retrieve("pottery", context={"t_h": 100.0})
+    assert ctx2.episodes[0].id == "ep-relevant"  # experiment: topicality keeps it
+
+
+# ---------------------------------------------------------------------------
+# Iteration-2 A4 — T3: embeddings interface (plan §5-A4 Task 3)
+# ---------------------------------------------------------------------------
+
+
+class RecordingEmbedder(VocabEmbedder):
+    """VocabEmbedder that records every text it is asked to embed."""
+
+    def __init__(self, vocab: list[str]) -> None:
+        super().__init__(vocab)
+        self.calls: list[str] = []
+
+    def __call__(self, text: str) -> list[float]:
+        self.calls.append(text)
+        return super().__call__(text)
+
+
+def test_t3_embedder_interfaces_deterministic_and_real():
+    # DeterministicHashEmbedder: deterministic, unit-norm, e0 for empty,
+    # dimension/seed knobs.
+    emb = DeterministicHashEmbedder(dim=32, seed=7)
+    assert emb("my dog's name is Bruno") == emb("my dog's name is Bruno")
+    v = emb("my dog's name is Bruno")
+    assert sum(x * x for x in v) == pytest.approx(1.0)
+    assert emb("") == [1.0] + [0.0] * 31
+    assert emb("Bruno") != v
+    # Function form (legacy) is byte-identical to the class form.
+    assert deterministic_hash_embedder("x", dim=32, seed=7) == DeterministicHashEmbedder(dim=32, seed=7)("x")
+
+    # RealSemanticEmbedder: injectable batch backend, no vector DB.
+    calls: list[list[str]] = []
+
+    def backend(texts):
+        calls.append(list(texts))
+        return [[1.0, 0.0] for _ in texts]
+
+    real = RealSemanticEmbedder(backend)
+    assert real("hello") == [1.0, 0.0]
+    assert calls == [["hello"]]
+    assert real.embed_many(["a", "b"]) == [[1.0, 0.0], [1.0, 0.0]]
+    assert calls[-1] == ["a", "b"]
+
+    # Both implementations satisfy the single callable contract.
+    assert isinstance(emb, memory.Embedder)
+    assert isinstance(real, memory.Embedder)
+
+
+def test_t3_verbatim_rag_and_structured_share_same_semantic_backend():
+    """Invariant 13: during comparison, VERBATIM_RAG and STRUCTURED_MEMORY
+    use the SAME semantic backend — the injected embedder instance is shared
+    by both policy paths; a policy change never swaps the embedder."""
+    store = FakeStore()
+    shared = RecordingEmbedder(["dog", "weather", "pottery"])
+    agent_s = MemoryAgent(store, embedder=shared)  # STRUCTURED_MEMORY (default)
+    run_day(store, 2, [("user", "My dog's name is Bruno."), ("assistant", "Nice to meet Bruno!")],
+            judgement=0.6, agent=agent_s)
+    for i in range(4):
+        agent_s.record_turn("user", f"small talk {i} about the weather", 3 * 24 + i, "day-3")
+
+    ctx_s = agent_s.retrieve("dog", context={"t_h": 100.0})
+    assert ctx_s.episodes and "Bruno" in ctx_s.episodes[0].summary
+    assert shared.calls, "structured path must use the injected embedder"
+
+    agent_v = MemoryAgent(store, embedder=shared,
+                          memory_policy=MemoryPolicy.VERBATIM_RAG)
+    ctx_v = agent_v.retrieve("dog", context={"t_h": 100.0})
+    assert agent_v._embed is shared and agent_s._embed is shared
+    assert shared.calls, "verbatim RAG must call the SAME embedder instance"
+    # Verbatim RAG ranks raw turns, not episodes.
+    assert ctx_v.recent_turns and ctx_v.recent_turns[0].text == "My dog's name is Bruno."
+    assert ctx_v.episodes == () and ctx_v.session_context == ()
+    assert ctx_v.user_model is None
+    assert ctx_v.evidence_anchors[0] == "My dog's name is Bruno."
+
+
+def test_t3_raw_context_baseline_uses_budget_not_twelve():
+    """RAW_CONTEXT: as much raw dialogue as the context budget permits —
+    not merely the latest 12 turns."""
+    store = FakeStore()
+    agent = MemoryAgent(store, memory_policy=MemoryPolicy.RAW_CONTEXT)
+    for i in range(20):
+        store.add_message("user", f"message number {i} about the weather", i * 0.5, 0,
+                          session_id="day-0")
+    ctx = agent.retrieve("anything", context={"t_h": 100.0})
+    assert len(ctx.recent_turns) > 12
+    assert ctx.episodes == () and ctx.session_context == ()
+    assert ctx.user_model is None
+    assert memory._context_chars(ctx) <= MAX_CONTEXT_CHARS
+
+
+# ---------------------------------------------------------------------------
+# Iteration-2 A4 — T4: summarization interface (plan §5-A4 Task 4)
+# ---------------------------------------------------------------------------
+
+
+def test_t4_summarizer_interfaces_deterministic_and_semantic():
+    store = FakeStore()
+    agent = MemoryAgent(store)
+    # The default is the deterministic TESTING path — never presented as the
+    # research-quality production path (which is SemanticSummaryExtractor).
+    assert isinstance(agent._summarizer, DeterministicSummaryExtractor)
+
+    messages = [
+        {"id": 1, "role": "user", "content": "My dog's name is Bruno.", "t_h": 57.0},
+        {"id": 2, "role": "assistant", "content": "Nice!", "t_h": 57.1},
+    ]
+    j = {"score": 0.6}
+    det_class = DeterministicSummaryExtractor()("day-2", messages, j, 57.0, 71.0)
+    det_fn = deterministic_summarizer("day-2", messages, j, 57.0, 71.0)
+    assert det_class == det_fn
+
+    # Semantic path: the LLM writes the prose; structured fields and
+    # provenance stay factual.
+    def fake_client(prompt: str) -> str:
+        assert "My dog's name is Bruno." in prompt
+        return "The user introduced their dog Bruno."
+
+    sem = SemanticSummaryExtractor(fake_client)
+    s = sem("day-2", messages, j, 57.0, 71.0)
+    assert s.summary == "The user introduced their dog Bruno."
+    assert s.source_turn_ids == (1, 2)                       # from messages, never the model
+    assert s.user_facts == ("user's dog is named Bruno",)    # deterministic fields kept
+
+    # A model output cannot inject source turns.
+    s2 = SemanticSummaryExtractor(lambda p: "Some model text.")("day-2", messages, j, 57.0, 71.0)
+    assert s2.source_turn_ids == (1, 2)
+    # A broken client degrades to the deterministic summary (never fabricates).
+    broken = SemanticSummaryExtractor(lambda p: (_ for _ in ()).throw(RuntimeError("offline")))
+    assert broken("day-2", messages, j, 57.0, 71.0) == det_fn
+
+
+def test_t4_semantic_summary_fact_never_authoritative_without_source_turns():
+    """T5 provenance guard: a summary whose prose invents a fact (LLM
+    hallucination) must never create an L4 assertion — assertions come only
+    from facts re-extracted from raw source turns."""
+    store = FakeStore()
+
+    def hallucinating_client(prompt: str) -> str:
+        return "The user owns a pet dragon."
+
+    agent = MemoryAgent(
+        store,
+        policy=PromotionPolicy(importance_threshold=0.3),
+        summarizer=SemanticSummaryExtractor(hallucinating_client),
+    )
+    run_day(store, 6, [("user", "I like jazz."), ("assistant", "Cool!")],
+            judgement=0.5, agent=agent)
+    # The session promoted, but only the REAL fact (jazz) reached L4 —
+    # the hallucinated dragon never became authoritative.
+    assert store.list_episodes()
+    assert store.get_assertion("preference:like:jazz") is not None
+    for a in store.list_assertions(status=None):
+        assert "dragon" not in a.value
+    assert store.get_assertion("user:dragon") is None
+
+
+# ---------------------------------------------------------------------------
+# Iteration-2 A4 — T5: provenance chain L4 -> L3 -> L2 -> raw turns
+# ---------------------------------------------------------------------------
+
+
+def _walk_provenance_chain(store) -> None:
+    """L4 assertion -> L3 episode -> L2 summary -> exact raw turns, for every
+    assertion row (current AND superseded)."""
+    messages_by_id = {
+        m["id"]: m
+        for m in store.messages_for_day(2) + store.messages_for_day(80)
+    }
+    summaries = {
+        s.session_id: s
+        for s in (store.load_session_summary("day-2"), store.load_session_summary("day-80"))
+        if s is not None
+    }
+    assert summaries, "L2 summaries missing"
+    rows = store.list_assertions(status="current") + store.list_assertions(status="superseded")
+    assert rows, "no assertion rows to walk"
+    for a in rows:
+        assert a.source_memory_ids, "assertion without episode provenance"
+        for ep_id in a.source_memory_ids:
+            ep = store.get_episode(ep_id)
+            assert ep is not None, f"L4 -> missing episode {ep_id}"
+            assert ep.source_session_id in summaries, f"episode -> missing L2 {ep.source_session_id}"
+            assert ep.source_turn_ids, "episode without turn provenance"
+            for tid in ep.source_turn_ids:
+                assert tid in messages_by_id, f"episode -> missing turn {tid}"
+                assert messages_by_id[tid]["content"] in ep.verbatim_anchors
+
+
+def test_t5_provenance_chain_full_walk():
+    store = FakeStore()
+    agent = MemoryAgent(store, policy=PromotionPolicy(importance_threshold=0.3))
+    run_day(store, 2, [("user", "I love metal."), ("assistant", "Nice!")],
+            judgement=0.5, agent=agent)
+    run_day(store, 80, [("user", "I barely listen to metal anymore."), ("assistant", "Got it.")],
+            judgement=0.5, agent=agent)
+    _walk_provenance_chain(store)
+
+
+def test_t5_provenance_chain_full_walk_sqlite(tmp_path):
+    store = SQLiteStore(tmp_path / "provenance.db")
+    try:
+        agent = MemoryAgent(store, policy=PromotionPolicy(importance_threshold=0.3))
+        run_day(store, 2, [("user", "I love metal."), ("assistant", "Nice!")],
+                judgement=0.5, agent=agent)
+        run_day(store, 80, [("user", "I barely listen to metal anymore."), ("assistant", "Got it.")],
+                judgement=0.5, agent=agent)
+        _walk_provenance_chain(store)
+    finally:
+        store.close()
+
+
+# ---------------------------------------------------------------------------
+# Iteration-2 A4 — T6: preference revision (day 2 -> day 80)
+# ---------------------------------------------------------------------------
+
+
+def test_t6_preference_revision_metal_day2_day80():
+    """Day 2 'I love metal.' -> day 80 'I barely listen to metal anymore.':
+    L4 updates the CURRENT preference (same key supersedes in place) while
+    the historical assertion and its provenance remain."""
+    store = FakeStore()
+    agent = MemoryAgent(store, policy=PromotionPolicy(importance_threshold=0.3))
+    run_day(store, 2, [("user", "I love metal."), ("assistant", "Nice!")],
+            judgement=0.5, agent=agent)
+    run_day(store, 80, [("user", "I barely listen to metal anymore."), ("assistant", "Got it.")],
+            judgement=0.5, agent=agent)
+
+    # Current preference is the revision, same key, category unchanged.
+    cur = store.get_assertion("preference:like:metal")
+    assert cur is not None and cur.status == "current"
+    assert cur.value == "user no longer likes metal"
+    assert cur.source_memory_ids == ("ep-day-80-0",)
+    assert store.get_assertion_category("preference:like:metal") is UserModelCategory.CURRENT_PREFERENCE
+
+    # Historical preference remains: superseded, provenance intact.
+    old = [a for a in store.list_assertions(status="superseded")
+           if a.key == "preference:like:metal"]
+    assert len(old) == 1
+    assert old[0].value == "user likes metal"
+    assert old[0].source_memory_ids == ("ep-day-2-0",)
+
+    # The L4 projection shows only the current preference.
+    prefs = [a.value for a in store.load_user_model().current_preferences]
+    assert prefs == ["user no longer likes metal"]
+
+    # Historical provenance remains walkable to the exact raw turns.
+    old_ep = store.get_episode("ep-day-2-0")
+    assert old_ep is not None and old_ep.verbatim_anchors == ("I love metal.",)
+    new_ep = store.get_episode("ep-day-80-0")
+    assert new_ep is not None and new_ep.verbatim_anchors == ("I barely listen to metal anymore.",)
+
+
+def test_t6_preference_revision_metal_day2_day80_sqlite(tmp_path):
+    store = SQLiteStore(tmp_path / "revision.db")
+    try:
+        agent = MemoryAgent(store, policy=PromotionPolicy(importance_threshold=0.3))
+        run_day(store, 2, [("user", "I love metal."), ("assistant", "Nice!")],
+                judgement=0.5, agent=agent)
+        run_day(store, 80, [("user", "I barely listen to metal anymore."), ("assistant", "Got it.")],
+                judgement=0.5, agent=agent)
+
+        # Current preference is the revision; the historical one is
+        # superseded with provenance intact (both store generations).
+        cur = store.get_assertion("preference:like:metal")
+        assert cur is not None and cur.status == "current"
+        assert cur.value == "user no longer likes metal"
+        assert cur.source_memory_ids == ("ep-day-80-0",)
+        old = [a for a in store.list_assertions(status="superseded")
+               if a.key == "preference:like:metal"]
+        assert len(old) == 1 and old[0].value == "user likes metal"
+        assert old[0].source_memory_ids == ("ep-day-2-0",)
+        _walk_provenance_chain(store)  # runs on both store generations
+        if hasattr(store, "get_assertion_category"):
+            prefs = [a.value for a in store.load_user_model().current_preferences]
+            assert prefs == ["user no longer likes metal"]
+            assert store.get_assertion_category("preference:like:metal") is UserModelCategory.CURRENT_PREFERENCE
+        else:
+            pytest.skip("A7 canonical-category store not merged yet (no category column)")
+    finally:
+        store.close()
