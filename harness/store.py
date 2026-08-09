@@ -1119,14 +1119,35 @@ class SQLiteStore:
         ).fetchall()
         return [self._row_to_assertion(r) for r in rows]
 
-    def supersede_assertion(self, key: str) -> None:
+    def supersede_assertion(
+        self,
+        key: str,
+        *,
+        source_memory_ids: Sequence[str] | None = None,
+        updated_at_t_h: float | None = None,
+    ) -> None:
         """Flip every current assertion of ``key`` to superseded (provenance
         kept). Cross-key negation support: a "user no longer has X" fact
-        supersedes unrelated keys whose values mention X (memory.py M-1b)."""
+        supersedes unrelated keys whose values mention X (memory.py M-1b).
+
+        Optional ``source_memory_ids`` / ``updated_at_t_h`` rewrite the
+        superseded row's provenance and timestamp so the negation evidence
+        is PERSISTED, not only merged in the caller's return value (A9
+        M-1b provenance leg: no provenance -> no truth).
+        """
+        sets = ["status = 'superseded'"]
+        params: list = []
+        if source_memory_ids is not None:
+            sets.append("source_memory_ids_json = ?")
+            params.append(_json(source_memory_ids))
+        if updated_at_t_h is not None:
+            sets.append("updated_at_t_h = ?")
+            params.append(float(updated_at_t_h))
+        params.append(key)
         self.conn.execute(
-            "UPDATE user_model_assertions SET status = 'superseded' "
-            "WHERE key = ? AND status = 'current'",
-            (key,),
+            "UPDATE user_model_assertions SET " + ", ".join(sets)
+            + " WHERE key = ? AND status = 'current'",
+            params,
         )
         self.conn.commit()
 

@@ -20,9 +20,13 @@ Invariants
 * No provenance -> no truth: nothing is promoted and no assertion is created
   without source turn ids; verbatim anchors are exact excerpts from turns.
 * Affect is metadata ON memories — there is no separate emotional store.
-* Retrieval score is EXACTLY ``0.35*sem + 0.30*strength + 0.35*importance``;
-  strength is recalculated at retrieval from age, access count, importance and
-  stored affect metadata. No standalone emotional-intensity weight.
+* The retrieval reranker's BASE score is exactly ``0.35*sem + 0.30*strength
+  + 0.35*importance`` (``score_memory``); ``MemoryAgent.retrieve`` ranking
+  adds a documented topicality boost (``TOPICALITY_BOOST * sem`` for
+  semantic matches) so relevant low-salience memories are not crowded out
+  by irrelevant high-salience ones. Strength is recalculated at retrieval
+  from age, access count, importance and stored affect metadata. No
+  standalone emotional-intensity weight.
 * All stochastic-free by construction: the default embedder is a deterministic
   seeded hash embedder; the default summarizer consumes no RNG. No real-clock
   reads anywhere — every timestamp is passed in as ``t_h``.
@@ -74,7 +78,20 @@ from harness.domain import (
 SEM_WEIGHT = 0.35
 STRENGTH_WEIGHT = 0.30
 IMPORTANCE_WEIGHT = 0.35
-"""Retrieval reranker: score(q,j) = 0.35*sem + 0.30*strength + 0.35*importance."""
+"""Retrieval reranker base formula: score(q,j) = 0.35*sem + 0.30*strength
++ 0.35*importance (``score_memory``, unchanged). ``MemoryAgent.retrieve``
+adds the topicality boost below on top of this base."""
+
+TOPICALITY_BOOST = 0.9
+"""Topicality boost (A9 M-3): ``MemoryAgent.retrieve`` ranking adds
+``TOPICALITY_BOOST * sem`` for episodes with a semantic match (sem > 0),
+so a weak-but-topical memory (the ONLY topical match) is not crowded out
+of the top-N by irrelevant high-salience memories whose strength +
+importance budget alone exceeds the relevant memory's entire base score.
+Calibrated against the deterministic hash embedder: the strongest
+irrelevant distractor in the M-3 adversarial scenario (sem ~ 0.39) still
+loses to the relevant pottery memory (sem ~ 0.73) with 0.9 > 0.808.
+``score_memory`` itself stays the literal 0.35/0.30/0.35 formula."""
 
 MAX_CONTEXT_CHARS = 8000
 """Hard budget on the total text payload of a returned ``MemoryContext``."""
@@ -528,7 +545,8 @@ def simple_retrieval(
     """SIMPLE_RAG baseline: semantic relevance only (cosine over embeddings).
 
     Ignores strength and importance entirely — the contrast to the full
-    0.35/0.30/0.35 reranker used by ``MemoryAgent.retrieve``.
+    0.35/0.30/0.35 reranker (plus topicality boost) used by
+    ``MemoryAgent.retrieve``.
     """
     embed = embedder or deterministic_hash_embedder
     qv = embed(query)
@@ -573,6 +591,16 @@ class MemoryAgent:
             )
         except (TypeError, AttributeError):
             self._add_message_accepts_session = False
+        # A9 M-1b provenance leg: stores whose supersede_assertion accepts
+        # provenance kwargs let the negation evidence be persisted on the
+        # superseded row; minimal stores fall back to a bare status flip.
+        try:
+            self._supersede_accepts_provenance = (
+                "source_memory_ids"
+                in inspect.signature(store.supersede_assertion).parameters
+            )
+        except (TypeError, AttributeError):
+            self._supersede_accepts_provenance = False
 
     # -- helpers ------------------------------------------------------------
 
@@ -884,15 +912,24 @@ class MemoryAgent:
                 if a.key == f.key:
                     continue  # same-key supersede already handled by upsert
                 if re.search(rf"\b{re.escape(subject)}\b", a.value, re.IGNORECASE):
-                    self.store.supersede_assertion(a.key)
-                    updated.append(
-                        replace(
-                            a,
-                            status="superseded",
-                            updated_at_t_h=summary.ended_at_t_h,
-                            source_memory_ids=a.source_memory_ids + extra,
-                        )
+                    superseded = replace(
+                        a,
+                        status="superseded",
+                        updated_at_t_h=summary.ended_at_t_h,
+                        source_memory_ids=a.source_memory_ids + extra,
                     )
+                    if self._supersede_accepts_provenance:
+                        # Persist the merged provenance (original episodes +
+                        # negation episode) so the superseded row keeps BOTH
+                        # sources after a restart — not just the return value.
+                        self.store.supersede_assertion(
+                            a.key,
+                            source_memory_ids=superseded.source_memory_ids,
+                            updated_at_t_h=superseded.updated_at_t_h,
+                        )
+                    else:
+                        self.store.supersede_assertion(a.key)
+                    updated.append(superseded)
         return updated
 
     # -- retrieval ----------------------------------------------------------
@@ -906,13 +943,17 @@ class MemoryAgent:
     ) -> MemoryContext:
         """Retrieve a bounded, budgeted memory context for ``query``.
 
-        Ranking: ``score(q,j) = 0.35*sem + 0.30*strength + 0.35*importance``
-        with strength recalculated at retrieval time. Returns the L1 slice
-        (recent turns), a bounded L2 slice (summaries of the sessions that
-        produced the top episodes), the top L3 episodes, the L4 projection,
-        and exact verbatim evidence anchors. ``context`` may carry
-        ``{"t_h": now}``; without it the latest stored timestamp is used.
-        Total payload is hard-capped at ``MAX_CONTEXT_CHARS``.
+        Ranking: base ``score(q,j) = 0.35*sem + 0.30*strength +
+        0.35*importance`` (``score_memory``) with strength recalculated at
+        retrieval time, PLUS a topicality boost of ``TOPICALITY_BOOST *
+        sem`` for episodes with a semantic match (sem > 0) so a relevant
+        low-salience memory is not crowded out by irrelevant high-salience
+        ones (A9 M-3). Returns the L1 slice (recent turns), a bounded L2
+        slice (summaries of the sessions that produced the top episodes),
+        the top L3 episodes, the L4 projection, and exact verbatim evidence
+        anchors. ``context`` may carry ``{"t_h": now}``; without it the
+        latest stored timestamp is used. Total payload is hard-capped at
+        ``MAX_CONTEXT_CHARS``.
         """
         ctx = context or {}
         now = ctx.get("t_h")
@@ -924,7 +965,11 @@ class MemoryAgent:
         scored: list[tuple[float, EpisodicMemory]] = []
         for ep in self.store.list_episodes(limit=EPISODE_LIST_LIMIT):
             strength = episodic_strength(ep, now)
-            score = score_memory(qv, embeddings.get(ep.id, []), ep, strength)
+            vec = embeddings.get(ep.id, [])
+            sem = _cosine(qv, vec)
+            score = score_memory(qv, vec, ep, strength)
+            if sem > 0.0:
+                score += TOPICALITY_BOOST * sem
             scored.append((score, ep))
         scored.sort(key=lambda t: t[0], reverse=True)
         top = [ep for _, ep in scored[:limit]]
