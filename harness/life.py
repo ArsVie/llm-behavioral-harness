@@ -142,7 +142,11 @@ class LifeStepResult:
 
 
 def init_life(
-    seed: int, persona: PersonaProfile, store: LifeStore, start_day: int = 1
+    seed: int,
+    persona: PersonaProfile,
+    store: LifeStore,
+    start_day: int = 1,
+    epoch: int = 0,
 ) -> list[LifeArc]:
     """Seed 2-4 active life arcs from the persona's interests and persist them.
 
@@ -154,6 +158,13 @@ def init_life(
     within a month; the others start at 0.00-0.35. Each arc is persisted via
     ``store.upsert_life_arc`` before being returned (creation order:
     arc_1, arc_2, ...).
+
+    ``epoch`` (default 0) is the life-generation counter: the first seeding
+    uses the legacy bare ids (``arc_1``, ``arc_2``, ...); every later seeding
+    (a documented cold start after the store's life arcs were wiped) prefixes
+    the epoch so ids are never reused from a previous generation
+    (``arc_<epoch>_<i>``) — each epoch is a fresh id namespace. Callers
+    derive the epoch from the store's persisted state (see Session).
     """
     rng = stream_rng(seed, LIFE_STREAM)
     interests = persona.interests
@@ -180,7 +191,7 @@ def init_life(
         else:
             progress = float(rng.random()) * 0.35
         arc = LifeArc(
-            id=f"arc_{i}",
+            id=f"arc_{epoch}_{i}" if epoch else f"arc_{i}",
             name=name,
             interest=interest.name,
             started_day=started_day,
