@@ -24,7 +24,10 @@ hour). Two loops run concurrently inside :meth:`AsyncRuntime.run`:
   consumed (marked fired — or expired when the validity window elapsed) and
   logged as ``proactive_suppressed`` with the failing code; allowed events
   fire via ``session.fire_proactive`` and are sent through the channel as
-  proactive OutboundMessages.
+  proactive OutboundMessages. During quiet hours a still-valid event whose
+  validity outlives the quiet window is DEFERRED (A9 R-4b), never consumed
+  as fired-without-delivery: the row stays pending until the next awake
+  instant, and only events past ``valid_until`` are expired.
 
 Delivery latency (A7): after the LLM returns, the runtime waits the
 requested ``response_delay_s`` (wall-clock seconds — NOT scaled by
@@ -46,13 +49,19 @@ from dataclasses import dataclass
 from typing import Awaitable, Callable
 
 import engine.rng as rng_mod
+from engine.circadian import envelope
+from engine.types import ENVELOPE_RAMP_H, TimingParams
 from harness.channels.base import Channel, InboundMessage, OutboundMessage
 from harness.gates import content_gate, context_gate
 from harness.proactive import IntentResolver
-from harness.scheduler import REASON_SCHEDULE, ProactiveSchedule, day_scores
+from harness.scheduler import (
+    REASON_SCHEDULE,
+    REASON_VALIDITY_H,
+    ProactiveSchedule,
+    day_scores,
+)
 from harness.session import Session
 from harness.store import SQLiteStore
-from engine.types import TimingParams
 
 #: Poll cadence when no schedule event is pending, in VIRTUAL hours. The real
 #: sleep is POLL_INTERVAL_H * seconds_per_virtual_hour, so tests with a tiny
@@ -269,7 +278,15 @@ class AsyncRuntime:
         the A7 next_pending fix), advance the clock to it, resolve a GROUNDED
         intent, gate it (content + context), then fire or consume+log the
         suppression. Overdue events are evaluated on recovery: still valid ⇒
-        fire; past the validity window ⇒ expire."""
+        fire; past the validity window ⇒ expire.
+
+        Quiet hours (A9 R-4b): firing is blocked by the context gate, but a
+        still-valid event whose validity outlives the quiet window must NOT
+        be consumed as fired-without-delivery — it is deferred (row stays
+        pending) until the next awake instant. Only events past valid_until
+        are expired, and events that expire before the window ends are
+        consumed (they can never be delivered).
+        """
         while True:
             now = self.session.clock.now_h()
             if self._max_reached(now):
@@ -285,60 +302,117 @@ class AsyncRuntime:
                 await asyncio.sleep(
                     (nxt - now) * self.time_scale.seconds_per_virtual_hour
                 )
+            defer_until: float | None = None
             async with self._lock:
                 now = self.session.clock.now_h()
                 if now < nxt:
                     self.session.clock.advance_hours(nxt - now)
                 now = self.session.clock.now_h()
-                day = self.session.clock.day()
-                # Contact opportunity -> contact reason: a grounded intent
-                # anchored at the OPPORTUNITY time (nxt), so an overdue event
-                # is evaluated against its own validity window on recovery.
-                # None ⇒ SUPPRESS: no_grounded_reason is a legitimate outcome.
-                intent = self.resolver.resolve(nxt)
-                if intent is None:
-                    self.store.log_event(
-                        day, now, "proactive_suppressed", "no_grounded_reason"
-                    )
-                    self.schedule.mark_fired_persisted(
-                        nxt, now, self.seed, self.store
-                    )
-                    continue
-                self.store.save_proactive_intent(intent)
-                cg = content_gate(intent, self.store, now_h=now)
-                xg = context_gate(
-                    now,
-                    day,
-                    store=self.store,
-                    timing=self.timing,
-                    last_fired_t_h=self.store.last_proactive_t_h(self.seed),
-                )
-                if not (cg.allowed and xg.allowed):
-                    code = cg.code if cg.code != "ok" else xg.code
-                    self.store.log_event(
-                        day, now, "proactive_suppressed", code
-                    )
-                    self.store.update_proactive_intent_status(
-                        intent.id, "suppressed"
-                    )
-                    if cg.code == "expired":
-                        self.store.mark_schedule_expired(self.seed, nxt)
-                        self.schedule.mark_fired(nxt)
-                    else:
+                defer_until = self._quiet_defer_until(nxt, now)
+                if defer_until is None:
+                    day = self.session.clock.day()
+                    # Contact opportunity -> contact reason: a grounded intent
+                    # anchored at the OPPORTUNITY time (nxt), so an overdue event
+                    # is evaluated against its own validity window on recovery.
+                    # None ⇒ SUPPRESS: no_grounded_reason is a legitimate outcome.
+                    intent = self.resolver.resolve(nxt)
+                    if intent is None:
+                        self.store.log_event(
+                            day, now, "proactive_suppressed", "no_grounded_reason"
+                        )
                         self.schedule.mark_fired_persisted(
                             nxt, now, self.seed, self.store
                         )
-                    continue
-                result = await asyncio.to_thread(
-                    self.session.fire_proactive, intent.reason
-                )
-                await self.sleeper(self._response_delay(result))
-                await self.channel.send(
-                    OutboundMessage(
-                        text=result.reply, proactive=True, reason=intent.reason
+                        continue
+                    self.store.save_proactive_intent(intent)
+                    cg = content_gate(intent, self.store, now_h=now)
+                    xg = context_gate(
+                        now,
+                        day,
+                        store=self.store,
+                        timing=self.timing,
+                        last_fired_t_h=self.store.last_proactive_t_h(self.seed),
                     )
+                    if not (cg.allowed and xg.allowed):
+                        code = cg.code if cg.code != "ok" else xg.code
+                        self.store.log_event(
+                            day, now, "proactive_suppressed", code
+                        )
+                        self.store.update_proactive_intent_status(
+                            intent.id, "suppressed"
+                        )
+                        if cg.code == "expired":
+                            self.store.mark_schedule_expired(self.seed, nxt)
+                            self.schedule.mark_fired(nxt)
+                        else:
+                            self.schedule.mark_fired_persisted(
+                                nxt, now, self.seed, self.store
+                            )
+                        continue
+                    result = await asyncio.to_thread(
+                        self.session.fire_proactive, intent.reason
+                    )
+                    await self.sleeper(self._response_delay(result))
+                    await self.channel.send(
+                        OutboundMessage(
+                            text=result.reply, proactive=True, reason=intent.reason
+                        )
+                    )
+                    self.store.update_proactive_intent_status(intent.id, "fired")
+                    self.schedule.mark_fired_persisted(
+                        nxt, now, self.seed, self.store
+                    )
+            if defer_until is not None:
+                await asyncio.sleep(
+                    (defer_until - now) * self.time_scale.seconds_per_virtual_hour
                 )
-                self.store.update_proactive_intent_status(intent.id, "fired")
-                self.schedule.mark_fired_persisted(
-                    nxt, now, self.seed, self.store
-                )
+
+    # ------------------------------------------------------------------ #
+    # quiet-hours deferral (A9 R-4b)
+    # ------------------------------------------------------------------ #
+
+    def _quiet_defer_until(self, nxt: float, now: float) -> float | None:
+        """Quiet-hours deferral verdict for an overdue event recovered at
+        ``now`` (event hour ``nxt``).
+
+        Quiet hours block firing (context gate) but must NOT consume a still-
+        valid event as fired-without-delivery — that loses a message the
+        store still grounds (A9 R-4b). Returns the virtual hour to sleep
+        until (the next awake instant, capped at max_virtual_hours) when the
+        event should be deferred; None when the event is evaluated normally:
+
+        - not quiet hours;
+        - already past valid_until (the normal path expires the row);
+        - expiring before the quiet window ends — such an event can never be
+          delivered, so consuming it loses nothing (A9 R-6 pins this leg).
+        """
+        if envelope(now % 24.0, self.timing) >= 1e-9:
+            return None
+        rows = [
+            r for r in self.store.schedule_events_for_seed(self.seed)
+            if abs(float(r["t_h"]) - nxt) < 1e-9
+        ]
+        if not rows:
+            return None
+        valid_until = nxt + REASON_VALIDITY_H[rows[0]["reason"]]
+        if now > valid_until:
+            return None  # past validity: the normal path expires the row
+        awake_at = self._next_awake_at(now)
+        if valid_until <= awake_at:
+            return None  # expires before the window ends -> can never fire
+        if self.max_virtual_hours is not None:
+            return min(awake_at, self.max_virtual_hours)
+        return awake_at
+
+    def _next_awake_at(self, now: float) -> float:
+        """First virtual hour after ``now`` at which the circadian envelope
+        is fully awake (quiet_fin + ramp) — the moment a deferred event can
+        actually pass the context gate."""
+        _quiet_ini, quiet_fin = self.timing.quiet_hours
+        day = int(now // 24.0)
+        boundary = (
+            day * 24.0 + quiet_fin
+            if now % 24.0 < quiet_fin
+            else (day + 1) * 24.0 + quiet_fin
+        )
+        return boundary + ENVELOPE_RAMP_H
