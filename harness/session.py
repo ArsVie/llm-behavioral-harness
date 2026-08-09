@@ -266,6 +266,17 @@ class Session:
         ):
             self._generate_agenda(day)
 
+        # A1 finding 1 (finalize crash window): the judgement was persisted
+        # but the memory/life tail of finalize_day never completed (process
+        # death between save_judgement and update_daily_score). A completed
+        # finalize always persists the day's score, so judgement + NULL
+        # score is the in-between marker — complete the missing steps
+        # exactly once. Each step is individually idempotent (persistence
+        # markers), so a CLEAN finalize followed by resume re-runs nothing
+        # and the no-double-advance guard keeps holding.
+        if judgement is not None and latest.get("score") is None:
+            self._complete_pending_finalize(day, judgement)
+
     @staticmethod
     def _record_from_row(row: dict) -> DayRecord:
         return DayRecord(
@@ -431,10 +442,39 @@ class Session:
     # ------------------------------------------------------------------ #
 
     def _ensure_life(self) -> None:
-        """Seed persistent life arcs once (store-backed, deterministic)."""
+        """Seed persistent life arcs once per life epoch (store-backed,
+        deterministic).
+
+        The epoch (number of prior seeding generations persisted in this
+        store) is passed to ``init_life`` so arc ids are never reused from a
+        wiped generation (A1 finding 2: a life-arc wipe followed by restart
+        re-seeds under a FRESH id namespace instead of silently pretending
+        the wiped days happened). Normal restarts keep the persisted arcs
+        untouched and log nothing.
+        """
         if self._life_arcs or self._profile is None or not self._profile.interests:
             return
-        self._life_arcs = life.init_life(self.seed, self._profile, self.store)
+        epoch = self._life_epoch()
+        self._life_arcs = life.init_life(self.seed, self._profile, self.store, epoch=epoch)
+        if self._life_arcs and hasattr(self.store, "log_event"):
+            self.store.log_event(
+                self.current_day if self.current_day is not None else 0,
+                self.clock.now_h(),
+                "life_init",
+                f"epoch={epoch} arcs={len(self._life_arcs)}",
+            )
+
+    def _life_epoch(self) -> int:
+        """Number of prior life-arc seeding generations persisted in this
+        store (each seeding logs a ``life_init`` event), i.e. the epoch
+        counter for the next seeding. Derived from the store's persisted
+        state (the audit log), so it survives arc wipes and is deterministic
+        across restarts."""
+        if not hasattr(self.store, "events_since"):
+            return 0
+        return sum(
+            1 for e in self.store.events_since(0) if e.get("event") == "life_init"
+        )
 
     def _generate_agenda(self, day: int) -> None:
         """Plan + persist today's agenda via the life lane (LIFE stream)."""
@@ -456,6 +496,49 @@ class Session:
         self.store.log_event(
             day, self.clock.now_h(), "life_step",
             f"arcs={len(result.updated_arcs)} items={len(agenda.items)}",
+        )
+
+    def _life_step_done(self, day: int) -> bool:
+        """True when the life step for ``day`` already ran.
+
+        Persistence markers: a ``life_step`` event for the day, or no agenda
+        to step (``_step_life`` no-ops without an agenda). Used to make the
+        crash-window completion idempotent."""
+        if not hasattr(self.store, "load_agenda") or self.store.load_agenda(day) is None:
+            return True
+        if not hasattr(self.store, "events_since"):
+            return False
+        return any(
+            e.get("event") == "life_step" and e.get("day") == day
+            for e in self.store.events_since(day)
+        )
+
+    def _complete_pending_finalize(self, day: int, judgement: dict) -> None:
+        """A1 finding 1: finish the memory/life tail of a finalize_day that
+        died after ``save_judgement`` (the crash window), exactly once.
+
+        Runs on resume when the day's judgement exists but its score was
+        never persisted (a completed finalize always persists it). Each step
+        is guarded by its own persistence marker (L2 summary, ``life_step``
+        event), so a clean finalize followed by resume re-runs nothing; a
+        crash inside this recovery is itself recoverable on the next resume.
+        The engine's end-of-day mood update is NOT re-applied here —
+        ``_resume_from`` already re-applied it (judgement present), so the
+        replay contract is preserved.
+        """
+        memory_done = (
+            hasattr(self.store, "load_session_summary")
+            and self.store.load_session_summary(f"day-{day}") is not None
+        )
+        if not memory_done:
+            self._close_memory_session(day)
+        if self._profile is not None and not self._life_step_done(day):
+            self._step_life(day)
+        if hasattr(self.store, "update_daily_score"):
+            self.store.update_daily_score(day, float(judgement["score"]))
+        self.store.log_event(
+            day, self.clock.now_h(), "day_finalized",
+            f"score={float(judgement['score']):.3f} shadow={not self.feedback}",
         )
 
     def _close_memory_session(self, day: int) -> None:
