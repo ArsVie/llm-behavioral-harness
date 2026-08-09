@@ -12,6 +12,7 @@ The critical invariants:
 import math
 
 import numpy as np
+import pytest
 
 import sim.run_daily as run_daily
 from engine.types import MoodVariant, PersonaParams, TimingParams
@@ -301,8 +302,15 @@ def test_reactive_turn_persists_snapshot_and_controls(tmp_path):
     assert call["max_tokens"] == result.controls.max_tokens
     system = call["system"]
     assert "Current behavioral guidance:" in system
-    assert "Recent conversation:" in system
-    assert "user: hello there" in system
+    # Iteration-2 A5 T1 (invariant 14): recent dialogue is never duplicated
+    # into the system prompt — each turn appears exactly ONCE, in the
+    # message payload.
+    assert "Recent conversation:" not in system
+    assert "user: hello there" not in system
+    payload = call["messages"]
+    assert sum(1 for m in payload if m["content"] == "hello there") == 1
+    assert sum(1 for m in payload if m["role"] == "user") == 2
+    assert payload[-1] == {"role": "user", "content": "how are you"}
     msgs = store.messages_for_day(0)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
     assert all(m["session_id"] == "day-0" for m in msgs)
@@ -347,6 +355,9 @@ def test_proactive_grounded_intent_carries_hook(tmp_path):
     assert "Contact reason" not in system
     msgs = store.messages_for_day(0)
     assert len(msgs) == 1 and msgs[0]["role"] == "assistant" and msgs[0]["proactive"] == 1
+    # Iteration-2 A5 T4 (invariant 6): the outgoing message persists the
+    # exact validated intent id (legacy reason path resolves to the intent).
+    assert msgs[0]["intent_id"] == "pi_test"
     store.close()
 
 
@@ -467,4 +478,162 @@ def test_restart_continuity_with_life_lanes(tmp_path):
     assert j1 is not None and j1["score"] == 0.0
     assert "no interaction" in j1["justification"]
     assert store2.load_agenda(2) is not None
+    store2.close()
+
+
+# --------------------------------------------------------------------------- #
+# Iteration-2 A5: exact proactive intent seam (T3/T4) + resume-no-rewind (T6)
+# --------------------------------------------------------------------------- #
+
+
+def test_fire_proactive_exact_intent_never_reason_substitute(tmp_path):
+    """T3 seam (invariant 7): fire_proactive(intent_id) builds the snapshot
+    from the EXACT intent — two intents sharing reason='schedule' are never
+    interchangeable. Firing #87 renders #87's hook (never #88's, even though
+    #88 was created later), and the outgoing message persists intent_id #87
+    (invariant 6)."""
+    from harness.domain import ProactiveIntent
+
+    store = SQLiteStore(tmp_path / "s.db")
+    clock = VirtualClock(t_h=10.0)
+    client = FakeClient(responses=["from intent 87"])
+    session = Session(
+        store,
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+        client=client,
+        clock=clock,
+        judge=ScriptedJudge(score=0.5).judge_day,
+    )
+    hook_87 = "You just finished the pottery class scheduled this afternoon."
+    hook_88 = "You are about to hit the gym — the session starts in an hour."
+    intent_87 = ProactiveIntent(
+        id="pi_87", reason="schedule", source_type="agenda_item",
+        source_id="ag_pottery", hook=hook_87, created_t_h=9.0,
+        valid_until_t_h=13.0, salience=0.5, evidence="agenda_item:ag_pottery",
+    )
+    intent_88 = ProactiveIntent(
+        id="pi_88", reason="schedule", source_type="agenda_item",
+        source_id="ag_gym", hook=hook_88, created_t_h=9.5,
+        valid_until_t_h=13.0, salience=0.5, evidence="agenda_item:ag_gym",
+    )
+    # #88 is saved AFTER #87: a reason-type lookup would pick #88 (most
+    # recent for "schedule") — the exact-id seam must still pick #87.
+    store.save_proactive_intent(intent_88)
+    store.save_proactive_intent(intent_87)
+
+    result = session.fire_proactive("pi_87")
+    system = client.calls[-1]["system"]
+    assert result.reply == "from intent 87"
+    assert hook_87 in system
+    assert hook_88 not in system
+    assert "Contact reason" not in system
+    msgs = store.messages_for_day(0)
+    assert len(msgs) == 1 and msgs[0]["role"] == "assistant"
+    assert msgs[0]["intent_id"] == "pi_87"
+    store.close()
+
+
+def test_fire_proactive_unknown_intent_id_raises(tmp_path):
+    store, clock, client, session = _session(tmp_path)
+    clock.advance_hours(10.0)
+    with pytest.raises(ValueError, match="pi_missing"):
+        session.fire_proactive("pi_missing")
+    store.close()
+
+
+def test_fire_proactive_expired_exact_intent_raises(tmp_path):
+    """The exact-intent seam verifies validity: an expired intent id is a
+    caller-contract violation (the content gate would have suppressed it)."""
+    from harness.domain import ProactiveIntent
+
+    store = SQLiteStore(tmp_path / "s.db")
+    clock = VirtualClock(t_h=10.0)
+    session = Session(
+        store,
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+        client=FakeClient(responses=["never"]),
+        clock=clock,
+        judge=ScriptedJudge(score=0.5).judge_day,
+    )
+    store.save_proactive_intent(ProactiveIntent(
+        id="pi_stale", reason="schedule", source_type="agenda_item",
+        source_id="ag_x", hook="stale hook", created_t_h=8.0,
+        valid_until_t_h=9.0, salience=0.5, evidence="agenda_item:ag_x",
+    ))
+    with pytest.raises(ValueError, match="expired"):
+        session.fire_proactive("pi_stale")
+    assert not store.messages_for_day(0)
+    store.close()
+
+
+def test_resume_with_day_zero_clock_does_not_rewind(tmp_path):
+    """ROUTED DEFECT (A1b): restarting on an already-progressed store with a
+    driver clock that starts at day 0 crashed with 'cannot rewind session
+    from day N to 0' the moment a day-0 grounded intent fired on resume.
+    The resume path now initializes the session at the store's day — no
+    rewind crash, and the conversation continues on the resumed day."""
+    from harness.domain import ProactiveIntent
+
+    path = tmp_path / "s.db"
+    store = SQLiteStore(path)
+    clock = VirtualClock(t_h=19.0)
+    session = Session(
+        store, persona=PERSONA, timing=TIMING, variant=VARIANT, seed=SEED,
+        client=FakeClient(responses=["a", "b"]), clock=clock,
+        judge=ScriptedJudge(score=0.6).judge_day, feedback=True,
+    )
+    session.on_message("hello there")
+    clock.advance_to_day(2)
+    session.ensure_day(2)  # store progressed to day 2
+    assert store.load_daily_state(2) is not None
+    mu_before = session.mood_state.mu
+    eta_before = session.mood_state.eta
+    store.close()
+
+    # Restart: driver clock starts at day 0 08:00 (sim/run_async restart
+    # pattern) while the store is at day 2 — BEHIND the progressed day.
+    store2 = SQLiteStore(path)
+    clock2 = VirtualClock(t_h=8.0)
+    client2 = FakeClient(responses=["resumed proactive", "still here reply"])
+    session2 = Session(
+        store2, persona=PERSONA, timing=TIMING, variant=VARIANT, seed=SEED,
+        client=client2, clock=clock2,
+        judge=ScriptedJudge(score=0.6).judge_day, feedback=True,
+    )
+    assert session2.current_day == 2
+    assert math.isclose(session2.mood_state.mu, mu_before, abs_tol=1e-12)
+    assert math.isclose(session2.mood_state.eta, eta_before, abs_tol=1e-12)
+    assert clock2.day() == 2  # clock initialized at the store's day
+
+    # A day-0 grounded intent firing on resume must NOT rewind-crash; the
+    # message lands on the resumed day and carries the exact intent id.
+    intent = ProactiveIntent(
+        id="pi_resume", reason="schedule", source_type="agenda_item",
+        source_id="ag_resume", hook="You just finished the pottery class.",
+        created_t_h=8.0, valid_until_t_h=100.0, salience=0.5,
+        evidence="agenda_item:ag_resume",
+    )
+    store2.save_proactive_intent(intent)
+    result = session2.fire_proactive("pi_resume")
+    assert result.day == 2
+    assert intent.hook in client2.calls[-1]["system"]
+    msgs = store2.messages_for_day(2)
+    assert msgs and msgs[-1]["role"] == "assistant" and msgs[-1]["proactive"] == 1
+    assert msgs[-1]["intent_id"] == "pi_resume"
+
+    # Reactive continuation + rollover past the resumed day.
+    clock2.advance_hours(11.0)  # day 2 19:00
+    r2 = session2.on_message("still here")
+    assert r2.day == 2
+    clock2.advance_to_day(3)
+    session2.ensure_day(3)
+    assert store2.load_daily_state(3) is not None
+    j2 = store2.load_judgement(2)
+    assert j2 is not None  # day 2 finalized cleanly on rollover
     store2.close()

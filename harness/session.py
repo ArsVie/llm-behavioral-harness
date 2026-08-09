@@ -13,9 +13,11 @@ Reactive turn: user message → persist → DayRecord → BehaviorDirective →
 GenerationControls + BehaviorBrief → CurrentActivity → MemoryContext →
 active life arcs → CompanionSnapshot → assembler → client (max_tokens from
 controls) → TurnResult(controls) for the runtime's delivery path.
-Proactive turn: grounded ProactiveIntent (store-backed, most recently
-created for the fired reason) → CompanionSnapshot(proactive_intent=...) →
-assembler (renders the intent's concrete hook verbatim).
+Proactive turn: grounded ProactiveIntent fetched by its EXACT id
+(``fire_proactive(intent_id)`` — never a reason-type lookup; two intents
+with the same reason are never interchangeable) → CompanionSnapshot
+(proactive_intent=...) → assembler (renders the intent's concrete hook
+verbatim) → the outgoing message persists ``message.intent_id``.
 
 Lane rule: this session COMPOSES the snapshot; memory/life/persona never
 mutate each other. Memory writes happen ONLY via MemoryAgent calls at session
@@ -41,7 +43,10 @@ Day lifecycle:
 Resume: with the same seed + store, the latest daily_state row restores
 mu/eta (values "used" that day = state at start); the cycle clock is
 reconstructed by replaying init_rng + cycle.step from day 0. Life and memory
-state are restored from the store (arcs, agenda, summaries, episodes).
+state are restored from the store (arcs, agenda, summaries, episodes). A
+driver clock that restarts BEHIND the store's progressed day is fast-
+forwarded to the store's day (resume must never rewind — Iteration-2 A5
+routed defect).
 """
 
 from __future__ import annotations
@@ -193,11 +198,11 @@ class Session:
             store.list_life_arcs() if hasattr(store, "list_life_arcs") else []
         )
         try:
-            self._add_message_accepts_session = (
-                "session_id" in inspect.signature(store.add_message).parameters
-            )
-        except (TypeError, AttributeError):
-            self._add_message_accepts_session = False
+            _params = inspect.signature(store.add_message).parameters
+        except (TypeError, ValueError):
+            _params = {}
+        self._accepts_session_id = "session_id" in _params
+        self._accepts_intent_id = "intent_id" in _params
 
         self.cycle_state: CycleState = cycle.init_state(persona, rng_mod.init_rng(seed))
         self.mood_state = MoodState()
@@ -217,6 +222,16 @@ class Session:
 
     def _resume_from(self, latest: dict) -> None:
         day = int(latest["day"])
+        # ROUTED DEFECT (A1b): restarting on an already-progressed store with
+        # a driver clock that starts at day 0 crashed with "cannot rewind
+        # session from day N to 0" the moment a day-0 event fired on resume
+        # (session.ensure_day vs a clock always starting at day 0). A session
+        # must never rewind: initialize the clock AT the store's day so the
+        # resumed conversation continues from where the store is. A clock
+        # already at/past the store's day is never moved (resume tests pin
+        # that behavior).
+        if self.clock.day() < day and hasattr(self.clock, "advance_to_day"):
+            self.clock.advance_to_day(day)
         self.mood_state = MoodState(mu=float(latest["mu"]), eta=float(latest["eta"]))
         # Replay cycle state from day 0 up to `day` (deterministic, cheap).
         state = self.cycle_state
@@ -578,13 +593,14 @@ class Session:
         return CurrentActivity(t_h=t_h, item=main, description=main.activity)
 
     def _resolve_intent(self, reason: str | None) -> ProactiveIntent | None:
-        """Most recently created stored intent for `reason`, or None.
+        """LEGACY reason-path fallback: most recently created stored intent
+        for `reason`, or None.
 
-        The runtime persists the grounded intent (IntentResolver →
-        content gate) BEFORE calling fire_proactive, so the store is the
-        session's only source of the concrete hook. None ⇒ legacy
-        ungrounded call: the session degrades to a generic opening (no
-        invented source claim).
+        Only pre-slice callers that pass a REASON string (never an intent id)
+        reach this — the Iteration-2 seam is ``fire_proactive(intent_id)``,
+        which fetches the EXACT intent and never downgrades identity to a
+        reason-type lookup (invariant 7). None ⇒ legacy ungrounded call: the
+        session degrades to a generic opening (no invented source claim).
         """
         if reason is None:
             return None
@@ -593,6 +609,19 @@ class Session:
         for intent in self.store.list_proactive_intents():
             if intent.reason == reason:
                 return intent
+        return None
+
+    def _lookup_intent(self, intent_id: str) -> ProactiveIntent | None:
+        """EXACT-id lookup (never a reason lookup): the stored intent whose
+        id equals ``intent_id``, or None. Two intents with the same reason
+        are never interchangeable — only the id identifies the intent."""
+        if hasattr(self.store, "load_proactive_intent"):
+            return self.store.load_proactive_intent(intent_id)
+        if hasattr(self.store, "list_proactive_intents"):
+            return next(
+                (i for i in self.store.list_proactive_intents() if i.id == intent_id),
+                None,
+            )
         return None
 
     def _build_snapshot(
@@ -638,18 +667,43 @@ class Session:
     # conversation
     # ------------------------------------------------------------------ #
 
+    def _persist_message(
+        self,
+        role: str,
+        content: str,
+        t_h: float,
+        day: int,
+        *,
+        proactive: bool,
+        session_id: str,
+        intent_id: str | None = None,
+    ) -> None:
+        """Persist one message, passing only the kwargs the store accepts
+        (legacy fakes predate session_id/intent_id; SQLiteStore takes both).
+        ``intent_id`` carries the EXACT validated intent on outgoing messages
+        (invariant 6); reactive messages keep it None."""
+        kwargs: dict = {"proactive": proactive}
+        if self._accepts_session_id:
+            kwargs["session_id"] = session_id
+        if self._accepts_intent_id:
+            kwargs["intent_id"] = intent_id
+        self.store.add_message(role, content, t_h, day, **kwargs)
+
     def _chat(
         self,
         user_text: str | None,
         *,
         proactive: bool,
-        reason: str | None = None,
+        intent: ProactiveIntent | None = None,
     ) -> TurnResult:
         """Shared path for reactive and proactive messages.
 
         `user_text=None` means the companion initiates: the transcript has no
         trailing user request and the system prompt renders the grounded
-        intent's CONCRETE HOOK (never "Contact reason: schedule").
+        intent's CONCRETE HOOK (never "Contact reason: schedule"). The
+        intent is the EXACT validated ``ProactiveIntent`` (resolved by id in
+        ``fire_proactive``); when generation completes its id is persisted on
+        the outgoing message (``message.intent_id``, invariant 6).
         """
         t_h = self.clock.now_h()
         day = self.clock.day()
@@ -663,11 +717,9 @@ class Session:
         controls = controls_from_directive(directive)
         brief = to_brief(directive)
 
-        intent: ProactiveIntent | None = None
         query = user_text
-        if user_text is None:
-            intent = self._resolve_intent(reason)
-            query = intent.hook if intent is not None else None
+        if user_text is None and intent is not None:
+            query = intent.hook
 
         snapshot = self._build_snapshot(day, t_h, brief=brief, intent=intent, query=query)
         system = assemble_snapshot(snapshot, controls=controls)
@@ -680,26 +732,21 @@ class Session:
         session_id = f"day-{day}"
         if user_text is not None:
             messages = build_messages(recent, user_text)
-            if self._add_message_accepts_session:
-                self.store.add_message(
-                    "user", user_text, t_h, day, proactive=False, session_id=session_id
-                )
-            else:
-                self.store.add_message("user", user_text, t_h, day, proactive=False)
+            self._persist_message(
+                "user", user_text, t_h, day,
+                proactive=False, session_id=session_id,
+            )
         else:
             messages = [
                 {"role": m["role"], "content": m["content"]}
                 for m in recent
             ]
         reply = self.client.chat(messages, system=system, max_tokens=controls.max_tokens)
-        if self._add_message_accepts_session:
-            self.store.add_message(
-                "assistant", reply, t_h, day, proactive=proactive, session_id=session_id
-            )
-        else:
-            self.store.add_message(
-                "assistant", reply, t_h, day, proactive=proactive
-            )
+        self._persist_message(
+            "assistant", reply, t_h, day,
+            proactive=proactive, session_id=session_id,
+            intent_id=intent.id if intent is not None else None,
+        )
         self.store.log_llm_call(
             day,
             t_h,
@@ -721,17 +768,53 @@ class Session:
         """Process one user message: directive → snapshot → assemble → LLM."""
         return self._chat(user_text, proactive=False)
 
-    def fire_proactive(self, reason: str = "schedule") -> TurnResult:
-        """Assistant-initiated message with a contact reason (no user input).
+    def fire_proactive(
+        self,
+        intent_id: str | None = None,
+        *,
+        reason: str | None = None,
+    ) -> TurnResult:
+        """Assistant-initiated message (Iteration-2 A5 T3 seam contract).
 
-        Grounded path (runtime): the store holds the persisted ProactiveIntent
-        for `reason`; the snapshot carries it and the prompt renders its hook
-        verbatim. Legacy direct calls without a stored intent degrade to a
-        generic opening (no fabricated source).
+        ``intent_id`` is the EXACT id of a validated, stored
+        ``ProactiveIntent`` — A3's runtime passes ``intent.id``, never a
+        reason. The snapshot is constructed from that exact intent: two
+        intents with the same reason are never interchangeable (invariant
+        7). The intent must exist and be inside its validity window; the
+        outgoing message persists its id (invariant 6). Deep source/hook
+        validation is the content gate's job (A3), not re-derived here.
+
+        ``reason`` is a DEPRECATED keyword alias for pre-slice callers that
+        fire by reason type (no callers may mix the two). It resolves to the
+        most recently created stored intent for that reason, or a generic
+        opening when none exists; an unknown reason raises ``ValueError``.
+        An argument that is neither a known intent id nor a valid reason
+        also raises ``ValueError``.
         """
-        if reason not in VALID_REASONS:
-            raise ValueError(f"unknown proactive reason: {reason!r}")
-        return self._chat(None, proactive=True, reason=reason)
+        if reason is not None:
+            if intent_id is not None:
+                raise ValueError("pass either intent_id or reason, not both")
+            if reason not in VALID_REASONS:
+                raise ValueError(f"unknown proactive reason: {reason!r}")
+            return self._chat(None, proactive=True, intent=self._resolve_intent(reason))
+        intent: ProactiveIntent | None = None
+        if intent_id is not None:
+            found = self._lookup_intent(intent_id)
+            if found is not None:
+                if found.valid_until_t_h < self.clock.now_h():
+                    raise ValueError(
+                        f"proactive intent {intent_id!r} expired at "
+                        f"t_h={found.valid_until_t_h:.2f} "
+                        f"(now {self.clock.now_h():.2f})"
+                    )
+                intent = found
+            elif intent_id in VALID_REASONS:
+                intent = self._resolve_intent(intent_id)
+            else:
+                raise ValueError(
+                    f"no proactive intent or valid reason matches {intent_id!r}"
+                )
+        return self._chat(None, proactive=True, intent=intent)
 
     def state_summary(self) -> dict:
         """Dev-facing snapshot of the current latent + observable state."""
