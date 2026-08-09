@@ -1,0 +1,179 @@
+Day 1, 19:00
+You: Hello! How are you feeling today?
+
+Day 1, 19:00
+Nova: There's something nice about that.
+
+Day 2, 19:00
+You: Hey! I had a long day, what about you? I went for a walk by the river this morning.
+
+Day 2, 19:00
+Nova: I'm glad you told me that.
+
+Day 4, 00:00
+You: Hey you. Tell me something about your day.
+
+Day 4, 00:00
+Nova: That's a good question, honestly.
+
+Day 5, 00:00
+You: Hey! How was your day?
+
+Day 5, 00:00
+Nova: I was just thinking about that earlier.
+
+Day 6, 19:00
+You: Hello! How are you feeling today? I went for a walk by the river this morning.
+
+Day 6, 19:00
+Nova: Let me think about that for a moment.
+
+Day 7, 00:00
+You: Hi! Anything new today?
+
+Day 7, 00:00
+Nova: I'd love to hear more about that.
+
+Day 8, 00:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 8, 00:00
+Nova: Mm, I know exactly what you mean.
+
+Day 9, 00:00
+You: Hey! I had a long day, what about you?
+
+Day 9, 00:00
+Nova: That makes me smile.
+
+Day 10, 00:00
+You: Hello! How are you feeling today?
+
+Day 10, 00:00
+Nova: That sounds lovely — tell me more.
+
+Day 11, 00:00
+You: Hi! Anything new today?
+
+Day 11, 00:00
+Nova: You always know how to put things.
+
+Day 12, 00:00
+You: Hey you. Tell me something about your day.
+
+Day 12, 00:00
+Nova: There's something nice about that.
+
+Day 13, 00:00
+You: Hey! I had a long day, what about you?
+
+Day 13, 00:00
+Nova: I'm glad you told me that.
+
+Day 14, 00:00
+You: Hey! How was your day?
+
+Day 14, 00:00
+Nova: That's a good question, honestly.
+
+Day 15, 00:00
+You: Hey you. Tell me something about your day.
+
+Day 15, 00:00
+Nova: I was just thinking about that earlier.
+
+Day 16, 00:00
+You: Hey! How was your day?
+
+Day 16, 00:00
+Nova: Let me think about that for a moment.
+
+Day 17, 00:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 17, 00:00
+Nova: I'd love to hear more about that.
+
+Day 18, 00:00
+You: Hey you. Tell me something about your day.
+
+Day 18, 00:00
+Nova: Mm, I know exactly what you mean.
+
+Day 19, 00:00
+You: Hey! How was your day? Work was busy but fine.
+
+Day 19, 00:00
+Nova: That makes me smile.
+
+Day 20, 00:00
+You: Hey! How was your day? I made pasta for dinner, it turned out okay.
+
+Day 20, 00:00
+Nova: That sounds lovely — tell me more.
+
+Day 21, 00:00
+You: Hey! I had a long day, what about you?
+
+Day 21, 00:00
+Nova: You always know how to put things.
+
+Day 22, 00:00
+You: Hey! How was your day? I made pasta for dinner, it turned out okay.
+
+Day 22, 00:00
+Nova: There's something nice about that.
+
+Day 23, 00:00
+You: Hello! How are you feeling today?
+
+Day 23, 00:00
+Nova: I'm glad you told me that.
+
+Day 24, 00:00
+You: Hey you. Tell me something about your day.
+
+Day 24, 00:00
+Nova: That's a good question, honestly.
+
+Day 25, 00:00
+You: Hello! How are you feeling today?
+
+Day 25, 00:00
+Nova: I was just thinking about that earlier.
+
+Day 26, 00:00
+You: I was thinking about you earlier — what are you up to? I made pasta for dinner, it turned out okay.
+
+Day 26, 00:00
+Nova: Let me think about that for a moment.
+
+Day 27, 00:00
+You: Hey! How was your day?
+
+Day 27, 00:00
+Nova: I'd love to hear more about that.
+
+Day 28, 00:00
+You: Hey! I had a long day, what about you?
+
+Day 28, 00:00
+Nova: Mm, I know exactly what you mean.
+
+Day 29, 00:00
+You: Hey! I had a long day, what about you?
+
+Day 29, 00:00
+Nova: That makes me smile.
+
+Day 30, 00:00
+You: Hi! Anything new today?
+
+Day 30, 00:00
+Nova: That sounds lovely — tell me more.
+
+Day 31, 19:00
+You: Hi! Anything new today? I've been thinking about learning photography.
+
+Day 31, 19:00
+Nova: You always know how to put things.

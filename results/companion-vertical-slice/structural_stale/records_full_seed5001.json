@@ -1,0 +1,1222 @@
+{
+  "condition": "FULL",
+  "seed": 5001,
+  "mode": "structural",
+  "db": "results/companion-vertical-slice/structural/cell_full_seed5001.db",
+  "n_messages": 85,
+  "n_proactive": 1,
+  "controls_by_message": {
+    "2": {
+      "max_tokens": 585,
+      "response_delay_s": 6.865544456622768,
+      "closing_tendency": 0.44660254037844394,
+      "initiative_factor": 0.6196844843284705,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "4": {
+      "max_tokens": 529,
+      "response_delay_s": 7.765544456622768,
+      "closing_tendency": 0.5186025403784439,
+      "initiative_factor": 0.5205086747698208,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "6": {
+      "max_tokens": 564,
+      "response_delay_s": 6.865544456622768,
+      "closing_tendency": 0.44660254037844394,
+      "initiative_factor": 0.5998750322067834,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "8": {
+      "max_tokens": 528,
+      "response_delay_s": 7.4655444566227676,
+      "closing_tendency": 0.4826025403784439,
+      "initiative_factor": 0.5261331532667455,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "10": {
+      "max_tokens": 562,
+      "response_delay_s": 6.865544456622768,
+      "closing_tendency": 0.44660254037844394,
+      "initiative_factor": 0.6442319285710952,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "12": {
+      "max_tokens": 535,
+      "response_delay_s": 4.931995005480245,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 0.7563227571422902,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "14": {
+      "max_tokens": 579,
+      "response_delay_s": 4.6319950054802455,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 1.0297829100236615,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "16": {
+      "max_tokens": 579,
+      "response_delay_s": 4.6319950054802455,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 1.0297829100236615,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "18": {
+      "max_tokens": 579,
+      "response_delay_s": 4.6319950054802455,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 1.0297829100236615,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "20": {
+      "max_tokens": 579,
+      "response_delay_s": 4.6319950054802455,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 1.0297829100236615,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "22": {
+      "max_tokens": 579,
+      "response_delay_s": 4.6319950054802455,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 1.0297829100236615,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "24": {
+      "max_tokens": 579,
+      "response_delay_s": 4.6319950054802455,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 1.0297829100236615,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "26": {
+      "max_tokens": 525,
+      "response_delay_s": 5.531995005480246,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 0.7835363165277965,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "28": {
+      "max_tokens": 538,
+      "response_delay_s": 4.6319950054802455,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 0.859328801444303,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "30": {
+      "max_tokens": 547,
+      "response_delay_s": 4.6319950054802455,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 0.9063814167090226,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "32": {
+      "max_tokens": 529,
+      "response_delay_s": 5.231995005480245,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 0.7362677137053535,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "34": {
+      "max_tokens": 567,
+      "response_delay_s": 4.6319950054802455,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 0.9328696271532094,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "36": {
+      "max_tokens": 519,
+      "response_delay_s": 5.831995005480246,
+      "closing_tendency": 0.31897114317029973,
+      "initiative_factor": 0.6327287142519776,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "38": {
+      "max_tokens": 555,
+      "response_delay_s": 4.357772228311384,
+      "closing_tendency": 0.3033012701892219,
+      "initiative_factor": 0.8501568190138646,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "40": {
+      "max_tokens": 555,
+      "response_delay_s": 4.357772228311384,
+      "closing_tendency": 0.3033012701892219,
+      "initiative_factor": 0.8501568190138646,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "42": {
+      "max_tokens": 555,
+      "response_delay_s": 4.357772228311384,
+      "closing_tendency": 0.3033012701892219,
+      "initiative_factor": 0.8501568190138646,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "44": {
+      "max_tokens": 555,
+      "response_delay_s": 4.357772228311384,
+      "closing_tendency": 0.3033012701892219,
+      "initiative_factor": 0.8501568190138646,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "46": {
+      "max_tokens": 555,
+      "response_delay_s": 4.357772228311384,
+      "closing_tendency": 0.3033012701892219,
+      "initiative_factor": 0.8501568190138646,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "48": {
+      "max_tokens": 527,
+      "response_delay_s": 5.257772228311383,
+      "closing_tendency": 0.3393012701892219,
+      "initiative_factor": 0.6885356819394739,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "50": {
+      "max_tokens": 555,
+      "response_delay_s": 4.357772228311384,
+      "closing_tendency": 0.3033012701892219,
+      "initiative_factor": 0.8243154598658082,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "52": {
+      "max_tokens": 534,
+      "response_delay_s": 4.357772228311384,
+      "closing_tendency": 0.3033012701892219,
+      "initiative_factor": 0.8360729163482757,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "54": {
+      "max_tokens": 527,
+      "response_delay_s": 5.7335494511425225,
+      "closing_tendency": 0.38363139720814415,
+      "initiative_factor": 0.6734097250603279,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "56": {
+      "max_tokens": 537,
+      "response_delay_s": 6.333549451142523,
+      "closing_tendency": 0.5276313972081441,
+      "initiative_factor": 0.6246953013168831,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "58": {
+      "max_tokens": 573,
+      "response_delay_s": 5.133549451142523,
+      "closing_tendency": 0.4196313972081442,
+      "initiative_factor": 0.6985863943180005,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "60": {
+      "max_tokens": 555,
+      "response_delay_s": 5.133549451142523,
+      "closing_tendency": 0.3476313972081442,
+      "initiative_factor": 0.6850162678821881,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "62": {
+      "max_tokens": 555,
+      "response_delay_s": 5.133549451142523,
+      "closing_tendency": 0.3476313972081442,
+      "initiative_factor": 0.6850162678821881,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "64": {
+      "max_tokens": 555,
+      "response_delay_s": 5.133549451142523,
+      "closing_tendency": 0.3476313972081442,
+      "initiative_factor": 0.6850162678821881,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "66": {
+      "max_tokens": 555,
+      "response_delay_s": 5.133549451142523,
+      "closing_tendency": 0.3476313972081442,
+      "initiative_factor": 0.6850162678821881,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "68": {
+      "max_tokens": 534,
+      "response_delay_s": 5.433549451142523,
+      "closing_tendency": 0.38363139720814415,
+      "initiative_factor": 0.660484824232518,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "70": {
+      "max_tokens": 539,
+      "response_delay_s": 5.133549451142523,
+      "closing_tendency": 0.38363139720814415,
+      "initiative_factor": 0.6884016249242632,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "72": {
+      "max_tokens": 539,
+      "response_delay_s": 5.7335494511425225,
+      "closing_tendency": 0.45563139720814416,
+      "initiative_factor": 0.654153423000914,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "74": {
+      "max_tokens": 561,
+      "response_delay_s": 5.133549451142523,
+      "closing_tendency": 0.38363139720814415,
+      "initiative_factor": 0.7113593857897925,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "76": {
+      "max_tokens": 536,
+      "response_delay_s": 6.933679121828035,
+      "closing_tendency": 0.5242102355330307,
+      "initiative_factor": 0.5940198588278195,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "78": {
+      "max_tokens": 543,
+      "response_delay_s": 6.333679121828036,
+      "closing_tendency": 0.5242102355330307,
+      "initiative_factor": 0.6305985941589732,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "80": {
+      "max_tokens": 544,
+      "response_delay_s": 6.6336791218280355,
+      "closing_tendency": 0.5602102355330306,
+      "initiative_factor": 0.6039475026552312,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "82": {
+      "max_tokens": 568,
+      "response_delay_s": 6.333679121828036,
+      "closing_tendency": 0.45221023553303064,
+      "initiative_factor": 0.6135143553115304,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "83": {
+      "max_tokens": 546,
+      "response_delay_s": 4.091896869421944,
+      "closing_tendency": 0.3241083925383968,
+      "initiative_factor": 0.7825807911868781,
+      "closing_guidance": "The companion may naturally invite continuation; leaving the door open is fine."
+    },
+    "85": {
+      "max_tokens": 565,
+      "response_delay_s": 6.333679121828036,
+      "closing_tendency": 0.41621023553303066,
+      "initiative_factor": 0.6837010107073295,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    }
+  },
+  "directives_by_message": {
+    "2": {
+      "initiative": 0.2607275866404783,
+      "energy": 0.23349364905389028,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.2533782217350893,
+      "reflectiveness": 0.6206121593216772,
+      "response_length_scale": 0.9752626655474119
+    },
+    "4": {
+      "initiative": 0.173525637579223,
+      "energy": 0.23349364905389028,
+      "valence": -0.4,
+      "playfulness": 0.12537822173508928,
+      "reflectiveness": 0.6526121593216773,
+      "response_length_scale": 0.8816142976949652
+    },
+    "6": {
+      "initiative": 0.24448303744271435,
+      "energy": 0.23349364905389028,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.2533782217350893,
+      "reflectiveness": 0.5726121593216772,
+      "response_length_scale": 0.9393668700983192
+    },
+    "8": {
+      "initiative": 0.1788995224064692,
+      "energy": 0.23349364905389028,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.14537822173508927,
+      "reflectiveness": 0.5886121593216773,
+      "response_length_scale": 0.8800380966628156
+    },
+    "10": {
+      "initiative": 0.2801517599105087,
+      "energy": 0.23349364905389028,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.3213782217350893,
+      "reflectiveness": 0.5726121593216772,
+      "response_length_scale": 0.9363053446311327
+    },
+    "12": {
+      "initiative": 0.36035646676334976,
+      "energy": 0.5525721420742506,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.32272019978079014,
+      "reflectiveness": 0.4161254716947548,
+      "response_length_scale": 0.8914970887759487
+    },
+    "14": {
+      "initiative": 0.5146740065298734,
+      "energy": 0.5525721420742506,
+      "valence": 1.0,
+      "playfulness": 0.6147201997807902,
+      "reflectiveness": 0.48812547169475473,
+      "response_length_scale": 0.9649712859867342
+    },
+    "16": {
+      "initiative": 0.5146740065298734,
+      "energy": 0.5525721420742506,
+      "valence": 1.0,
+      "playfulness": 0.6147201997807902,
+      "reflectiveness": 0.48812547169475473,
+      "response_length_scale": 0.9649712859867342
+    },
+    "18": {
+      "initiative": 0.5146740065298734,
+      "energy": 0.5525721420742506,
+      "valence": 1.0,
+      "playfulness": 0.6147201997807902,
+      "reflectiveness": 0.48812547169475473,
+      "response_length_scale": 0.9649712859867342
+    },
+    "20": {
+      "initiative": 0.5146740065298734,
+      "energy": 0.5525721420742506,
+      "valence": 1.0,
+      "playfulness": 0.6147201997807902,
+      "reflectiveness": 0.48812547169475473,
+      "response_length_scale": 0.9649712859867342
+    },
+    "22": {
+      "initiative": 0.5146740065298734,
+      "energy": 0.5525721420742506,
+      "valence": 1.0,
+      "playfulness": 0.6147201997807902,
+      "reflectiveness": 0.48812547169475473,
+      "response_length_scale": 0.9649712859867342
+    },
+    "24": {
+      "initiative": 0.5146740065298734,
+      "energy": 0.5525721420742506,
+      "valence": 1.0,
+      "playfulness": 0.6147201997807902,
+      "reflectiveness": 0.48812547169475473,
+      "response_length_scale": 0.9649712859867342
+    },
+    "26": {
+      "initiative": 0.378031066701262,
+      "energy": 0.5525721420742506,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.3507201997807902,
+      "reflectiveness": 0.46412547169475477,
+      "response_length_scale": 0.8757355527073373
+    },
+    "28": {
+      "initiative": 0.42419817105420615,
+      "energy": 0.5525721420742506,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4107201997807902,
+      "reflectiveness": 0.39212547169475476,
+      "response_length_scale": 0.8963285481746852
+    },
+    "30": {
+      "initiative": 0.4508524641072904,
+      "energy": 0.5525721420742506,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.4787201997807903,
+      "reflectiveness": 0.4161254716947548,
+      "response_length_scale": 0.9123152133483986
+    },
+    "32": {
+      "initiative": 0.34691925752817376,
+      "energy": 0.5525721420742506,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3027201997807901,
+      "reflectiveness": 0.44012547169475474,
+      "response_length_scale": 0.8809922921659845
+    },
+    "34": {
+      "initiative": 0.46525508850148306,
+      "energy": 0.5525721420742506,
+      "valence": 0.8,
+      "playfulness": 0.5467201997807902,
+      "reflectiveness": 0.46412547169475477,
+      "response_length_scale": 0.9444786481868764
+    },
+    "36": {
+      "initiative": 0.27114323990858313,
+      "energy": 0.5525721420742506,
+      "valence": 0.0,
+      "playfulness": 0.1947201997807902,
+      "reflectiveness": 0.48812547169475473,
+      "response_length_scale": 0.8651381416397158
+    },
+    "38": {
+      "initiative": 0.4188327732214901,
+      "energy": 0.5917468245269452,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4216891108675447,
+      "reflectiveness": 0.42680607966083867,
+      "response_length_scale": 0.9252681163804047
+    },
+    "40": {
+      "initiative": 0.4188327732214901,
+      "energy": 0.5917468245269452,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4216891108675447,
+      "reflectiveness": 0.42680607966083867,
+      "response_length_scale": 0.9252681163804047
+    },
+    "42": {
+      "initiative": 0.4188327732214901,
+      "energy": 0.5917468245269452,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4216891108675447,
+      "reflectiveness": 0.42680607966083867,
+      "response_length_scale": 0.9252681163804047
+    },
+    "44": {
+      "initiative": 0.4188327732214901,
+      "energy": 0.5917468245269452,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4216891108675447,
+      "reflectiveness": 0.42680607966083867,
+      "response_length_scale": 0.9252681163804047
+    },
+    "46": {
+      "initiative": 0.4188327732214901,
+      "energy": 0.5917468245269452,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4216891108675447,
+      "reflectiveness": 0.42680607966083867,
+      "response_length_scale": 0.9252681163804047
+    },
+    "48": {
+      "initiative": 0.31340593173191117,
+      "energy": 0.5917468245269452,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.22568911086754467,
+      "reflectiveness": 0.49080607966083867,
+      "response_length_scale": 0.8778369058263676
+    },
+    "50": {
+      "initiative": 0.4033990086529541,
+      "energy": 0.5917468245269452,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3536891108675446,
+      "reflectiveness": 0.42680607966083867,
+      "response_length_scale": 0.9248533946005436
+    },
+    "52": {
+      "initiative": 0.4104802754056842,
+      "energy": 0.5917468245269452,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3536891108675446,
+      "reflectiveness": 0.3788060796608387,
+      "response_length_scale": 0.8898539111419981
+    },
+    "54": {
+      "initiative": 0.30229933468479253,
+      "energy": 0.48092150697963965,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2146580219542991,
+      "reflectiveness": 0.5044866876269225,
+      "response_length_scale": 0.877715261291602
+    },
+    "56": {
+      "initiative": 0.26475436699289595,
+      "energy": 0.48092150697963965,
+      "valence": -1.0,
+      "playfulness": 0.17465802195429908,
+      "reflectiveness": 0.7124866876269226,
+      "response_length_scale": 0.8949677987337178
+    },
+    "58": {
+      "initiative": 0.32065178878054573,
+      "energy": 0.48092150697963965,
+      "valence": -0.4,
+      "playfulness": 0.2546580219542991,
+      "reflectiveness": 0.5684866876269226,
+      "response_length_scale": 0.9542993251845902
+    },
+    "60": {
+      "initiative": 0.31084365386560636,
+      "energy": 0.48092150697963965,
+      "valence": 0.0,
+      "playfulness": 0.2546580219542991,
+      "reflectiveness": 0.4644866876269225,
+      "response_length_scale": 0.9246989401476371
+    },
+    "62": {
+      "initiative": 0.31084365386560636,
+      "energy": 0.48092150697963965,
+      "valence": 0.0,
+      "playfulness": 0.2546580219542991,
+      "reflectiveness": 0.4644866876269225,
+      "response_length_scale": 0.9246989401476371
+    },
+    "64": {
+      "initiative": 0.31084365386560636,
+      "energy": 0.48092150697963965,
+      "valence": 0.0,
+      "playfulness": 0.2546580219542991,
+      "reflectiveness": 0.4644866876269225,
+      "response_length_scale": 0.9246989401476371
+    },
+    "66": {
+      "initiative": 0.31084365386560636,
+      "energy": 0.48092150697963965,
+      "valence": 0.0,
+      "playfulness": 0.2546580219542991,
+      "reflectiveness": 0.4644866876269225,
+      "response_length_scale": 0.9246989401476371
+    },
+    "68": {
+      "initiative": 0.2926094342676951,
+      "energy": 0.48092150697963965,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.23465802195429908,
+      "reflectiveness": 0.48048668762692254,
+      "response_length_scale": 0.8899032726896978
+    },
+    "70": {
+      "initiative": 0.31330857289431846,
+      "energy": 0.48092150697963965,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2546580219542991,
+      "reflectiveness": 0.4564866876269225,
+      "response_length_scale": 0.8984804876694171
+    },
+    "72": {
+      "initiative": 0.2877933183536189,
+      "energy": 0.48092150697963965,
+      "valence": -0.6,
+      "playfulness": 0.2146580219542991,
+      "reflectiveness": 0.5844866876269226,
+      "response_length_scale": 0.8988866681785553
+    },
+    "74": {
+      "initiative": 0.32971124418120923,
+      "energy": 0.48092150697963965,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2546580219542991,
+      "reflectiveness": 0.5044866876269225,
+      "response_length_scale": 0.9344673241435637
+    },
+    "76": {
+      "initiative": 0.23957873609586258,
+      "energy": 0.30947441116742347,
+      "valence": -0.6,
+      "playfulness": 0.16665283512687856,
+      "reflectiveness": 0.642778700203076,
+      "response_length_scale": 0.8934754299102098
+    },
+    "78": {
+      "initiative": 0.2694571193779275,
+      "energy": 0.30947441116742347,
+      "valence": -0.6,
+      "playfulness": 0.20665283512687857,
+      "reflectiveness": 0.594778700203076,
+      "response_length_scale": 0.9057996210640543
+    },
+    "80": {
+      "initiative": 0.24786599952076432,
+      "energy": 0.30947441116742347,
+      "valence": -0.8,
+      "playfulness": 0.18665283512687858,
+      "reflectiveness": 0.658778700203076,
+      "response_length_scale": 0.9073886719277379
+    },
+    "82": {
+      "initiative": 0.25572419196793755,
+      "energy": 0.30947441116742347,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.20665283512687857,
+      "reflectiveness": 0.586778700203076,
+      "response_length_scale": 0.9471173536493571
+    },
+    "83": {
+      "initiative": 0.3774209428128397,
+      "energy": 0.629729018654008,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.29632412522312224,
+      "reflectiveness": 0.40589213365763727,
+      "response_length_scale": 0.9098014729657186
+    },
+    "85": {
+      "initiative": 0.3098827121135931,
+      "energy": 0.30947441116742347,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.3426528351268786,
+      "reflectiveness": 0.546778700203076,
+      "response_length_scale": 0.9415801322589672
+    }
+  },
+  "arc_progress_by_day": {
+    "0": {
+      "arc_2": [
+        0.276,
+        "active"
+      ],
+      "arc_1": [
+        0.765,
+        "active"
+      ]
+    },
+    "1": {
+      "arc_2": [
+        0.299,
+        "active"
+      ],
+      "arc_1": [
+        0.811,
+        "active"
+      ]
+    },
+    "2": {
+      "arc_2": [
+        0.346,
+        "active"
+      ],
+      "arc_1": [
+        0.839,
+        "active"
+      ]
+    },
+    "3": {
+      "arc_2": [
+        0.389,
+        "active"
+      ],
+      "arc_1": [
+        0.859,
+        "active"
+      ]
+    },
+    "4": {
+      "arc_2": [
+        0.438,
+        "active"
+      ],
+      "arc_1": [
+        0.896,
+        "active"
+      ]
+    },
+    "5": {
+      "arc_2": [
+        0.453,
+        "active"
+      ],
+      "arc_1": [
+        0.923,
+        "active"
+      ]
+    },
+    "6": {
+      "arc_2": [
+        0.474,
+        "active"
+      ],
+      "arc_1": [
+        0.934,
+        "active"
+      ]
+    },
+    "7": {
+      "arc_2": [
+        0.507,
+        "active"
+      ],
+      "arc_1": [
+        0.945,
+        "active"
+      ]
+    },
+    "8": {
+      "arc_2": [
+        0.535,
+        "active"
+      ],
+      "arc_1": [
+        0.983,
+        "active"
+      ]
+    },
+    "9": {
+      "arc_2": [
+        0.555,
+        "active"
+      ],
+      "arc_1": [
+        0.995,
+        "active"
+      ]
+    },
+    "10": {
+      "arc_2": [
+        0.594,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "11": {
+      "arc_2": [
+        0.644,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "12": {
+      "arc_2": [
+        0.679,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "13": {
+      "arc_2": [
+        0.721,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "14": {
+      "arc_2": [
+        0.742,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "15": {
+      "arc_2": [
+        0.763,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "16": {
+      "arc_2": [
+        0.773,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "17": {
+      "arc_2": [
+        0.794,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "18": {
+      "arc_2": [
+        0.81,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "19": {
+      "arc_2": [
+        0.849,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "20": {
+      "arc_2": [
+        0.883,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "21": {
+      "arc_2": [
+        0.919,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "22": {
+      "arc_2": [
+        0.938,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "23": {
+      "arc_2": [
+        0.98,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "24": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "25": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "26": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "27": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "28": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "29": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "30": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    }
+  },
+  "sleeper_delays": [
+    6.865544456622768,
+    7.765544456622768,
+    6.865544456622768,
+    7.4655444566227676,
+    6.865544456622768,
+    4.931995005480245,
+    4.6319950054802455,
+    4.6319950054802455,
+    4.6319950054802455,
+    4.6319950054802455,
+    4.6319950054802455,
+    4.6319950054802455,
+    5.531995005480246,
+    4.6319950054802455,
+    4.6319950054802455,
+    5.231995005480245,
+    4.6319950054802455,
+    5.831995005480246,
+    4.357772228311384,
+    4.357772228311384,
+    4.357772228311384,
+    4.357772228311384,
+    4.357772228311384,
+    5.257772228311383,
+    4.357772228311384,
+    4.357772228311384,
+    5.7335494511425225,
+    6.333549451142523,
+    5.133549451142523,
+    5.133549451142523,
+    5.133549451142523,
+    5.133549451142523,
+    5.133549451142523,
+    5.433549451142523,
+    5.133549451142523,
+    5.7335494511425225,
+    5.133549451142523,
+    6.933679121828035,
+    6.333679121828036,
+    6.6336791218280355,
+    6.333679121828036,
+    4.091896869421944,
+    6.333679121828036
+  ],
+  "i4_violations": [
+    "intent pi_life_event_ag_3_r_00_81.998 pending past validity (valid_until=86.00 < now=168.00)",
+    "intent pi_life_event_ag_1_a_arc_1_58.740 pending past validity (valid_until=62.74 < now=168.00)",
+    "intent pi_life_event_ag_1_i_mathematics_36.803 pending past validity (valid_until=40.80 < now=168.00)",
+    "intent pi_life_event_ag_0_r_00_15.300 pending past validity (valid_until=19.30 < now=168.00)",
+    "schedule event 117.2326641762894 pending at now=168.00",
+    "schedule event 130.9720497446107 pending at now=168.00",
+    "schedule event 135.41831313348376 pending at now=168.00",
+    "schedule event 155.66853365245564 pending at now=168.00",
+    "intent pi_agenda_item_ag_10_i_literature_259.248 pending past validity (valid_until=262.25 < now=336.00)",
+    "intent pi_life_event_ag_9_i_food_253.467 pending past validity (valid_until=257.47 < now=336.00)",
+    "intent pi_life_event_ag_9_r_00_226.564 pending past validity (valid_until=230.56 < now=336.00)",
+    "intent pi_life_event_ag_7_a_arc_2_202.373 pending past validity (valid_until=206.37 < now=336.00)",
+    "intent pi_life_event_ag_7_a_arc_1_182.293 pending past validity (valid_until=186.29 < now=336.00)",
+    "intent pi_life_event_ag_6_r_00_155.669 pending past validity (valid_until=159.67 < now=336.00)",
+    "intent pi_life_event_ag_5_r_01_135.418 pending past validity (valid_until=139.42 < now=336.00)",
+    "intent pi_life_event_ag_4_a_arc_1_130.972 pending past validity (valid_until=134.97 < now=336.00)",
+    "intent pi_life_event_ag_4_a_arc_1_117.233 pending past validity (valid_until=121.23 < now=336.00)",
+    "intent pi_life_event_ag_3_r_00_81.998 pending past validity (valid_until=86.00 < now=336.00)",
+    "intent pi_life_event_ag_1_a_arc_1_58.740 pending past validity (valid_until=62.74 < now=336.00)",
+    "intent pi_life_event_ag_1_i_mathematics_36.803 pending past validity (valid_until=40.80 < now=336.00)",
+    "intent pi_life_event_ag_0_r_00_15.300 pending past validity (valid_until=19.30 < now=336.00)",
+    "schedule event 281.4195580423843 pending at now=336.00",
+    "schedule event 286.1290914789788 pending at now=336.00",
+    "schedule event 305.31387174949975 pending at now=336.00",
+    "schedule event 323.04439062027456 pending at now=336.00",
+    "schedule event 329.09931956600127 pending at now=336.00",
+    "schedule event 333.7829809829051 pending at now=336.00",
+    "intent pi_life_event_ag_15_r_00_378.847 pending past validity (valid_until=382.85 < now=504.00)",
+    "intent pi_life_event_ag_15_r_00_369.441 pending past validity (valid_until=373.44 < now=504.00)",
+    "intent pi_life_event_ag_14_a_arc_2_356.374 pending past validity (valid_until=360.37 < now=504.00)",
+    "intent pi_life_event_ag_13_r_00_344.624 pending past validity (valid_until=348.62 < now=504.00)",
+    "intent pi_life_event_ag_13_r_00_333.783 pending past validity (valid_until=337.78 < now=504.00)",
+    "intent pi_life_event_ag_13_r_00_329.099 pending past validity (valid_until=333.10 < now=504.00)",
+    "intent pi_life_event_ag_13_r_00_323.044 pending past validity (valid_until=327.04 < now=504.00)",
+    "intent pi_life_event_ag_12_i_literature_305.314 pending past validity (valid_until=309.31 < now=504.00)",
+    "intent pi_life_event_ag_11_i_food_286.129 pending past validity (valid_until=290.13 < now=504.00)",
+    "intent pi_life_event_ag_11_i_food_281.420 pending past validity (valid_until=285.42 < now=504.00)",
+    "intent pi_agenda_item_ag_10_i_literature_259.248 pending past validity (valid_until=262.25 < now=504.00)",
+    "intent pi_life_event_ag_9_i_food_253.467 pending past validity (valid_until=257.47 < now=504.00)",
+    "intent pi_life_event_ag_9_r_00_226.564 pending past validity (valid_until=230.56 < now=504.00)",
+    "intent pi_life_event_ag_7_a_arc_2_202.373 pending past validity (valid_until=206.37 < now=504.00)",
+    "intent pi_life_event_ag_7_a_arc_1_182.293 pending past validity (valid_until=186.29 < now=504.00)",
+    "intent pi_life_event_ag_6_r_00_155.669 pending past validity (valid_until=159.67 < now=504.00)",
+    "intent pi_life_event_ag_5_r_01_135.418 pending past validity (valid_until=139.42 < now=504.00)",
+    "intent pi_life_event_ag_4_a_arc_1_130.972 pending past validity (valid_until=134.97 < now=504.00)",
+    "intent pi_life_event_ag_4_a_arc_1_117.233 pending past validity (valid_until=121.23 < now=504.00)",
+    "intent pi_life_event_ag_3_r_00_81.998 pending past validity (valid_until=86.00 < now=504.00)",
+    "intent pi_life_event_ag_1_a_arc_1_58.740 pending past validity (valid_until=62.74 < now=504.00)",
+    "intent pi_life_event_ag_1_i_mathematics_36.803 pending past validity (valid_until=40.80 < now=504.00)",
+    "intent pi_life_event_ag_0_r_00_15.300 pending past validity (valid_until=19.30 < now=504.00)",
+    "schedule event 398.61353003147997 pending at now=504.00",
+    "schedule event 400.2450353011244 pending at now=504.00",
+    "schedule event 406.2357521437788 pending at now=504.00",
+    "schedule event 420.8418587505455 pending at now=504.00",
+    "schedule event 442.99666673871144 pending at now=504.00",
+    "schedule event 443.7212806171466 pending at now=504.00",
+    "schedule event 465.9285288806942 pending at now=504.00",
+    "schedule event 491.29640049079677 pending at now=504.00",
+    "schedule event 501.4730218850848 pending at now=504.00",
+    "intent pi_life_event_ag_22_i_literature_548.440 pending past validity (valid_until=552.44 < now=624.00)",
+    "intent pi_life_event_ag_22_r_00_538.202 pending past validity (valid_until=542.20 < now=624.00)",
+    "intent pi_life_event_ag_21_r_00_523.715 pending past validity (valid_until=527.72 < now=624.00)",
+    "intent pi_life_event_ag_20_i_baking_501.473 pending past validity (valid_until=505.47 < now=624.00)",
+    "intent pi_life_event_ag_20_r_00_491.296 pending past validity (valid_until=495.30 < now=624.00)",
+    "intent pi_life_event_ag_19_r_00_465.929 pending past validity (valid_until=469.93 < now=624.00)",
+    "intent pi_life_event_ag_18_r_00_443.721 pending past validity (valid_until=447.72 < now=624.00)",
+    "intent pi_life_event_ag_18_r_00_442.997 pending past validity (valid_until=447.00 < now=624.00)",
+    "intent pi_life_event_ag_17_r_00_420.842 pending past validity (valid_until=424.84 < now=624.00)",
+    "intent pi_life_event_ag_16_i_baking_406.236 pending past validity (valid_until=410.24 < now=624.00)",
+    "intent pi_life_event_ag_16_r_00_400.245 pending past validity (valid_until=404.25 < now=624.00)",
+    "intent pi_life_event_ag_16_r_00_398.614 pending past validity (valid_until=402.61 < now=624.00)",
+    "intent pi_life_event_ag_15_r_00_378.847 pending past validity (valid_until=382.85 < now=624.00)",
+    "intent pi_life_event_ag_15_r_00_369.441 pending past validity (valid_until=373.44 < now=624.00)",
+    "intent pi_life_event_ag_14_a_arc_2_356.374 pending past validity (valid_until=360.37 < now=624.00)",
+    "intent pi_life_event_ag_13_r_00_344.624 pending past validity (valid_until=348.62 < now=624.00)",
+    "intent pi_life_event_ag_13_r_00_333.783 pending past validity (valid_until=337.78 < now=624.00)",
+    "intent pi_life_event_ag_13_r_00_329.099 pending past validity (valid_until=333.10 < now=624.00)",
+    "intent pi_life_event_ag_13_r_00_323.044 pending past validity (valid_until=327.04 < now=624.00)",
+    "intent pi_life_event_ag_12_i_literature_305.314 pending past validity (valid_until=309.31 < now=624.00)",
+    "intent pi_life_event_ag_11_i_food_286.129 pending past validity (valid_until=290.13 < now=624.00)",
+    "intent pi_life_event_ag_11_i_food_281.420 pending past validity (valid_until=285.42 < now=624.00)",
+    "intent pi_agenda_item_ag_10_i_literature_259.248 pending past validity (valid_until=262.25 < now=624.00)",
+    "intent pi_life_event_ag_9_i_food_253.467 pending past validity (valid_until=257.47 < now=624.00)",
+    "intent pi_life_event_ag_9_r_00_226.564 pending past validity (valid_until=230.56 < now=624.00)",
+    "intent pi_life_event_ag_7_a_arc_2_202.373 pending past validity (valid_until=206.37 < now=624.00)",
+    "intent pi_life_event_ag_7_a_arc_1_182.293 pending past validity (valid_until=186.29 < now=624.00)",
+    "intent pi_life_event_ag_6_r_00_155.669 pending past validity (valid_until=159.67 < now=624.00)",
+    "intent pi_life_event_ag_5_r_01_135.418 pending past validity (valid_until=139.42 < now=624.00)",
+    "intent pi_life_event_ag_4_a_arc_1_130.972 pending past validity (valid_until=134.97 < now=624.00)",
+    "intent pi_life_event_ag_4_a_arc_1_117.233 pending past validity (valid_until=121.23 < now=624.00)",
+    "intent pi_life_event_ag_3_r_00_81.998 pending past validity (valid_until=86.00 < now=624.00)",
+    "intent pi_life_event_ag_1_a_arc_1_58.740 pending past validity (valid_until=62.74 < now=624.00)",
+    "intent pi_life_event_ag_1_i_mathematics_36.803 pending past validity (valid_until=40.80 < now=624.00)",
+    "intent pi_life_event_ag_0_r_00_15.300 pending past validity (valid_until=19.30 < now=624.00)",
+    "schedule event 567.4597919673354 pending at now=624.00",
+    "schedule event 588.3160793592931 pending at now=624.00",
+    "schedule event 592.0534588951986 pending at now=624.00",
+    "schedule event 618.8713231656372 pending at now=624.00",
+    "intent pi_life_event_ag_28_r_00_686.970 pending past validity (valid_until=690.97 < now=696.00)",
+    "intent pi_life_event_ag_27_i_mathematics_669.759 pending past validity (valid_until=673.76 < now=696.00)",
+    "intent pi_life_event_ag_26_r_00_642.288 pending past validity (valid_until=646.29 < now=696.00)",
+    "intent pi_life_event_ag_25_i_mathematics_618.871 pending past validity (valid_until=622.87 < now=696.00)",
+    "intent pi_life_event_ag_24_i_mathematics_592.053 pending past validity (valid_until=596.05 < now=696.00)",
+    "intent pi_life_event_ag_24_r_00_588.316 pending past validity (valid_until=592.32 < now=696.00)",
+    "intent pi_life_event_ag_23_r_00_567.460 pending past validity (valid_until=571.46 < now=696.00)",
+    "intent pi_life_event_ag_22_i_literature_548.440 pending past validity (valid_until=552.44 < now=696.00)",
+    "intent pi_life_event_ag_22_r_00_538.202 pending past validity (valid_until=542.20 < now=696.00)",
+    "intent pi_life_event_ag_21_r_00_523.715 pending past validity (valid_until=527.72 < now=696.00)",
+    "intent pi_life_event_ag_20_i_baking_501.473 pending past validity (valid_until=505.47 < now=696.00)",
+    "intent pi_life_event_ag_20_r_00_491.296 pending past validity (valid_until=495.30 < now=696.00)",
+    "intent pi_life_event_ag_19_r_00_465.929 pending past validity (valid_until=469.93 < now=696.00)",
+    "intent pi_life_event_ag_18_r_00_443.721 pending past validity (valid_until=447.72 < now=696.00)",
+    "intent pi_life_event_ag_18_r_00_442.997 pending past validity (valid_until=447.00 < now=696.00)",
+    "intent pi_life_event_ag_17_r_00_420.842 pending past validity (valid_until=424.84 < now=696.00)",
+    "intent pi_life_event_ag_16_i_baking_406.236 pending past validity (valid_until=410.24 < now=696.00)",
+    "intent pi_life_event_ag_16_r_00_400.245 pending past validity (valid_until=404.25 < now=696.00)",
+    "intent pi_life_event_ag_16_r_00_398.614 pending past validity (valid_until=402.61 < now=696.00)",
+    "intent pi_life_event_ag_15_r_00_378.847 pending past validity (valid_until=382.85 < now=696.00)",
+    "intent pi_life_event_ag_15_r_00_369.441 pending past validity (valid_until=373.44 < now=696.00)",
+    "intent pi_life_event_ag_14_a_arc_2_356.374 pending past validity (valid_until=360.37 < now=696.00)",
+    "intent pi_life_event_ag_13_r_00_344.624 pending past validity (valid_until=348.62 < now=696.00)",
+    "intent pi_life_event_ag_13_r_00_333.783 pending past validity (valid_until=337.78 < now=696.00)",
+    "intent pi_life_event_ag_13_r_00_329.099 pending past validity (valid_until=333.10 < now=696.00)",
+    "intent pi_life_event_ag_13_r_00_323.044 pending past validity (valid_until=327.04 < now=696.00)",
+    "intent pi_life_event_ag_12_i_literature_305.314 pending past validity (valid_until=309.31 < now=696.00)",
+    "intent pi_life_event_ag_11_i_food_286.129 pending past validity (valid_until=290.13 < now=696.00)",
+    "intent pi_life_event_ag_11_i_food_281.420 pending past validity (valid_until=285.42 < now=696.00)",
+    "intent pi_agenda_item_ag_10_i_literature_259.248 pending past validity (valid_until=262.25 < now=696.00)",
+    "intent pi_life_event_ag_9_i_food_253.467 pending past validity (valid_until=257.47 < now=696.00)",
+    "intent pi_life_event_ag_9_r_00_226.564 pending past validity (valid_until=230.56 < now=696.00)",
+    "intent pi_life_event_ag_7_a_arc_2_202.373 pending past validity (valid_until=206.37 < now=696.00)",
+    "intent pi_life_event_ag_7_a_arc_1_182.293 pending past validity (valid_until=186.29 < now=696.00)",
+    "intent pi_life_event_ag_6_r_00_155.669 pending past validity (valid_until=159.67 < now=696.00)",
+    "intent pi_life_event_ag_5_r_01_135.418 pending past validity (valid_until=139.42 < now=696.00)",
+    "intent pi_life_event_ag_4_a_arc_1_130.972 pending past validity (valid_until=134.97 < now=696.00)",
+    "intent pi_life_event_ag_4_a_arc_1_117.233 pending past validity (valid_until=121.23 < now=696.00)",
+    "intent pi_life_event_ag_3_r_00_81.998 pending past validity (valid_until=86.00 < now=696.00)",
+    "intent pi_life_event_ag_1_a_arc_1_58.740 pending past validity (valid_until=62.74 < now=696.00)",
+    "intent pi_life_event_ag_1_i_mathematics_36.803 pending past validity (valid_until=40.80 < now=696.00)",
+    "intent pi_life_event_ag_0_r_00_15.300 pending past validity (valid_until=19.30 < now=696.00)",
+    "intent pi_life_event_ag_29_r_00_706.409 pending past validity (valid_until=710.41 < now=720.00)",
+    "intent pi_life_event_ag_28_r_00_686.970 pending past validity (valid_until=690.97 < now=720.00)",
+    "intent pi_life_event_ag_27_i_mathematics_669.759 pending past validity (valid_until=673.76 < now=720.00)",
+    "intent pi_life_event_ag_26_r_00_642.288 pending past validity (valid_until=646.29 < now=720.00)",
+    "intent pi_life_event_ag_25_i_mathematics_618.871 pending past validity (valid_until=622.87 < now=720.00)",
+    "intent pi_life_event_ag_24_i_mathematics_592.053 pending past validity (valid_until=596.05 < now=720.00)",
+    "intent pi_life_event_ag_24_r_00_588.316 pending past validity (valid_until=592.32 < now=720.00)",
+    "intent pi_life_event_ag_23_r_00_567.460 pending past validity (valid_until=571.46 < now=720.00)",
+    "intent pi_life_event_ag_22_i_literature_548.440 pending past validity (valid_until=552.44 < now=720.00)",
+    "intent pi_life_event_ag_22_r_00_538.202 pending past validity (valid_until=542.20 < now=720.00)",
+    "intent pi_life_event_ag_21_r_00_523.715 pending past validity (valid_until=527.72 < now=720.00)",
+    "intent pi_life_event_ag_20_i_baking_501.473 pending past validity (valid_until=505.47 < now=720.00)",
+    "intent pi_life_event_ag_20_r_00_491.296 pending past validity (valid_until=495.30 < now=720.00)",
+    "intent pi_life_event_ag_19_r_00_465.929 pending past validity (valid_until=469.93 < now=720.00)",
+    "intent pi_life_event_ag_18_r_00_443.721 pending past validity (valid_until=447.72 < now=720.00)",
+    "intent pi_life_event_ag_18_r_00_442.997 pending past validity (valid_until=447.00 < now=720.00)",
+    "intent pi_life_event_ag_17_r_00_420.842 pending past validity (valid_until=424.84 < now=720.00)",
+    "intent pi_life_event_ag_16_i_baking_406.236 pending past validity (valid_until=410.24 < now=720.00)",
+    "intent pi_life_event_ag_16_r_00_400.245 pending past validity (valid_until=404.25 < now=720.00)",
+    "intent pi_life_event_ag_16_r_00_398.614 pending past validity (valid_until=402.61 < now=720.00)",
+    "intent pi_life_event_ag_15_r_00_378.847 pending past validity (valid_until=382.85 < now=720.00)",
+    "intent pi_life_event_ag_15_r_00_369.441 pending past validity (valid_until=373.44 < now=720.00)",
+    "intent pi_life_event_ag_14_a_arc_2_356.374 pending past validity (valid_until=360.37 < now=720.00)",
+    "intent pi_life_event_ag_13_r_00_344.624 pending past validity (valid_until=348.62 < now=720.00)",
+    "intent pi_life_event_ag_13_r_00_333.783 pending past validity (valid_until=337.78 < now=720.00)",
+    "intent pi_life_event_ag_13_r_00_329.099 pending past validity (valid_until=333.10 < now=720.00)",
+    "intent pi_life_event_ag_13_r_00_323.044 pending past validity (valid_until=327.04 < now=720.00)",
+    "intent pi_life_event_ag_12_i_literature_305.314 pending past validity (valid_until=309.31 < now=720.00)",
+    "intent pi_life_event_ag_11_i_food_286.129 pending past validity (valid_until=290.13 < now=720.00)",
+    "intent pi_life_event_ag_11_i_food_281.420 pending past validity (valid_until=285.42 < now=720.00)",
+    "intent pi_agenda_item_ag_10_i_literature_259.248 pending past validity (valid_until=262.25 < now=720.00)",
+    "intent pi_life_event_ag_9_i_food_253.467 pending past validity (valid_until=257.47 < now=720.00)",
+    "intent pi_life_event_ag_9_r_00_226.564 pending past validity (valid_until=230.56 < now=720.00)",
+    "intent pi_life_event_ag_7_a_arc_2_202.373 pending past validity (valid_until=206.37 < now=720.00)",
+    "intent pi_life_event_ag_7_a_arc_1_182.293 pending past validity (valid_until=186.29 < now=720.00)",
+    "intent pi_life_event_ag_6_r_00_155.669 pending past validity (valid_until=159.67 < now=720.00)",
+    "intent pi_life_event_ag_5_r_01_135.418 pending past validity (valid_until=139.42 < now=720.00)",
+    "intent pi_life_event_ag_4_a_arc_1_130.972 pending past validity (valid_until=134.97 < now=720.00)",
+    "intent pi_life_event_ag_4_a_arc_1_117.233 pending past validity (valid_until=121.23 < now=720.00)",
+    "intent pi_life_event_ag_3_r_00_81.998 pending past validity (valid_until=86.00 < now=720.00)",
+    "intent pi_life_event_ag_1_a_arc_1_58.740 pending past validity (valid_until=62.74 < now=720.00)",
+    "intent pi_life_event_ag_1_i_mathematics_36.803 pending past validity (valid_until=40.80 < now=720.00)",
+    "intent pi_life_event_ag_0_r_00_15.300 pending past validity (valid_until=19.30 < now=720.00)"
+  ],
+  "restart_loss": [
+    {
+      "checkpoint_h": 168.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 336.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 504.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 624.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 696.0,
+      "diffs": 0
+    }
+  ],
+  "model": "fake"
+}
