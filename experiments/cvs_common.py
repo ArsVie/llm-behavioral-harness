@@ -589,9 +589,15 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
     equivocado o contra un executor apagado (crash del prototipo E0). Los
     feeds omitidos se devuelven para la auditoría (nunca un hang).
 
-    :returns: lista de (t_h, texto) omitidos porque el runtime terminó antes
-        de poder procesarlos.
+    Un runtime que TERMINA CON EXCEPCIÓN (p.ej. cliente sin clave: probe G6)
+    se propaga SIEMPRE — una celda hueca (0 mensajes, exit 0) es el peor
+    modo de fallo; falla fuerte y deja el log.
     """
+
+    def _raise_if_failed(t) -> None:
+        if t.done() and t.exception() is not None:
+            raise t.exception()
+
     from harness.channels.base import FakeChannel
 
     assert isinstance(runtime.channel, FakeChannel), "cell channel must be FakeChannel"
@@ -606,6 +612,7 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
         target_day = int(t_h // 24.0)
         while session.clock.day() < target_day:
             if task.done():
+                _raise_if_failed(task)
                 # El runtime terminó: NINGÚN feed restante de este segmento
                 # se entregará. Registrar TODOS los que aún pertenecen al
                 # segmento (antes se devolvía sin apuntar nada y la
@@ -625,6 +632,7 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
                 break
             await asyncio.sleep(0.001)
         if task.done():
+            _raise_if_failed(task)
             # El runtime terminó antes de poder entregar este mensaje.
             skipped.append((t_h, text))
             continue

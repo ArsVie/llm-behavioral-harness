@@ -89,6 +89,14 @@ def _load_env() -> None:
         value = value.strip().strip('"').strip("'")
         if key and key not in os.environ:
             os.environ[key] = value
+    # Mapeo OPENCODE_GO_* -> LLM_*: client.py lee LLM_API_KEY/LLM_BASE_URL,
+    # pero el archivo de Hermes guarda la clave como OPENCODE_GO_API_KEY
+    # (probe G6: runtime moría en el primer call con bearer vacío y todos
+    # los feeds se omitían en silencio). Nunca pisa valores ya presentes.
+    if "LLM_API_KEY" not in os.environ and os.environ.get("OPENCODE_GO_API_KEY"):
+        os.environ["LLM_API_KEY"] = os.environ["OPENCODE_GO_API_KEY"]
+    if "LLM_BASE_URL" not in os.environ and os.environ.get("OPENCODE_GO_BASE_URL"):
+        os.environ["LLM_BASE_URL"] = os.environ["OPENCODE_GO_BASE_URL"]
 
 
 def _require_key(env_key: str) -> None:
@@ -459,6 +467,11 @@ def cmd_vertical(args) -> int:
         if args.checkpoints
         else DEFAULT_CHECKPOINT_DAYS
     )
+    if not fake:
+        # Carga ~/.hermes/.env y mapea OPENCODE_GO_* -> LLM_* (probe G6:
+        # sin esto el cliente veía bearer vacío, el runtime moría en el
+        # primer chat y la celda "completaba" hueca con 0 mensajes).
+        _require_key("OPENCODE_GO_API_KEY")
 
     # 1. Preregistro ANTES de generar (Gate 4).
     manifest = write_manifest(out_dir / "manifest.json", repo_root=REPO_ROOT)
