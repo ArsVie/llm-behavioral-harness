@@ -5,18 +5,62 @@ import json
 import numpy as np
 
 from engine.types import PersonaParams, TimingParams
-from harness.domain import EpisodicMemory, MemoryKind
+from harness.domain import AgendaItem, EpisodicMemory, MemoryKind, ProactiveIntent
 
 from experiments import cvs_common
 from experiments.cvs_common import (
     DeterministicClient,
     DeterministicJudge,
     MockJudgeClient,
+    _source_superseded_at,
     classify_chain,
     parse_ratings,
     shuffled_order,
     user_script,
 )
+
+
+def _intent(created: float) -> ProactiveIntent:
+    return ProactiveIntent(
+        id=f"pi_t{created:.3f}",
+        reason="schedule",
+        source_type="agenda_item",
+        source_id="ag_x",
+        hook="X",
+        created_t_h=created,
+        valid_until_t_h=created + 4.0,
+        salience=1.0,
+        evidence="status=planned",
+    )
+
+
+def _skipped_item(start: float, end: float, status: str = "skipped") -> AgendaItem:
+    return AgendaItem(
+        id="ag_x",
+        start_t_h=start,
+        end_t_h=end,
+        activity="night reading",
+        source_type="routine",
+        source_id="night reading",
+        salience=1.0,
+        status=status,
+    )
+
+
+def test_source_superseded_agenda_item_touctou_clamp():
+    """Gate 2 finding: the naive ``end_t_h >= created_t_h`` predicate
+    flagged IN-SLOT fires as superseded. Skips are written at day
+    close-out ((day+1)*24, day 0-indexed), so an intent created before
+    that boundary referenced a still-``planned`` item (resolver evidence
+    pi_agenda_item_ag_16_r_00_406.117 / pi_agenda_item_ag_29_r_02_716.563).
+    """
+    item = _skipped_item(405.6, 406.6)  # day 16 (0-idx), close-out 408.0
+    assert not _source_superseded_at(None, item, _intent(406.117))  # mid-slot
+    assert not _source_superseded_at(None, item, _intent(407.0))  # pre-close-out
+    assert _source_superseded_at(None, item, _intent(408.0))  # skip already written
+    assert _source_superseded_at(None, item, _intent(720.0))  # long after
+    planned = _skipped_item(405.6, 406.6, "planned")
+    assert not _source_superseded_at(None, planned, _intent(720.0))
 
 
 def _episode(ep_id: str, text: str) -> EpisodicMemory:

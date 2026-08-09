@@ -949,7 +949,7 @@ def _episode_text(ep) -> str:
     return " ".join(str(p) for p in parts).lower()
 
 
-def _source_superseded_at(store: SQLiteStore, src, intent: ProactiveIntent) -> bool:
+def _source_superseded_at(store: SQLiteStore | None, src, intent: ProactiveIntent) -> bool:
     """¿La fuente ya estaba superseded al CREAR el intent? (clamp TOCTOU).
 
     El veredicto naíf comparaba el estado FINAL del run (``status ==
@@ -977,10 +977,18 @@ def _source_superseded_at(store: SQLiteStore, src, intent: ProactiveIntent) -> b
     if isinstance(src, AgendaItem):
         if src.status != "skipped":
             return False
-        return src.end_t_h >= intent.created_t_h
+        # El skip se escribe en el cierre del día — ((day+1)*24.0, day
+        # 0-indexado = floor(t/24)). Un intent creado ANTES de ese cierre
+        # referenció un item aún `planned` (evidencia del resolver:
+        # pi_agenda_item_ag_16_r_00_406.117 / pi_agenda_item_ag_29_r_02_716.563
+        # muestran status=planned en created; el skip llegó al cierre).
+        # El predicado naíf `end_t_h >= created_t_h` marcaba disparos
+        # IN-SLOT como superseded — falso positivo TOCTOU (Gate 2, 4/5 seeds).
+        return intent.created_t_h >= (int(src.start_t_h // 24.0) + 1) * 24.0
     if isinstance(src, LifeArc):
         if src.status != "abandoned":
             return False
+        assert store is not None  # LifeArc branch needs the real store
         row = store.conn.execute(
             "SELECT MAX(end_t_h) FROM agenda_items "
             "WHERE source_type='arc' AND source_id=?",
