@@ -2,6 +2,18 @@
 
 Status: ORCHESTRATOR PAUSED at user request (subagent iteration cap being raised). All work below is verifiable from git; nothing is hypothetical.
 
+## 0b. WAVE-3 COMPLETE (2026-08-09, resumed session — READ FIRST)
+
+Both Wave-3 tracks LANDED and merged in plan order. Main now at `aa3c01c` — full suite **796 green** (verified post-m10; 750 after m9 = 658 base + 92 A9, since the base 707 already included the 49 superseded vslice adversarial tests).
+
+- **m9 = A9 adversarial battery + R1-F1 fix** (merge 6aa1a7f, commits c40fbc7 + 027163f): 92-test battery (bootstrap/interests/proactivity/runtime/prompt + rewritten restart/grounding/memory/life/actuators), 91 green at commit + 1 finding test red BY DESIGN. R1-F1 (quiet-hours deferral LIVELOCK, invariants 3/17) FIXED by the A3 owner-fix branch: `_firing_loop` advances the virtual clock to the deferral target INSIDE the lock when `now - nxt < 1e-9` (rollover-parked on-schedule case), re-evaluates at the awake instant and fires; overdue-in-quiet restarts (now > nxt) keep sleep-only pacing (R-10 semantics preserved). `_quiet_defer_until` clamps to max_virtual_hours (line 537-538). Finding test 10/10, battery 92/92, full suite 750 green, no hang.
+- **m10 = A8 eval harness** (merge aa3c01c, commit 8042cb9): experiments/{companion_vertical_slice,cvs_common,cvs_manifest,validation/} + tests/test_cvs_* (4237 lines). Mock vertical VALIDATED: seed 5001, 30d, 111 msgs, 27 proactive = 27 fired, checkpoints 7/14/21/26/29, ungrounded_proactive 0, counts_consistent true, OKF validated. **A8-continuation chain capped twice** (deleg_dd003484, then deleg_6a224250 finished): T1 replay fix (run_replay now reconstructs the recorded cell config — checkpoints stored in HOURS were read back as days; hours→days reconversion is the real replay-exactness fix) + chain-event texts rewritten to match the deterministic extractor; T2 root cause = **AUDIT ARTIFACT, not harness bug** (agenda item was `planned` at fire time 205.21h, skipped afterward by life close-out; audit re-checked supersession at end-of-run → TOCTOU; clamp: only flag superseded when `src.end_t_h < intent.created_t_h` is FALSE, same for LifeArc abandoned) + counts_consistent off-by-one fixed.
+- A9 gate fixes by the orchestrator (test-design, no invariants weakened): DayRecord imported from engine.types (not harness.domain) + field alignment; episode fixtures register their source session (g8b) in v1a/r1b/r10; missing `import pytest` in test_adversarial_memory.py. **Lesson: episode fixtures that expect a DELIVERY must register the source session (open_session+close_session) or the gate rejects with no_source — same class as the 39fb086 fixture fix.**
+- Worktrees removed: llh-wt-it2-a9, llh-wt-it2-a3-r1f1, llh-wt-it2-a8. Branches kept (wip/it2-a9, wip/it2-a3-r1f1, wip/it2-a8). `iteration-2-integration` synced to main.
+- R1-F1 fix details + code anchors: brief /tmp/llh-vslice/it2-a3-r1f1.md (may be cleaned); runtime.py `_firing_loop` ~line 382-405.
+
+**NEXT: Gates 2→6** (clean-start vertical → 120-day soak → preregistration manifest → E0 review → confirmatory real-LLM matrix as background processes + 5 causal traces, per plan §13/§17 and the A8 manifest command).
+
 ## 0. WAVE-3 BATCH COMPLETED AFTER PAUSE (deleg_d33773f8, both agents capped UNCOMMITTED — READ THIS FIRST)
 Both Wave-3 agents hit the iteration cap BEFORE committing. Working-tree state is on disk — do not clean worktrees without committing first.
 
