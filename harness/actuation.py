@@ -40,17 +40,22 @@ def _clamp(value: float, low: float, high: float) -> float:
 def _closing_guidance(closing_tendency: float) -> str:
     """Continuation policy that makes closing tendency observable.
 
-    A high closing tendency means the companion is settled and winding down:
-    the reply should end cleanly without manufacturing a question. A low
-    closing tendency means the companion is still open: leaving the door open
-    is natural. The middle band leaves the choice to the moment.
+    Five bands across the widened [0.04, 0.85] range (B4): a very low
+    closing tendency invites continuation, a very high one asks for a
+    settled ending, and the middle bands leave the choice to the moment.
+    The 0.40–0.60 band is the flat-controls string, so NO_ACTUATORS pins a
+    real band of the mapping instead of a value no directive can produce.
     """
 
-    if closing_tendency < 0.35:
+    if closing_tendency < 0.20:
         return "The companion may naturally invite continuation; leaving the door open is fine."
-    if closing_tendency > 0.60:
-        return "Do not force a follow-up question; a settled ending is welcome."
-    return "End the reply naturally, without forcing either a question or a closing."
+    if closing_tendency < 0.40:
+        return "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    if closing_tendency < 0.60:
+        return "End the reply naturally, without forcing either a question or a closing."
+    if closing_tendency < 0.80:
+        return "A settled ending is welcome; do not manufacture extra turns."
+    return "Do not force a follow-up question; a settled ending is welcome."
 
 
 def controls_from_directive(
@@ -63,14 +68,21 @@ def controls_from_directive(
 ) -> domain.GenerationControls:
     """Derive mechanical generation controls from a behavioral directive.
 
-    Mapping (deterministic, documented):
+    Mapping (deterministic, documented — B4 widened ranges):
     * ``max_tokens`` = clamp(round(base_max_tokens * response_length_scale),
-      min_tokens, max_tokens) — expressiveness and reflectiveness scale the
-      reply budget; ``closing_tendency`` is not part of the budget so that
-      closing stays a policy, not a length artifact.
-    * ``response_delay_s`` = directive.response_delay_s clamped to [0, 60].
-    * ``closing_tendency`` passes through unchanged; ``closing_guidance`` is
-      the prompt-level continuation policy derived from it.
+      min_tokens, max_tokens). ``response_length_scale`` now spans
+      [0.22, 1.30] — coupled to energy and expressiveness, so a terse
+      low-energy day realizes roughly 130–350 tokens and an expansive
+      high-energy day 600–780 (F4: ±6% around 551). ``closing_tendency`` is
+      not part of the budget so that closing stays a policy, not a length
+      artifact.
+    * ``response_delay_s`` = directive.response_delay_s clamped to [0, 60];
+      the directive channel now spans ~0.8 s (high energy) to ~44 s
+      (low energy, recent dip) — real inter-turn latency inside a
+      conversation.
+    * ``closing_tendency`` passes through unchanged; it now spans
+      [0.04, 0.85]. ``closing_guidance`` is the prompt-level continuation
+      policy derived from it, with five distinct bands.
     * ``initiative_factor`` = exp(beta * (initiative - 0.5)) clamped to
       [0.2, 5.0] — the mechanical multiplier that enters scheduling.
     """

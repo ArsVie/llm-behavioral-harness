@@ -94,3 +94,57 @@ def test_prompt_brief_shows_state_without_exposing_numbers_or_hormones() -> None
     assert not any(character.isdigit() for character in brief)
     assert "show it through" in brief
 
+
+# --------------------------------------------------------------------------- #
+# B4 (F4): widened actuator amplitude — extreme days are visibly different
+# --------------------------------------------------------------------------- #
+
+
+def _extreme_records() -> tuple[tuple[DayRecord, DayRecord], tuple[DayRecord, DayRecord]]:
+    """Fixed extreme states: a low-energy night (menstrual, 02:00, mood 1
+    after a mood-8 day) vs a high-energy afternoon (ovulatory, 14:00, mood 10
+    after a mood-3 day). Deterministic: same seed, no RNG consumed."""
+    low = _record(t=0, mood=1, phase="menstrual")
+    low_previous = _record(t=-1, mood=8, phase="menstrual")
+    high = _record(t=0, mood=10, phase="ovulatory")
+    high_previous = _record(t=-1, mood=3, phase="ovulatory")
+    return (low, low_previous), (high, high_previous)
+
+
+def test_length_scale_spans_terse_to_expansive() -> None:
+    """B4: the length channel now realizes a terse low-energy night vs an
+    expansive high-energy afternoon. F4 measured scale 0.875–0.997 (budget
+    ±6%); the widened coupling must put the low extreme at <= 0.40
+    (~240 tokens) and the high extreme at >= 1.10 (~660 tokens)."""
+    (low, low_prev), (high, high_prev) = _extreme_records()
+    low_dir = derive_behavior(low, TimingParams(), hour=2.0, previous=low_prev)
+    high_dir = derive_behavior(high, TimingParams(), hour=14.0, previous=high_prev)
+
+    assert low_dir.response_length_scale <= 0.40
+    assert high_dir.response_length_scale >= 1.10
+    assert low_dir.response_length_scale < high_dir.response_length_scale
+
+
+def test_delay_channel_is_perceptible_inter_turn_latency() -> None:
+    """B4: delay maps to real inter-turn latency. F4 measured 3.27–5.80 s
+    (imperceptible); the low-energy night must reach >= 30 s while the
+    high-energy afternoon stays <= 10 s."""
+    (low, low_prev), (high, high_prev) = _extreme_records()
+    low_dir = derive_behavior(low, TimingParams(), hour=2.0, previous=low_prev)
+    high_dir = derive_behavior(high, TimingParams(), hour=14.0, previous=high_prev)
+
+    assert low_dir.response_delay_s >= 30.0
+    assert high_dir.response_delay_s <= 10.0
+
+
+def test_closing_tendency_reaches_low_and_high_targets() -> None:
+    """B4: a low-energy day reaches closing tendency ~0.8 (settled, winding
+    down) and a high-energy day drops to ~0.2 (still open). F4 measured
+    0.24–0.48 — the mechanical turn-count driver B2 consumes."""
+    (low, low_prev), (high, high_prev) = _extreme_records()
+    low_dir = derive_behavior(low, TimingParams(), hour=2.0, previous=low_prev)
+    high_dir = derive_behavior(high, TimingParams(), hour=14.0, previous=high_prev)
+
+    assert low_dir.closing_tendency >= 0.80
+    assert high_dir.closing_tendency <= 0.25
+
