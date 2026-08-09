@@ -1,10 +1,13 @@
-"""Grounded proactive intent resolution (A7).
+"""Grounded proactive intent resolution (A7; it2 A3).
 
 Separates the CONTACT OPPORTUNITY (when the Weibull process says "she feels
-like contacting around now") from the CONTACT REASON (why). At opportunity
+like contacting around now") from the CONTACT REASON (why). At OPPORTUNITY
 time the runtime asks :class:`IntentResolver` for a grounded
-:class:`ProactiveIntent`; no grounded candidate ⇒ ``None`` ⇒ the runtime
-SUPPRESSES the event (``no_grounded_reason`` is a legitimate outcome).
+:class:`ProactiveIntent` — ``resolve(opportunity)`` resolves against the
+opportunity's desired time, links the intent back via ``opportunity_id``,
+and bounds the intent's validity by the opportunity's own window; no
+grounded candidate ⇒ ``None`` ⇒ the runtime SUPPRESSES the event
+(``no_grounded_reason`` is a legitimate outcome, never an error).
 
 Candidates are STORE-BACKED ONLY — no imports from life.py/memory.py: the
 store seam provides every source (agenda items, completed agenda items as
@@ -27,6 +30,7 @@ import numpy as np
 import engine.rng as rng_mod
 from harness.domain import (
     AgendaItem,
+    ContactOpportunity,
     EpisodicMemory,
     LifeArc,
     MemoryKind,
@@ -148,14 +152,29 @@ class IntentResolver:
     # public API
     # ------------------------------------------------------------------ #
 
-    def resolve(self, opportunity_t_h: float) -> ProactiveIntent | None:
-        """Best grounded intent at ``opportunity_t_h``, or None (SUPPRESS:
-        no_grounded_reason). Read-only: the runtime persists the intent."""
-        candidates = self._candidates(opportunity_t_h)
+    def resolve(
+        self, opportunity: ContactOpportunity | float
+    ) -> ProactiveIntent | None:
+        """Best grounded intent AT the opportunity's time, or None (SUPPRESS:
+        no_grounded_reason — a legitimate outcome, never an error).
+
+        ``opportunity`` is the scheduler's :class:`ContactOpportunity` (the
+        intent links back via ``opportunity_id`` and its validity is bounded
+        by the opportunity's own window); a bare float is accepted for
+        legacy callers / store-injected rows without an opportunity.
+        Read-only: the runtime persists the intent.
+        """
+        if isinstance(opportunity, ContactOpportunity):
+            t_h = opportunity.desired_t_h
+            opp = opportunity
+        else:
+            t_h = float(opportunity)
+            opp = None
+        candidates = self._candidates(t_h)
         if not candidates:
             return None
         best = self._rank(candidates)
-        return self._build_intent(best, opportunity_t_h)
+        return self._build_intent(best, t_h, opportunity=opp)
 
     # ------------------------------------------------------------------ #
     # candidate collection (store-backed only)
@@ -276,7 +295,13 @@ class IntentResolver:
             REASON_CHECK_IN: SOURCE_CHECK_IN,
         }[reason]
 
-    def _build_intent(self, candidate: _Candidate, now_h: float) -> ProactiveIntent:
+    def _build_intent(
+        self,
+        candidate: _Candidate,
+        now_h: float,
+        *,
+        opportunity: ContactOpportunity | None = None,
+    ) -> ProactiveIntent:
         source = candidate.source
         reason = candidate.reason
         source_type = self._source_kind(reason)
@@ -287,6 +312,13 @@ class IntentResolver:
             extra = f"local={now_h % 24.0:.2f}h last_interaction={last} gap_h={gap}"
         else:
             extra = ""
+        # The intent is valid while BOTH the reason is fresh AND the
+        # opportunity that made this a plausible moment is still plausible
+        # (the opportunity's window is the scheduler's claim; the reason's
+        # window is the source's claim — the intent expires at the earlier).
+        valid_until = now_h + REASON_VALIDITY_H[reason]
+        if opportunity is not None:
+            valid_until = min(valid_until, opportunity.valid_until_t_h)
         return ProactiveIntent(
             id=f"pi_{source_type}_{source_id}_{now_h:.3f}",
             reason=reason,
@@ -294,7 +326,8 @@ class IntentResolver:
             source_id=source_id,
             hook=compose_hook(source, reason),
             created_t_h=now_h,
-            valid_until_t_h=now_h + REASON_VALIDITY_H[reason],
+            valid_until_t_h=valid_until,
             salience=float(candidate.score()),
             evidence=_evidence(source, now_h, extra=extra),
+            opportunity_id=opportunity.id if opportunity is not None else None,
         )

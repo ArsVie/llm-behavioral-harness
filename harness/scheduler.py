@@ -1,4 +1,10 @@
-"""Proactive scheduler — plan + fire spontaneous messages (W-E2, A7).
+"""Proactive scheduler — plan + fire spontaneous messages (W-E2, A7; it2 A3).
+
+The scheduler answers ONLY "should she consider contacting the user now?" —
+each planned event hour becomes a :class:`ContactOpportunity` (NO semantic
+reason; invariant 3). Semantic motivation is resolved afterward, at
+opportunity time, by the runtime's IntentResolver into a grounded
+:class:`ProactiveIntent` (invariant 4).
 
 Reuses the PROVEN composition from sim/run_events (envelope × phase × adj,
 Weibull hazard + thinning, queue guards) instead of reimplementing the
@@ -38,13 +44,15 @@ each overdue event — still valid ⇒ fire, past its validity window ⇒ expire
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 
 import sim.run_events as run_events
+from engine.circadian import envelope
 from engine.types import ADJ_SLOPE, DayRecord, PersonaParams, TimingParams
 from harness.behavior import derive_behavior
+from harness.domain import ContactOpportunity
 
 #: A(s) — the previous-day score adjustment (monotone, bounded; engine-validated).
 adj_from_score = run_events.adj_from_score
@@ -72,6 +80,101 @@ REASON_VALIDITY_H = {
     REASON_SCHEDULE: 3.0, REASON_CALLBACK: 6.0, REASON_EVENT: 4.0,
     REASON_SHARED_INTEREST: 12.0, REASON_CHECK_IN: 12.0,
 }
+
+#: How long a ContactOpportunity stays plausible (hours after desired_t_h).
+#: The scheduler answers ONLY "should she consider contacting now?"; this is
+#: the window in which that answer stays yes. The later semantic resolution
+#: (IntentResolver) further bounds the intent by the reason's own validity.
+OPPORTUNITY_VALIDITY_H = 3.0
+
+#: Idempotent opportunity id for a planned event hour (re-plans regenerate
+#: the same hours, hence the same ids — INSERT OR IGNORE stays clean).
+OPPORTUNITY_ID_FMT = "opp_{t_h:.3f}"
+
+
+def build_opportunity(
+    t_h: float,
+    *,
+    day: int,
+    phase_label: str,
+    timing: TimingParams,
+    previous_score: float | None,
+    initiative: float,
+) -> ContactOpportunity:
+    """A ContactOpportunity for a planned event hour — and NOTHING more.
+
+    The Weibull/hazard process says "a plausible time to consider initiating
+    contact"; there is deliberately NO semantic reason on the opportunity
+    (invariant 3 — semantic motivation is resolved later, at opportunity
+    time, into a grounded ProactiveIntent). ``hazard_components`` reports
+    the multiplicative factors of the frozen modulator composition
+    (envelope × phase × A(score_{d-1}) × I(day)) at ``t_h`` for auditability;
+    ``base`` is 1.0 because the Weibull baseline h0(τ) lives inside
+    engine.timing.next_event (engine frozen — not separately recoverable).
+    """
+    init_mult = initiative_factor(initiative)
+    score_mult = adj_from_score(previous_score, timing)
+    components = {
+        "base": 1.0,
+        "circadian": float(envelope(t_h % 24.0, timing)),
+        "phase": float(timing.phase_multipliers[phase_label]),
+        "initiative": float(init_mult),
+        "prior_score": float(score_mult),
+    }
+    return ContactOpportunity(
+        id=OPPORTUNITY_ID_FMT.format(t_h=t_h),
+        desired_t_h=float(t_h),
+        created_t_h=float(t_h),
+        valid_until_t_h=float(t_h) + OPPORTUNITY_VALIDITY_H,
+        hazard_components=components,
+        initiative_multiplier=float(init_mult),
+        previous_score_multiplier=float(score_mult),
+    )
+
+
+def _opportunities_for_plan(
+    event_hours: np.ndarray,
+    *,
+    days: int,
+    seed: int,
+    persona: PersonaParams,
+    timing: TimingParams,
+    store,
+) -> dict[float, ContactOpportunity]:
+    """Map each planned event hour to its ContactOpportunity (deterministic).
+
+    Phase labels come from the SAME replay contract run_events uses
+    (``_precompute_phase_labels`` — same seed ⇒ same labels), initiative from
+    the day's stored BehaviorDirective (missing state ⇒ neutral 0.5), and
+    the previous-day adjustment from the REAL stored judgement (missing ⇒
+    A ≡ 1.0). The individual multipliers are reported, never the combined
+    A·I product (no double counting in the audit trail).
+    """
+    phase_labels = run_events._precompute_phase_labels(days, seed, persona)
+    opps: dict[float, ContactOpportunity] = {}
+    for h in event_hours:
+        day = int(h // 24.0)
+        judgement = store.load_judgement(day - 1)
+        previous_score = float(judgement["score"]) if judgement else None
+        opps[float(h)] = build_opportunity(
+            float(h), day=day, phase_label=phase_labels[day],
+            timing=timing, previous_score=previous_score,
+            initiative=day_initiative(store, day, timing),
+        )
+    return opps
+
+
+def _persist_opportunities(store, opps: dict[float, ContactOpportunity]) -> None:
+    """Persist opportunities through the store's public seam when it exists.
+
+    The A7 store has no contact_opportunities table yet (flagged in the A3
+    handoff); the optional ``save_contact_opportunity`` seam is duck-typed so
+    a store that grows one is used without any scheduler change.
+    """
+    save = getattr(store, "save_contact_opportunity", None)
+    if save is not None:
+        for opp in opps.values():
+            save(opp)
 
 
 def plan_proactive_events(
@@ -171,10 +274,13 @@ def day_scores(store, current_day: int, timing: TimingParams) -> np.ndarray:
 
 @dataclass
 class ProactiveSchedule:
-    """Planned event times + fire bookkeeping."""
+    """Planned event times + fire bookkeeping (+ their ContactOpportunities)."""
 
     event_hours: np.ndarray
     _fired: set[float] = None  # type: ignore[assignment]
+    #: ContactOpportunity per planned event hour (created by the scheduler at
+    #: plan time; NO semantic reason on it — resolution happens at fire time).
+    opportunities: dict[float, ContactOpportunity] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if self._fired is None:
@@ -190,6 +296,11 @@ class ProactiveSchedule:
         scores: np.ndarray | None = None,
     ) -> "ProactiveSchedule":
         return cls(event_hours=plan_proactive_events(days, seed, persona, timing, scores))
+
+    def opportunity_for(self, t_h: float) -> ContactOpportunity | None:
+        """The ContactOpportunity planned for ``t_h``, or None (rows injected
+        directly via the store have no opportunity)."""
+        return self.opportunities.get(float(t_h))
 
     def due_at(self, t_h: float) -> list[float]:
         """Planned event hours <= t_h that have not fired yet, ascending."""
@@ -208,13 +319,23 @@ class ProactiveSchedule:
         """plan() then store.save_schedule_events(seed, [{t_h, day, reason} ...]).
         Idempotent (INSERT OR IGNORE). Returns a schedule whose _fired set is
         pre-seeded from the store: any planned hour whose row is no longer
-        'pending' (i.e. already fired/expired) is treated as fired."""
+        'pending' (i.e. already fired/expired) is treated as fired. Each
+        planned hour also gets a ContactOpportunity (NO semantic reason);
+        opportunities are persisted through the store's optional
+        ``save_contact_opportunity`` seam when present (A7 gap — flagged in
+        the A3 handoff) and always carried in-memory on the schedule."""
         schedule = cls.plan(days, seed, persona, timing, scores=scores)
         events = [
             {"t_h": float(h), "day": int(h // 24.0), "reason": reason}
             for h in schedule.event_hours
         ]
         store.save_schedule_events(seed, events)
+        opps = _opportunities_for_plan(
+            schedule.event_hours, days=days, seed=seed, persona=persona,
+            timing=timing, store=store,
+        )
+        _persist_opportunities(store, opps)
+        schedule.opportunities = opps
         pending = {float(r["t_h"]) for r in store.pending_schedule_events(seed)}
         schedule._fired = {
             float(h) for h in schedule.event_hours if float(h) not in pending
@@ -224,11 +345,22 @@ class ProactiveSchedule:
     @classmethod
     def restore(cls, seed, store) -> "ProactiveSchedule":
         """Rebuild from store: event_hours = all rows' t_h for seed; _fired =
-        every row whose status != 'pending'. For restart-resume without re-planning."""
+        every row whose status != 'pending'; opportunities = the store's
+        persisted ContactOpportunities when the optional
+        ``load_contact_opportunities`` seam exists (A7 gap otherwise —
+        restored schedules carry no opportunities and the runtime resolves
+        with the bare event hour). For restart-resume without re-planning."""
         rows = store.schedule_events_for_seed(seed)
         event_hours = np.asarray([float(r["t_h"]) for r in rows])
         fired = {float(r["t_h"]) for r in rows if r["status"] != "pending"}
-        return cls(event_hours=event_hours, _fired=fired)
+        load_opps = getattr(store, "load_contact_opportunities", None)
+        opportunities = {}
+        if load_opps is not None:
+            opportunities = {
+                float(opp.desired_t_h): opp for opp in load_opps()
+            }
+        return cls(event_hours=event_hours, _fired=fired,
+                   opportunities=opportunities)
 
     def mark_fired_persisted(self, t_h: float, fired_t_h: float, seed: int,
                              store) -> None:
