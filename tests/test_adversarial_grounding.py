@@ -328,3 +328,117 @@ def test_g8b_callback_provenance_session_gone_suppressed(tmp_path):
         "callback with a broken provenance chain must not fire"
     )
     store.close()
+
+
+# --------------------------------------------------------------------------- #
+# V-1: gate-level provenance completeness (plan §5-A9 V1, invariant 4) —
+# content_gate allows an intent ONLY when its source is live; every source
+# family flips to a suppression code the moment its record dies.
+# --------------------------------------------------------------------------- #
+
+
+def test_v1a_gate_allows_only_intents_with_live_sources(tmp_path):
+    """For agenda and episodic (callback/shared-interest) sources: an intent
+    whose source exists, is not superseded, and whose hook re-derives from
+    the source passes; deleting the record → no_source; flipping the item to
+    skipped → source_superseded. A proactive message can never be grounded
+    on a dead record (g8b semantics keep passing)."""
+    # agenda source: planned → ok; skipped → source_superseded; deleted → no_source
+    store = _store(tmp_path, "v1a.db")
+    store.save_agenda(0, DailyAgenda(0, (_agenda_item("g1", 299.0, 301.0),)))
+    intent = _resolver(store).resolve(NOW_H)
+    assert intent is not None and intent.source_type == "agenda_item"
+    assert content_gate(intent, store, now_h=NOW_H).allowed
+    store.update_agenda_item_status("g1", "skipped")
+    assert content_gate(intent, store, now_h=NOW_H).code == "source_superseded"
+    store.conn.execute("DELETE FROM agenda_items WHERE id = 'g1'")
+    store.conn.commit()
+    assert content_gate(intent, store, now_h=NOW_H).code == "no_source"
+
+    # callback source: live → ok; deleted → no_source (G-8)
+    # (g8b: the episode's source session must exist — register it)
+    store.open_session("day-12", 288.0)
+    store.close_session("day-12", 312.0)
+    store.insert_episode(_episode(
+        "ep_cb", MemoryKind.CALLBACK, 290.0, tags=("callback",),
+        summary="promised to send the playlist",
+    ))
+    intent2 = _resolver(store).resolve(NOW_H)
+    assert intent2 is not None and intent2.source_type == "callback"
+    assert content_gate(intent2, store, now_h=NOW_H).allowed
+    store.conn.execute("DELETE FROM memory_episodes WHERE id = 'ep_cb'")
+    store.conn.commit()
+    assert content_gate(intent2, store, now_h=NOW_H).code == "no_source"
+
+    # shared-interest source: live → ok; deleted → no_source
+    store.insert_episode(_episode(
+        "ep_si", MemoryKind.SHARED_EPISODE, 290.0, tags=("pottery",),
+        importance=0.9, summary="user talked about pottery class",
+    ))
+    from harness.domain import Interest, PersonaProfile
+
+    store.save_persona(PersonaProfile(
+        name="Nova", core="You are Nova.", interests=(Interest("pottery", "exact", 0.8),),
+        routines=(),
+    ))
+    intent3 = _resolver(store).resolve(NOW_H)
+    assert intent3 is not None and intent3.source_type == "shared_interest"
+    assert content_gate(intent3, store, now_h=NOW_H).allowed
+    store.conn.execute("DELETE FROM memory_episodes WHERE id = 'ep_si'")
+    store.conn.commit()
+    assert content_gate(intent3, store, now_h=NOW_H).code == "no_source"
+    store.close()
+
+
+def test_v1b_suppressed_intents_never_carry_a_message_row(tmp_path):
+    """V-1 (message-level): after a runtime run whose only proactive event is
+    suppressed (source deleted), NO message row exists at all — a suppressed
+    intent is never attached to a message, and no ghost row carries its id."""
+    store = _store(tmp_path, "v1b.db")
+    from harness.channels.base import FakeChannel
+    from harness.client import FakeClient
+    from harness.clock import VirtualClock
+    from harness.judge import ScriptedJudge
+    from harness.runtime import AsyncRuntime, TimeScale
+    from harness.scheduler import ProactiveSchedule
+    from harness.session import Session
+    from engine.types import MoodVariant, PersonaParams, TimingParams
+
+    persona = PersonaParams()
+    timing = TimingParams()
+    store.save_schedule_events(SEED, [{"t_h": NOW_H, "day": 12, "reason": "schedule"}])
+    store.save_agenda(0, DailyAgenda(0, (_agenda_item("g1", 299.0, 301.0),)))
+    # kill the source before the run: the event is grounded at resolve time
+    # against the agenda — resolve happens AT fire time, so deleting the item
+    # before the run means the resolver finds nothing → no_grounded_reason
+    store.conn.execute("DELETE FROM agenda_items WHERE id = 'g1'")
+    store.conn.commit()
+    session = Session(
+        store, persona=persona, timing=timing,
+        variant=MoodVariant.DECOUPLED_OFFSETS, seed=SEED,
+        client=FakeClient(responses=["ok!"]), clock=VirtualClock(t_h=NOW_H),
+        judge=ScriptedJudge(score=0.5).judge_day,
+    )
+    channel = FakeChannel()
+
+    async def record(_delay: float) -> None:
+        return None
+
+    runtime = AsyncRuntime(
+        session, ProactiveSchedule.restore(SEED, store), channel,
+        store=store, timing=timing, seed=SEED,
+        time_scale=TimeScale(seconds_per_virtual_hour=0.02),
+        max_virtual_hours=NOW_H + 1.0, resolver=IntentResolver(store),
+        sleeper=record,
+    )
+    import asyncio
+
+    asyncio.run(runtime.run())
+    assert channel.sent == [], "suppressed event produced a message"
+    assert store.recent_messages(limit=100) == [], (
+        "suppressed intent left a message row behind"
+    )
+    assert store.list_proactive_intents() == [], (
+        "unresolvable event persisted an intent"
+    )
+    store.close()

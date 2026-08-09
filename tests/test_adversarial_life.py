@@ -404,3 +404,152 @@ def test_l8_restart_reproduces_persistent_state_exactly(tmp_path):
         assert 0.0 <= a.progress <= 1.0
     straight.close()
     store2.close()
+
+
+# --------------------------------------------------------------------------- #
+# L-9: Iteration-2 replenishment + arc-start + NOW-semantics attacks
+# (plan §5-A9 L9, orchestrator invariants 8-9)
+# --------------------------------------------------------------------------- #
+
+
+def test_l9a_replenishment_never_reaches_active_zero(tmp_path):
+    """Long-horizon replenishment soak on the REAL SQLiteStore: 30/60/120-day
+    deterministic runs across 3 seeds — the number of ACTIVE arcs must never
+    hit 0 on any day (replenishment is certain when nothing is active), the
+    run must terminate, and every persisted arc stays valid."""
+    for seed in (11, 22, 33):
+        for days in (30, 60, 120):
+            store = _store(tmp_path, f"l9a_{seed}_{days}.db")
+            persona = _profile(seed)
+            arcs = life.init_life(seed, persona, store, start_day=1)
+            assert arcs, "precondition: initial arcs exist"
+            for d in range(1, days + 1):
+                rng = stream_rng(seed, life.LIFE_STREAM, d)
+                agenda = life.generate_agenda(d, persona, arcs, store, rng)
+                result = life.step_life(d, persona, arcs, agenda, store, rng)
+                arcs = result.updated_arcs
+                active = [a for a in arcs if a.status == "active"]
+                assert active, (
+                    f"seed {seed} day {d}/{days}: active life reached zero "
+                    "(invariant 9 violated — replenishment must be certain "
+                    "when nothing is active)"
+                )
+                assert all(0.0 <= a.progress <= 1.0 for a in arcs)
+            # persistence agrees with the in-memory trajectory
+            stored = {a.id: a.status for a in store.list_life_arcs()}
+            assert stored == {a.id: a.status for a in arcs}
+            store.close()
+
+
+def test_l9b_arc_start_time_respected_across_restart(tmp_path):
+    """An arc with a FUTURE started_day must not progress before its start —
+    and the restart seam must reproduce the exact same trajectory: a store
+    reopened mid-run (arcs reloaded from the DB) continues byte-identically
+    to the uninterrupted run."""
+    persona = _profile(SEED)
+    store = _store(tmp_path, "l9b.db")
+    arcs = life.init_life(SEED, persona, store, start_day=1)
+    future = [a for a in arcs if a.started_day > 1]
+    assert future, "precondition: some arc starts in the future"
+    target = max(future, key=lambda a: a.started_day)
+
+    # before its start day: NO progress, NO status change, NO agenda items
+    for d in range(1, target.started_day):
+        rng = stream_rng(SEED, life.LIFE_STREAM, d)
+        agenda = life.generate_agenda(d, persona, arcs, store, rng)
+        result = life.step_life(d, persona, arcs, agenda, store, rng)
+        arcs = result.updated_arcs
+        t = next(a for a in arcs if a.id == target.id)
+        assert t.progress == target.progress, (
+            f"arc {target.id} progressed before its start day {target.started_day}"
+        )
+        assert t.status == "active"
+        assert not any(
+            it.source_id == target.id for it in agenda.items
+        ), f"arc {target.id} generated agenda items before its start"
+
+    # RESTART: fresh store over the same file — arcs reloaded from the DB
+    store2 = _store(tmp_path, "l9b.db")
+    arcs2 = sorted(store2.list_life_arcs(), key=lambda a: a.id)
+    assert [a.id for a in arcs2] == [a.id for a in arcs]
+    assert all(
+        a.progress == b.progress for a, b in zip(arcs2, arcs)
+    ), "restart lost persisted arc progress"
+
+    # continue both trajectories past the start day: restarted == uninterrupted
+    for d in range(target.started_day, target.started_day + 12):
+        rng = stream_rng(SEED, life.LIFE_STREAM, d)
+        agenda = life.generate_agenda(d, persona, arcs2, store2, rng)
+        result = life.step_life(d, persona, arcs2, agenda, store2, rng)
+        arcs2 = result.updated_arcs
+
+        rng_u = stream_rng(SEED, life.LIFE_STREAM, d)
+        agenda_u = life.generate_agenda(d, persona, arcs, store, rng_u)
+        result_u = life.step_life(d, persona, arcs, agenda_u, store, rng_u)
+        arcs = result_u.updated_arcs
+
+    assert {a.id: a.progress for a in arcs2} == {a.id: a.progress for a in arcs}
+    assert {a.id: a.status for a in arcs2} == {a.id: a.status for a in arcs}
+    store.close()
+    store2.close()
+
+
+def test_l9c_current_activity_never_in_the_future(tmp_path):
+    """Invariant 8 (NOW semantics) across a 60-day real-store soak: a
+    CurrentActivity is only ever reported for an item ACTUALLY in progress at
+    the sampled instant (start <= t_h < end) — a future plan is never the
+    current activity, and the reported t_h is the sampled now."""
+    for seed in (11, 22):
+        store = _store(tmp_path, f"l9c_{seed}.db")
+        persona = _profile(seed)
+        arcs = life.init_life(seed, persona, store)
+        for d in range(1, 60):
+            rng = stream_rng(seed, life.LIFE_STREAM, d)
+            agenda = life.generate_agenda(d, persona, arcs, store, rng)
+            noon = d * 24.0 + 12.0
+            result = life.step_life(d, persona, arcs, agenda, store, rng, t_h=noon)
+            arcs = result.updated_arcs
+            for t_h in (d * 24.0 + 7.0, d * 24.0 + 12.0, d * 24.0 + 19.0,
+                        d * 24.0 + 22.0):
+                ca = life.current_activity_now(result.agenda, t_h)
+                if ca is None:
+                    continue
+                assert ca.item is not None
+                assert ca.item.start_t_h <= t_h < ca.item.end_t_h, (
+                    f"day {d} at t_h={t_h}: current activity "
+                    f"{ca.item.id!r} is not in progress (start "
+                    f"{ca.item.start_t_h}, end {ca.item.end_t_h})"
+                )
+                assert ca.t_h == t_h, "CurrentActivity.t_h is not the sampled now"
+            if result.current_activity is not None:
+                it = result.current_activity.item
+                assert it.start_t_h <= noon < it.end_t_h, (
+                    "step_life(t_h=noon) reported a non-current activity"
+                )
+        store.close()
+
+
+def test_l9d_no_overlapping_current_activities():
+    """Overlapping agenda slots must never yield two current activities: the
+    NOW resolver picks exactly ONE — the highest salience — deterministically,
+    and the same instant always resolves identically (no hidden RNG)."""
+    items = (
+        AgendaItem("o1", 10.0, 12.0, "overlap low", "arc", "arc1", 0.4, "planned"),
+        AgendaItem("o2", 10.5, 11.5, "overlap high", "arc", "arc2", 0.9, "planned"),
+        AgendaItem("o3", 11.0, 13.0, "overlap mid", "arc", "arc3", 0.6, "planned"),
+        AgendaItem("future", 14.0, 15.0, "future plan", "arc", "arc4", 0.95, "planned"),
+    )
+    agenda = DailyAgenda(0, items)
+    ca = life.current_activity_now(agenda, 11.2)
+    assert ca is not None and ca.item.id == "o2", (
+        "overlapping slots must resolve to the single highest-salience item"
+    )
+    assert ca.t_h == 11.2
+    # deterministic: same instant, same answer, every call
+    for _ in range(3):
+        assert life.current_activity_now(agenda, 11.2) == ca
+    # a future plan at 14:00 is never 'current' at 11:20 — and outside every
+    # slot there is NO current activity (no phantom, no future)
+    assert life.current_activity_now(agenda, 13.5) is None
+    assert life.current_activity_now(agenda, 9.0) is None
+    assert life.current_activity_now(agenda, 15.5) is None

@@ -20,16 +20,18 @@ from engine.types import ADJ_SLOPE, MoodVariant, PersonaParams, TimingParams
 from harness.channels.base import FakeChannel
 from harness.client import FakeClient
 from harness.clock import VirtualClock
-from harness.domain import AgendaItem, DailyAgenda
+from harness.domain import AgendaItem, DailyAgenda, EpisodicMemory, MemoryKind
 from harness.gates import content_gate, context_gate
 from harness.interests import build_catalog
 from harness.judge import ScriptedJudge
+from harness.memory import MemoryAgent
 from harness.persona import build_persona
 from harness.proactive import IntentResolver
 from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import (
     REASON_CHECK_IN,
     REASON_SCHEDULE,
+    REASON_SHARED_INTEREST,
     ProactiveSchedule,
     day_initiative,
     day_scores,
@@ -74,7 +76,8 @@ def _ground_item(item_id: str, start_t_h: float, end_t_h: float,
                       salience, "planned")
 
 
-def _run_runtime(store, session, schedule, channel, *, max_hours, clock_start_h=None):
+def _run_runtime(store, session, schedule, channel, *, max_hours, clock_start_h=None,
+                 scale=SLOW):
     """Run the real AsyncRuntime for a bounded horizon (injectable sleeper)."""
     delays: list[float] = []
 
@@ -86,7 +89,7 @@ def _run_runtime(store, session, schedule, channel, *, max_hours, clock_start_h=
     runtime = AsyncRuntime(
         session, schedule, channel,
         store=store, timing=TIMING, seed=SEED,
-        time_scale=SLOW, max_virtual_hours=max_hours,
+        time_scale=scale, max_virtual_hours=max_hours,
         resolver=IntentResolver(store),
         sleeper=record,
     )
@@ -646,5 +649,214 @@ def test_case40_finalize_no_double_advance_on_resume(tmp_path):
     assert store2.load_session_summary("day-0") is not None
     assert len(store2.list_assertions()) == n_assertions
     assert {(a.id, a.progress, a.status) for a in store2.list_life_arcs()} == arcs_pre
+    store.close()
+    store2.close()
+
+
+# --------------------------------------------------------------------------- #
+# R-10 / V-1: Iteration-2 restart-across-quiet-boundary + message provenance
+# (plan §5-A9 R1/V1, invariants 6/17 + r4b deferral semantics)
+# --------------------------------------------------------------------------- #
+
+FAST = TimeScale(seconds_per_virtual_hour=0.02)
+
+#: 12:00 local — outside the check-in windows (8-11, 19-22), so the
+#: callback candidate wins the rank cleanly.
+NOW_H = 300.0
+
+
+def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
+    """A shared-interest event at 23:30 (quiet hours, 12h validity — outlives
+    the window) survives THREE restarts: (1) run to 23:00 leaves it pending
+    and unconsumed; (2) restart at 03:00 defers it through the quiet window
+    (never consumed, never expired, no message during quiet); (3) restart at
+    09:00 — the first fully-awake instant — delivers it EXACTLY ONCE with a
+    grounded intent. r4b semantics hold across every boundary."""
+    from harness.bootstrap import ensure_companion_initialized
+    from harness.domain import EpisodicMemory, MemoryKind, UserProfile
+
+    store = _store(tmp_path, "r10.db")
+    store.save_schedule_events(SEED, [
+        {"t_h": 23.5, "day": 0, "reason": REASON_SHARED_INTEREST},
+    ])
+    ensure_companion_initialized(
+        store, seed=SEED, user=UserProfile(name="u", interests=("pottery",))
+    )
+    # g8b: the episode's source session must exist — register it
+    store.open_session("day-0", 22.0)
+    store.close_session("day-0", 22.7)
+    store.insert_episode(EpisodicMemory(
+        "ep_si", "user talked about pottery class", MemoryKind.SHARED_EPISODE,
+        22.5, 22.6, 0.8, 0, None, None,
+        "day-0", (1,), ("pottery class is fun",), ("pottery",),
+    ))
+
+    # phase 1: run to 23:00 — the event is still in the future, untouched
+    s1 = _store(tmp_path, "r10.db")
+    _run_runtime(s1, _session(s1), ProactiveSchedule.restore(SEED, s1),
+                 FakeChannel(), max_hours=23.0, clock_start_h=None)
+    assert _rows(s1)[23.5]["status"] == "pending", (
+        "event consumed before its own time"
+    )
+
+    # phase 2: restart at 03:00 (quiet) — deferred, never consumed/expired,
+    # no message during the quiet window
+    s2 = _store(tmp_path, "r10.db")
+    chan2 = FakeChannel()
+    _run_runtime(s2, _session(s2), ProactiveSchedule.restore(SEED, s2),
+                 chan2, max_hours=34.0, clock_start_h=26.0)
+    assert chan2.sent == [], "message sent during quiet hours"
+    row2 = _rows(s2)[23.5]
+    assert row2["status"] in ("pending", "fired"), (
+        f"still-valid event consumed as {row2['status']!r} during quiet "
+        "hours — the deferral must not consume it (r4b)"
+    )
+
+    # phase 3: restart at 09:00 — fully awake — the event fires exactly once
+    s3 = _store(tmp_path, "r10.db")
+    chan3 = FakeChannel()
+    _run_runtime(s3, _session(s3), ProactiveSchedule.restore(SEED, s3),
+                 chan3, max_hours=34.5, clock_start_h=33.0)
+    fired = [m for m in chan3.sent if m.proactive]
+    assert len(fired) == 1, f"expected exactly one delivery, got {len(fired)}"
+    row3 = _rows(s3)[23.5]
+    assert row3["status"] == "fired"
+    assert "expired" not in _suppressed_codes(s3)
+    # the delivered message carries the exact validated intent id, resolvable
+    # to a real source (invariant 6)
+    last = s3.recent_messages()[-1]
+    assert last["intent_id"], "delivered message missing intent provenance"
+    intent = s3.load_proactive_intent(last["intent_id"])
+    assert intent is not None
+    assert s3.resolve_intent_source(intent) is not None
+    s1.close()
+    s2.close()
+    s3.close()
+
+
+def test_v1_every_proactive_message_carries_real_intent_id(tmp_path):
+    """Invariant 6 at the persisted-row level, end to end through the REAL
+    AsyncRuntime + Session + SQLiteStore: every proactive message row carries
+    the intent_id of a REAL stored intent whose source exists (never a
+    reason label, never a missing id); reactive rows keep intent_id None."""
+    store = _store(tmp_path, "v1.db")
+    sched = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store)
+    h = next(float(x) for x in sched.event_hours if x < 20.0)
+    store.save_agenda(0, DailyAgenda(0, (
+        _ground_item("g1", h - 0.5, h + 0.5),
+    )))
+    session = _session(store)
+    session.on_message("hi there")  # one reactive row for the contrast leg
+    channel = FakeChannel()
+    _run_runtime(store, session, sched, channel, max_hours=h + 2.0,
+                 clock_start_h=None, scale=FAST)
+
+    assert len([m for m in channel.sent if m.proactive]) == 1
+    rows = store.recent_messages(limit=100)
+    proactive = [m for m in rows if m["proactive"]]
+    reactive = [m for m in rows if not m["proactive"]]
+    assert len(proactive) == 1
+    assert reactive, "precondition: reactive message exists"
+    for row in proactive:
+        assert row["intent_id"], "proactive message without intent provenance"
+        intent = store.load_proactive_intent(row["intent_id"])
+        assert intent is not None, (
+            f"message intent_id {row['intent_id']!r} is not a stored intent"
+        )
+        assert store.resolve_intent_source(intent) is not None, (
+            f"message intent {row['intent_id']!r} points at a missing source"
+        )
+        assert intent.id in {
+            i.id for i in store.list_proactive_intents(status="fired")
+        }
+        assert intent.reason in ("schedule", "event", "callback",
+                                 "shared_interest", "check_in")
+    for row in reactive:
+        assert row["intent_id"] is None, (
+            "reactive message polluted with intent provenance"
+        )
+    store.close()
+
+
+def test_v1b_intent_provenance_survives_restart(tmp_path):
+    """After a fire, a full restart (fresh store over the same file) keeps
+    the provenance chain intact: message.intent_id unchanged, the intent row
+    still stored with status fired, and its source still resolvable."""
+    store = _store(tmp_path, "v1b.db")
+    sched = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store)
+    h = next(float(x) for x in sched.event_hours if x < 20.0)
+    store.save_agenda(0, DailyAgenda(0, (
+        _ground_item("g1", h - 0.5, h + 0.5),
+    )))
+    _run_runtime(store, _session(store), sched, FakeChannel(),
+                 max_hours=h + 2.0, clock_start_h=None, scale=FAST)
+    before = {
+        m["id"]: m["intent_id"] for m in store.recent_messages(limit=100)
+        if m["proactive"]
+    }
+    assert before, "precondition: a proactive message fired"
+    store.close()
+
+    store2 = _store(tmp_path, "v1b.db")
+    after = {
+        m["id"]: m["intent_id"] for m in store2.recent_messages(limit=100)
+        if m["proactive"]
+    }
+    assert after == before, "message intent provenance changed across restart"
+    for intent_id in after.values():
+        intent = store2.load_proactive_intent(intent_id)
+        assert intent is not None, "intent row lost across restart"
+        assert intent.id in {
+            i.id for i in store2.list_proactive_intents(status="fired")
+        }
+        assert store2.resolve_intent_source(intent) is not None, (
+            "intent source unresolvable across restart"
+        )
+    store2.close()
+
+
+def test_v1c_callback_provenance_required_end_to_end(tmp_path):
+    """The g8b semantics end to end: a callback memory grounded in a REAL
+    session (open_session row + source turns) resolves to an intent; once the
+    source session record is deleted the runtime must suppress (no_source)
+    and NEVER attach the stale intent to a message — no record of the
+    promise, no claim."""
+    store = _store(tmp_path, "v1c.db")
+    store.open_session("day-12", 288.0)
+    agent = MemoryAgent(store)
+    agent.record_turn("user", "remind me to send the playlist", 290.0, "day-12")
+    agent.record_turn("assistant", "sure", 290.1, "day-12")
+    agent.close_session("day-12", ended_at_t_h=291.0)
+    tid = store.turns_for_session("day-12")[0]["id"]
+    store.insert_episode(EpisodicMemory(
+        "ep_cb", "user asked to be reminded to send the playlist",
+        MemoryKind.CALLBACK, 290.0, 290.5, 0.8, 0, None, None,
+        "day-12", (tid,), ("remind me to send the playlist",), ("callback",),
+    ))
+    assert store.session_exists("day-12"), "precondition: source session exists"
+    intent = IntentResolver(store).resolve(NOW_H)
+    assert intent is not None and intent.source_type == "callback"
+    assert store.resolve_intent_source(intent) is not None
+    store.save_proactive_intent(intent)
+    store.save_schedule_events(SEED, [
+        {"t_h": NOW_H, "day": 12, "reason": "callback"},
+    ])
+    # break the provenance chain: the witnessing session disappears
+    store.conn.execute("DELETE FROM memory_sessions WHERE session_id = 'day-12'")
+    store.conn.commit()
+    assert not store.session_exists("day-12")
+
+    store2 = _store(tmp_path, "v1c.db")
+    channel = FakeChannel()
+    _run_runtime(store2, _session(store2),
+                 ProactiveSchedule.restore(SEED, store2), channel,
+                 max_hours=NOW_H + 1.0, clock_start_h=NOW_H, scale=FAST)
+    assert channel.sent == [], (
+        "callback with broken session provenance produced a message"
+    )
+    assert "no_source" in _suppressed_codes(store2)
+    # no message row carries the stale intent id
+    for m in store2.recent_messages(limit=100):
+        assert m["intent_id"] is None, "suppressed intent attached to a message"
     store.close()
     store2.close()
