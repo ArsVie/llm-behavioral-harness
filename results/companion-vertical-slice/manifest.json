@@ -194,11 +194,11 @@
         "role": "primary"
       },
       {
-        "id": "openai-mini",
-        "family": "openai-gpt",
-        "model": "gpt-4o-mini",
-        "base_url": "https://api.openai.com/v1/",
-        "env_key": "OPENAI_API_KEY",
+        "id": "opencode-luna",
+        "family": "opencode-gpt",
+        "model": "gpt-5.6-luna",
+        "base_url": "https://opencode.ai/zen/go/v1/",
+        "env_key": "OPENCODE_GO_API_KEY",
         "role": "secondary"
       }
     ],
@@ -514,5 +514,12 @@
       "requirement": "exact replay of a recorded scenario: deterministic seeds; call-reproducibility audit rows (M3) readable from the store; message stream and llm_call rows must match byte-for-byte across runs (invariant 19)."
     }
   },
-  "config_hash": "abca4282c3319fe1"
+  "config_hash": "abca4282c3319fe1",
+  "amendments": [
+    {
+      "date": "2026-08-09",
+      "directed_by": "Ars",
+      "change": "secondary judge family openai-mini (gpt-4o-mini @ api.openai.com, OPENAI_API_KEY absent) replaced by opencode-luna (gpt-5.6-luna @ opencode-go, OPENCODE_GO_API_KEY) — same provider/key as the generator; cross-family disagreement now flash-vs-luna."
+    }
+  ]
 }
