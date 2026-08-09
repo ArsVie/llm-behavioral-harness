@@ -343,3 +343,130 @@ def test_apply_and_restore_patches():
     assert session_mod.derive_behavior is orig_derive
     # Condición neutra no parchea nada.
     assert cvs_common.apply_condition_patches("FULL") == []
+
+
+# --------------------------------------------------------------------------- #
+# B6 — lane routing + sonda justa RAW_HISTORY (closes F5)
+# --------------------------------------------------------------------------- #
+
+
+def _chain(chain_id: str) -> dict:
+    return next(c for c in cvs_common.EVENT_CHAINS if c["id"] == chain_id)
+
+
+def _store_with_chain_episodes(tmp_path, chain_id: str):
+    """Store poblado con los episodios de UNA cadena + embeddings (lane SIMPLE_RAG)."""
+    from harness.store import SQLiteStore
+
+    store = SQLiteStore(str(tmp_path / f"{chain_id}.db"))
+    for i, (day, text) in enumerate(_chain(chain_id)["events"]):
+        ep = _episode(f"{chain_id}_{i}", text)
+        store.insert_episode(ep)
+        store.save_embedding(ep.id, cvs_common.recall_embedder(text))
+    return store
+
+
+def test_event_chain_metrics_routes_simple_rag_lane(tmp_path):
+    """F5: SIMPLE_RAG scored 0.0 while its store held the episodes — the metric
+    built a MemoryAgent unconditionally instead of the condition's lane. With
+    lane routing the metric must read SimpleRagMemory and return non-zero
+    AnyEvidence on a populated store."""
+    store = _store_with_chain_episodes(tmp_path, "sister_ana")
+    chains = cvs_common.event_chain_metrics(store, condition="SIMPLE_RAG")
+    cls = chains["sister_ana"]
+    assert cls["probe_lane"] == "episode_retrieval"
+    assert cls["AnyEvidence"] is True
+    assert cls["CompleteChain"] is True  # los 3 episodios están en el store
+    assert len(cls["retrieved_ids"]) == 3
+    store.close()
+
+
+def test_recall_probe_metrics_routes_simple_rag_lane(tmp_path):
+    """M3 for SIMPLE_RAG must come from the lane's episodes, not a default 0."""
+    from harness.store import SQLiteStore
+
+    store = SQLiteStore(str(tmp_path / "probes.db"))
+    for pday, text, _q in cvs_common.RECALL_PROBES:
+        ep = _episode(f"p{pday}", text)
+        store.insert_episode(ep)
+        store.save_embedding(ep.id, cvs_common.recall_embedder(text))
+    recall = cvs_common.recall_probe_metrics(store, condition="SIMPLE_RAG")
+    assert recall["M3_recall"] > 0.0
+    assert all(d["probe_lane"] == "episode_retrieval" for d in recall["detail"])
+    store.close()
+
+
+def test_raw_history_fair_probe_verdict_from_context_not_zero(tmp_path):
+    """F5: RAW_HISTORY has zero episodes, so episode-keyed metrics returned 0
+    necessarily. The fair probe scores recoverability from the raw dialogue
+    window the lane conditions on at query time — a fact inside the window is
+    recovered, an old fact outside it is not (a real verdict, not a constant 0)."""
+    from harness.store import SQLiteStore
+
+    store = SQLiteStore(str(tmp_path / "raw.db"))
+    # sister_ana: events on days 3/7/11 (1-indexed), query_day=13 -> t_q=312.
+    # The day-11 event at t_h=258.6 must be inside the last-12 window at 312;
+    # the day-3 fact (t_h=66.6, first message) falls outside it.
+    store.add_message("user", "My sister's name is Ana.", 66.6, 2)
+    for i in range(10):
+        store.add_message("user", f"filler number {i}", 60.0 + i, 2)
+    store.add_message("user", "My sister is arriving in Guadalajara on Friday.",
+                      258.6, 10)
+    store.add_message("assistant", "Friday — that's close.", 258.6, 10)
+    chains = cvs_common.event_chain_metrics(store, condition="RAW_HISTORY")
+    cls = chains["sister_ana"]
+    assert cls["probe_lane"] == "raw_history"
+    assert cls["context_turns"] == 12
+    # guadalajara/friday are in the window; 'ana' is not (day-3 fact out of reach).
+    assert cls["covered"] == [False, True, True]
+    assert cls["AnyEvidence"] is True          # not an automatic 0
+    assert cls["LatestEvidence"] is True
+    assert cls["CompleteChain"] is False
+    # A fact inside the window IS recovered -> the verdict is recoverable,
+    # not a constant 0.
+    store.add_message("user", "Also, my sister is named Ana.", 300.0, 12)
+    chains2 = cvs_common.event_chain_metrics(store, condition="RAW_HISTORY")
+    assert chains2["sister_ana"]["covered"] == [True, True, True]
+    assert chains2["sister_ana"]["CompleteChain"] is True
+    store.close()
+
+
+def test_raw_history_recall_probe_uses_context_window(tmp_path):
+    """M3 for RAW_HISTORY: same-day facts are inside the lane's window at probe
+    time (probe_day*24+6) and must be recalled — not pinned to 0."""
+    from harness.store import SQLiteStore
+
+    store = SQLiteStore(str(tmp_path / "raw2.db"))
+    store.add_message("user", "My dog's name is Bruno.", 42.5, 1)
+    store.add_message("assistant", "Bruno — solid name.", 42.5, 1)
+    recall = cvs_common.recall_probe_metrics(store, condition="RAW_HISTORY")
+    bruno = next(d for d in recall["detail"] if d["probe_day"] == 2)
+    assert bruno["recalled"] is True
+    assert bruno["rank"] is None
+    assert recall["M3_recall"] > 0.0
+    assert recall["M4_false_recall"] == 0.0  # sin retrieval rankeado
+    store.close()
+
+
+def test_aggregate_chain_metrics_reports_absolute_rates():
+    """B6: absolute CompleteChain/AnyEvidence reported (not only gaps)."""
+    chains = {
+        "a": {"AnyEvidence": True, "LatestEvidence": True, "CompleteChain": True},
+        "b": {"AnyEvidence": True, "LatestEvidence": False, "CompleteChain": False},
+        "c": {"AnyEvidence": False, "LatestEvidence": False, "CompleteChain": False},
+    }
+    agg = cvs_common.aggregate_chain_metrics(chains)
+    assert agg == {"n_chains": 3, "AnyEvidence": 0.6667,
+                   "LatestEvidence": 0.3333, "CompleteChain": 0.3333}
+    assert cvs_common.aggregate_chain_metrics({})["n_chains"] == 0
+
+
+def test_fair_probe_definition_is_documented():
+    """B6 acceptance: the RAW_HISTORY fair probe definition is documented and
+    manifest-ready (B10 reviews it; G4 freezes it)."""
+    text = cvs_common.RAW_HISTORY_FAIR_PROBE
+    assert "RECOVERABLE" in text
+    assert "t_q" in text
+    assert "12" in text  # RAW_HISTORY_WINDOW_LIMIT
+    assert cvs_common.RAW_HISTORY_WINDOW_LIMIT == 12
+    assert "RAW_HISTORY fair probe (preregistered" in text
