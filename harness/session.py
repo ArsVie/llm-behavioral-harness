@@ -203,6 +203,15 @@ class Session:
             _params = {}
         self._accepts_session_id = "session_id" in _params
         self._accepts_intent_id = "intent_id" in _params
+        try:
+            _llm_params = inspect.signature(store.log_llm_call).parameters
+        except (TypeError, ValueError):
+            _llm_params = {}
+        # Eval-mode call reproducibility (it3 B7): only stores that accept
+        # the ``repro`` keyword receive the exact request payload (the store
+        # itself drops it unless audit_mode=True — production privacy
+        # default). Legacy store stubs without the kwarg stay untouched.
+        self._accepts_repro = "repro" in _llm_params
 
         self.cycle_state: CycleState = cycle.init_state(persona, rng_mod.init_rng(seed))
         self.mood_state = MoodState()
@@ -756,6 +765,30 @@ class Session:
             proactive=proactive, session_id=session_id,
             intent_id=intent.id if intent is not None else None,
         )
+        repro_kwargs: dict = {}
+        if self._accepts_repro:
+            # Eval-mode call reproducibility (it3 B7): persist the EXACT
+            # assembled system prompt + message payload + sampling params so
+            # repro_json alone can reconstruct this call (invariant 19).
+            # temperature/json_mode are the LLMClient protocol defaults —
+            # this call site never overrides them. The store drops the
+            # payload unless audit_mode=True (production privacy default).
+            repro_kwargs["repro"] = {
+                "model": getattr(self.client, "model", None),
+                "system": system,
+                "messages": messages,
+                "max_tokens": controls.max_tokens,
+                "temperature": 0.8,
+                "json_mode": False,
+                "controls": {
+                    "response_delay_s": controls.response_delay_s,
+                    "closing_tendency": controls.closing_tendency,
+                    "initiative_factor": controls.initiative_factor,
+                    "closing_guidance": controls.closing_guidance,
+                },
+                "intent_id": intent.id if intent is not None else None,
+                "timestamp": {"day": day, "t_h": t_h},
+            }
         self.store.log_llm_call(
             day,
             t_h,
@@ -763,6 +796,7 @@ class Session:
             system + "\n" + repr(messages),
             reply,
             getattr(self.client, "model", None),
+            **repro_kwargs,
         )
         self.store.log_event(day, t_h, "assistant_reply", f"len={len(reply)}")
         return TurnResult(

@@ -746,6 +746,35 @@ class SQLiteStore:
         out["meta"] = json.loads(out["meta"]) if out.get("meta") else None
         return out
 
+    def rebuild_call(self, call_id: int) -> dict:
+        """Reconstruct the exact request envelope of one logged call from its
+        ``repro_json`` payload ALONE (it3 B7, invariant 19).
+
+        Returns ``{"model", "system", "messages", "temperature",
+        "max_tokens", "json_mode"}`` — the exact inputs the client received,
+        so the call can be replayed byte-for-byte from the row. Raises
+        ``ValueError`` for hash-only rows: non-eval runs persist no payload
+        by design, and the leak audit reports those rows honestly instead of
+        faking coverage.
+        """
+        row = self.get_llm_call(call_id)
+        if row is None:
+            raise KeyError(f"llm_call {call_id} not found")
+        repro = row.get("repro") or {}
+        missing = [
+            k for k in ("model", "system", "messages", "max_tokens",
+                        "temperature", "json_mode")
+            if k not in repro
+        ]
+        if missing:
+            raise ValueError(
+                f"llm_call {call_id} is not reconstructable: repro payload "
+                f"missing {missing} (hash-only row from a non-eval run)"
+            )
+        return {k: repro[k] for k in (
+            "model", "system", "messages", "temperature", "max_tokens",
+            "json_mode")}
+
     def events_since(self, day: int) -> list[dict]:
         rows = self.conn.execute(
             "SELECT * FROM state_events WHERE day >= ? ORDER BY id", (day,)
