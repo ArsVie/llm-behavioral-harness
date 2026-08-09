@@ -26,7 +26,12 @@ NOW_H = 200.0  # day 8, 08:00 local — inside the check-in window (8-11)
 
 
 def _mk_store(tmp_path, name: str) -> SQLiteStore:
-    return SQLiteStore(tmp_path / name)
+    store = SQLiteStore(tmp_path / name)
+    # episodes' source sessions must exist (g8b provenance check)
+    for sid, start in (("day-6", 144.0), ("day-7", 168.0)):
+        store.open_session(sid, start)
+        store.close_session(sid, start + 24.0)
+    return store
 
 
 def _episode(ep_id: str, kind: MemoryKind, occurred: float, tags=("t",),
