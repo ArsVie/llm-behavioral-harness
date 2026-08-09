@@ -4,11 +4,17 @@ Covers: every type instantiable (happy path), frozen-ness of every dataclass,
 ProactiveIntent source fields required (no None, no defaults), MemoryContext
 holding all four tiers + anchors, and UserAffectObservation being a DISTINCT
 type from CompanionBehaviorState (no shared field names, no conversion).
+Iteration-2 Gate 0 additions: ContactOpportunity (timing signal, no semantic
+reason), ProactiveIntent.opportunity_id (additive default), the canonical
+8-category L4 taxonomy defined exactly once, and MemoryPolicy distinguishing
+the research-faithful condition from the experimental topicality variant.
 """
 
 from __future__ import annotations
 
 import dataclasses
+from enum import Enum
+from typing import Any
 
 import pytest
 
@@ -174,6 +180,18 @@ def _proactive_intent() -> domain.ProactiveIntent:
     )
 
 
+def _opportunity() -> domain.ContactOpportunity:
+    return domain.ContactOpportunity(
+        id="opportunity:313",
+        desired_t_h=17.05,
+        created_t_h=16.9,
+        valid_until_t_h=20.0,
+        hazard_components={"base": 0.041, "circadian": 1.32, "initiative": 1.18, "prior_score": 0.91},
+        initiative_multiplier=1.18,
+        previous_score_multiplier=0.91,
+    )
+
+
 def _controls() -> domain.GenerationControls:
     return domain.GenerationControls(max_tokens=600, response_delay_s=0.0, closing_tendency=0.3, initiative_factor=1.0)
 
@@ -236,6 +254,7 @@ ALL_INSTANCES: dict[type, object] = {
     domain.CompanionBehaviorState: _behavior_state(),
     domain.MemoryContext: _memory_context(),
     domain.ProactiveIntent: _proactive_intent(),
+    domain.ContactOpportunity: _opportunity(),
     domain.GenerationControls: _controls(),
     domain.BehaviorBrief: _brief(),
     domain.Turn: _turn(),
@@ -348,3 +367,130 @@ def test_companion_snapshot_happy_path() -> None:
     )
     assert bare.current_behavior is None
     assert bare.proactive_intent is None
+
+
+# ---------------------------------------------------------------------------
+# Iteration-2 Gate-0 contracts (ContactOpportunity, L4 taxonomy, MemoryPolicy)
+# ---------------------------------------------------------------------------
+
+def test_contact_opportunity_shape_and_no_semantic_reason() -> None:
+    """ContactOpportunity is a timing signal only — never a semantic reason."""
+    opp = _opportunity()
+    fields = {f.name for f in dataclasses.fields(domain.ContactOpportunity)}
+    assert fields == {
+        "id",
+        "desired_t_h",
+        "created_t_h",
+        "valid_until_t_h",
+        "hazard_components",
+        "initiative_multiplier",
+        "previous_score_multiplier",
+    }
+    # No semantic-reason vocabulary anywhere in the shape.
+    assert "reason" not in fields
+    assert "semantic" not in fields
+    assert "schedule" not in fields
+    # Hazard components are exactly the stochastic sources, with float values.
+    assert opp.hazard_components == {
+        "base": 0.041,
+        "circadian": 1.32,
+        "initiative": 1.18,
+        "prior_score": 0.91,
+    }
+    assert all(isinstance(v, float) for v in opp.hazard_components.values())
+    assert isinstance(opp.id, str)
+    for name in ("desired_t_h", "created_t_h", "valid_until_t_h"):
+        assert isinstance(getattr(opp, name), float)
+
+
+def test_proactive_intent_opportunity_id_defaults_none_and_links_opportunity() -> None:
+    """opportunity_id defaults to None (additive) and links the opportunity."""
+    intent = _proactive_intent()
+    assert intent.opportunity_id is None
+    linked = domain.ProactiveIntent(
+        id="intent:87",
+        reason="finished pottery class",
+        source_type="agenda_item",
+        source_id="agenda_item:pottery_2026_08_08",
+        hook="You just finished the pottery class scheduled this afternoon.",
+        created_t_h=17.1,
+        valid_until_t_h=20.0,
+        salience=0.8,
+        evidence="agenda_item:pottery_2026_08_08 status=completed at t_h=17.0",
+        opportunity_id="opportunity:313",
+    )
+    assert linked.opportunity_id == "opportunity:313"
+    # opportunity_id is the ONLY defaulted field: every source field stays
+    # required, and the source invariant still holds.
+    defaulted = [
+        f.name for f in dataclasses.fields(domain.ProactiveIntent) if f.default is not dataclasses.MISSING
+    ]
+    assert defaulted == ["opportunity_id"]
+    for field_name in ("id", "reason", "source_type", "source_id", "hook", "evidence"):
+        assert getattr(linked, field_name) != ""
+
+
+def test_l4_taxonomy_canonical_eight_categories() -> None:
+    """The canonical L4 taxonomy is exactly the 8 plan categories."""
+    assert {member.name for member in domain.UserModelCategory} == {
+        "IDENTITY",
+        "STABLE_PREFERENCE",
+        "CURRENT_PREFERENCE",
+        "BOUNDARY",
+        "VULNERABILITY",
+        "RECURRING_INTEREST",
+        "RELATIONSHIP_PATTERN",
+        "IMPORTANT_ENTITY",
+    }
+    # Lowercase-string values per repo style (like MemoryKind).
+    for member in domain.UserModelCategory:
+        assert isinstance(member.value, str)
+        assert member.value == member.name.lower()
+    assert len(list(domain.UserModelCategory)) == 8
+
+
+def _enum_member_names(enum_cls: Any) -> set[str]:
+    """Member names of an enum class (helper for the exactly-once scan)."""
+    return {member.name for member in enum_cls}
+
+
+def test_l4_taxonomy_defined_exactly_once() -> None:
+    """No second enum in the module carries the canonical L4 member set."""
+    canonical_names = {
+        "IDENTITY",
+        "STABLE_PREFERENCE",
+        "CURRENT_PREFERENCE",
+        "BOUNDARY",
+        "VULNERABILITY",
+        "RECURRING_INTEREST",
+        "RELATIONSHIP_PATTERN",
+        "IMPORTANT_ENTITY",
+    }
+    carriers = [
+        name
+        for name, obj in vars(domain).items()
+        if isinstance(obj, type)
+        and issubclass(obj, Enum)
+        and _enum_member_names(obj) == canonical_names
+    ]
+    assert carriers == ["UserModelCategory"]
+
+
+def test_memory_policy_members_and_experimental_distinction() -> None:
+    """STRUCTURED_MEMORY is faithful; the topicality variant is experimental."""
+    assert {member.name for member in domain.MemoryPolicy} == {
+        "RAW_CONTEXT",
+        "VERBATIM_RAG",
+        "STRUCTURED_MEMORY",
+        "STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT",
+    }
+    for member in domain.MemoryPolicy:
+        assert isinstance(member.value, str)
+        assert member.value == member.name.lower()
+    # Faithful condition is not experimental; the named variant is.
+    assert not domain.MemoryPolicy.STRUCTURED_MEMORY.is_experimental
+    assert domain.MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT.is_experimental
+    assert not domain.MemoryPolicy.RAW_CONTEXT.is_experimental
+    assert not domain.MemoryPolicy.VERBATIM_RAG.is_experimental
+    # The two conditions are distinct policy values.
+    assert domain.MemoryPolicy.STRUCTURED_MEMORY != domain.MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT

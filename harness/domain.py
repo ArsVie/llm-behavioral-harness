@@ -36,6 +36,20 @@ Invariants (binding)
 4. No cycle-phase labels and no raw engine state (internal phase labels,
    hormone variables, mood parameters, or cycle-day indices) appear in any
    domain object or conversation-visible string.
+
+5. ``ContactOpportunity`` carries NO semantic reason: it means only that the
+   stochastic scheduling process indicates a plausible time to consider
+   initiating contact. Semantic motivation is resolved afterward into a
+   ``ProactiveIntent``, which MUST be grounded in a real source.
+
+6. The L4 memory taxonomy is defined exactly once, as the canonical enum
+   ``UserModelCategory`` (8 categories). Stores consume this single enum and
+   never infer categories from string prefixes or free-form keys.
+
+7. ``MemoryPolicy`` distinguishes the research-faithful structured-memory
+   condition (``STRUCTURED_MEMORY``) from the explicitly experimental
+   topicality-boosted variant (``STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT``,
+   flagged by ``is_experimental``).
 """
 
 from __future__ import annotations
@@ -138,6 +152,26 @@ class MemoryKind(Enum):
     CALLBACK = "callback"
 
 
+class MemoryPolicy(Enum):
+    """Memory conditioning policy for generation/eval (module invariant 7).
+
+    ``STRUCTURED_MEMORY`` is the research-faithful condition; the
+    topicality-boosted variant is a SEPARATELY NAMED experiment and is
+    flagged by ``is_experimental``. ``RAW_CONTEXT`` and ``VERBATIM_RAG``
+    are honest baselines.
+    """
+
+    RAW_CONTEXT = "raw_context"
+    VERBATIM_RAG = "verbatim_rag"
+    STRUCTURED_MEMORY = "structured_memory"
+    STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT = "structured_memory_topicality_experiment"
+
+    @property
+    def is_experimental(self) -> bool:
+        """True only for the explicitly experimental topicality variant."""
+        return self is MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT
+
+
 @dataclass(frozen=True)
 class AffectMetadata:
     """Affect is metadata ON memories — there is no separate emotional store."""
@@ -204,6 +238,24 @@ class UserModelAssertion:
     status: str  # "current" | "superseded"
 
 
+class UserModelCategory(Enum):
+    """Canonical L4 taxonomy — defined exactly ONCE (module invariant 6).
+
+    The 8 categories shared by every store (SQLite and test doubles alike).
+    Stores consume this single enum directly; categories are never inferred
+    from string prefixes or free-form keys.
+    """
+
+    IDENTITY = "identity"
+    STABLE_PREFERENCE = "stable_preference"
+    CURRENT_PREFERENCE = "current_preference"
+    BOUNDARY = "boundary"
+    VULNERABILITY = "vulnerability"
+    RECURRING_INTEREST = "recurring_interest"
+    RELATIONSHIP_PATTERN = "relationship_pattern"
+    IMPORTANT_ENTITY = "important_entity"
+
+
 @dataclass(frozen=True)
 class UserModel:
     """L4 consolidated user model; new evidence updates, never piles up."""
@@ -265,12 +317,41 @@ class MemoryContext:
 
 
 @dataclass(frozen=True)
+class ContactOpportunity:
+    """A plausible time to consider initiating contact — and nothing more.
+
+    Produced by the stochastic scheduling process (module invariant 5); it
+    carries NO semantic reason such as ``"schedule"``. Semantic motivation
+    is resolved afterward into a grounded ``ProactiveIntent``, which links
+    back to this opportunity via ``opportunity_id``.
+
+    ``hazard_components`` maps hazard-source names to their contributions
+    (e.g. ``{"base": 0.041, "circadian": 1.32, "initiative": 1.18,
+    "prior_score": 0.91}``); ``initiative_multiplier`` and
+    ``previous_score_multiplier`` are the multiplier values applied to the
+    hazard at this opportunity.
+    """
+
+    id: str
+    desired_t_h: float
+    created_t_h: float
+    valid_until_t_h: float
+    hazard_components: dict[str, float]
+    initiative_multiplier: float
+    previous_score_multiplier: float
+
+
+@dataclass(frozen=True)
 class ProactiveIntent:
     """A grounded reason to contact the user (module invariant 3).
 
-    Every field except the floats is REQUIRED and non-empty — especially
-    ``source_type`` / ``source_id`` / ``hook`` / ``evidence``. There is no
-    proactive reason without a source; ``evidence`` is the provenance chain.
+    Every field except ``opportunity_id`` is REQUIRED and non-empty —
+    especially ``source_type`` / ``source_id`` / ``hook`` / ``evidence``.
+    There is no proactive reason without a source; ``evidence`` is the
+    provenance chain. ``opportunity_id`` links to the ``ContactOpportunity``
+    that made this a plausible moment (default ``None`` for additive
+    compatibility while schedulers still create intents directly; it becomes
+    required once real opportunities flow).
     """
 
     id: str
@@ -282,6 +363,7 @@ class ProactiveIntent:
     valid_until_t_h: float
     salience: float
     evidence: str
+    opportunity_id: str | None = None
 
 
 @dataclass(frozen=True)
