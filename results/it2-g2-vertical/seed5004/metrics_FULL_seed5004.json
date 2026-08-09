@@ -1,0 +1,168 @@
+{
+  "seed": 5004,
+  "condition": "FULL",
+  "M1_grounded_rate": 0.913,
+  "M2_invalid_source_rate": 0.087,
+  "M3_recall": 1.0,
+  "M4_false_recall": 0.25,
+  "M5_arc_continuity": 1.0,
+  "M6a_distinct_activities": 44,
+  "M6b_mean_jaccard": 0.3091,
+  "M6c_arc_days_mean": 22.0,
+  "M6c_arc_days_min": 22,
+  "M7_restart_loss": 0,
+  "M8a_rho_init_tokens": 0.5105,
+  "M8b_token_gap": 5.69,
+  "M8c_rho_energy_delay": -0.8042,
+  "M9_rho_proactive_prevscore": 0.0514,
+  "M10_rho_proactive_initiative": 0.3308,
+  "M11_leak_hits": 0,
+  "leak_hits_detail": {},
+  "g_bare_hits": 0,
+  "n_proactive": 23,
+  "n_messages": 103,
+  "probe_detail": [
+    {
+      "probe_day": 2,
+      "query": "what is my dog's name",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-1-0",
+        "ep-day-2-0",
+        "ep-day-5-0",
+        "ep-day-19-0",
+        "ep-day-3-0"
+      ]
+    },
+    {
+      "probe_day": 6,
+      "query": "what is my cat's name",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-5-0",
+        "ep-day-2-0",
+        "ep-day-1-0",
+        "ep-day-19-0",
+        "ep-day-3-0"
+      ]
+    },
+    {
+      "probe_day": 10,
+      "query": "what is my favorite color",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-9-0",
+        "ep-day-8-0",
+        "ep-day-10-0",
+        "ep-day-6-0",
+        "ep-day-4-0"
+      ]
+    },
+    {
+      "probe_day": 16,
+      "query": "where is my hometown",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-15-0",
+        "ep-day-7-0",
+        "ep-day-2-0",
+        "ep-day-19-0",
+        "ep-day-8-0"
+      ]
+    },
+    {
+      "probe_day": 18,
+      "query": "what is my brother's name",
+      "recalled": true,
+      "rank": 3,
+      "top_ids": [
+        "ep-day-2-0",
+        "ep-day-19-0",
+        "ep-day-17-0",
+        "ep-day-5-0",
+        "ep-day-1-0"
+      ]
+    },
+    {
+      "probe_day": 20,
+      "query": "what book is The Name of the Wind",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-19-0",
+        "ep-day-17-0",
+        "ep-day-5-0",
+        "ep-day-2-0",
+        "ep-day-3-0"
+      ]
+    },
+    {
+      "probe_day": 22,
+      "query": "what car do I drive, the red one",
+      "recalled": true,
+      "rank": 3,
+      "top_ids": [
+        "ep-day-5-0",
+        "ep-day-17-0",
+        "ep-day-21-0",
+        "ep-day-3-0",
+        "ep-day-19-0"
+      ]
+    },
+    {
+      "probe_day": 24,
+      "query": "is my favorite food ramen",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-23-0",
+        "ep-day-2-0",
+        "ep-day-10-0",
+        "ep-day-8-0",
+        "ep-day-19-0"
+      ]
+    }
+  ],
+  "arc_contribution_days": {
+    "arc_3": 22
+  },
+  "i4_violations": [],
+  "restart_loss_detail": [
+    {
+      "checkpoint_h": 168.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 336.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 504.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 624.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 696.0,
+      "diffs": 0
+    }
+  ],
+  "grounding_failures_detail": [
+    {
+      "message_id": 58,
+      "intent_id": "pi_agenda_item_ag_14_i_rock_356.323",
+      "t_h": 356.32268343270067
+    },
+    {
+      "message_id": 94,
+      "intent_id": "pi_agenda_item_ag_26_a_arc_3_639.332",
+      "t_h": 639.3320667623335
+    }
+  ]
+}

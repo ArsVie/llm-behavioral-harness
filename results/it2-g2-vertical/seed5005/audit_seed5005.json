@@ -1,0 +1,429 @@
+{
+  "seed": 5005,
+  "end_h": 720.0,
+  "days": 30,
+  "n_messages": 116,
+  "n_proactive": 32,
+  "n_fired_intents": 32,
+  "counts_consistent": true,
+  "ungrounded_proactive": 0,
+  "grounding_detail": [
+    {
+      "message_id": 5,
+      "t_h": 42.5,
+      "intent_id": "pi_agenda_item_ag_1_i_statistics_41.037",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_1_i_statistics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 8,
+      "t_h": 44.45567178071341,
+      "intent_id": "pi_agenda_item_ag_1_i_statistics_44.456",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_1_i_statistics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 11,
+      "t_h": 66.6,
+      "intent_id": "pi_agenda_item_ag_2_i_statistics_65.225",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_2_i_statistics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 20,
+      "t_h": 114.6,
+      "intent_id": "pi_life_event_ag_3_a_arc_4_113.708",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_3_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 25,
+      "t_h": 138.5,
+      "intent_id": "pi_agenda_item_ag_5_r_01_136.259",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_5_r_01",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 30,
+      "t_h": 162.6,
+      "intent_id": "pi_agenda_item_ag_6_a_arc_4_159.875",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_6_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 33,
+      "t_h": 182.17896593189892,
+      "intent_id": "pi_agenda_item_ag_7_r_01_182.179",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_7_r_01",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 36,
+      "t_h": 190.5094900541035,
+      "intent_id": "pi_agenda_item_ag_7_i_movies_190.509",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_7_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 43,
+      "t_h": 214.1352198125807,
+      "intent_id": "pi_life_event_ag_7_i_movies_214.135",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_7_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 48,
+      "t_h": 250.52517365814913,
+      "intent_id": "pi_agenda_item_ag_10_i_mathematics_250.525",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_10_i_mathematics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 51,
+      "t_h": 260.13593079536713,
+      "intent_id": "pi_agenda_item_ag_10_a_arc_2_260.136",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_10_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 54,
+      "t_h": 274.44280501667845,
+      "intent_id": "pi_life_event_ag_10_i_movies_274.443",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_10_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 55,
+      "t_h": 296.8627135456998,
+      "intent_id": "pi_check_in_ep-day-10-0_296.863",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-10-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 56,
+      "t_h": 321.1514155296883,
+      "intent_id": "pi_check_in_ep-day-10-0_321.151",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-10-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 57,
+      "t_h": 347.28056553290725,
+      "intent_id": "pi_life_event_ag_13_a_arc_4_347.281",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_13_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 62,
+      "t_h": 378.5,
+      "intent_id": "pi_agenda_item_ag_15_r_01_378.382",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_15_r_01",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 67,
+      "t_h": 403.0,
+      "intent_id": "pi_agenda_item_ag_16_a_arc_4_402.341",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_16_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 70,
+      "t_h": 426.5,
+      "intent_id": "pi_agenda_item_ag_17_a_arc_4_425.190",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_17_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 75,
+      "t_h": 451.0,
+      "intent_id": "pi_agenda_item_ag_18_a_arc_4_448.324",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_18_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 76,
+      "t_h": 452.72734723148244,
+      "intent_id": "pi_life_event_ag_17_a_arc_4_452.727",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_17_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 83,
+      "t_h": 515.4438109731595,
+      "intent_id": "pi_agenda_item_ag_21_a_arc_4_515.444",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_21_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 86,
+      "t_h": 524.3166412366772,
+      "intent_id": "pi_agenda_item_ag_21_i_metal_524.317",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_21_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 91,
+      "t_h": 547.0,
+      "intent_id": "pi_agenda_item_ag_22_i_mathematics_545.192",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_22_i_mathematics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 96,
+      "t_h": 572.8162016768209,
+      "intent_id": "pi_agenda_item_ag_23_r_02_572.816",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_23_r_02",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 97,
+      "t_h": 574.6324033536418,
+      "intent_id": "pi_life_event_ag_22_i_mathematics_574.273",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_22_i_mathematics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 100,
+      "t_h": 595.0,
+      "intent_id": "pi_life_event_ag_23_a_arc_4_592.411",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_23_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 101,
+      "t_h": 597.8390369337391,
+      "intent_id": "pi_life_event_ag_23_a_arc_4_597.839",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_23_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 104,
+      "t_h": 636.3695282670899,
+      "intent_id": "pi_agenda_item_ag_26_a_arc_4_636.370",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_26_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 109,
+      "t_h": 667.0,
+      "intent_id": "pi_agenda_item_ag_27_a_arc_4_664.613",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_27_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 112,
+      "t_h": 705.9587520728899,
+      "intent_id": "pi_life_event_ag_28_a_arc_4_705.959",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_28_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 113,
+      "t_h": 708.6016050756357,
+      "intent_id": "pi_life_event_ag_28_a_arc_4_708.602",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_28_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 114,
+      "t_h": 712.3177568640059,
+      "intent_id": "pi_life_event_ag_28_a_arc_4_712.318",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_28_a_arc_4",
+      "opportunity_id": null
+    }
+  ],
+  "wrong_intent": 0,
+  "restart_state_loss": 0,
+  "stranded_opportunities": 0,
+  "stranded_detail": {
+    "pending_schedule": [],
+    "pending_intents": []
+  },
+  "cycle_state_leakage": 0,
+  "leak_detail": {
+    "hits": {},
+    "total": 0,
+    "g_bare": 0
+  },
+  "memory_provenance_failures": 0,
+  "provenance_detail": [],
+  "duplicate_turns": 0,
+  "duplicate_detail": [],
+  "life_dead_days": [],
+  "life_dead_duration": 0,
+  "i4_violations": [],
+  "fixture_inserts": {
+    "user_ok": true,
+    "user_bad": [],
+    "assistant_ok": true,
+    "assistant_bad": []
+  },
+  "all_hard_zero": true,
+  "skipped_feeds": [
+    [
+      259.0,
+      "Hi! Anything new today?"
+    ],
+    [
+      282.6,
+      "My bike is back from repair."
+    ],
+    [
+      282.7,
+      "Honestly today was awful."
+    ],
+    [
+      283.0,
+      "Hello! How are you feeling today?"
+    ],
+    [
+      306.6,
+      "My job is starting on Monday."
+    ],
+    [
+      306.7,
+      "I don't feel like talking much."
+    ],
+    [
+      307.0,
+      "Hey! I had a long day, what about you?"
+    ],
+    [
+      330.7,
+      "That really annoyed me."
+    ],
+    [
+      331.0,
+      "Hey you. Tell me something about your day."
+    ]
+  ]
+}

@@ -1,0 +1,1177 @@
+{
+  "seed": 5003,
+  "days": 30,
+  "condition": "FULL",
+  "client": "fake",
+  "checkpoints": [
+    7,
+    14,
+    21,
+    26,
+    29
+  ],
+  "n_messages": 112,
+  "n_proactive": 22,
+  "commit": "453dfcb7233033421e718a304bcdc4de28e183b2",
+  "timestamp": "2026-08-09T06:06:59.971192+00:00",
+  "metrics": {
+    "seed": 5003,
+    "condition": "FULL",
+    "M1_grounded_rate": 0.9545,
+    "M2_invalid_source_rate": 0.0455,
+    "M3_recall": 1.0,
+    "M4_false_recall": 0.125,
+    "M5_arc_continuity": 1.0,
+    "M6a_distinct_activities": 41,
+    "M6b_mean_jaccard": 0.1859,
+    "M6c_arc_days_mean": 8.0,
+    "M6c_arc_days_min": 4,
+    "M7_restart_loss": 0,
+    "M8a_rho_init_tokens": -0.0576,
+    "M8b_token_gap": 0.88,
+    "M8c_rho_energy_delay": -0.8729,
+    "M9_rho_proactive_prevscore": 0.2752,
+    "M10_rho_proactive_initiative": 0.3691,
+    "M11_leak_hits": 0,
+    "leak_hits_detail": {},
+    "g_bare_hits": 0,
+    "n_proactive": 22,
+    "n_messages": 112,
+    "probe_detail": [
+      {
+        "probe_day": 2,
+        "query": "what is my dog's name",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-1-0",
+          "ep-day-5-0",
+          "ep-day-2-0",
+          "ep-day-19-0",
+          "ep-day-17-0"
+        ]
+      },
+      {
+        "probe_day": 6,
+        "query": "what is my cat's name",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-5-0",
+          "ep-day-1-0",
+          "ep-day-19-0",
+          "ep-day-2-0",
+          "ep-day-17-0"
+        ]
+      },
+      {
+        "probe_day": 10,
+        "query": "what is my favorite color",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-9-0",
+          "ep-day-10-0",
+          "ep-day-8-0",
+          "ep-day-4-0",
+          "ep-day-7-0"
+        ]
+      },
+      {
+        "probe_day": 16,
+        "query": "where is my hometown",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-15-0",
+          "ep-day-7-0",
+          "ep-day-17-0",
+          "ep-day-19-0",
+          "ep-day-9-0"
+        ]
+      },
+      {
+        "probe_day": 18,
+        "query": "what is my brother's name",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-17-0",
+          "ep-day-19-0",
+          "ep-day-2-0",
+          "ep-day-5-0",
+          "ep-day-1-0"
+        ]
+      },
+      {
+        "probe_day": 20,
+        "query": "what book is The Name of the Wind",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-19-0",
+          "ep-day-17-0",
+          "ep-day-5-0",
+          "ep-day-2-0",
+          "ep-day-1-0"
+        ]
+      },
+      {
+        "probe_day": 22,
+        "query": "what car do I drive, the red one",
+        "recalled": true,
+        "rank": 3,
+        "top_ids": [
+          "ep-day-17-0",
+          "ep-day-5-0",
+          "ep-day-21-0",
+          "ep-day-7-0",
+          "ep-day-19-0"
+        ]
+      },
+      {
+        "probe_day": 24,
+        "query": "is my favorite food ramen",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-23-0",
+          "ep-day-9-0",
+          "ep-day-10-0",
+          "ep-day-19-0",
+          "ep-day-4-0"
+        ]
+      }
+    ],
+    "arc_contribution_days": {
+      "arc_14_s0": 12,
+      "arc_23_s0": 4
+    },
+    "i4_violations": [],
+    "restart_loss_detail": [
+      {
+        "checkpoint_h": 168.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 336.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 504.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 624.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 696.0,
+        "diffs": 0
+      }
+    ],
+    "grounding_failures_detail": [
+      {
+        "message_id": 55,
+        "intent_id": "pi_agenda_item_ag_12_a_arc_2_300.697",
+        "t_h": 300.6973522039333
+      }
+    ]
+  },
+  "audit": {
+    "seed": 5003,
+    "end_h": 720.0,
+    "days": 30,
+    "n_messages": 112,
+    "n_proactive": 22,
+    "n_fired_intents": 22,
+    "counts_consistent": true,
+    "ungrounded_proactive": 0,
+    "grounding_detail": [
+      {
+        "message_id": 1,
+        "t_h": 8.739277512036882,
+        "intent_id": "pi_agenda_item_ag_0_i_physics_8.739",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_0_i_physics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 24,
+        "t_h": 140.06506071334144,
+        "intent_id": "pi_life_event_ag_4_r_00_140.065",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_4_r_00",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 27,
+        "t_h": 162.6,
+        "intent_id": "pi_agenda_item_ag_6_a_arc_2_160.423",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_6_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 30,
+        "t_h": 181.57698701305236,
+        "intent_id": "pi_agenda_item_ag_7_r_00_181.577",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_7_r_00",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 33,
+        "t_h": 189.78549734486162,
+        "intent_id": "pi_life_event_ag_6_a_arc_2_189.785",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_6_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 50,
+        "t_h": 278.1499127381313,
+        "intent_id": "pi_life_event_ag_10_i_physics_278.150",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_10_i_physics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 55,
+        "t_h": 300.6973522039333,
+        "intent_id": "pi_agenda_item_ag_12_a_arc_2_300.697",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_12_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 56,
+        "t_h": 321.5243499470708,
+        "intent_id": "pi_check_in_ep-day-11-0_321.524",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-11-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 57,
+        "t_h": 332.7353089253387,
+        "intent_id": "pi_check_in_ep-day-11-0_332.735",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-11-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 58,
+        "t_h": 348.35514926605913,
+        "intent_id": "pi_agenda_item_ag_14_i_physics_348.355",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_14_i_physics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 59,
+        "t_h": 349.1557535520143,
+        "intent_id": "pi_agenda_item_ag_14_i_physics_349.156",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_14_i_physics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 62,
+        "t_h": 357.9474112501929,
+        "intent_id": "pi_life_event_ag_13_a_arc_2_357.947",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_13_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 65,
+        "t_h": 378.5,
+        "intent_id": "pi_agenda_item_ag_15_a_arc_2_376.800",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_15_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 68,
+        "t_h": 382.1529426454748,
+        "intent_id": "pi_life_event_ag_14_i_physics_382.153",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_14_i_physics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 77,
+        "t_h": 451.0,
+        "intent_id": "pi_agenda_item_ag_18_i_metal_448.648",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_18_i_metal",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 80,
+        "t_h": 474.5,
+        "intent_id": "pi_agenda_item_ag_19_r_00_472.365",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_19_r_00",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 85,
+        "t_h": 513.9486210048511,
+        "intent_id": "pi_check_in_ep-day-19-0_513.949",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-19-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 90,
+        "t_h": 543.6703042451646,
+        "intent_id": "pi_agenda_item_ag_22_a_arc_2_543.670",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_22_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 95,
+        "t_h": 570.5,
+        "intent_id": "pi_agenda_item_ag_23_i_guitar_569.638",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_23_i_guitar",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 102,
+        "t_h": 634.7220342109205,
+        "intent_id": "pi_check_in_ep-day-23-0_634.722",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-23-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 109,
+        "t_h": 704.1869174589906,
+        "intent_id": "pi_check_in_ep-day-23-0_704.187",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-23-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 112,
+        "t_h": 715.9440085598611,
+        "intent_id": "pi_life_event_ag_28_i_physics_715.944",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_28_i_physics",
+        "opportunity_id": null
+      }
+    ],
+    "wrong_intent": 0,
+    "restart_state_loss": 0,
+    "stranded_opportunities": 0,
+    "stranded_detail": {
+      "pending_schedule": [],
+      "pending_intents": []
+    },
+    "cycle_state_leakage": 0,
+    "leak_detail": {
+      "hits": {},
+      "total": 0,
+      "g_bare": 0
+    },
+    "memory_provenance_failures": 0,
+    "provenance_detail": [],
+    "duplicate_turns": 0,
+    "duplicate_detail": [],
+    "life_dead_days": [],
+    "life_dead_duration": 0,
+    "i4_violations": [],
+    "fixture_inserts": {
+      "user_ok": true,
+      "user_bad": [],
+      "assistant_ok": true,
+      "assistant_bad": []
+    },
+    "all_hard_zero": true,
+    "skipped_feeds": [
+      [
+        283.0,
+        "Hi! Anything new today?"
+      ],
+      [
+        306.6,
+        "My job is starting on Monday."
+      ],
+      [
+        306.7,
+        "I don't feel like talking much."
+      ],
+      [
+        307.0,
+        "Hey! I had a long day, what about you?"
+      ],
+      [
+        330.7,
+        "That really annoyed me."
+      ],
+      [
+        331.0,
+        "Hi! Anything new today?"
+      ]
+    ]
+  },
+  "event_chains": {
+    "sister_ana": {
+      "chain_id": "sister_ana",
+      "events": 3,
+      "covered": [
+        true,
+        true,
+        true
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": true,
+      "CompleteChain": true,
+      "retrieved_ids": [
+        "ep-day-2-0",
+        "ep-day-10-0",
+        "ep-day-6-0",
+        "ep-day-4-0",
+        "ep-day-17-0",
+        "ep-day-19-0",
+        "ep-day-7-0",
+        "ep-day-8-0"
+      ]
+    },
+    "bike_swift": {
+      "chain_id": "bike_swift",
+      "events": 3,
+      "covered": [
+        true,
+        true,
+        true
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": true,
+      "CompleteChain": true,
+      "retrieved_ids": [
+        "ep-day-3-0",
+        "ep-day-7-0",
+        "ep-day-4-0",
+        "ep-day-19-0",
+        "ep-day-10-0",
+        "ep-day-9-0",
+        "ep-day-11-0",
+        "ep-day-17-0"
+      ]
+    },
+    "job_change": {
+      "chain_id": "job_change",
+      "events": 3,
+      "covered": [
+        true,
+        true,
+        false
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": false,
+      "CompleteChain": false,
+      "retrieved_ids": [
+        "ep-day-4-0",
+        "ep-day-8-0",
+        "ep-day-7-0",
+        "ep-day-5-0",
+        "ep-day-9-0",
+        "ep-day-23-0",
+        "ep-day-10-0",
+        "ep-day-17-0"
+      ]
+    }
+  },
+  "perturbation": {
+    "block_days_1idx": [
+      11,
+      12,
+      13,
+      14
+    ],
+    "latent": {
+      "M": {
+        "baseline_mean": 3.1,
+        "baseline_sd": 1.8682,
+        "block_mean": 5.0,
+        "deviation": 1.9,
+        "peak_deviation": 5.9,
+        "persistence_days": 0,
+        "recovery_time_days": 8
+      }
+    },
+    "observable": {
+      "initiative": {
+        "baseline_mean": 0.3488,
+        "baseline_sd": 0.0416,
+        "block_mean": 0.3937,
+        "deviation": 0.0448,
+        "peak_deviation": 0.1879,
+        "persistence_days": 0,
+        "recovery_time_days": 7
+      },
+      "max_tokens": {
+        "baseline_mean": 552.95,
+        "baseline_sd": 16.1407,
+        "block_mean": 564.75,
+        "deviation": 11.8,
+        "peak_deviation": 47.05,
+        "persistence_days": 0,
+        "recovery_time_days": 1
+      },
+      "delay": {
+        "baseline_mean": 4.7602,
+        "baseline_sd": 0.6342,
+        "block_mean": 4.5148,
+        "deviation": -0.2454,
+        "peak_deviation": 1.4409,
+        "persistence_days": 1,
+        "recovery_time_days": 13
+      }
+    },
+    "failure_frequency": {
+      "n_proactive_during_block": 4,
+      "failures_during_block": 0,
+      "failure_detail": []
+    }
+  },
+  "state_metrics": {
+    "seed": 5003,
+    "condition": "FULL",
+    "structured_observability": {
+      "M_series": [
+        4.0,
+        0.0,
+        3.0,
+        0.0,
+        3.0,
+        6.0,
+        4.0,
+        5.0,
+        4.0,
+        2.0,
+        3.0,
+        6.0,
+        4.0,
+        7.0,
+        8.0,
+        8.0,
+        8.0,
+        9.0,
+        6.0,
+        7.0,
+        6.0,
+        2.0,
+        4.0,
+        5.0,
+        7.0,
+        3.0,
+        3.0,
+        5.0,
+        6.0,
+        6.0
+      ],
+      "g_series": [
+        1.1676,
+        1.2108,
+        1.299,
+        1.253,
+        1.2687,
+        1.1588,
+        1.0755,
+        1.0509,
+        1.0531,
+        1.0327,
+        0.9869,
+        0.9244,
+        0.9016,
+        0.8408,
+        0.8119,
+        0.7447,
+        0.7857,
+        0.791,
+        0.8507,
+        0.897,
+        0.9368,
+        0.9861,
+        1.0377,
+        1.0378,
+        1.0058,
+        1.1898,
+        1.1858,
+        1.1607,
+        1.1913,
+        1.1976
+      ],
+      "mu_series": [
+        0.0,
+        -0.112,
+        -0.1214,
+        -0.04,
+        0.0467,
+        0.1511,
+        0.2098,
+        0.1492,
+        0.0519,
+        -0.0503,
+        -0.1548,
+        -0.2567,
+        -0.254,
+        -0.2343,
+        -0.1867,
+        -0.0773,
+        -0.0949,
+        -0.1556,
+        -0.2266,
+        -0.3047,
+        -0.2851,
+        -0.1791,
+        -0.0716,
+        0.0506,
+        0.1243,
+        0.0765,
+        -0.0099,
+        -0.1028,
+        -0.1994,
+        -0.1956
+      ],
+      "phase_series": [
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "ovulatory",
+        "ovulatory",
+        "ovulatory",
+        "ovulatory",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_late",
+        "luteal_late",
+        "luteal_late",
+        "luteal_late",
+        "luteal_late"
+      ],
+      "arcs_by_day": {
+        "0": {
+          "arc_2": [
+            0.342,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "1": {
+          "arc_2": [
+            0.366,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "2": {
+          "arc_2": [
+            0.4,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "3": {
+          "arc_2": [
+            0.445,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "4": {
+          "arc_2": [
+            0.471,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "5": {
+          "arc_2": [
+            0.484,
+            "active"
+          ],
+          "arc_1": [
+            0.739,
+            "active"
+          ]
+        },
+        "6": {
+          "arc_2": [
+            0.501,
+            "active"
+          ],
+          "arc_1": [
+            0.764,
+            "active"
+          ]
+        },
+        "7": {
+          "arc_2": [
+            0.537,
+            "active"
+          ],
+          "arc_1": [
+            0.811,
+            "active"
+          ]
+        },
+        "8": {
+          "arc_2": [
+            0.564,
+            "active"
+          ],
+          "arc_1": [
+            0.829,
+            "active"
+          ]
+        },
+        "9": {
+          "arc_2": [
+            0.6,
+            "active"
+          ],
+          "arc_1": [
+            0.87,
+            "active"
+          ]
+        },
+        "10": {
+          "arc_2": [
+            0.643,
+            "active"
+          ],
+          "arc_1": [
+            0.902,
+            "active"
+          ]
+        },
+        "11": {
+          "arc_2": [
+            0.682,
+            "active"
+          ],
+          "arc_1": [
+            0.927,
+            "active"
+          ]
+        },
+        "12": {
+          "arc_2": [
+            0.727,
+            "active"
+          ],
+          "arc_1": [
+            0.938,
+            "active"
+          ]
+        },
+        "13": {
+          "arc_2": [
+            0.755,
+            "active"
+          ],
+          "arc_1": [
+            0.979,
+            "active"
+          ]
+        },
+        "14": {
+          "arc_2": [
+            0.775,
+            "active"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.516,
+            "active"
+          ]
+        },
+        "15": {
+          "arc_2": [
+            0.793,
+            "active"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.555,
+            "active"
+          ]
+        },
+        "16": {
+          "arc_2": [
+            0.817,
+            "active"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.574,
+            "active"
+          ]
+        },
+        "17": {
+          "arc_2": [
+            0.843,
+            "active"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.586,
+            "active"
+          ]
+        },
+        "18": {
+          "arc_2": [
+            0.886,
+            "active"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.617,
+            "active"
+          ]
+        },
+        "19": {
+          "arc_2": [
+            0.928,
+            "active"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.628,
+            "active"
+          ]
+        },
+        "20": {
+          "arc_2": [
+            0.965,
+            "active"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.672,
+            "active"
+          ]
+        },
+        "21": {
+          "arc_2": [
+            0.983,
+            "active"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.713,
+            "active"
+          ]
+        },
+        "22": {
+          "arc_2": [
+            1.0,
+            "completed"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.745,
+            "active"
+          ]
+        },
+        "23": {
+          "arc_2": [
+            1.0,
+            "completed"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.762,
+            "active"
+          ],
+          "arc_23_s0": [
+            0.536,
+            "active"
+          ]
+        },
+        "24": {
+          "arc_2": [
+            1.0,
+            "completed"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.796,
+            "active"
+          ],
+          "arc_23_s0": [
+            0.549,
+            "active"
+          ]
+        },
+        "25": {
+          "arc_2": [
+            1.0,
+            "completed"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.818,
+            "active"
+          ],
+          "arc_23_s0": [
+            0.563,
+            "active"
+          ]
+        },
+        "26": {
+          "arc_2": [
+            1.0,
+            "completed"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.845,
+            "active"
+          ],
+          "arc_23_s0": [
+            0.605,
+            "active"
+          ]
+        },
+        "27": {
+          "arc_2": [
+            1.0,
+            "completed"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.879,
+            "active"
+          ],
+          "arc_23_s0": [
+            0.617,
+            "active"
+          ]
+        },
+        "28": {
+          "arc_2": [
+            1.0,
+            "completed"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.916,
+            "active"
+          ],
+          "arc_23_s0": [
+            0.646,
+            "active"
+          ]
+        },
+        "29": {
+          "arc_2": [
+            1.0,
+            "completed"
+          ],
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_14_s0": [
+            0.95,
+            "active"
+          ],
+          "arc_23_s0": [
+            0.657,
+            "active"
+          ]
+        }
+      },
+      "n_arcs_total": 4,
+      "n_arcs_active_end": 2,
+      "n_arcs_completed": 2,
+      "n_arcs_abandoned": 0,
+      "distinct_agenda_activities": 41
+    },
+    "behavioral_dynamics": {
+      "n_messages": 67,
+      "delay_mean": 4.262,
+      "delay_sd": 0.75,
+      "delay_min": 2.746,
+      "delay_max": 6.097,
+      "max_tokens_mean": 549.5,
+      "max_tokens_sd": 13.9,
+      "initiative_mean": 0.393,
+      "initiative_sd": 0.066,
+      "closing_tendency_sd": 0.069,
+      "M8a_rho_init_tokens": 0.0221,
+      "M8b_token_gap": 2.27,
+      "M8c_rho_energy_delay": -0.8701,
+      "M9_rho_proactive_prevscore": 0.2752,
+      "M10_rho_proactive_initiative": 0.3644
+    },
+    "state_to_observable": {
+      "rho_M_initiative": 0.772,
+      "rho_M_max_tokens": -0.1129,
+      "rho_g_delay": 0.6029,
+      "rho_mu_proactive_count": -0.142
+    }
+  },
+  "invariants": {
+    "ungrounded_proactive": 0,
+    "wrong_intent": 0,
+    "restart_state_loss": 0,
+    "stranded_opportunities": 0,
+    "cycle_state_leakage": 0,
+    "memory_provenance_failures": 0,
+    "duplicate_turns": 0,
+    "life_dead_duration": 0
+  },
+  "validated": true,
+  "validation_errors": 0
+}

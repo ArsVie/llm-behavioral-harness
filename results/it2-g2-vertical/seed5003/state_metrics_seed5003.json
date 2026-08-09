@@ -1,0 +1,556 @@
+{
+  "seed": 5003,
+  "condition": "FULL",
+  "structured_observability": {
+    "M_series": [
+      4.0,
+      0.0,
+      3.0,
+      0.0,
+      3.0,
+      6.0,
+      4.0,
+      5.0,
+      4.0,
+      2.0,
+      3.0,
+      6.0,
+      4.0,
+      7.0,
+      8.0,
+      8.0,
+      8.0,
+      9.0,
+      6.0,
+      7.0,
+      6.0,
+      2.0,
+      4.0,
+      5.0,
+      7.0,
+      3.0,
+      3.0,
+      5.0,
+      6.0,
+      6.0
+    ],
+    "g_series": [
+      1.1676,
+      1.2108,
+      1.299,
+      1.253,
+      1.2687,
+      1.1588,
+      1.0755,
+      1.0509,
+      1.0531,
+      1.0327,
+      0.9869,
+      0.9244,
+      0.9016,
+      0.8408,
+      0.8119,
+      0.7447,
+      0.7857,
+      0.791,
+      0.8507,
+      0.897,
+      0.9368,
+      0.9861,
+      1.0377,
+      1.0378,
+      1.0058,
+      1.1898,
+      1.1858,
+      1.1607,
+      1.1913,
+      1.1976
+    ],
+    "mu_series": [
+      0.0,
+      -0.112,
+      -0.1214,
+      -0.04,
+      0.0467,
+      0.1511,
+      0.2098,
+      0.1492,
+      0.0519,
+      -0.0503,
+      -0.1548,
+      -0.2567,
+      -0.254,
+      -0.2343,
+      -0.1867,
+      -0.0773,
+      -0.0949,
+      -0.1556,
+      -0.2266,
+      -0.3047,
+      -0.2851,
+      -0.1791,
+      -0.0716,
+      0.0506,
+      0.1243,
+      0.0765,
+      -0.0099,
+      -0.1028,
+      -0.1994,
+      -0.1956
+    ],
+    "phase_series": [
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "ovulatory",
+      "ovulatory",
+      "ovulatory",
+      "ovulatory",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_late",
+      "luteal_late",
+      "luteal_late",
+      "luteal_late",
+      "luteal_late"
+    ],
+    "arcs_by_day": {
+      "0": {
+        "arc_2": [
+          0.342,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "1": {
+        "arc_2": [
+          0.366,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "2": {
+        "arc_2": [
+          0.4,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "3": {
+        "arc_2": [
+          0.445,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "4": {
+        "arc_2": [
+          0.471,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "5": {
+        "arc_2": [
+          0.484,
+          "active"
+        ],
+        "arc_1": [
+          0.739,
+          "active"
+        ]
+      },
+      "6": {
+        "arc_2": [
+          0.501,
+          "active"
+        ],
+        "arc_1": [
+          0.764,
+          "active"
+        ]
+      },
+      "7": {
+        "arc_2": [
+          0.537,
+          "active"
+        ],
+        "arc_1": [
+          0.811,
+          "active"
+        ]
+      },
+      "8": {
+        "arc_2": [
+          0.564,
+          "active"
+        ],
+        "arc_1": [
+          0.829,
+          "active"
+        ]
+      },
+      "9": {
+        "arc_2": [
+          0.6,
+          "active"
+        ],
+        "arc_1": [
+          0.87,
+          "active"
+        ]
+      },
+      "10": {
+        "arc_2": [
+          0.643,
+          "active"
+        ],
+        "arc_1": [
+          0.902,
+          "active"
+        ]
+      },
+      "11": {
+        "arc_2": [
+          0.682,
+          "active"
+        ],
+        "arc_1": [
+          0.927,
+          "active"
+        ]
+      },
+      "12": {
+        "arc_2": [
+          0.727,
+          "active"
+        ],
+        "arc_1": [
+          0.938,
+          "active"
+        ]
+      },
+      "13": {
+        "arc_2": [
+          0.755,
+          "active"
+        ],
+        "arc_1": [
+          0.979,
+          "active"
+        ]
+      },
+      "14": {
+        "arc_2": [
+          0.775,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.516,
+          "active"
+        ]
+      },
+      "15": {
+        "arc_2": [
+          0.793,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.555,
+          "active"
+        ]
+      },
+      "16": {
+        "arc_2": [
+          0.817,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.574,
+          "active"
+        ]
+      },
+      "17": {
+        "arc_2": [
+          0.843,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.586,
+          "active"
+        ]
+      },
+      "18": {
+        "arc_2": [
+          0.886,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.617,
+          "active"
+        ]
+      },
+      "19": {
+        "arc_2": [
+          0.928,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.628,
+          "active"
+        ]
+      },
+      "20": {
+        "arc_2": [
+          0.965,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.672,
+          "active"
+        ]
+      },
+      "21": {
+        "arc_2": [
+          0.983,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.713,
+          "active"
+        ]
+      },
+      "22": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.745,
+          "active"
+        ]
+      },
+      "23": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.762,
+          "active"
+        ],
+        "arc_23_s0": [
+          0.536,
+          "active"
+        ]
+      },
+      "24": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.796,
+          "active"
+        ],
+        "arc_23_s0": [
+          0.549,
+          "active"
+        ]
+      },
+      "25": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.818,
+          "active"
+        ],
+        "arc_23_s0": [
+          0.563,
+          "active"
+        ]
+      },
+      "26": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.845,
+          "active"
+        ],
+        "arc_23_s0": [
+          0.605,
+          "active"
+        ]
+      },
+      "27": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.879,
+          "active"
+        ],
+        "arc_23_s0": [
+          0.617,
+          "active"
+        ]
+      },
+      "28": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.916,
+          "active"
+        ],
+        "arc_23_s0": [
+          0.646,
+          "active"
+        ]
+      },
+      "29": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_14_s0": [
+          0.95,
+          "active"
+        ],
+        "arc_23_s0": [
+          0.657,
+          "active"
+        ]
+      }
+    },
+    "n_arcs_total": 4,
+    "n_arcs_active_end": 2,
+    "n_arcs_completed": 2,
+    "n_arcs_abandoned": 0,
+    "distinct_agenda_activities": 41
+  },
+  "behavioral_dynamics": {
+    "n_messages": 67,
+    "delay_mean": 4.262,
+    "delay_sd": 0.75,
+    "delay_min": 2.746,
+    "delay_max": 6.097,
+    "max_tokens_mean": 549.5,
+    "max_tokens_sd": 13.9,
+    "initiative_mean": 0.393,
+    "initiative_sd": 0.066,
+    "closing_tendency_sd": 0.069,
+    "M8a_rho_init_tokens": 0.0221,
+    "M8b_token_gap": 2.27,
+    "M8c_rho_energy_delay": -0.8701,
+    "M9_rho_proactive_prevscore": 0.2752,
+    "M10_rho_proactive_initiative": 0.3644
+  },
+  "state_to_observable": {
+    "rho_M_initiative": 0.772,
+    "rho_M_max_tokens": -0.1129,
+    "rho_g_delay": 0.6029,
+    "rho_mu_proactive_count": -0.142
+  }
+}

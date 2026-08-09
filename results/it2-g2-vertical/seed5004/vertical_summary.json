@@ -1,0 +1,1360 @@
+{
+  "seed": 5004,
+  "days": 30,
+  "condition": "FULL",
+  "client": "fake",
+  "checkpoints": [
+    7,
+    14,
+    21,
+    26,
+    29
+  ],
+  "n_messages": 103,
+  "n_proactive": 23,
+  "commit": "453dfcb7233033421e718a304bcdc4de28e183b2",
+  "timestamp": "2026-08-09T06:07:04.773333+00:00",
+  "metrics": {
+    "seed": 5004,
+    "condition": "FULL",
+    "M1_grounded_rate": 0.913,
+    "M2_invalid_source_rate": 0.087,
+    "M3_recall": 1.0,
+    "M4_false_recall": 0.25,
+    "M5_arc_continuity": 1.0,
+    "M6a_distinct_activities": 44,
+    "M6b_mean_jaccard": 0.3091,
+    "M6c_arc_days_mean": 22.0,
+    "M6c_arc_days_min": 22,
+    "M7_restart_loss": 0,
+    "M8a_rho_init_tokens": 0.5105,
+    "M8b_token_gap": 5.69,
+    "M8c_rho_energy_delay": -0.8042,
+    "M9_rho_proactive_prevscore": 0.0514,
+    "M10_rho_proactive_initiative": 0.3308,
+    "M11_leak_hits": 0,
+    "leak_hits_detail": {},
+    "g_bare_hits": 0,
+    "n_proactive": 23,
+    "n_messages": 103,
+    "probe_detail": [
+      {
+        "probe_day": 2,
+        "query": "what is my dog's name",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-1-0",
+          "ep-day-2-0",
+          "ep-day-5-0",
+          "ep-day-19-0",
+          "ep-day-3-0"
+        ]
+      },
+      {
+        "probe_day": 6,
+        "query": "what is my cat's name",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-5-0",
+          "ep-day-2-0",
+          "ep-day-1-0",
+          "ep-day-19-0",
+          "ep-day-3-0"
+        ]
+      },
+      {
+        "probe_day": 10,
+        "query": "what is my favorite color",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-9-0",
+          "ep-day-8-0",
+          "ep-day-10-0",
+          "ep-day-6-0",
+          "ep-day-4-0"
+        ]
+      },
+      {
+        "probe_day": 16,
+        "query": "where is my hometown",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-15-0",
+          "ep-day-7-0",
+          "ep-day-2-0",
+          "ep-day-19-0",
+          "ep-day-8-0"
+        ]
+      },
+      {
+        "probe_day": 18,
+        "query": "what is my brother's name",
+        "recalled": true,
+        "rank": 3,
+        "top_ids": [
+          "ep-day-2-0",
+          "ep-day-19-0",
+          "ep-day-17-0",
+          "ep-day-5-0",
+          "ep-day-1-0"
+        ]
+      },
+      {
+        "probe_day": 20,
+        "query": "what book is The Name of the Wind",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-19-0",
+          "ep-day-17-0",
+          "ep-day-5-0",
+          "ep-day-2-0",
+          "ep-day-3-0"
+        ]
+      },
+      {
+        "probe_day": 22,
+        "query": "what car do I drive, the red one",
+        "recalled": true,
+        "rank": 3,
+        "top_ids": [
+          "ep-day-5-0",
+          "ep-day-17-0",
+          "ep-day-21-0",
+          "ep-day-3-0",
+          "ep-day-19-0"
+        ]
+      },
+      {
+        "probe_day": 24,
+        "query": "is my favorite food ramen",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-23-0",
+          "ep-day-2-0",
+          "ep-day-10-0",
+          "ep-day-8-0",
+          "ep-day-19-0"
+        ]
+      }
+    ],
+    "arc_contribution_days": {
+      "arc_3": 22
+    },
+    "i4_violations": [],
+    "restart_loss_detail": [
+      {
+        "checkpoint_h": 168.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 336.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 504.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 624.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 696.0,
+        "diffs": 0
+      }
+    ],
+    "grounding_failures_detail": [
+      {
+        "message_id": 58,
+        "intent_id": "pi_agenda_item_ag_14_i_rock_356.323",
+        "t_h": 356.32268343270067
+      },
+      {
+        "message_id": 94,
+        "intent_id": "pi_agenda_item_ag_26_a_arc_3_639.332",
+        "t_h": 639.3320667623335
+      }
+    ]
+  },
+  "audit": {
+    "seed": 5004,
+    "end_h": 720.0,
+    "days": 30,
+    "n_messages": 103,
+    "n_proactive": 23,
+    "n_fired_intents": 23,
+    "counts_consistent": true,
+    "ungrounded_proactive": 0,
+    "grounding_detail": [
+      {
+        "message_id": 19,
+        "t_h": 117.26215548781269,
+        "intent_id": "pi_life_event_ag_3_i_puzzles_117.262",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_3_i_puzzles",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 28,
+        "t_h": 176.70574302643558,
+        "intent_id": "pi_life_event_ag_6_a_arc_1_176.706",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_6_a_arc_1",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 29,
+        "t_h": 180.93166591135048,
+        "intent_id": "pi_agenda_item_ag_7_a_arc_4_180.932",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_7_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 30,
+        "t_h": 185.35341670144672,
+        "intent_id": "pi_agenda_item_ag_7_a_arc_2_185.353",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_7_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 35,
+        "t_h": 205.69958002086423,
+        "intent_id": "pi_agenda_item_ag_8_a_arc_2_205.700",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_8_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 40,
+        "t_h": 226.88442567270332,
+        "intent_id": "pi_agenda_item_ag_9_i_puzzles_226.884",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_9_i_puzzles",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 45,
+        "t_h": 248.66727116528565,
+        "intent_id": "pi_agenda_item_ag_10_i_literature_248.667",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_10_i_literature",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 50,
+        "t_h": 273.336505357746,
+        "intent_id": "pi_life_event_ag_10_a_arc_3_273.337",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_10_a_arc_3",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 51,
+        "t_h": 283.71247982315197,
+        "intent_id": "pi_check_in_ep-day-10-0_283.712",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-10-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 52,
+        "t_h": 298.703500585969,
+        "intent_id": "pi_check_in_ep-day-10-0_298.704",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-10-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 53,
+        "t_h": 309.2166585909954,
+        "intent_id": "pi_check_in_ep-day-10-0_309.217",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-10-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 54,
+        "t_h": 323.47720928463406,
+        "intent_id": "pi_agenda_item_ag_13_a_arc_4_323.477",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_13_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 55,
+        "t_h": 344.9569358833783,
+        "intent_id": "pi_check_in_ep-day-10-0_344.957",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-10-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 58,
+        "t_h": 356.32268343270067,
+        "intent_id": "pi_agenda_item_ag_14_i_rock_356.323",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_14_i_rock",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 61,
+        "t_h": 378.5,
+        "intent_id": "pi_agenda_item_ag_15_a_arc_3_375.654",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_15_a_arc_3",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 66,
+        "t_h": 405.9313548222221,
+        "intent_id": "pi_agenda_item_ag_16_i_movies_405.931",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_16_i_movies",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 79,
+        "t_h": 500.547582291823,
+        "intent_id": "pi_agenda_item_ag_20_a_arc_2_500.548",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_20_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 80,
+        "t_h": 502.21090222907213,
+        "intent_id": "pi_life_event_ag_19_i_puzzles_502.211",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_19_i_puzzles",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 81,
+        "t_h": 519.4828558091149,
+        "intent_id": "pi_life_event_ag_20_a_arc_2_519.483",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_20_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 86,
+        "t_h": 545.5324041300875,
+        "intent_id": "pi_agenda_item_ag_22_i_movies_545.532",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_22_i_movies",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 89,
+        "t_h": 549.9843034964313,
+        "intent_id": "pi_life_event_ag_21_a_arc_2_549.984",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_21_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 94,
+        "t_h": 639.3320667623335,
+        "intent_id": "pi_agenda_item_ag_26_a_arc_3_639.332",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_26_a_arc_3",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 101,
+        "t_h": 705.0421751889934,
+        "intent_id": "pi_agenda_item_ag_29_i_lifting_705.042",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_29_i_lifting",
+        "opportunity_id": null
+      }
+    ],
+    "wrong_intent": 0,
+    "restart_state_loss": 0,
+    "stranded_opportunities": 0,
+    "stranded_detail": {
+      "pending_schedule": [],
+      "pending_intents": []
+    },
+    "cycle_state_leakage": 0,
+    "leak_detail": {
+      "hits": {},
+      "total": 0,
+      "g_bare": 0
+    },
+    "memory_provenance_failures": 0,
+    "provenance_detail": [],
+    "duplicate_turns": 0,
+    "duplicate_detail": [],
+    "life_dead_days": [],
+    "life_dead_duration": 0,
+    "i4_violations": [],
+    "fixture_inserts": {
+      "user_ok": true,
+      "user_bad": [],
+      "assistant_ok": true,
+      "assistant_bad": []
+    },
+    "all_hard_zero": true,
+    "skipped_feeds": [
+      [
+        259.0,
+        "Hello! How are you feeling today?"
+      ],
+      [
+        282.6,
+        "My bike is back from repair."
+      ],
+      [
+        282.7,
+        "Honestly today was awful."
+      ],
+      [
+        283.0,
+        "Hi! Anything new today?"
+      ],
+      [
+        306.6,
+        "My job is starting on Monday."
+      ],
+      [
+        306.7,
+        "I don't feel like talking much."
+      ],
+      [
+        307.0,
+        "Hey you. Tell me something about your day."
+      ],
+      [
+        330.7,
+        "That really annoyed me."
+      ],
+      [
+        331.0,
+        "I was thinking about you earlier — what are you up to?"
+      ],
+      [
+        595.0,
+        "I was thinking about you earlier — what are you up to?"
+      ],
+      [
+        619.0,
+        "I was thinking about you earlier — what are you up to?"
+      ]
+    ]
+  },
+  "event_chains": {
+    "sister_ana": {
+      "chain_id": "sister_ana",
+      "events": 3,
+      "covered": [
+        true,
+        true,
+        true
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": true,
+      "CompleteChain": true,
+      "retrieved_ids": [
+        "ep-day-2-0",
+        "ep-day-6-0",
+        "ep-day-10-0",
+        "ep-day-4-0",
+        "ep-day-17-0",
+        "ep-day-8-0",
+        "ep-day-19-0",
+        "ep-day-7-0"
+      ]
+    },
+    "bike_swift": {
+      "chain_id": "bike_swift",
+      "events": 3,
+      "covered": [
+        true,
+        true,
+        false
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": false,
+      "CompleteChain": false,
+      "retrieved_ids": [
+        "ep-day-3-0",
+        "ep-day-7-0",
+        "ep-day-4-0",
+        "ep-day-19-0",
+        "ep-day-8-0",
+        "ep-day-17-0",
+        "ep-day-6-0",
+        "ep-day-10-0"
+      ]
+    },
+    "job_change": {
+      "chain_id": "job_change",
+      "events": 3,
+      "covered": [
+        true,
+        true,
+        false
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": false,
+      "CompleteChain": false,
+      "retrieved_ids": [
+        "ep-day-4-0",
+        "ep-day-8-0",
+        "ep-day-7-0",
+        "ep-day-5-0",
+        "ep-day-2-0",
+        "ep-day-3-0",
+        "ep-day-6-0",
+        "ep-day-17-0"
+      ]
+    }
+  },
+  "perturbation": {
+    "block_days_1idx": [
+      11,
+      12,
+      13,
+      14
+    ],
+    "latent": {
+      "M": {
+        "baseline_mean": 5.0,
+        "baseline_sd": 1.5492,
+        "block_mean": 2.5,
+        "deviation": -2.5,
+        "peak_deviation": 4.0,
+        "persistence_days": 5,
+        "recovery_time_days": null
+      }
+    },
+    "observable": {
+      "initiative": {
+        "baseline_mean": 0.3738,
+        "baseline_sd": 0.0586,
+        "block_mean": 0.4126,
+        "deviation": 0.0388,
+        "peak_deviation": 0.1262,
+        "persistence_days": 0,
+        "recovery_time_days": 4
+      },
+      "max_tokens": {
+        "baseline_mean": 549.9,
+        "baseline_sd": 15.0296,
+        "block_mean": 571.0,
+        "deviation": 21.1,
+        "peak_deviation": 50.1,
+        "persistence_days": 0,
+        "recovery_time_days": 7
+      },
+      "delay": {
+        "baseline_mean": 4.6369,
+        "baseline_sd": 0.6548,
+        "block_mean": 4.9205,
+        "deviation": 0.2835,
+        "peak_deviation": 1.4645,
+        "persistence_days": 0,
+        "recovery_time_days": 4
+      }
+    },
+    "failure_frequency": {
+      "n_proactive_during_block": 6,
+      "failures_during_block": 0,
+      "failure_detail": []
+    }
+  },
+  "state_metrics": {
+    "seed": 5004,
+    "condition": "FULL",
+    "structured_observability": {
+      "M_series": [
+        3.0,
+        4.0,
+        3.0,
+        5.0,
+        8.0,
+        4.0,
+        7.0,
+        6.0,
+        5.0,
+        5.0,
+        3.0,
+        2.0,
+        2.0,
+        3.0,
+        3.0,
+        6.0,
+        7.0,
+        4.0,
+        7.0,
+        4.0,
+        3.0,
+        3.0,
+        6.0,
+        3.0,
+        5.0,
+        3.0,
+        6.0,
+        1.0,
+        1.0,
+        2.0
+      ],
+      "g_series": [
+        1.206,
+        1.2857,
+        1.2504,
+        1.272,
+        1.2558,
+        1.1246,
+        1.1543,
+        1.0245,
+        1.0944,
+        1.0055,
+        1.0188,
+        1.0183,
+        0.8439,
+        0.7957,
+        0.7935,
+        0.7797,
+        0.7135,
+        0.7467,
+        0.8227,
+        0.8688,
+        0.9588,
+        0.9642,
+        0.9142,
+        1.0396,
+        1.0209,
+        1.0498,
+        1.1853,
+        1.1822,
+        1.1643,
+        1.196
+      ],
+      "mu_series": [
+        0.0,
+        -0.0696,
+        -0.0159,
+        0.0731,
+        0.1558,
+        0.2345,
+        0.2125,
+        0.1032,
+        0.0009,
+        -0.1042,
+        -0.1582,
+        -0.1902,
+        -0.1741,
+        -0.1532,
+        -0.1272,
+        -0.0949,
+        -0.1581,
+        -0.2212,
+        -0.293,
+        -0.3187,
+        -0.2276,
+        -0.1069,
+        0.0029,
+        0.1045,
+        0.102,
+        0.0093,
+        0.0079,
+        -0.0801,
+        -0.1731,
+        -0.2167
+      ],
+      "phase_series": [
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "ovulatory",
+        "ovulatory",
+        "ovulatory",
+        "ovulatory",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_late",
+        "luteal_late",
+        "luteal_late",
+        "luteal_late",
+        "luteal_late"
+      ],
+      "arcs_by_day": {
+        "0": {
+          "arc_1": [
+            0.833,
+            "active"
+          ],
+          "arc_4": [
+            0.264,
+            "active"
+          ],
+          "arc_2": [
+            0.261,
+            "active"
+          ],
+          "arc_3": [
+            0.217,
+            "active"
+          ]
+        },
+        "1": {
+          "arc_1": [
+            0.833,
+            "active"
+          ],
+          "arc_4": [
+            0.264,
+            "active"
+          ],
+          "arc_2": [
+            0.261,
+            "active"
+          ],
+          "arc_3": [
+            0.217,
+            "active"
+          ]
+        },
+        "2": {
+          "arc_1": [
+            0.833,
+            "active"
+          ],
+          "arc_4": [
+            0.264,
+            "active"
+          ],
+          "arc_2": [
+            0.261,
+            "active"
+          ],
+          "arc_3": [
+            0.217,
+            "active"
+          ]
+        },
+        "3": {
+          "arc_1": [
+            0.833,
+            "active"
+          ],
+          "arc_4": [
+            0.264,
+            "active"
+          ],
+          "arc_2": [
+            0.261,
+            "active"
+          ],
+          "arc_3": [
+            0.217,
+            "active"
+          ]
+        },
+        "4": {
+          "arc_1": [
+            0.833,
+            "active"
+          ],
+          "arc_4": [
+            0.264,
+            "active"
+          ],
+          "arc_2": [
+            0.261,
+            "active"
+          ],
+          "arc_3": [
+            0.217,
+            "active"
+          ]
+        },
+        "5": {
+          "arc_1": [
+            0.87,
+            "active"
+          ],
+          "arc_4": [
+            0.287,
+            "active"
+          ],
+          "arc_2": [
+            0.261,
+            "active"
+          ],
+          "arc_3": [
+            0.217,
+            "active"
+          ]
+        },
+        "6": {
+          "arc_1": [
+            0.919,
+            "active"
+          ],
+          "arc_4": [
+            0.323,
+            "active"
+          ],
+          "arc_2": [
+            0.298,
+            "active"
+          ],
+          "arc_3": [
+            0.245,
+            "active"
+          ]
+        },
+        "7": {
+          "arc_1": [
+            0.943,
+            "active"
+          ],
+          "arc_4": [
+            0.37,
+            "active"
+          ],
+          "arc_2": [
+            0.332,
+            "active"
+          ],
+          "arc_3": [
+            0.257,
+            "active"
+          ]
+        },
+        "8": {
+          "arc_1": [
+            0.981,
+            "active"
+          ],
+          "arc_4": [
+            0.398,
+            "active"
+          ],
+          "arc_2": [
+            0.364,
+            "active"
+          ],
+          "arc_3": [
+            0.268,
+            "active"
+          ]
+        },
+        "9": {
+          "arc_1": [
+            0.993,
+            "active"
+          ],
+          "arc_4": [
+            0.443,
+            "active"
+          ],
+          "arc_2": [
+            0.393,
+            "active"
+          ],
+          "arc_3": [
+            0.278,
+            "active"
+          ]
+        },
+        "10": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.487,
+            "active"
+          ],
+          "arc_2": [
+            0.409,
+            "active"
+          ],
+          "arc_3": [
+            0.314,
+            "active"
+          ]
+        },
+        "11": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.515,
+            "active"
+          ],
+          "arc_2": [
+            0.421,
+            "active"
+          ],
+          "arc_3": [
+            0.359,
+            "active"
+          ]
+        },
+        "12": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.536,
+            "active"
+          ],
+          "arc_2": [
+            0.471,
+            "active"
+          ],
+          "arc_3": [
+            0.37,
+            "active"
+          ]
+        },
+        "13": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.488,
+            "active"
+          ],
+          "arc_3": [
+            0.389,
+            "active"
+          ]
+        },
+        "14": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.536,
+            "active"
+          ],
+          "arc_3": [
+            0.439,
+            "active"
+          ]
+        },
+        "15": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.574,
+            "active"
+          ],
+          "arc_3": [
+            0.477,
+            "active"
+          ]
+        },
+        "16": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.589,
+            "active"
+          ],
+          "arc_3": [
+            0.519,
+            "active"
+          ]
+        },
+        "17": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.637,
+            "active"
+          ],
+          "arc_3": [
+            0.545,
+            "active"
+          ]
+        },
+        "18": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.648,
+            "active"
+          ],
+          "arc_3": [
+            0.584,
+            "active"
+          ]
+        },
+        "19": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.688,
+            "active"
+          ],
+          "arc_3": [
+            0.622,
+            "active"
+          ]
+        },
+        "20": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.712,
+            "active"
+          ],
+          "arc_3": [
+            0.645,
+            "active"
+          ]
+        },
+        "21": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.726,
+            "active"
+          ],
+          "arc_3": [
+            0.668,
+            "active"
+          ]
+        },
+        "22": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.736,
+            "active"
+          ],
+          "arc_3": [
+            0.691,
+            "active"
+          ]
+        },
+        "23": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.771,
+            "active"
+          ],
+          "arc_3": [
+            0.715,
+            "active"
+          ]
+        },
+        "24": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.795,
+            "active"
+          ],
+          "arc_3": [
+            0.739,
+            "active"
+          ]
+        },
+        "25": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.827,
+            "active"
+          ],
+          "arc_3": [
+            0.754,
+            "active"
+          ]
+        },
+        "26": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.871,
+            "active"
+          ],
+          "arc_3": [
+            0.786,
+            "active"
+          ]
+        },
+        "27": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.887,
+            "active"
+          ],
+          "arc_3": [
+            0.831,
+            "active"
+          ]
+        },
+        "28": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.935,
+            "active"
+          ],
+          "arc_3": [
+            0.867,
+            "active"
+          ]
+        },
+        "29": {
+          "arc_1": [
+            1.0,
+            "completed"
+          ],
+          "arc_4": [
+            0.558,
+            "abandoned"
+          ],
+          "arc_2": [
+            0.947,
+            "abandoned"
+          ],
+          "arc_3": [
+            0.901,
+            "active"
+          ]
+        }
+      },
+      "n_arcs_total": 4,
+      "n_arcs_active_end": 1,
+      "n_arcs_completed": 1,
+      "n_arcs_abandoned": 2,
+      "distinct_agenda_activities": 44
+    },
+    "behavioral_dynamics": {
+      "n_messages": 63,
+      "delay_mean": 4.328,
+      "delay_sd": 0.751,
+      "delay_min": 3.193,
+      "delay_max": 6.101,
+      "max_tokens_mean": 549.0,
+      "max_tokens_sd": 13.2,
+      "initiative_mean": 0.378,
+      "initiative_sd": 0.053,
+      "closing_tendency_sd": 0.059,
+      "M8a_rho_init_tokens": 0.6368,
+      "M8b_token_gap": 19.53,
+      "M8c_rho_energy_delay": -0.8298,
+      "M9_rho_proactive_prevscore": 0.0514,
+      "M10_rho_proactive_initiative": 0.3476
+    },
+    "state_to_observable": {
+      "rho_M_initiative": 0.4849,
+      "rho_M_max_tokens": 0.2307,
+      "rho_g_delay": 0.4264,
+      "rho_mu_proactive_count": -0.1529
+    }
+  },
+  "invariants": {
+    "ungrounded_proactive": 0,
+    "wrong_intent": 0,
+    "restart_state_loss": 0,
+    "stranded_opportunities": 0,
+    "cycle_state_leakage": 0,
+    "memory_provenance_failures": 0,
+    "duplicate_turns": 0,
+    "life_dead_duration": 0
+  },
+  "validated": true,
+  "validation_errors": 0
+}

@@ -1,0 +1,338 @@
+{
+  "seed": 5004,
+  "end_h": 720.0,
+  "days": 30,
+  "n_messages": 103,
+  "n_proactive": 23,
+  "n_fired_intents": 23,
+  "counts_consistent": true,
+  "ungrounded_proactive": 0,
+  "grounding_detail": [
+    {
+      "message_id": 19,
+      "t_h": 117.26215548781269,
+      "intent_id": "pi_life_event_ag_3_i_puzzles_117.262",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_3_i_puzzles",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 28,
+      "t_h": 176.70574302643558,
+      "intent_id": "pi_life_event_ag_6_a_arc_1_176.706",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_6_a_arc_1",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 29,
+      "t_h": 180.93166591135048,
+      "intent_id": "pi_agenda_item_ag_7_a_arc_4_180.932",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_7_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 30,
+      "t_h": 185.35341670144672,
+      "intent_id": "pi_agenda_item_ag_7_a_arc_2_185.353",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_7_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 35,
+      "t_h": 205.69958002086423,
+      "intent_id": "pi_agenda_item_ag_8_a_arc_2_205.700",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_8_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 40,
+      "t_h": 226.88442567270332,
+      "intent_id": "pi_agenda_item_ag_9_i_puzzles_226.884",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_9_i_puzzles",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 45,
+      "t_h": 248.66727116528565,
+      "intent_id": "pi_agenda_item_ag_10_i_literature_248.667",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_10_i_literature",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 50,
+      "t_h": 273.336505357746,
+      "intent_id": "pi_life_event_ag_10_a_arc_3_273.337",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_10_a_arc_3",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 51,
+      "t_h": 283.71247982315197,
+      "intent_id": "pi_check_in_ep-day-10-0_283.712",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-10-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 52,
+      "t_h": 298.703500585969,
+      "intent_id": "pi_check_in_ep-day-10-0_298.704",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-10-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 53,
+      "t_h": 309.2166585909954,
+      "intent_id": "pi_check_in_ep-day-10-0_309.217",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-10-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 54,
+      "t_h": 323.47720928463406,
+      "intent_id": "pi_agenda_item_ag_13_a_arc_4_323.477",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_13_a_arc_4",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 55,
+      "t_h": 344.9569358833783,
+      "intent_id": "pi_check_in_ep-day-10-0_344.957",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-10-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 58,
+      "t_h": 356.32268343270067,
+      "intent_id": "pi_agenda_item_ag_14_i_rock_356.323",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_14_i_rock",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 61,
+      "t_h": 378.5,
+      "intent_id": "pi_agenda_item_ag_15_a_arc_3_375.654",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_15_a_arc_3",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 66,
+      "t_h": 405.9313548222221,
+      "intent_id": "pi_agenda_item_ag_16_i_movies_405.931",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_16_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 79,
+      "t_h": 500.547582291823,
+      "intent_id": "pi_agenda_item_ag_20_a_arc_2_500.548",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_20_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 80,
+      "t_h": 502.21090222907213,
+      "intent_id": "pi_life_event_ag_19_i_puzzles_502.211",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_19_i_puzzles",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 81,
+      "t_h": 519.4828558091149,
+      "intent_id": "pi_life_event_ag_20_a_arc_2_519.483",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_20_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 86,
+      "t_h": 545.5324041300875,
+      "intent_id": "pi_agenda_item_ag_22_i_movies_545.532",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_22_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 89,
+      "t_h": 549.9843034964313,
+      "intent_id": "pi_life_event_ag_21_a_arc_2_549.984",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_21_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 94,
+      "t_h": 639.3320667623335,
+      "intent_id": "pi_agenda_item_ag_26_a_arc_3_639.332",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_26_a_arc_3",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 101,
+      "t_h": 705.0421751889934,
+      "intent_id": "pi_agenda_item_ag_29_i_lifting_705.042",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_29_i_lifting",
+      "opportunity_id": null
+    }
+  ],
+  "wrong_intent": 0,
+  "restart_state_loss": 0,
+  "stranded_opportunities": 0,
+  "stranded_detail": {
+    "pending_schedule": [],
+    "pending_intents": []
+  },
+  "cycle_state_leakage": 0,
+  "leak_detail": {
+    "hits": {},
+    "total": 0,
+    "g_bare": 0
+  },
+  "memory_provenance_failures": 0,
+  "provenance_detail": [],
+  "duplicate_turns": 0,
+  "duplicate_detail": [],
+  "life_dead_days": [],
+  "life_dead_duration": 0,
+  "i4_violations": [],
+  "fixture_inserts": {
+    "user_ok": true,
+    "user_bad": [],
+    "assistant_ok": true,
+    "assistant_bad": []
+  },
+  "all_hard_zero": true,
+  "skipped_feeds": [
+    [
+      259.0,
+      "Hello! How are you feeling today?"
+    ],
+    [
+      282.6,
+      "My bike is back from repair."
+    ],
+    [
+      282.7,
+      "Honestly today was awful."
+    ],
+    [
+      283.0,
+      "Hi! Anything new today?"
+    ],
+    [
+      306.6,
+      "My job is starting on Monday."
+    ],
+    [
+      306.7,
+      "I don't feel like talking much."
+    ],
+    [
+      307.0,
+      "Hey you. Tell me something about your day."
+    ],
+    [
+      330.7,
+      "That really annoyed me."
+    ],
+    [
+      331.0,
+      "I was thinking about you earlier — what are you up to?"
+    ],
+    [
+      595.0,
+      "I was thinking about you earlier — what are you up to?"
+    ],
+    [
+      619.0,
+      "I was thinking about you earlier — what are you up to?"
+    ]
+  ]
+}

@@ -454,6 +454,11 @@ def cmd_vertical(args) -> int:
     out_dir.mkdir(parents=True, exist_ok=True)
     seed, days = int(args.seed), int(args.days)
     fake = bool(args.fake)
+    checkpoints = (
+        tuple(int(x) for x in args.checkpoints.split(","))
+        if args.checkpoints
+        else DEFAULT_CHECKPOINT_DAYS
+    )
 
     # 1. Preregistro ANTES de generar (Gate 4).
     manifest = write_manifest(out_dir / "manifest.json", repo_root=REPO_ROOT)
@@ -461,7 +466,7 @@ def cmd_vertical(args) -> int:
     # 2. Célula vertical (clean start -> bootstrap -> días -> 5 restarts).
     records = run_cell(
         "FULL", seed, out_dir, days=days,
-        checkpoints=DEFAULT_CHECKPOINT_DAYS, fake=fake, perturb=True,
+        checkpoints=checkpoints, fake=fake, perturb=True,
     )
 
     # 3. Auditoría mecánica + métricas + cadenas + perturbación + estado.
@@ -524,7 +529,7 @@ def cmd_vertical(args) -> int:
         "days": days,
         "condition": "FULL",
         "client": "fake" if fake else "real",
-        "checkpoints": [int(d) for d in DEFAULT_CHECKPOINT_DAYS if d <= days],
+        "checkpoints": [int(d) for d in checkpoints if d <= days],
         "n_messages": records["n_messages"],
         "n_proactive": records["n_proactive"],
         "commit": manifest["commit"],
@@ -903,6 +908,9 @@ def main(argv: list[str] | None = None) -> int:
     p_vertical.add_argument("--fake", action="store_true",
                             help="cliente determinista (CI)")
     p_vertical.add_argument("--days", type=int, default=30)
+    p_vertical.add_argument("--checkpoints", type=str, default="",
+                            help="comma-separated 1-indexed restart days (default: "
+                                 "DEFAULT_CHECKPOINT_DAYS)")
     p_vertical.add_argument("--out", type=str,
                             default="results/companion-vertical-slice/vertical")
 

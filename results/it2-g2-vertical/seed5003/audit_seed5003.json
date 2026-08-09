@@ -1,0 +1,307 @@
+{
+  "seed": 5003,
+  "end_h": 720.0,
+  "days": 30,
+  "n_messages": 112,
+  "n_proactive": 22,
+  "n_fired_intents": 22,
+  "counts_consistent": true,
+  "ungrounded_proactive": 0,
+  "grounding_detail": [
+    {
+      "message_id": 1,
+      "t_h": 8.739277512036882,
+      "intent_id": "pi_agenda_item_ag_0_i_physics_8.739",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_0_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 24,
+      "t_h": 140.06506071334144,
+      "intent_id": "pi_life_event_ag_4_r_00_140.065",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_4_r_00",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 27,
+      "t_h": 162.6,
+      "intent_id": "pi_agenda_item_ag_6_a_arc_2_160.423",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_6_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 30,
+      "t_h": 181.57698701305236,
+      "intent_id": "pi_agenda_item_ag_7_r_00_181.577",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_7_r_00",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 33,
+      "t_h": 189.78549734486162,
+      "intent_id": "pi_life_event_ag_6_a_arc_2_189.785",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_6_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 50,
+      "t_h": 278.1499127381313,
+      "intent_id": "pi_life_event_ag_10_i_physics_278.150",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_10_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 55,
+      "t_h": 300.6973522039333,
+      "intent_id": "pi_agenda_item_ag_12_a_arc_2_300.697",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_12_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 56,
+      "t_h": 321.5243499470708,
+      "intent_id": "pi_check_in_ep-day-11-0_321.524",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-11-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 57,
+      "t_h": 332.7353089253387,
+      "intent_id": "pi_check_in_ep-day-11-0_332.735",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-11-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 58,
+      "t_h": 348.35514926605913,
+      "intent_id": "pi_agenda_item_ag_14_i_physics_348.355",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_14_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 59,
+      "t_h": 349.1557535520143,
+      "intent_id": "pi_agenda_item_ag_14_i_physics_349.156",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_14_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 62,
+      "t_h": 357.9474112501929,
+      "intent_id": "pi_life_event_ag_13_a_arc_2_357.947",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_13_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 65,
+      "t_h": 378.5,
+      "intent_id": "pi_agenda_item_ag_15_a_arc_2_376.800",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_15_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 68,
+      "t_h": 382.1529426454748,
+      "intent_id": "pi_life_event_ag_14_i_physics_382.153",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_14_i_physics",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 77,
+      "t_h": 451.0,
+      "intent_id": "pi_agenda_item_ag_18_i_metal_448.648",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_18_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 80,
+      "t_h": 474.5,
+      "intent_id": "pi_agenda_item_ag_19_r_00_472.365",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_19_r_00",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 85,
+      "t_h": 513.9486210048511,
+      "intent_id": "pi_check_in_ep-day-19-0_513.949",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-19-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 90,
+      "t_h": 543.6703042451646,
+      "intent_id": "pi_agenda_item_ag_22_a_arc_2_543.670",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_22_a_arc_2",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 95,
+      "t_h": 570.5,
+      "intent_id": "pi_agenda_item_ag_23_i_guitar_569.638",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_23_i_guitar",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 102,
+      "t_h": 634.7220342109205,
+      "intent_id": "pi_check_in_ep-day-23-0_634.722",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-23-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 109,
+      "t_h": 704.1869174589906,
+      "intent_id": "pi_check_in_ep-day-23-0_704.187",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-23-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 112,
+      "t_h": 715.9440085598611,
+      "intent_id": "pi_life_event_ag_28_i_physics_715.944",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_28_i_physics",
+      "opportunity_id": null
+    }
+  ],
+  "wrong_intent": 0,
+  "restart_state_loss": 0,
+  "stranded_opportunities": 0,
+  "stranded_detail": {
+    "pending_schedule": [],
+    "pending_intents": []
+  },
+  "cycle_state_leakage": 0,
+  "leak_detail": {
+    "hits": {},
+    "total": 0,
+    "g_bare": 0
+  },
+  "memory_provenance_failures": 0,
+  "provenance_detail": [],
+  "duplicate_turns": 0,
+  "duplicate_detail": [],
+  "life_dead_days": [],
+  "life_dead_duration": 0,
+  "i4_violations": [],
+  "fixture_inserts": {
+    "user_ok": true,
+    "user_bad": [],
+    "assistant_ok": true,
+    "assistant_bad": []
+  },
+  "all_hard_zero": true,
+  "skipped_feeds": [
+    [
+      283.0,
+      "Hi! Anything new today?"
+    ],
+    [
+      306.6,
+      "My job is starting on Monday."
+    ],
+    [
+      306.7,
+      "I don't feel like talking much."
+    ],
+    [
+      307.0,
+      "Hey! I had a long day, what about you?"
+    ],
+    [
+      330.7,
+      "That really annoyed me."
+    ],
+    [
+      331.0,
+      "Hi! Anything new today?"
+    ]
+  ]
+}

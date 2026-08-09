@@ -1,0 +1,1457 @@
+{
+  "seed": 5005,
+  "days": 30,
+  "condition": "FULL",
+  "client": "fake",
+  "checkpoints": [
+    7,
+    14,
+    21,
+    26,
+    29
+  ],
+  "n_messages": 116,
+  "n_proactive": 32,
+  "commit": "453dfcb7233033421e718a304bcdc4de28e183b2",
+  "timestamp": "2026-08-09T06:07:10.203556+00:00",
+  "metrics": {
+    "seed": 5005,
+    "condition": "FULL",
+    "M1_grounded_rate": 0.9062,
+    "M2_invalid_source_rate": 0.0938,
+    "M3_recall": 1.0,
+    "M4_false_recall": 0.125,
+    "M5_arc_continuity": 1.0,
+    "M6a_distinct_activities": 40,
+    "M6b_mean_jaccard": 0.3722,
+    "M6c_arc_days_mean": 22.0,
+    "M6c_arc_days_min": 22,
+    "M7_restart_loss": 0,
+    "M8a_rho_init_tokens": 0.379,
+    "M8b_token_gap": 7.32,
+    "M8c_rho_energy_delay": -0.7731,
+    "M9_rho_proactive_prevscore": 0.0598,
+    "M10_rho_proactive_initiative": 0.1098,
+    "M11_leak_hits": 0,
+    "leak_hits_detail": {},
+    "g_bare_hits": 0,
+    "n_proactive": 32,
+    "n_messages": 116,
+    "probe_detail": [
+      {
+        "probe_day": 2,
+        "query": "what is my dog's name",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-1-0",
+          "ep-day-2-0",
+          "ep-day-5-0",
+          "ep-day-19-0",
+          "ep-day-3-0"
+        ]
+      },
+      {
+        "probe_day": 6,
+        "query": "what is my cat's name",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-5-0",
+          "ep-day-1-0",
+          "ep-day-2-0",
+          "ep-day-19-0",
+          "ep-day-3-0"
+        ]
+      },
+      {
+        "probe_day": 10,
+        "query": "what is my favorite color",
+        "recalled": true,
+        "rank": 2,
+        "top_ids": [
+          "ep-day-10-0",
+          "ep-day-9-0",
+          "ep-day-6-0",
+          "ep-day-8-0",
+          "ep-day-4-0"
+        ]
+      },
+      {
+        "probe_day": 16,
+        "query": "where is my hometown",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-15-0",
+          "ep-day-19-0",
+          "ep-day-7-0",
+          "ep-day-2-0",
+          "ep-day-6-0"
+        ]
+      },
+      {
+        "probe_day": 18,
+        "query": "what is my brother's name",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-17-0",
+          "ep-day-19-0",
+          "ep-day-1-0",
+          "ep-day-2-0",
+          "ep-day-5-0"
+        ]
+      },
+      {
+        "probe_day": 20,
+        "query": "what book is The Name of the Wind",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-19-0",
+          "ep-day-17-0",
+          "ep-day-5-0",
+          "ep-day-2-0",
+          "ep-day-3-0"
+        ]
+      },
+      {
+        "probe_day": 22,
+        "query": "what car do I drive, the red one",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-21-0",
+          "ep-day-17-0",
+          "ep-day-5-0",
+          "ep-day-7-0",
+          "ep-day-19-0"
+        ]
+      },
+      {
+        "probe_day": 24,
+        "query": "is my favorite food ramen",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-23-0",
+          "ep-day-10-0",
+          "ep-day-2-0",
+          "ep-day-19-0",
+          "ep-day-6-0"
+        ]
+      }
+    ],
+    "arc_contribution_days": {
+      "arc_3": 22,
+      "arc_4": 22
+    },
+    "i4_violations": [],
+    "restart_loss_detail": [
+      {
+        "checkpoint_h": 168.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 336.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 504.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 624.0,
+        "diffs": 0
+      },
+      {
+        "checkpoint_h": 696.0,
+        "diffs": 0
+      }
+    ],
+    "grounding_failures_detail": [
+      {
+        "message_id": 30,
+        "intent_id": "pi_agenda_item_ag_6_a_arc_4_159.875",
+        "t_h": 162.6
+      },
+      {
+        "message_id": 33,
+        "intent_id": "pi_agenda_item_ag_7_r_01_182.179",
+        "t_h": 182.17896593189892
+      },
+      {
+        "message_id": 83,
+        "intent_id": "pi_agenda_item_ag_21_a_arc_4_515.444",
+        "t_h": 515.4438109731595
+      }
+    ]
+  },
+  "audit": {
+    "seed": 5005,
+    "end_h": 720.0,
+    "days": 30,
+    "n_messages": 116,
+    "n_proactive": 32,
+    "n_fired_intents": 32,
+    "counts_consistent": true,
+    "ungrounded_proactive": 0,
+    "grounding_detail": [
+      {
+        "message_id": 5,
+        "t_h": 42.5,
+        "intent_id": "pi_agenda_item_ag_1_i_statistics_41.037",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_1_i_statistics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 8,
+        "t_h": 44.45567178071341,
+        "intent_id": "pi_agenda_item_ag_1_i_statistics_44.456",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_1_i_statistics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 11,
+        "t_h": 66.6,
+        "intent_id": "pi_agenda_item_ag_2_i_statistics_65.225",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_2_i_statistics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 20,
+        "t_h": 114.6,
+        "intent_id": "pi_life_event_ag_3_a_arc_4_113.708",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_3_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 25,
+        "t_h": 138.5,
+        "intent_id": "pi_agenda_item_ag_5_r_01_136.259",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_5_r_01",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 30,
+        "t_h": 162.6,
+        "intent_id": "pi_agenda_item_ag_6_a_arc_4_159.875",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_6_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 33,
+        "t_h": 182.17896593189892,
+        "intent_id": "pi_agenda_item_ag_7_r_01_182.179",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_7_r_01",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 36,
+        "t_h": 190.5094900541035,
+        "intent_id": "pi_agenda_item_ag_7_i_movies_190.509",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_7_i_movies",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 43,
+        "t_h": 214.1352198125807,
+        "intent_id": "pi_life_event_ag_7_i_movies_214.135",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_7_i_movies",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 48,
+        "t_h": 250.52517365814913,
+        "intent_id": "pi_agenda_item_ag_10_i_mathematics_250.525",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_10_i_mathematics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 51,
+        "t_h": 260.13593079536713,
+        "intent_id": "pi_agenda_item_ag_10_a_arc_2_260.136",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_10_a_arc_2",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 54,
+        "t_h": 274.44280501667845,
+        "intent_id": "pi_life_event_ag_10_i_movies_274.443",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_10_i_movies",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 55,
+        "t_h": 296.8627135456998,
+        "intent_id": "pi_check_in_ep-day-10-0_296.863",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-10-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 56,
+        "t_h": 321.1514155296883,
+        "intent_id": "pi_check_in_ep-day-10-0_321.151",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-10-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 57,
+        "t_h": 347.28056553290725,
+        "intent_id": "pi_life_event_ag_13_a_arc_4_347.281",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_13_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 62,
+        "t_h": 378.5,
+        "intent_id": "pi_agenda_item_ag_15_r_01_378.382",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_15_r_01",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 67,
+        "t_h": 403.0,
+        "intent_id": "pi_agenda_item_ag_16_a_arc_4_402.341",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_16_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 70,
+        "t_h": 426.5,
+        "intent_id": "pi_agenda_item_ag_17_a_arc_4_425.190",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_17_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 75,
+        "t_h": 451.0,
+        "intent_id": "pi_agenda_item_ag_18_a_arc_4_448.324",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_18_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 76,
+        "t_h": 452.72734723148244,
+        "intent_id": "pi_life_event_ag_17_a_arc_4_452.727",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_17_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 83,
+        "t_h": 515.4438109731595,
+        "intent_id": "pi_agenda_item_ag_21_a_arc_4_515.444",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_21_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 86,
+        "t_h": 524.3166412366772,
+        "intent_id": "pi_agenda_item_ag_21_i_metal_524.317",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_21_i_metal",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 91,
+        "t_h": 547.0,
+        "intent_id": "pi_agenda_item_ag_22_i_mathematics_545.192",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_22_i_mathematics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 96,
+        "t_h": 572.8162016768209,
+        "intent_id": "pi_agenda_item_ag_23_r_02_572.816",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_23_r_02",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 97,
+        "t_h": 574.6324033536418,
+        "intent_id": "pi_life_event_ag_22_i_mathematics_574.273",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_22_i_mathematics",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 100,
+        "t_h": 595.0,
+        "intent_id": "pi_life_event_ag_23_a_arc_4_592.411",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_23_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 101,
+        "t_h": 597.8390369337391,
+        "intent_id": "pi_life_event_ag_23_a_arc_4_597.839",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_23_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 104,
+        "t_h": 636.3695282670899,
+        "intent_id": "pi_agenda_item_ag_26_a_arc_4_636.370",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_26_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 109,
+        "t_h": 667.0,
+        "intent_id": "pi_agenda_item_ag_27_a_arc_4_664.613",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_27_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 112,
+        "t_h": 705.9587520728899,
+        "intent_id": "pi_life_event_ag_28_a_arc_4_705.959",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_28_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 113,
+        "t_h": 708.6016050756357,
+        "intent_id": "pi_life_event_ag_28_a_arc_4_708.602",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_28_a_arc_4",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 114,
+        "t_h": 712.3177568640059,
+        "intent_id": "pi_life_event_ag_28_a_arc_4_712.318",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_28_a_arc_4",
+        "opportunity_id": null
+      }
+    ],
+    "wrong_intent": 0,
+    "restart_state_loss": 0,
+    "stranded_opportunities": 0,
+    "stranded_detail": {
+      "pending_schedule": [],
+      "pending_intents": []
+    },
+    "cycle_state_leakage": 0,
+    "leak_detail": {
+      "hits": {},
+      "total": 0,
+      "g_bare": 0
+    },
+    "memory_provenance_failures": 0,
+    "provenance_detail": [],
+    "duplicate_turns": 0,
+    "duplicate_detail": [],
+    "life_dead_days": [],
+    "life_dead_duration": 0,
+    "i4_violations": [],
+    "fixture_inserts": {
+      "user_ok": true,
+      "user_bad": [],
+      "assistant_ok": true,
+      "assistant_bad": []
+    },
+    "all_hard_zero": true,
+    "skipped_feeds": [
+      [
+        259.0,
+        "Hi! Anything new today?"
+      ],
+      [
+        282.6,
+        "My bike is back from repair."
+      ],
+      [
+        282.7,
+        "Honestly today was awful."
+      ],
+      [
+        283.0,
+        "Hello! How are you feeling today?"
+      ],
+      [
+        306.6,
+        "My job is starting on Monday."
+      ],
+      [
+        306.7,
+        "I don't feel like talking much."
+      ],
+      [
+        307.0,
+        "Hey! I had a long day, what about you?"
+      ],
+      [
+        330.7,
+        "That really annoyed me."
+      ],
+      [
+        331.0,
+        "Hey you. Tell me something about your day."
+      ]
+    ]
+  },
+  "event_chains": {
+    "sister_ana": {
+      "chain_id": "sister_ana",
+      "events": 3,
+      "covered": [
+        true,
+        true,
+        true
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": true,
+      "CompleteChain": true,
+      "retrieved_ids": [
+        "ep-day-2-0",
+        "ep-day-6-0",
+        "ep-day-10-0",
+        "ep-day-19-0",
+        "ep-day-17-0",
+        "ep-day-7-0",
+        "ep-day-3-0",
+        "ep-day-4-0"
+      ]
+    },
+    "bike_swift": {
+      "chain_id": "bike_swift",
+      "events": 3,
+      "covered": [
+        true,
+        true,
+        false
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": false,
+      "CompleteChain": false,
+      "retrieved_ids": [
+        "ep-day-3-0",
+        "ep-day-7-0",
+        "ep-day-19-0",
+        "ep-day-4-0",
+        "ep-day-10-0",
+        "ep-day-6-0",
+        "ep-day-17-0",
+        "ep-day-8-0"
+      ]
+    },
+    "job_change": {
+      "chain_id": "job_change",
+      "events": 3,
+      "covered": [
+        true,
+        true,
+        false
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": false,
+      "CompleteChain": false,
+      "retrieved_ids": [
+        "ep-day-4-0",
+        "ep-day-7-0",
+        "ep-day-8-0",
+        "ep-day-5-0",
+        "ep-day-10-0",
+        "ep-day-3-0",
+        "ep-day-1-0",
+        "ep-day-6-0"
+      ]
+    }
+  },
+  "perturbation": {
+    "block_days_1idx": [
+      11,
+      12,
+      13,
+      14
+    ],
+    "latent": {
+      "M": {
+        "baseline_mean": 4.8,
+        "baseline_sd": 2.0881,
+        "block_mean": 6.75,
+        "deviation": 1.95,
+        "peak_deviation": 3.8,
+        "persistence_days": 0,
+        "recovery_time_days": 2
+      }
+    },
+    "observable": {
+      "initiative": {
+        "baseline_mean": 0.3762,
+        "baseline_sd": 0.0492,
+        "block_mean": 0.4741,
+        "deviation": 0.0979,
+        "peak_deviation": 0.1288,
+        "persistence_days": 0,
+        "recovery_time_days": 2
+      },
+      "max_tokens": {
+        "baseline_mean": 546.35,
+        "baseline_sd": 16.5364,
+        "block_mean": 595.4167,
+        "deviation": 49.0667,
+        "peak_deviation": 53.65,
+        "persistence_days": 4,
+        "recovery_time_days": 1
+      },
+      "delay": {
+        "baseline_mean": 4.6825,
+        "baseline_sd": 0.6561,
+        "block_mean": 4.7986,
+        "deviation": 0.1161,
+        "peak_deviation": 1.4189,
+        "persistence_days": 0,
+        "recovery_time_days": 7
+      }
+    },
+    "failure_frequency": {
+      "n_proactive_during_block": 5,
+      "failures_during_block": 0,
+      "failure_detail": []
+    }
+  },
+  "state_metrics": {
+    "seed": 5005,
+    "condition": "FULL",
+    "structured_observability": {
+      "M_series": [
+        5.0,
+        1.0,
+        7.0,
+        8.0,
+        6.0,
+        5.0,
+        3.0,
+        5.0,
+        6.0,
+        2.0,
+        6.0,
+        8.0,
+        7.0,
+        6.0,
+        8.0,
+        6.0,
+        4.0,
+        8.0,
+        8.0,
+        8.0,
+        5.0,
+        6.0,
+        6.0,
+        8.0,
+        8.0,
+        5.0,
+        8.0,
+        3.0,
+        3.0,
+        1.0
+      ],
+      "g_series": [
+        1.1843,
+        1.2087,
+        1.2444,
+        1.3368,
+        1.2162,
+        1.1863,
+        1.0462,
+        1.0041,
+        0.9992,
+        1.0155,
+        1.0666,
+        0.9019,
+        0.8953,
+        0.8017,
+        0.7493,
+        0.7944,
+        0.776,
+        0.8447,
+        0.9279,
+        0.9528,
+        0.9735,
+        0.9986,
+        1.0457,
+        1.0251,
+        1.1033,
+        1.1357,
+        1.171,
+        1.2099,
+        1.2364,
+        1.2573
+      ],
+      "mu_series": [
+        0.0,
+        0.0,
+        0.0904,
+        0.1681,
+        0.2395,
+        0.2605,
+        0.1645,
+        0.0432,
+        -0.0545,
+        -0.1368,
+        -0.1162,
+        -0.1074,
+        -0.0991,
+        -0.0866,
+        -0.1157,
+        -0.1552,
+        -0.2286,
+        -0.2855,
+        -0.3331,
+        -0.2831,
+        -0.1502,
+        -0.0365,
+        0.0656,
+        0.1127,
+        0.0389,
+        -0.0636,
+        -0.1453,
+        -0.2139,
+        -0.1818,
+        -0.0641
+      ],
+      "phase_series": [
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "follicular",
+        "ovulatory",
+        "ovulatory",
+        "ovulatory",
+        "ovulatory",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_early",
+        "luteal_late",
+        "luteal_late",
+        "luteal_late",
+        "luteal_late",
+        "luteal_late",
+        "menstrual",
+        "menstrual"
+      ],
+      "arcs_by_day": {
+        "0": {
+          "arc_4": [
+            0.065,
+            "active"
+          ],
+          "arc_3": [
+            0.121,
+            "active"
+          ],
+          "arc_2": [
+            0.28,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "1": {
+          "arc_4": [
+            0.065,
+            "active"
+          ],
+          "arc_3": [
+            0.121,
+            "active"
+          ],
+          "arc_2": [
+            0.28,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "2": {
+          "arc_4": [
+            0.065,
+            "active"
+          ],
+          "arc_3": [
+            0.121,
+            "active"
+          ],
+          "arc_2": [
+            0.28,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "3": {
+          "arc_4": [
+            0.081,
+            "active"
+          ],
+          "arc_3": [
+            0.121,
+            "active"
+          ],
+          "arc_2": [
+            0.28,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "4": {
+          "arc_4": [
+            0.13,
+            "active"
+          ],
+          "arc_3": [
+            0.169,
+            "active"
+          ],
+          "arc_2": [
+            0.28,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "5": {
+          "arc_4": [
+            0.164,
+            "active"
+          ],
+          "arc_3": [
+            0.205,
+            "active"
+          ],
+          "arc_2": [
+            0.28,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "6": {
+          "arc_4": [
+            0.178,
+            "active"
+          ],
+          "arc_3": [
+            0.233,
+            "active"
+          ],
+          "arc_2": [
+            0.326,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "7": {
+          "arc_4": [
+            0.225,
+            "active"
+          ],
+          "arc_3": [
+            0.256,
+            "active"
+          ],
+          "arc_2": [
+            0.349,
+            "active"
+          ],
+          "arc_1": [
+            0.725,
+            "active"
+          ]
+        },
+        "8": {
+          "arc_4": [
+            0.268,
+            "active"
+          ],
+          "arc_3": [
+            0.296,
+            "active"
+          ],
+          "arc_2": [
+            0.386,
+            "active"
+          ],
+          "arc_1": [
+            0.771,
+            "active"
+          ]
+        },
+        "9": {
+          "arc_4": [
+            0.285,
+            "active"
+          ],
+          "arc_3": [
+            0.337,
+            "active"
+          ],
+          "arc_2": [
+            0.422,
+            "active"
+          ],
+          "arc_1": [
+            0.81,
+            "active"
+          ]
+        },
+        "10": {
+          "arc_4": [
+            0.309,
+            "active"
+          ],
+          "arc_3": [
+            0.351,
+            "active"
+          ],
+          "arc_2": [
+            0.471,
+            "active"
+          ],
+          "arc_1": [
+            0.844,
+            "active"
+          ]
+        },
+        "11": {
+          "arc_4": [
+            0.327,
+            "active"
+          ],
+          "arc_3": [
+            0.363,
+            "active"
+          ],
+          "arc_2": [
+            0.514,
+            "active"
+          ],
+          "arc_1": [
+            0.887,
+            "active"
+          ]
+        },
+        "12": {
+          "arc_4": [
+            0.338,
+            "active"
+          ],
+          "arc_3": [
+            0.406,
+            "active"
+          ],
+          "arc_2": [
+            0.554,
+            "active"
+          ],
+          "arc_1": [
+            0.909,
+            "active"
+          ]
+        },
+        "13": {
+          "arc_4": [
+            0.349,
+            "active"
+          ],
+          "arc_3": [
+            0.434,
+            "active"
+          ],
+          "arc_2": [
+            0.592,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "14": {
+          "arc_4": [
+            0.367,
+            "active"
+          ],
+          "arc_3": [
+            0.463,
+            "active"
+          ],
+          "arc_2": [
+            0.616,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "15": {
+          "arc_4": [
+            0.411,
+            "active"
+          ],
+          "arc_3": [
+            0.49,
+            "active"
+          ],
+          "arc_2": [
+            0.631,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "16": {
+          "arc_4": [
+            0.445,
+            "active"
+          ],
+          "arc_3": [
+            0.529,
+            "active"
+          ],
+          "arc_2": [
+            0.667,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "17": {
+          "arc_4": [
+            0.458,
+            "active"
+          ],
+          "arc_3": [
+            0.562,
+            "active"
+          ],
+          "arc_2": [
+            0.677,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "18": {
+          "arc_4": [
+            0.469,
+            "active"
+          ],
+          "arc_3": [
+            0.58,
+            "active"
+          ],
+          "arc_2": [
+            0.716,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "19": {
+          "arc_4": [
+            0.496,
+            "active"
+          ],
+          "arc_3": [
+            0.626,
+            "active"
+          ],
+          "arc_2": [
+            0.755,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "20": {
+          "arc_4": [
+            0.535,
+            "active"
+          ],
+          "arc_3": [
+            0.666,
+            "active"
+          ],
+          "arc_2": [
+            0.778,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "21": {
+          "arc_4": [
+            0.574,
+            "active"
+          ],
+          "arc_3": [
+            0.685,
+            "active"
+          ],
+          "arc_2": [
+            0.827,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "22": {
+          "arc_4": [
+            0.62,
+            "active"
+          ],
+          "arc_3": [
+            0.717,
+            "active"
+          ],
+          "arc_2": [
+            0.848,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "23": {
+          "arc_4": [
+            0.663,
+            "active"
+          ],
+          "arc_3": [
+            0.73,
+            "active"
+          ],
+          "arc_2": [
+            0.887,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "24": {
+          "arc_4": [
+            0.711,
+            "active"
+          ],
+          "arc_3": [
+            0.765,
+            "active"
+          ],
+          "arc_2": [
+            0.898,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "25": {
+          "arc_4": [
+            0.757,
+            "active"
+          ],
+          "arc_3": [
+            0.786,
+            "active"
+          ],
+          "arc_2": [
+            0.909,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "26": {
+          "arc_4": [
+            0.793,
+            "active"
+          ],
+          "arc_3": [
+            0.8,
+            "active"
+          ],
+          "arc_2": [
+            0.943,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "27": {
+          "arc_4": [
+            0.818,
+            "active"
+          ],
+          "arc_3": [
+            0.843,
+            "active"
+          ],
+          "arc_2": [
+            0.983,
+            "active"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "28": {
+          "arc_4": [
+            0.845,
+            "active"
+          ],
+          "arc_3": [
+            0.89,
+            "active"
+          ],
+          "arc_2": [
+            1.0,
+            "completed"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        },
+        "29": {
+          "arc_4": [
+            0.886,
+            "active"
+          ],
+          "arc_3": [
+            0.928,
+            "active"
+          ],
+          "arc_2": [
+            1.0,
+            "completed"
+          ],
+          "arc_1": [
+            0.93,
+            "abandoned"
+          ]
+        }
+      },
+      "n_arcs_total": 4,
+      "n_arcs_active_end": 2,
+      "n_arcs_completed": 1,
+      "n_arcs_abandoned": 1,
+      "distinct_agenda_activities": 40
+    },
+    "behavioral_dynamics": {
+      "n_messages": 74,
+      "delay_mean": 4.443,
+      "delay_sd": 0.777,
+      "delay_min": 2.938,
+      "delay_max": 6.758,
+      "max_tokens_mean": 547.6,
+      "max_tokens_sd": 17.4,
+      "initiative_mean": 0.399,
+      "initiative_sd": 0.06,
+      "closing_tendency_sd": 0.064,
+      "M8a_rho_init_tokens": 0.5294,
+      "M8b_token_gap": 19.02,
+      "M8c_rho_energy_delay": -0.7946,
+      "M9_rho_proactive_prevscore": 0.0598,
+      "M10_rho_proactive_initiative": 0.1199
+    },
+    "state_to_observable": {
+      "rho_M_initiative": 0.835,
+      "rho_M_max_tokens": 0.2516,
+      "rho_g_delay": 0.5155,
+      "rho_mu_proactive_count": 0.1549
+    }
+  },
+  "invariants": {
+    "ungrounded_proactive": 0,
+    "wrong_intent": 0,
+    "restart_state_loss": 0,
+    "stranded_opportunities": 0,
+    "cycle_state_leakage": 0,
+    "memory_provenance_failures": 0,
+    "duplicate_turns": 0,
+    "life_dead_duration": 0
+  },
+  "validated": true,
+  "validation_errors": 0
+}

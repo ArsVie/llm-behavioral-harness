@@ -1,0 +1,704 @@
+{
+  "seed": 5005,
+  "condition": "FULL",
+  "structured_observability": {
+    "M_series": [
+      5.0,
+      1.0,
+      7.0,
+      8.0,
+      6.0,
+      5.0,
+      3.0,
+      5.0,
+      6.0,
+      2.0,
+      6.0,
+      8.0,
+      7.0,
+      6.0,
+      8.0,
+      6.0,
+      4.0,
+      8.0,
+      8.0,
+      8.0,
+      5.0,
+      6.0,
+      6.0,
+      8.0,
+      8.0,
+      5.0,
+      8.0,
+      3.0,
+      3.0,
+      1.0
+    ],
+    "g_series": [
+      1.1843,
+      1.2087,
+      1.2444,
+      1.3368,
+      1.2162,
+      1.1863,
+      1.0462,
+      1.0041,
+      0.9992,
+      1.0155,
+      1.0666,
+      0.9019,
+      0.8953,
+      0.8017,
+      0.7493,
+      0.7944,
+      0.776,
+      0.8447,
+      0.9279,
+      0.9528,
+      0.9735,
+      0.9986,
+      1.0457,
+      1.0251,
+      1.1033,
+      1.1357,
+      1.171,
+      1.2099,
+      1.2364,
+      1.2573
+    ],
+    "mu_series": [
+      0.0,
+      0.0,
+      0.0904,
+      0.1681,
+      0.2395,
+      0.2605,
+      0.1645,
+      0.0432,
+      -0.0545,
+      -0.1368,
+      -0.1162,
+      -0.1074,
+      -0.0991,
+      -0.0866,
+      -0.1157,
+      -0.1552,
+      -0.2286,
+      -0.2855,
+      -0.3331,
+      -0.2831,
+      -0.1502,
+      -0.0365,
+      0.0656,
+      0.1127,
+      0.0389,
+      -0.0636,
+      -0.1453,
+      -0.2139,
+      -0.1818,
+      -0.0641
+    ],
+    "phase_series": [
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "ovulatory",
+      "ovulatory",
+      "ovulatory",
+      "ovulatory",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_late",
+      "luteal_late",
+      "luteal_late",
+      "luteal_late",
+      "luteal_late",
+      "menstrual",
+      "menstrual"
+    ],
+    "arcs_by_day": {
+      "0": {
+        "arc_4": [
+          0.065,
+          "active"
+        ],
+        "arc_3": [
+          0.121,
+          "active"
+        ],
+        "arc_2": [
+          0.28,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "1": {
+        "arc_4": [
+          0.065,
+          "active"
+        ],
+        "arc_3": [
+          0.121,
+          "active"
+        ],
+        "arc_2": [
+          0.28,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "2": {
+        "arc_4": [
+          0.065,
+          "active"
+        ],
+        "arc_3": [
+          0.121,
+          "active"
+        ],
+        "arc_2": [
+          0.28,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "3": {
+        "arc_4": [
+          0.081,
+          "active"
+        ],
+        "arc_3": [
+          0.121,
+          "active"
+        ],
+        "arc_2": [
+          0.28,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "4": {
+        "arc_4": [
+          0.13,
+          "active"
+        ],
+        "arc_3": [
+          0.169,
+          "active"
+        ],
+        "arc_2": [
+          0.28,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "5": {
+        "arc_4": [
+          0.164,
+          "active"
+        ],
+        "arc_3": [
+          0.205,
+          "active"
+        ],
+        "arc_2": [
+          0.28,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "6": {
+        "arc_4": [
+          0.178,
+          "active"
+        ],
+        "arc_3": [
+          0.233,
+          "active"
+        ],
+        "arc_2": [
+          0.326,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "7": {
+        "arc_4": [
+          0.225,
+          "active"
+        ],
+        "arc_3": [
+          0.256,
+          "active"
+        ],
+        "arc_2": [
+          0.349,
+          "active"
+        ],
+        "arc_1": [
+          0.725,
+          "active"
+        ]
+      },
+      "8": {
+        "arc_4": [
+          0.268,
+          "active"
+        ],
+        "arc_3": [
+          0.296,
+          "active"
+        ],
+        "arc_2": [
+          0.386,
+          "active"
+        ],
+        "arc_1": [
+          0.771,
+          "active"
+        ]
+      },
+      "9": {
+        "arc_4": [
+          0.285,
+          "active"
+        ],
+        "arc_3": [
+          0.337,
+          "active"
+        ],
+        "arc_2": [
+          0.422,
+          "active"
+        ],
+        "arc_1": [
+          0.81,
+          "active"
+        ]
+      },
+      "10": {
+        "arc_4": [
+          0.309,
+          "active"
+        ],
+        "arc_3": [
+          0.351,
+          "active"
+        ],
+        "arc_2": [
+          0.471,
+          "active"
+        ],
+        "arc_1": [
+          0.844,
+          "active"
+        ]
+      },
+      "11": {
+        "arc_4": [
+          0.327,
+          "active"
+        ],
+        "arc_3": [
+          0.363,
+          "active"
+        ],
+        "arc_2": [
+          0.514,
+          "active"
+        ],
+        "arc_1": [
+          0.887,
+          "active"
+        ]
+      },
+      "12": {
+        "arc_4": [
+          0.338,
+          "active"
+        ],
+        "arc_3": [
+          0.406,
+          "active"
+        ],
+        "arc_2": [
+          0.554,
+          "active"
+        ],
+        "arc_1": [
+          0.909,
+          "active"
+        ]
+      },
+      "13": {
+        "arc_4": [
+          0.349,
+          "active"
+        ],
+        "arc_3": [
+          0.434,
+          "active"
+        ],
+        "arc_2": [
+          0.592,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "14": {
+        "arc_4": [
+          0.367,
+          "active"
+        ],
+        "arc_3": [
+          0.463,
+          "active"
+        ],
+        "arc_2": [
+          0.616,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "15": {
+        "arc_4": [
+          0.411,
+          "active"
+        ],
+        "arc_3": [
+          0.49,
+          "active"
+        ],
+        "arc_2": [
+          0.631,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "16": {
+        "arc_4": [
+          0.445,
+          "active"
+        ],
+        "arc_3": [
+          0.529,
+          "active"
+        ],
+        "arc_2": [
+          0.667,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "17": {
+        "arc_4": [
+          0.458,
+          "active"
+        ],
+        "arc_3": [
+          0.562,
+          "active"
+        ],
+        "arc_2": [
+          0.677,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "18": {
+        "arc_4": [
+          0.469,
+          "active"
+        ],
+        "arc_3": [
+          0.58,
+          "active"
+        ],
+        "arc_2": [
+          0.716,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "19": {
+        "arc_4": [
+          0.496,
+          "active"
+        ],
+        "arc_3": [
+          0.626,
+          "active"
+        ],
+        "arc_2": [
+          0.755,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "20": {
+        "arc_4": [
+          0.535,
+          "active"
+        ],
+        "arc_3": [
+          0.666,
+          "active"
+        ],
+        "arc_2": [
+          0.778,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "21": {
+        "arc_4": [
+          0.574,
+          "active"
+        ],
+        "arc_3": [
+          0.685,
+          "active"
+        ],
+        "arc_2": [
+          0.827,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "22": {
+        "arc_4": [
+          0.62,
+          "active"
+        ],
+        "arc_3": [
+          0.717,
+          "active"
+        ],
+        "arc_2": [
+          0.848,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "23": {
+        "arc_4": [
+          0.663,
+          "active"
+        ],
+        "arc_3": [
+          0.73,
+          "active"
+        ],
+        "arc_2": [
+          0.887,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "24": {
+        "arc_4": [
+          0.711,
+          "active"
+        ],
+        "arc_3": [
+          0.765,
+          "active"
+        ],
+        "arc_2": [
+          0.898,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "25": {
+        "arc_4": [
+          0.757,
+          "active"
+        ],
+        "arc_3": [
+          0.786,
+          "active"
+        ],
+        "arc_2": [
+          0.909,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "26": {
+        "arc_4": [
+          0.793,
+          "active"
+        ],
+        "arc_3": [
+          0.8,
+          "active"
+        ],
+        "arc_2": [
+          0.943,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "27": {
+        "arc_4": [
+          0.818,
+          "active"
+        ],
+        "arc_3": [
+          0.843,
+          "active"
+        ],
+        "arc_2": [
+          0.983,
+          "active"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "28": {
+        "arc_4": [
+          0.845,
+          "active"
+        ],
+        "arc_3": [
+          0.89,
+          "active"
+        ],
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      },
+      "29": {
+        "arc_4": [
+          0.886,
+          "active"
+        ],
+        "arc_3": [
+          0.928,
+          "active"
+        ],
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          0.93,
+          "abandoned"
+        ]
+      }
+    },
+    "n_arcs_total": 4,
+    "n_arcs_active_end": 2,
+    "n_arcs_completed": 1,
+    "n_arcs_abandoned": 1,
+    "distinct_agenda_activities": 40
+  },
+  "behavioral_dynamics": {
+    "n_messages": 74,
+    "delay_mean": 4.443,
+    "delay_sd": 0.777,
+    "delay_min": 2.938,
+    "delay_max": 6.758,
+    "max_tokens_mean": 547.6,
+    "max_tokens_sd": 17.4,
+    "initiative_mean": 0.399,
+    "initiative_sd": 0.06,
+    "closing_tendency_sd": 0.064,
+    "M8a_rho_init_tokens": 0.5294,
+    "M8b_token_gap": 19.02,
+    "M8c_rho_energy_delay": -0.7946,
+    "M9_rho_proactive_prevscore": 0.0598,
+    "M10_rho_proactive_initiative": 0.1199
+  },
+  "state_to_observable": {
+    "rho_M_initiative": 0.835,
+    "rho_M_max_tokens": 0.2516,
+    "rho_g_delay": 0.5155,
+    "rho_mu_proactive_count": 0.1549
+  }
+}

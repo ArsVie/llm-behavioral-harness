@@ -1,0 +1,314 @@
+Day 1, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 1, 19:00
+Nova: That's a good question, honestly.
+
+Day 2, 18:30
+You: My dog's name is Bruno.
+
+Day 2, 18:30
+Nova: You always know how to put things.
+
+Day 2, 19:00
+You: Hello! How are you feeling today?
+
+Day 2, 19:00
+Nova: That makes me smile.
+
+Day 2, 20:33
+Nova: I'm glad you told me that.
+
+Day 3, 18:36
+You: My sister's name is Ana.
+
+Day 3, 18:36
+Nova: There's something nice about that.
+
+Day 3, 19:00
+You: Hello! How are you feeling today?
+
+Day 3, 19:00
+Nova: I'd love to hear more about that.
+
+Day 3, 19:01
+Nova: That sounds lovely — tell me more.
+
+Day 4, 18:36
+You: I have a bike named Swift.
+
+Day 4, 18:36
+Nova: Mm, I know exactly what you mean.
+
+Day 4, 18:36
+Nova: Let me think about that for a moment.
+
+Day 4, 19:00
+You: Hey you. Tell me something about your day.
+
+Day 4, 19:00
+Nova: I was just thinking about that earlier.
+
+Day 5, 18:36
+You: My job is teaching.
+
+Day 5, 18:36
+Nova: That's a good question, honestly.
+
+Day 5, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 5, 19:00
+Nova: You always know how to put things.
+
+Day 5, 20:21
+Nova: That makes me smile.
+
+Day 6, 18:30
+You: I have a cat named Luna.
+
+Day 6, 18:30
+Nova: I'm glad you told me that.
+
+Day 6, 19:00
+You: Hey! I had a long day, what about you?
+
+Day 6, 19:00
+Nova: There's something nice about that.
+
+Day 6, 19:29
+Nova: I'd love to hear more about that.
+
+Day 7, 18:36
+You: My sister is moving to Guadalajara.
+
+Day 7, 18:36
+Nova: That sounds lovely — tell me more.
+
+Day 7, 18:52
+Nova: Mm, I know exactly what you mean.
+
+Day 7, 19:00
+You: Hi! Anything new today?
+
+Day 7, 19:00
+Nova: Let me think about that for a moment.
+
+Day 8, 08:52
+Nova: I was just thinking about that earlier.
+
+Day 8, 18:36
+You: My bike is getting repaired.
+
+Day 8, 18:36
+Nova: That's a good question, honestly.
+
+Day 8, 22:29
+Nova: You always know how to put things.
+
+Day 8, 22:29
+You: I was thinking about you earlier — what are you up to?
+
+Day 8, 22:29
+Nova: That makes me smile.
+
+Day 9, 18:36
+You: My job is design work now.
+
+Day 9, 18:36
+Nova: I'm glad you told me that.
+
+Day 9, 18:57
+Nova: There's something nice about that.
+
+Day 9, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 9, 19:00
+Nova: I'd love to hear more about that.
+
+Day 9, 21:58
+Nova: That sounds lovely — tell me more.
+
+Day 10, 18:30
+You: My color is teal.
+
+Day 10, 18:30
+Nova: Mm, I know exactly what you mean.
+
+Day 11, 00:00
+You: Hi! Anything new today?
+
+Day 11, 00:00
+Nova: Let me think about that for a moment.
+
+Day 13, 09:56
+Nova: I was just thinking about that earlier.
+
+Day 13, 18:22
+Nova: That's a good question, honestly.
+
+Day 14, 13:27
+Nova: You always know how to put things.
+
+Day 15, 09:31
+Nova: That makes me smile.
+
+Day 15, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 15, 19:00
+Nova: I'm glad you told me that.
+
+Day 16, 18:30
+You: My hometown is Oaxaca.
+
+Day 16, 18:30
+Nova: There's something nice about that.
+
+Day 16, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 16, 19:00
+Nova: I'd love to hear more about that.
+
+Day 17, 19:00
+You: Hey! How was your day?
+
+Day 17, 19:00
+Nova: That sounds lovely — tell me more.
+
+Day 17, 22:07
+Nova: Mm, I know exactly what you mean.
+
+Day 18, 18:30
+You: I have a brother named Diego.
+
+Day 18, 18:30
+Nova: Let me think about that for a moment.
+
+Day 18, 19:00
+You: Hi! Anything new today?
+
+Day 18, 19:00
+Nova: I was just thinking about that earlier.
+
+Day 18, 21:48
+Nova: That's a good question, honestly.
+
+Day 19, 19:00
+You: Hello! How are you feeling today?
+
+Day 19, 19:00
+Nova: You always know how to put things.
+
+Day 20, 18:30
+You: My book is The Name of the Wind.
+
+Day 20, 18:30
+Nova: That makes me smile.
+
+Day 20, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 20, 19:00
+Nova: I'm glad you told me that.
+
+Day 21, 19:00
+You: Hi! Anything new today?
+
+Day 21, 19:00
+Nova: There's something nice about that.
+
+Day 21, 20:47
+Nova: I'd love to hear more about that.
+
+Day 22, 18:30
+You: My car is a red Civic.
+
+Day 22, 18:30
+Nova: That sounds lovely — tell me more.
+
+Day 22, 21:24
+Nova: Mm, I know exactly what you mean.
+
+Day 22, 21:24
+You: Hey! I had a long day, what about you?
+
+Day 22, 21:24
+Nova: Let me think about that for a moment.
+
+Day 23, 19:00
+You: Hi! Anything new today?
+
+Day 23, 19:00
+Nova: I was just thinking about that earlier.
+
+Day 24, 18:30
+You: My food is ramen.
+
+Day 24, 18:30
+Nova: That's a good question, honestly.
+
+Day 24, 18:30
+Nova: You always know how to put things.
+
+Day 24, 19:00
+You: Hi! Anything new today?
+
+Day 24, 19:00
+Nova: That makes me smile.
+
+Day 25, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 25, 19:00
+Nova: I'm glad you told me that.
+
+Day 25, 19:00
+Nova: There's something nice about that.
+
+Day 26, 19:00
+You: Hello! How are you feeling today?
+
+Day 26, 19:00
+Nova: I'd love to hear more about that.
+
+Day 27, 15:06
+Nova: That sounds lovely — tell me more.
+
+Day 27, 19:00
+You: Hi! Anything new today?
+
+Day 27, 19:00
+Nova: Mm, I know exactly what you mean.
+
+Day 27, 21:44
+Nova: Let me think about that for a moment.
+
+Day 28, 19:00
+You: Hey! I had a long day, what about you?
+
+Day 28, 19:00
+Nova: I was just thinking about that earlier.
+
+Day 28, 19:00
+Nova: That's a good question, honestly.
+
+Day 29, 19:00
+You: I was thinking about you earlier — what are you up to?
+
+Day 29, 19:00
+Nova: You always know how to put things.
+
+Day 29, 19:00
+Nova: That makes me smile.
+
+Day 30, 19:00
+You: Hey! I had a long day, what about you?
+
+Day 30, 19:00
+Nova: I'm glad you told me that.
+
+Day 30, 20:34
+Nova: There's something nice about that.

@@ -1,0 +1,528 @@
+{
+  "seed": 5002,
+  "condition": "FULL",
+  "structured_observability": {
+    "M_series": [
+      6.0,
+      5.0,
+      2.0,
+      3.0,
+      2.0,
+      4.0,
+      3.0,
+      10.0,
+      3.0,
+      7.0,
+      4.0,
+      4.0,
+      4.0,
+      6.0,
+      5.0,
+      3.0,
+      5.0,
+      6.0,
+      4.0,
+      3.0,
+      4.0,
+      4.0,
+      8.0,
+      8.0,
+      4.0,
+      6.0,
+      6.0,
+      7.0,
+      3.0,
+      3.0
+    ],
+    "g_series": [
+      1.1615,
+      1.1631,
+      1.2327,
+      1.2445,
+      1.2072,
+      1.1389,
+      1.0897,
+      1.0936,
+      1.0356,
+      1.0261,
+      1.0299,
+      0.9958,
+      0.911,
+      0.8963,
+      0.8658,
+      0.7639,
+      0.7216,
+      0.7652,
+      0.8962,
+      0.9,
+      0.9887,
+      0.9909,
+      0.996,
+      1.0251,
+      1.0784,
+      1.0921,
+      1.1551,
+      1.1482,
+      1.2277,
+      1.1901
+    ],
+    "mu_series": [
+      0.0,
+      -0.116,
+      -0.1904,
+      -0.147,
+      -0.0631,
+      0.0395,
+      0.1538,
+      0.1693,
+      0.0959,
+      0.0087,
+      -0.1086,
+      -0.2453,
+      -0.2085,
+      -0.2615,
+      -0.2594,
+      -0.2263,
+      -0.0721,
+      -0.0227,
+      -0.0674,
+      -0.13,
+      -0.2265,
+      -0.2843,
+      -0.2269,
+      -0.131,
+      -0.0182,
+      0.1048,
+      0.1276,
+      0.0604,
+      -0.0214,
+      -0.1342
+    ],
+    "phase_series": [
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "follicular",
+      "ovulatory",
+      "ovulatory",
+      "ovulatory",
+      "ovulatory",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_early",
+      "luteal_late",
+      "luteal_late",
+      "luteal_late",
+      "luteal_late",
+      "luteal_late"
+    ],
+    "arcs_by_day": {
+      "0": {
+        "arc_2": [
+          0.211,
+          "active"
+        ],
+        "arc_1": [
+          0.777,
+          "active"
+        ]
+      },
+      "1": {
+        "arc_2": [
+          0.221,
+          "active"
+        ],
+        "arc_1": [
+          0.777,
+          "active"
+        ]
+      },
+      "2": {
+        "arc_2": [
+          0.266,
+          "active"
+        ],
+        "arc_1": [
+          0.777,
+          "active"
+        ]
+      },
+      "3": {
+        "arc_2": [
+          0.29,
+          "active"
+        ],
+        "arc_1": [
+          0.777,
+          "active"
+        ]
+      },
+      "4": {
+        "arc_2": [
+          0.31,
+          "active"
+        ],
+        "arc_1": [
+          0.777,
+          "active"
+        ]
+      },
+      "5": {
+        "arc_2": [
+          0.359,
+          "active"
+        ],
+        "arc_1": [
+          0.777,
+          "active"
+        ]
+      },
+      "6": {
+        "arc_2": [
+          0.398,
+          "active"
+        ],
+        "arc_1": [
+          0.777,
+          "active"
+        ]
+      },
+      "7": {
+        "arc_2": [
+          0.415,
+          "active"
+        ],
+        "arc_1": [
+          0.777,
+          "active"
+        ]
+      },
+      "8": {
+        "arc_2": [
+          0.439,
+          "active"
+        ],
+        "arc_1": [
+          0.794,
+          "active"
+        ]
+      },
+      "9": {
+        "arc_2": [
+          0.488,
+          "active"
+        ],
+        "arc_1": [
+          0.807,
+          "active"
+        ]
+      },
+      "10": {
+        "arc_2": [
+          0.517,
+          "active"
+        ],
+        "arc_1": [
+          0.821,
+          "active"
+        ]
+      },
+      "11": {
+        "arc_2": [
+          0.562,
+          "active"
+        ],
+        "arc_1": [
+          0.841,
+          "active"
+        ]
+      },
+      "12": {
+        "arc_2": [
+          0.582,
+          "active"
+        ],
+        "arc_1": [
+          0.889,
+          "active"
+        ]
+      },
+      "13": {
+        "arc_2": [
+          0.617,
+          "active"
+        ],
+        "arc_1": [
+          0.926,
+          "active"
+        ]
+      },
+      "14": {
+        "arc_2": [
+          0.643,
+          "active"
+        ],
+        "arc_1": [
+          0.943,
+          "active"
+        ]
+      },
+      "15": {
+        "arc_2": [
+          0.661,
+          "active"
+        ],
+        "arc_1": [
+          0.969,
+          "active"
+        ]
+      },
+      "16": {
+        "arc_2": [
+          0.71,
+          "active"
+        ],
+        "arc_1": [
+          0.997,
+          "active"
+        ]
+      },
+      "17": {
+        "arc_2": [
+          0.726,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ]
+      },
+      "18": {
+        "arc_2": [
+          0.772,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.458,
+          "active"
+        ]
+      },
+      "19": {
+        "arc_2": [
+          0.796,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.475,
+          "active"
+        ]
+      },
+      "20": {
+        "arc_2": [
+          0.823,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.501,
+          "active"
+        ]
+      },
+      "21": {
+        "arc_2": [
+          0.866,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.523,
+          "active"
+        ]
+      },
+      "22": {
+        "arc_2": [
+          0.908,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.555,
+          "active"
+        ]
+      },
+      "23": {
+        "arc_2": [
+          0.952,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.597,
+          "active"
+        ]
+      },
+      "24": {
+        "arc_2": [
+          0.972,
+          "active"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.621,
+          "active"
+        ]
+      },
+      "25": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.653,
+          "active"
+        ]
+      },
+      "26": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.671,
+          "active"
+        ],
+        "arc_26_s0": [
+          0.428,
+          "active"
+        ]
+      },
+      "27": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.683,
+          "active"
+        ],
+        "arc_26_s0": [
+          0.457,
+          "active"
+        ]
+      },
+      "28": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.695,
+          "active"
+        ],
+        "arc_26_s0": [
+          0.476,
+          "active"
+        ]
+      },
+      "29": {
+        "arc_2": [
+          1.0,
+          "completed"
+        ],
+        "arc_1": [
+          1.0,
+          "completed"
+        ],
+        "arc_18_s0": [
+          0.739,
+          "active"
+        ],
+        "arc_26_s0": [
+          0.5,
+          "active"
+        ]
+      }
+    },
+    "n_arcs_total": 4,
+    "n_arcs_active_end": 2,
+    "n_arcs_completed": 2,
+    "n_arcs_abandoned": 0,
+    "distinct_agenda_activities": 42
+  },
+  "behavioral_dynamics": {
+    "n_messages": 65,
+    "delay_mean": 4.549,
+    "delay_sd": 0.767,
+    "delay_min": 3.171,
+    "delay_max": 5.904,
+    "max_tokens_mean": 544.5,
+    "max_tokens_sd": 11.4,
+    "initiative_mean": 0.373,
+    "initiative_sd": 0.072,
+    "closing_tendency_sd": 0.057,
+    "M8a_rho_init_tokens": 0.6097,
+    "M8b_token_gap": 20.23,
+    "M8c_rho_energy_delay": -0.7278,
+    "M9_rho_proactive_prevscore": 0.193,
+    "M10_rho_proactive_initiative": 0.0415
+  },
+  "state_to_observable": {
+    "rho_M_initiative": 0.6946,
+    "rho_M_max_tokens": 0.237,
+    "rho_g_delay": 0.5688,
+    "rho_mu_proactive_count": 0.2207
+  }
+}
