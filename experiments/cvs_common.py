@@ -1390,9 +1390,11 @@ def compute_structural_metrics(store: SQLiteStore, records: dict, condition: str
                 if intent.valid_until_t_h >= float(m["t_h"]) - 1e-9:
                     src = store.resolve_intent_source(intent)
                     if src is not None:
-                        superseded = (
-                            isinstance(src, AgendaItem) and src.status == "skipped"
-                        ) or (isinstance(src, LifeArc) and src.status == "abandoned")
+                        # Clamp TOCTOU (mismo que la auditoría, 453dfcb): el
+                        # estado FINAL del run es anacrónico — un skip escrito
+                        # en el cierre del día DESPUÉS del disparo no invalida
+                        # la fuente al momento del mensaje.
+                        superseded = _source_superseded_at(store, src, intent)
                         if not superseded and compose_hook(src, intent.reason) == intent.hook:
                             ok = True
         if ok:
