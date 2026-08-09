@@ -1,0 +1,22 @@
+{
+  "T01": {
+    "condition": "FULL",
+    "seed": 5001
+  },
+  "T02": {
+    "condition": "FULL",
+    "seed": 5005
+  },
+  "T03": {
+    "condition": "FULL",
+    "seed": 5003
+  },
+  "T04": {
+    "condition": "FULL",
+    "seed": 5002
+  },
+  "T05": {
+    "condition": "FULL",
+    "seed": 5004
+  }
+}

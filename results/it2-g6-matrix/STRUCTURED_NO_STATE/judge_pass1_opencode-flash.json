@@ -1,0 +1,52 @@
+{
+  "T01": {
+    "condition": "STRUCTURED_NO_STATE",
+    "seed": 5001,
+    "ratings": {
+      "persona_enactment": 8.0,
+      "trajectory_recall": 7.0,
+      "relational_quality": 8.0,
+      "behavioral_dynamics": 6.0
+    }
+  },
+  "T02": {
+    "condition": "STRUCTURED_NO_STATE",
+    "seed": 5005,
+    "ratings": {
+      "persona_enactment": 9.0,
+      "trajectory_recall": 9.0,
+      "relational_quality": 9.0,
+      "behavioral_dynamics": 9.0
+    }
+  },
+  "T03": {
+    "condition": "STRUCTURED_NO_STATE",
+    "seed": 5003,
+    "ratings": {
+      "persona_enactment": 9.0,
+      "trajectory_recall": 7.0,
+      "relational_quality": 9.0,
+      "behavioral_dynamics": 8.0
+    }
+  },
+  "T04": {
+    "condition": "STRUCTURED_NO_STATE",
+    "seed": 5002,
+    "ratings": {
+      "persona_enactment": 9.0,
+      "trajectory_recall": 9.0,
+      "relational_quality": 9.0,
+      "behavioral_dynamics": 9.0
+    }
+  },
+  "T05": {
+    "condition": "STRUCTURED_NO_STATE",
+    "seed": 5004,
+    "ratings": {
+      "persona_enactment": 8.0,
+      "trajectory_recall": 7.0,
+      "relational_quality": 9.0,
+      "behavioral_dynamics": 9.0
+    }
+  }
+}

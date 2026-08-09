@@ -1,0 +1,22 @@
+{
+  "T01": {
+    "condition": "NO_TIMING_FEEDBACK",
+    "seed": 5005
+  },
+  "T02": {
+    "condition": "NO_TIMING_FEEDBACK",
+    "seed": 5003
+  },
+  "T03": {
+    "condition": "NO_TIMING_FEEDBACK",
+    "seed": 5004
+  },
+  "T04": {
+    "condition": "NO_TIMING_FEEDBACK",
+    "seed": 5002
+  },
+  "T05": {
+    "condition": "NO_TIMING_FEEDBACK",
+    "seed": 5001
+  }
+}

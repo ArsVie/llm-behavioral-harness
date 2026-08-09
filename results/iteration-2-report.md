@@ -60,7 +60,27 @@ timestamp: 2026-08-09T00:00:00+00:00
 
 ## 5. Judge passes (perceptual)
 
-<!-- FILLED AFTER PASSES -->
+2 seeded passes (opencode-flash, temperature 0, rubric-anchored 1-9) × 7 conditions; each pass rates all 5 seeds blind, shuffled order (judge_order1/2.json). Means across 5 seeds × 2 passes:
+
+| condition | persona | recall | relational | behav.dyn |
+|---|---|---|---|---|
+| FULL | 8.7 | 7.4 | 9.0 | 6.6 |
+| NO_ACTUATORS | 8.7 | 8.5 | 8.5 | 7.1 |
+| NO_LIFE | 8.1 | 7.1 | 8.6 | 7.0 |
+| NO_TIMING_FEEDBACK | 8.7 | 7.0 | 8.9 | 6.9 |
+| RAW_HISTORY | 8.8 | 7.9 | 8.6 | 7.2 |
+| SIMPLE_RAG | 8.4 | 8.2 | 8.7 | 7.3 |
+| STRUCTURED_NO_STATE | 8.7 | 8.1 | 8.8 | 7.9 |
+
+Readings (within pass-variance noise ±0.6-1.5 pts, see below — treat as directional, not decisive):
+
+- **No condition collapses perceptually.** The companion reads as a coherent persona (8.1-8.8) and relationally warm (8.5-9.0) under every ablation.
+- **The M3 mechanical collapse does NOT replicate in judgment:** RAW_HISTORY is judged 7.9 on trajectory recall despite mechanical M3 = 0.0. The LLM sustains in-context continuity from raw dialogue (it can re-reference recent exchanges), while the mechanical probe protocol (fact-level queries at specific days) fails without structured retrieval. This is a real finding for the memory question: structured memory is load-bearing for *verifiable fact recall*, not for *perceived continuity*.
+- NO_LIFE trends lowest on persona (8.1) and recall (7.1): life arcs contribute modestly to perceived identity continuity.
+- FULL shows the lowest behavioral_dynamics (6.6) vs STRUCTURED_NO_STATE highest (7.9) — with the full behavior layer (delays, length scaling, closing tendencies) the pacing reads marginally less "dynamic"; likely noise-level (FULL pass-variance 0.85).
+- Disagreement: within-family pass variance, mean abs diff 0.6 (NO_ACTUATORS) - 1.5 (NO_LIFE) pts. No cross-family disagreement computed: openai-mini preregistered family unavailable (no OPENAI_API_KEY) — see §6.
+
+Artifacts: judge_pass{1,2}_opencode-flash.json + judge_order{1,2}.json per condition dir.
 
 ## 6. Limitations
 

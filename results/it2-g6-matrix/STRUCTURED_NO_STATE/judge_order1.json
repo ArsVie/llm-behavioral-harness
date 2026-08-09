@@ -1,0 +1,22 @@
+{
+  "T01": {
+    "condition": "STRUCTURED_NO_STATE",
+    "seed": 5001
+  },
+  "T02": {
+    "condition": "STRUCTURED_NO_STATE",
+    "seed": 5005
+  },
+  "T03": {
+    "condition": "STRUCTURED_NO_STATE",
+    "seed": 5003
+  },
+  "T04": {
+    "condition": "STRUCTURED_NO_STATE",
+    "seed": 5002
+  },
+  "T05": {
+    "condition": "STRUCTURED_NO_STATE",
+    "seed": 5004
+  }
+}

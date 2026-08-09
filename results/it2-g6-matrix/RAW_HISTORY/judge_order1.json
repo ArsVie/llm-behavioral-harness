@@ -1,0 +1,22 @@
+{
+  "T01": {
+    "condition": "RAW_HISTORY",
+    "seed": 5001
+  },
+  "T02": {
+    "condition": "RAW_HISTORY",
+    "seed": 5005
+  },
+  "T03": {
+    "condition": "RAW_HISTORY",
+    "seed": 5003
+  },
+  "T04": {
+    "condition": "RAW_HISTORY",
+    "seed": 5002
+  },
+  "T05": {
+    "condition": "RAW_HISTORY",
+    "seed": 5004
+  }
+}

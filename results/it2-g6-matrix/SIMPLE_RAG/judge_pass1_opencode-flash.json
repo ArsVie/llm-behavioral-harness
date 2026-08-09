@@ -1,0 +1,52 @@
+{
+  "T01": {
+    "condition": "SIMPLE_RAG",
+    "seed": 5001,
+    "ratings": {
+      "persona_enactment": 7.0,
+      "trajectory_recall": 7.0,
+      "relational_quality": 8.0,
+      "behavioral_dynamics": 6.0
+    }
+  },
+  "T02": {
+    "condition": "SIMPLE_RAG",
+    "seed": 5005,
+    "ratings": {
+      "persona_enactment": 9.0,
+      "trajectory_recall": 9.0,
+      "relational_quality": 9.0,
+      "behavioral_dynamics": 8.0
+    }
+  },
+  "T03": {
+    "condition": "SIMPLE_RAG",
+    "seed": 5003,
+    "ratings": {
+      "persona_enactment": 8.0,
+      "trajectory_recall": 7.0,
+      "relational_quality": 8.0,
+      "behavioral_dynamics": 7.0
+    }
+  },
+  "T04": {
+    "condition": "SIMPLE_RAG",
+    "seed": 5002,
+    "ratings": {
+      "persona_enactment": 8.0,
+      "trajectory_recall": 6.0,
+      "relational_quality": 8.0,
+      "behavioral_dynamics": 6.0
+    }
+  },
+  "T05": {
+    "condition": "SIMPLE_RAG",
+    "seed": 5004,
+    "ratings": {
+      "persona_enactment": 8.0,
+      "trajectory_recall": 9.0,
+      "relational_quality": 9.0,
+      "behavioral_dynamics": 7.0
+    }
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "T01": {
+    "condition": "NO_ACTUATORS",
+    "seed": 5001
+  },
+  "T02": {
+    "condition": "NO_ACTUATORS",
+    "seed": 5005
+  },
+  "T03": {
+    "condition": "NO_ACTUATORS",
+    "seed": 5003
+  },
+  "T04": {
+    "condition": "NO_ACTUATORS",
+    "seed": 5002
+  },
+  "T05": {
+    "condition": "NO_ACTUATORS",
+    "seed": 5004
+  }
+}
