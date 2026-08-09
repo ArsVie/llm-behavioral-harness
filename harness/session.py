@@ -742,6 +742,15 @@ class Session:
                 for m in recent
             ]
         reply = self.client.chat(messages, system=system, max_tokens=controls.max_tokens)
+        if not reply.strip():
+            # Generation integrity (it3 B1): an empty/whitespace reply is
+            # NEVER persisted. The client retries empties with bounded
+            # backoff first; this guard is the invariant that a blank
+            # assistant row cannot enter the store, whatever the client did.
+            raise RuntimeError(
+                "refusing to persist empty assistant reply (client returned "
+                "empty/whitespace-only content)"
+            )
         self._persist_message(
             "assistant", reply, t_h, day,
             proactive=proactive, session_id=session_id,
