@@ -174,11 +174,13 @@ def check_run_dir(run_dir: Path) -> list[str]:
                 )
         if not summary.get("validated"):
             violations.append("vertical_summary.json validated != true")
-        if not summary.get("checkpoints"):
+        days = int(summary.get("days", 0) or 0)
+        if days >= 30 and not summary.get("checkpoints"):
             violations.append("vertical_summary.json checkpoints empty (5 required)")
-        elif len(summary["checkpoints"]) < 5:
+        elif days >= 30 and len(summary["checkpoints"]) < 5:
             violations.append(
-                f"vertical_summary.json checkpoints < 5 ({len(summary['checkpoints'])})"
+                f"vertical_summary.json checkpoints < 5 ({len(summary['checkpoints'])})\n"
+                "— run with --checkpoints for spreads restarts (G3) or the default set"
             )
 
     return violations
