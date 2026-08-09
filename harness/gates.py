@@ -16,9 +16,9 @@ from dataclasses import dataclass
 
 from engine.circadian import envelope
 from engine.types import TimingParams
-from harness.domain import AgendaItem, LifeArc
+from harness.domain import AgendaItem, EpisodicMemory, LifeArc
 from harness.proactive import compose_hook
-from harness.scheduler import REASON_VALIDITY_H, VALID_REASONS
+from harness.scheduler import REASON_EVENT, REASON_VALIDITY_H, VALID_REASONS
 
 
 @dataclass(frozen=True)
@@ -39,8 +39,18 @@ def content_gate(intent, store, *, now_h: float | None = None) -> GateDecision:
       - store.resolve_intent_source(intent) is not None      -> 'no_source'
       - source not deleted/superseded (status checks:
         AgendaItem 'skipped', LifeArc 'abandoned')           -> 'source_superseded'
+      - a life_event claim ("Finished: X") requires the agenda
+        item to be persisted 'completed' (A9 G-5)            -> 'source_superseded'
+      - an episode linked to a SUPERSEDED L4 assertion
+        carries stale truth (A9 G-4)                         -> 'source_superseded'
+      - an episode whose source session no longer exists has
+        broken provenance (A9 G-8b)                          -> 'no_source'
       - compose_hook(source, intent.reason) == intent.hook
         (the hook is actually attached to that source)       -> 'hook_mismatch'
+
+    New checks run only against seams the store exposes (duck-typed):
+    seam-faithful fakes without ``list_assertions`` / ``session_exists`` are
+    skipped, matching the codebase's optional-seam convention.
     """
     if intent is None:
         return GateDecision(allowed=False, code="no_valid_reason")
@@ -49,10 +59,33 @@ def content_gate(intent, store, *, now_h: float | None = None) -> GateDecision:
     source = store.resolve_intent_source(intent)
     if source is None:
         return GateDecision(allowed=False, code="no_source")
-    if isinstance(source, AgendaItem) and source.status == "skipped":
-        return GateDecision(allowed=False, code="source_superseded")
+    if isinstance(source, AgendaItem):
+        if source.status == "skipped":
+            return GateDecision(allowed=False, code="source_superseded")
+        # G-5: a life_event claim is only grounded when the store records the
+        # item as completed — the completion write is the source of the claim.
+        if intent.reason == REASON_EVENT and source.status != "completed":
+            return GateDecision(allowed=False, code="source_superseded")
     if isinstance(source, LifeArc) and source.status == "abandoned":
         return GateDecision(allowed=False, code="source_superseded")
+    if isinstance(source, EpisodicMemory):
+        # G-4: the episode embodies a fact whose L4 assertion was superseded
+        # (stale truth must not reach a proactive message).
+        list_assertions = getattr(store, "list_assertions", None)
+        if list_assertions is not None and any(
+            source.id in a.source_memory_ids
+            for a in list_assertions(status="superseded")
+        ):
+            return GateDecision(allowed=False, code="source_superseded")
+        # G-8b: broken provenance — the source session that witnessed the
+        # memory no longer exists; no record of the promise, no claim.
+        session_exists = getattr(store, "session_exists", None)
+        if (
+            session_exists is not None
+            and source.source_session_id
+            and not session_exists(source.source_session_id)
+        ):
+            return GateDecision(allowed=False, code="no_source")
     if compose_hook(source, intent.reason) != intent.hook:
         return GateDecision(allowed=False, code="hook_mismatch")
     return GateDecision(allowed=True, code="ok")

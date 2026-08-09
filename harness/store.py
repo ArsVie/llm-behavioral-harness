@@ -850,6 +850,17 @@ class SQLiteStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def session_exists(self, session_id: str) -> bool:
+        """True when the L1 session row is registered (open_session was
+        called and the row was not deleted). The content gate's broken-
+        provenance check (A9 G-8b): a memory whose source session is gone
+        has no record of what it claims."""
+        row = self.conn.execute(
+            "SELECT 1 FROM memory_sessions WHERE session_id = ?",
+            (session_id,),
+        ).fetchone()
+        return row is not None
+
     # -- memory tiers: L2 session summaries (A5) -----------------------------
 
     def save_session_summary(self, summary: SessionSummary) -> None:
