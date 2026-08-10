@@ -94,6 +94,7 @@ def run_matrix(
     out_root: str = "results/it3-g5-matrix",
     max_retries: int = 3,
     retry_base_s: float = 120.0,
+    fake: bool = False,
 ) -> dict:
     """Corre la matriz completa; devuelve el resumen (y lo escribe a JSON)."""
     root = Path(out_root)
@@ -122,7 +123,7 @@ def run_matrix(
                 record = run_cell(
                     condition, seed, out_dir,
                     days=days, checkpoints=DEFAULT_CHECKPOINT_DAYS,
-                    fake=False, perturb=True,
+                    fake=fake, perturb=True,
                 )
                 summary = record.get("summary") or record
                 cell_state.update(
@@ -183,12 +184,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--conditions", type=str, default=",".join(MATRIX_CONDITIONS))
     parser.add_argument("--seeds", type=str, default=",".join(map(str, SEEDS)))
     parser.add_argument("--days", type=int, default=30)
+    parser.add_argument("--fake", action="store_true",
+                        help="run_cell fake=True (CI/hook tests — no API)")
     parser.add_argument("--out", type=str, default="results/it3-g5-matrix")
     parser.add_argument("--max-retries", type=int, default=3)
     parser.add_argument("--retry-base-s", type=float, default=120.0)
     args = parser.parse_args(argv)
 
-    _require_key()
+    if not args.fake:
+        _require_key()
     conditions = tuple(c.strip() for c in args.conditions.split(",") if c.strip())
     seeds = tuple(int(s) for s in args.seeds.split(",") if s.strip())
     print(f"[matrix] {len(conditions)} conditions x {len(seeds)} seeds x {args.days} days "
@@ -196,7 +200,7 @@ def main(argv: list[str] | None = None) -> int:
     report = run_matrix(
         conditions=conditions, seeds=seeds, days=args.days,
         out_root=args.out, max_retries=args.max_retries,
-        retry_base_s=args.retry_base_s,
+        retry_base_s=args.retry_base_s, fake=args.fake,
     )
     print(f"[matrix] done: {report['matrix']['n_ok']}/{report['matrix']['n_cells']} "
           f"cells ok, {report['matrix']['n_failed']} failed", flush=True)
