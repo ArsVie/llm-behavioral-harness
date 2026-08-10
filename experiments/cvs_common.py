@@ -599,6 +599,17 @@ FEED_PACE_FRACTION = 0.5
 #: Piso del sueño del driver (evita busy-loop cuando el reloj está
 #: congelado en un evento de agenda en pleno disparo).
 FEED_POLL_FLOOR_S = 1e-5
+#: Ventana (horas virtuales) tras la medianoche del día objetivo durante
+#: la cual el driver trata un lock del runtime tomado como "replan de
+#: medianoche en curso" y NO lanza feeds del día aún. El guard original
+#: exigía now <= medianoche + 1e-6 (el reloj clavado EXACTO en la frontera);
+#: si el rollover aterriza en 48.5 por un avance con lectura obsoleta, el
+#: guard se evade y el driver lanza feeds del día D mientras las filas del
+#: plan del día D aún no existen (drenajes vacíos) — el feed salta el reloj
+#: por encima de una oportunidad pendiente que luego expira (la carrera
+#: fired/expired del día 2). La ventana cubre ese excedente (0.5h
+#: observado) con margen, incluso si el runtime reintroduce el overshoot.
+REPLAN_GUARD_WINDOW_H = 1.0
 
 
 class _FeedPlan:
@@ -794,12 +805,24 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
                 return skipped
             now = session.clock.now_h()
             day = session.clock.day()
+            pending_before: list[float] = []
             if day >= target_day:
                 pending_before = [
                     float(r["t_h"]) for r in store.pending_schedule_events(seed)
                     if float(r["t_h"]) < t_h - 1e-6
                 ]
-                at_boundary = now <= target_day * 24.0 + 1e-6
+                # Replan de medianoche en curso: el bloque midnight del
+                # rollover (ensure_day + replan) sostiene el lock del runtime
+                # con el reloj en la frontera del día. El guard usa una
+                # VENTANA (REPLAN_GUARD_WINDOW_H) y no un épsilon: un avance
+                # del rollover con lectura obsoleta puede aterrizar el reloj
+                # un poco DESPUÉS de la medianoche (p.ej. 48.5), y con el
+                # épsilon el lock tomado pasaría desapercibido — el driver
+                # lanzaría feeds del día objetivo antes de que existan sus
+                # filas de plan (drenajes vacíos) y el feed saltaría el reloj
+                # por encima de una oportunidad pendiente (expira en vez de
+                # dispararse).
+                at_boundary = now <= target_day * 24.0 + REPLAN_GUARD_WINDOW_H
                 replan_done = not (at_boundary and runtime._lock.locked())
                 if now >= t_h - 1e-6:
                     # The feed's OWN time arrived: deliver even if the runtime

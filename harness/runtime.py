@@ -291,6 +291,17 @@ class AsyncRuntime:
                 target = next_midnight
             async with self._lock:
                 pending = self.schedule.next_pending(now)
+                if pending is not None and pending < now - 1e-9:
+                    # STRICTLY overdue row: ask the firing loop's OWN
+                    # deferral verdict whether it will consume the row (None)
+                    # or defer it (non-None) — same pure function, same lock
+                    # discipline. (An ON-SCHEDULE row, pending ~= now, is
+                    # never deferred-without-advance: the firing loop's
+                    # R1-F1 leg advances the clock to the awake instant, so
+                    # the rollover parks for it exactly as before.)
+                    overdue_park = self._quiet_defer_until(pending, now) is None
+                else:
+                    overdue_park = True
             if (
                 pending is not None
                 # Overdue rows INCLUDED (no now <= pending bound): next_pending
@@ -301,6 +312,25 @@ class AsyncRuntime:
                 # expires instead of firing (the it2/FEED race, B8 Finding 4).
                 and pending < target
                 and not self._firing_done
+                # ... but a STRICTLY OVERDUE row (pending < now) is parked
+                # only when the firing loop will actually CONSUME it (verdict
+                # None: it fires, suppresses or expires the row — even during
+                # quiet hours, a past-validity straggler is expired by
+                # policy, so it must be parked for that recovery). When the
+                # verdict is a quiet-hours DEFERRAL (R-4b: still-valid row,
+                # never consumed as fired-without-delivery; R-10: it stays
+                # pending for a later awake run) the firing loop does NOT
+                # advance the clock — parking would freeze the clock below
+                # max_virtual_hours forever, the rollover waiting for the
+                # firing loop while it waits for the rollover to wind down
+                # (test_r4b hang, FEED regression). On-schedule rows
+                # (pending ~= now) always park: their deferral is the R1-F1
+                # leg that DOES advance the clock. Pre-feed the rollover
+                # excluded overdue rows entirely (now <= pending bound); the
+                # feed driver needs the overdue park to win the
+                # fired/expired race (B8 F4), so keep it for every row the
+                # firing loop will clear.
+                and (pending > now or overdue_park)
             ):
                 # Park at the earliest pending event; the firing loop gates
                 # it at its own time. Never jump past it.
@@ -317,6 +347,21 @@ class AsyncRuntime:
             if self._max_reached(now):
                 return
             async with self._lock:
+                # FRESH read inside the lock: the pre-lock read above can be
+                # stale — inbound messages that advanced the clock while we
+                # waited for the lock make ``advance_hours(target - now)``
+                # OVERSHOOT the target (e.g. the clock lands at 48.5 instead
+                # of exactly 48.0). The feed driver's midnight guard relies
+                # on the clock sitting EXACTLY at the boundary; an overshoot
+                # hides the replan-in-progress lock and lets the driver
+                # launch day-D feeds before the day-D schedule rows exist —
+                # its feed then jumps the clock past a still-pending
+                # opportunity, which the firing loop (starved behind the
+                # feed) evaluates only after validity expired (the FEED
+                # day-2 fired/expired race). Re-reading inside the lock
+                # makes the advance exact: never past the park/midnight
+                # target.
+                now = self.session.clock.now_h()
                 if now < target:
                     self.session.clock.advance_hours(target - now)
                 day = self.session.clock.day()
