@@ -29,8 +29,14 @@ DEFAULT_MODEL = "deepseek-v4-flash"
 
 #: Bounded retry for transient failures (review fix #3) and for
 #: empty/whitespace-only completions (iteration-3 B1: generation integrity).
-_MAX_RETRIES = 3
-_RETRY_BASE_DELAY_S = 0.5
+#: G3 evidence (2026-08-10): opencode-go intermittently returns empty
+#: completions in multi-minute windows (3 consecutive G3 smokes died with
+#: 4-consecutive empties while direct probes between windows succeeded).
+#: 7 attempts × 2/4/8/16/32/64s backoff (~2 min worst case) rides through
+#: short windows; the budget is still bounded and still raises loudly.
+#: Robustness hardening, not threshold tuning — blanks are never accepted.
+_MAX_RETRIES = 6
+_RETRY_BASE_DELAY_S = 2.0
 
 _logger = logging.getLogger(__name__)
 
