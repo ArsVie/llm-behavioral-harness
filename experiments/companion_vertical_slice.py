@@ -487,7 +487,18 @@ def cmd_vertical(args) -> int:
 
     # 3. Auditoría mecánica + métricas + cadenas + perturbación + estado.
     store = SQLiteStore(records["db"])
-    script = user_script(seed, days, perturb=True)
+    # B3 (it3): el run consume el stream conversacional COMPLETO de
+    # cvs_user (at_t_h + after_reply). El fixture de la auditoría debe ser
+    # ese MISMO stream — la proyección plana legacy (user_script) excluye
+    # los after_reply y rompe el conteo de mensajes user (counts_consistent).
+    try:
+        from experiments.cvs_user import build_user_stream
+
+        stream = build_user_stream(seed, days, perturb=True)
+        script = [(ev.get("t_h") or 0.0, ev["text"]) for ev in stream]
+    except ImportError:
+        # Pre-B3 (main viejo): plan legacy plano.
+        script = user_script(seed, days, perturb=True)
     pool = None
     if fake:
         client = DeterministicClient(seed)

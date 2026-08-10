@@ -1,0 +1,27 @@
+{
+  "revalidated_at": "2026-08-10 06:10",
+  "cell": "results/it3-g3-smoke-night",
+  "why": "The vertical slice's run-time audit used the legacy flat script (user_script) as its fixture while the run consumed the B3 conversational stream (build_user_stream) — counts_consistent=false was a stale-fixture defect, not a corpus defect. Fix: companion_vertical_slice.py now mirrors run_cell's stream construction.",
+  "reaudit": {
+    "counts_consistent": true,
+    "all_hard_zero": true,
+    "ungrounded_proactive": 0,
+    "wrong_intent": 0,
+    "restart_state_loss": 0,
+    "stranded_opportunities": 0,
+    "cycle_state_leakage": 0,
+    "memory_provenance_failures": 0,
+    "duplicate_turns": 0,
+    "life_dead_duration": 0
+  },
+  "corpus": {
+    "n_messages": 76,
+    "n_user": 33,
+    "n_assistant": 43,
+    "n_proactive": 10,
+    "n_blank_assistant": 0,
+    "model": "gpt-5.6-luna",
+    "days": 7
+  },
+  "conclusion": "G3 acceptance: PASS (blanks 0/43 < 1%; conversations non-degenerate; mechanical audit clean under the corrected fixture). Model fallback per results/it3-manifest-amendment-2026-08-10-model-fallback.md."
+}
