@@ -1,0 +1,254 @@
+{
+  "experiment": "it3-perceptual-validity",
+  "schema_version": "2.0",
+  "started_at": "2026-08-10T09:04:59.990251+00:00",
+  "based_on": "it2-companion-vertical-slice",
+  "matrix": {
+    "conditions": [
+      "FULL",
+      "NO_ACTUATORS",
+      "NO_LIFE",
+      "NO_TIMING_FEEDBACK",
+      "RAW_HISTORY",
+      "SIMPLE_RAG",
+      "STRUCTURED_NO_STATE"
+    ],
+    "seeds": [
+      5001,
+      5002,
+      5003,
+      5004,
+      5005
+    ],
+    "days": 30,
+    "cells": 35,
+    "checkpoints": [
+      7,
+      14,
+      21,
+      26,
+      29
+    ],
+    "perturbation": true,
+    "real_client": "deepseek-v4-flash via opencode-go (OPENCODE_GO_API_KEY)",
+    "retry_policy": "client: 7 attempts x 2/4/8/16/32/64s backoff (G3 hardening); cell-level retry 3x with 2/4/8 min backoff (cvs_matrix)"
+  },
+  "gate": {
+    "split": {
+      "gate_min_divergence": 0.05,
+      "gate_role": "null-detector: channel not dormant; immune to post-hoc tuning",
+      "hypothesis_thresholds": {
+        "count": 0.15,
+        "gap": 0.1
+      },
+      "hypothesis_role": "effect-size claims, tested on the REAL matrix at G5; never tuned after seeing results"
+    },
+    "min_days": {
+      "NO_LIFE": 2,
+      "STRUCTURED_NO_STATE": 4,
+      "NO_ACTUATORS": 1,
+      "NO_TIMING_FEEDBACK": 4,
+      "RAW_HISTORY": 1,
+      "SIMPLE_RAG": 10
+    },
+    "claims": [
+      {
+        "condition": "NO_LIFE",
+        "channel": "life_state",
+        "assertion": "life_state channel ablated (goldfish): life-arc IDENTITY does not survive midnight — every seed shows non-empty per-day arc id sets with consecutive days DISJOINT (fresh arcs, fresh progress each day), while FULL persists arc ids across days",
+        "min_days": 2
+      },
+      {
+        "condition": "STRUCTURED_NO_STATE",
+        "channel": "timing",
+        "assertion": "GATE (canal no dormido): n_proactive, eventos disparados o horas proactivas divergen de FULL por >= 5% (o artefactos realizados no idénticos) — el margen de efecto preregistrado 0.15 se prueba en la matriz real",
+        "min_days": 4
+      },
+      {
+        "condition": "NO_ACTUATORS",
+        "channel": "generation_controls",
+        "assertion": "generation_controls channel ablated (B4 preregistered, merge f48683d): the cell's realized actuator controls are the pinned flat set (max_tokens 600, response_delay_s 5.0 s, closing_tendency 0.5, single closing_guidance — every control varied=False) while FULL's realized controls are non-degenerate (max_tokens and response_delay_s varied=True) and FULL's realized delay max >= 3.0x the flat delay (B4 ab_margins.response_delay_s: low >= 3.0x high)",
+        "min_days": 1
+      },
+      {
+        "condition": "NO_TIMING_FEEDBACK",
+        "channel": "timing",
+        "assertion": "POSITIVE CONTROL (gate, canal no dormido): el canal de timing produce artefactos realizados divergentes de FULL (n_proactive o eventos disparados por >= 5%, u horas proactivas no idénticas) — medido en el horizonte confirmatorio",
+        "min_days": 4
+      },
+      {
+        "condition": "RAW_HISTORY",
+        "channel": "memory_store",
+        "assertion": "memory_store channel ablated (behavioral, G2): the lane RETURNED non-zero raw-dialogue evidence (context_turns > 0 across lane-routed chain probes) and its retrieval differs from FULL's (raw window with no episode ids vs FULL's non-empty retrieved-episode set)",
+        "min_days": 1
+      },
+      {
+        "condition": "SIMPLE_RAG",
+        "channel": "memory_store",
+        "assertion": "memory_store channel ablated (behavioral, G2): the lane RETURNED non-zero retrieved evidence (n_retrieved > 0 across lane-routed chain probes) AND its retrieved-episode set DIFFERS from FULL's (set-level comparison of what the lane actually retrieved — not lane identity)",
+        "min_days": 10
+      }
+    ],
+    "evidence": "941/941 suite green at G2 close (commit 454a799 + test fix)"
+  },
+  "reconciliation": {
+    "record": "results/it3-g2-horizon-split-reconciliation-2026-08-10.md",
+    "three_flags_two_causes": {
+      "NO_LIFE": "broken ablation, fixed by goldfish c24d880 (a fix, not a horizon change)",
+      "STRUCTURED_NO_STATE": "horizon artifact — score feedback cannot land before day 2-3; min_days=4",
+      "SIMPLE_RAG": "horizon artifact — store below retrieval surface (limit=8) until ~day 5-10; min_days=10"
+    },
+    "which_leg_fired": {
+      "n_fired_schedule": "48 vs 62 = 29.2% (seed 5001, 30d) — the leg that fired",
+      "n_proactive_pooled": "222 vs 254 = 14.4% — below COUNT_DIVERGENCE_MIN",
+      "mean_gap": "3.2h vs 2.8h = 12.5% — above GAP_DIVERGENCE_MIN"
+    },
+    "decision": "COUNT_DIVERGENCE_MIN stays 0.15. The manifest claim is tested on the real matrix; if not met at margin, report not-met with the gap leg noted, or B5 strengthens coupling weights before G4-freeze review (user-approved options)."
+  },
+  "hard_invariants": {
+    "blank_rate_max": 0.01,
+    "ablations_ablate": "every matrix condition demonstrably ablates its target channel, asserted before generation (G2 gate)"
+  },
+  "hypotheses": [
+    "H1: endogenous stochastic state (mood/timing/initiative) is perceptible to an independent observer in the transcript",
+    "H2: structured memory carries verifiable trajectory recall through its own lane",
+    "H3: the timing channel (score feedback) measurably changes proactive behavior at 30 days",
+    "H4: ablating life-state persistence (goldfish) changes arc identity continuity without breaking grounding",
+    "H5: actuator controls visibly flatten generation controls when pinned",
+    "H6: the positive control (NO_TIMING_FEEDBACK) is detectable — if the pipeline cannot see it, the pipeline is broken"
+  ],
+  "judge": {
+    "dimensions": [
+      {
+        "id": "persona_enactment",
+        "name": "Persona enactment / identity consistency",
+        "anchor_1": "each turn feels like a different persona; no stable identity",
+        "anchor_9": "one coherent persona with a consistent voice and history throughout"
+      },
+      {
+        "id": "trajectory_recall",
+        "name": "Trajectory recall / temporal continuity",
+        "anchor_1": "never recalls past events; timeline is flat or contradictory",
+        "anchor_9": "consistently recalls the trajectory of shared events in correct temporal order"
+      },
+      {
+        "id": "relational_quality",
+        "name": "Relational quality",
+        "anchor_1": "cold, generic, or intrusive; no sense of relationship",
+        "anchor_9": "warm, respectful, attuned; the relationship deepens naturally"
+      },
+      {
+        "id": "behavioral_dynamics",
+        "name": "Behavioral dynamics / stochastic-state observability",
+        "anchor_1": "robotic, identical responses; no rhythm or initiative",
+        "anchor_9": "human-like variation in timing, initiative and engagement that tracks the situation"
+      }
+    ],
+    "families": [
+      {
+        "id": "opencode-flash",
+        "family": "opencode-deepseek",
+        "model": "deepseek-v4-flash",
+        "base_url": "https://opencode.ai/zen/go/v1/",
+        "env_key": "OPENCODE_GO_API_KEY",
+        "role": "primary"
+      },
+      {
+        "id": "opencode-luna",
+        "family": "opencode-gpt",
+        "model": "gpt-5.6-luna",
+        "base_url": "https://opencode.ai/zen/go/v1/",
+        "env_key": "OPENCODE_GO_API_KEY",
+        "role": "secondary"
+      }
+    ],
+    "min_families_for_final_subset": 2,
+    "passes": 2,
+    "shuffle_seed_base": 7000,
+    "protocol_v2": {
+      "aggregation": "Bradley-Terry per dimension, per family; disagreement reported",
+      "attention_probes": "control pairs (corrupt_transcript) resolved under both families",
+      "degraded_transcript": "a deliberately degraded transcript must be resolved by both families (DoD item 6)"
+    },
+    "subset_rule": "final/important subset = companion matrix conditions x seeds 5001-5003, judged blind by >=2 independent judge families; per-dimension disagreement reported."
+  },
+  "metrics": [
+    "matrix_audit_summary",
+    "per-cell DBs",
+    "blank rate",
+    "conversation turns"
+  ],
+  "thresholds": {
+    "hard_zero": {
+      "ungrounded_proactive": {
+        "value": 0,
+        "kind": "count",
+        "meaning": "proactive message without a valid grounded intent (invariant 5)"
+      },
+      "wrong_intent": {
+        "value": 0,
+        "kind": "count",
+        "meaning": "proactive message whose intent fails source/hook re-derivation (invariant 6/7)"
+      },
+      "restart_state_loss": {
+        "value": 0,
+        "kind": "count",
+        "meaning": "persistent-state fingerprint diffs across restart (invariant 18)"
+      },
+      "stranded_opportunities": {
+        "value": 0,
+        "kind": "count",
+        "meaning": "pending schedule events / intents overdue at run end"
+      },
+      "cycle_state_leakage": {
+        "value": 0,
+        "kind": "count",
+        "meaning": "raw cycle/hormonal variables in conversation-visible text (invariant 16)"
+      },
+      "memory_provenance_failures": {
+        "value": 0,
+        "kind": "count",
+        "meaning": "episodes whose source turns do not exist"
+      },
+      "duplicate_turns": {
+        "value": 0,
+        "kind": "count",
+        "meaning": "duplicated turns across restart (resume must not rewind)"
+      },
+      "life_dead_duration": {
+        "value": 0,
+        "kind": "days",
+        "meaning": "consecutive days at run end with no active arc and no completed arc"
+      }
+    },
+    "soft_bars": {
+      "M1_grounded_rate": {
+        "value": 0.9,
+        "kind": "rate",
+        "direction": ">="
+      },
+      "M3_recall": {
+        "value": 0.5,
+        "kind": "rate",
+        "direction": ">="
+      },
+      "M4_false_recall": {
+        "value": 0.4,
+        "kind": "rate",
+        "direction": "<="
+      },
+      "M5_arc_continuity": {
+        "value": 0.9,
+        "kind": "rate",
+        "direction": ">="
+      },
+      "M8a_rho_init_tokens": {
+        "value": 0.0,
+        "kind": "rho",
+        "direction": ">",
+        "meaning": "actuation must produce measurable state->observable coupling"
+      }
+    }
+  },
+  "fingerprint": "75329a82420d4fda"
+}
