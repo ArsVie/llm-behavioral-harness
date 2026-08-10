@@ -39,9 +39,16 @@ def test_vertical_cell_mini_invariants(tmp_path):
     assert records["restart_loss"] == [{"checkpoint_h": 48.0, "diffs": 0}]
     store = SQLiteStore(records["db"])
     client = DeterministicClient(5001)
+    # it3 B3 gate fix: el run consume el stream conversacional COMPLETO de
+    # cvs_user (at_t_h + after_reply) — el fixture de la auditoría debe ser
+    # ese mismo stream, no la proyección plana legacy (que excluye los
+    # after_reply y rompía el conteo de mensajes user).
+    from experiments.cvs_user import build_user_stream
+    stream = build_user_stream(5001, MINI_DAYS, perturb=True)
+    fixture = [(ev.get("t_h") or 0.0, ev["text"]) for ev in stream]
     audit = mechanical_audit(
         store, 5001, MINI_DAYS * 24.0, MINI_DAYS,
-        user_script(5001, MINI_DAYS, perturb=True), pool=client.pool,
+        fixture, pool=client.pool,
     )
     assert audit["all_hard_zero"]
     assert audit["ungrounded_proactive"] == 0
