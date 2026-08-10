@@ -134,7 +134,12 @@ def run_matrix(
     for condition, seed in cells:
         key = f"{condition}/seed{seed}"
         if status["cells"].get(key, {}).get("state") == "ok":
-            results.append(status["cells"][key])
+            # Resume: la celda ya está hecha — el shape del reporte exige
+            # condition/seed (el cell_state por sí solo no los lleva).
+            results.append(
+                {"condition": condition, "seed": seed,
+                 **status["cells"][key]}
+            )
             continue
         out_dir = _cell_out(root, condition, seed)
         cell_state: dict = {"state": "running", "retries": 0, "started_at": time.time()}

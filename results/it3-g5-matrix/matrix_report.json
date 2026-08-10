@@ -1,0 +1,350 @@
+{
+  "matrix": {
+    "conditions": [
+      "FULL",
+      "NO_ACTUATORS",
+      "NO_LIFE",
+      "NO_TIMING_FEEDBACK",
+      "RAW_HISTORY",
+      "SIMPLE_RAG",
+      "STRUCTURED_NO_STATE"
+    ],
+    "seeds": [
+      5001,
+      5002,
+      5003,
+      5004,
+      5005
+    ],
+    "days": 30,
+    "n_cells": 35,
+    "n_ok": 35,
+    "n_failed": 0,
+    "checkpoints": [
+      7,
+      14,
+      21,
+      26,
+      29
+    ],
+    "perturbation": true
+  },
+  "failed_cells": [],
+  "per_cell": {
+    "FULL/seed5001": {
+      "condition": "FULL",
+      "seed": 5001,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786364372.4805973,
+      "finished_at": 1786365108.1653845,
+      "attempts": 1
+    },
+    "FULL/seed5002": {
+      "condition": "FULL",
+      "seed": 5002,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786365108.1721702,
+      "finished_at": 1786365762.6901286,
+      "attempts": 1
+    },
+    "FULL/seed5003": {
+      "condition": "FULL",
+      "seed": 5003,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786365762.6916153,
+      "finished_at": 1786366464.5769346,
+      "attempts": 1
+    },
+    "FULL/seed5004": {
+      "condition": "FULL",
+      "seed": 5004,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786367562.4733634,
+      "finished_at": 1786368224.276399,
+      "attempts": 1
+    },
+    "FULL/seed5005": {
+      "condition": "FULL",
+      "seed": 5005,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786368224.2786963,
+      "finished_at": 1786369122.3680282,
+      "attempts": 1
+    },
+    "NO_ACTUATORS/seed5001": {
+      "condition": "NO_ACTUATORS",
+      "seed": 5001,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786369122.369562,
+      "finished_at": 1786370081.1646698,
+      "attempts": 1
+    },
+    "NO_ACTUATORS/seed5002": {
+      "condition": "NO_ACTUATORS",
+      "seed": 5002,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786370081.1662383,
+      "finished_at": 1786370849.0296285,
+      "attempts": 1
+    },
+    "NO_ACTUATORS/seed5003": {
+      "condition": "NO_ACTUATORS",
+      "seed": 5003,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786370849.0312247,
+      "finished_at": 1786371704.7234719,
+      "attempts": 1
+    },
+    "NO_ACTUATORS/seed5004": {
+      "condition": "NO_ACTUATORS",
+      "seed": 5004,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786371704.7250578,
+      "finished_at": 1786372520.5515473,
+      "attempts": 1
+    },
+    "NO_ACTUATORS/seed5005": {
+      "condition": "NO_ACTUATORS",
+      "seed": 5005,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786372520.5531049,
+      "finished_at": 1786373619.5899396,
+      "attempts": 1
+    },
+    "NO_LIFE/seed5001": {
+      "condition": "NO_LIFE",
+      "seed": 5001,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786373619.5914538,
+      "finished_at": 1786374779.840772,
+      "attempts": 1
+    },
+    "NO_LIFE/seed5002": {
+      "condition": "NO_LIFE",
+      "seed": 5002,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786374779.8425488,
+      "finished_at": 1786375637.8289,
+      "attempts": 1
+    },
+    "NO_LIFE/seed5003": {
+      "condition": "NO_LIFE",
+      "seed": 5003,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786375637.830521,
+      "finished_at": 1786379371.2656748,
+      "attempts": 1
+    },
+    "NO_LIFE/seed5004": {
+      "condition": "NO_LIFE",
+      "seed": 5004,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786379371.267858,
+      "finished_at": 1786380037.8162873,
+      "attempts": 1
+    },
+    "NO_LIFE/seed5005": {
+      "condition": "NO_LIFE",
+      "seed": 5005,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786380037.8183577,
+      "finished_at": 1786380923.5341346,
+      "attempts": 1
+    },
+    "NO_TIMING_FEEDBACK/seed5001": {
+      "condition": "NO_TIMING_FEEDBACK",
+      "seed": 5001,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786380923.536254,
+      "finished_at": 1786381787.1566556,
+      "attempts": 1
+    },
+    "NO_TIMING_FEEDBACK/seed5002": {
+      "condition": "NO_TIMING_FEEDBACK",
+      "seed": 5002,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786381787.1594331,
+      "finished_at": 1786382476.2104301,
+      "attempts": 1
+    },
+    "NO_TIMING_FEEDBACK/seed5003": {
+      "condition": "NO_TIMING_FEEDBACK",
+      "seed": 5003,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786382476.212353,
+      "finished_at": 1786383188.4436107,
+      "attempts": 1
+    },
+    "NO_TIMING_FEEDBACK/seed5004": {
+      "condition": "NO_TIMING_FEEDBACK",
+      "seed": 5004,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786383188.4457524,
+      "finished_at": 1786383978.9078164,
+      "attempts": 1
+    },
+    "NO_TIMING_FEEDBACK/seed5005": {
+      "condition": "NO_TIMING_FEEDBACK",
+      "seed": 5005,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786383978.9096117,
+      "finished_at": 1786384703.016376,
+      "attempts": 1
+    },
+    "RAW_HISTORY/seed5001": {
+      "condition": "RAW_HISTORY",
+      "seed": 5001,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786384703.0181448,
+      "finished_at": 1786385439.6177862,
+      "attempts": 1
+    },
+    "RAW_HISTORY/seed5002": {
+      "condition": "RAW_HISTORY",
+      "seed": 5002,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786385439.619932,
+      "finished_at": 1786386171.0271175,
+      "attempts": 1
+    },
+    "RAW_HISTORY/seed5003": {
+      "condition": "RAW_HISTORY",
+      "seed": 5003,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786386171.0288935,
+      "finished_at": 1786386841.8126104,
+      "attempts": 1
+    },
+    "RAW_HISTORY/seed5004": {
+      "condition": "RAW_HISTORY",
+      "seed": 5004,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786386841.8144293,
+      "finished_at": 1786387448.5593667,
+      "attempts": 1
+    },
+    "RAW_HISTORY/seed5005": {
+      "condition": "RAW_HISTORY",
+      "seed": 5005,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786387448.5614216,
+      "finished_at": 1786388113.4465165,
+      "attempts": 1
+    },
+    "SIMPLE_RAG/seed5001": {
+      "condition": "SIMPLE_RAG",
+      "seed": 5001,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786388113.4485486,
+      "finished_at": 1786388836.5133758,
+      "attempts": 1
+    },
+    "SIMPLE_RAG/seed5002": {
+      "condition": "SIMPLE_RAG",
+      "seed": 5002,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786388836.51566,
+      "finished_at": 1786389483.4444888,
+      "attempts": 1
+    },
+    "SIMPLE_RAG/seed5003": {
+      "condition": "SIMPLE_RAG",
+      "seed": 5003,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786389483.446914,
+      "finished_at": 1786390223.2670443,
+      "attempts": 1
+    },
+    "SIMPLE_RAG/seed5004": {
+      "condition": "SIMPLE_RAG",
+      "seed": 5004,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786390223.2692733,
+      "finished_at": 1786390875.1689365,
+      "attempts": 1
+    },
+    "SIMPLE_RAG/seed5005": {
+      "condition": "SIMPLE_RAG",
+      "seed": 5005,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786390875.1708775,
+      "finished_at": 1786391537.0247443,
+      "attempts": 1
+    },
+    "STRUCTURED_NO_STATE/seed5001": {
+      "condition": "STRUCTURED_NO_STATE",
+      "seed": 5001,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786391537.0267684,
+      "finished_at": 1786392235.9324968,
+      "attempts": 1
+    },
+    "STRUCTURED_NO_STATE/seed5002": {
+      "condition": "STRUCTURED_NO_STATE",
+      "seed": 5002,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786392235.9349368,
+      "finished_at": 1786392919.0051684,
+      "attempts": 1
+    },
+    "STRUCTURED_NO_STATE/seed5003": {
+      "condition": "STRUCTURED_NO_STATE",
+      "seed": 5003,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786392919.0071769,
+      "finished_at": 1786393588.240857,
+      "attempts": 1
+    },
+    "STRUCTURED_NO_STATE/seed5004": {
+      "condition": "STRUCTURED_NO_STATE",
+      "seed": 5004,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786396344.6846058,
+      "finished_at": 1786396921.4359465,
+      "attempts": 1
+    },
+    "STRUCTURED_NO_STATE/seed5005": {
+      "condition": "STRUCTURED_NO_STATE",
+      "seed": 5005,
+      "state": "ok",
+      "retries": 0,
+      "started_at": 1786396921.4408984,
+      "finished_at": 1786397478.8490367,
+      "attempts": 1
+    }
+  }
+}
