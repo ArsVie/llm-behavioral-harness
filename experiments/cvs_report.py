@@ -81,39 +81,29 @@ def conversation_turns(db: Path) -> dict:
     }
 
 
-def timing_claim_on_real(condition_dbs: list[tuple[int, Path]]) -> dict:
-    """DoD 4: structured_no_state_claim sobre los resúmenes reales."""
-    from experiments.cvs_common import records_summary
+def timing_claim_on_real(summaries: dict[str, dict]) -> dict:
+    """DoD 4: structured_no_state_claim sobre los resúmenes reales.
+
+    ``summaries``: {"COND/seedNNN": summary} — construido en compute()."""
     from harness.scheduler import structured_no_state_claim
-    from harness.store import SQLiteStore
 
     claim = structured_no_state_claim()
-    full = None
-    for seed, db in condition_dbs:
-        st = SQLiteStore(db)
-        try:
-            rec = {"db": str(db)}
-            s = records_summary(st, rec)
-        finally:
-            st.close()
-        if seed == 5001:
-            full = s
+    full = summaries.get("FULL/seed5001")
     if full is None:
         return {"evaluable": False, "reason": "no FULL seed5001 cell"}
     outcomes = []
-    for seed, db in condition_dbs:
-        st = SQLiteStore(db)
-        try:
-            s = records_summary(st, {"db": str(db)})
-        finally:
-            st.close()
+    for key in sorted(summaries):
+        cond, _, seed = key.partition("/")
+        if cond != "STRUCTURED_NO_STATE":
+            continue
+        s = summaries[key]
         outcomes.append({
-            "seed": seed,
+            "seed": int(seed[4:]),
             "count_div": _pct_div(s.get("n_proactive", 0), full.get("n_proactive", 0)),
             "gap_div": _gap_div(s.get("proactive_times", []), full.get("proactive_times", [])),
             "claim_passed": claim.check(s, full),
         })
-    return {"evaluable": True, "full": {"seed": 5001}, "outcomes": outcomes}
+    return {"evaluable": True, "full_seed": 5001, "outcomes": outcomes}
 
 
 def _pct_div(cell_v, full_v) -> float | None:
@@ -138,6 +128,7 @@ def compute(matrix_out: Path, g6_report: Path | None) -> dict:
     matrix_out = Path(matrix_out)
     cells = cell_dbs(matrix_out)
     per_cell: dict[str, dict] = {}
+    summaries: dict[str, dict] = {}
     blanks_ok = True
     for condition, seed, db in cells:
         key = f"{condition}/seed{seed}"
@@ -146,15 +137,23 @@ def compute(matrix_out: Path, g6_report: Path | None) -> dict:
         per_cell[key] = {"blank": stats, "conversations": conv}
         if stats["blank_rate"] >= 0.01:
             blanks_ok = False
+        try:
+            from experiments.cvs_common import records_summary
+            from harness.store import SQLiteStore
+
+            st = SQLiteStore(db)
+            try:
+                summaries[key] = records_summary(
+                    st, {"condition": condition, "seed": seed, "days": 30,
+                         "db": str(db)}
+                )
+            finally:
+                st.close()
+        except Exception as exc:  # noqa: BLE001 — summary opcional
+            summaries[key] = {"error": str(exc)}
 
     conditions = sorted({c for c, _, _ in cells})
-    seeds_by_cond: dict[str, list[tuple[int, Path]]] = {}
-    for condition, seed, db in cells:
-        seeds_by_cond.setdefault(condition, []).append((seed, db))
-
-    timing = None
-    if "STRUCTURED_NO_STATE" in seeds_by_cond and "FULL" in seeds_by_cond:
-        timing = timing_claim_on_real(seeds_by_cond["STRUCTURED_NO_STATE"])
+    timing = timing_claim_on_real(summaries)
 
     g6 = None
     if g6_report and Path(g6_report).exists():
