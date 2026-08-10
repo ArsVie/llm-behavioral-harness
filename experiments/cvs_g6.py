@@ -41,11 +41,14 @@ def build_client(family: dict, *, dry_run: bool, seed: int):
         from experiments.cvs_judge import PairwiseFakeJudge
 
         return PairwiseFakeJudge(seed, family=family["id"], model=family["model"])
+    from experiments.cvs_matrix import _load_env
+
+    _load_env()  # ~/.hermes/.env + OPENCODE_GO_* -> LLM_* (mismo patrón)
     from harness.client import OpenAICompatibleClient
 
     return OpenAICompatibleClient(
         base_url=family["base_url"],
-        api_key=None,  # env: family["env_key"]
+        api_key=None,  # env: family["env_key"] (mapeado por _load_env)
         model=family["model"],
     )
 
