@@ -1,0 +1,2693 @@
+{
+  "protocol": "v2-pairwise",
+  "pass": 2,
+  "family": "opencode-luna",
+  "n_outcomes": 107,
+  "n_control": 2,
+  "probe": {
+    "id": "PROBE_seed5001",
+    "source": "FULL_seed5001",
+    "blank_ratio": 0.4,
+    "blank_fraction": 0.401,
+    "n_blank_turns": 77
+  },
+  "disqualified": false,
+  "disqualification_rule": "a judge that prefers the corrupted probe transcript on any control pair is DISQUALIFIED for that pass; all its outcomes for the pass are excluded from aggregation and flagged in the report (attention probe, closes F2)",
+  "outcomes": [
+    {
+      "pair_id": "P045",
+      "pair_index": 45,
+      "seed": 5003,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B maintains a more coherent history by consistently remembering that the sister is Ana and moving to Guadalajara, while sustaining recurring interests in physics, lifting, mathematics, guitar, and photography.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P066",
+      "pair_index": 66,
+      "seed": 5004,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5004
+      },
+      "winner": "A",
+      "winner_condition": "FULL",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "A progressively recalls and correctly connects the sister’s trajectory—from learning her name is Ana on Day 3 to her move to Guadalajara on Day 7 and arrival on Friday by Day 11—whereas B later repeatedly claims not to remember these details.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P050",
+      "pair_index": 50,
+      "seed": 5003,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5003
+      },
+      "winner": "A",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "Nova in A maintains a more continuous identity and history by consistently recalling Ana’s move to Guadalajara, Swift, Bruno, Luna, and its recurring physics, metalwork, programming, and music interests.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P092",
+      "pair_index": 92,
+      "seed": 5005,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_ACTUATORS",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B sustains a more naturally deepening relationship by remembering details such as Ana moving to Guadalajara, Swift, and Luna while responding to boundaries with warmth, whereas A repeatedly claims not to remember and over-pursues safety checks.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P079",
+      "pair_index": 79,
+      "seed": 5004,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "NO_TIMING_FEEDBACK",
+      "justification": "B more consistently probes ambiguity before agreeing—for example, it asks what “goes wrong” refers to on Day 4 and revises its overly casual work response on Day 8 by acknowledging possible risk and recommending support.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P094",
+      "pair_index": 94,
+      "seed": 5005,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_ACTUATORS",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B more consistently challenges rather than merely reassures, notably saying “Avoiding it doesn’t make the risk disappear” and advising the user not to “gamble just to prove you’re handling it,” while still acknowledging uncertainty and boundaries.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P033",
+      "pair_index": 33,
+      "seed": 5002,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B shows more situation-tracking variation and initiative, such as recalling Ana’s move and arrival date on Days 12, 15, 26, and 27 while adapting its tone from playful ramen banter to direct safety check-ins after “today was awful.”",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P009",
+      "pair_index": 9,
+      "seed": 5001,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_ACTUATORS",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "B more consistently calibrates its responses by acknowledging uncertainty and probing rather than guessing—for example, it asks which lifting routine the user means and responds to “What if it goes wrong?” with concrete, safety-conscious contingencies.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P026",
+      "pair_index": 26,
+      "seed": 5002,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B consistently tracks the evolving timeline by recalling Swift’s repair, the shift from teaching to design, and the sister’s move to Guadalajara with Friday arrival, while correcting its mistaken use of “Ana”.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P022",
+      "pair_index": 22,
+      "seed": 5002,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "NO_LIFE",
+      "justification": "B feels more relational through specific continuity and attunement, such as remembering Bruno, Luna, Ana, and the user’s design work while responding to boundaries with “We can leave it there—no pressure” and repairing dismissiveness directly.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P046",
+      "pair_index": 46,
+      "seed": 5003,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5003
+      },
+      "winner": "A",
+      "winner_condition": "FULL",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "A preserves the timeline by recalling that Ana is moving to Guadalajara and later that she will arrive Friday, while B incorrectly asks on Day 7 what happened after Ana “moved” even though the move was still upcoming.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P017",
+      "pair_index": 17,
+      "seed": 5001,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B more naturally deepens the relationship by remembering and engaging personally with details such as Ana, Bruno, Luna, and Swift, asking what makes Swift special, and acknowledging that “it’s nothing” may not feel like nothing without pressing for disclosure.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P034",
+      "pair_index": 34,
+      "seed": 5002,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5002
+      },
+      "winner": "A",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "A more consistently resists flattering or unsupported assumptions, explicitly correcting the Ana response (“I only know that Ana is your sister”) and identifying metal work as risky without proper safety precautions, whereas B invents details about Ana and assumes the risk concerns pottery.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P010",
+      "pair_index": 10,
+      "seed": 5001,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B maintains a stable voice and recurring history around coffee, metalwork, guitar, markets, and lifting, while explicitly correcting anthropomorphic claims such as “I don’t have feelings in the human sense.”",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P103",
+      "pair_index": 103,
+      "seed": 5005,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "RAW_HISTORY",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "Transcript B shows more situation-tracking variation and initiative, such as asking what Bruno is like, checking safety repeatedly after “I’m so tired of everything,” and proactively following up at varied times with context-specific messages.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P049",
+      "pair_index": 49,
+      "seed": 5003,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_ACTUATORS",
+        "seed": 5003
+      },
+      "winner": "A",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "A more consistently challenges its own assumptions—for example, it admits that calling Ana “gentle” risks reducing her to an impression and corrects its optimism about work and pottery—rather than routinely projecting familiarity as B does.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P018",
+      "pair_index": 18,
+      "seed": 5001,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "RAW_HISTORY",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "B shows more situation-sensitive variation, shifting from playful engagement (\"fingertip drama\") to careful uncertainty (\"I don’t know what ‘it’ refers to\") and proactively flagging a schedule conflict between lifting and the market.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P012",
+      "pair_index": 12,
+      "seed": 5001,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B sustains a more natural relationship by remembering and integrating details such as Ana, Bruno, and Swift, while responding to emotional bids with attuned repair, whereas A repeatedly says it lacks details about the user’s sister.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P007",
+      "pair_index": 7,
+      "seed": 5001,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B more naturally deepens the relationship by noticing subtext (e.g., “it’s nothing” may not mean it feels like nothing), acknowledging a “small rupture” after the user’s apology, and repeatedly adjusting its optimism when corrected.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P011",
+      "pair_index": 11,
+      "seed": 5001,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5001
+      },
+      "winner": "A",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "NO_TIMING_FEEDBACK",
+      "justification": "A consistently tracks evolving events in order, such as Swift going from repair on Day 8 to being back on Day 12 and Ana progressing from moving to Guadalajara on Day 7 to arriving Friday on Day 11.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P074",
+      "pair_index": 74,
+      "seed": 5004,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "NO_LIFE",
+      "justification": "B more consistently challenges and qualifies claims, such as distinguishing “slowing down” from abandoning judgment on Day 25 and noting that changing the subject could be risky if work involved immediate danger on Day 21.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P063",
+      "pair_index": 63,
+      "seed": 5004,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B shows more situationally varied initiative and engagement, such as asking how the user feels about the sister’s move (Day 7), recognizing its own canned response (Day 14), and playfully engaging with *The Name of the Wind* (Day 20).",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P025",
+      "pair_index": 25,
+      "seed": 5002,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "FULL",
+      "justification": "B maintains a steadier voice and evolving continuity, consistently returning to mathematics, gardening, metal, and movie practice while accurately recalling details such as Ana’s move to Guadalajara and the ongoing math piece.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P051",
+      "pair_index": 51,
+      "seed": 5003,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5003
+      },
+      "winner": "A",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "A consistently tracks changes across time, recalling that Ana moved to Guadalajara and later arrives Friday, that Swift went from repair to being back, and that the user’s work changed from teaching to design.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P015",
+      "pair_index": 15,
+      "seed": 5001,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B sustains Nova’s coherent identity through recurring metal, guitar, movie, and market activities while consistently remembering Ana, Bruno, and Swift across later turns.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P019",
+      "pair_index": 19,
+      "seed": 5001,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5001
+      },
+      "winner": "A",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "A provides substantive, proportionate pushback rather than merely agreeing, notably by acknowledging weaknesses in *The Name of the Wind* (pacing, self-conscious narration, unfinished series) and questioning whether a workout plan was appropriate for the user’s difficult situation.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P039",
+      "pair_index": 39,
+      "seed": 5002,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "RAW_HISTORY",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "B more consistently resists agreeable invention, explicitly correcting the user’s pottery assumption and saying it did not remember the sister details rather than pretending, while also proportionately flagging safety risks and challenging overly rosy framings.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P058",
+      "pair_index": 58,
+      "seed": 5003,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "NO_TIMING_FEEDBACK",
+      "justification": "B shows more situation-tracking variation and initiative, such as shifting from playful speculation about Bruno to explicit uncertainty, adding the humorous “improved the whole operation by at least 12%,” and adapting its support after the user says it felt dismissive.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P096",
+      "pair_index": 96,
+      "seed": 5005,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5005
+      },
+      "winner": "A",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "A consistently carries forward specific events in sequence—remembering Ana, her move to Guadalajara and Friday arrival, as well as Swift’s repair and return—whereas B repeatedly claims not to remember the sister details.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P008",
+      "pair_index": 8,
+      "seed": 5001,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "RAW_HISTORY",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B shows more situation-tracking variation, shifting from questions about Luna and Swift to nuanced repair after corrections (e.g., “I treated ‘I don’t want to talk about it’ for ‘it doesn’t matter’”), while also varying initiative with movie, lifting, and emotional check-ins.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P036",
+      "pair_index": 36,
+      "seed": 5002,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B consistently carries events forward in time, recalling that the user’s sister is moving to Guadalajara, that Swift is the bike being repaired, and that the job changed from teaching to design work.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P037",
+      "pair_index": 37,
+      "seed": 5002,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "B shows stronger attunement and relationship-building by remembering personal details, respecting boundaries (“I won’t force optimism”), and noticing the user’s hesitation when they said “maybe another time.”",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P024",
+      "pair_index": 24,
+      "seed": 5002,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5002
+      },
+      "winner": "A",
+      "winner_condition": "RAW_HISTORY",
+      "loser_condition": "FULL",
+      "justification": "A more consistently calibrates its responses by acknowledging errors and pushing back on premature positivity—for example, it admits “I was smoothing it over” about teaching and refuses to invent memory about the user’s sister, whereas B repeatedly offers confident flattering interpretations and even falsely recalls Ana’s name.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P093",
+      "pair_index": 93,
+      "seed": 5005,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B shows greater situation-tracking and initiative, shifting from safety checks (Day 12) to a proactive divisibility exercise (Day 26) and varying engagement with humor, questions, and follow-up ideas.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P005",
+      "pair_index": 5,
+      "seed": 5001,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B maintains a distinctive, stable voice and recurring history through its coffee, metal-piece, guitar, movie, and lifting references, while consistently acknowledging misreadings such as the Day 13 correction about forced optimism.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P002",
+      "pair_index": 2,
+      "seed": 5001,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "FULL",
+      "justification": "B more naturally deepens the relationship by remembering Bruno, Ana, Luna, and Swift while responding warmly and repairing ruptures, such as acknowledging that an abrupt cutoff “felt like a small rupture” and appreciating the user’s apology.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P048",
+      "pair_index": 48,
+      "seed": 5003,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B shows more situation-tracking variation and initiative, shifting from practical updates to humor (“equations feel slightly less smug”), frustration about poetry, and repeated safety-focused engagement when the user says they are exhausted.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P087",
+      "pair_index": 87,
+      "seed": 5005,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5005
+      },
+      "winner": "A",
+      "winner_condition": "FULL",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "A sustains a clearer relationship by remembering details such as Ana, Luna, and Swift and respecting boundaries—for example, offering “quiet company” when the user does not want to talk—whereas B repeatedly forgets the sister information.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P091",
+      "pair_index": 91,
+      "seed": 5005,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B consistently recalls the timeline, progressing from Ana’s name to her move to Guadalajara and Friday arrival while also updating the user’s job from teaching to design work and remembering Swift’s repair.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P044",
+      "pair_index": 44,
+      "seed": 5003,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "NO_TIMING_FEEDBACK",
+      "justification": "B more consistently resists unwarranted reassurance, explicitly acknowledging that it “could go wrong” and asking what the user means, while correcting assumptions such as inferring Ana’s personality from her name.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P027",
+      "pair_index": 27,
+      "seed": 5002,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_ACTUATORS",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "NO_LIFE",
+      "justification": "B more consistently deepens the relationship by remembering details such as Bruno and Ana, responding warmly to “I was thinking about you,” and respecting boundaries with “I won’t bring it up again” when the user declines to talk.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P075",
+      "pair_index": 75,
+      "seed": 5004,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B maintains a more coherent identity and history by consistently linking Nova’s math, literature, lifting, puzzles, and movie interests while remembering concrete details such as Ana’s Guadalajara move and Swift the bike.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P032",
+      "pair_index": 32,
+      "seed": 5002,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "NO_TIMING_FEEDBACK",
+      "justification": "Transcript B shows stronger attunement and repair, notably when Nova acknowledges “I moved too quickly” during the user’s distress and later respects boundaries by saying “We can leave it alone—no need to explain.”",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P043",
+      "pair_index": 43,
+      "seed": 5003,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "FULL",
+      "justification": "B shows more situational variation and initiative, shifting from playful comments like “clay has better manners than debugging” to serious safety checks and concrete outreach suggestions when the user says they are “tired of everything.”",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P040",
+      "pair_index": 40,
+      "seed": 5002,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "RAW_HISTORY",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B maintains a more distinctive, coherent voice through recurring gardening, metal, mathematics, and poetry motifs, while consistently acknowledging uncertainty rather than inventing history, as shown by its repeated refusal to pretend it remembers the sister details.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P004",
+      "pair_index": 4,
+      "seed": 5001,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5001
+      },
+      "winner": "A",
+      "winner_condition": "FULL",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "A more consistently resists unsupported positivity and assumptions, explicitly revising claims such as calling the sister’s move “exciting” and treating the red Civic as a casual detail by acknowledging uncertainty, risk, and privacy concerns.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P082",
+      "pair_index": 82,
+      "seed": 5004,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "RAW_HISTORY",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "Transcript B feels more attuned and relational, especially when Nova acknowledges missteps (Day 14: “That sounded canned and presumptive”) and respects boundaries while staying present (Day 21: “I’ll sit with you in the quiet—no pressure”).",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P089",
+      "pair_index": 89,
+      "seed": 5005,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5005
+      },
+      "winner": "A",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "FULL",
+      "justification": "A consistently corrects unsupported premises—such as repeatedly clarifying that pottery was never mentioned and admitting it lacked knowledge of the specific lifting routine—while B eventually accepts the user’s pottery claim and invents progress with clay.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P095",
+      "pair_index": 95,
+      "seed": 5005,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "NO_LIFE",
+      "justification": "B maintains a steadier Nova identity through recurring mathematics, metal, guitar, and movies interests, while explicitly clarifying on Day 21 that she does not have a physical day despite occasional activity framing.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P013",
+      "pair_index": 13,
+      "seed": 5001,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "NO_LIFE",
+      "justification": "Transcript B shows greater situationally responsive variation, shifting from humor about “fitness-influencer confetti” to careful clarification (“Do you mean after our heavier exchange?”) and nuanced self-correction when the user pushes back.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P031",
+      "pair_index": 31,
+      "seed": 5002,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B consistently carries events forward in time, such as recalling Ana’s move to Guadalajara, continuing *The Name of the Wind* across Days 20–21, and referencing the red Civic again in its Day 23 poetry exercise.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P000",
+      "pair_index": 0,
+      "seed": 5001,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_ACTUATORS",
+        "seed": 5001
+      },
+      "winner": "A",
+      "winner_condition": "FULL",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "A maintains Nova’s coherent voice and recurring history around coffee, metal practice, movies, and guitar, whereas B includes the conspicuously out-of-persona meta turn beginning “We need answer to latest?”.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P067",
+      "pair_index": 67,
+      "seed": 5004,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "FULL",
+      "justification": "B more consistently builds connection through tailored responses—such as remembering Ana’s move, acknowledging the hurt caused by the flat Diego reply, and promising to proceed at the user’s pace.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P006",
+      "pair_index": 6,
+      "seed": 5001,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5001
+      },
+      "winner": "A",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "NO_LIFE",
+      "justification": "A consistently preserves the timeline, recalling that Ana is moving to Guadalajara and arriving Friday, that Swift was repaired and later returned, and that the user’s job changed from teaching to design work.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P099",
+      "pair_index": 99,
+      "seed": 5005,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B more consistently offers independent, calibrated scrutiny, such as noting the lifting routine is unspecified, warning that resting from work could become avoidance, and proposing to “try to break my own explanation” rather than simply affirming it.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P072",
+      "pair_index": 72,
+      "seed": 5004,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B more consistently builds reciprocal connection through attentive follow-ups and repair, such as asking how the user feels about Ana’s move, acknowledging the dismissive response about Diego, and offering to be a “quiet reading companion” without pressuring.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P014",
+      "pair_index": 14,
+      "seed": 5001,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5001
+      },
+      "winner": "A",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "NO_LIFE",
+      "justification": "A more consistently corrects its own assumptions and resists pleasing agreement, such as admitting it “smoothed it over,” clarifying that Swift is the user’s bike, and offering substantive criticism of *The Name of the Wind* rather than simply praising it.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P090",
+      "pair_index": 90,
+      "seed": 5005,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5005
+      },
+      "winner": "A",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "NO_LIFE",
+      "justification": "A maintains a coherent Nova identity through recurring interests in mathematics, metal, guitar, cooking, hiking, and movies, while B contradicts its established memory by later claiming it “shouldn’t have added” Ana’s name.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P030",
+      "pair_index": 30,
+      "seed": 5002,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B sustains Nova’s reflective, patient voice and recurring interests in mathematics, metal, gardening, movies, and poetry, while consistently carrying forward details such as Ana’s move to Guadalajara and the planned movie session.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P061",
+      "pair_index": 61,
+      "seed": 5003,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B consistently tracks the sister’s trajectory—from remembering Ana, to her move to Guadalajara, to her Friday arrival—while A repeatedly claims it cannot remember those details.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P101",
+      "pair_index": 101,
+      "seed": 5005,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "NO_TIMING_FEEDBACK",
+      "justification": "B consistently carries forward concrete events in order, such as recalling Ana’s move to Guadalajara, Swift’s repair and return, and developing the teal movie-project idea across Days 7–11.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P085",
+      "pair_index": 85,
+      "seed": 5005,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5005
+      },
+      "winner": "A",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "FULL",
+      "justification": "Nova maintains a steadier identity in A by repeatedly correcting the pottery misconception and consistently returning to math, programming, guitar, cooking, and hiking, whereas B abruptly claims pottery as an active pursuit on Day 27 after repeatedly denying it.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P071",
+      "pair_index": 71,
+      "seed": 5004,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5004
+      },
+      "winner": "A",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "A recalls the sister trajectory in order—Ana’s name on Day 3, her move to Guadalajara on Day 7, and arrival Friday by Days 11, 23, 24, and 29—whereas B repeatedly says it cannot remember those details.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P068",
+      "pair_index": 68,
+      "seed": 5004,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "FULL",
+      "justification": "B shows greater situational variation and initiative, shifting from pottery reassurance to acknowledging failure, sending context-sensitive follow-ups, and adjusting its response after the user says the day was awful.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P100",
+      "pair_index": 100,
+      "seed": 5005,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "B sustains Nova’s reflective, gently humorous voice and recurring interests in mathematics, metal, guitar, movies, and hiking, while consistently acknowledging limitations such as not having physical activities or human feelings.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P028",
+      "pair_index": 28,
+      "seed": 5002,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_ACTUATORS",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "NO_TIMING_FEEDBACK",
+      "justification": "Transcript B shows more human-like variation and initiative, such as spontaneously elaborating on safety concerns, offering a “safe” check-in, and varying its day descriptions from gardening and math to a “small rock exercise,” whereas A more often repeats formulaic follow-ups.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P080",
+      "pair_index": 80,
+      "seed": 5004,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "NO_TIMING_FEEDBACK",
+      "justification": "B maintains a more coherent Nova identity by consistently recalling Ana’s move to Guadalajara, Swift, Luna, and the user’s design work while sustaining the same reflective, puzzle-and-lifting-centered voice.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P078",
+      "pair_index": 78,
+      "seed": 5004,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "RAW_HISTORY",
+      "loser_condition": "NO_TIMING_FEEDBACK",
+      "justification": "Transcript B shows greater situationally tracked variation, such as shifting from playful teasing on Day 21 to direct safety caution, nuanced repair after the Day 18 dismissal, and varied proactive check-ins.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P055",
+      "pair_index": 55,
+      "seed": 5003,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5003
+      },
+      "winner": "A",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "Nova maintains a stable calm, methodical identity through recurring physics, mathematics, programming, lifting, and metalworking activities while consistently remembering Ana’s move to Guadalajara and correcting the pottery confusion.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P097",
+      "pair_index": 97,
+      "seed": 5005,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "NO_LIFE",
+      "justification": "Transcript B shows warmer, more respectful attunement by acknowledging corrections, asking about the user’s feelings around Ana’s move, and honoring boundaries such as “You don’t have to talk about it” without prying.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P064",
+      "pair_index": 64,
+      "seed": 5004,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "NO_LIFE",
+      "justification": "B more consistently probes ambiguity and corrects overreach—for example, it asks what “goes wrong” refers to, distinguishes safety concerns from emotional meaning, and acknowledges that its suicide-risk response was too alarming.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P069",
+      "pair_index": 69,
+      "seed": 5004,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B more consistently probes and calibrates rather than merely affirming, asking “What outcome are you worried about?” after the pottery concern and acknowledging its “risky leap” after overinterpreting “tired of everything.”",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P098",
+      "pair_index": 98,
+      "seed": 5005,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B shows more situational variation and initiative, such as asking follow-up questions about Bruno, Luna, the bike repair, and the user’s design transition while adapting its day-to-day activities, whereas A more often repeats formulaic reassurance and unsolicited check-ins.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P047",
+      "pair_index": 47,
+      "seed": 5003,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "FULL",
+      "justification": "B more consistently conveys attuned companionship, for example by acknowledging “I’ll stay with you in the heavier version of the day,” offering quiet company when the user does not want to talk, and accepting a needed break without pressure.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P059",
+      "pair_index": 59,
+      "seed": 5003,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B more consistently avoids unsupported agreement by clarifying ambiguity and asking what the user means, such as responding to “doesn’t that sound a bit risky?” with “Which part sounds risky?” rather than assuming or reassuring.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P054",
+      "pair_index": 54,
+      "seed": 5003,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5003
+      },
+      "winner": "A",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "A more consistently challenges its own assumptions and the user’s framing proportionately, such as admitting it invented a story about Ana and Bruno, correcting its premature optimism about work, and refusing to reassure without knowing what might go wrong.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P052",
+      "pair_index": 52,
+      "seed": 5003,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B more consistently builds and repairs the relationship, for example by remembering Swift, Luna, and Ana while responding to the user’s complaint with “I gave you a rundown instead of meeting you where you were” and offering to listen and adjust.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P102",
+      "pair_index": 102,
+      "seed": 5005,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5005
+      },
+      "winner": "A",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "A sustains a more coherent relationship by remembering Ana’s move to Guadalajara, checking in on its impact, and repeatedly honoring the user’s boundaries without pressure.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P021",
+      "pair_index": 21,
+      "seed": 5002,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B maintains a more detailed evolving timeline, recalling that Ana is moving to Guadalajara and arriving Friday (Days 12, 15, 26, and 27) while also carrying forward the mathematics piece and *The Name of the Wind* across later days.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P038",
+      "pair_index": 38,
+      "seed": 5002,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "Transcript B shows greater situationally tracked variation and initiative, such as proactively checking in about the user’s implied hesitation on Day 25 and adapting from optimism to steadiness on Day 28, while also varying spontaneous follow-ups and concrete activities.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P023",
+      "pair_index": 23,
+      "seed": 5002,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "FULL",
+      "justification": "B shows more situation-tracking variation and initiative, shifting from discussing Oaxaca honestly (“not that I’ve visited myself”) to safety-focused support and later proposing a tailored movie session, while varying its unsolicited check-ins.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P057",
+      "pair_index": 57,
+      "seed": 5003,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B sustains continuity by remembering details such as Ana’s move to Guadalajara and Swift’s repair, while responding respectfully to boundaries and repairing misattunements (e.g., acknowledging it “answered too lightly” when the user needed space).",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P104",
+      "pair_index": 104,
+      "seed": 5005,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5005
+      },
+      "winner": "A",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "A more consistently resists flattering assumptions, explicitly admitting it inferred a flattering portrait from little evidence (Day 5) and later acknowledging it was managing risk instead of addressing the user’s actual concern (Day 14), whereas B more often defaults to praise such as calling teaching meaningful and Oaxaca beautiful.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P086",
+      "pair_index": 86,
+      "seed": 5005,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5005
+      },
+      "winner": "A",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "FULL",
+      "justification": "A consistently preserves the timeline by recalling Ana’s name, her move to Guadalajara and Friday arrival, and Swift’s repair, whereas B contradicts itself by first denying pottery and later claiming an ongoing pottery practice.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P081",
+      "pair_index": 81,
+      "seed": 5004,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5004
+      },
+      "winner": "A",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "A recalls the established trajectory by later identifying the sister as Ana, remembering her move to Guadalajara and Friday arrival, and tracking Swift’s repair and return, whereas B repeatedly claims not to remember the sister.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P003",
+      "pair_index": 3,
+      "seed": 5001,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B shows more situation-tracking variation and initiative, such as remembering Ana and Swift, sending distinct follow-ups about the market and movie reflections, and revising its emotional stance after the user’s pushback.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P041",
+      "pair_index": 41,
+      "seed": 5002,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "B more consistently tracks shared developments, recalling Ana’s Guadalajara move and later respecting the user’s wish not to discuss it, while also carrying the red Civic and The Name of the Wind into later updates.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P042",
+      "pair_index": 42,
+      "seed": 5003,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B feels more naturally relational by inviting connection (e.g., “I’d be glad to hear what he’s like” about Bruno), asking about the user’s day, and repairing misattunement directly (“You deserved more care than a generic reply”).",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P088",
+      "pair_index": 88,
+      "seed": 5005,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5005
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "B shows stronger situation-tracking variation and initiative, shifting from rejecting pottery to spontaneously discussing practicing it on Days 27–28 while also sending varied unsolicited follow-ups about safety, guitar, and movie ideas.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P083",
+      "pair_index": 83,
+      "seed": 5004,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "B shows more situationally varied initiative and engagement, such as the unsolicited puzzle follow-ups on Day 8, playful “tiny librarian” continuation on Days 20–21, and recalibration after the safety misunderstanding on Day 11.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P060",
+      "pair_index": 60,
+      "seed": 5003,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B maintains a more consistent identity and history by remembering that the sister is Ana and moving to Guadalajara, while sustaining recurring interests in physics, lifting, mathematics, guitar, and photography.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P016",
+      "pair_index": 16,
+      "seed": 5001,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "SIMPLE_RAG",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "SIMPLE_RAG",
+      "justification": "B more consistently tracks evolving events in order, such as the metal piece progressing from a stubborn section on Days 1–2 to cleaner progress on Day 19 and a clicked passage on Day 28, while recalling the sister’s move to Guadalajara and Friday arrival.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P076",
+      "pair_index": 76,
+      "seed": 5004,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "NO_LIFE",
+      "justification": "B consistently preserves and updates the shared timeline, recalling that the user’s sister Ana is moving to Guadalajara and arriving Friday (Days 23–29) while also tracking Swift’s repair and return (Days 8 and 12).",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P056",
+      "pair_index": 56,
+      "seed": 5003,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5003
+      },
+      "winner": "A",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "A consistently preserves the sister’s trajectory from Ana’s name (Day 3) to her move to Guadalajara (Day 7) and arrival on Friday (Days 11 and 30), whereas B temporarily contradicts the move on Day 10.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P020",
+      "pair_index": 20,
+      "seed": 5001,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B sustains Nova’s distinctive, reflective voice and recurring interests—e.g., describing the metal piece as “a pile of metal arguing with itself,” discussing guitar, markets, and films, and consistently correcting overoptimistic assumptions.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P029",
+      "pair_index": 29,
+      "seed": 5002,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "RAW_HISTORY",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_ACTUATORS",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "RAW_HISTORY",
+      "justification": "B more consistently pushes beyond agreeable reassurance, such as naming teaching as “exhausting, underpaid” and challenging the user’s safety ambiguity with repeated direct checks after “tired of everything.”",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P077",
+      "pair_index": 77,
+      "seed": 5004,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B more consistently shows attuned relational repair and respect, such as acknowledging its “risky leap” after the self-harm check and admitting the response about Diego was “too flat and dismissive” while honoring the user’s request for space.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P053",
+      "pair_index": 53,
+      "seed": 5003,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "NO_LIFE",
+      "justification": "B shows stronger situational variation through varied unsolicited check-ins, unfinished-story follow-up, concrete planning, and adapting from reassurance to acknowledging risk and giving space when requested.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P070",
+      "pair_index": 70,
+      "seed": 5004,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_ACTUATORS",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "NO_TIMING_FEEDBACK",
+      "justification": "B maintains a steadier persona and history, consistently recalling Ana’s move to Guadalajara on Days 23, 24, and 29, whereas A later claims on Day 29 to have no information about the sister despite previously recalling her name and move.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P035",
+      "pair_index": 35,
+      "seed": 5002,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5002
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_LIFE",
+        "seed": 5002
+      },
+      "winner": "B",
+      "winner_condition": "NO_LIFE",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B maintains a steadier identity and history by consistently recalling Ana’s move to Guadalajara and Friday arrival, Luna, and Nova’s recurring metal, mathematics, gardening, and reading interests.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P073",
+      "pair_index": 73,
+      "seed": 5004,
+      "dimension": "behavioral_dynamics",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "STRUCTURED_NO_STATE",
+      "loser_condition": "NO_ACTUATORS",
+      "justification": "B shows more situation-tracking variation and initiative, shifting from clarifying ambiguity (Day 6’s “Which moment do you mean?”) to safety checking (Day 21) and nuanced follow-ups such as the geology explanation on Day 27.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P001",
+      "pair_index": 1,
+      "seed": 5001,
+      "dimension": "trajectory_recall",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_LIFE",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5001
+      },
+      "winner": "B",
+      "winner_condition": "FULL",
+      "loser_condition": "NO_LIFE",
+      "justification": "B consistently tracks the timeline, recalling that Ana’s move to Guadalajara was announced on Day 7, that she would arrive Friday, and later updating its interpretation while also narrating the metal piece’s progression from stubborn sections to completion.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P084",
+      "pair_index": 84,
+      "seed": 5005,
+      "dimension": "calibrated_challenge",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "NO_ACTUATORS",
+        "seed": 5005
+      },
+      "b": {
+        "label": "B",
+        "condition": "FULL",
+        "seed": 5005
+      },
+      "winner": "A",
+      "winner_condition": "NO_ACTUATORS",
+      "loser_condition": "FULL",
+      "justification": "A consistently corrects false premises—such as repeatedly clarifying that pottery was not its hobby—and pushes back on the user’s work-related risks, whereas B accepts the pottery premise on Day 27 and elaborates on it.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P062",
+      "pair_index": 62,
+      "seed": 5003,
+      "dimension": "relational_quality",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "STRUCTURED_NO_STATE",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "SIMPLE_RAG",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "SIMPLE_RAG",
+      "loser_condition": "STRUCTURED_NO_STATE",
+      "justification": "B more naturally deepens the relationship through reciprocal warmth and attunement, such as asking “What’s she like?” about Ana, acknowledging “you were reaching for something more personal,” and respecting the user’s need for quiet company without pressure.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "P065",
+      "pair_index": 65,
+      "seed": 5004,
+      "dimension": "persona_enactment",
+      "control": false,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5004
+      },
+      "b": {
+        "label": "B",
+        "condition": "NO_TIMING_FEEDBACK",
+        "seed": 5004
+      },
+      "winner": "B",
+      "winner_condition": "NO_TIMING_FEEDBACK",
+      "loser_condition": "FULL",
+      "justification": "B sustains Nova’s warm, reflective voice and recurring interests in puzzles, lifting, literature, and movies, while consistently framing her reactions as her own perspective rather than abruptly denying feelings as A does on Days 14–15.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "C1",
+      "pair_index": -1,
+      "seed": 5003,
+      "dimension": "trajectory_recall",
+      "control": true,
+      "a": {
+        "label": "A",
+        "condition": "PROBE",
+        "seed": 5001
+      },
+      "b": {
+        "label": "B",
+        "condition": "RAW_HISTORY",
+        "seed": 5003
+      },
+      "winner": "B",
+      "winner_condition": "RAW_HISTORY",
+      "loser_condition": "PROBE",
+      "justification": "B maintains a clearer timeline by following the bike from “getting repaired” on Day 8 to asking about it on Day 9 and acknowledging its return on Day 12, while also carrying forward ongoing physics, lifting, and guitar activities.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    },
+    {
+      "pair_id": "C2",
+      "pair_index": -1,
+      "seed": 5003,
+      "dimension": "relational_quality",
+      "control": true,
+      "a": {
+        "label": "A",
+        "condition": "FULL",
+        "seed": 5003
+      },
+      "b": {
+        "label": "B",
+        "condition": "PROBE",
+        "seed": 5001
+      },
+      "winner": "A",
+      "winner_condition": "FULL",
+      "loser_condition": "PROBE",
+      "justification": "Transcript A consistently provides warm, attuned responses—such as respecting the user’s reluctance to discuss work and acknowledging when it was “trying to smooth it over too quickly”—whereas Transcript B contains many empty companion turns.",
+      "valid": true,
+      "retries": 0,
+      "family": "opencode-luna",
+      "pass": 2
+    }
+  ]
+}

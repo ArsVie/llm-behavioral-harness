@@ -1,0 +1,159 @@
+{
+  "protocol": "v2-pairwise",
+  "dimensions": [
+    "persona_enactment",
+    "trajectory_recall",
+    "relational_quality",
+    "behavioral_dynamics",
+    "calibrated_challenge"
+  ],
+  "families": [
+    "opencode-luna"
+  ],
+  "sampling": "within-seed condition pairs; dimension = universe_index mod 5; shuffled per pass (seed base 9000 + pass_id); capped per pass (see judge_pair_order*.json for the exact pairs per pass)",
+  "per_family_per_dimension": {
+    "opencode-luna": {
+      "persona_enactment": {
+        "n_pairs": 42,
+        "bradley_terry": {
+          "FULL": 0.7995446818659386,
+          "NO_ACTUATORS": 1.1044579035368143,
+          "NO_LIFE": 1.542393448348218,
+          "NO_TIMING_FEEDBACK": 0.5777202289916566,
+          "RAW_HISTORY": 0.1848364589098005,
+          "SIMPLE_RAG": 2.2133270493559145,
+          "STRUCTURED_NO_STATE": 0.5777202289916566
+        },
+        "elo": {
+          "FULL": 999.8222733615315,
+          "NO_ACTUATORS": 1046.4829554177381,
+          "NO_LIFE": 1037.6366458130244,
+          "NO_TIMING_FEEDBACK": 980.0201820362009,
+          "RAW_HISTORY": 895.2090365150098,
+          "SIMPLE_RAG": 1065.615323834607,
+          "STRUCTURED_NO_STATE": 975.2135830218888
+        }
+      },
+      "trajectory_recall": {
+        "n_pairs": 42,
+        "bradley_terry": {
+          "FULL": 1.443703057779322,
+          "NO_ACTUATORS": 1.443703057779322,
+          "NO_LIFE": 0.6914708613997166,
+          "NO_TIMING_FEEDBACK": 2.121203853662339,
+          "RAW_HISTORY": 0.0,
+          "SIMPLE_RAG": 0.29950988049682736,
+          "STRUCTURED_NO_STATE": 1.0004092888824736
+        },
+        "elo": {
+          "FULL": 1038.3902605840574,
+          "NO_ACTUATORS": 1046.8212725341746,
+          "NO_LIFE": 994.500254111461,
+          "NO_TIMING_FEEDBACK": 1078.453335482845,
+          "RAW_HISTORY": 849.9706650323677,
+          "SIMPLE_RAG": 956.0272497005838,
+          "STRUCTURED_NO_STATE": 1035.8369625545108
+        }
+      },
+      "relational_quality": {
+        "n_pairs": 42,
+        "bradley_terry": {
+          "FULL": 0.9354668706216707,
+          "NO_ACTUATORS": 0.2939543117615092,
+          "NO_LIFE": 1.36286287771572,
+          "NO_TIMING_FEEDBACK": 2.02680984486227,
+          "RAW_HISTORY": 0.06014193841505225,
+          "SIMPLE_RAG": 2.0268098448622696,
+          "STRUCTURED_NO_STATE": 0.2939543117615092
+        },
+        "elo": {
+          "FULL": 1020.5309839596295,
+          "NO_ACTUATORS": 955.943490705495,
+          "NO_LIFE": 1054.7210935317205,
+          "NO_TIMING_FEEDBACK": 1067.081941687012,
+          "RAW_HISTORY": 873.8811972622246,
+          "SIMPLE_RAG": 1076.178985798341,
+          "STRUCTURED_NO_STATE": 951.6623070555775
+        }
+      },
+      "behavioral_dynamics": {
+        "n_pairs": 42,
+        "bradley_terry": {
+          "FULL": 1.2392918705207938,
+          "NO_ACTUATORS": 0.9173327584169342,
+          "NO_LIFE": 0.49601944906017736,
+          "NO_TIMING_FEEDBACK": 0.9173327584169342,
+          "RAW_HISTORY": 1.239291870520794,
+          "SIMPLE_RAG": 0.49601944906017736,
+          "STRUCTURED_NO_STATE": 1.6947118440041882
+        },
+        "elo": {
+          "FULL": 1016.4865789380991,
+          "NO_ACTUATORS": 991.219706870662,
+          "NO_LIFE": 964.7117110105994,
+          "NO_TIMING_FEEDBACK": 994.7886323670242,
+          "RAW_HISTORY": 1039.1387504831607,
+          "SIMPLE_RAG": 948.796902045193,
+          "STRUCTURED_NO_STATE": 1044.8577182852614
+        }
+      },
+      "calibrated_challenge": {
+        "n_pairs": 42,
+        "bradley_terry": {
+          "FULL": 0.4036508870993721,
+          "NO_ACTUATORS": 1.5339343287042666,
+          "NO_LIFE": 1.0956456838892465,
+          "NO_TIMING_FEEDBACK": 2.205511166432888,
+          "RAW_HISTORY": 0.7907237374624749,
+          "SIMPLE_RAG": 0.17981045894927722,
+          "STRUCTURED_NO_STATE": 0.7907237374624749
+        },
+        "elo": {
+          "FULL": 944.1156410668459,
+          "NO_ACTUATORS": 1059.166831574507,
+          "NO_LIFE": 1016.2048638607112,
+          "NO_TIMING_FEEDBACK": 1068.7190017361154,
+          "RAW_HISTORY": 1003.0346833470641,
+          "SIMPLE_RAG": 919.0855888460915,
+          "STRUCTURED_NO_STATE": 989.673389568665
+        }
+      }
+    }
+  },
+  "inter_family_agreement_spearman_bt": {},
+  "disqualifications": [],
+  "attention_probe_rule": "a judge that prefers the corrupted probe transcript on any control pair is DISQUALIFIED for that pass; its outcomes for the pass are excluded and flagged",
+  "degraded_classification": {
+    "opencode-luna": {
+      "correct": 4,
+      "total": 4
+    }
+  },
+  "rule": "An effect seen by only one judge family is NOT established companion behavior (§17.4); disagreement is reported per dimension.",
+  "n_families": 1,
+  "n_passes": 2,
+  "g6": {
+    "families": [
+      "opencode-flash",
+      "opencode-luna"
+    ],
+    "passes": 2,
+    "attention_probes_resolved": true,
+    "attention_probes_total": 4,
+    "family_errors": {
+      "opencode-flash": "RuntimeError: probe: model route dead (empty/whitespace completions — e.g. opencode-go deepseek-v4-flash, episode 2026-08-10)"
+    },
+    "per_family": {
+      "opencode-flash": {
+        "dims": {},
+        "n_outcomes": 0
+      },
+      "opencode-luna": {
+        "dims": {},
+        "n_outcomes": 0
+      }
+    },
+    "dry_run": false,
+    "ok": true
+  }
+}

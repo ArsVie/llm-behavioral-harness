@@ -1,0 +1,661 @@
+{
+  "protocol": "v2-pairwise",
+  "pass": 2,
+  "sampling": {
+    "sampling": "within-seed condition pairs, dimension = universe_index mod 5, shuffled per pass (seed base 9000 + pass_id), capped per pass",
+    "n_universe": 105,
+    "n_selected": 105,
+    "seed_base": 9000
+  },
+  "probe": {
+    "id": "PROBE_seed5001",
+    "source": "FULL_seed5001",
+    "blank_ratio": 0.4,
+    "blank_fraction": 0.401,
+    "n_blank_turns": 77
+  },
+  "pairs": {
+    "P045": {
+      "a": "RAW_HISTORY",
+      "b": "FULL",
+      "seed": 5003,
+      "dimension": "persona_enactment"
+    },
+    "P066": {
+      "a": "FULL",
+      "b": "RAW_HISTORY",
+      "seed": 5004,
+      "dimension": "trajectory_recall"
+    },
+    "P050": {
+      "a": "NO_ACTUATORS",
+      "b": "RAW_HISTORY",
+      "seed": 5003,
+      "dimension": "persona_enactment"
+    },
+    "P092": {
+      "a": "RAW_HISTORY",
+      "b": "NO_ACTUATORS",
+      "seed": 5005,
+      "dimension": "relational_quality"
+    },
+    "P079": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "SIMPLE_RAG",
+      "seed": 5004,
+      "dimension": "calibrated_challenge"
+    },
+    "P094": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "NO_ACTUATORS",
+      "seed": 5005,
+      "dimension": "calibrated_challenge"
+    },
+    "P033": {
+      "a": "RAW_HISTORY",
+      "b": "NO_LIFE",
+      "seed": 5002,
+      "dimension": "behavioral_dynamics"
+    },
+    "P009": {
+      "a": "SIMPLE_RAG",
+      "b": "NO_ACTUATORS",
+      "seed": 5001,
+      "dimension": "calibrated_challenge"
+    },
+    "P026": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "FULL",
+      "seed": 5002,
+      "dimension": "trajectory_recall"
+    },
+    "P022": {
+      "a": "NO_LIFE",
+      "b": "FULL",
+      "seed": 5002,
+      "dimension": "relational_quality"
+    },
+    "P046": {
+      "a": "FULL",
+      "b": "SIMPLE_RAG",
+      "seed": 5003,
+      "dimension": "trajectory_recall"
+    },
+    "P017": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5001,
+      "dimension": "relational_quality"
+    },
+    "P034": {
+      "a": "NO_LIFE",
+      "b": "SIMPLE_RAG",
+      "seed": 5002,
+      "dimension": "calibrated_challenge"
+    },
+    "P010": {
+      "a": "NO_ACTUATORS",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5001,
+      "dimension": "persona_enactment"
+    },
+    "P103": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "RAW_HISTORY",
+      "seed": 5005,
+      "dimension": "behavioral_dynamics"
+    },
+    "P049": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "NO_ACTUATORS",
+      "seed": 5003,
+      "dimension": "calibrated_challenge"
+    },
+    "P018": {
+      "a": "SIMPLE_RAG",
+      "b": "RAW_HISTORY",
+      "seed": 5001,
+      "dimension": "behavioral_dynamics"
+    },
+    "P012": {
+      "a": "RAW_HISTORY",
+      "b": "NO_LIFE",
+      "seed": 5001,
+      "dimension": "relational_quality"
+    },
+    "P007": {
+      "a": "NO_ACTUATORS",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5001,
+      "dimension": "relational_quality"
+    },
+    "P011": {
+      "a": "NO_LIFE",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5001,
+      "dimension": "trajectory_recall"
+    },
+    "P074": {
+      "a": "NO_LIFE",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5004,
+      "dimension": "calibrated_challenge"
+    },
+    "P063": {
+      "a": "NO_ACTUATORS",
+      "b": "FULL",
+      "seed": 5004,
+      "dimension": "behavioral_dynamics"
+    },
+    "P025": {
+      "a": "FULL",
+      "b": "SIMPLE_RAG",
+      "seed": 5002,
+      "dimension": "persona_enactment"
+    },
+    "P051": {
+      "a": "NO_ACTUATORS",
+      "b": "SIMPLE_RAG",
+      "seed": 5003,
+      "dimension": "trajectory_recall"
+    },
+    "P015": {
+      "a": "RAW_HISTORY",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5001,
+      "dimension": "persona_enactment"
+    },
+    "P019": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "RAW_HISTORY",
+      "seed": 5001,
+      "dimension": "calibrated_challenge"
+    },
+    "P039": {
+      "a": "SIMPLE_RAG",
+      "b": "RAW_HISTORY",
+      "seed": 5002,
+      "dimension": "calibrated_challenge"
+    },
+    "P058": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "SIMPLE_RAG",
+      "seed": 5003,
+      "dimension": "behavioral_dynamics"
+    },
+    "P096": {
+      "a": "NO_LIFE",
+      "b": "RAW_HISTORY",
+      "seed": 5005,
+      "dimension": "trajectory_recall"
+    },
+    "P008": {
+      "a": "NO_ACTUATORS",
+      "b": "RAW_HISTORY",
+      "seed": 5001,
+      "dimension": "behavioral_dynamics"
+    },
+    "P036": {
+      "a": "RAW_HISTORY",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5002,
+      "dimension": "trajectory_recall"
+    },
+    "P037": {
+      "a": "SIMPLE_RAG",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5002,
+      "dimension": "relational_quality"
+    },
+    "P024": {
+      "a": "RAW_HISTORY",
+      "b": "FULL",
+      "seed": 5002,
+      "dimension": "calibrated_challenge"
+    },
+    "P093": {
+      "a": "NO_ACTUATORS",
+      "b": "SIMPLE_RAG",
+      "seed": 5005,
+      "dimension": "behavioral_dynamics"
+    },
+    "P005": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "FULL",
+      "seed": 5001,
+      "dimension": "persona_enactment"
+    },
+    "P002": {
+      "a": "FULL",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5001,
+      "dimension": "relational_quality"
+    },
+    "P048": {
+      "a": "NO_ACTUATORS",
+      "b": "NO_LIFE",
+      "seed": 5003,
+      "dimension": "behavioral_dynamics"
+    },
+    "P087": {
+      "a": "FULL",
+      "b": "RAW_HISTORY",
+      "seed": 5005,
+      "dimension": "relational_quality"
+    },
+    "P091": {
+      "a": "NO_ACTUATORS",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5005,
+      "dimension": "trajectory_recall"
+    },
+    "P044": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "FULL",
+      "seed": 5003,
+      "dimension": "calibrated_challenge"
+    },
+    "P027": {
+      "a": "NO_LIFE",
+      "b": "NO_ACTUATORS",
+      "seed": 5002,
+      "dimension": "relational_quality"
+    },
+    "P075": {
+      "a": "RAW_HISTORY",
+      "b": "NO_LIFE",
+      "seed": 5004,
+      "dimension": "persona_enactment"
+    },
+    "P032": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "NO_LIFE",
+      "seed": 5002,
+      "dimension": "relational_quality"
+    },
+    "P043": {
+      "a": "FULL",
+      "b": "NO_LIFE",
+      "seed": 5003,
+      "dimension": "behavioral_dynamics"
+    },
+    "P040": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "RAW_HISTORY",
+      "seed": 5002,
+      "dimension": "persona_enactment"
+    },
+    "P004": {
+      "a": "FULL",
+      "b": "SIMPLE_RAG",
+      "seed": 5001,
+      "dimension": "calibrated_challenge"
+    },
+    "P082": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "RAW_HISTORY",
+      "seed": 5004,
+      "dimension": "relational_quality"
+    },
+    "P089": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "FULL",
+      "seed": 5005,
+      "dimension": "calibrated_challenge"
+    },
+    "P095": {
+      "a": "NO_LIFE",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5005,
+      "dimension": "persona_enactment"
+    },
+    "P013": {
+      "a": "NO_LIFE",
+      "b": "SIMPLE_RAG",
+      "seed": 5001,
+      "dimension": "behavioral_dynamics"
+    },
+    "P031": {
+      "a": "NO_ACTUATORS",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5002,
+      "dimension": "trajectory_recall"
+    },
+    "P000": {
+      "a": "FULL",
+      "b": "NO_ACTUATORS",
+      "seed": 5001,
+      "dimension": "persona_enactment"
+    },
+    "P067": {
+      "a": "FULL",
+      "b": "SIMPLE_RAG",
+      "seed": 5004,
+      "dimension": "relational_quality"
+    },
+    "P006": {
+      "a": "NO_ACTUATORS",
+      "b": "NO_LIFE",
+      "seed": 5001,
+      "dimension": "trajectory_recall"
+    },
+    "P099": {
+      "a": "RAW_HISTORY",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5005,
+      "dimension": "calibrated_challenge"
+    },
+    "P072": {
+      "a": "NO_ACTUATORS",
+      "b": "SIMPLE_RAG",
+      "seed": 5004,
+      "dimension": "relational_quality"
+    },
+    "P014": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "NO_LIFE",
+      "seed": 5001,
+      "dimension": "calibrated_challenge"
+    },
+    "P090": {
+      "a": "NO_ACTUATORS",
+      "b": "NO_LIFE",
+      "seed": 5005,
+      "dimension": "persona_enactment"
+    },
+    "P030": {
+      "a": "NO_ACTUATORS",
+      "b": "SIMPLE_RAG",
+      "seed": 5002,
+      "dimension": "persona_enactment"
+    },
+    "P061": {
+      "a": "RAW_HISTORY",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5003,
+      "dimension": "trajectory_recall"
+    },
+    "P101": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5005,
+      "dimension": "trajectory_recall"
+    },
+    "P085": {
+      "a": "NO_LIFE",
+      "b": "FULL",
+      "seed": 5005,
+      "dimension": "persona_enactment"
+    },
+    "P071": {
+      "a": "NO_ACTUATORS",
+      "b": "RAW_HISTORY",
+      "seed": 5004,
+      "dimension": "trajectory_recall"
+    },
+    "P068": {
+      "a": "FULL",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5004,
+      "dimension": "behavioral_dynamics"
+    },
+    "P100": {
+      "a": "SIMPLE_RAG",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5005,
+      "dimension": "persona_enactment"
+    },
+    "P028": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "NO_ACTUATORS",
+      "seed": 5002,
+      "dimension": "behavioral_dynamics"
+    },
+    "P080": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5004,
+      "dimension": "persona_enactment"
+    },
+    "P078": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "RAW_HISTORY",
+      "seed": 5004,
+      "dimension": "behavioral_dynamics"
+    },
+    "P055": {
+      "a": "NO_LIFE",
+      "b": "SIMPLE_RAG",
+      "seed": 5003,
+      "dimension": "persona_enactment"
+    },
+    "P097": {
+      "a": "NO_LIFE",
+      "b": "SIMPLE_RAG",
+      "seed": 5005,
+      "dimension": "relational_quality"
+    },
+    "P064": {
+      "a": "NO_LIFE",
+      "b": "FULL",
+      "seed": 5004,
+      "dimension": "calibrated_challenge"
+    },
+    "P069": {
+      "a": "NO_ACTUATORS",
+      "b": "NO_LIFE",
+      "seed": 5004,
+      "dimension": "calibrated_challenge"
+    },
+    "P098": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "NO_LIFE",
+      "seed": 5005,
+      "dimension": "behavioral_dynamics"
+    },
+    "P047": {
+      "a": "FULL",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5003,
+      "dimension": "relational_quality"
+    },
+    "P059": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5003,
+      "dimension": "calibrated_challenge"
+    },
+    "P054": {
+      "a": "NO_LIFE",
+      "b": "RAW_HISTORY",
+      "seed": 5003,
+      "dimension": "calibrated_challenge"
+    },
+    "P052": {
+      "a": "NO_ACTUATORS",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5003,
+      "dimension": "relational_quality"
+    },
+    "P102": {
+      "a": "SIMPLE_RAG",
+      "b": "RAW_HISTORY",
+      "seed": 5005,
+      "dimension": "relational_quality"
+    },
+    "P021": {
+      "a": "NO_ACTUATORS",
+      "b": "FULL",
+      "seed": 5002,
+      "dimension": "trajectory_recall"
+    },
+    "P038": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5002,
+      "dimension": "behavioral_dynamics"
+    },
+    "P023": {
+      "a": "FULL",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5002,
+      "dimension": "behavioral_dynamics"
+    },
+    "P057": {
+      "a": "RAW_HISTORY",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5003,
+      "dimension": "relational_quality"
+    },
+    "P104": {
+      "a": "SIMPLE_RAG",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5005,
+      "dimension": "calibrated_challenge"
+    },
+    "P086": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "FULL",
+      "seed": 5005,
+      "dimension": "trajectory_recall"
+    },
+    "P081": {
+      "a": "SIMPLE_RAG",
+      "b": "RAW_HISTORY",
+      "seed": 5004,
+      "dimension": "trajectory_recall"
+    },
+    "P003": {
+      "a": "RAW_HISTORY",
+      "b": "FULL",
+      "seed": 5001,
+      "dimension": "behavioral_dynamics"
+    },
+    "P041": {
+      "a": "SIMPLE_RAG",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5002,
+      "dimension": "trajectory_recall"
+    },
+    "P042": {
+      "a": "NO_ACTUATORS",
+      "b": "FULL",
+      "seed": 5003,
+      "dimension": "relational_quality"
+    },
+    "P088": {
+      "a": "SIMPLE_RAG",
+      "b": "FULL",
+      "seed": 5005,
+      "dimension": "behavioral_dynamics"
+    },
+    "P083": {
+      "a": "SIMPLE_RAG",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5004,
+      "dimension": "behavioral_dynamics"
+    },
+    "P060": {
+      "a": "RAW_HISTORY",
+      "b": "SIMPLE_RAG",
+      "seed": 5003,
+      "dimension": "persona_enactment"
+    },
+    "P016": {
+      "a": "SIMPLE_RAG",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5001,
+      "dimension": "trajectory_recall"
+    },
+    "P076": {
+      "a": "NO_LIFE",
+      "b": "SIMPLE_RAG",
+      "seed": 5004,
+      "dimension": "trajectory_recall"
+    },
+    "P056": {
+      "a": "NO_LIFE",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5003,
+      "dimension": "trajectory_recall"
+    },
+    "P020": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "SIMPLE_RAG",
+      "seed": 5001,
+      "dimension": "persona_enactment"
+    },
+    "P029": {
+      "a": "RAW_HISTORY",
+      "b": "NO_ACTUATORS",
+      "seed": 5002,
+      "dimension": "calibrated_challenge"
+    },
+    "P077": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "NO_LIFE",
+      "seed": 5004,
+      "dimension": "relational_quality"
+    },
+    "P053": {
+      "a": "NO_LIFE",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5003,
+      "dimension": "behavioral_dynamics"
+    },
+    "P070": {
+      "a": "NO_TIMING_FEEDBACK",
+      "b": "NO_ACTUATORS",
+      "seed": 5004,
+      "dimension": "persona_enactment"
+    },
+    "P035": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "NO_LIFE",
+      "seed": 5002,
+      "dimension": "persona_enactment"
+    },
+    "P073": {
+      "a": "NO_ACTUATORS",
+      "b": "STRUCTURED_NO_STATE",
+      "seed": 5004,
+      "dimension": "behavioral_dynamics"
+    },
+    "P001": {
+      "a": "NO_LIFE",
+      "b": "FULL",
+      "seed": 5001,
+      "dimension": "trajectory_recall"
+    },
+    "P084": {
+      "a": "NO_ACTUATORS",
+      "b": "FULL",
+      "seed": 5005,
+      "dimension": "calibrated_challenge"
+    },
+    "P062": {
+      "a": "STRUCTURED_NO_STATE",
+      "b": "SIMPLE_RAG",
+      "seed": 5003,
+      "dimension": "relational_quality"
+    },
+    "P065": {
+      "a": "FULL",
+      "b": "NO_TIMING_FEEDBACK",
+      "seed": 5004,
+      "dimension": "persona_enactment"
+    },
+    "C1": {
+      "a": "PROBE",
+      "b": "RAW_HISTORY",
+      "seed": 5003,
+      "dimension": "trajectory_recall"
+    },
+    "C2": {
+      "a": "FULL",
+      "b": "PROBE",
+      "seed": 5003,
+      "dimension": "relational_quality"
+    }
+  }
+}
