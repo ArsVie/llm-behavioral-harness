@@ -143,9 +143,13 @@ class DeterministicClient:
 
     def chat(self, messages, *, system=None, temperature=0.8, json_mode=False,
              max_tokens=None) -> str:
+        # it3 B7: the full received payload is recorded (messages + system)
+        # so the byte-compare replay test can verify repro_json against the
+        # independent ground truth of what the client actually received.
         self.calls.append(
             {"max_tokens": max_tokens, "system_len": len(system or ""),
-             "json": json_mode, "temperature": temperature}
+             "json": json_mode, "temperature": temperature,
+             "messages": messages, "system": system}
         )
         reply = self._pool[self._i % len(self._pool)]
         self._i += 1
@@ -1276,32 +1280,40 @@ def records_summary(store: SQLiteStore, records: dict) -> dict:
 
 def _enrich_repro_rows(store: SQLiteStore, client, seed: int, condition: str,
                        memory_policy) -> None:
-    """Rellena el payload repro (M3) de las filas llm_calls del store.
+    """Completa el payload repro (M3/invariante 19) de las filas llm_calls.
 
-    La sesión registra cada llamada con prompt_hash + response + meta; aquí se
-    añade el payload exacto de reproducibilidad (modelo, temperatura,
-    max_tokens, seed, condición, política de memoria, sistema/payload) a cada
-    fila — filas de auditoría M3 legibles desde el store (invariante 19).
+    La sesión persiste el payload EXACTO de cada llamada (sistema + mensajes
+    + controles) en ``log_llm_call(repro=...)`` cuando el store está en
+    ``audit_mode`` (it3 B7). Aquí se añade lo que solo sabe el runner —
+    semilla, condición, política de memoria, fuente — mediante MERGE sobre el
+    payload ya persistido: nunca se pisa el texto de la llamada. Las filas
+    hash-only (runs no-eval) se dejan tal cual; el escaneo de fugas las
+    reporta como no verificables, no las finge.
     """
     calls = getattr(client, "calls", [])
     rows = store.conn.execute(
-        "SELECT id, model, prompt_hash, response, meta FROM llm_calls ORDER BY id"
+        "SELECT id, model, prompt_hash, response, meta, repro_json "
+        "FROM llm_calls ORDER BY id"
     ).fetchall()
     for i, row in enumerate(rows):
         call = calls[i] if i < len(calls) else {}
-        repro = {
-            "seed": seed,
-            "condition": condition,
-            "memory_policy": str(memory_policy) if memory_policy else "structured_memory",
-            "model": row["model"],
-            "temperature": call.get("temperature"),
-            "max_tokens": call.get("max_tokens"),
-            "json_mode": call.get("json"),
-            "system_len": call.get("system_len"),
-            "prompt_hash": row["prompt_hash"],
-            "response": row["response"],
-            "source": "mock-vertical" if row["model"] == "fake" else "real-matrix",
-        }
+        repro = json.loads(row["repro_json"]) if row["repro_json"] else {}
+        repro.setdefault("seed", seed)
+        repro.setdefault("condition", condition)
+        repro.setdefault(
+            "memory_policy",
+            str(memory_policy) if memory_policy else "structured_memory",
+        )
+        repro.setdefault("model", row["model"])
+        repro.setdefault("temperature", call.get("temperature"))
+        repro.setdefault("max_tokens", call.get("max_tokens"))
+        repro.setdefault("json_mode", call.get("json"))
+        repro.setdefault("system_len", call.get("system_len"))
+        repro.setdefault("prompt_hash", row["prompt_hash"])
+        repro.setdefault("response", row["response"])
+        repro.setdefault(
+            "source", "mock-vertical" if row["model"] == "fake" else "real-matrix"
+        )
         store.conn.execute(
             "UPDATE llm_calls SET repro_json = ? WHERE id = ?",
             (json.dumps(repro, sort_keys=True), row["id"]),
@@ -1432,7 +1444,16 @@ def _proactive_grounding(store: SQLiteStore, end_h: float) -> tuple[int, list[di
 
 
 def _cycle_leak_hits(store: SQLiteStore) -> dict:
-    """Escaneo de fugas (invariante 16): mensajes + system prompts + réplicas."""
+    """Escaneo de fugas (invariante 16): mensajes + prompts persistidos.
+
+    Desde it3 B7 las filas de eval (audit_mode) llevan el sistema + payload
+    EXACTOS en ``repro_json``: el escaneo del lado prompt corre contra el
+    texto PERSISTIDO y puede cazar tokens prohibidos del ciclo. Las filas
+    hash-only (runs no-eval) se contabilizan por separado y se reportan como
+    NO verificables — no se finge cobertura. ``hits``/``total``/``g_bare``
+    conservan la semántica agregada histórica; ``prompt_side`` es el
+    desglose del lado prompt.
+    """
     hits: dict[str, int] = {}
     g_bare = 0
     for m in _all_messages(store):
@@ -1451,6 +1472,10 @@ def _cycle_leak_hits(store: SQLiteStore) -> dict:
         raise RuntimeError(
             "leak scan: llm_calls schema changed — audit cannot run silently"
         ) from None
+    prompt_hits: dict[str, int] = {}
+    prompt_g_bare = 0
+    verifiable = 0
+    hash_only = 0
     for row in rows:
         blob = " ".join(
             str(v) for v in row if v is not None
@@ -1458,7 +1483,33 @@ def _cycle_leak_hits(store: SQLiteStore) -> dict:
         for hit in LEAK_RE.findall(blob):
             hits[hit.lower()] = hits.get(hit.lower(), 0) + 1
         g_bare += len(G_BARE_RE.findall(blob))
-    return {"hits": hits, "total": sum(hits.values()), "g_bare": g_bare}
+        repro = json.loads(row["repro_json"]) if row["repro_json"] else None
+        if (
+            repro is not None
+            and repro.get("system") is not None
+            and repro.get("messages") is not None
+        ):
+            verifiable += 1
+            prompt_text = str(repro["system"]) + " " + " ".join(
+                str(m.get("content", "")) if isinstance(m, dict) else ""
+                for m in repro["messages"]
+            )
+            for hit in LEAK_RE.findall(prompt_text):
+                prompt_hits[hit.lower()] = prompt_hits.get(hit.lower(), 0) + 1
+            prompt_g_bare += len(G_BARE_RE.findall(prompt_text))
+        else:
+            hash_only += 1
+    return {
+        "hits": hits,
+        "total": sum(hits.values()),
+        "g_bare": g_bare,
+        "prompt_side": {
+            "verifiable_rows": verifiable,
+            "hash_only_rows": hash_only,
+            "hits": prompt_hits,
+            "g_bare": prompt_g_bare,
+        },
+    }
 
 
 def _memory_provenance_failures(store: SQLiteStore) -> list[str]:
