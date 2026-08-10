@@ -573,10 +573,15 @@ def test_conversation_open_state_has_none_close_reason() -> None:
 
 
 def test_ablation_claim_shape_and_channel_literals() -> None:
-    """AblationClaim carries the four contract fields; channel is one of the
-    four ablatable channels; check is callable; assertion is non-empty."""
+    """AblationClaim carries the six contract fields (G2 added min_days —
+    the horizon at which the ablated mechanism can have acted — and
+    measure — the optional measured-margins reporter); channel is one of
+    the four ablatable channels; check is callable; assertion is
+    non-empty. min_days defaults to 1 (evaluable at any horizon)."""
     fields = {f.name: f for f in dataclasses.fields(domain.AblationClaim)}
-    assert set(fields) == {"condition", "channel", "assertion", "check"}
+    assert set(fields) == {
+        "condition", "channel", "assertion", "check", "min_days", "measure",
+    }
     channel_type = str(fields["channel"].type)
     for value in ("timing", "memory_store", "generation_controls", "life_state"):
         assert value in channel_type
@@ -592,6 +597,8 @@ def test_ablation_claim_shape_and_channel_literals() -> None:
     )
     assert claim.condition == "STRUCTURED_NO_STATE"
     assert callable(claim.check)
+    assert claim.min_days == 1  # default: evaluable at any horizon
+    assert claim.measure is None  # default: no measured-margins reporter
     # The claim is evaluable against the documented records shape.
     assert claim.check({"n_proactive": 5}, {"n_proactive": 20}) is True
     assert claim.check({"n_proactive": 20}, {"n_proactive": 20}) is False
