@@ -77,17 +77,26 @@ def run_g6(
 
     all_outcomes: list[dict] = []
     family_reports: dict[str, dict] = {}
+    family_errors: dict[str, str] = {}
     for family in JUDGE_FAMILIES:
         client = build_client(family, dry_run=dry_run, seed=7000)
-        for pass_id in range(1, passes + 1):
-            print(f"[g6] family={family['id']} pass={pass_id} "
-                  f"({'dry-run' if dry_run else 'real'})")
-            rec = run_pairwise_pass(
-                judge_out, pass_id, family["id"], client,
-                max_pairs=max_pairs,
-            )
-            all_outcomes.extend(rec.get("outcomes", []))
-        client.close()
+        try:
+            for pass_id in range(1, passes + 1):
+                print(f"[g6] family={family['id']} pass={pass_id} "
+                      f"({'dry-run' if dry_run else 'real'})")
+                rec = run_pairwise_pass(
+                    judge_out, pass_id, family["id"], client,
+                    max_pairs=max_pairs,
+                )
+                all_outcomes.extend(rec.get("outcomes", []))
+        except Exception as exc:  # noqa: BLE001 — familia degradada (p.ej. ruta flash caída)
+            family_errors[family["id"]] = f"{type(exc).__name__}: {exc}"
+            print(f"[g6] family={family['id']} FAILED: {exc}", flush=True)
+        finally:
+            try:
+                client.close()
+            except Exception:
+                pass
 
     # Sondas de atención: los control pairs (degradados) deben resolverse.
     controls = [o for o in all_outcomes if o.get("control")]
@@ -117,9 +126,16 @@ def run_g6(
         "passes": passes,
         "attention_probes_resolved": probe_ok,
         "attention_probes_total": len(controls),
+        "family_errors": family_errors,
         "per_family": per_family,
         "dry_run": dry_run,
     }
+    # Exit no-cero solo si NINGUNA familia pudo juzgar o las sondas no se
+    # resolvieron en las familias que SÍ juzgaron.
+    families_that_judged = [f["id"] for f in JUDGE_FAMILIES
+                            if f["id"] not in family_errors]
+    ok = probe_ok and len(families_that_judged) > 0
+    report["g6"]["ok"] = ok
     (judge_out / "g6_report.json").write_text(
         json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
     )
@@ -141,7 +157,7 @@ def main(argv: list[str] | None = None) -> int:
         Path(args.out), Path(args.judge_out),
         passes=args.passes, max_pairs=args.max_pairs, dry_run=args.dry_run,
     )
-    return 0 if report["g6"]["attention_probes_resolved"] else 1
+    return 0 if report["g6"].get("ok") else 1
 
 
 if __name__ == "__main__":
