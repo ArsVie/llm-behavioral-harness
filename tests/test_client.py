@@ -138,7 +138,7 @@ def test_openai_client_retries_empty_content_then_succeeds(monkeypatch, caplog):
 
     assert out == "real content"
     assert calls["n"] == 3  # two empties, one real
-    assert sleeps == [0.5, 1.0]  # bounded exponential backoff (0.5 * 2**i)
+    assert sleeps == [2.0, 4.0]  # bounded exponential backoff (2.0 * 2**i)
     assert "empty content" in caplog.text
 
 
