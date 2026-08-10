@@ -293,7 +293,13 @@ class AsyncRuntime:
                 pending = self.schedule.next_pending(now)
             if (
                 pending is not None
-                and now <= pending < target
+                # Overdue rows INCLUDED (no now <= pending bound): next_pending
+                # returns overdue-first (A7), and an overdue row must route the
+                # rollover into the target <= now yield below, letting the
+                # firing loop clear it, instead of sleeping to midnight and
+                # jumping the clock PAST the next future event — which then
+                # expires instead of firing (the it2/FEED race, B8 Finding 4).
+                and pending < target
                 and not self._firing_done
             ):
                 # Park at the earliest pending event; the firing loop gates
