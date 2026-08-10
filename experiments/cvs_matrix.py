@@ -55,6 +55,24 @@ def _cell_out(root: Path, condition: str, seed: int) -> Path:
     return root / condition.lower() / f"seed{seed}"
 
 
+def _write_transcript(cell_out_dir: Path, record: dict, root: Path,
+                      condition: str, seed: int) -> None:
+    """Rinde el transcript de la célula para el juez (G6 lee
+    root/transcripts/<COND>_seed<seed>.txt — contrato de cvs_judge)."""
+    from experiments.companion_vertical_slice import render_transcript
+    from harness.store import SQLiteStore
+
+    db = record.get("db") or (cell_out_dir / f"cell_{condition.lower()}_seed{seed}.db")
+    store = SQLiteStore(db)
+    try:
+        txt = render_transcript(store)
+    finally:
+        store.close()
+    tdir = root / "transcripts"
+    tdir.mkdir(exist_ok=True)
+    (tdir / f"{condition}_seed{seed}.txt").write_text(txt, encoding="utf-8")
+
+
 def _load_status(root: Path) -> dict:
     p = root / STATUS_FILE
     if p.exists():
@@ -113,6 +131,7 @@ def run_matrix(
                 status["cells"][key] = cell_state
                 _save_status(root, status)
                 results.append({"condition": condition, "seed": seed, **summary})
+                _write_transcript(out_dir, record, root, condition, seed)
                 break
             except Exception as exc:  # noqa: BLE001 — retry loop por diseño
                 last_error = exc

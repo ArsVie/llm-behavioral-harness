@@ -1,0 +1,148 @@
+"""Driver del protocolo de juez v2 (Gate G6, it3) — ambas familias,
+sondas de atención, agregación Bradley-Terry.
+
+Usa la maquinaria de cvs_judge (run_pairwise_pass / bradley_terry_scale /
+pairwise_report) sobre los transcripts de la matriz G5:
+
+- 2 familias reales (opencode-flash deepseek-v4-flash + opencode-luna
+  gpt-5.6-luna, mismas claves que el manifiesto congela).
+- 2 passes por familia, pares muestreados dentro de la semilla
+  (preregistrado: sin cruce completo), control pairs de transcript
+  degradado (sondas de atención) resueltos por AMBAS familias — DoD 6.
+- Agregación BT por dimensión y familia; desacuerdo reportado; un efecto
+  visto por una sola familia NO es conducta establecida del companion.
+
+Uso:
+    .venv/bin/python -m experiments.cvs_g6 --out results/it3-g5-matrix \
+        [--judge-out results/it3-g6-judge] [--passes 2] [--max-pairs N]
+        [--dry-run]   # usa PairwiseFakeJudge (CI/tests), sin API
+
+Exit 0 = ambas familias resolvieron las sondas y el reporte se escribió.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+from pathlib import Path
+
+from experiments.cvs_judge import (
+    bradley_terry_scale,
+    pairwise_report,
+    read_transcripts,
+    run_pairwise_pass,
+)
+from experiments.cvs_manifest import JUDGE_FAMILIES, JUDGE_PASSES
+
+
+def build_client(family: dict, *, dry_run: bool, seed: int):
+    if dry_run:
+        from experiments.cvs_judge import PairwiseFakeJudge
+
+        return PairwiseFakeJudge(seed, family=family["id"], model=family["model"])
+    from harness.client import OpenAICompatibleClient
+
+    return OpenAICompatibleClient(
+        base_url=family["base_url"],
+        api_key=None,  # env: family["env_key"]
+        model=family["model"],
+    )
+
+
+def run_g6(
+    matrix_out: Path,
+    judge_out: Path,
+    *,
+    passes: int = JUDGE_PASSES,
+    max_pairs: int | None = None,
+    dry_run: bool = False,
+) -> dict:
+    matrix_out = Path(matrix_out)
+    judge_out = Path(judge_out)
+    judge_out.mkdir(parents=True, exist_ok=True)
+
+    transcripts = read_transcripts(matrix_out)
+    if not transcripts:
+        raise SystemExit(f"no transcripts found under {matrix_out}")
+    print(f"[g6] transcripts: {len(transcripts)}")
+    # run_pairwise_pass lee out_dir/transcripts — escenificar los
+    # transcripts de la matriz en el dir del juez (sin contaminar la
+    # matriz con pares).
+    staged = judge_out / "transcripts"
+    staged.mkdir(parents=True, exist_ok=True)
+    src = Path(matrix_out) / "transcripts"
+    for f in sorted(src.glob("*.txt")):
+        (staged / f.name).write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
+
+    all_outcomes: list[dict] = []
+    family_reports: dict[str, dict] = {}
+    for family in JUDGE_FAMILIES:
+        client = build_client(family, dry_run=dry_run, seed=7000)
+        for pass_id in range(1, passes + 1):
+            print(f"[g6] family={family['id']} pass={pass_id} "
+                  f"({'dry-run' if dry_run else 'real'})")
+            rec = run_pairwise_pass(
+                judge_out, pass_id, family["id"], client,
+                max_pairs=max_pairs,
+            )
+            all_outcomes.extend(rec.get("outcomes", []))
+        client.close()
+
+    # Sondas de atención: los control pairs (degradados) deben resolverse.
+    controls = [o for o in all_outcomes if o.get("control")]
+    resolved = [o for o in controls if o.get("winner") is not None]
+    probe_ok = len(resolved) == len(controls) and len(controls) > 0
+    print(f"[g6] attention probes: {len(resolved)}/{len(controls)} resolved "
+          f"-> {'OK' if probe_ok else 'FAIL'}")
+
+    report = pairwise_report(judge_out)
+    # Agregación BT por familia Y dimensión (BT es por-dimensión por
+    # contrato: winner_condition/loser_condition por par).
+    stems = [Path(t).stem for t in transcripts]
+    conditions = sorted({s.split("_")[0] for s in stems})
+    per_family: dict[str, dict] = {}
+    for family in JUDGE_FAMILIES:
+        fam_outcomes = [o for o in all_outcomes if o.get("family_id") == family["id"]]
+        dims: dict[str, dict] = {}
+        for dim in sorted({o.get("dim_id", "") for o in fam_outcomes}):
+            dim_outcomes = [o for o in fam_outcomes if o.get("dim_id") == dim]
+            dims[dim] = {
+                "bt": bradley_terry_scale(dim_outcomes, conditions=conditions),
+                "n_outcomes": len(dim_outcomes),
+            }
+        per_family[family["id"]] = {"dims": dims, "n_outcomes": len(fam_outcomes)}
+    report["g6"] = {
+        "families": [f["id"] for f in JUDGE_FAMILIES],
+        "passes": passes,
+        "attention_probes_resolved": probe_ok,
+        "attention_probes_total": len(controls),
+        "per_family": per_family,
+        "dry_run": dry_run,
+    }
+    (judge_out / "g6_report.json").write_text(
+        json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+    )
+    print(f"[g6] report: {judge_out / 'g6_report.json'}")
+    return report
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="G6 judge protocol v2 driver.")
+    parser.add_argument("--out", type=str, default="results/it3-g5-matrix",
+                        help="matrix out dir (cell DBs -> transcripts)")
+    parser.add_argument("--judge-out", type=str, default="results/it3-g6-judge")
+    parser.add_argument("--passes", type=int, default=JUDGE_PASSES)
+    parser.add_argument("--max-pairs", type=int, default=None)
+    parser.add_argument("--dry-run", action="store_true",
+                        help="use PairwiseFakeJudge (CI), no API")
+    args = parser.parse_args(argv)
+    report = run_g6(
+        Path(args.out), Path(args.judge_out),
+        passes=args.passes, max_pairs=args.max_pairs, dry_run=args.dry_run,
+    )
+    return 0 if report["g6"]["attention_probes_resolved"] else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())
