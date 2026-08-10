@@ -314,7 +314,10 @@ def test_reactive_turn_persists_snapshot_and_controls(tmp_path):
     assert payload[-1] == {"role": "user", "content": "how are you"}
     msgs = store.messages_for_day(0)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
-    assert all(m["session_id"] == "day-0" for m in msgs)
+    # it3 B2: messages are conversation-scoped (memory session id derived
+    # from the conversation id; see CONVERSATION_SESSION_OFFSET).
+    assert all(m["session_id"] == "day-1000" for m in msgs)
+    assert all(m["conversation_id"] == "conv-0" for m in msgs)
     store.close()
 
 
@@ -378,9 +381,24 @@ def test_proactive_without_intent_degrades_without_fabrication(tmp_path):
     store.close()
 
 
-def test_memory_session_boundary_closes_and_promotes(tmp_path):
-    """Day finalize closes the memory session: L2 summary persisted, L3
-    episodes promoted and L4 assertions consolidated (provenanced)."""
+def test_memory_session_boundary_closes_and_promotes(tmp_path, monkeypatch):
+    """Conversation close drives the memory session: L2 summary persisted,
+    L3 episodes promoted and L4 assertions consolidated (provenanced).
+
+    it3 B2: memory forms at the CONVERSATION boundary (one memory session
+    per conversation), not the day boundary. closing_tendency is forced to
+    1.0 so the first eligible draw (second companion turn) closes the
+    conversation deterministically; the summary is keyed by the
+    conversation's memory session id (day-1000 = conv-0's session)."""
+    from harness.domain import GenerationControls
+
+    def forced_controls(directive):
+        return GenerationControls(
+            max_tokens=300, response_delay_s=1.0, closing_tendency=1.0,
+            initiative_factor=1.0,
+        )
+
+    monkeypatch.setattr("harness.session.controls_from_directive", forced_controls)
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=19.0)
     client = FakeClient(responses=["lovely", "of course"])
@@ -396,9 +414,11 @@ def test_memory_session_boundary_closes_and_promotes(tmp_path):
     )
     session.on_message("My dog's name is Bruno.")
     session.on_message("thank you")
-    clock.advance_to_day(1)
-    session.ensure_day(1)
-    summary = store.load_session_summary("day-0")
+    # closing_tendency=1.0 closed the conversation at the second companion
+    # turn — the memory tail ran at the conversation boundary.
+    conv = store.load_conversation("conv-0")
+    assert conv is not None and conv.close_reason == "closing_tendency"
+    summary = store.load_session_summary("day-1000")
     assert summary is not None
     assert "Bruno" in summary.summary
     assert summary.source_turn_ids  # provenance: exact turn ids
