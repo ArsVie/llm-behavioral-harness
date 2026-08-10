@@ -139,6 +139,40 @@ CLAIMS: list[AblationClaim] = [
 # --------------------------------------------------------------------------- #
 
 
+def _merge_controls_stats(summaries: Sequence[dict]) -> dict:
+    """Funde los ``controls_stats`` de las células (semillas) en el de la
+    condición.
+
+    ``n`` suma; ``min``/``max`` toman los extremos; ``mean`` es media
+    ponderada por ``n``; ``varied`` = OR sobre las semillas (si algún run
+    varió el control, la condición lo varía). Los controles textuales
+    (``closing_guidance``) conservan ``min``/``max``/``mean`` = None.
+    """
+    merged: dict[str, dict] = {}
+    for s in summaries:
+        for name, st in (s.get("controls_stats") or {}).items():
+            m = merged.setdefault(name, {
+                "n": 0, "min": None, "max": None, "mean": None,
+                "varied": False,
+            })
+            m["n"] += int(st["n"])
+            m["varied"] = m["varied"] or bool(st["varied"])
+            if st["min"] is not None:
+                m["min"] = st["min"] if m["min"] is None else min(m["min"], st["min"])
+                m["max"] = st["max"] if m["max"] is None else max(m["max"], st["max"])
+    for name, m in merged.items():
+        num = 0.0
+        den = 0
+        for s in summaries:
+            st = (s.get("controls_stats") or {}).get(name)
+            if st and st["mean"] is not None:
+                num += st["mean"] * st["n"]
+                den += st["n"]
+        if den:
+            m["mean"] = round(num / den, 6)
+    return merged
+
+
 def _aggregate(summaries: Sequence[dict]) -> dict:
     """Agrega los resúmenes por célula (semillas) en el resumen por condición.
 
@@ -166,6 +200,7 @@ def _aggregate(summaries: Sequence[dict]) -> dict:
         "memory_lane": next(
             (s["memory_lane"] for s in summaries if s["memory_lane"]), None
         ),
+        "controls_stats": _merge_controls_stats(summaries),
         "per_seed": {str(s["seed"]): s for s in summaries},
     }
     total_len = sum(s["n_assistant_turns"] for s in summaries)
@@ -401,6 +436,15 @@ def _validator_failures(validator_report: dict) -> list[str]:
 # --------------------------------------------------------------------------- #
 
 
+def _fmt_num(value) -> str:
+    """Formatea un número para la tabla (None -> '-')."""
+    if value is None:
+        return "-"
+    if isinstance(value, float):
+        return f"{value:.4g}"
+    return str(value)
+
+
 def _fmt_table(report: dict) -> str:
     lines = [
         "=" * 78,
@@ -437,6 +481,20 @@ def _fmt_table(report: dict) -> str:
             lines.append(f"  !!! hard invariants failed for {cond}:")
             for msg in vf:
                 lines.append(f"      {msg}")
+    lines.append("")
+    lines.append("controls_stats per condition (n/min/max/mean/varied):")
+    for cond, agg in report["per_condition"].items():
+        cs = agg.get("controls_stats") or {}
+        if not cs:
+            lines.append(f"  {cond:26s} (no controls recorded)")
+            continue
+        for name, st in sorted(cs.items()):
+            lines.append(
+                f"  {cond:26s} {name:18s} n={st['n']:3d} "
+                f"min={_fmt_num(st['min']):>10s} "
+                f"max={_fmt_num(st['max']):>10s} "
+                f"mean={_fmt_num(st['mean']):>10s} varied={st['varied']}"
+            )
     if report["skipped_claims"]:
         lines.append("")
         lines.append(

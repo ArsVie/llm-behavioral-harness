@@ -110,6 +110,96 @@ class TestRecordsSummary:
         store.close()
 
 
+class TestControlsStats:
+    """Estadísticas de controles de generación por célula/condición (G2).
+
+    Sustrato de las claims de B4 (generation_controls): la afirmación
+    "actuator controls do not vary" debe leerse del resumen (varied=False
+    en NO_ACTUATORS), no de una expectativa hardcodeada del veredicto.
+    """
+
+    RECORDED_CONTROLS = (
+        "max_tokens", "response_delay_s", "closing_tendency",
+        "initiative_factor", "closing_guidance",
+    )
+
+    def test_full_cell_controls_stats_varied(self, tmp_path):
+        """FULL registra controls_stats con los 5 controles de
+        controls_by_message; max_tokens presente, numérico y VARIADO
+        (el mapeo actuado barre el rango — B4)."""
+        out = tmp_path / "cell"
+        records = run_cell("FULL", 5001, out, days=2, fake=True, perturb=True)
+        store = SQLiteStore(records["db"])
+        summary = records_summary(store, records)
+        store.close()
+        cs = summary["controls_stats"]
+        for key in self.RECORDED_CONTROLS:
+            assert key in cs, f"missing control key {key}"
+        mt = cs["max_tokens"]
+        assert mt["n"] >= 1
+        assert mt["min"] is not None
+        assert mt["max"] is not None
+        assert mt["mean"] is not None
+        assert mt["min"] <= mt["mean"] <= mt["max"]
+        assert mt["varied"] is True
+        # closing_guidance es textual: sin min/max/mean, varied sí se reporta
+        assert cs["closing_guidance"]["min"] is None
+        assert isinstance(cs["closing_guidance"]["varied"], bool)
+
+    def test_no_actuators_cell_controls_not_varied(self, tmp_path):
+        """NO_ACTUATORS (B4 null genuino: _flat_controls fija 600/5.0/0.5/
+        1.0/banda media) deja TODOS los controles en varied=False y los
+        numéricos colapsados a un punto (min == max == mean) — mientras la
+        lane de mensajes sigue viva (los mensajes ocurren y su longitud
+        varía: la ablación aplanó el actuador, no el flujo)."""
+        out = tmp_path / "cell"
+        records = run_cell("NO_ACTUATORS", 5001, out, days=2,
+                           fake=True, perturb=True)
+        store = SQLiteStore(records["db"])
+        summary = records_summary(store, records)
+        store.close()
+        cs = summary["controls_stats"]
+        assert cs, "NO_ACTUATORS cell must record per-message controls"
+        for name, st in cs.items():
+            assert name in self.RECORDED_CONTROLS
+            assert st["n"] >= 1
+            assert st["varied"] is False, (
+                f"{name} must be pinned (actuator controls do not vary)"
+            )
+            if st["min"] is not None:
+                assert st["min"] == st["max"] == st["mean"]
+        # lane de mensajes intacta: mensajes reales y longitudes que varían
+        assert summary["n_messages"] > 0
+        assert summary["std_reply_len"] > 0
+
+    def test_preflight_report_includes_controls_stats(self, tmp_path):
+        """El reporte JSON del pre-flight lleva controls_stats por condición
+        (y en FULL), con la firma de la claim B4 visible: FULL variado,
+        NO_ACTUATORS plano."""
+        report = run_preflight(
+            days=3, seeds=(5001,),
+            conditions=("FULL", "NO_ACTUATORS"),
+            out_dir=tmp_path,
+        )
+        for cond in ("FULL", "NO_ACTUATORS"):
+            agg = report["per_condition"][cond]
+            assert "controls_stats" in agg
+            assert "max_tokens" in agg["controls_stats"]
+            assert agg["controls_stats"]["max_tokens"]["n"] >= 1
+        assert "max_tokens" in report["full"]["controls_stats"]
+        assert (
+            report["per_condition"]["FULL"]["controls_stats"]
+            ["max_tokens"]["varied"] is True
+        )
+        assert (
+            report["per_condition"]["NO_ACTUATORS"]["controls_stats"]
+            ["max_tokens"]["varied"] is False
+        )
+        # serializable (el reporte se escribe a JSON en el driver)
+        import json
+        json.dumps(report)
+
+
 class TestPreflightGate:
     """La compuerta (Gate G2): veredictos por condición contra FULL."""
 
