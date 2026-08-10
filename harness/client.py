@@ -148,8 +148,27 @@ class OpenAICompatibleClient:
                 content = choice["message"]["content"]
                 finish_reason = choice.get("finish_reason")
             except (ValueError, KeyError, IndexError, TypeError) as exc:
+                # Malformed (p.ej. 200 sin 'content'): reintentable con el
+                # MISMO presupuesto acotado que los vacíos (it3 G5:
+                # opencode-go/luna devuelve ocasionalmente 200 sin content).
+                if attempt < self.max_retries:
+                    _logger.warning(
+                        "malformed LLM response (%s, attempt %d/%d) — retrying",
+                        exc, attempt + 1, self.max_retries + 1,
+                    )
+                    time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
+                    resp = self._post(payload)
+                    continue
                 raise RuntimeError(f"malformed LLM response: {exc}") from exc
             if content is None:
+                if attempt < self.max_retries:
+                    _logger.warning(
+                        "LLM response had null content (attempt %d/%d) — retrying",
+                        attempt + 1, self.max_retries + 1,
+                    )
+                    time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
+                    resp = self._post(payload)
+                    continue
                 raise RuntimeError("LLM response had null content")
             text = str(content)
             if not text.strip():
