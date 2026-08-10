@@ -34,6 +34,7 @@ from experiments.cvs_manifest import (
 )
 from experiments.cvs_preflight import CLAIMS, GATE_MIN_DIVERGENCE
 from experiments.cvs_common import DEFAULT_CHECKPOINT_DAYS
+from harness.scheduler import COUNT_DIVERGENCE_MIN, GAP_DIVERGENCE_MIN
 
 EXPERIMENT_NAME = "it3-perceptual-validity"
 SCHEMA_VERSION = "2.0"
@@ -74,8 +75,8 @@ THRESHOLD_SPLIT = {
     "gate_min_divergence": GATE_MIN_DIVERGENCE,
     "gate_role": "null-detector: channel not dormant; immune to post-hoc tuning",
     "hypothesis_thresholds": {
-        "count": THRESHOLDS.get("count_divergence_min", 0.15),
-        "gap": THRESHOLDS.get("gap_divergence_min", 0.10),
+        "count": COUNT_DIVERGENCE_MIN,
+        "gap": GAP_DIVERGENCE_MIN,
     },
     "hypothesis_role": (
         "effect-size claims, tested on the REAL matrix at G5; "

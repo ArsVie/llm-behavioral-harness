@@ -1,7 +1,7 @@
 {
   "experiment": "it3-perceptual-validity",
   "schema_version": "2.0",
-  "started_at": "2026-08-10T09:04:59.990251+00:00",
+  "started_at": "2026-08-10T09:07:11.133044+00:00",
   "based_on": "it2-companion-vertical-slice",
   "matrix": {
     "conditions": [
@@ -250,5 +250,5 @@
       }
     }
   },
-  "fingerprint": "75329a82420d4fda"
+  "fingerprint": "ca357fde3dd814e8"
 }
