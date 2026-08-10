@@ -544,11 +544,19 @@ class Session:
         store (each seeding logs a ``life_init`` event), i.e. the epoch
         counter for the next seeding. Derived from the store's persisted
         state (the audit log), so it survives arc wipes and is deterministic
-        across restarts."""
+        across restarts.
+
+        A ``life_wipe`` event (the NO_LIFE goldfish day-boundary wipe) also
+        counts as a generation boundary: the next seeding must be a FRESH id
+        namespace, never a reuse of the wiped generation's ids (A1 finding 2
+        mechanism, extended to per-day wipes). FULL never wipes, so its
+        epoch is unaffected.
+        """
         if not hasattr(self.store, "events_since"):
             return 0
         return sum(
-            1 for e in self.store.events_since(0) if e.get("event") == "life_init"
+            1 for e in self.store.events_since(0)
+            if e.get("event") in ("life_init", "life_wipe")
         )
 
     def _generate_agenda(self, day: int) -> None:

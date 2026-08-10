@@ -61,18 +61,62 @@ def _pct_div(cell_v: float, full_v: float) -> float:
     return abs(cell_v - full_v) / full_v
 
 
+def _goldfish_seed_ok(summary: dict) -> bool:
+    """Goldfish per seed: per-day arc id sets exist, each day's arcs > 0,
+    and CONSECUTIVE days share NO arc ids (arc identity dies at midnight).
+
+    The records carry ``arc_progress_by_day`` snapshots (arc ids + progress
+    per day), surfaced in the summary as ``life_arc_ids_by_day``; the
+    per-day id sets are the identity trace the ablation must destroy.
+    """
+    by_day = summary.get("life_arc_ids_by_day") or {}
+    days = sorted(int(d) for d in by_day)
+    if len(days) < 2:
+        return False
+    sets = [set(by_day[str(d)]) for d in days]
+    if any(not s for s in sets):
+        return False
+    return all(not (sets[i] & sets[i + 1]) for i in range(len(sets) - 1))
+
+
+def _persistent_seed_ok(summary: dict) -> bool:
+    """FULL side of the same mechanism: SOME arc id appears on >= 2 days
+    (identity survives midnight; FULL never wipes, so every day's arc ids
+    are a superset-ish of the previous day's — overlap is guaranteed)."""
+    by_day = summary.get("life_arc_ids_by_day") or {}
+    seen: set[str] = set()
+    for ids in by_day.values():
+        for aid in ids:
+            if aid in seen:
+                return True
+            seen.add(aid)
+    return False
+
+
+def _no_life_goldfish_check(cell: dict, full: dict) -> bool:
+    """NO_LIFE must be goldfish AND FULL must persist — the check
+    DISCRIMINATES (no tautology): if FULL ever stopped persisting arc ids
+    across days, or NO_LIFE ever carried an id over midnight, the claim
+    fails and the matrix blocks. Missing per-day data -> False (a null
+    ablation flagged loudly, never a silent pass)."""
+    per_seed = cell.get("per_seed") or {}
+    if not per_seed or not all(_goldfish_seed_ok(s) for s in per_seed.values()):
+        return False
+    full_seeds = (full.get("per_seed") or {}).values()
+    return bool(full_seeds) and all(_persistent_seed_ok(s) for s in full_seeds)
+
+
 CLAIMS: list[AblationClaim] = [
     AblationClaim(
         condition="NO_LIFE",
         channel="life_state",
         assertion=(
-            "life_state channel ablated: n_life_arcs or n_agenda_items "
-            "differ from FULL (aggregated over seeds)"
+            "life_state channel ablated (goldfish): life-arc IDENTITY does "
+            "not survive midnight — every seed shows non-empty per-day arc "
+            "id sets with consecutive days DISJOINT (fresh arcs, fresh "
+            "progress each day), while FULL persists arc ids across days"
         ),
-        check=lambda cell, full: (
-            cell["n_life_arcs"] != full["n_life_arcs"]
-            or cell["n_agenda_items"] != full["n_agenda_items"]
-        ),
+        check=_no_life_goldfish_check,
     ),
     AblationClaim(
         condition="STRUCTURED_NO_STATE",
@@ -201,6 +245,13 @@ def _aggregate(summaries: Sequence[dict]) -> dict:
             (s["memory_lane"] for s in summaries if s["memory_lane"]), None
         ),
         "controls_stats": _merge_controls_stats(summaries),
+        # Identity trace (NO_LIFE goldfish claim): per-day union of the
+        # seeds' arc id sets — NO_LIFE shows disjoint consecutive days,
+        # FULL shows persistent ids (visible in the report JSON).
+        "life_arc_ids_by_day": {
+            d: sorted(ids)
+            for d, ids in _union_arc_ids_by_day(summaries).items()
+        },
         "per_seed": {str(s["seed"]): s for s in summaries},
     }
     total_len = sum(s["n_assistant_turns"] for s in summaries)
@@ -239,6 +290,15 @@ def _aggregate(summaries: Sequence[dict]) -> dict:
         agg["mean_turns_per_conversation"] = None
         agg["conversations_available"] = False
     return agg
+
+
+def _union_arc_ids_by_day(summaries: Sequence[dict]) -> dict[str, set[str]]:
+    """Per-day union of the seeds' arc id sets (identity trace)."""
+    by_day: dict[str, set[str]] = {}
+    for s in summaries:
+        for d, aids in (s.get("life_arc_ids_by_day") or {}).items():
+            by_day.setdefault(d, set()).update(aids)
+    return by_day
 
 
 def _summary_diff(a: dict, b: dict) -> list[str]:

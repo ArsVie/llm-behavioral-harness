@@ -498,10 +498,44 @@ class RecordingSession(Session):
 
 
 class NoLifeSession(RecordingSession):
-    """NO_LIFE: sin arcos de vida persistentes (agenda sola, superficial)."""
+    """NO_LIFE (goldfish): arcs regenerate fresh each day.
 
-    def _ensure_life(self) -> None:
-        return None
+    The ablated variable is the cross-day PERSISTENCE of life-arc identity
+    and progress: at every day boundary the store's arcs are wiped and the
+    in-memory arc list cleared, so the next day's ``_ensure_life`` re-seeds
+    under a NEW epoch — fresh arc ids, fresh progress, zero carryover.
+    Arcs themselves exist EVERY day (count > 0): the agenda grounds to arcs
+    and proactive intents ground to agenda items, so a life-less condition
+    would fail hard invariants for a structural reason unrelated to the
+    hypothesis. Goldfish keeps every invariant valid while destroying
+    exactly the persistence variable.
+    """
+
+    def _rollover(self, day: int) -> None:
+        if day > 0:
+            self._wipe_life()
+        super()._rollover(day)
+
+    def _wipe_life(self) -> None:
+        """Wipe the store's arcs + the session's arc list at a day boundary.
+
+        The next ``_ensure_life`` (inside ``super()._rollover``) re-seeds
+        under ``epoch = prior life_init + life_wipe generations``, so the
+        new day's arc ids never collide with the wiped generation's.
+        """
+        n = 0
+        if hasattr(self.store, "list_life_arcs"):
+            n = len(self.store.list_life_arcs())
+        if hasattr(self.store, "wipe_life_arcs"):
+            self.store.wipe_life_arcs()
+        self._life_arcs = []
+        if hasattr(self.store, "log_event"):
+            self.store.log_event(
+                self.current_day if self.current_day is not None else 0,
+                self.clock.now_h(),
+                "life_wipe",
+                f"arcs={n} — goldfish day boundary: next day re-seeds fresh",
+            )
 
 
 class NoTimingFeedbackRuntime(AsyncRuntime):
@@ -1311,6 +1345,10 @@ def records_summary(store: SQLiteStore, records: dict) -> dict:
         "std_reply_len": round(std_len, 2),
         "n_life_arcs": len(store.list_life_arcs()),
         "n_agenda_items": len(store.list_agenda_items()),
+        "life_arc_ids_by_day": {
+            str(d): sorted(arcs_by_aid)
+            for d, arcs_by_aid in records.get("arc_progress_by_day", {}).items()
+        },
         "n_episodes": len(store.list_episodes(limit=5000)),
         "memory_lane": _memory_lane_for(records),
         "n_fired_schedule": _fired_schedule_count(store, int(records["seed"])),

@@ -4,9 +4,10 @@ Verifica el mecanismo de la compuerta barata: matriz completa × semillas en
 el cliente fake, veredictos por AblationClaim contra FULL, registro aditivo y
 el resumen por condición (hook records_summary). El veredicto es función del
 código actual — estos tests fijan el comportamiento de HOY (código actual:
-NO_LIFE/STRUCTURED_NO_STATE/NO_ACTUATORS son ablaciones nulas, F4) y se
-actualizan cuando B2/B4/B5 arreglan las condiciones (el orquestador mantiene
-el registro en G2).
+STRUCTURED_NO_STATE/NO_ACTUATORS son ablaciones nulas, F4; NO_LIFE es una
+ablación genuina — goldfish: arcos frescos cada día, identidad discontinua)
+y se actualizan cuando B4/B5 arreglan las condiciones (el orquestador
+mantiene el registro en G2).
 
 Nota sobre determinismo: el runner de células del harness entrega los feeds
 del usuario con polling de reloj real (``_run_segment``, cvs_common) y bajo
@@ -26,7 +27,12 @@ from harness.domain import AblationClaim
 
 from experiments.cvs_common import records_summary, run_cell
 from experiments.cvs_manifest import MATRIX_CONDITIONS, SEEDS
-from experiments.cvs_preflight import CLAIMS, evaluate_claims, run_preflight
+from experiments.cvs_preflight import (
+    CLAIMS,
+    _aggregate,
+    evaluate_claims,
+    run_preflight,
+)
 from harness.store import SQLiteStore
 
 ALLOWED_CHANNELS = {"timing", "memory_store", "generation_controls", "life_state"}
@@ -205,14 +211,17 @@ class TestPreflightGate:
 
     def test_preflight_flags_null_ablations_on_current_code(self, tmp_path):
         """Aceptación B8 #2: sobre el código ACTUAL el pre-flight marca
-        NO_LIFE, STRUCTURED_NO_STATE y NO_ACTUATORS como ablaciones nulas
-        (F4); RAW_HISTORY/SIMPLE_RAG NO se marcan (su lane de memoria
-        difiere por diseño). El veredicto es función del código, no una
-        expectativa hardcodeada."""
+        STRUCTURED_NO_STATE y NO_ACTUATORS como ablaciones nulas (F4,
+        placeholders B5/B4); NO_LIFE NO se marca (goldfish: identidad de
+        arcos discontinua entre días — ablación genuina desde it3 G2);
+        RAW_HISTORY/SIMPLE_RAG NO se marcan (su lane de memoria difiere por
+        diseño). El veredicto es función del código, no una expectativa
+        hardcodeada."""
         report = run_preflight(days=3, seeds=(5001,), out_dir=tmp_path)
         assert not report["ok"]
         flagged = set(report["null_ablations"])
-        assert {"NO_LIFE", "STRUCTURED_NO_STATE", "NO_ACTUATORS"} <= flagged
+        assert {"STRUCTURED_NO_STATE", "NO_ACTUATORS"} <= flagged
+        assert "NO_LIFE" not in flagged
         assert "RAW_HISTORY" not in flagged
         assert "SIMPLE_RAG" not in flagged
         for cond in MATRIX_CONDITIONS:
@@ -287,6 +296,68 @@ class TestPreflightGate:
         assert report["full"]["condition"] == "FULL"
 
 
+class TestNoLifeGoldfish:
+    """NO_LIFE (it3 G2): ablación goldfish — arcos frescos cada día.
+
+    La variable ablada es la PERSISTENCIA de identidad/progreso de arcos a
+    través de la medianoche: cada día re-siembra arcos con ids NUEVOS (epoch
+    creciente) y progreso inicial, con arcos presentes TODOS los días
+    (grounding de agenda intacto). FULL, en cambio, conserva los ids entre
+    días (progreso que avanza sobre el mismo arco).
+    """
+
+    def test_no_life_arcs_fresh_each_day_disjoint(self, tmp_path):
+        """2 días NO_LIFE: cada día tiene arcos (>0) y los conjuntos de ids
+        de días consecutivos son DISJUNTOS — nada cruza la medianoche."""
+        out = tmp_path / "cell"
+        records = run_cell("NO_LIFE", 5001, out, days=2, fake=True, perturb=True)
+        by_day = records["arc_progress_by_day"]
+        assert len(by_day) >= 2, "two-day cell must snapshot arcs both days"
+        day_ids = {int(d): set(by_day[d]) for d in by_day}
+        days = sorted(day_ids)
+        for d in days:
+            assert day_ids[d], f"day {d} must have life arcs (grounding intact)"
+        for a, b in zip(days, days[1:]):
+            shared = day_ids[a] & day_ids[b]
+            assert not shared, (
+                f"NO_LIFE arc ids must not survive midnight: day {a} and "
+                f"{b} share {shared}"
+            )
+
+    def test_full_arcs_persist_across_days(self, tmp_path):
+        """FULL (mismo mecanismo, lado positivo): algún id de arco aparece
+        en >= 2 días — la identidad sobrevive la medianoche."""
+        out = tmp_path / "cell"
+        records = run_cell("FULL", 5001, out, days=2, fake=True, perturb=True)
+        seen: set[str] = set()
+        overlap = False
+        for arcs in records["arc_progress_by_day"].values():
+            for aid in arcs:
+                if aid in seen:
+                    overlap = True
+                seen.add(aid)
+        assert overlap, "FULL must persist arc ids across days"
+
+    def test_no_life_claim_discriminates(self, tmp_path):
+        """La claim reescrita DISCRIMINA: pasa con una célula NO_LIFE
+        goldfish y FALLA con una célula FULL (no es tautología)."""
+        out = tmp_path / "cells"
+        cells: dict[str, dict] = {}
+        for cond in ("FULL", "NO_LIFE"):
+            records = run_cell(cond, 5001, out / cond, days=2,
+                               fake=True, perturb=True)
+            store = SQLiteStore(records["db"])
+            cells[cond] = _aggregate([records_summary(store, records)])
+            store.close()
+        no_life, full = cells["NO_LIFE"], cells["FULL"]
+        # goldfish cell -> claim passes
+        verdicts = evaluate_claims("NO_LIFE", no_life, full, CLAIMS)
+        assert verdicts and all(v["passed"] for v in verdicts), verdicts
+        # FULL cell -> the SAME claim fails (the check discriminates)
+        verdicts_full = evaluate_claims("NO_LIFE", full, full, CLAIMS)
+        assert verdicts_full and not any(v["passed"] for v in verdicts_full)
+
+
 class TestClaimsRegistry:
     """Registro de claims: lista plana, contrato congelado, aditivo."""
 
@@ -335,8 +406,8 @@ class TestClaimsRegistry:
         # La claim añadida que falla bloquea la matriz (mecanismo intacto).
         assert "FULL" in report["null_ablations"]
         assert not report["ok"]
-        # Las claims existentes siguen evaluándose (NO_LIFE sigue nula).
-        assert "NO_LIFE" in report["null_ablations"]
+        # Las claims existentes siguen evaluándose (NO_LIFE pasa — goldfish).
+        assert "NO_LIFE" not in report["null_ablations"]
 
     def test_claim_check_error_is_loud(self, tmp_path):
         """Una claim cuyo check lanza se reporta como error y bloquea."""
@@ -413,4 +484,6 @@ class TestDeterminismCheck:
             determinism_check=False,
         )
         assert "deterministic" in report
-        assert report["ok"] is False  # NO_LIFE sigue siendo ablación nula
+        # NO_LIFE ya no es ablación nula (goldfish desde it3 G2): con solo
+        # FULL+NO_LIFE en el run set, ninguna claim falla -> la compuerta abre.
+        assert report["ok"] is True

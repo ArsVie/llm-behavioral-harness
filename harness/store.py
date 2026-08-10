@@ -1120,6 +1120,18 @@ class SQLiteStore:
         )
         self.conn.commit()
 
+    def wipe_life_arcs(self) -> None:
+        """Delete every life-arc row (NO_LIFE goldfish day-boundary wipe).
+
+        The life layer re-seeds on the next ``Session._ensure_life`` under a
+        fresh epoch (``_life_epoch`` counts ``life_wipe`` as a generation
+        boundary), so a wiped generation's arc ids are never reused. Agenda
+        items are NOT touched: past days' items keep their (now-historical)
+        arc references — the content gate resolves missing arcs to None.
+        """
+        self.conn.execute("DELETE FROM life_arcs")
+        self.conn.commit()
+
     # -- agenda (A4) ---------------------------------------------------------
 
     def _row_to_agenda_item(self, row: dict) -> AgendaItem:
