@@ -12,10 +12,15 @@ El veredicto es una función del código, no una expectativa hardcodeada: las
 claims se evalúan contra los resúmenes reales de las células (hook
 ``records_summary`` de cvs_common).
 
-Registro de claims: lista plana de ``AblationClaim`` en la sección marcada de
-abajo. Aditivo por diseño — el orquestador APPENDEA en G2 las claims
-preregistradas de B4 (generation_controls) y B5 (timing) sin reestructurar
-nada. Los placeholders de esos canales están marcados y se sustituyen en G2.
+Registro de claims: lista plana de ``AblationClaim`` en la sección marcada
+de abajo. Aditivo por diseño. En G2 se sustituyeron los placeholders de los
+canales B4 (generation_controls) y B5 (timing) por las claims preregistradas
+que esos workstreams comprometieron (B4: set plano 600/5.0/0.5/banda media vs
+FULL no degenerado + margen de amplitud 3.0x en delay; B5:
+``harness.scheduler.structured_no_state_claim`` — divergencia de conteo >= 15%
+y de gaps >= 10%) y las claims de memoria (RAW_HISTORY/SIMPLE_RAG) ahora
+verifican CONDUCTA (evidencia recuperada no nula + conjunto recuperado
+distinto del de FULL), no la identidad configurada de la lane.
 
 Uso:
     python -m experiments.cvs_preflight [--days 3] [--seeds 5001,5002]
@@ -34,6 +39,7 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 from harness.domain import AblationClaim
+from harness.scheduler import structured_no_state_claim
 from experiments.cvs_common import records_summary, run_cell
 from experiments.cvs_manifest import MATRIX_CONDITIONS, SEEDS
 from experiments.validation.hard_invariants import (
@@ -48,9 +54,12 @@ DEFAULT_DAYS = 3
 # REGISTRO DE CLAIMS — sección ÚNICA (it3 B8 / G2)
 #
 # Mecanismo: lista plana de AblationClaim (contrato congelado). Aditivo: el
-# orquestador appendea en G2 las claims preregistradas de B4/B5 sin
-# reestructurar. Los placeholders de canal B4/B5 están marcados como
-# PLACEHOLDER y se sustituyen en G2 por las claims de sus reportes.
+# orquestador appendea sin reestructurar. En G2 los placeholders de canal
+# B4/B5 se sustituyeron por las claims preregistradas (B4: NO_ACTUATORS
+# plano vs FULL no degenerado con margen 3.0x en delay; B5:
+# structured_no_state_claim de harness/scheduler) y las claims de memoria
+# pasaron a ser conductuales (evidencia recuperada no nula + conjunto
+# recuperado distinto del de FULL).
 # --------------------------------------------------------------------------- #
 
 
@@ -106,6 +115,85 @@ def _no_life_goldfish_check(cell: dict, full: dict) -> bool:
     return bool(full_seeds) and all(_persistent_seed_ok(s) for s in full_seeds)
 
 
+def _b4_no_actuators_check(cell: dict, full: dict) -> bool:
+    """Claim preregistrada de B4 (merge f48683d) para NO_ACTUATORS.
+
+    Objetivo comprometido (reporte B4 §FROZEN TARGET RANGES, manifest-ready):
+    el mapeo actuado ampliado hace que FULL realice controles NO degenerados
+    (max_tokens y response_delay_s varían a lo largo de la banda congelada),
+    mientras que la célula ablacionada fija el set plano 600 / 5.0 s / 0.5 /
+    banda media (``_flat_controls``: todos los controles con varied=False).
+    Margen de amplitud preregistrado (``ab_margins.response_delay_s``: low
+    >= 3.0x high): el delay máximo realizado de FULL >= 3.0x el delay plano
+    de la célula.
+    """
+    cc = cell.get("controls_stats") or {}
+    fc = full.get("controls_stats") or {}
+    if not cc or not fc:
+        return False
+    c_flat = (
+        cc.get("max_tokens", {}).get("varied") is False
+        and cc.get("max_tokens", {}).get("min") == 600.0
+        and cc.get("response_delay_s", {}).get("varied") is False
+        and cc.get("response_delay_s", {}).get("min") == 5.0
+        and cc.get("closing_tendency", {}).get("varied") is False
+        and cc.get("closing_tendency", {}).get("min") == 0.5
+        and cc.get("closing_guidance", {}).get("varied") is False
+    )
+    f_varied = (
+        fc.get("max_tokens", {}).get("varied") is True
+        and fc.get("response_delay_s", {}).get("varied") is True
+    )
+    flat_delay = cc.get("response_delay_s", {}).get("min")
+    full_delay_max = fc.get("response_delay_s", {}).get("max")
+    delay_margin = (
+        flat_delay is not None and full_delay_max is not None
+        and full_delay_max >= 3.0 * flat_delay
+    )
+    return bool(c_flat and f_varied and delay_margin)
+
+
+def _memory_behavioral_check(cell: dict, full: dict) -> bool:
+    """Claim conductual de memoria (G2) para lanes de episodios (SIMPLE_RAG).
+
+    La lane debe haber RECUPERADO evidencia no nula (``n_retrieved > 0``
+    sobre las sondas de cadena enrutadas por lane) Y su conjunto recuperado
+    (ids de episodios que la lane devolvió de verdad) debe DIFERIR del de
+    FULL. Una lane cableada a nada devuelve conjunto vacío y falla la pata
+    de no-nulidad — el modo de fallo de it2 (SIMPLE_RAG con store poblado,
+    recuperación idéntica a FULL, AnyEvidence=0.0).
+    """
+    ce = cell.get("memory_evidence") or {}
+    fe = full.get("memory_evidence") or {}
+    if not ce or not fe:
+        return False
+    if int(ce.get("n_retrieved") or 0) <= 0:
+        return False
+    cell_ids = set(ce.get("retrieved_ids") or ())
+    full_ids = set(fe.get("retrieved_ids") or ())
+    return cell_ids != full_ids
+
+
+def _raw_history_behavioral_check(cell: dict, full: dict) -> bool:
+    """Claim conductual de memoria (G2) para RAW_HISTORY.
+
+    La lane debe haber RECUPERADO diálogo crudo no nulo (``context_turns >
+    0``: la ventana L1 con turnos que el ensamblador recibe de verdad) y su
+    recuperación debe diferir de la de FULL (ventana cruda sin ids de
+    episodio vs el conjunto de episodios recuperados por la lane
+    estructurada).
+    """
+    ce = cell.get("memory_evidence") or {}
+    fe = full.get("memory_evidence") or {}
+    if not ce or not fe:
+        return False
+    if int(ce.get("context_turns") or 0) <= 0:
+        return False
+    cell_ids = set(ce.get("retrieved_ids") or ())
+    full_ids = set(fe.get("retrieved_ids") or ())
+    return cell_ids != full_ids or ce.get("probe_lane") != fe.get("probe_lane")
+
+
 CLAIMS: list[AblationClaim] = [
     AblationClaim(
         condition="NO_LIFE",
@@ -118,30 +206,21 @@ CLAIMS: list[AblationClaim] = [
         ),
         check=_no_life_goldfish_check,
     ),
-    AblationClaim(
-        condition="STRUCTURED_NO_STATE",
-        channel="timing",
-        assertion=(
-            "PLACEHOLDER (G2: B5's preregistered claim replaces this): timing "
-            "channel ablated: n_proactive or fired schedule events differ "
-            "from FULL by >= 15% (aggregated over seeds)"
-        ),
-        check=lambda cell, full: (
-            _pct_div(cell["n_proactive"], full["n_proactive"]) >= 0.15
-            or _pct_div(cell["n_fired_schedule"], full["n_fired_schedule"]) >= 0.15
-        ),
-    ),
+    structured_no_state_claim(),  # B5 preregistered (merge f13a37f)
     AblationClaim(
         condition="NO_ACTUATORS",
         channel="generation_controls",
         assertion=(
-            "PLACEHOLDER (G2: B4's preregistered claim replaces this): "
-            "generation_controls channel ablated: mean assistant reply length "
-            "differs from FULL by >= 15%"
+            "generation_controls channel ablated (B4 preregistered, merge "
+            "f48683d): the cell's realized actuator controls are the pinned "
+            "flat set (max_tokens 600, response_delay_s 5.0 s, "
+            "closing_tendency 0.5, single closing_guidance — every control "
+            "varied=False) while FULL's realized controls are "
+            "non-degenerate (max_tokens and response_delay_s varied=True) "
+            "and FULL's realized delay max >= 3.0x the flat delay (B4 "
+            "ab_margins.response_delay_s: low >= 3.0x high)"
         ),
-        check=lambda cell, full: (
-            _pct_div(cell["mean_reply_len"], full["mean_reply_len"]) >= 0.15
-        ),
+        check=_b4_no_actuators_check,
     ),
     AblationClaim(
         condition="NO_TIMING_FEEDBACK",
@@ -160,21 +239,25 @@ CLAIMS: list[AblationClaim] = [
         condition="RAW_HISTORY",
         channel="memory_store",
         assertion=(
-            "memory_store channel ablated (per B6 lane routing): memory lane "
-            "identity differs from FULL (raw_history raw-dialogue lane vs "
-            "structured lane)"
+            "memory_store channel ablated (behavioral, G2): the lane "
+            "RETURNED non-zero raw-dialogue evidence (context_turns > 0 "
+            "across lane-routed chain probes) and its retrieval differs "
+            "from FULL's (raw window with no episode ids vs FULL's "
+            "non-empty retrieved-episode set)"
         ),
-        check=lambda cell, full: cell["memory_lane"] != full["memory_lane"],
+        check=_raw_history_behavioral_check,
     ),
     AblationClaim(
         condition="SIMPLE_RAG",
         channel="memory_store",
         assertion=(
-            "memory_store channel ablated (per B6 lane routing): memory lane "
-            "identity differs from FULL (simple_rag lexical top-k lane vs "
-            "structured policy lane)"
+            "memory_store channel ablated (behavioral, G2): the lane "
+            "RETURNED non-zero retrieved evidence (n_retrieved > 0 across "
+            "lane-routed chain probes) AND its retrieved-episode set "
+            "DIFFERS from FULL's (set-level comparison of what the lane "
+            "actually retrieved — not lane identity)"
         ),
-        check=lambda cell, full: cell["memory_lane"] != full["memory_lane"],
+        check=_memory_behavioral_check,
     ),
 ]
 
@@ -289,6 +372,14 @@ def _aggregate(summaries: Sequence[dict]) -> dict:
         agg["n_conversations"] = None
         agg["mean_turns_per_conversation"] = None
         agg["conversations_available"] = False
+    # Piernas de G2 (claims preregistradas B4/B5 + conductuales de memoria):
+    # horas proactivas pooled (pata de gaps de B5) y evidencia de
+    # recuperación fusionada (set de ids unión, turnos de contexto sumados,
+    # coberturas máximas).
+    agg["proactive_times"] = sorted(
+        t for s in summaries for t in (s.get("proactive_times") or ())
+    )
+    agg["memory_evidence"] = _merge_memory_evidence(summaries)
     return agg
 
 
@@ -299,6 +390,41 @@ def _union_arc_ids_by_day(summaries: Sequence[dict]) -> dict[str, set[str]]:
         for d, aids in (s.get("life_arc_ids_by_day") or {}).items():
             by_day.setdefault(d, set()).update(aids)
     return by_day
+
+
+def _merge_memory_evidence(summaries: Sequence[dict]) -> dict:
+    """Funde la ``memory_evidence`` de las células (semillas) en la de la
+    condición.
+
+    ``retrieved_ids`` es la unión ordenada (los ids viven por store de
+    semilla); ``context_turns`` suma; ``AnyEvidence``/``M3_recall`` toman
+    el máximo (basta que una semilla recupere/cubra para que la condición
+    lo haga). Degradación con gracia: células sin la pierna contribuyen
+    ceros.
+    """
+    merged: dict = {
+        "probe_lane": None,
+        "n_retrieved": 0,
+        "retrieved_ids": [],
+        "context_turns": 0,
+        "AnyEvidence": 0.0,
+        "M3_recall": 0.0,
+    }
+    for s in summaries:
+        ev = s.get("memory_evidence") or {}
+        merged["probe_lane"] = merged["probe_lane"] or ev.get("probe_lane")
+        merged["retrieved_ids"] = sorted(
+            set(merged["retrieved_ids"]) | set(ev.get("retrieved_ids") or ())
+        )
+        merged["context_turns"] += int(ev.get("context_turns") or 0)
+        merged["AnyEvidence"] = max(
+            merged["AnyEvidence"], float(ev.get("AnyEvidence") or 0.0)
+        )
+        merged["M3_recall"] = max(
+            merged["M3_recall"], float(ev.get("M3_recall") or 0.0)
+        )
+    merged["n_retrieved"] = len(merged["retrieved_ids"])
+    return merged
 
 
 def _summary_diff(a: dict, b: dict) -> list[str]:
