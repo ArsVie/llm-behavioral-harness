@@ -156,8 +156,11 @@ def compute(matrix_out: Path, g6_report: Path | None) -> dict:
     timing = timing_claim_on_real(summaries)
 
     g6 = None
-    if g6_report and Path(g6_report).exists():
-        g6 = json.loads(Path(g6_report).read_text(encoding="utf-8"))
+    if g6_report and Path(g6_report).exists() and Path(g6_report).is_file():
+        try:
+            g6 = json.loads(Path(g6_report).read_text(encoding="utf-8"))
+        except (json.JSONDecodeError, OSError):
+            g6 = None
 
     chains = {"chains": [c["id"] for c in EVENT_CHAINS],
               "note": "CompleteChain por lane se computa con las cadenas de eventos del manifiesto (ítem 5 — pendiente del juez real)"}
