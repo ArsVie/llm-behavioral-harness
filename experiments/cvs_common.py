@@ -1284,6 +1284,18 @@ def records_summary(store: SQLiteStore, records: dict) -> dict:
     ``mean_turns_per_conversation`` son None mientras el seam de B2 no
     exista (degradación documentada, no silenciosa:
     ``conversations_available=False``).
+
+    Piernas aditivas de G2 (claims preregistradas de B4/B5 + claims
+    conductuales de memoria):
+    - ``controls_stats`` (leg de reporte, wip/it3-g2-controls): estadísticas
+      por control de generación.
+    - ``proactive_times``: horas absolutas de los mensajes proactivos
+      (ascendente) — la pata de gaps del claim de B5
+      (``structured_no_state_timing_check``).
+    - ``memory_evidence``: lo que la lane de memoria de la condición
+      RECUPERÓ de verdad (ids de episodios / turnos de contexto crudo) en
+      las sondas enrutadas por lane (B6) — el sustrato conductual de las
+      claims de memoria (no la identidad configurada de la lane).
     """
     msgs = _all_messages(store)
     assistant = [m for m in msgs if m["role"] == "assistant"]
@@ -1317,7 +1329,57 @@ def records_summary(store: SQLiteStore, records: dict) -> dict:
         "controls_stats": _controls_stats(records),
     }
     summary.update(_conversation_summary(store))
+    summary["proactive_times"] = _proactive_times(msgs)
+    summary["memory_evidence"] = _memory_evidence(store, records)
     return summary
+
+
+def _proactive_times(msgs: Sequence[dict]) -> list[float]:
+    """Horas absolutas de los mensajes proactivos (ascendente).
+
+    La pata de gaps del claim de B5 (``structured_no_state_timing_check``
+    lee ``proactive_times``); el pre-flight las agrupa por condición
+    (pooled) antes de evaluar la claim.
+    """
+    return sorted(float(m["t_h"]) for m in msgs if m["proactive"])
+
+
+def _memory_evidence(store: SQLiteStore, records: dict) -> dict:
+    """Evidencia de recuperación REAL de la lane de la condición (B6/G2).
+
+    Sondas de cadena (§17.2) y de recuerdo (M3) enrutadas por la lane de la
+    condición (``event_chain_metrics`` / ``recall_probe_metrics``): lo que
+    la lane devolvió de verdad — ids de episodios recuperados
+    (``retrieved_ids``), turnos del contexto crudo (``context_turns`` para
+    RAW_HISTORY, cuya lane no hace retrieval rankeado) y coberturas
+    (``AnyEvidence``, ``M3_recall``). NO es la identidad configurada de la
+    lane (``memory_lane``): una lane cableada a nada devuelve conjunto
+    vacío y es detectable.
+    """
+    condition = records.get("condition", "FULL")
+    chains = event_chain_metrics(store, condition=condition)
+    agg = aggregate_chain_metrics(chains)
+    recall = recall_probe_metrics(store, condition=condition)
+    retrieved_ids = sorted({
+        eid for cls in chains.values() for eid in (cls.get("retrieved_ids") or ())
+    })
+    context_turns = sum(
+        int(cls.get("context_turns") or 0) for cls in chains.values()
+    ) + sum(
+        int(d.get("context_turns") or 0) for d in (recall.get("detail") or ())
+    )
+    return {
+        "probe_lane": next(
+            (cls.get("probe_lane") for cls in chains.values()
+             if cls.get("probe_lane")),
+            "episode_retrieval",
+        ),
+        "n_retrieved": len(retrieved_ids),
+        "retrieved_ids": retrieved_ids,
+        "context_turns": context_turns,
+        "AnyEvidence": agg["AnyEvidence"],
+        "M3_recall": recall["M3_recall"],
+    }
 
 
 def _enrich_repro_rows(store: SQLiteStore, client, seed: int, condition: str,

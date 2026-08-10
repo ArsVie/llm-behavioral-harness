@@ -204,17 +204,25 @@ class TestPreflightGate:
     """La compuerta (Gate G2): veredictos por condición contra FULL."""
 
     def test_preflight_flags_null_ablations_on_current_code(self, tmp_path):
-        """Aceptación B8 #2: sobre el código ACTUAL el pre-flight marca
-        NO_LIFE, STRUCTURED_NO_STATE y NO_ACTUATORS como ablaciones nulas
-        (F4); RAW_HISTORY/SIMPLE_RAG NO se marcan (su lane de memoria
-        difiere por diseño). El veredicto es función del código, no una
-        expectativa hardcodeada."""
+        """Aceptación B8 #2 (registro G2 actualizado): sobre el código ACTUAL
+        el pre-flight marca como ablaciones nulas NO_LIFE (claim intacta,
+        aún nula) y STRUCTURED_NO_STATE (la claim preregistrada de B5 exige
+        >= 15% de divergencia de conteo y en 3 días el conteo es idéntico a
+        FULL — la compuerta reporta el objetivo comprometido, no un
+        heurístico). SIMPLE_RAG queda marcada porque su claim es ahora
+        CONDUCTUAL: en 3 días su conjunto recuperado es idéntico al de FULL
+        (store < límite de recuperación) — el hallazgo honesto de la
+        comparación de conjuntos, no la identidad de lane. NO_ACTUATORS y
+        RAW_HISTORY NO se marcan (B4 y la conducta de la lane cruda las
+        verifican). El veredicto es función del código, no una expectativa
+        hardcodeada."""
         report = run_preflight(days=3, seeds=(5001,), out_dir=tmp_path)
         assert not report["ok"]
         flagged = set(report["null_ablations"])
-        assert {"NO_LIFE", "STRUCTURED_NO_STATE", "NO_ACTUATORS"} <= flagged
+        assert {"NO_LIFE", "STRUCTURED_NO_STATE", "SIMPLE_RAG"} <= flagged
+        assert "NO_ACTUATORS" not in flagged
         assert "RAW_HISTORY" not in flagged
-        assert "SIMPLE_RAG" not in flagged
+        assert report["claim_errors"] == []
         for cond in MATRIX_CONDITIONS:
             assert cond in report["per_condition"]
 
@@ -414,3 +422,188 @@ class TestDeterminismCheck:
         )
         assert "deterministic" in report
         assert report["ok"] is False  # NO_LIFE sigue siendo ablación nula
+
+
+class TestPreregisteredClaimsG2:
+    """Claims de G2: objetivos preregistrados de B4/B5 + conducta de memoria.
+
+    Cada claim sustituida DISCRIMINA: pasa para la célula de su condición
+    (resúmenes sintéticos construidos conforme al objetivo comprometido) y
+    falla para una célula FULL (sin tautología). Las claims de memoria
+    fallan para la lane degenerada (el escenario SIMPLE_RAG-cero de it2:
+    store poblado, recuperación vacía/idéntica a FULL).
+    """
+
+    @staticmethod
+    def _flat_controls_stats() -> dict:
+        """NO_ACTUATORS: set plano pinnado 600 / 5.0 / 0.5 / banda media."""
+        return {
+            "max_tokens": {"n": 30, "min": 600.0, "max": 600.0, "mean": 600.0,
+                           "varied": False},
+            "response_delay_s": {"n": 30, "min": 5.0, "max": 5.0, "mean": 5.0,
+                                 "varied": False},
+            "closing_tendency": {"n": 30, "min": 0.5, "max": 0.5, "mean": 0.5,
+                                 "varied": False},
+            "initiative_factor": {"n": 30, "min": 1.0, "max": 1.0, "mean": 1.0,
+                                  "varied": False},
+            "closing_guidance": {"n": 30, "min": None, "max": None, "mean": None,
+                                 "varied": False},
+        }
+
+    @staticmethod
+    def _full_controls_stats() -> dict:
+        """FULL: mapeo ampliado de B4 — controles no degenerados sobre la
+        banda congelada (delay max 27.0 s >= 3.0x el delay plano 5.0 s)."""
+        return {
+            "max_tokens": {"n": 30, "min": 380.0, "max": 625.0, "mean": 500.0,
+                           "varied": True},
+            "response_delay_s": {"n": 30, "min": 8.5, "max": 27.0, "mean": 15.0,
+                                 "varied": True},
+            "closing_tendency": {"n": 30, "min": 0.25, "max": 0.8, "mean": 0.5,
+                                 "varied": True},
+            "initiative_factor": {"n": 30, "min": 0.7, "max": 1.3, "mean": 1.0,
+                                  "varied": True},
+            "closing_guidance": {"n": 30, "min": None, "max": None, "mean": None,
+                                 "varied": True},
+        }
+
+    @staticmethod
+    def _memory_evidence(ids: list[str], *, lane: str = "episode_retrieval",
+                         ctx: int = 0) -> dict:
+        return {
+            "probe_lane": lane,
+            "n_retrieved": len(ids),
+            "retrieved_ids": sorted(ids),
+            "context_turns": ctx,
+            "AnyEvidence": 0.5,
+            "M3_recall": 0.25,
+        }
+
+    def _summary(self, *, controls: dict | None = None,
+                 evidence: dict | None = None, n_proactive: int = 5,
+                 proactive_times: list[float] | None = None) -> dict:
+        base = {
+            "n_proactive": n_proactive,
+            "n_fired_schedule": 5,
+            "mean_reply_len": 30.0,
+            "n_life_arcs": 2,
+            "n_agenda_items": 14,
+            "memory_lane": "x",
+            "controls_stats": controls or self._full_controls_stats(),
+            "memory_evidence": evidence or self._memory_evidence(["ep-a"]),
+            "proactive_times": proactive_times or [10.0, 20.0, 30.0, 40.0],
+        }
+        return base
+
+    def _verdict(self, condition: str, cell: dict, full: dict) -> list[dict]:
+        return [v for v in evaluate_claims(condition, cell, full, CLAIMS)
+                if v["condition"] == condition]
+
+    def test_b4_no_actuators_claim_discriminates(self):
+        """NO_ACTUATORS (B4): la célula plana pasa contra FULL no degenerado;
+        una célula FULL contra sí misma falla (sin tautología); el margen de
+        amplitud 3.0x en delay es vinculante."""
+        cell = self._summary(controls=self._flat_controls_stats())
+        full = self._summary(controls=self._full_controls_stats())
+        verdicts = self._verdict("NO_ACTUATORS", cell, full)
+        assert verdicts and all(v["passed"] for v in verdicts)
+        # Sin tautología: FULL vs FULL falla.
+        verdicts_full = self._verdict("NO_ACTUATORS", full, full)
+        assert verdicts_full and all(not v["passed"] for v in verdicts_full)
+        # Margen de amplitud vinculante: FULL con delay max < 3.0x el plano
+        # (5.0 s) no sustenta la claim aunque la célula sea plana.
+        full_weak = self._summary(controls={
+            **self._full_controls_stats(),
+            "response_delay_s": {"n": 30, "min": 4.0, "max": 12.0,
+                                 "mean": 8.0, "varied": True},
+        })
+        verdicts_weak = self._verdict("NO_ACTUATORS", cell, full_weak)
+        assert verdicts_weak and all(not v["passed"] for v in verdicts_weak)
+
+    def test_b5_structured_no_state_claim_discriminates(self):
+        """STRUCTURED_NO_STATE (B5, structured_no_state_claim): divergencia
+        de conteo >= 15% Y de gaps >= 10% (cuando hay >= 4 horas por lado);
+        sin divergencia o con gaps parejos la claim falla."""
+        cell = self._summary(n_proactive=12, proactive_times=[10.0, 30.0, 50.0, 70.0])
+        full = self._summary(n_proactive=8, proactive_times=[10.0, 20.0, 30.0, 40.0])
+        verdicts = self._verdict("STRUCTURED_NO_STATE", cell, full)
+        assert verdicts and all(v["passed"] for v in verdicts)
+        # Sin tautología: idénticos falla.
+        same = self._summary(n_proactive=8, proactive_times=[10.0, 20.0, 30.0, 40.0])
+        verdicts_same = self._verdict("STRUCTURED_NO_STATE", same, full)
+        assert verdicts_same and all(not v["passed"] for v in verdicts_same)
+        # Pata de gaps vinculante: conteo diverge >= 15% (8 vs 6) pero los
+        # gaps medios difieren < 10% -> la claim falla (ambas patas son
+        # preregistradas).
+        close_gaps = self._summary(n_proactive=8, proactive_times=[10.0, 22.0, 34.0, 46.0])
+        gap_full = self._summary(n_proactive=6, proactive_times=[10.0, 21.0, 32.0, 43.0])
+        verdicts_gap = self._verdict("STRUCTURED_NO_STATE", close_gaps, gap_full)
+        assert verdicts_gap and all(not v["passed"] for v in verdicts_gap)
+        # Pocas horas (sin la pata de gaps): el conteo decide solo.
+        sparse = self._summary(n_proactive=6, proactive_times=[10.0, 30.0, 50.0])
+        sparse_full = self._summary(n_proactive=4, proactive_times=[10.0, 20.0, 30.0])
+        verdicts_sparse = self._verdict("STRUCTURED_NO_STATE", sparse, sparse_full)
+        assert verdicts_sparse and all(v["passed"] for v in verdicts_sparse)
+
+    def test_simple_rag_claim_fails_on_degenerate_lane(self):
+        """Escenario SIMPLE_RAG-cero de it2: lane que NO recupera nada
+        (n_retrieved=0) -> la claim conductual falla aunque la lane
+        configurada sea 'simple_rag'."""
+        full = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
+        dead = self._summary(evidence=self._memory_evidence([]))
+        verdicts = self._verdict("SIMPLE_RAG", dead, full)
+        assert verdicts and all(not v["passed"] for v in verdicts)
+
+    def test_simple_rag_claim_passes_on_real_retrieval(self):
+        """SIMPLE_RAG con recuperación real: evidencia no nula Y conjunto
+        recuperado distinto del de FULL -> pasa."""
+        cell = self._summary(evidence=self._memory_evidence(["ep-x", "ep-y"]))
+        full = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
+        verdicts = self._verdict("SIMPLE_RAG", cell, full)
+        assert verdicts and all(v["passed"] for v in verdicts)
+        # Conjunto idéntico al de FULL (artefacto de horizonte con store
+        # pequeño): la claim falla — la comparación es de conjuntos.
+        same = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
+        verdicts_same = self._verdict("SIMPLE_RAG", same, full)
+        assert verdicts_same and all(not v["passed"] for v in verdicts_same)
+        # Sin tautología: FULL vs FULL falla.
+        verdicts_full = self._verdict("SIMPLE_RAG", full, full)
+        assert verdicts_full and all(not v["passed"] for v in verdicts_full)
+
+    def test_raw_history_claim_discriminates(self):
+        """RAW_HISTORY: ventana cruda no nula (context_turns > 0) y sin ids
+        de episodio vs el conjunto de FULL -> pasa; sin ventana o lane
+        estructurada -> falla."""
+        cell = self._summary(
+            evidence=self._memory_evidence([], lane="raw_history", ctx=36)
+        )
+        full = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
+        verdicts = self._verdict("RAW_HISTORY", cell, full)
+        assert verdicts and all(v["passed"] for v in verdicts)
+        # Ventana vacía (lane que no entrega diálogo): falla.
+        dead = self._summary(
+            evidence=self._memory_evidence([], lane="raw_history", ctx=0)
+        )
+        verdicts_dead = self._verdict("RAW_HISTORY", dead, full)
+        assert verdicts_dead and all(not v["passed"] for v in verdicts_dead)
+        # Sin tautología: FULL vs FULL falla.
+        verdicts_full = self._verdict("RAW_HISTORY", full, full)
+        assert verdicts_full and all(not v["passed"] for v in verdicts_full)
+
+    def test_records_summary_wires_behavioral_legs_to_real_store(self, tmp_path):
+        """Las piernas conductuales salen del store REAL: proactive_times
+        alinea con los mensajes proactivos y memory_evidence con la
+        recuperación de la lane (n_retrieved > 0 en una célula FULL real)."""
+        out = tmp_path / "cell"
+        records = run_cell("FULL", 5001, out, days=2, fake=True, perturb=True)
+        store = SQLiteStore(records["db"])
+        summary = records_summary(store, records)
+        msgs = store.conn.execute("SELECT * FROM messages").fetchall()
+        n_pro = sum(1 for m in msgs if m["proactive"])
+        assert len(summary["proactive_times"]) == n_pro
+        assert summary["proactive_times"] == sorted(summary["proactive_times"])
+        ev = summary["memory_evidence"]
+        assert ev["probe_lane"] == "episode_retrieval"
+        assert ev["n_retrieved"] >= 1
+        assert ev["retrieved_ids"]
+        store.close()
