@@ -535,12 +535,12 @@ def _seed_conversation_tables(store: SQLiteStore) -> None:
     """Crea el seam de conversaciones de B2 (tablas conversations +
     conversation_turns) para ejercitar la invariante de coherencia."""
     store.conn.execute(
-        "CREATE TABLE conversations ("
+        "CREATE TABLE IF NOT EXISTS conversations ("
         " id TEXT PRIMARY KEY, opened_t_h REAL, closed_t_h REAL,"
         " opened_by TEXT, close_reason TEXT)"
     )
     store.conn.execute(
-        "CREATE TABLE conversation_turns ("
+        "CREATE TABLE IF NOT EXISTS conversation_turns ("
         " id INTEGER PRIMARY KEY AUTOINCREMENT, conversation_id TEXT,"
         " speaker TEXT, text TEXT, t_h REAL, turn_index INTEGER)"
     )
@@ -683,9 +683,9 @@ class TestHardInvariants:
         store.add_message("assistant", "r0", 0.1, 0)
         violations, available = conversation_coherence(store)
         assert violations == []
-        assert available is False
+        assert available is True
         result = check_hard_invariants(store)
-        assert result["conversation_coherence"]["available"] is False
+        assert result["conversation_coherence"]["available"] is True
         assert result["conversation_coherence"]["ok"] is True
 
     def test_conversation_coherence_zero_companion_turns(self, tmp_path):
@@ -715,13 +715,15 @@ class TestHardInvariants:
         """Respaldo documentado: columna messages.conversation_id."""
         store = _store(tmp_path)
         store.conn.execute(
-            "CREATE TABLE conversations ("
+            "CREATE TABLE IF NOT EXISTS conversations ("
             " id TEXT PRIMARY KEY, opened_t_h REAL, closed_t_h REAL,"
             " opened_by TEXT, close_reason TEXT)"
         )
-        store.conn.execute(
-            "ALTER TABLE messages ADD COLUMN conversation_id TEXT"
-        )
+        cols = {r[1] for r in store.conn.execute("PRAGMA table_info(messages)")}
+        if "conversation_id" not in cols:
+            store.conn.execute(
+                "ALTER TABLE messages ADD COLUMN conversation_id TEXT"
+            )
         store.conn.commit()
         store.conn.execute(
             "INSERT INTO conversations (id, opened_t_h, opened_by) "
@@ -731,6 +733,11 @@ class TestHardInvariants:
         store.conn.execute(
             "UPDATE messages SET conversation_id='c1' WHERE role='user'"
         )
+        # Con la v4 la tabla conversation_turns SIEMPRE existe (la crea la
+        # migración): el fallback documentado (columna messages.conversation_id)
+        # solo es alcanzable si la tabla de turnos no está — forzarlo a
+        # propósito para ejercitar la rama de respaldo.
+        store.conn.execute("DROP TABLE IF EXISTS conversation_turns")
         store.conn.commit()
         violations, available = conversation_coherence(store)
         assert available is True
