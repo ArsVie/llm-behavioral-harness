@@ -1,0 +1,3668 @@
+{
+  "condition": "SIMPLE_RAG",
+  "seed": 5001,
+  "days": 30,
+  "checkpoints": [
+    168,
+    336,
+    504,
+    624,
+    696
+  ],
+  "fake": false,
+  "perturb": true,
+  "db": "results/it3-g5-matrix/simple_rag/seed5001/cell_simple_rag_seed5001.db",
+  "n_messages": 336,
+  "n_proactive": 48,
+  "controls_by_message": {
+    "1": {
+      "max_tokens": 555,
+      "response_delay_s": 12.744998476357866,
+      "closing_tendency": 0.5303420651673122,
+      "initiative_factor": 0.8196318773966579,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "3": {
+      "max_tokens": 447,
+      "response_delay_s": 19.241219071526057,
+      "closing_tendency": 0.7012952387243699,
+      "initiative_factor": 0.7197694105224341,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "5": {
+      "max_tokens": 443,
+      "response_delay_s": 19.47093524802461,
+      "closing_tendency": 0.7073404012638056,
+      "initiative_factor": 0.7164701417409738,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "7": {
+      "max_tokens": 440,
+      "response_delay_s": 19.613500012254836,
+      "closing_tendency": 0.7110921055856536,
+      "initiative_factor": 0.7144301834480505,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "9": {
+      "max_tokens": 432,
+      "response_delay_s": 20.145955925639804,
+      "closing_tendency": 0.7251041033063107,
+      "initiative_factor": 0.7068624980358198,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "11": {
+      "max_tokens": 429,
+      "response_delay_s": 20.27311864203389,
+      "closing_tendency": 0.7284504905798392,
+      "initiative_factor": 0.7050670510354172,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "12": {
+      "max_tokens": 625,
+      "response_delay_s": 12.324676609268503,
+      "closing_tendency": 0.34328096340180264,
+      "initiative_factor": 0.868578396947623,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "14": {
+      "max_tokens": 510,
+      "response_delay_s": 19.241219071526057,
+      "closing_tendency": 0.5252952387243699,
+      "initiative_factor": 0.7563672203348261,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "16": {
+      "max_tokens": 506,
+      "response_delay_s": 19.482269043368905,
+      "closing_tendency": 0.5316386590360238,
+      "initiative_factor": 0.7527295500403246,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "18": {
+      "max_tokens": 497,
+      "response_delay_s": 20.036874130720193,
+      "closing_tendency": 0.5462335297557945,
+      "initiative_factor": 0.7444263324821063,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "20": {
+      "max_tokens": 487,
+      "response_delay_s": 20.623166697393863,
+      "closing_tendency": 0.5616622815103648,
+      "initiative_factor": 0.7357482781985162,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "22": {
+      "max_tokens": 480,
+      "response_delay_s": 21.03649034882768,
+      "closing_tendency": 0.5725392197059916,
+      "initiative_factor": 0.7296913042982733,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "23": {
+      "max_tokens": 380,
+      "response_delay_s": 27.071073615383487,
+      "closing_tendency": 0.7313440425100918,
+      "initiative_factor": 0.6467306543707926,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "25": {
+      "max_tokens": 421,
+      "response_delay_s": 22.241219071526057,
+      "closing_tendency": 0.6132952387243699,
+      "initiative_factor": 0.6329818819078384,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "27": {
+      "max_tokens": 413,
+      "response_delay_s": 22.724838937231294,
+      "closing_tendency": 0.6260220772955604,
+      "initiative_factor": 0.6268889438145518,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "29": {
+      "max_tokens": 410,
+      "response_delay_s": 22.939436307583733,
+      "closing_tendency": 0.6316693765153614,
+      "initiative_factor": 0.6242041350879277,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "31": {
+      "max_tokens": 403,
+      "response_delay_s": 23.316746190417643,
+      "closing_tendency": 0.641598583958359,
+      "initiative_factor": 0.6195114953684142,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "32": {
+      "max_tokens": 536,
+      "response_delay_s": 16.130893571857868,
+      "closing_tendency": 0.4434445676804702,
+      "initiative_factor": 0.7879867532159816,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "34": {
+      "max_tokens": 485,
+      "response_delay_s": 19.241219071526057,
+      "closing_tendency": 0.5252952387243699,
+      "initiative_factor": 0.7404623357036368,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "36": {
+      "max_tokens": 477,
+      "response_delay_s": 19.724838937231294,
+      "closing_tendency": 0.5380220772955604,
+      "initiative_factor": 0.7333348154683744,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "38": {
+      "max_tokens": 463,
+      "response_delay_s": 20.56580817263509,
+      "closing_tendency": 0.5601528466482919,
+      "initiative_factor": 0.7211037231489303,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "40": {
+      "max_tokens": 449,
+      "response_delay_s": 21.41909922852502,
+      "closing_tendency": 0.5826078744348689,
+      "initiative_factor": 0.7089019091288589,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "42": {
+      "max_tokens": 442,
+      "response_delay_s": 21.815160553011886,
+      "closing_tendency": 0.5930305408687339,
+      "initiative_factor": 0.7033087182592339,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "43": {
+      "max_tokens": 449,
+      "response_delay_s": 20.057027891469723,
+      "closing_tendency": 0.5381323129334137,
+      "initiative_factor": 0.6741570311600811,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "44": {
+      "max_tokens": 546,
+      "response_delay_s": 14.222226379450035,
+      "closing_tendency": 0.3845849047223693,
+      "initiative_factor": 0.7576026940768529,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "46": {
+      "max_tokens": 429,
+      "response_delay_s": 21.241219071526057,
+      "closing_tendency": 0.5692952387243699,
+      "initiative_factor": 0.6583780063368072,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "48": {
+      "max_tokens": 421,
+      "response_delay_s": 21.724838937231294,
+      "closing_tendency": 0.5820220772955604,
+      "initiative_factor": 0.6520406109875108,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "50": {
+      "max_tokens": 418,
+      "response_delay_s": 21.91547326199534,
+      "closing_tendency": 0.587038770052509,
+      "initiative_factor": 0.6495593177580095,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "52": {
+      "max_tokens": 409,
+      "response_delay_s": 22.45909218406334,
+      "closing_tendency": 0.6013445311595617,
+      "initiative_factor": 0.6425353160290399,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "53": {
+      "max_tokens": 497,
+      "response_delay_s": 16.566307627240395,
+      "closing_tendency": 0.5165870428221156,
+      "initiative_factor": 0.7418797974419437,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "55": {
+      "max_tokens": 436,
+      "response_delay_s": 20.241219071526057,
+      "closing_tendency": 0.6132952387243699,
+      "initiative_factor": 0.6893085564789518,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "57": {
+      "max_tokens": 432,
+      "response_delay_s": 20.482269043368888,
+      "closing_tendency": 0.6196386590360233,
+      "initiative_factor": 0.6859933979260217,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "59": {
+      "max_tokens": 429,
+      "response_delay_s": 20.6301528948947,
+      "closing_tendency": 0.6235303393393342,
+      "initiative_factor": 0.683967448538766,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "61": {
+      "max_tokens": 415,
+      "response_delay_s": 21.468991985853858,
+      "closing_tendency": 0.6456050522593121,
+      "initiative_factor": 0.6725883947295827,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "62": {
+      "max_tokens": 636,
+      "response_delay_s": 10.63712717501457,
+      "closing_tendency": 0.29887176776354124,
+      "initiative_factor": 0.9808366388441819,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "63": {
+      "max_tokens": 633,
+      "response_delay_s": 10.842244246253891,
+      "closing_tendency": 0.3042695854277339,
+      "initiative_factor": 0.9768211541457624,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "65": {
+      "max_tokens": 597,
+      "response_delay_s": 12.993548582186722,
+      "closing_tendency": 0.3608828574259663,
+      "initiative_factor": 0.9356837003788282,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "67": {
+      "max_tokens": 594,
+      "response_delay_s": 13.211177521754065,
+      "closing_tendency": 0.3666099347830017,
+      "initiative_factor": 0.9316199137405989,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "69": {
+      "max_tokens": 587,
+      "response_delay_s": 13.591762028790612,
+      "closing_tendency": 0.37662531654712134,
+      "initiative_factor": 0.9245556313001707,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "71": {
+      "max_tokens": 581,
+      "response_delay_s": 13.975465250518026,
+      "closing_tendency": 0.3867227697504743,
+      "initiative_factor": 0.9174876864310717,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "72": {
+      "max_tokens": 534,
+      "response_delay_s": 16.781209947318015,
+      "closing_tendency": 0.4605581565083688,
+      "initiative_factor": 0.8674208470973589,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "73": {
+      "max_tokens": 593,
+      "response_delay_s": 10.10160560085925,
+      "closing_tendency": 0.2847790947594539,
+      "initiative_factor": 1.2190540552054885,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "75": {
+      "max_tokens": 545,
+      "response_delay_s": 12.993548582186722,
+      "closing_tendency": 0.3608828574259663,
+      "initiative_factor": 1.1505456795408897,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "77": {
+      "max_tokens": 542,
+      "response_delay_s": 13.211177521754065,
+      "closing_tendency": 0.3666099347830017,
+      "initiative_factor": 1.1455487215332876,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "79": {
+      "max_tokens": 540,
+      "response_delay_s": 13.337834161851799,
+      "closing_tendency": 0.3699430042592578,
+      "initiative_factor": 1.1426505667457436,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "81": {
+      "max_tokens": 538,
+      "response_delay_s": 13.423403689999624,
+      "closing_tendency": 0.37219483394735847,
+      "initiative_factor": 1.1406967177253244,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "83": {
+      "max_tokens": 534,
+      "response_delay_s": 13.671828097298281,
+      "closing_tendency": 0.37873231834995474,
+      "initiative_factor": 1.1350432358640516,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "84": {
+      "max_tokens": 508,
+      "response_delay_s": 15.218256406345294,
+      "closing_tendency": 0.4194278001669814,
+      "initiative_factor": 1.1004752999011407,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "85": {
+      "max_tokens": 528,
+      "response_delay_s": 15.391643424013811,
+      "closing_tendency": 0.3450432480003634,
+      "initiative_factor": 0.8698875275679048,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "87": {
+      "max_tokens": 518,
+      "response_delay_s": 15.993548582186722,
+      "closing_tendency": 0.3608828574259663,
+      "initiative_factor": 0.8594785098871731,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "89": {
+      "max_tokens": 514,
+      "response_delay_s": 16.211177521754067,
+      "closing_tendency": 0.3666099347830017,
+      "initiative_factor": 0.8557456915395728,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "91": {
+      "max_tokens": 511,
+      "response_delay_s": 16.420356233831406,
+      "closing_tendency": 0.37211463773240533,
+      "initiative_factor": 0.8521730942308902,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "93": {
+      "max_tokens": 507,
+      "response_delay_s": 16.650541642213106,
+      "closing_tendency": 0.3781721484792922,
+      "initiative_factor": 0.8482589546878956,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "95": {
+      "max_tokens": 504,
+      "response_delay_s": 16.792939552077257,
+      "closing_tendency": 0.3819194618967699,
+      "initiative_factor": 0.8458465854383962,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "96": {
+      "max_tokens": 494,
+      "response_delay_s": 17.410567607794945,
+      "closing_tendency": 0.3981728317840774,
+      "initiative_factor": 0.8354624809794168,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "97": {
+      "max_tokens": 589,
+      "response_delay_s": 10.866893984783722,
+      "closing_tendency": 0.2786024732837821,
+      "initiative_factor": 0.9052104874954394,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "98": {
+      "max_tokens": 540,
+      "response_delay_s": 13.837525616333803,
+      "closing_tendency": 0.3567769899035211,
+      "initiative_factor": 0.8529960074591919,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "100": {
+      "max_tokens": 537,
+      "response_delay_s": 13.993548582186722,
+      "closing_tendency": 0.3608828574259663,
+      "initiative_factor": 0.8503384167286523,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "102": {
+      "max_tokens": 535,
+      "response_delay_s": 14.102021069515999,
+      "closing_tendency": 0.36373739656621046,
+      "initiative_factor": 0.8484956498837509,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "104": {
+      "max_tokens": 533,
+      "response_delay_s": 14.246684707580684,
+      "closing_tendency": 0.36754433441001794,
+      "initiative_factor": 0.8460442684994077,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "106": {
+      "max_tokens": 529,
+      "response_delay_s": 14.464338531601783,
+      "closing_tendency": 0.3732720666210995,
+      "initiative_factor": 0.8423693774367751,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "108": {
+      "max_tokens": 523,
+      "response_delay_s": 14.833431604766787,
+      "closing_tendency": 0.3829850422307049,
+      "initiative_factor": 0.8361740181665728,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "110": {
+      "max_tokens": 518,
+      "response_delay_s": 15.158849376877328,
+      "closing_tendency": 0.3915486678125612,
+      "initiative_factor": 0.8307495717053173,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "111": {
+      "max_tokens": 572,
+      "response_delay_s": 12.848562214983806,
+      "closing_tendency": 0.3570674267101001,
+      "initiative_factor": 0.985025689716435,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "112": {
+      "max_tokens": 588,
+      "response_delay_s": 11.88922237276497,
+      "closing_tendency": 0.3318216413885518,
+      "initiative_factor": 1.0041076529995863,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "114": {
+      "max_tokens": 570,
+      "response_delay_s": 12.993548582186722,
+      "closing_tendency": 0.3608828574259663,
+      "initiative_factor": 0.9821735210436283,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "116": {
+      "max_tokens": 566,
+      "response_delay_s": 13.211177521754065,
+      "closing_tendency": 0.3666099347830017,
+      "initiative_factor": 0.9779078235332157,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "118": {
+      "max_tokens": 564,
+      "response_delay_s": 13.320943128521082,
+      "closing_tendency": 0.3694985033821337,
+      "initiative_factor": 0.9757633653597441,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "120": {
+      "max_tokens": 561,
+      "response_delay_s": 13.49898488616444,
+      "closing_tendency": 0.37418381279380103,
+      "initiative_factor": 0.9722950116501591,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "122": {
+      "max_tokens": 556,
+      "response_delay_s": 13.850808165048273,
+      "closing_tendency": 0.38344232013284923,
+      "initiative_factor": 0.9654775049737858,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "123": {
+      "max_tokens": 511,
+      "response_delay_s": 16.50172349519839,
+      "closing_tendency": 0.45320324987364186,
+      "initiative_factor": 0.9156228061217774,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "124": {
+      "max_tokens": 557,
+      "response_delay_s": 13.144787451070492,
+      "closing_tendency": 0.31223124871238134,
+      "initiative_factor": 0.8215400297960939,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "126": {
+      "max_tokens": 526,
+      "response_delay_s": 14.993548582186722,
+      "closing_tendency": 0.3608828574259663,
+      "initiative_factor": 0.7917181374047257,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "128": {
+      "max_tokens": 522,
+      "response_delay_s": 15.211177521754065,
+      "closing_tendency": 0.3666099347830017,
+      "initiative_factor": 0.7882796104893521,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "130": {
+      "max_tokens": 520,
+      "response_delay_s": 15.320943128521082,
+      "closing_tendency": 0.3694985033821337,
+      "initiative_factor": 0.7865509888207093,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "132": {
+      "max_tokens": 516,
+      "response_delay_s": 15.55929208140821,
+      "closing_tendency": 0.3757708442475844,
+      "initiative_factor": 0.7828104393729741,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "134": {
+      "max_tokens": 511,
+      "response_delay_s": 15.914987797802388,
+      "closing_tendency": 0.3851312578369049,
+      "initiative_factor": 0.777261354232664,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "136": {
+      "max_tokens": 506,
+      "response_delay_s": 16.209817974803705,
+      "closing_tendency": 0.39288994670536065,
+      "initiative_factor": 0.7726916383219965,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "137": {
+      "max_tokens": 468,
+      "response_delay_s": 18.455834334431103,
+      "closing_tendency": 0.45199564037976586,
+      "initiative_factor": 0.7387501164204612,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "138": {
+      "max_tokens": 565,
+      "response_delay_s": 13.099807319355913,
+      "closing_tendency": 0.3636791399830503,
+      "initiative_factor": 0.9388462254922441,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "139": {
+      "max_tokens": 620,
+      "response_delay_s": 9.830116158084195,
+      "closing_tendency": 0.2776346357390577,
+      "initiative_factor": 1.0022928705382177,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "140": {
+      "max_tokens": 602,
+      "response_delay_s": 10.922305315096422,
+      "closing_tendency": 0.3063764556604321,
+      "initiative_factor": 0.9806363932384131,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "142": {
+      "max_tokens": 567,
+      "response_delay_s": 12.993548582186722,
+      "closing_tendency": 0.3608828574259663,
+      "initiative_factor": 0.9408435593686111,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "144": {
+      "max_tokens": 564,
+      "response_delay_s": 13.211177521754065,
+      "closing_tendency": 0.3666099347830017,
+      "initiative_factor": 0.9367573628433555,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "146": {
+      "max_tokens": 562,
+      "response_delay_s": 13.320943128521082,
+      "closing_tendency": 0.3694985033821337,
+      "initiative_factor": 0.934703143687964,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "148": {
+      "max_tokens": 558,
+      "response_delay_s": 13.564785363487504,
+      "closing_tendency": 0.3759154043023027,
+      "initiative_factor": 0.9301558388785103,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "150": {
+      "max_tokens": 554,
+      "response_delay_s": 13.782564858976587,
+      "closing_tendency": 0.38164644365727857,
+      "initiative_factor": 0.926113271765445,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "152": {
+      "max_tokens": 548,
+      "response_delay_s": 14.169910932476183,
+      "closing_tendency": 0.39183976138095217,
+      "initiative_factor": 0.9189664636003836,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "154": {
+      "max_tokens": 544,
+      "response_delay_s": 14.384025834650593,
+      "closing_tendency": 0.3974743640697524,
+      "initiative_factor": 0.9150395893352093,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "155": {
+      "max_tokens": 566,
+      "response_delay_s": 12.861917254513116,
+      "closing_tendency": 0.27847150669771353,
+      "initiative_factor": 0.748515321570807,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "157": {
+      "max_tokens": 514,
+      "response_delay_s": 15.993548582186722,
+      "closing_tendency": 0.3608828574259663,
+      "initiative_factor": 0.7030718186237775,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "159": {
+      "max_tokens": 509,
+      "response_delay_s": 16.32094312852108,
+      "closing_tendency": 0.3694985033821337,
+      "initiative_factor": 0.6984832202572269,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "161": {
+      "max_tokens": 505,
+      "response_delay_s": 16.55503399088898,
+      "closing_tendency": 0.37565878923392054,
+      "initiative_factor": 0.6952206927079002,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "163": {
+      "max_tokens": 502,
+      "response_delay_s": 16.689123640996606,
+      "closing_tendency": 0.3791874642367527,
+      "initiative_factor": 0.6933587525042737,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "165": {
+      "max_tokens": 497,
+      "response_delay_s": 17.020418268637467,
+      "closing_tendency": 0.3879057439115123,
+      "initiative_factor": 0.6887798184244253,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "167": {
+      "max_tokens": 496,
+      "response_delay_s": 17.092962061473465,
+      "closing_tendency": 0.3898147910914069,
+      "initiative_factor": 0.6877812090195914,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "168": {
+      "max_tokens": 624,
+      "response_delay_s": 7.92839777435537,
+      "closing_tendency": 0.315589415114615,
+      "initiative_factor": 0.8582735427112244,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "169": {
+      "max_tokens": 607,
+      "response_delay_s": 8.903771077996419,
+      "closing_tendency": 0.3412571336314847,
+      "initiative_factor": 0.8416930482060834,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "171": {
+      "max_tokens": 573,
+      "response_delay_s": 10.970609535763028,
+      "closing_tendency": 0.39564761936218495,
+      "initiative_factor": 0.8076094823775013,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "173": {
+      "max_tokens": 567,
+      "response_delay_s": 11.315590390242928,
+      "closing_tendency": 0.40472606290112967,
+      "initiative_factor": 0.8020564650668692,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "175": {
+      "max_tokens": 566,
+      "response_delay_s": 11.399869850038634,
+      "closing_tendency": 0.4069439434220693,
+      "initiative_factor": 0.8007056661207196,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "176": {
+      "max_tokens": 532,
+      "response_delay_s": 13.416482020649436,
+      "closing_tendency": 0.46001268475393253,
+      "initiative_factor": 0.7690539923046548,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "177": {
+      "max_tokens": 669,
+      "response_delay_s": 7.469068680063855,
+      "closing_tendency": 0.21550180737010147,
+      "initiative_factor": 0.9482307780094621,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "178": {
+      "max_tokens": 651,
+      "response_delay_s": 8.509893849059912,
+      "closing_tendency": 0.24289194339631345,
+      "initiative_factor": 0.928695957550501,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "180": {
+      "max_tokens": 611,
+      "response_delay_s": 10.970609535763028,
+      "closing_tendency": 0.30764761936218493,
+      "initiative_factor": 0.8840972715144273,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "182": {
+      "max_tokens": 609,
+      "response_delay_s": 11.091134521684479,
+      "closing_tendency": 0.31081932951801255,
+      "initiative_factor": 0.8819687217553385,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "184": {
+      "max_tokens": 607,
+      "response_delay_s": 11.18047764526926,
+      "closing_tendency": 0.313170464349191,
+      "initiative_factor": 0.880394172116,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "186": {
+      "max_tokens": 605,
+      "response_delay_s": 11.275567963753728,
+      "closing_tendency": 0.31567284115141386,
+      "initiative_factor": 0.8787214239973216,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "188": {
+      "max_tokens": 601,
+      "response_delay_s": 11.535003035432496,
+      "closing_tendency": 0.3225000798798025,
+      "initiative_factor": 0.8741738091954394,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "190": {
+      "max_tokens": 600,
+      "response_delay_s": 11.623622897771995,
+      "closing_tendency": 0.3248321815203156,
+      "initiative_factor": 0.872625798193267,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "191": {
+      "max_tokens": 558,
+      "response_delay_s": 14.113992224368289,
+      "closing_tendency": 0.39036821643074443,
+      "initiative_factor": 0.8302272333668611,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "192": {
+      "max_tokens": 596,
+      "response_delay_s": 9.593029305330523,
+      "closing_tendency": 0.2713955080350137,
+      "initiative_factor": 0.9268652506800998,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "193": {
+      "max_tokens": 586,
+      "response_delay_s": 10.173139542435656,
+      "closing_tendency": 0.2866615669062014,
+      "initiative_factor": 0.9161737129115531,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "195": {
+      "max_tokens": 573,
+      "response_delay_s": 10.970609535763028,
+      "closing_tendency": 0.30764761936218493,
+      "initiative_factor": 0.9016772046253363,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "197": {
+      "max_tokens": 568,
+      "response_delay_s": 11.223704315918958,
+      "closing_tendency": 0.31430800831365674,
+      "initiative_factor": 0.8971245410227373,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "199": {
+      "max_tokens": 562,
+      "response_delay_s": 11.60540214704909,
+      "closing_tendency": 0.32435268808023915,
+      "initiative_factor": 0.8903020057937034,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "200": {
+      "max_tokens": 627,
+      "response_delay_s": 7.711520327932608,
+      "closing_tendency": 0.2218821138929634,
+      "initiative_factor": 0.9629501577589314,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "202": {
+      "max_tokens": 573,
+      "response_delay_s": 10.970609535763028,
+      "closing_tendency": 0.30764761936218493,
+      "initiative_factor": 0.9021852437989084,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "204": {
+      "max_tokens": 571,
+      "response_delay_s": 11.091134521684479,
+      "closing_tendency": 0.31081932951801255,
+      "initiative_factor": 0.9000131454956841,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "206": {
+      "max_tokens": 565,
+      "response_delay_s": 11.418019996368551,
+      "closing_tendency": 0.31942157885180394,
+      "initiative_factor": 0.8941483131842467,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "208": {
+      "max_tokens": 562,
+      "response_delay_s": 11.633287820077673,
+      "closing_tendency": 0.32508652158099133,
+      "initiative_factor": 0.890306961083904,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "209": {
+      "max_tokens": 535,
+      "response_delay_s": 14.533078290506511,
+      "closing_tendency": 0.41044942869753975,
+      "initiative_factor": 0.754815833275636,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "211": {
+      "max_tokens": 483,
+      "response_delay_s": 17.647670489339333,
+      "closing_tendency": 0.4924123812984035,
+      "initiative_factor": 0.709231469235783,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "213": {
+      "max_tokens": 480,
+      "response_delay_s": 17.866580487060425,
+      "closing_tendency": 0.4981731707121164,
+      "initiative_factor": 0.7061330996396041,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "215": {
+      "max_tokens": 476,
+      "response_delay_s": 18.11197094785127,
+      "closing_tendency": 0.5046308144171386,
+      "initiative_factor": 0.7026760233800584,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "217": {
+      "max_tokens": 469,
+      "response_delay_s": 18.51466299138151,
+      "closing_tendency": 0.5152279734574081,
+      "initiative_factor": 0.6970395107593844,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "219": {
+      "max_tokens": 466,
+      "response_delay_s": 18.6667723311435,
+      "closing_tendency": 0.5192308508195658,
+      "initiative_factor": 0.6949222086112616,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "220": {
+      "max_tokens": 544,
+      "response_delay_s": 14.24757834475849,
+      "closing_tendency": 0.5349362722304866,
+      "initiative_factor": 0.7494749384687582,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "222": {
+      "max_tokens": 488,
+      "response_delay_s": 17.647670489339333,
+      "closing_tendency": 0.6244123812984035,
+      "initiative_factor": 0.700203520547688,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "224": {
+      "max_tokens": 485,
+      "response_delay_s": 17.780247973852923,
+      "closing_tendency": 0.6279012624698138,
+      "initiative_factor": 0.698349355411491,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "226": {
+      "max_tokens": 484,
+      "response_delay_s": 17.85101072116725,
+      "closing_tendency": 0.629763440030717,
+      "initiative_factor": 0.6973617120804134,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "228": {
+      "max_tokens": 480,
+      "response_delay_s": 18.119894163803067,
+      "closing_tendency": 0.6368393201000807,
+      "initiative_factor": 0.6936215972851626,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "230": {
+      "max_tokens": 478,
+      "response_delay_s": 18.216328555426593,
+      "closing_tendency": 0.6393770672480682,
+      "initiative_factor": 0.6922851070007087,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "232": {
+      "max_tokens": 477,
+      "response_delay_s": 18.29183419164216,
+      "closing_tendency": 0.6413640576747937,
+      "initiative_factor": 0.691240467412063,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "233": {
+      "max_tokens": 611,
+      "response_delay_s": 11.12273950851973,
+      "closing_tendency": 0.3996510396978876,
+      "initiative_factor": 0.8133312726311767,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "235": {
+      "max_tokens": 552,
+      "response_delay_s": 14.647670489339333,
+      "closing_tendency": 0.4924123812984035,
+      "initiative_factor": 0.7579670206733434,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "237": {
+      "max_tokens": 547,
+      "response_delay_s": 15.002399929841157,
+      "closing_tendency": 0.5017473665747673,
+      "initiative_factor": 0.7526085867483501,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "239": {
+      "max_tokens": 539,
+      "response_delay_s": 15.465992453781377,
+      "closing_tendency": 0.513947169836352,
+      "initiative_factor": 0.7456627625440492,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "241": {
+      "max_tokens": 536,
+      "response_delay_s": 15.608085984270078,
+      "closing_tendency": 0.5176864732702652,
+      "initiative_factor": 0.7435466936754896,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "243": {
+      "max_tokens": 531,
+      "response_delay_s": 15.947955925185706,
+      "closing_tendency": 0.5266304190838343,
+      "initiative_factor": 0.7385096490536703,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "244": {
+      "max_tokens": 504,
+      "response_delay_s": 17.55503222803287,
+      "closing_tendency": 0.5689219007377071,
+      "initiative_factor": 0.7151502364819532,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "245": {
+      "max_tokens": 569,
+      "response_delay_s": 11.492137501972627,
+      "closing_tendency": 0.3213720395255954,
+      "initiative_factor": 0.80571851149937,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "247": {
+      "max_tokens": 516,
+      "response_delay_s": 14.647670489339333,
+      "closing_tendency": 0.40441238129840346,
+      "initiative_factor": 0.7564404258647602,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "249": {
+      "max_tokens": 514,
+      "response_delay_s": 14.780247973852925,
+      "closing_tendency": 0.4079012624698138,
+      "initiative_factor": 0.7544373432979211,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "251": {
+      "max_tokens": 509,
+      "response_delay_s": 15.095799250373164,
+      "closing_tendency": 0.4162052434308727,
+      "initiative_factor": 0.749691062665707,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "253": {
+      "max_tokens": 502,
+      "response_delay_s": 15.491299096103411,
+      "closing_tendency": 0.42661313410798446,
+      "initiative_factor": 0.7437844003109457,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "255": {
+      "max_tokens": 499,
+      "response_delay_s": 15.651771857837552,
+      "closing_tendency": 0.4308361015220408,
+      "initiative_factor": 0.741401084192887,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "257": {
+      "max_tokens": 494,
+      "response_delay_s": 15.966568196140805,
+      "closing_tendency": 0.43912021568791587,
+      "initiative_factor": 0.7367479405586717,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "258": {
+      "max_tokens": 571,
+      "response_delay_s": 11.805742462576893,
+      "closing_tendency": 0.3473090121730761,
+      "initiative_factor": 0.8002667503522699,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "260": {
+      "max_tokens": 507,
+      "response_delay_s": 15.647670489339333,
+      "closing_tendency": 0.44841238129840344,
+      "initiative_factor": 0.7410784939884834,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "262": {
+      "max_tokens": 502,
+      "response_delay_s": 15.981585139552143,
+      "closing_tendency": 0.45719960893558265,
+      "initiative_factor": 0.7361458438407994,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "264": {
+      "max_tokens": 494,
+      "response_delay_s": 16.431208343790015,
+      "closing_tendency": 0.4690317985207898,
+      "initiative_factor": 0.7295557537616794,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "266": {
+      "max_tokens": 488,
+      "response_delay_s": 16.799925709035826,
+      "closing_tendency": 0.4787348870798901,
+      "initiative_factor": 0.7241955445683552,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "267": {
+      "max_tokens": 569,
+      "response_delay_s": 11.58004859570948,
+      "closing_tendency": 0.3676854893607757,
+      "initiative_factor": 0.8256742260863006,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "269": {
+      "max_tokens": 518,
+      "response_delay_s": 14.647670489339333,
+      "closing_tendency": 0.44841238129840344,
+      "initiative_factor": 0.7765397701278705,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "271": {
+      "max_tokens": 516,
+      "response_delay_s": 14.780247973852925,
+      "closing_tendency": 0.45190126246981377,
+      "initiative_factor": 0.7744834637449558,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "273": {
+      "max_tokens": 509,
+      "response_delay_s": 15.214262109258028,
+      "closing_tendency": 0.46332268708573754,
+      "initiative_factor": 0.7677898217084509,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "275": {
+      "max_tokens": 503,
+      "response_delay_s": 15.577937201241859,
+      "closing_tendency": 0.47289308424320675,
+      "initiative_factor": 0.762225561387478,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "277": {
+      "max_tokens": 496,
+      "response_delay_s": 16.014613825643156,
+      "closing_tendency": 0.4843845743590304,
+      "initiative_factor": 0.755597624463667,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "279": {
+      "max_tokens": 493,
+      "response_delay_s": 16.166626015139908,
+      "closing_tendency": 0.48838489513526073,
+      "initiative_factor": 0.7533039119675352,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "280": {
+      "max_tokens": 459,
+      "response_delay_s": 18.193092232481515,
+      "closing_tendency": 0.5417129534863556,
+      "initiative_factor": 0.7233834372668877,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "281": {
+      "max_tokens": 561,
+      "response_delay_s": 12.967896061986554,
+      "closing_tendency": 0.4395762121575409,
+      "initiative_factor": 0.8009393641109881,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "283": {
+      "max_tokens": 500,
+      "response_delay_s": 16.647670489339333,
+      "closing_tendency": 0.5364123812984034,
+      "initiative_factor": 0.7441106563448391,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "285": {
+      "max_tokens": 499,
+      "response_delay_s": 16.73729976115685,
+      "closing_tendency": 0.538771046346233,
+      "initiative_factor": 0.7427779692538448,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "287": {
+      "max_tokens": 495,
+      "response_delay_s": 16.947188447405182,
+      "closing_tendency": 0.5442944328264521,
+      "initiative_factor": 0.7396664906216756,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "288": {
+      "max_tokens": 593,
+      "response_delay_s": 11.68684685209384,
+      "closing_tendency": 0.3704959697919431,
+      "initiative_factor": 0.8546748834407073,
+      "closing_guidance": "The companion is still open; a natural follow-up is welcome if the moment calls for it."
+    },
+    "290": {
+      "max_tokens": 544,
+      "response_delay_s": 14.647670489339333,
+      "closing_tendency": 0.44841238129840344,
+      "initiative_factor": 0.8055334031460238,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "292": {
+      "max_tokens": 541,
+      "response_delay_s": 14.842582950400221,
+      "closing_tendency": 0.4535416565894794,
+      "initiative_factor": 0.8023993458216578,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "294": {
+      "max_tokens": 534,
+      "response_delay_s": 15.238054585308408,
+      "closing_tendency": 0.463948804876537,
+      "initiative_factor": 0.7960778548580397,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "295": {
+      "max_tokens": 545,
+      "response_delay_s": 13.219316810515839,
+      "closing_tendency": 0.498824126592522,
+      "initiative_factor": 0.8262658949823132,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "297": {
+      "max_tokens": 472,
+      "response_delay_s": 17.636272782942928,
+      "closing_tendency": 0.6150598100774454,
+      "initiative_factor": 0.7564054251059649,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "299": {
+      "max_tokens": 463,
+      "response_delay_s": 18.175984109354832,
+      "closing_tendency": 0.629262739719864,
+      "initiative_factor": 0.748284521885326,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "301": {
+      "max_tokens": 456,
+      "response_delay_s": 18.57648127433156,
+      "closing_tendency": 0.6398021387981989,
+      "initiative_factor": 0.7423147459942698,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "303": {
+      "max_tokens": 449,
+      "response_delay_s": 18.969407700035017,
+      "closing_tendency": 0.6501423078956584,
+      "initiative_factor": 0.7365041058408134,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "305": {
+      "max_tokens": 442,
+      "response_delay_s": 19.435969636894615,
+      "closing_tendency": 0.6624202536024899,
+      "initiative_factor": 0.7296635751456217,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "306": {
+      "max_tokens": 467,
+      "response_delay_s": 17.884342191749887,
+      "closing_tendency": 0.6215879524144707,
+      "initiative_factor": 0.7449810495598828,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "308": {
+      "max_tokens": 471,
+      "response_delay_s": 17.636272782942928,
+      "closing_tendency": 0.6150598100774454,
+      "initiative_factor": 0.7486863739061586,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "310": {
+      "max_tokens": 469,
+      "response_delay_s": 17.77450862475492,
+      "closing_tendency": 0.6186975953882874,
+      "initiative_factor": 0.7466193267997752,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "312": {
+      "max_tokens": 460,
+      "response_delay_s": 18.29226121602719,
+      "closing_tendency": 0.6323226635796629,
+      "initiative_factor": 0.7389279360786507,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "314": {
+      "max_tokens": 451,
+      "response_delay_s": 18.83437550674084,
+      "closing_tendency": 0.646588829124759,
+      "initiative_factor": 0.7309595440517678,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "316": {
+      "max_tokens": 441,
+      "response_delay_s": 19.442030025303183,
+      "closing_tendency": 0.6625797375079785,
+      "initiative_factor": 0.7221298891286021,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "317": {
+      "max_tokens": 525,
+      "response_delay_s": 14.93777191450922,
+      "closing_tendency": 0.5617308398555058,
+      "initiative_factor": 0.7687706931940839,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "319": {
+      "max_tokens": 463,
+      "response_delay_s": 18.636272782942928,
+      "closing_tendency": 0.6590598100774454,
+      "initiative_factor": 0.713956987812333,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "321": {
+      "max_tokens": 459,
+      "response_delay_s": 18.906692348358735,
+      "closing_tendency": 0.666176114430493,
+      "initiative_factor": 0.710106052115388,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "323": {
+      "max_tokens": 453,
+      "response_delay_s": 19.274801215371212,
+      "closing_tendency": 0.6758631898781897,
+      "initiative_factor": 0.7048973227507713,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "325": {
+      "max_tokens": 448,
+      "response_delay_s": 19.581625406161574,
+      "closing_tendency": 0.6839375106884625,
+      "initiative_factor": 0.7005849765914026,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "327": {
+      "max_tokens": 441,
+      "response_delay_s": 19.946749333477737,
+      "closing_tendency": 0.6935460350915195,
+      "initiative_factor": 0.6954876042081383,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    },
+    "328": {
+      "max_tokens": 543,
+      "response_delay_s": 13.41136944543867,
+      "closing_tendency": 0.4598781433010176,
+      "initiative_factor": 0.7870612453856439,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "330": {
+      "max_tokens": 472,
+      "response_delay_s": 17.636272782942928,
+      "closing_tendency": 0.5710598100774454,
+      "initiative_factor": 0.7232883738508314,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "332": {
+      "max_tokens": 464,
+      "response_delay_s": 18.161218798205233,
+      "closing_tendency": 0.5848741789001377,
+      "initiative_factor": 0.7157343507873115,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "334": {
+      "max_tokens": 455,
+      "response_delay_s": 18.694996392951143,
+      "closing_tendency": 0.5989209577092406,
+      "initiative_factor": 0.7081341320286902,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "336": {
+      "max_tokens": 450,
+      "response_delay_s": 19.014142671479263,
+      "closing_tendency": 0.6073195439862964,
+      "initiative_factor": 0.7036285592349362,
+      "closing_guidance": "A settled ending is welcome; do not manufacture extra turns."
+    }
+  },
+  "directives_by_message": {
+    "1": {
+      "initiative": 0.40055001523642136,
+      "energy": 0.6856579348326878,
+      "valence": -0.8,
+      "playfulness": 0.3119842217531526,
+      "reflectiveness": 0.5068763021568862,
+      "response_length_scale": 0.9243896647423929,
+      "response_delay_s": 12.744998476357866
+    },
+    "3": {
+      "initiative": 0.33558780928473947,
+      "energy": 0.5147047612756301,
+      "valence": -0.8,
+      "playfulness": 0.26411733315717645,
+      "reflectiveness": 0.5650003811662858,
+      "response_length_scale": 0.7443759729868112,
+      "response_delay_s": 19.241219071526057
+    },
+    "5": {
+      "initiative": 0.3332906475197539,
+      "energy": 0.5086595987361945,
+      "valence": -0.8,
+      "playfulness": 0.26242468764613447,
+      "reflectiveness": 0.5670557364296939,
+      "response_length_scale": 0.7380104168327855,
+      "response_delay_s": 19.47093524802461
+    },
+    "7": {
+      "initiative": 0.33186499987745166,
+      "energy": 0.5049078944143465,
+      "valence": -0.8,
+      "playfulness": 0.26137421043601705,
+      "reflectiveness": 0.5683313158991222,
+      "response_length_scale": 0.7340598721818794,
+      "response_delay_s": 19.613500012254836
+    },
+    "9": {
+      "initiative": 0.326540440743602,
+      "energy": 0.4908958966936894,
+      "valence": -0.8,
+      "playfulness": 0.25745085107423304,
+      "reflectiveness": 0.5730953951241456,
+      "response_length_scale": 0.7193052385820276,
+      "response_delay_s": 20.145955925639804
+    },
+    "11": {
+      "initiative": 0.32526881357966114,
+      "energy": 0.48754950942016084,
+      "valence": -0.8,
+      "playfulness": 0.2565138626376451,
+      "reflectiveness": 0.5742331667971453,
+      "response_length_scale": 0.715781492783002,
+      "response_delay_s": 20.27311864203389
+    },
+    "12": {
+      "initiative": 0.4295512848460597,
+      "energy": 0.6967190365981973,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.38308133024749524,
+      "reflectiveness": 0.4631155275566129,
+      "response_length_scale": 1.041867697316572,
+      "response_delay_s": 12.324676609268503
+    },
+    "14": {
+      "initiative": 0.3603858602234842,
+      "energy": 0.5147047612756301,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.33211733315717645,
+      "reflectiveness": 0.5250003811662858,
+      "response_length_scale": 0.8502066654019086,
+      "response_delay_s": 19.241219071526057
+    },
+    "16": {
+      "initiative": 0.3579753605050557,
+      "energy": 0.5083613409639762,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3303411754699134,
+      "reflectiveness": 0.5271571440722481,
+      "response_length_scale": 0.843527043813737,
+      "response_delay_s": 19.482269043368905
+    },
+    "18": {
+      "initiative": 0.3524293096315428,
+      "energy": 0.4937664702442055,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.32625461166837755,
+      "reflectiveness": 0.5321194001169701,
+      "response_length_scale": 0.8281586449458185,
+      "response_delay_s": 20.036874130720193
+    },
+    "20": {
+      "initiative": 0.34656638396480616,
+      "energy": 0.47833771848963524,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.32193456117709784,
+      "reflectiveness": 0.537365175713524,
+      "response_length_scale": 0.8119121693482559,
+      "response_delay_s": 20.623166697393863
+    },
+    "22": {
+      "initiative": 0.3424331474504679,
+      "energy": 0.4674607802940084,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3188890184823224,
+      "reflectiveness": 0.5410633347000371,
+      "response_length_scale": 0.8004587534282608,
+      "response_delay_s": 21.03649034882768
+    },
+    "23": {
+      "initiative": 0.28208731478490984,
+      "energy": 0.30865595748990826,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.27442366809717433,
+      "reflectiveness": 0.5950569744534312,
+      "response_length_scale": 0.6332372750155434,
+      "response_delay_s": 27.071073615383487
+    },
+    "25": {
+      "initiative": 0.2713432600869755,
+      "energy": 0.5147047612756301,
+      "valence": -0.4,
+      "playfulness": 0.20411733315717645,
+      "reflectiveness": 0.5570003811662858,
+      "response_length_scale": 0.7020541136232386,
+      "response_delay_s": 22.241219071526057
+    },
+    "27": {
+      "initiative": 0.26650706142992314,
+      "energy": 0.5019779227044396,
+      "valence": -0.4,
+      "playfulness": 0.20055381835724312,
+      "reflectiveness": 0.5613275062804906,
+      "response_length_scale": 0.688652752607775,
+      "response_delay_s": 22.724838937231294
+    },
+    "29": {
+      "initiative": 0.2643610877263987,
+      "energy": 0.49633062348463863,
+      "valence": -0.4,
+      "playfulness": 0.19897257457569884,
+      "reflectiveness": 0.5632475880152229,
+      "response_length_scale": 0.6827061465293245,
+      "response_delay_s": 22.939436307583733
+    },
+    "31": {
+      "initiative": 0.2605879888980596,
+      "energy": 0.486401416041641,
+      "valence": -0.4,
+      "playfulness": 0.19619239649165948,
+      "reflectiveness": 0.566623518545842,
+      "response_length_scale": 0.672250691091848,
+      "response_delay_s": 23.316746190417643
+    },
+    "32": {
+      "initiative": 0.3808630000474122,
+      "energy": 0.5965554323195298,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.35503552104946834,
+      "reflectiveness": 0.44917115301135985,
+      "response_length_scale": 0.8940717288374957,
+      "response_delay_s": 16.130893571857868
+    },
+    "34": {
+      "initiative": 0.3497597450507303,
+      "energy": 0.5147047612756301,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.33211733315717645,
+      "reflectiveness": 0.4770003811662858,
+      "response_length_scale": 0.8078829722282694,
+      "response_delay_s": 19.241219071526057
+    },
+    "36": {
+      "initiative": 0.34492354639367795,
+      "energy": 0.5019779227044396,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3285538183572431,
+      "reflectiveness": 0.48132750628049054,
+      "response_length_scale": 0.7944816112128059,
+      "response_delay_s": 19.724838937231294
+    },
+    "38": {
+      "initiative": 0.33651385403963996,
+      "energy": 0.47984715335170813,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3223572029384783,
+      "reflectiveness": 0.48885196786041923,
+      "response_length_scale": 0.7711779110843795,
+      "response_delay_s": 20.56580817263509
+    },
+    "40": {
+      "initiative": 0.3279809434807407,
+      "energy": 0.4573921255651311,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.31606979515823674,
+      "reflectiveness": 0.49648667730785545,
+      "response_length_scale": 0.7475327668251139,
+      "response_delay_s": 21.41909922852502
+    },
+    "42": {
+      "initiative": 0.324020330235872,
+      "energy": 0.4469694591312662,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.31315144855675453,
+      "reflectiveness": 0.5000303838953695,
+      "response_length_scale": 0.7365576990702543,
+      "response_delay_s": 21.815160553011886
+    },
+    "43": {
+      "initiative": 0.30285389435533316,
+      "energy": 0.5458676870665863,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2328429523786442,
+      "reflectiveness": 0.4824049863973606,
+      "response_length_scale": 0.7478643729328909,
+      "response_delay_s": 20.057027891469723
+    },
+    "44": {
+      "initiative": 0.3612019094755301,
+      "energy": 0.6994150952776307,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.27583622667773655,
+      "reflectiveness": 0.43019886760560555,
+      "response_length_scale": 0.9095497937791208,
+      "response_delay_s": 14.222226379450035
+    },
+    "46": {
+      "initiative": 0.2910119825547699,
+      "energy": 0.5147047612756301,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.22411733315717644,
+      "reflectiveness": 0.49300038116628575,
+      "response_length_scale": 0.7150498120750141,
+      "response_delay_s": 21.241219071526057
+    },
+    "48": {
+      "initiative": 0.2861757838977175,
+      "energy": 0.5019779227044396,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2205538183572431,
+      "reflectiveness": 0.4973275062804905,
+      "response_length_scale": 0.7016484510595505,
+      "response_delay_s": 21.724838937231294
+    },
+    "50": {
+      "initiative": 0.284269440650077,
+      "energy": 0.49696122994749103,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.21914914438529745,
+      "reflectiveness": 0.49903318181785306,
+      "response_length_scale": 0.6963658735864836,
+      "response_delay_s": 21.91547326199534
+    },
+    "52": {
+      "initiative": 0.27883325142939697,
+      "energy": 0.4826554688404384,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.21514353127532274,
+      "reflectiveness": 0.503897140594251,
+      "response_length_scale": 0.6813019071407572,
+      "response_delay_s": 22.45909218406334
+    },
+    "53": {
+      "initiative": 0.3507159765027306,
+      "energy": 0.6114129571778844,
+      "valence": -0.4,
+      "playfulness": 0.2711956280098076,
+      "reflectiveness": 0.47611959455951935,
+      "response_length_scale": 0.8280844143125635,
+      "response_delay_s": 16.566307627240395
+    },
+    "55": {
+      "initiative": 0.313966862059874,
+      "energy": 0.5147047612756301,
+      "valence": -0.4,
+      "playfulness": 0.24411733315717643,
+      "reflectiveness": 0.5090003811662858,
+      "response_length_scale": 0.7262506840274898,
+      "response_delay_s": 20.241219071526057
+    },
+    "57": {
+      "initiative": 0.3115563623414457,
+      "energy": 0.5083613409639767,
+      "valence": -0.4,
+      "playfulness": 0.24234117546991346,
+      "reflectiveness": 0.5111571440722479,
+      "response_length_scale": 0.7195710624393187,
+      "response_delay_s": 20.482269043368888
+    },
+    "59": {
+      "initiative": 0.31007752382618753,
+      "energy": 0.5044696606606658,
+      "valence": -0.4,
+      "playfulness": 0.24125150498498638,
+      "reflectiveness": 0.5124803153753736,
+      "response_length_scale": 0.7154731230799324,
+      "response_delay_s": 20.6301528948947
+    },
+    "61": {
+      "initiative": 0.301689132916596,
+      "energy": 0.4823949477406879,
+      "valence": -0.4,
+      "playfulness": 0.23507058536739261,
+      "reflectiveness": 0.5199857177681662,
+      "response_length_scale": 0.6922284503751955,
+      "response_delay_s": 21.468991985853858
+    },
+    "62": {
+      "initiative": 0.4903253207915124,
+      "energy": 0.7411282322364587,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4635159050262085,
+      "reflectiveness": 0.42401640103960403,
+      "response_length_scale": 1.0608000107648126,
+      "response_delay_s": 10.63712717501457
+    },
+    "63": {
+      "initiative": 0.48827415007911923,
+      "energy": 0.7357304145722661,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4620045160802345,
+      "reflectiveness": 0.42585165904542954,
+      "response_length_scale": 1.0551161087644179,
+      "response_delay_s": 10.842244246253891
+    },
+    "65": {
+      "initiative": 0.46676110671979093,
+      "energy": 0.6791171425740337,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4461527999207294,
+      "reflectiveness": 0.4451001715248285,
+      "response_length_scale": 0.995502333350279,
+      "response_delay_s": 12.993548582186722
+    },
+    "67": {
+      "initiative": 0.4645848173241175,
+      "energy": 0.6733900652169983,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.44454921826075955,
+      "reflectiveness": 0.4470473778262206,
+      "response_length_scale": 0.9894717208933208,
+      "response_delay_s": 13.211177521754065
+    },
+    "69": {
+      "initiative": 0.46077897225375203,
+      "energy": 0.6633746834528786,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.44174491136680605,
+      "reflectiveness": 0.45045260762602124,
+      "response_length_scale": 0.9789255238957029,
+      "response_delay_s": 13.591762028790612
+    },
+    "71": {
+      "initiative": 0.45694194003647787,
+      "energy": 0.6532772302495257,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.4389176244698672,
+      "reflectiveness": 0.4538857417151613,
+      "response_length_scale": 0.9682929056725722,
+      "response_delay_s": 13.975465250518026
+    },
+    "72": {
+      "initiative": 0.428884493068478,
+      "energy": 0.5794418434916312,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.41824371617765677,
+      "reflectiveness": 0.4789897732128454,
+      "response_length_scale": 0.8905442434165092,
+      "response_delay_s": 16.781209947318015
+    },
+    "73": {
+      "initiative": 0.5990375967044543,
+      "energy": 0.7552209052405461,
+      "valence": 1.0,
+      "playfulness": 0.6714618534673529,
+      "reflectiveness": 0.3232248922182143,
+      "response_length_scale": 0.9889308912542949,
+      "response_delay_s": 10.10160560085925
+    },
+    "75": {
+      "initiative": 0.5701181668911797,
+      "energy": 0.6791171425740337,
+      "valence": 1.0,
+      "playfulness": 0.6501527999207295,
+      "reflectiveness": 0.34910017152482853,
+      "response_length_scale": 0.9087936291664573,
+      "response_delay_s": 12.993548582186722
+    },
+    "77": {
+      "initiative": 0.5679418774955062,
+      "energy": 0.6733900652169983,
+      "valence": 1.0,
+      "playfulness": 0.6485492182607595,
+      "reflectiveness": 0.3510473778262206,
+      "response_length_scale": 0.9027630167094991,
+      "response_delay_s": 13.211177521754065
+    },
+    "79": {
+      "initiative": 0.5666753110945288,
+      "energy": 0.6700569957407422,
+      "valence": 1.0,
+      "playfulness": 0.6476159588074079,
+      "reflectiveness": 0.35218062144814766,
+      "response_length_scale": 0.8992532945510014,
+      "response_delay_s": 13.337834161851799
+    },
+    "81": {
+      "initiative": 0.5658196158130506,
+      "energy": 0.6678051660526415,
+      "valence": 1.0,
+      "playfulness": 0.6469854464947397,
+      "reflectiveness": 0.3529462435421019,
+      "response_length_scale": 0.8968821178894314,
+      "response_delay_s": 13.423403689999624
+    },
+    "83": {
+      "initiative": 0.563335371740064,
+      "energy": 0.6612676816500452,
+      "valence": 1.0,
+      "playfulness": 0.6451549508620127,
+      "reflectiveness": 0.35516898823898463,
+      "response_length_scale": 0.8899981468134975,
+      "response_delay_s": 13.671828097298281
+    },
+    "84": {
+      "initiative": 0.5478710886495939,
+      "energy": 0.6205721998330186,
+      "valence": 1.0,
+      "playfulness": 0.6337602159532453,
+      "reflectiveness": 0.3690054520567737,
+      "response_length_scale": 0.8471458044601685,
+      "response_delay_s": 15.218256406345294
+    },
+    "85": {
+      "initiative": 0.43030432282585285,
+      "energy": 0.6949567519996366,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.39058789055989823,
+      "reflectiveness": 0.4157147043201236,
+      "response_length_scale": 0.8794591379725217,
+      "response_delay_s": 15.391643424013811
+    },
+    "87": {
+      "initiative": 0.42428527124412374,
+      "energy": 0.6791171425740337,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.38615279992072943,
+      "reflectiveness": 0.42110017152482854,
+      "response_length_scale": 0.8627800292473619,
+      "response_delay_s": 15.993548582186722
+    },
+    "89": {
+      "initiative": 0.4221089818484503,
+      "energy": 0.6733900652169983,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.38454921826075955,
+      "reflectiveness": 0.4230473778262206,
+      "response_length_scale": 0.8567494167904037,
+      "response_delay_s": 16.211177521754067
+    },
+    "91": {
+      "initiative": 0.4200171947276769,
+      "energy": 0.6678853622675947,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.3830079014349265,
+      "reflectiveness": 0.42491897682901786,
+      "response_length_scale": 0.8509529645846817,
+      "response_delay_s": 16.420356233831406
+    },
+    "93": {
+      "initiative": 0.4177153406438599,
+      "energy": 0.6618278515207078,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.3813117984257982,
+      "reflectiveness": 0.42697853048295936,
+      "response_length_scale": 0.8445744057682097,
+      "response_delay_s": 16.650541642213106
+    },
+    "95": {
+      "initiative": 0.41629136154521834,
+      "energy": 0.6580805381032301,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.3802625506689044,
+      "reflectiveness": 0.42825261704490175,
+      "response_length_scale": 0.8406284847396057,
+      "response_delay_s": 16.792939552077257
+    },
+    "96": {
+      "initiative": 0.4101150809880415,
+      "energy": 0.6418271682159226,
+      "valence": 0.3999999999999999,
+      "playfulness": 0.3757116071004583,
+      "reflectiveness": 0.43377876280658634,
+      "response_length_scale": 0.8235136862482709,
+      "response_delay_s": 17.410567607794945
+    },
+    "97": {
+      "initiative": 0.4502061102712379,
+      "energy": 0.7613975267162179,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.381191307480541,
+      "reflectiveness": 0.34512484091648593,
+      "response_length_scale": 0.9821107669501037,
+      "response_delay_s": 10.866893984783722
+    },
+    "98": {
+      "initiative": 0.4204997939557371,
+      "energy": 0.6832230100964789,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.35930244282701407,
+      "reflectiveness": 0.3717041765671972,
+      "response_length_scale": 0.8997930009495186,
+      "response_delay_s": 13.837525616333803
+    },
+    "100": {
+      "initiative": 0.4189395642972079,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.35815279992072946,
+      "reflectiveness": 0.37310017152482855,
+      "response_length_scale": 0.8954695224483837,
+      "response_delay_s": 13.993548582186722
+    },
+    "102": {
+      "initiative": 0.4178548394239151,
+      "energy": 0.6762626034337895,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.35735352896146105,
+      "reflectiveness": 0.3740707148325116,
+      "response_length_scale": 0.8924636927337066,
+      "response_delay_s": 14.102021069515999
+    },
+    "104": {
+      "initiative": 0.41640820304326825,
+      "energy": 0.672455665589982,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.356287586365195,
+      "reflectiveness": 0.37536507369940614,
+      "response_length_scale": 0.8884549871841774,
+      "response_delay_s": 14.246684707580684
+    },
+    "106": {
+      "initiative": 0.4142316648030573,
+      "energy": 0.6667279333789005,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3546838213460921,
+      "reflectiveness": 0.3773125026511739,
+      "response_length_scale": 0.8824236851659085,
+      "response_delay_s": 14.464338531601783
+    },
+    "108": {
+      "initiative": 0.41054073407140723,
+      "energy": 0.6570149577692951,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.35196418817540265,
+      "reflectiveness": 0.3806149143584397,
+      "response_length_scale": 0.872195921848994,
+      "response_delay_s": 14.833431604766787
+    },
+    "110": {
+      "initiative": 0.40728655635030186,
+      "energy": 0.6484513321874388,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.34956637301248283,
+      "reflectiveness": 0.3835265470562708,
+      "response_length_scale": 0.8631784241112994,
+      "response_delay_s": 15.158849376877328
+    },
+    "111": {
+      "initiative": 0.4924562213901206,
+      "energy": 0.6829325732898999,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5152211205211721,
+      "reflectiveness": 0.39580292508143405,
+      "response_length_scale": 0.9537071687527612,
+      "response_delay_s": 12.848562214983806
+    },
+    "112": {
+      "initiative": 0.5020496198123089,
+      "energy": 0.7081783586114482,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5222899404112056,
+      "reflectiveness": 0.3872193580721076,
+      "response_length_scale": 0.9802909806963516,
+      "response_delay_s": 11.88922237276497
+    },
+    "114": {
+      "initiative": 0.4910063577180914,
+      "energy": 0.6791171425740337,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5141527999207295,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.9496895202089539,
+      "response_delay_s": 12.993548582186722
+    },
+    "116": {
+      "initiative": 0.488830068322418,
+      "energy": 0.6733900652169983,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5125492182607596,
+      "reflectiveness": 0.3990473778262206,
+      "response_length_scale": 0.9436589077519958,
+      "response_delay_s": 13.211177521754065
+    },
+    "118": {
+      "initiative": 0.4877324122547478,
+      "energy": 0.6705014966178663,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5117404190530026,
+      "reflectiveness": 0.4000294911499254,
+      "response_length_scale": 0.9406172450171097,
+      "response_delay_s": 13.320943128521082
+    },
+    "120": {
+      "initiative": 0.48595199467831424,
+      "energy": 0.665816187206199,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5104285324177358,
+      "reflectiveness": 0.40162249634989233,
+      "response_length_scale": 0.935683614206624,
+      "response_delay_s": 13.49898488616444
+    },
+    "122": {
+      "initiative": 0.4824337618894759,
+      "energy": 0.6565576798671507,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5078361503628023,
+      "reflectiveness": 0.40477038884516875,
+      "response_length_scale": 0.9259344059786063,
+      "response_delay_s": 13.850808165048273
+    },
+    "123": {
+      "initiative": 0.4559246085879747,
+      "energy": 0.5867967501263581,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.48830309003538036,
+      "reflectiveness": 0.42848910495703824,
+      "response_length_scale": 0.8524761469615516,
+      "response_delay_s": 16.50172349519839
+    },
+    "124": {
+      "initiative": 0.4017126924982598,
+      "energy": 0.7277687512876186,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.35177525036053325,
+      "reflectiveness": 0.3805586245622096,
+      "response_length_scale": 0.9276552824107377,
+      "response_delay_s": 13.144787451070492
+    },
+    "126": {
+      "initiative": 0.3832250811870975,
+      "energy": 0.6791171425740337,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.33815279992072944,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.8764251384353327,
+      "response_delay_s": 14.993548582186722
+    },
+    "128": {
+      "initiative": 0.38104879179142415,
+      "energy": 0.6733900652169983,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.33654921826075956,
+      "reflectiveness": 0.3990473778262206,
+      "response_length_scale": 0.8703945259783745,
+      "response_delay_s": 15.211177521754065
+    },
+    "130": {
+      "initiative": 0.37995113572375394,
+      "energy": 0.6705014966178663,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.33574041905300256,
+      "reflectiveness": 0.4000294911499254,
+      "response_length_scale": 0.8673528632434885,
+      "response_delay_s": 15.320943128521082
+    },
+    "132": {
+      "initiative": 0.3775676461948827,
+      "energy": 0.6642291557524156,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3339841636106764,
+      "reflectiveness": 0.4021620870441787,
+      "response_length_scale": 0.860748088312169,
+      "response_delay_s": 15.55929208140821
+    },
+    "134": {
+      "initiative": 0.3740106890309409,
+      "energy": 0.6548687421630951,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3313632478056666,
+      "reflectiveness": 0.40534462766454765,
+      "response_length_scale": 0.8508915728026144,
+      "response_delay_s": 15.914987797802388
+    },
+    "136": {
+      "initiative": 0.37106238726092766,
+      "energy": 0.6471100532946393,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.329190814922499,
+      "reflectiveness": 0.4079825818798226,
+      "response_length_scale": 0.8427216734241304,
+      "response_delay_s": 16.209817974803705
+    },
+    "137": {
+      "initiative": 0.34860222366465365,
+      "energy": 0.5880043596202341,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3126412206936655,
+      "reflectiveness": 0.42807851772912037,
+      "response_length_scale": 0.7804833779849817,
+      "response_delay_s": 18.455834334431103
+    },
+    "138": {
+      "initiative": 0.46844821134815123,
+      "energy": 0.6763208600169497,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.513369840804746,
+      "reflectiveness": 0.39805090759423706,
+      "response_length_scale": 0.9424301869340612,
+      "response_delay_s": 13.099807319355913
+    },
+    "139": {
+      "initiative": 0.5011451229608683,
+      "energy": 0.7623653642609423,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5374623019930639,
+      "reflectiveness": 0.3687957761512796,
+      "response_length_scale": 1.0330350499029854,
+      "response_delay_s": 9.830116158084195
+    },
+    "140": {
+      "initiative": 0.49022323139074614,
+      "energy": 0.7336235443395679,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.529414592415079,
+      "reflectiveness": 0.3785679949245469,
+      "response_length_scale": 1.0027699135257782,
+      "response_delay_s": 10.922305315096422
+    },
+    "142": {
+      "initiative": 0.46951079871984314,
+      "energy": 0.6791171425740337,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5141527999207295,
+      "reflectiveness": 0.3971001715248285,
+      "response_length_scale": 0.9453746724666705,
+      "response_delay_s": 12.993548582186722
+    },
+    "144": {
+      "initiative": 0.4673345093241697,
+      "energy": 0.6733900652169983,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5125492182607596,
+      "reflectiveness": 0.3990473778262206,
+      "response_length_scale": 0.9393440600097125,
+      "response_delay_s": 13.211177521754065
+    },
+    "146": {
+      "initiative": 0.4662368532564995,
+      "energy": 0.6705014966178663,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5117404190530026,
+      "reflectiveness": 0.4000294911499254,
+      "response_length_scale": 0.9363023972748264,
+      "response_delay_s": 13.320943128521082
+    },
+    "148": {
+      "initiative": 0.4637984309068353,
+      "energy": 0.6640845956976973,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5099436867953553,
+      "reflectiveness": 0.4022112374627829,
+      "response_length_scale": 0.9295454006058884,
+      "response_delay_s": 13.564785363487504
+    },
+    "150": {
+      "initiative": 0.46162063595194447,
+      "energy": 0.6583535563427214,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5083389957759621,
+      "reflectiveness": 0.4041597908434747,
+      "response_length_scale": 0.9235106161650988,
+      "response_delay_s": 13.782564858976587
+    },
+    "152": {
+      "initiative": 0.4577471752169485,
+      "energy": 0.6481602386190478,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5054848668133335,
+      "reflectiveness": 0.40762551886952375,
+      "response_length_scale": 0.9127770526020705,
+      "response_delay_s": 14.169910932476183
+    },
+    "154": {
+      "initiative": 0.4556060261952044,
+      "energy": 0.6425256359302476,
+      "valence": 0.6000000000000001,
+      "playfulness": 0.5039071780604694,
+      "reflectiveness": 0.4095412837837158,
+      "response_length_scale": 0.9068438159707639,
+      "response_delay_s": 14.384025834650593
+    },
+    "155": {
+      "initiative": 0.3551681971842608,
+      "energy": 0.7615284933022864,
+      "valence": 0.0,
+      "playfulness": 0.2732279781246402,
+      "reflectiveness": 0.3930803122772226,
+      "response_length_scale": 0.94338306496278,
+      "response_delay_s": 12.861917254513116
+    },
+    "157": {
+      "initiative": 0.32385188390752473,
+      "energy": 0.6791171425740337,
+      "valence": 0.0,
+      "playfulness": 0.2501527999207294,
+      "reflectiveness": 0.42110017152482854,
+      "response_length_scale": 0.8566039126459297,
+      "response_delay_s": 15.993548582186722
+    },
+    "159": {
+      "initiative": 0.3205779384441811,
+      "energy": 0.6705014966178663,
+      "valence": 0.0,
+      "playfulness": 0.24774041905300254,
+      "reflectiveness": 0.42402949114992544,
+      "response_length_scale": 0.8475316374540856,
+      "response_delay_s": 16.32094312852108
+    },
+    "161": {
+      "initiative": 0.3182370298205021,
+      "energy": 0.6643412107660794,
+      "valence": 0.0,
+      "playfulness": 0.2460155390145023,
+      "reflectiveness": 0.42612398833953297,
+      "response_length_scale": 0.841044856452154,
+      "response_delay_s": 16.55503399088898
+    },
+    "163": {
+      "initiative": 0.3168961333194259,
+      "energy": 0.6608125357632473,
+      "valence": 0.0,
+      "playfulness": 0.24502751001370926,
+      "reflectiveness": 0.42732373784049593,
+      "response_length_scale": 0.8373291616741717,
+      "response_delay_s": 16.689123640996606
+    },
+    "165": {
+      "initiative": 0.31358318704301724,
+      "energy": 0.6520942560884877,
+      "valence": 0.0,
+      "playfulness": 0.24258639170477658,
+      "reflectiveness": 0.4302879529299142,
+      "response_length_scale": 0.8281488131766498,
+      "response_delay_s": 17.020418268637467
+    },
+    "167": {
+      "initiative": 0.3128577491146573,
+      "energy": 0.6501852089085931,
+      "valence": 0.0,
+      "playfulness": 0.24205185849440608,
+      "reflectiveness": 0.4309370289710784,
+      "response_length_scale": 0.826138586496221,
+      "response_delay_s": 17.092962061473465
+    },
+    "168": {
+      "initiative": 0.4235837920220381,
+      "energy": 0.812410584885385,
+      "valence": -0.4,
+      "playfulness": 0.3474749637679078,
+      "reflectiveness": 0.3837804011389691,
+      "response_length_scale": 1.0393597971836936,
+      "response_delay_s": 7.92839777435537
+    },
+    "169": {
+      "initiative": 0.41383005898562764,
+      "energy": 0.7867428663685153,
+      "valence": -0.4,
+      "playfulness": 0.3402880025831843,
+      "reflectiveness": 0.3925074254347048,
+      "response_length_scale": 1.0123316895854297,
+      "response_delay_s": 8.903771077996419
+    },
+    "171": {
+      "initiative": 0.3931616744079615,
+      "energy": 0.732352380637815,
+      "valence": -0.4,
+      "playfulness": 0.32505866657858823,
+      "reflectiveness": 0.4110001905831429,
+      "response_length_scale": 0.9550585081110025,
+      "response_delay_s": 10.970609535763028
+    },
+    "173": {
+      "initiative": 0.38971186586316253,
+      "energy": 0.7232739370988703,
+      "valence": -0.4,
+      "playfulness": 0.3225167023876837,
+      "reflectiveness": 0.4140868613863841,
+      "response_length_scale": 0.9454989070644937,
+      "response_delay_s": 11.315590390242928
+    },
+    "175": {
+      "initiative": 0.3888690712652055,
+      "energy": 0.7210560565779307,
+      "valence": -0.4,
+      "playfulness": 0.32189569584182065,
+      "reflectiveness": 0.4148409407635036,
+      "response_length_scale": 0.9431634788759443,
+      "response_delay_s": 11.399869850038634
+    },
+    "176": {
+      "initiative": 0.36870294955909744,
+      "energy": 0.6679873152460675,
+      "valence": -0.4,
+      "playfulness": 0.30703644826889886,
+      "reflectiveness": 0.43288431281633705,
+      "response_length_scale": 0.8872820942534922,
+      "response_delay_s": 13.416482020649436
+    },
+    "177": {
+      "initiative": 0.47342131518290825,
+      "energy": 0.8244981926298985,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.4188594939363716,
+      "reflectiveness": 0.3716706145058345,
+      "response_length_scale": 1.1146212323076106,
+      "response_delay_s": 7.469068680063855
+    },
+    "178": {
+      "initiative": 0.4630130634929477,
+      "energy": 0.7971080566036866,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.41119025584903224,
+      "reflectiveness": 0.3809832607547466,
+      "response_length_scale": 1.0857794190720094,
+      "response_delay_s": 8.509893849059912
+    },
+    "180": {
+      "initiative": 0.4384059066259165,
+      "energy": 0.732352380637815,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.39305866657858823,
+      "reflectiveness": 0.4030001905831429,
+      "response_length_scale": 1.0175916922799466,
+      "response_delay_s": 10.970609535763028
+    },
+    "182": {
+      "initiative": 0.437200656766702,
+      "energy": 0.7291806704819874,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3921705877349565,
+      "reflectiveness": 0.4040785720361243,
+      "response_length_scale": 1.0142518814858603,
+      "response_delay_s": 11.091134521684479
+    },
+    "184": {
+      "initiative": 0.4363072255308542,
+      "energy": 0.726829535650809,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.39151226998222655,
+      "reflectiveness": 0.40487795787872494,
+      "response_length_scale": 1.0117761365086293,
+      "response_delay_s": 11.18047764526926
+    },
+    "186": {
+      "initiative": 0.4353563223460095,
+      "energy": 0.7243271588485861,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3908116044776041,
+      "reflectiveness": 0.4057287659914807,
+      "response_length_scale": 1.0091411337358887,
+      "response_delay_s": 11.275567963753728
+    },
+    "188": {
+      "initiative": 0.43276197162922186,
+      "energy": 0.7174999201201975,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3888999776336553,
+      "reflectiveness": 0.40805002715913286,
+      "response_length_scale": 1.0019520513548954,
+      "response_delay_s": 11.535003035432496
+    },
+    "190": {
+      "initiative": 0.43187577300582686,
+      "energy": 0.7151678184796844,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.38824698917431166,
+      "reflectiveness": 0.4088429417169073,
+      "response_length_scale": 0.9994963483274352,
+      "response_delay_s": 11.623622897771995
+    },
+    "191": {
+      "initiative": 0.40697207973986393,
+      "energy": 0.6496317835692555,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3698968993993916,
+      "reflectiveness": 0.4311251935864531,
+      "response_length_scale": 0.9304869035667536,
+      "response_delay_s": 14.113992224368289
+    },
+    "192": {
+      "initiative": 0.4620264576853469,
+      "energy": 0.7686044919649863,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.40320925775019617,
+      "reflectiveness": 0.31867447273190463,
+      "response_length_scale": 0.992609898668722,
+      "response_delay_s": 9.593029305330523
+    },
+    "193": {
+      "initiative": 0.4562253553142956,
+      "energy": 0.7533384330937986,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3989347612662636,
+      "reflectiveness": 0.32386493274810846,
+      "response_length_scale": 0.9765347386773613,
+      "response_delay_s": 10.173139542435656
+    },
+    "195": {
+      "initiative": 0.4482506553810218,
+      "energy": 0.732352380637815,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.39305866657858823,
+      "reflectiveness": 0.3310001905831429,
+      "response_length_scale": 0.9544364254412107,
+      "response_delay_s": 10.970609535763028
+    },
+    "197": {
+      "initiative": 0.44571970757946255,
+      "energy": 0.7256919916863432,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3911937576721761,
+      "reflectiveness": 0.3332647228266433,
+      "response_length_scale": 0.9474230358753108,
+      "response_delay_s": 11.223704315918958
+    },
+    "199": {
+      "initiative": 0.44190272926816127,
+      "energy": 0.7156473119197608,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.38838124733753304,
+      "reflectiveness": 0.3366799139472813,
+      "response_length_scale": 0.9368459880810996,
+      "response_delay_s": 11.60540214704909
+    },
+    "200": {
+      "initiative": 0.4811231871084294,
+      "energy": 0.8181178861070366,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.4170730081099703,
+      "reflectiveness": 0.30183991872360755,
+      "response_length_scale": 1.044808277512483,
+      "response_delay_s": 7.711520327932608
+    },
+    "202": {
+      "initiative": 0.44853229503012515,
+      "energy": 0.732352380637815,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.39305866657858823,
+      "reflectiveness": 0.3310001905831429,
+      "response_length_scale": 0.9544972002533925,
+      "response_delay_s": 10.970609535763028
+    },
+    "204": {
+      "initiative": 0.44732704517091065,
+      "energy": 0.7291806704819874,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.3921705877349565,
+      "reflectiveness": 0.3320785720361243,
+      "response_length_scale": 0.9511573894593061,
+      "response_delay_s": 11.091134521684479
+    },
+    "206": {
+      "initiative": 0.44405819042406997,
+      "energy": 0.720578421148196,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.38976195792149493,
+      "reflectiveness": 0.33500333680961336,
+      "response_length_scale": 0.9420992209108238,
+      "response_delay_s": 11.418019996368551
+    },
+    "208": {
+      "initiative": 0.44190551218697877,
+      "energy": 0.7149134784190087,
+      "valence": 0.19999999999999996,
+      "playfulness": 0.38817577395732245,
+      "reflectiveness": 0.33692941733753706,
+      "response_length_scale": 0.9361340362169894,
+      "response_delay_s": 11.633287820077673
+    },
+    "209": {
+      "initiative": 0.35935925553750997,
+      "energy": 0.7175505713024602,
+      "valence": -0.4,
+      "playfulness": 0.26091415996468886,
+      "reflectiveness": 0.48803280575716357,
+      "response_length_scale": 0.8920158479205474,
+      "response_delay_s": 14.533078290506511
+    },
+    "211": {
+      "initiative": 0.32821333354918175,
+      "energy": 0.6355876187015965,
+      "valence": -0.4,
+      "playfulness": 0.237964533236447,
+      "reflectiveness": 0.5159002096414572,
+      "response_length_scale": 0.8057088588318378,
+      "response_delay_s": 17.647670489339333
+    },
+    "213": {
+      "initiative": 0.32602423357197086,
+      "energy": 0.6298268292878836,
+      "valence": -0.4,
+      "playfulness": 0.2363515122006074,
+      "reflectiveness": 0.5178588780421196,
+      "response_length_scale": 0.7996427475791981,
+      "response_delay_s": 17.866580487060425
+    },
+    "215": {
+      "initiative": 0.32357032896406235,
+      "energy": 0.6233691855828614,
+      "valence": -0.4,
+      "playfulness": 0.23454337196320119,
+      "reflectiveness": 0.5200544769018272,
+      "response_length_scale": 0.7928428487578097,
+      "response_delay_s": 18.11197094785127
+    },
+    "217": {
+      "initiative": 0.31954340852875995,
+      "energy": 0.6127720265425919,
+      "valence": -0.4,
+      "playfulness": 0.23157616743192572,
+      "reflectiveness": 0.5236575109755188,
+      "response_length_scale": 0.781684040288406,
+      "response_delay_s": 18.51466299138151
+    },
+    "219": {
+      "initiative": 0.3180223151311401,
+      "energy": 0.6087691491804342,
+      "valence": -0.4,
+      "playfulness": 0.23045536177052156,
+      "reflectiveness": 0.5250184892786524,
+      "response_length_scale": 0.777469010426054,
+      "response_delay_s": 18.6667723311435
+    },
+    "220": {
+      "initiative": 0.3558088001673486,
+      "energy": 0.7250637277695134,
+      "valence": -1.0,
+      "playfulness": 0.2630178437754638,
+      "reflectiveness": 0.6054783325583654,
+      "response_length_scale": 0.9068460078435281,
+      "response_delay_s": 14.24757834475849
+    },
+    "222": {
+      "initiative": 0.3218078787215402,
+      "energy": 0.6355876187015965,
+      "valence": -1.0,
+      "playfulness": 0.237964533236447,
+      "reflectiveness": 0.6359002096414571,
+      "response_length_scale": 0.8126276649950117,
+      "response_delay_s": 17.647670489339333
+    },
+    "224": {
+      "initiative": 0.3204821038764043,
+      "energy": 0.6320987375301862,
+      "valence": -1.0,
+      "playfulness": 0.2369876465084521,
+      "reflectiveness": 0.6370864292397366,
+      "response_length_scale": 0.8089538731215166,
+      "response_delay_s": 17.780247973852923
+    },
+    "226": {
+      "initiative": 0.31977447640326107,
+      "energy": 0.630236559969283,
+      "valence": -1.0,
+      "playfulness": 0.23646623679139928,
+      "reflectiveness": 0.6377195696104437,
+      "response_length_scale": 0.8069930001498855,
+      "response_delay_s": 17.85101072116725
+    },
+    "228": {
+      "initiative": 0.3170856419769028,
+      "energy": 0.6231606798999193,
+      "valence": -1.0,
+      "playfulness": 0.2344849903719774,
+      "reflectiveness": 0.6401253688340275,
+      "response_length_scale": 0.7995420984368455,
+      "response_delay_s": 18.119894163803067
+    },
+    "230": {
+      "initiative": 0.3161212980606676,
+      "energy": 0.6206229327519318,
+      "valence": -1.0,
+      "playfulness": 0.23377442117054092,
+      "reflectiveness": 0.6409882028643431,
+      "response_length_scale": 0.7968698506900147,
+      "response_delay_s": 18.216328555426593
+    },
+    "232": {
+      "initiative": 0.3153662416985119,
+      "energy": 0.6186359423252064,
+      "valence": -1.0,
+      "playfulness": 0.23321806385105776,
+      "reflectiveness": 0.6416637796094299,
+      "response_length_scale": 0.7947775497706728,
+      "response_delay_s": 18.29183419164216
+    },
+    "233": {
+      "initiative": 0.39669160849179924,
+      "energy": 0.7283489603021124,
+      "valence": -0.4,
+      "playfulness": 0.3239377088845915,
+      "reflectiveness": 0.4843613534972818,
+      "response_length_scale": 1.0183826473766633,
+      "response_delay_s": 11.12273950851973
+    },
+    "235": {
+      "initiative": 0.3614422986836032,
+      "energy": 0.6355876187015965,
+      "valence": -0.4,
+      "playfulness": 0.297964533236447,
+      "reflectiveness": 0.5159002096414572,
+      "response_length_scale": 0.92070495467132,
+      "response_delay_s": 14.647670489339333
+    },
+    "237": {
+      "initiative": 0.35789500427858495,
+      "energy": 0.6262526334252327,
+      "valence": -0.4,
+      "playfulness": 0.29535073735906514,
+      "reflectiveness": 0.5190741046354209,
+      "response_length_scale": 0.910875215175309,
+      "response_delay_s": 15.002399929841157
+    },
+    "239": {
+      "initiative": 0.3532590790391828,
+      "energy": 0.614052830163648,
+      "valence": -0.4,
+      "playfulness": 0.29193479244582143,
+      "reflectiveness": 0.5232220377443597,
+      "response_length_scale": 0.8980288223408601,
+      "response_delay_s": 15.465992453781377
+    },
+    "241": {
+      "initiative": 0.3518381437342957,
+      "energy": 0.6103135267297348,
+      "valence": -0.4,
+      "playfulness": 0.29088778748432575,
+      "reflectiveness": 0.5244934009118901,
+      "response_length_scale": 0.8940913358249497,
+      "response_delay_s": 15.608085984270078
+    },
+    "243": {
+      "initiative": 0.34843944432513946,
+      "energy": 0.6013695809161657,
+      "valence": -0.4,
+      "playfulness": 0.28838348265652636,
+      "reflectiveness": 0.5275343424885037,
+      "response_length_scale": 0.8846733608832613,
+      "response_delay_s": 15.947955925185706
+    },
+    "244": {
+      "initiative": 0.3323686812966678,
+      "energy": 0.5590780992622929,
+      "valence": -0.4,
+      "playfulness": 0.27654186779344203,
+      "reflectiveness": 0.5419134462508204,
+      "response_length_scale": 0.8401404307017333,
+      "response_delay_s": 17.55503222803287
+    },
+    "245": {
+      "initiative": 0.39198958060481104,
+      "energy": 0.7186279604744046,
+      "valence": 0.0,
+      "playfulness": 0.3212158289328333,
+      "reflectiveness": 0.3356664934387025,
+      "response_length_scale": 0.9476658570026574,
+      "response_delay_s": 11.492137501972627
+    },
+    "247": {
+      "initiative": 0.360434250731144,
+      "energy": 0.6355876187015965,
+      "valence": 0.0,
+      "playfulness": 0.297964533236447,
+      "reflectiveness": 0.3639002096414572,
+      "response_length_scale": 0.8602243771158904,
+      "response_delay_s": 14.647670489339333
+    },
+    "249": {
+      "initiative": 0.3591084758860081,
+      "energy": 0.6320987375301862,
+      "valence": 0.0,
+      "playfulness": 0.2969876465084521,
+      "reflectiveness": 0.36508642923973667,
+      "response_length_scale": 0.8565505852423954,
+      "response_delay_s": 14.780247973852925
+    },
+    "251": {
+      "initiative": 0.35595296312080565,
+      "energy": 0.6237947565691273,
+      "valence": 0.0,
+      "playfulness": 0.29466253183935565,
+      "reflectiveness": 0.3679097827664967,
+      "response_length_scale": 0.8478064932904004,
+      "response_delay_s": 15.095799250373164
+    },
+    "253": {
+      "initiative": 0.3519979646635032,
+      "energy": 0.6133868658920155,
+      "valence": 0.0,
+      "playfulness": 0.29174832244976434,
+      "reflectiveness": 0.37144846559671474,
+      "response_length_scale": 0.8368469844074017,
+      "response_delay_s": 15.491299096103411
+    },
+    "255": {
+      "initiative": 0.35039323704616177,
+      "energy": 0.6091638984779592,
+      "valence": 0.0,
+      "playfulness": 0.2905658915738286,
+      "reflectiveness": 0.3728842745174939,
+      "response_length_scale": 0.8324001997204002,
+      "response_delay_s": 15.651771857837552
+    },
+    "257": {
+      "initiative": 0.34724527366312924,
+      "energy": 0.6008797843120841,
+      "valence": 0.0,
+      "playfulness": 0.28824633960738355,
+      "reflectiveness": 0.3757008733338914,
+      "response_length_scale": 0.8236770275037338,
+      "response_delay_s": 15.966568196140805
+    },
+    "258": {
+      "initiative": 0.3885949155240259,
+      "energy": 0.7366909878269239,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.3062734765915387,
+      "reflectiveness": 0.39352506413884586,
+      "response_length_scale": 0.9516927236179514,
+      "response_delay_s": 11.805742462576893
+    },
+    "260": {
+      "initiative": 0.35017563525640155,
+      "energy": 0.6355876187015965,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.277964533236447,
+      "reflectiveness": 0.4279002096414572,
+      "response_length_scale": 0.8452308759289817,
+      "response_delay_s": 15.647670489339333
+    },
+    "262": {
+      "initiative": 0.3468364887542734,
+      "energy": 0.6268003910644173,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.27550410949803683,
+      "reflectiveness": 0.4308878670380981,
+      "response_length_scale": 0.835977925227032,
+      "response_delay_s": 15.981585139552143
+    },
+    "264": {
+      "initiative": 0.3423402567118947,
+      "energy": 0.6149682014792102,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2721910964141788,
+      "reflectiveness": 0.4349108114970685,
+      "response_length_scale": 0.8235186295938088,
+      "response_delay_s": 16.431208343790015
+    },
+    "266": {
+      "initiative": 0.33865308305943664,
+      "energy": 0.6052651129201099,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.26947423161763073,
+      "reflectiveness": 0.43820986160716263,
+      "response_length_scale": 0.8133012773410763,
+      "response_delay_s": 16.799925709035826
+    },
+    "267": {
+      "initiative": 0.40422250866583953,
+      "energy": 0.7163145106392242,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.32056806297898277,
+      "reflectiveness": 0.37645306638266374,
+      "response_length_scale": 0.9488621156088826,
+      "response_delay_s": 11.58004859570948
+    },
+    "269": {
+      "initiative": 0.373546289729541,
+      "energy": 0.6355876187015965,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.297964533236447,
+      "reflectiveness": 0.4039002096414572,
+      "response_length_scale": 0.8638566983985606,
+      "response_delay_s": 14.647670489339333
+    },
+    "271": {
+      "initiative": 0.3722205148844051,
+      "energy": 0.6320987375301862,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2969876465084521,
+      "reflectiveness": 0.40508642923973665,
+      "response_length_scale": 0.8601829065250656,
+      "response_delay_s": 14.780247973852925
+    },
+    "273": {
+      "initiative": 0.3678803735303541,
+      "energy": 0.6206773129142624,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.29378964761599347,
+      "reflectiveness": 0.40896971360915074,
+      "response_length_scale": 0.8481561464044979,
+      "response_delay_s": 15.214262109258028
+    },
+    "275": {
+      "initiative": 0.36424362261051574,
+      "energy": 0.6111069157567932,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2911099364119021,
+      "reflectiveness": 0.4122236486426903,
+      "response_length_scale": 0.8380785181976828,
+      "response_delay_s": 15.577937201241859
+    },
+    "277": {
+      "initiative": 0.3598768563665028,
+      "energy": 0.5996154256409696,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2878923191794715,
+      "reflectiveness": 0.41613075528207033,
+      "response_length_scale": 0.8259779791057205,
+      "response_delay_s": 16.014613825643156
+    },
+    "279": {
+      "initiative": 0.35835673447153527,
+      "energy": 0.5956151048647392,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.286772229362127,
+      "reflectiveness": 0.41749086434598864,
+      "response_length_scale": 0.8217656413283498,
+      "response_delay_s": 16.166626015139908
+    },
+    "280": {
+      "initiative": 0.33809207229811916,
+      "energy": 0.5422870465136443,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2718403730238204,
+      "reflectiveness": 0.4356224041853609,
+      "response_length_scale": 0.765611195884647,
+      "response_delay_s": 18.193092232481515
+    },
+    "281": {
+      "initiative": 0.3890149824924224,
+      "energy": 0.7324237878424591,
+      "valence": -0.6,
+      "playfulness": 0.2850786605958885,
+      "reflectiveness": 0.4989759121335639,
+      "response_length_scale": 0.9357144552675961,
+      "response_delay_s": 12.967896061986554
+    },
+    "283": {
+      "initiative": 0.3522172382188946,
+      "energy": 0.6355876187015965,
+      "valence": -0.6,
+      "playfulness": 0.25796453323644697,
+      "reflectiveness": 0.5319002096414572,
+      "response_length_scale": 0.8337459691622677,
+      "response_delay_s": 16.647670489339333
+    },
+    "285": {
+      "initiative": 0.35132094550071946,
+      "energy": 0.6332289536537671,
+      "valence": -0.6,
+      "playfulness": 0.25730410702305473,
+      "reflectiveness": 0.5327021557577192,
+      "response_length_scale": 0.8312622948669033,
+      "response_delay_s": 16.73729976115685
+    },
+    "287": {
+      "initiative": 0.3492220586382362,
+      "energy": 0.6277055671735479,
+      "valence": -0.6,
+      "playfulness": 0.2557575588085934,
+      "reflectiveness": 0.5345801071609938,
+      "response_length_scale": 0.8254461689032325,
+      "response_delay_s": 16.947188447405182
+    },
+    "288": {
+      "initiative": 0.4214829321771438,
+      "energy": 0.7135040302080569,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.3197811284582559,
+      "reflectiveness": 0.42540862972926063,
+      "response_length_scale": 0.9883629344260831,
+      "response_delay_s": 11.68684685209384
+    },
+    "290": {
+      "initiative": 0.39187469580468887,
+      "energy": 0.6355876187015965,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.297964533236447,
+      "reflectiveness": 0.45190020964145716,
+      "response_length_scale": 0.9063169531097803,
+      "response_delay_s": 14.647670489339333
+    },
+    "292": {
+      "initiative": 0.38992557119408,
+      "energy": 0.6304583434105205,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.2965283361549458,
+      "reflectiveness": 0.453644163240423,
+      "response_length_scale": 0.9009158262282774,
+      "response_delay_s": 14.842582950400221
+    },
+    "294": {
+      "initiative": 0.3859708548449981,
+      "energy": 0.620051195123463,
+      "valence": -0.19999999999999996,
+      "playfulness": 0.29361433463456965,
+      "reflectiveness": 0.45718259365802255,
+      "response_length_scale": 0.8899570990820057,
+      "response_delay_s": 15.238054585308408
+    },
+    "295": {
+      "initiative": 0.40458067474811266,
+      "energy": 0.673175873407478,
+      "valence": -0.6,
+      "playfulness": 0.3084892445540939,
+      "reflectiveness": 0.47112020304145746,
+      "response_length_scale": 0.9084108666060349,
+      "response_delay_s": 13.219316810515839
+    },
+    "297": {
+      "initiative": 0.3604111150238417,
+      "energy": 0.5569401899225546,
+      "valence": -0.6,
+      "playfulness": 0.27594325317831525,
+      "reflectiveness": 0.5106403354263315,
+      "response_length_scale": 0.7860146918964105,
+      "response_delay_s": 17.636272782942928
+    },
+    "299": {
+      "initiative": 0.3550140017597227,
+      "energy": 0.542737260280136,
+      "valence": -0.6,
+      "playfulness": 0.27196643287843814,
+      "reflectiveness": 0.5154693315047537,
+      "response_length_scale": 0.7710590069829437,
+      "response_delay_s": 18.175984109354832
+    },
+    "301": {
+      "initiative": 0.35100903010995543,
+      "energy": 0.5321978612018011,
+      "valence": -0.6,
+      "playfulness": 0.26901540113650435,
+      "reflectiveness": 0.5190527271913876,
+      "response_length_scale": 0.7599610197534572,
+      "response_delay_s": 18.57648127433156
+    },
+    "303": {
+      "initiative": 0.34707976585292083,
+      "energy": 0.5218576921043416,
+      "valence": -0.6,
+      "playfulness": 0.26612015378921566,
+      "reflectiveness": 0.5225683846845238,
+      "response_length_scale": 0.7490728216938323,
+      "response_delay_s": 18.969407700035017
+    },
+    "305": {
+      "initiative": 0.3424141464843249,
+      "energy": 0.5095797463975101,
+      "valence": -0.6,
+      "playfulness": 0.26268232899130284,
+      "reflectiveness": 0.5267428862248466,
+      "response_length_scale": 0.7361441448645386,
+      "response_delay_s": 19.435969636894615
+    },
+    "306": {
+      "initiative": 0.3528017511207643,
+      "energy": 0.5504120475855293,
+      "valence": -0.6,
+      "playfulness": 0.2741153733239482,
+      "reflectiveness": 0.5128599038209201,
+      "response_length_scale": 0.7781868447462899,
+      "response_delay_s": 17.884342191749887
+    },
+    "308": {
+      "initiative": 0.3552824452088339,
+      "energy": 0.5569401899225546,
+      "valence": -0.6,
+      "playfulness": 0.27594325317831525,
+      "reflectiveness": 0.5106403354263315,
+      "response_length_scale": 0.7850609786271774,
+      "response_delay_s": 17.636272782942928
+    },
+    "310": {
+      "initiative": 0.353900086790714,
+      "energy": 0.5533024046117127,
+      "valence": -0.6,
+      "playfulness": 0.27492467329127956,
+      "reflectiveness": 0.5118771824320176,
+      "response_length_scale": 0.7812303906948608,
+      "response_delay_s": 17.77450862475492
+    },
+    "312": {
+      "initiative": 0.34872256087799125,
+      "energy": 0.5396773364203371,
+      "valence": -0.6,
+      "playfulness": 0.2711096541976944,
+      "reflectiveness": 0.5165097056170853,
+      "response_length_scale": 0.7668831938893423,
+      "response_delay_s": 18.29226121602719
+    },
+    "314": {
+      "initiative": 0.3433014179708548,
+      "energy": 0.525411170875241,
+      "valence": -0.6,
+      "playfulness": 0.2671151278450675,
+      "reflectiveness": 0.521360201902418,
+      "response_length_scale": 0.7518609215703562,
+      "response_delay_s": 18.83437550674084
+    },
+    "316": {
+      "initiative": 0.3372248727852314,
+      "energy": 0.5094202624920215,
+      "valence": -0.6,
+      "playfulness": 0.262637673497766,
+      "reflectiveness": 0.5267971107527127,
+      "response_length_scale": 0.735022495042826,
+      "response_delay_s": 19.442030025303183
+    },
+    "317": {
+      "initiative": 0.3685187288761762,
+      "energy": 0.6542691601444942,
+      "valence": -0.8,
+      "playfulness": 0.2831953648404584,
+      "reflectiveness": 0.5415484855508721,
+      "response_length_scale": 0.8745719605664052,
+      "response_delay_s": 14.93777191450922
+    },
+    "319": {
+      "initiative": 0.33153372019183913,
+      "energy": 0.5569401899225546,
+      "valence": -0.8,
+      "playfulness": 0.25594325317831523,
+      "reflectiveness": 0.5746403354263315,
+      "response_length_scale": 0.7720845549227027,
+      "response_delay_s": 18.636272782942928
+    },
+    "321": {
+      "initiative": 0.3288295245376811,
+      "energy": 0.549823885569507,
+      "valence": -0.8,
+      "playfulness": 0.25395068795946196,
+      "reflectiveness": 0.5770598789063677,
+      "response_length_scale": 0.7645910864389436,
+      "response_delay_s": 18.906692348358735
+    },
+    "323": {
+      "initiative": 0.3251484358675563,
+      "energy": 0.5401368101218103,
+      "valence": -0.8,
+      "playfulness": 0.25123830683410686,
+      "reflectiveness": 0.5803534845585846,
+      "response_length_scale": 0.7543905959925189,
+      "response_delay_s": 19.274801215371212
+    },
+    "325": {
+      "initiative": 0.3220801939596527,
+      "energy": 0.5320624893115375,
+      "valence": -0.8,
+      "playfulness": 0.24897749700723049,
+      "reflectiveness": 0.5830987536340773,
+      "response_length_scale": 0.7458883361793017,
+      "response_delay_s": 19.581625406161574
+    },
+    "327": {
+      "initiative": 0.318428954686491,
+      "energy": 0.5224539649084806,
+      "valence": -0.8,
+      "playfulness": 0.24628711017437455,
+      "reflectiveness": 0.5863656519311167,
+      "response_length_scale": 0.7357705599828829,
+      "response_delay_s": 19.946749333477737
+    },
+    "328": {
+      "initiative": 0.3802753938679945,
+      "energy": 0.6681218566989824,
+      "valence": -0.4,
+      "playfulness": 0.3070741198757151,
+      "reflectiveness": 0.432838568722346,
+      "response_length_scale": 0.9044718726207102,
+      "response_delay_s": 13.41136944543867
+    },
+    "330": {
+      "initiative": 0.3380263604929519,
+      "energy": 0.5569401899225546,
+      "valence": -0.4,
+      "playfulness": 0.27594325317831525,
+      "reflectiveness": 0.4706403354263315,
+      "response_length_scale": 0.7873975775051316,
+      "response_delay_s": 17.636272782942928
+    },
+    "332": {
+      "initiative": 0.33277690034032886,
+      "energy": 0.5431258210998623,
+      "valence": -0.4,
+      "playfulness": 0.27207522990796146,
+      "reflectiveness": 0.47533722082604685,
+      "response_length_scale": 0.7728510471348367,
+      "response_delay_s": 18.161218798205233
+    },
+    "334": {
+      "initiative": 0.32743912439286976,
+      "energy": 0.5290790422907594,
+      "valence": -0.4,
+      "playfulness": 0.26814213184141267,
+      "reflectiveness": 0.4801131256211418,
+      "response_length_scale": 0.7580597890488513,
+      "response_delay_s": 18.694996392951143
+    },
+    "336": {
+      "initiative": 0.3242476616075886,
+      "energy": 0.5206804560137036,
+      "valence": -0.4,
+      "playfulness": 0.26579052768383704,
+      "reflectiveness": 0.4829686449553408,
+      "response_length_scale": 0.7492160776991117,
+      "response_delay_s": 19.014142671479263
+    }
+  },
+  "arc_progress_by_day": {
+    "0": {
+      "arc_2": [
+        0.264,
+        "active"
+      ],
+      "arc_1": [
+        0.72,
+        "active"
+      ]
+    },
+    "1": {
+      "arc_2": [
+        0.264,
+        "active"
+      ],
+      "arc_1": [
+        0.72,
+        "active"
+      ]
+    },
+    "2": {
+      "arc_2": [
+        0.264,
+        "active"
+      ],
+      "arc_1": [
+        0.72,
+        "active"
+      ]
+    },
+    "3": {
+      "arc_2": [
+        0.264,
+        "active"
+      ],
+      "arc_1": [
+        0.72,
+        "active"
+      ]
+    },
+    "4": {
+      "arc_2": [
+        0.301,
+        "active"
+      ],
+      "arc_1": [
+        0.72,
+        "active"
+      ]
+    },
+    "5": {
+      "arc_2": [
+        0.328,
+        "active"
+      ],
+      "arc_1": [
+        0.72,
+        "active"
+      ]
+    },
+    "6": {
+      "arc_2": [
+        0.339,
+        "active"
+      ],
+      "arc_1": [
+        0.741,
+        "active"
+      ]
+    },
+    "7": {
+      "arc_2": [
+        0.35,
+        "active"
+      ],
+      "arc_1": [
+        0.774,
+        "active"
+      ]
+    },
+    "8": {
+      "arc_2": [
+        0.378,
+        "active"
+      ],
+      "arc_1": [
+        0.812,
+        "active"
+      ]
+    },
+    "9": {
+      "arc_2": [
+        0.398,
+        "active"
+      ],
+      "arc_1": [
+        0.824,
+        "active"
+      ]
+    },
+    "10": {
+      "arc_2": [
+        0.437,
+        "active"
+      ],
+      "arc_1": [
+        0.867,
+        "active"
+      ]
+    },
+    "11": {
+      "arc_2": [
+        0.487,
+        "active"
+      ],
+      "arc_1": [
+        0.882,
+        "active"
+      ]
+    },
+    "12": {
+      "arc_2": [
+        0.522,
+        "active"
+      ],
+      "arc_1": [
+        0.922,
+        "active"
+      ]
+    },
+    "13": {
+      "arc_2": [
+        0.564,
+        "active"
+      ],
+      "arc_1": [
+        0.942,
+        "active"
+      ]
+    },
+    "14": {
+      "arc_2": [
+        0.585,
+        "active"
+      ],
+      "arc_1": [
+        0.987,
+        "active"
+      ]
+    },
+    "15": {
+      "arc_2": [
+        0.606,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "active"
+      ]
+    },
+    "16": {
+      "arc_2": [
+        0.616,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ]
+    },
+    "17": {
+      "arc_2": [
+        0.637,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.544,
+        "active"
+      ]
+    },
+    "18": {
+      "arc_2": [
+        0.653,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.554,
+        "active"
+      ]
+    },
+    "19": {
+      "arc_2": [
+        0.692,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.596,
+        "active"
+      ]
+    },
+    "20": {
+      "arc_2": [
+        0.726,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.608,
+        "active"
+      ]
+    },
+    "21": {
+      "arc_2": [
+        0.762,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.63,
+        "active"
+      ]
+    },
+    "22": {
+      "arc_2": [
+        0.781,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.651,
+        "active"
+      ]
+    },
+    "23": {
+      "arc_2": [
+        0.823,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.693,
+        "active"
+      ]
+    },
+    "24": {
+      "arc_2": [
+        0.865,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.71,
+        "active"
+      ]
+    },
+    "25": {
+      "arc_2": [
+        0.898,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.731,
+        "active"
+      ]
+    },
+    "26": {
+      "arc_2": [
+        0.93,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.742,
+        "active"
+      ]
+    },
+    "27": {
+      "arc_2": [
+        0.954,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.775,
+        "active"
+      ]
+    },
+    "28": {
+      "arc_2": [
+        0.982,
+        "active"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.816,
+        "active"
+      ]
+    },
+    "29": {
+      "arc_2": [
+        1.0,
+        "completed"
+      ],
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_17_s0": [
+        0.847,
+        "active"
+      ]
+    }
+  },
+  "sleeper_delays": [
+    12.744998476357866,
+    19.241219071526057,
+    19.47093524802461,
+    19.613500012254836,
+    20.145955925639804,
+    20.27311864203389,
+    12.324676609268503,
+    19.241219071526057,
+    19.482269043368905,
+    20.036874130720193,
+    20.623166697393863,
+    21.03649034882768,
+    27.071073615383487,
+    22.241219071526057,
+    22.724838937231294,
+    22.939436307583733,
+    23.316746190417643,
+    16.130893571857868,
+    19.241219071526057,
+    19.724838937231294,
+    20.56580817263509,
+    21.41909922852502,
+    21.815160553011886,
+    20.057027891469723,
+    14.222226379450035,
+    21.241219071526057,
+    21.724838937231294,
+    21.91547326199534,
+    22.45909218406334,
+    16.566307627240395,
+    20.241219071526057,
+    20.482269043368888,
+    20.6301528948947,
+    21.468991985853858,
+    10.63712717501457,
+    10.842244246253891,
+    12.993548582186722,
+    13.211177521754065,
+    13.591762028790612,
+    13.975465250518026,
+    16.781209947318015,
+    10.10160560085925,
+    12.993548582186722,
+    13.211177521754065,
+    13.337834161851799,
+    13.423403689999624,
+    13.671828097298281,
+    15.218256406345294,
+    15.391643424013811,
+    15.993548582186722,
+    16.211177521754067,
+    16.420356233831406,
+    16.650541642213106,
+    16.792939552077257,
+    17.410567607794945,
+    10.866893984783722,
+    13.837525616333803,
+    13.993548582186722,
+    14.102021069515999,
+    14.246684707580684,
+    14.464338531601783,
+    14.833431604766787,
+    15.158849376877328,
+    12.848562214983806,
+    11.88922237276497,
+    12.993548582186722,
+    13.211177521754065,
+    13.320943128521082,
+    13.49898488616444,
+    13.850808165048273,
+    16.50172349519839,
+    13.144787451070492,
+    14.993548582186722,
+    15.211177521754065,
+    15.320943128521082,
+    15.55929208140821,
+    15.914987797802388,
+    16.209817974803705,
+    18.455834334431103,
+    13.099807319355913,
+    9.830116158084195,
+    10.922305315096422,
+    12.993548582186722,
+    13.211177521754065,
+    13.320943128521082,
+    13.564785363487504,
+    13.782564858976587,
+    14.169910932476183,
+    14.384025834650593,
+    12.861917254513116,
+    15.993548582186722,
+    16.32094312852108,
+    16.55503399088898,
+    16.689123640996606,
+    17.020418268637467,
+    17.092962061473465,
+    7.92839777435537,
+    8.903771077996419,
+    10.970609535763028,
+    11.315590390242928,
+    11.399869850038634,
+    13.416482020649436,
+    7.469068680063855,
+    8.509893849059912,
+    10.970609535763028,
+    11.091134521684479,
+    11.18047764526926,
+    11.275567963753728,
+    11.535003035432496,
+    11.623622897771995,
+    14.113992224368289,
+    9.593029305330523,
+    10.173139542435656,
+    10.970609535763028,
+    11.223704315918958,
+    11.60540214704909,
+    7.711520327932608,
+    10.970609535763028,
+    11.091134521684479,
+    11.418019996368551,
+    11.633287820077673,
+    14.533078290506511,
+    17.647670489339333,
+    17.866580487060425,
+    18.11197094785127,
+    18.51466299138151,
+    18.6667723311435,
+    14.24757834475849,
+    17.647670489339333,
+    17.780247973852923,
+    17.85101072116725,
+    18.119894163803067,
+    18.216328555426593,
+    18.29183419164216,
+    11.12273950851973,
+    14.647670489339333,
+    15.002399929841157,
+    15.465992453781377,
+    15.608085984270078,
+    15.947955925185706,
+    17.55503222803287,
+    11.492137501972627,
+    14.647670489339333,
+    14.780247973852925,
+    15.095799250373164,
+    15.491299096103411,
+    15.651771857837552,
+    15.966568196140805,
+    11.805742462576893,
+    15.647670489339333,
+    15.981585139552143,
+    16.431208343790015,
+    16.799925709035826,
+    11.58004859570948,
+    14.647670489339333,
+    14.780247973852925,
+    15.214262109258028,
+    15.577937201241859,
+    16.014613825643156,
+    16.166626015139908,
+    18.193092232481515,
+    12.967896061986554,
+    16.647670489339333,
+    16.73729976115685,
+    16.947188447405182,
+    11.68684685209384,
+    14.647670489339333,
+    14.842582950400221,
+    15.238054585308408,
+    13.219316810515839,
+    17.636272782942928,
+    18.175984109354832,
+    18.57648127433156,
+    18.969407700035017,
+    19.435969636894615,
+    17.884342191749887,
+    17.636272782942928,
+    17.77450862475492,
+    18.29226121602719,
+    18.83437550674084,
+    19.442030025303183,
+    14.93777191450922,
+    18.636272782942928,
+    18.906692348358735,
+    19.274801215371212,
+    19.581625406161574,
+    19.946749333477737,
+    13.41136944543867,
+    17.636272782942928,
+    18.161218798205233,
+    18.694996392951143,
+    19.014142671479263
+  ],
+  "i4_violations": [],
+  "restart_loss": [
+    {
+      "checkpoint_h": 168.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 336.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 504.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 624.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 696.0,
+      "diffs": 0
+    }
+  ],
+  "end_sweep": [],
+  "skipped_feeds": [],
+  "model": "deepseek-v4-flash",
+  "memory_policy": "structured_memory"
+}

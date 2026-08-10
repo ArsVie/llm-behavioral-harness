@@ -1,0 +1,3720 @@
+{
+  "condition": "STRUCTURED_NO_STATE",
+  "seed": 5004,
+  "days": 30,
+  "checkpoints": [
+    168,
+    336,
+    504,
+    624,
+    696
+  ],
+  "fake": false,
+  "perturb": true,
+  "db": "results/it3-g5-matrix/structured_no_state/seed5004/cell_structured_no_state_seed5004.db",
+  "n_messages": 320,
+  "n_proactive": 48,
+  "controls_by_message": {
+    "2": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "4": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "6": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "8": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "10": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "11": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "13": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "15": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "17": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "19": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "21": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "23": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "24": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "26": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "28": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "30": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "32": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "34": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "35": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "37": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "39": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "41": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "43": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "45": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "46": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "48": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "50": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "52": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "54": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "56": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "58": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "59": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "60": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "62": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "64": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "66": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "68": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "70": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "72": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "73": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "75": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "77": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "79": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "81": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "83": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "84": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "85": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "86": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "88": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "90": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "92": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "94": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "95": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "97": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "99": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "101": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "103": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "104": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "106": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "108": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "110": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "112": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "113": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "115": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "117": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "119": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "121": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "123": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "125": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "126": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "128": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "130": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "132": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "134": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "136": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "137": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "138": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "140": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "142": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "144": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "146": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "148": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "149": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "150": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "152": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "154": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "156": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "158": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "160": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "162": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "163": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "164": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "166": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "168": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "170": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "172": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "173": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "174": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "176": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "178": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "180": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "182": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "183": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "184": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "186": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "188": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "190": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "191": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "192": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "194": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "196": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "198": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "199": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "200": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "202": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "204": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "206": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "208": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "209": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "211": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "213": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "215": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "217": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "218": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "219": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "221": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "222": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "224": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "226": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "228": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "230": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "231": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "233": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "235": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "237": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "239": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "240": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "242": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "243": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "244": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "246": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "248": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "250": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "252": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "253": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "255": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "257": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "259": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "261": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "263": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "265": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "266": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "267": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "268": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "269": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "271": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "273": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "275": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "277": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "279": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "280": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "281": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "283": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "285": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "287": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "289": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "290": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "292": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "294": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "296": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "298": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "299": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "301": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "303": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "305": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "306": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "307": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "309": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "311": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "313": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "314": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "316": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "318": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    },
+    "320": {
+      "max_tokens": 600,
+      "response_delay_s": 5.0,
+      "closing_tendency": 0.5,
+      "initiative_factor": 1.0,
+      "closing_guidance": "End the reply naturally, without forcing either a question or a closing."
+    }
+  },
+  "directives_by_message": {
+    "2": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "4": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "6": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "8": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "10": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "11": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "13": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "15": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "17": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "19": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "21": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "23": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "24": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "26": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "28": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "30": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "32": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "34": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "35": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "37": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "39": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "41": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "43": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "45": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "46": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "48": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "50": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "52": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "54": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "56": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "58": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "59": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "60": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "62": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "64": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "66": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "68": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "70": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "72": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "73": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "75": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "77": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "79": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "81": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "83": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "84": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "85": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "86": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "88": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "90": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "92": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "94": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "95": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "97": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "99": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "101": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "103": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "104": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "106": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "108": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "110": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "112": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "113": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "115": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "117": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "119": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "121": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "123": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "125": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "126": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "128": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "130": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "132": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "134": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "136": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "137": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "138": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "140": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "142": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "144": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "146": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "148": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "149": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "150": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "152": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "154": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "156": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "158": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "160": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "162": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "163": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "164": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "166": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "168": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "170": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "172": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "173": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "174": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "176": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "178": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "180": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "182": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "183": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "184": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "186": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "188": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "190": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "191": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "192": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "194": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "196": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "198": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "199": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "200": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "202": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "204": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "206": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "208": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "209": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "211": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "213": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "215": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "217": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "218": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "219": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "221": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "222": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "224": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "226": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "228": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "230": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "231": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "233": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "235": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "237": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "239": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "240": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "242": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "243": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "244": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "246": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "248": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "250": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "252": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "253": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "255": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "257": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "259": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "261": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "263": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "265": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "266": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "267": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "268": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "269": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "271": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "273": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "275": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "277": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "279": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "280": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "281": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "283": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "285": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "287": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "289": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "290": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "292": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "294": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "296": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "298": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "299": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "301": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "303": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "305": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "306": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "307": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "309": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "311": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "313": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "314": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "316": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "318": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    },
+    "320": {
+      "initiative": 0.5,
+      "energy": 0.5,
+      "valence": 0.0,
+      "playfulness": 0.5,
+      "reflectiveness": 0.5,
+      "response_length_scale": 1.0,
+      "response_delay_s": 5.0
+    }
+  },
+  "arc_progress_by_day": {
+    "0": {
+      "arc_1": [
+        0.833,
+        "active"
+      ],
+      "arc_4": [
+        0.264,
+        "active"
+      ],
+      "arc_2": [
+        0.261,
+        "active"
+      ],
+      "arc_3": [
+        0.217,
+        "active"
+      ]
+    },
+    "1": {
+      "arc_1": [
+        0.833,
+        "active"
+      ],
+      "arc_4": [
+        0.264,
+        "active"
+      ],
+      "arc_2": [
+        0.261,
+        "active"
+      ],
+      "arc_3": [
+        0.217,
+        "active"
+      ]
+    },
+    "2": {
+      "arc_1": [
+        0.833,
+        "active"
+      ],
+      "arc_4": [
+        0.264,
+        "active"
+      ],
+      "arc_2": [
+        0.261,
+        "active"
+      ],
+      "arc_3": [
+        0.217,
+        "active"
+      ]
+    },
+    "3": {
+      "arc_1": [
+        0.833,
+        "active"
+      ],
+      "arc_4": [
+        0.264,
+        "active"
+      ],
+      "arc_2": [
+        0.261,
+        "active"
+      ],
+      "arc_3": [
+        0.217,
+        "active"
+      ]
+    },
+    "4": {
+      "arc_1": [
+        0.833,
+        "active"
+      ],
+      "arc_4": [
+        0.264,
+        "active"
+      ],
+      "arc_2": [
+        0.261,
+        "active"
+      ],
+      "arc_3": [
+        0.217,
+        "active"
+      ]
+    },
+    "5": {
+      "arc_1": [
+        0.87,
+        "active"
+      ],
+      "arc_4": [
+        0.287,
+        "active"
+      ],
+      "arc_2": [
+        0.261,
+        "active"
+      ],
+      "arc_3": [
+        0.217,
+        "active"
+      ]
+    },
+    "6": {
+      "arc_1": [
+        0.919,
+        "active"
+      ],
+      "arc_4": [
+        0.323,
+        "active"
+      ],
+      "arc_2": [
+        0.298,
+        "active"
+      ],
+      "arc_3": [
+        0.245,
+        "active"
+      ]
+    },
+    "7": {
+      "arc_1": [
+        0.943,
+        "active"
+      ],
+      "arc_4": [
+        0.37,
+        "active"
+      ],
+      "arc_2": [
+        0.332,
+        "active"
+      ],
+      "arc_3": [
+        0.257,
+        "active"
+      ]
+    },
+    "8": {
+      "arc_1": [
+        0.981,
+        "active"
+      ],
+      "arc_4": [
+        0.398,
+        "active"
+      ],
+      "arc_2": [
+        0.364,
+        "active"
+      ],
+      "arc_3": [
+        0.268,
+        "active"
+      ]
+    },
+    "9": {
+      "arc_1": [
+        0.993,
+        "active"
+      ],
+      "arc_4": [
+        0.443,
+        "active"
+      ],
+      "arc_2": [
+        0.393,
+        "active"
+      ],
+      "arc_3": [
+        0.278,
+        "active"
+      ]
+    },
+    "10": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.487,
+        "active"
+      ],
+      "arc_2": [
+        0.409,
+        "active"
+      ],
+      "arc_3": [
+        0.314,
+        "active"
+      ]
+    },
+    "11": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.515,
+        "active"
+      ],
+      "arc_2": [
+        0.421,
+        "active"
+      ],
+      "arc_3": [
+        0.359,
+        "active"
+      ]
+    },
+    "12": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.536,
+        "active"
+      ],
+      "arc_2": [
+        0.471,
+        "active"
+      ],
+      "arc_3": [
+        0.37,
+        "active"
+      ]
+    },
+    "13": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.488,
+        "active"
+      ],
+      "arc_3": [
+        0.389,
+        "active"
+      ]
+    },
+    "14": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.536,
+        "active"
+      ],
+      "arc_3": [
+        0.439,
+        "active"
+      ]
+    },
+    "15": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.574,
+        "active"
+      ],
+      "arc_3": [
+        0.477,
+        "active"
+      ]
+    },
+    "16": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.589,
+        "active"
+      ],
+      "arc_3": [
+        0.519,
+        "active"
+      ]
+    },
+    "17": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.637,
+        "active"
+      ],
+      "arc_3": [
+        0.545,
+        "active"
+      ]
+    },
+    "18": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.648,
+        "active"
+      ],
+      "arc_3": [
+        0.584,
+        "active"
+      ]
+    },
+    "19": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.688,
+        "active"
+      ],
+      "arc_3": [
+        0.622,
+        "active"
+      ]
+    },
+    "20": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.712,
+        "active"
+      ],
+      "arc_3": [
+        0.645,
+        "active"
+      ]
+    },
+    "21": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.726,
+        "active"
+      ],
+      "arc_3": [
+        0.668,
+        "active"
+      ]
+    },
+    "22": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.736,
+        "active"
+      ],
+      "arc_3": [
+        0.691,
+        "active"
+      ]
+    },
+    "23": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.771,
+        "active"
+      ],
+      "arc_3": [
+        0.715,
+        "active"
+      ]
+    },
+    "24": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.795,
+        "active"
+      ],
+      "arc_3": [
+        0.739,
+        "active"
+      ]
+    },
+    "25": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.827,
+        "active"
+      ],
+      "arc_3": [
+        0.754,
+        "active"
+      ]
+    },
+    "26": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.871,
+        "active"
+      ],
+      "arc_3": [
+        0.786,
+        "active"
+      ]
+    },
+    "27": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.887,
+        "active"
+      ],
+      "arc_3": [
+        0.831,
+        "active"
+      ]
+    },
+    "28": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.935,
+        "active"
+      ],
+      "arc_3": [
+        0.867,
+        "active"
+      ]
+    },
+    "29": {
+      "arc_1": [
+        1.0,
+        "completed"
+      ],
+      "arc_4": [
+        0.558,
+        "abandoned"
+      ],
+      "arc_2": [
+        0.947,
+        "abandoned"
+      ],
+      "arc_3": [
+        0.901,
+        "active"
+      ]
+    }
+  },
+  "sleeper_delays": [
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0,
+    5.0
+  ],
+  "i4_violations": [],
+  "restart_loss": [
+    {
+      "checkpoint_h": 168.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 336.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 504.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 624.0,
+      "diffs": 0
+    },
+    {
+      "checkpoint_h": 696.0,
+      "diffs": 0
+    }
+  ],
+  "end_sweep": [],
+  "skipped_feeds": [],
+  "model": "deepseek-v4-flash",
+  "memory_policy": "structured_memory"
+}
