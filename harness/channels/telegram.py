@@ -70,7 +70,10 @@ class TelegramChannel:
                 "TELEGRAM_BOT_TOKEN is not set — the harness never stores "
                 "credentials. Export it before running live."
             )
-        owner_chat_id = os.environ.get("TELEGRAM_CHAT_ID")
+        # El gate robado: Hermes guarda el chat del dueño como
+        # TELEGRAM_HOME_CHANNEL; aceptar ambos nombres.
+        owner_chat_id = (os.environ.get("TELEGRAM_CHAT_ID")
+                         or os.environ.get("TELEGRAM_HOME_CHANNEL"))
         application = cls._build_application(token)
         return cls(application=application, owner_chat_id=owner_chat_id)
 
