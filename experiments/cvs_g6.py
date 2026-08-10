@@ -24,6 +24,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
@@ -34,6 +35,36 @@ from experiments.cvs_judge import (
     run_pairwise_pass,
 )
 from experiments.cvs_manifest import JUDGE_FAMILIES, JUDGE_PASSES
+
+
+def _family_route_ok(family: dict, timeout_s: float = 30.0) -> bool:
+    """Sonda rápida: el modelo de la familia devuelve contenido real?
+    Evita quemar el presupuesto de reintentos de TODO un pass sobre una
+    ruta muerta (episodio opencode-go 2026-08-10: flash 100% vacío)."""
+    import httpx
+
+    from experiments.cvs_matrix import _load_env
+
+    _load_env()
+    key = (os.environ.get("LLM_API_KEY")
+           or os.environ.get(family.get("env_key", "")))
+    if not key:
+        return False
+    try:
+        r = httpx.post(
+            family["base_url"].rstrip("/") + "/chat/completions",
+            headers={"Authorization": f"Bearer {key}"},
+            json={"model": family["model"],
+                  "messages": [{"role": "user", "content": "ping"}],
+                  "max_tokens": 10},
+            timeout=timeout_s,
+        )
+        if r.status_code != 200:
+            return False
+        content = r.json()["choices"][0]["message"].get("content") or ""
+        return bool(content.strip())
+    except Exception:
+        return False
 
 
 def build_client(family: dict, *, dry_run: bool, seed: int):
@@ -84,6 +115,11 @@ def run_g6(
     for family in JUDGE_FAMILIES:
         client = build_client(family, dry_run=dry_run, seed=7000)
         try:
+            if not dry_run and not _family_route_ok(family):
+                raise RuntimeError(
+                    "probe: model route dead (empty/whitespace completions — "
+                    "e.g. opencode-go deepseek-v4-flash, episode 2026-08-10)"
+                )
             for pass_id in range(1, passes + 1):
                 print(f"[g6] family={family['id']} pass={pass_id} "
                       f"({'dry-run' if dry_run else 'real'})")
