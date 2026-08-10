@@ -1232,6 +1232,47 @@ def _conversation_summary(store: SQLiteStore) -> dict:
     }
 
 
+def _controls_stats(records: dict) -> dict:
+    """Estadísticas por control de generación sobre ``controls_by_message``.
+
+    Por control: ``n`` (mensajes con el control registrado), ``min``/``max``/
+    ``mean`` (solo para controles numéricos; ``None`` para campos textuales
+    como ``closing_guidance``) y ``varied`` (¿el control toma más de un
+    valor a lo largo de los mensajes de la célula?).
+
+    Es el sustrato de las claims de G2 (B4 generation_controls): una
+    ablación de actuadores (``_flat_controls``, NO_ACTUATORS) fija
+    600 / 5.0 / 0.5 / 1.0 / banda media, así que todos los controles salen
+    con ``varied=False`` — la afirmación "actuator controls do not vary" se
+    lee del resumen, no de una expectativa hardcodeada.
+    """
+    by_msg = records.get("controls_by_message") or {}
+    values: dict[str, list] = {}
+    for msg_controls in by_msg.values():
+        if not isinstance(msg_controls, dict):
+            continue
+        for name, value in msg_controls.items():
+            values.setdefault(name, []).append(value)
+    stats: dict[str, dict] = {}
+    for name in sorted(values):
+        vs = values[name]
+        numeric = [v for v in vs
+                   if isinstance(v, (int, float)) and not isinstance(v, bool)]
+        entry: dict = {
+            "n": len(vs),
+            "min": None,
+            "max": None,
+            "mean": None,
+            "varied": len(set(vs)) > 1,
+        }
+        if numeric:
+            entry["min"] = round(float(min(numeric)), 6)
+            entry["max"] = round(float(max(numeric)), 6)
+            entry["mean"] = round(sum(numeric) / len(numeric), 6)
+        stats[name] = entry
+    return stats
+
+
 def records_summary(store: SQLiteStore, records: dict) -> dict:
     """Resumen por condición para las AblationClaim del pre-flight (it3 B8).
 
@@ -1273,6 +1314,7 @@ def records_summary(store: SQLiteStore, records: dict) -> dict:
         "n_episodes": len(store.list_episodes(limit=5000)),
         "memory_lane": _memory_lane_for(records),
         "n_fired_schedule": _fired_schedule_count(store, int(records["seed"])),
+        "controls_stats": _controls_stats(records),
     }
     summary.update(_conversation_summary(store))
     return summary
