@@ -579,25 +579,198 @@ def make_runtime(condition: str, session: Session, store: SQLiteStore, seed: int
 # --------------------------------------------------------------------------- #
 
 
-async def _run_segment(session: Session, runtime: AsyncRuntime,
-                       user_msgs: list[tuple[float, str]], start_h: float,
-                       end_h: float, store: SQLiteStore,
-                       seed: int) -> list[tuple[float, str]]:
-    """Corre el runtime hasta end_h alimentando los mensajes del usuario.
+#: Clave de stream del driver para los retardos ``after_reply`` (it3 B3).
+#: El consumidor canónico del FEED CONTRACT (harness de B3) dibuja con
+#: ``stream_rng(seed, EXPERIMENT_STREAM, 202)`` — la misma clave aquí para
+#: que las secuencias de turnos sean byte-idénticas entre consumidores.
+#: Nunca reutilizar claves reservadas (1, DAILY/EVENTS/EXPERIMENT/INIT, 100,
+#: 101).
+FEED_DELAY_STREAM_KEY = 202
 
-    Sincronización determinista (sin carreras): los loops del runtime son los
-    únicos escritores del reloj. Por cada mensaje el loop (a) espera a que el
-    reloj virtual entre en el día del mensaje y (b) drena los eventos de
-    agenda pendientes estrictamente anteriores al mensaje (se disparan y
-    gatean a su propia hora, en orden). Si el reloj ya pasó la hora del
-    mensaje, el runtime está cerrando (o ya cerró): se espera a que termine y
-    el mensaje se OMITE honestamente — un feed tardío escribiría en el día
-    equivocado o contra un executor apagado (crash del prototipo E0). Los
-    feeds omitidos se devuelven para la auditoría (nunca un hang).
+#: Fracción de la distancia virtual al próximo salto del rollover que el
+#: driver duerme antes de repollar (0.5): el driver despierta SIEMPRE antes
+#: de que el runtime pueda avanzar el reloj más allá de un objetivo de feed
+#: (el rollover duerme la distancia COMPLETA; el driver, la mitad). El
+#: margen resultante es ``20µs + distancia`` (el poll del rollover es
+#: POLL_INTERVAL_H * time_scale), así la creación de la tarea de feed
+#: precede al timer de salto del rollover y la cola FIFO del lock la
+#: entrega antes de que el reloj pase el objetivo.
+FEED_PACE_FRACTION = 0.5
+#: Piso del sueño del driver (evita busy-loop cuando el reloj está
+#: congelado en un evento de agenda en pleno disparo).
+FEED_POLL_FLOOR_S = 1e-5
+#: Ventana (horas virtuales) tras la medianoche del día objetivo durante
+#: la cual el driver trata un lock del runtime tomado como "replan de
+#: medianoche en curso" y NO lanza feeds del día aún. El guard original
+#: exigía now <= medianoche + 1e-6 (el reloj clavado EXACTO en la frontera);
+#: si el rollover aterriza en 48.5 por un avance con lectura obsoleta, el
+#: guard se evade y el driver lanza feeds del día D mientras las filas del
+#: plan del día D aún no existen (drenajes vacíos) — el feed salta el reloj
+#: por encima de una oportunidad pendiente que luego expira (la carrera
+#: fired/expired del día 2). La ventana cubre ese excedente (0.5h
+#: observado) con margen, incluso si el runtime reintroduce el overshoot.
+REPLAN_GUARD_WINDOW_H = 1.0
+
+
+class _FeedPlan:
+    """Plan de alimentación de un segmento (interfaz para ``_run_segment``).
+
+    Legacy (it2): lista plana ``(t_h, text)`` entregada en orden de tiempo.
+    Conversacional (it3 B3): stream de ``cvs_user.build_user_stream`` —
+    eventos ``at_t_h`` (absolutos) y ``after_reply`` (retardo sembrado tras
+    el turno previo del stream, un dibujo por evento en orden de stream).
+    """
+
+    def peek(self) -> tuple[float, str] | None:
+        raise NotImplementedError
+
+    def pop(self) -> None:
+        raise NotImplementedError
+
+    def remaining(self) -> list[tuple[float, str]]:
+        raise NotImplementedError
+
+
+class _FlatFeedPlan(_FeedPlan):
+    """Proyección legacy: mensajes planos ``(t_h, text)`` en orden (it2)."""
+
+    def __init__(self, msgs: Sequence[tuple[float, str]], start_h: float,
+                 end_h: float) -> None:
+        self._msgs = [(float(t), str(x)) for t, x in msgs]
+        self._idx = 0
+        self._start_h = start_h
+        self._end_h = end_h
+
+    def peek(self) -> tuple[float, str] | None:
+        while self._idx < len(self._msgs):
+            t_h, text = self._msgs[self._idx]
+            if t_h < self._start_h:
+                self._idx += 1
+                continue
+            if t_h >= self._end_h:
+                return None
+            return t_h, text
+        return None
+
+    def pop(self) -> None:
+        self._idx += 1
+
+    def remaining(self) -> list[tuple[float, str]]:
+        return [(t, x) for t, x in self._msgs[self._idx:]
+                if self._start_h <= t < self._end_h]
+
+
+class _ConversationalFeedPlan(_FeedPlan):
+    """Stream conversacional de B3 (FEED CONTRACT de ``cvs_user``).
+
+    Los ``at_t_h`` se entregan en su ``t_h`` ABSOLUTO (contrato congelado de
+    B3: byte-identidad de aperturas/sondas/cadenas/negativos). Los
+    ``after_reply`` se dibujan EXACTAMENTE UNA vez por evento, en orden de
+    stream, desde el rng sembrado del driver (clave ``FEED_DELAY_STREAM_KEY``)
+    y se entregan ``delay`` después del t_h del turno PREVIO del stream — la
+    semántica del harness canónico de B3 (el reloj encadena del último evento
+    entregado; los retardos < 1h mantienen el turno en el mismo día).
+    """
+
+    def __init__(self, events: Sequence[dict], start_h: float, end_h: float,
+                 rng, draw_delay) -> None:
+        self._events = list(events)
+        self._rng = rng
+        self._draw_delay = draw_delay
+        self._start_h = start_h
+        self._end_h = end_h
+        self._heap: list[tuple[float, str]] = []
+        self._last_t_h: float | None = None
+        self._cursor = self._seed_cursor(start_h)
+        self._seed_at_t_h()
+
+    def _seed_cursor(self, start_h: float) -> int:
+        """Primer evento del stream con día >= start_day (los anteriores ya
+        se entregaron/dibujaron en segmentos previos: los draws de los
+        after_reply de esos días ya consumieron su rng en orden)."""
+        start_day = int(start_h // 24.0)
+        cur_day = 0
+        for i, ev in enumerate(self._events):
+            if ev["kind"] == "at_t_h":
+                cur_day = int(float(ev["t_h"]) // 24.0)
+            if cur_day >= start_day:
+                return i
+        return len(self._events)
+
+    def _seed_at_t_h(self) -> None:
+        import heapq
+
+        for ev in self._events:
+            if ev["kind"] == "at_t_h":
+                t = float(ev["t_h"])
+                if self._start_h <= t < self._end_h:
+                    heapq.heappush(self._heap, (t, str(ev["text"])))
+
+    def peek(self) -> tuple[float, str] | None:
+        return self._heap[0] if self._heap else None
+
+    def pop(self) -> None:
+        import heapq
+
+        if not self._heap:
+            return
+        t_h, _text = heapq.heappop(self._heap)
+        self._last_t_h = t_h
+        self._cursor += 1
+        while self._cursor < len(self._events):
+            ev = self._events[self._cursor]
+            if ev["kind"] == "at_t_h":
+                break  # ya presemeados; no dibujan nada
+            # after_reply: UN dibujo por evento, en orden de stream; el
+            # cursor permanece aquí hasta que ESTE evento se entrega (su
+            # pop avanza el cursor y encadena el siguiente dibujo).
+            delay = self._draw_delay(ev, self._rng)
+            base = self._last_t_h if self._last_t_h is not None else 0.0
+            heapq.heappush(self._heap, (base + delay, str(ev["text"])))
+            break
+
+    def remaining(self) -> list[tuple[float, str]]:
+        return list(self._heap)
+
+
+async def _run_segment(session: Session, runtime: AsyncRuntime,
+                       plan: _FeedPlan, start_h: float, end_h: float,
+                       store: SQLiteStore, seed: int) -> list[tuple[float, str]]:
+    """Corre el runtime hasta end_h alimentando el plan de feeds del usuario.
+
+    RELOJ-ROBUSTO (it3 FEED — B8 Finding 4): el driver entrega los feeds
+    conduciéndose por el MISMO reloj virtual del runtime, nunca por sueños
+    de tiempo real fijos:
+
+    * Por cada feed espera a que (a) el reloj entre en el día del objetivo,
+      (b) los eventos de agenda pendientes estrictamente anteriores al
+      objetivo se hayan disparado (drenaje: se gatean a su propia hora, en
+      orden) y (c) el replan de medianoche del día objetivo haya terminado
+      (el rollover sostiene el lock del runtime durante ensure_day+replan;
+      si el reloj está clavado en la frontera del día con el lock tomado,
+      el plan del día aún no existe y un avance prematuro desplazaría los
+      eventos de la mañana).
+    * Mientras espera duerme la FRACCIÓN ``FEED_PACE_FRACTION`` de la
+      distancia virtual al próximo salto del rollover (min(evento de agenda
+      pendiente futuro, medianoche, end_h) * time_scale) — el driver
+      despierta SIEMPRE antes de que el runtime pueda avanzar el reloj más
+      allá del objetivo, así un objetivo de feed NUNCA se pierde por un
+      salto del reloj.
+    * El feed se LANZA como tarea sin esperar su réplica (la cola FIFO del
+      lock del runtime la serializa en orden de t_h y avanza el reloj a t_h
+      EXACTO antes de que el timer del rollover pueda saltar); el driver
+      sigue con el siguiente feed y espera todas las tareas al final.
+    * NUNCA se omite un feed por llegar tarde: si el reloj ya pasó el
+      objetivo (defensivo — con el ritmo de medio paso no ocurre), el
+      mensaje se entrega igual y se persiste al tiempo actual del reloj
+      (desplazamiento documentado del runner it2, nunca un skip). Solo se
+      omiten honestamente los feeds cuando el runtime TERMINÓ (no se puede
+      alimentar un canal apagado; el executor ya está cerrado).
 
     Un runtime que TERMINA CON EXCEPCIÓN (p.ej. cliente sin clave: probe G6)
     se propaga SIEMPRE — una celda hueca (0 mensajes, exit 0) es el peor
-    modo de fallo; falla fuerte y deja el log.
+    modo de fallo; falla fuerte y deja el log. Los feeds omitidos se
+    devuelven para la auditoría (nunca un hang).
     """
 
     def _raise_if_failed(t) -> None:
@@ -609,48 +782,98 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
     assert isinstance(runtime.channel, FakeChannel), "cell channel must be FakeChannel"
     task = asyncio.create_task(runtime.run())
     await asyncio.sleep(0.001)  # deja arrancar el canal (handler registrado)
+    scale = runtime.time_scale.seconds_per_virtual_hour
     skipped: list[tuple[float, str]] = []
-    for i, (t_h, text) in enumerate(user_msgs):
-        if t_h < start_h:
-            continue
-        if t_h >= end_h:
+    launched: list[tuple[float, str, asyncio.Task]] = []
+    while True:
+        feed = plan.peek()
+        if feed is None:
             break
+        t_h, text = feed
         target_day = int(t_h // 24.0)
-        while session.clock.day() < target_day:
+        # Espera de día + drenaje + replan de medianoche, ritmada a medio
+        # paso de la distancia virtual al próximo salto del rollover.
+        while True:
             if task.done():
                 _raise_if_failed(task)
                 # El runtime terminó: NINGÚN feed restante de este segmento
-                # se entregará. Registrar TODOS los que aún pertenecen al
-                # segmento (antes se devolvía sin apuntar nada y la
-                # auditoría subestimaba los feeds omitidos). Los feeds con
-                # t_h >= end_h los procesa el segmento siguiente.
-                skipped.extend((t, x) for t, x in user_msgs[i:] if t < end_h)
+                # se entregará; registrarlos TODOS para la auditoría.
+                skipped.extend(plan.remaining())
+                for _t_h, _text, tsk in launched:
+                    tsk.cancel()
+                await task
                 return skipped
-            await asyncio.sleep(0.001)
-        while True:
-            pending = [
-                float(r["t_h"]) for r in store.pending_schedule_events(seed)
-                if float(r["t_h"]) < t_h - 1e-6
-            ]
-            if not pending:
-                break
-            if task.done() or session.clock.now_h() >= t_h - 1e-6:
-                break
-            await asyncio.sleep(0.001)
+            now = session.clock.now_h()
+            day = session.clock.day()
+            pending_before: list[float] = []
+            if day >= target_day:
+                pending_before = [
+                    float(r["t_h"]) for r in store.pending_schedule_events(seed)
+                    if float(r["t_h"]) < t_h - 1e-6
+                ]
+                # Replan de medianoche en curso: el bloque midnight del
+                # rollover (ensure_day + replan) sostiene el lock del runtime
+                # con el reloj en la frontera del día. El guard usa una
+                # VENTANA (REPLAN_GUARD_WINDOW_H) y no un épsilon: un avance
+                # del rollover con lectura obsoleta puede aterrizar el reloj
+                # un poco DESPUÉS de la medianoche (p.ej. 48.5), y con el
+                # épsilon el lock tomado pasaría desapercibido — el driver
+                # lanzaría feeds del día objetivo antes de que existan sus
+                # filas de plan (drenajes vacíos) y el feed saltaría el reloj
+                # por encima de una oportunidad pendiente (expira en vez de
+                # dispararse).
+                at_boundary = now <= target_day * 24.0 + REPLAN_GUARD_WINDOW_H
+                replan_done = not (at_boundary and runtime._lock.locked())
+                if now >= t_h - 1e-6:
+                    # The feed's OWN time arrived: deliver even if the runtime
+                    # is still behind on earlier events (it recovers them as
+                    # overdue AFTER this message, in order — the old it2
+                    # semantics). The drain below only ORDERs early delivery;
+                    # it must never starve the feed past its target.
+                    break
+                if not pending_before and replan_done:
+                    break  # drenaje claro → lanzar el feed
+            # Próximo salto del rollover: min(evento pendiente futuro,
+            # medianoche, fin de segmento) — el driver duerme la fracción
+            # FEED_PACE_FRACTION de esa distancia y siempre gana la carrera.
+            nxt = None
+            for r in store.pending_schedule_events(seed):
+                if float(r["t_h"]) > now + 1e-6:
+                    nxt = float(r["t_h"])
+                    break
+            midnight = (day + 1) * 24.0
+            jump_target = min(nxt if nxt is not None else midnight,
+                              midnight, end_h)
+            dist = max(0.0, jump_target - now) * scale
+            await asyncio.sleep(max(FEED_POLL_FLOOR_S,
+                                    FEED_PACE_FRACTION * dist))
+        # Lanzar SIN esperar la réplica: la tarea se encola en el lock del
+        # runtime ANTES de que el timer del rollover pueda saltar el
+        # objetivo (creada a <= 0.5*distancia del último disparo, el salto
+        # mínimo del rollover es 20µs + distancia) y _on_inbound avanza el
+        # reloj EXACTAMENTE a t_h. El orden FIFO del lock serializa los
+        # feeds por t_h.
+        launched.append((t_h, text,
+                         asyncio.create_task(runtime.channel.feed(text, t_h=t_h))))
+        plan.pop()
+    # Tail: drain launched feeds — but only while the runtime is alive. The
+    # runtime can enter its finalize/shutdown window right after the last
+    # launch (its end_h park expires while a feed task is still queued on the
+    # lock): a feed that loses that race is UNDELIVERABLE (the executor is
+    # closed) and is counted as an honest skip — audited, never a cell crash.
+    for t_h, text, tsk in launched:
         if task.done():
             _raise_if_failed(task)
-            # El runtime terminó antes de poder entregar este mensaje.
+            tsk.cancel()
             skipped.append((t_h, text))
             continue
-        if session.clock.now_h() >= t_h - 1e-6:
-            # El reloj ya pasó la hora del mensaje: el runtime está cerrando
-            # y el resto también está pasado. Esperar a que termine y
-            # registrar TODOS los feeds restantes del segmento (antes solo
-            # se registraba el primero y el resto se perdía en silencio).
-            await task
-            skipped.extend((t, x) for t, x in user_msgs[i:] if t < end_h)
-            break
-        await runtime.channel.feed(text, t_h=t_h)
+        try:
+            await tsk
+        except RuntimeError as exc:
+            if "not running" in str(exc):
+                skipped.append((t_h, text))
+            else:
+                raise
     await task
     return skipped
 
@@ -818,6 +1041,26 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
         all_arcs: dict[int, dict] = {}
 
         msgs = user_script(seed, days, perturb=perturb)
+        try:
+            from experiments.cvs_user import (  # type: ignore[import-not-found]
+                build_user_stream,
+                draw_after_reply_delay,
+            )
+        except ImportError:
+            # B3 no mergeado (main pre-B3): el plan legacy de la it2.
+            build_user_stream = None  # type: ignore[assignment]
+            draw_after_reply_delay = None  # type: ignore[assignment]
+        if build_user_stream is not None:
+            # FEED CONTRACT de B3 (it3): stream conversacional completo. El
+            # rng de retardos es UNA vez por run (clave 202 — el consumidor
+            # canónico de B3), compartido por los planes de todos los
+            # segmentos para que los draws queden en orden de stream.
+            stream_events = build_user_stream(seed, days, perturb=perturb)
+            delay_rng = stream_rng(seed, rng_mod.EXPERIMENT_STREAM,
+                                   FEED_DELAY_STREAM_KEY)
+        else:
+            stream_events = None
+            delay_rng = None
         checkpoint_ends = [d * 24.0 for d in checkpoints if d <= days]
         segment_ends = sorted(set(checkpoint_ends + [days * 24.0]))
         start_h = 0.0
@@ -828,9 +1071,16 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
         for seg_end in segment_ends:
             from harness.channels.base import FakeChannel
 
+            if stream_events is not None:
+                plan: _FeedPlan = _ConversationalFeedPlan(
+                    stream_events, start_h, seg_end, delay_rng,
+                    draw_after_reply_delay,
+                )
+            else:
+                plan = _FlatFeedPlan(msgs, start_h, seg_end)
             runtime = make_runtime(condition, session, store, seed, timing, seg_end,
                                    sleeper, FakeChannel())
-            skipped = asyncio.run(_run_segment(session, runtime, msgs, start_h,
+            skipped = asyncio.run(_run_segment(session, runtime, plan, start_h,
                                                seg_end, store, seed))
             skipped_feeds.extend(skipped)
             # Evento pendiente con hora estrictamente anterior a seg_end que
