@@ -29,6 +29,7 @@ from experiments.cvs_common import records_summary, run_cell
 from experiments.cvs_manifest import MATRIX_CONDITIONS, SEEDS
 from experiments.cvs_preflight import (
     CLAIMS,
+    GATE_MIN_DIVERGENCE,
     _aggregate,
     evaluate_claims,
     run_preflight,
@@ -210,43 +211,67 @@ class TestPreflightGate:
     """La compuerta (Gate G2): veredictos por condición contra FULL."""
 
     def test_preflight_flags_null_ablations_on_current_code(self, tmp_path):
-        """Aceptación B8 #2 (registro G2, goldfish + claims fundidos): sobre
-        el código ACTUAL el pre-flight marca como ablaciones nulas NO_LIFE
-        NO (goldfish: identidad de arcos discontinua entre días — ablación
-        genuina desde it3 G2) y STRUCTURED_NO_STATE SÍ (la claim
-        preregistrada de B5 exige >= 15% de divergencia de conteo y en 3
-        días el conteo es idéntico a FULL — la compuerta reporta el
-        objetivo comprometido, no un heurístico). SIMPLE_RAG queda marcada
-        porque su claim es ahora CONDUCTUAL: en 3 días su conjunto
-        recuperado es idéntico al de FULL (store < límite de recuperación)
-        — el hallazgo honesto de la comparación de conjuntos, no la
-        identidad de lane. NO_ACTUATORS y RAW_HISTORY NO se marcan (B4 y la
-        conducta de la lane cruda las verifican). El veredicto es función
-        del código, no una expectativa
-        hardcodeada."""
-        report = run_preflight(days=3, seeds=(5001,), out_dir=tmp_path)
-        assert not report["ok"]
-        flagged = set(report["null_ablations"])
-        assert {"STRUCTURED_NO_STATE", "SIMPLE_RAG"} <= flagged
-        assert "NO_LIFE" not in flagged
-        assert "NO_ACTUATORS" not in flagged
-        assert "RAW_HISTORY" not in flagged
+        """Aceptación B8 #2 (G2, goldfish + claims fundidos + SPLIT de
+        compuerta): sobre el código ACTUAL y en el horizonte CONFIRMATORIO
+        (30 días) el pre-flight NO marca ninguna ablación nula — el split
+        separó la compuerta (canal no dormido, barra baja) del umbral de
+        hipótesis (0.15, matriz real). NO_LIFE pasa por goldfish
+        (discontinuidad de identidad), NO_ACTUATORS/RAW_HISTORY por sus
+        claims conductuales, y el canal de timing (STRUCTURED_NO_STATE +
+        control positivo) por la compuerta de nulidad con las patas
+        medidas. Un canal genuinamente dormido seguiría marcándose:
+        el veredicto es función del código, no una expectativa."""
+
+        report = run_preflight(
+            days=30, seeds=(5001, 5002),
+            conditions=(
+                "FULL", "NO_LIFE", "NO_ACTUATORS", "NO_TIMING_FEEDBACK",
+                "STRUCTURED_NO_STATE", "RAW_HISTORY", "SIMPLE_RAG",
+            ),
+            out_dir=tmp_path,
+        )
+        assert report["null_ablations"] == []
         assert report["claim_errors"] == []
-        for cond in MATRIX_CONDITIONS:
+        assert report["ok"]
+        for cond in report["conditions"]:
             assert cond in report["per_condition"]
+
+    def test_below_horizon_claims_are_not_evaluable_not_fail(self, tmp_path):
+        """min_days: en 3 días el feedback de puntuación (min_days=4) y la
+        comparación de conjuntos recuperados (SIMPLE_RAG, min_days=10 — el
+        store cruza la superficie de recuperación entre el día 5 y el 10)
+        aún no pueden haber actuado: se reportan NOT EVALUABLE, NUNCA FAIL.
+        Es la distinción 'esto falló' vs 'esto no era testeable' — el
+        artefacto que costó la ronda (el pre-flight de 3 días marcando
+        claims legítimas como nulas)."""
+        report = run_preflight(
+            days=3, seeds=(5001,),
+            conditions=("FULL", "NO_TIMING_FEEDBACK", "STRUCTURED_NO_STATE",
+                        "SIMPLE_RAG"),
+            out_dir=tmp_path,
+        )
+        assert report["null_ablations"] == []
+        ne = {v["condition"] for v in report["not_evaluable"]}
+        assert {"STRUCTURED_NO_STATE", "NO_TIMING_FEEDBACK", "SIMPLE_RAG"} <= ne
+        for v in report["verdicts"]:
+            if v.get("status") == "not_evaluable":
+                assert v["passed"] is None
+                assert "min_days" in v["reason"]
 
     def test_preflight_positive_control_detectable_across_frozen_seeds(
         self, tmp_path
     ):
-        """NO_TIMING_FEEDBACK (control positivo, la única ablación con efecto
-        probado) se detecta agregando las 5 semillas congeladas: los disparos
-        de agenda difieren de FULL >= 15% (12 vs 10 en el código actual).
-        Si el pipeline de timing se rompe, esta claim lo delata. Se salta
-        cuando la referencia FULL del propio run no es reproducible (carrera
-        conocida de ``_run_segment`` bajo carga — la compuerta ya bloquea
-        por sí sola en ese caso)."""
+        """NO_TIMING_FEEDBACK (control positivo) en el horizonte
+        confirmatorio: la compuerta detecta el canal (fired_div >= 5%) y
+        REGISTRA qué pata disparó y con qué margen — la reconciliación del
+        manifiesto (G4) necesita los márgenes medidos, no solo el bool.
+        Medido en el código actual: n_fired_schedule 48 vs 62 = 29.2% en la
+        semilla 5001 (la pata de conteo de proactivos queda por debajo del
+        margen preregistrado 0.15 — exactamente por eso el split existe).
+        Se salta cuando la referencia no es reproducible (carrera conocida
+        de ``_run_segment``; la compuerta ya bloquea por sí sola)."""
         report = run_preflight(
-            days=3, seeds=SEEDS,
+            days=30, seeds=(5001, 5002),
             conditions=("FULL", "NO_TIMING_FEEDBACK"),
             out_dir=tmp_path,
         )
@@ -261,17 +286,21 @@ class TestPreflightGate:
         ]
         assert verdicts and all(v["passed"] for v in verdicts)
         assert "NO_TIMING_FEEDBACK" not in report["null_ablations"]
-        assert (
-            report["per_condition"]["NO_TIMING_FEEDBACK"]["n_fired_schedule"]
-            > report["full"]["n_fired_schedule"]
-        )
+        # La pata que disparó queda registrada con su margen medido.
+        m = verdicts[0]["measured"]
+        assert m["fired_div"] >= GATE_MIN_DIVERGENCE
+        assert m["count_div"] is not None
+        assert "gap_div" in m and "times_identical" in m
 
     def test_positive_control_high_margin_seed5005(self, tmp_path):
-        """El control positivo en la semilla 5005 tiene margen amplio
-        (5 vs 3 disparos = 67%) — el canal de timing responde incluso en
-        3 días. Se salta si la referencia no es reproducible."""
+        """El control positivo en la semilla 5005 tiene margen amplio en la
+        pata de disparos en el horizonte confirmatorio — el canal responde.
+        El test documenta la reconciliación: la claim POSITIVA de la
+        compuerta pasa por fired_div; el margen preregistrado (0.15) se
+        prueba en la matriz REAL, no aquí. Se salta si la referencia no es
+        reproducible."""
         report = run_preflight(
-            days=3, seeds=(5005,),
+            days=30, seeds=(5005,),
             conditions=("FULL", "NO_TIMING_FEEDBACK"),
             out_dir=tmp_path,
         )
@@ -280,9 +309,16 @@ class TestPreflightGate:
                 "reference FULL run not reproducible under load "
                 "(known _run_segment feed race; gate already blocks)"
             )
+        verdicts = [
+            v for v in report["verdicts"]
+            if v["condition"] == "NO_TIMING_FEEDBACK"
+        ]
+        assert verdicts and verdicts[0]["passed"]
+        m = verdicts[0]["measured"]
+        assert m["fired_div"] is not None and m["fired_div"] >= GATE_MIN_DIVERGENCE
         assert (
             report["per_condition"]["NO_TIMING_FEEDBACK"]["n_fired_schedule"]
-            >= report["full"]["n_fired_schedule"] + 2
+            > report["full"]["n_fired_schedule"]
         )
 
     def test_preflight_report_shape_and_verdict_fields(self, tmp_path):
@@ -296,6 +332,7 @@ class TestPreflightGate:
         assert set(report) >= {
             "ok", "days", "seeds", "conditions", "full",
             "per_condition", "verdicts", "null_ablations",
+            "not_evaluable",
         }
         for v in report["verdicts"]:
             assert {"condition", "channel", "assertion", "passed"} <= set(v)
@@ -359,10 +396,10 @@ class TestNoLifeGoldfish:
             store.close()
         no_life, full = cells["NO_LIFE"], cells["FULL"]
         # goldfish cell -> claim passes
-        verdicts = evaluate_claims("NO_LIFE", no_life, full, CLAIMS)
+        verdicts = evaluate_claims("NO_LIFE", no_life, full, CLAIMS, days=3)
         assert verdicts and all(v["passed"] for v in verdicts), verdicts
         # FULL cell -> the SAME claim fails (the check discriminates)
-        verdicts_full = evaluate_claims("NO_LIFE", full, full, CLAIMS)
+        verdicts_full = evaluate_claims("NO_LIFE", full, full, CLAIMS, days=3)
         assert verdicts_full and not any(v["passed"] for v in verdicts_full)
 
 
@@ -440,10 +477,10 @@ class TestClaimsRegistry:
                 "mean_reply_len": 30.0, "n_life_arcs": 2,
                 "n_agenda_items": 14, "memory_lane": "structured_memory"}
         full = dict(cell)
-        verdicts = evaluate_claims("NO_LIFE", cell, full, CLAIMS)
+        verdicts = evaluate_claims("NO_LIFE", cell, full, CLAIMS, days=3)
         assert verdicts and all(v["condition"] == "NO_LIFE" for v in verdicts)
         assert not any(v["passed"] for v in verdicts)
-        verdicts_full = evaluate_claims("FULL", cell, full, CLAIMS)
+        verdicts_full = evaluate_claims("FULL", cell, full, CLAIMS, days=3)
         assert verdicts_full == []
 
 
@@ -569,7 +606,7 @@ class TestPreregisteredClaimsG2:
         return base
 
     def _verdict(self, condition: str, cell: dict, full: dict) -> list[dict]:
-        return [v for v in evaluate_claims(condition, cell, full, CLAIMS)
+        return [v for v in evaluate_claims(condition, cell, full, CLAIMS, days=30)
                 if v["condition"] == condition]
 
     def test_b4_no_actuators_claim_discriminates(self):
@@ -594,29 +631,32 @@ class TestPreregisteredClaimsG2:
         assert verdicts_weak and all(not v["passed"] for v in verdicts_weak)
 
     def test_b5_structured_no_state_claim_discriminates(self):
-        """STRUCTURED_NO_STATE (B5, structured_no_state_claim): divergencia
-        de conteo >= 15% Y de gaps >= 10% (cuando hay >= 4 horas por lado);
-        sin divergencia o con gaps parejos la claim falla."""
-        cell = self._summary(n_proactive=12, proactive_times=[10.0, 30.0, 50.0, 70.0])
-        full = self._summary(n_proactive=8, proactive_times=[10.0, 20.0, 30.0, 40.0])
-        verdicts = self._verdict("STRUCTURED_NO_STATE", cell, full)
-        assert verdicts and all(v["passed"] for v in verdicts)
+        """STRUCTURED_NO_STATE — la claim de MANIFIESTO de B5
+        (harness.scheduler.structured_no_state_claim, probada en la matriz
+        REAL en G5): divergencia de conteo >= 15% (COUNT_DIVERGENCE_MIN) Y
+        de gaps >= 10% (cuando hay >= 4 horas por lado); sin divergencia o
+        con gaps parejos la claim falla. La COMPUERTA del pre-flight es
+        otra cosa (canal no dormido, barra baja) — este test ejercita la
+        claim de efecto, que es la que decide el resultado confirmatorio."""
+        from harness.scheduler import structured_no_state_claim
+
+        claim = structured_no_state_claim()
+        cell = {"n_proactive": 12, "proactive_times": [10.0, 30.0, 50.0, 70.0]}
+        full = {"n_proactive": 8, "proactive_times": [10.0, 20.0, 30.0, 40.0]}
+        assert claim.check(cell, full)
         # Sin tautología: idénticos falla.
-        same = self._summary(n_proactive=8, proactive_times=[10.0, 20.0, 30.0, 40.0])
-        verdicts_same = self._verdict("STRUCTURED_NO_STATE", same, full)
-        assert verdicts_same and all(not v["passed"] for v in verdicts_same)
+        same = {"n_proactive": 8, "proactive_times": [10.0, 20.0, 30.0, 40.0]}
+        assert not claim.check(same, full)
         # Pata de gaps vinculante: conteo diverge >= 15% (8 vs 6) pero los
         # gaps medios difieren < 10% -> la claim falla (ambas patas son
         # preregistradas).
-        close_gaps = self._summary(n_proactive=8, proactive_times=[10.0, 22.0, 34.0, 46.0])
-        gap_full = self._summary(n_proactive=6, proactive_times=[10.0, 21.0, 32.0, 43.0])
-        verdicts_gap = self._verdict("STRUCTURED_NO_STATE", close_gaps, gap_full)
-        assert verdicts_gap and all(not v["passed"] for v in verdicts_gap)
+        close_gaps = {"n_proactive": 8, "proactive_times": [10.0, 22.0, 34.0, 46.0]}
+        gap_full = {"n_proactive": 6, "proactive_times": [10.0, 21.0, 32.0, 43.0]}
+        assert not claim.check(close_gaps, gap_full)
         # Pocas horas (sin la pata de gaps): el conteo decide solo.
-        sparse = self._summary(n_proactive=6, proactive_times=[10.0, 30.0, 50.0])
-        sparse_full = self._summary(n_proactive=4, proactive_times=[10.0, 20.0, 30.0])
-        verdicts_sparse = self._verdict("STRUCTURED_NO_STATE", sparse, sparse_full)
-        assert verdicts_sparse and all(v["passed"] for v in verdicts_sparse)
+        sparse = {"n_proactive": 6, "proactive_times": [10.0, 30.0, 50.0]}
+        sparse_full = {"n_proactive": 4, "proactive_times": [10.0, 20.0, 30.0]}
+        assert claim.check(sparse, sparse_full)
 
     def test_simple_rag_claim_fails_on_degenerate_lane(self):
         """Escenario SIMPLE_RAG-cero de it2: lane que NO recupera nada

@@ -580,7 +580,11 @@ def structured_no_state_timing_check(cell_records: dict, full_records: dict) -> 
 
 def structured_no_state_claim() -> AblationClaim:
     """The AblationClaim for STRUCTURED_NO_STATE — B8's pre-flight registry
-    (the orchestrator wires it at G2; see the B5 report §claim)."""
+    (the orchestrator wires it at G2; see the B5 report §claim). This is
+    the MANIFEST claim (effect-size, COUNT_DIVERGENCE_MIN = 0.15) — tested
+    on the REAL matrix at G5. The pre-flight GATE uses the split
+    low-bar null-detector instead (cvs_preflight._timing_channel_gate_check,
+    GATE_MIN_DIVERGENCE); this claim stays untouched."""
     return AblationClaim(
         condition="STRUCTURED_NO_STATE",
         channel="timing",
@@ -590,4 +594,5 @@ def structured_no_state_claim() -> AblationClaim:
             "both sides)"
         ),
         check=structured_no_state_timing_check,
+        min_days=4,  # el feedback de puntuación no puede aterrizar antes del día 2-3
     )

@@ -509,6 +509,14 @@ class AblationClaim:
     budget / latency / closing policy) or ``"life_state"`` (the life arcs
     and agenda lanes).
 
+    ``min_days`` is the horizon at which the ablated mechanism can have
+    ACTED — the earliest a real divergence can materialize (e.g. score
+    feedback can't land before day 2-3, so timing claims carry
+    ``min_days >= 4``). The pre-flight reports a below-horizon claim as
+    NOT EVALUABLE, never FAIL: asserting divergence before the cause can
+    have acted is testing an effect before its mechanism exists. ``1``
+    means evaluable at any horizon.
+
     Records shape (documented by convention, like ``ContactOpportunity``
     hazard keys): ``cell_records``/``full_records`` are per-condition summary
     dicts produced by the pre-flight driver, carrying AT LEAST
@@ -521,3 +529,5 @@ class AblationClaim:
     channel: Literal["timing", "memory_store", "generation_controls", "life_state"]
     assertion: str
     check: Callable[[dict, dict], bool]
+    min_days: int = 1
+    measure: Callable[[dict, dict], dict] | None = None

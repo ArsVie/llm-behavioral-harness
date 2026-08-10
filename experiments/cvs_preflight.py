@@ -16,15 +16,25 @@ Registro de claims: lista plana de ``AblationClaim`` en la sección marcada
 de abajo. Aditivo por diseño. En G2 se sustituyeron los placeholders de los
 canales B4 (generation_controls) y B5 (timing) por las claims preregistradas
 que esos workstreams comprometieron (B4: set plano 600/5.0/0.5/banda media vs
-FULL no degenerado + margen de amplitud 3.0x en delay; B5:
-``harness.scheduler.structured_no_state_claim`` — divergencia de conteo >= 15%
-y de gaps >= 10%) y las claims de memoria (RAW_HISTORY/SIMPLE_RAG) ahora
-verifican CONDUCTA (evidencia recuperada no nula + conjunto recuperado
-distinto del de FULL), no la identidad configurada de la lane.
+FULL no degenerado + margen de amplitud 3.0x en delay; B5: la claim de
+manifiesto ``harness.scheduler.structured_no_state_claim`` — divergencia de
+conteo >= 15% y de gaps >= 10%, que se prueba en la matriz REAL en G5) y las
+claims de memoria (RAW_HISTORY/SIMPLE_RAG) ahora verifican CONDUCTA
+(evidencia recuperada no nula + conjunto recuperado distinto del de FULL),
+no la identidad configurada de la lane.
+
+SPLIT de compuerta (G2, corrección del usuario): el pre-flight responde
+"¿está dormido el canal?" con la barra baja GATE_MIN_DIVERGENCE; el umbral
+de hipótesis preregistrado (COUNT_DIVERGENCE_MIN = 0.15) NO se evalúa aquí —
+se prueba en la matriz real. Las claims declaran ``min_days`` (el horizonte
+en que su mecanismo puede haber actuado); por debajo se reportan NOT
+EVALUABLE, nunca FAIL. Horizonte por defecto: 30 días (el confirmatorio de
+la matriz); ``--smoke`` corre la leg estructural rápida de 3 días.
 
 Uso:
-    python -m experiments.cvs_preflight [--days 3] [--seeds 5001,5002]
+    python -m experiments.cvs_preflight [--days 30] [--seeds 5001,5002]
                                         [--conditions FULL,NO_LIFE] [--out DIR]
+                                        [--smoke]
 
 Convención del repo: docstrings en español, identificadores en inglés.
 """
@@ -39,7 +49,6 @@ from pathlib import Path
 from typing import Callable, Sequence
 
 from harness.domain import AblationClaim
-from harness.scheduler import structured_no_state_claim
 from experiments.cvs_common import records_summary, run_cell
 from experiments.cvs_manifest import MATRIX_CONDITIONS, SEEDS
 from experiments.validation.hard_invariants import (
@@ -47,8 +56,20 @@ from experiments.validation.hard_invariants import (
     failure_messages,
 )
 
-#: Días del pre-flight (plan §6-B8: 3 días, costo en segundos).
-DEFAULT_DAYS = 3
+#: Días del pre-flight (G2: el horizonte CONFIRMATORIO de la matriz, 30
+#: días — los mecanismos ablacionados necesitan horizonte para actuar; el
+#: smoke estructural rápido sigue siendo 3 días vía ``smoke=True``).
+DEFAULT_DAYS = 30
+
+#: Umbral de la COMPUERTA (pre-flight): el canal no está inactivo —
+#: detector de nulidad, una barra baja a propósito. Está SEPARADO del
+#: umbral de hipótesis (COUNT_DIVERGENCE_MIN = 0.15, scheduler.py), que
+#: es un tamaño de efecto preregistrado y se prueba en la matriz REAL
+#: (G5). La compuerta responde "¿está dormido el canal?"; el manifiesto
+#: responde "¿el efecto alcanza el margen comprometido?". Nada depende
+#: del valor exacto de esta constante, así que es inmune al ajuste
+#: post-hoc.
+GATE_MIN_DIVERGENCE = 0.05
 
 # --------------------------------------------------------------------------- #
 # REGISTRO DE CLAIMS — sección ÚNICA (it3 B8 / G2)
@@ -113,6 +134,50 @@ def _no_life_goldfish_check(cell: dict, full: dict) -> bool:
         return False
     full_seeds = (full.get("per_seed") or {}).values()
     return bool(full_seeds) and all(_persistent_seed_ok(s) for s in full_seeds)
+
+
+def _timing_measure(cell: dict, full: dict) -> dict:
+    """Márgenes medidos del canal de timing (para el reporte y la
+    reconciliación del manifiesto en G4): qué pata divergió y cuánto."""
+    n_cell = int(cell.get("n_proactive") or 0)
+    n_full = int(full.get("n_proactive") or 0)
+    f_cell = int(cell.get("n_fired_schedule") or 0)
+    f_full = int(full.get("n_fired_schedule") or 0)
+    t_cell = sorted(float(t) for t in (cell.get("proactive_times") or ()))
+    t_full = sorted(float(t) for t in (full.get("proactive_times") or ()))
+    gap_div = 0.0
+    if len(t_cell) >= 3 and len(t_full) >= 3:
+        import numpy as np
+        g_c = float(np.diff(np.asarray(t_cell)).mean())
+        g_f = float(np.diff(np.asarray(t_full)).mean())
+        if g_f > 0.0:
+            gap_div = abs(g_c - g_f) / g_f
+    return {
+        "count_div": round(_pct_div(n_cell, n_full), 4) if n_full else None,
+        "fired_div": round(_pct_div(f_cell, f_full), 4) if f_full else None,
+        "gap_div": round(gap_div, 4),
+        "times_identical": bool(t_cell) and t_cell == t_full,
+    }
+
+
+def _timing_channel_gate_check(cell: dict, full: dict) -> bool:
+    """COMPUERTA del canal de timing (STRUCTURED_NO_STATE + control
+    positivo NO_TIMING_FEEDBACK): el canal NO está dormido.
+
+    Detector de nulidad con barra baja (GATE_MIN_DIVERGENCE): pasa si
+    cualquiera de las patas muestra divergencia material — conteo de
+    proactivos, eventos de agenda disparados, o artefactos realizados no
+    idénticos (las horas proactivas difieren). Los márgenes medidos se
+    reportan vía ``_timing_measure`` (reconciliación del manifiesto en
+    G4). Esto NO es el umbral de hipótesis: el margen preregistrado
+    (COUNT_DIVERGENCE_MIN = 0.15) se prueba en la matriz REAL en G5.
+    """
+    m = _timing_measure(cell, full)
+    return bool(
+        (m["count_div"] or 0.0) >= GATE_MIN_DIVERGENCE
+        or (m["fired_div"] or 0.0) >= GATE_MIN_DIVERGENCE
+        or not m["times_identical"]
+    )
 
 
 def _b4_no_actuators_check(cell: dict, full: dict) -> bool:
@@ -205,8 +270,24 @@ CLAIMS: list[AblationClaim] = [
             "progress each day), while FULL persists arc ids across days"
         ),
         check=_no_life_goldfish_check,
+        min_days=2,  # la discontinuidad de identidad necesita >= 2 días
     ),
-    structured_no_state_claim(),  # B5 preregistered (merge f13a37f)
+    # COMPUERTA del canal de timing (no-hypótesis): el umbral de efecto
+    # preregistrado (COUNT_DIVERGENCE_MIN = 0.15) vive en scheduler.py y
+    # se prueba en la matriz REAL (G5); aquí solo se detecta nulidad.
+    AblationClaim(
+        condition="STRUCTURED_NO_STATE",
+        channel="timing",
+        assertion=(
+            "GATE (canal no dormido): n_proactive, eventos disparados o "
+            "horas proactivas divergen de FULL por >= 5% (o artefactos "
+            "realizados no idénticos) — el margen de efecto preregistrado "
+            "0.15 se prueba en la matriz real"
+        ),
+        check=_timing_channel_gate_check,
+        measure=_timing_measure,
+        min_days=4,  # el feedback de puntuación no puede aterrizar antes del día 2-3
+    ),
     AblationClaim(
         condition="NO_ACTUATORS",
         channel="generation_controls",
@@ -226,14 +307,14 @@ CLAIMS: list[AblationClaim] = [
         condition="NO_TIMING_FEEDBACK",
         channel="timing",
         assertion=(
-            "POSITIVE CONTROL: timing channel must differ from FULL: "
-            "n_proactive or fired schedule events differ by >= 15% "
-            "(aggregated over seeds)"
+            "POSITIVE CONTROL (gate, canal no dormido): el canal de timing "
+            "produce artefactos realizados divergentes de FULL (n_proactive "
+            "o eventos disparados por >= 5%, u horas proactivas no "
+            "idénticas) — medido en el horizonte confirmatorio"
         ),
-        check=lambda cell, full: (
-            _pct_div(cell["n_proactive"], full["n_proactive"]) >= 0.15
-            or _pct_div(cell["n_fired_schedule"], full["n_fired_schedule"]) >= 0.15
-        ),
+        check=_timing_channel_gate_check,
+        measure=_timing_measure,
+        min_days=4,  # el feedback de puntuación no puede aterrizar antes del día 2-3
     ),
     AblationClaim(
         condition="RAW_HISTORY",
@@ -258,6 +339,7 @@ CLAIMS: list[AblationClaim] = [
             "actually retrieved — not lane identity)"
         ),
         check=_memory_behavioral_check,
+        min_days=10,  # el store cruza la superficie de recuperación (limit=8) entre el día 5 y el 10
     ),
 ]
 
@@ -452,11 +534,32 @@ def evaluate_claims(
     cell: dict,
     full: dict,
     claims: Sequence[AblationClaim],
+    *,
+    days: int,
 ) -> list[dict]:
-    """Evalúa las claims de una condición contra FULL; devuelve los veredictos."""
+    """Evalúa las claims de una condición contra FULL; devuelve los veredictos.
+
+    ``days`` es el horizonte del run: una claim cuyo mecanismo no ha podido
+    actuar aún (``days < claim.min_days``) se reporta como NOT EVALUABLE
+    (``passed=None``) — NUNCA como FAIL. Reportar un efecto antes de que su
+    causa pueda existir es un artefacto de horizonte, no una ablación nula.
+    """
     verdicts: list[dict] = []
     for claim in claims:
         if claim.condition != condition:
+            continue
+        if days < claim.min_days:
+            verdicts.append({
+                "condition": claim.condition,
+                "channel": claim.channel,
+                "assertion": claim.assertion,
+                "passed": None,
+                "status": "not_evaluable",
+                "reason": (
+                    f"horizon {days}d < min_days {claim.min_days}d — the "
+                    "ablated mechanism cannot have acted yet"
+                ),
+            })
             continue
         try:
             passed = bool(claim.check(cell, full))
@@ -470,12 +573,18 @@ def evaluate_claims(
                 "error": f"claim check raised: {exc}",
             })
             continue
-        verdicts.append({
+        verdict: dict = {
             "condition": claim.condition,
             "channel": claim.channel,
             "assertion": claim.assertion,
             "passed": passed,
-        })
+        }
+        if claim.measure is not None:
+            try:
+                verdict["measured"] = claim.measure(cell, full)
+            except (KeyError, TypeError):
+                pass
+        verdicts.append(verdict)
     return verdicts
 
 
@@ -492,8 +601,19 @@ def run_preflight(
     claims: Sequence[AblationClaim] | None = None,
     out_dir: Path | str | None = None,
     determinism_check: bool = True,
+    smoke: bool = False,
 ) -> dict:
     """Corre la matriz completa (fake) y evalúa las claims (Gate G2).
+
+    Horizonte por defecto: 30 días (el confirmatorio de la matriz). Las
+    claims declaran ``min_days`` — por debajo se reportan NOT EVALUABLE,
+    nunca FAIL (un efecto no puede existir antes de que su mecanismo haya
+    actuado).
+
+    ``smoke=True``: leg estructural rápida de 3 días, SIN evaluación de
+    claims — solo construcción de condiciones, invariantes duras,
+    determinismo y ceros de turnos en blanco. Para iteración rápida, no
+    para la compuerta.
 
     Devuelve el reporte: resúmenes por condición, veredictos por claim,
     ablaciones nulas y ``ok`` (False si alguna claim falla o el chequeo de
@@ -512,6 +632,11 @@ def run_preflight(
     """
     claims = list(CLAIMS if claims is None else claims)
     conditions = list(conditions)
+    if smoke:
+        # Leg estructural rápida: 3 días, sin claims — solo construcción,
+        # invariantes, determinismo y ceros. No es la compuerta.
+        days = 3
+        claims = []
     out_dir = Path(out_dir) if out_dir else Path(
         tempfile.mkdtemp(prefix="cvs_preflight_")
     )
@@ -568,11 +693,19 @@ def run_preflight(
         # FULL se compara contra sí mismo; el resto contra FULL. Toda claim
         # del registro se evalúa (mecanismo aditivo general).
         reference = full if condition != "FULL" else cell
-        verdicts.extend(evaluate_claims(condition, cell, reference, claims))
+        verdicts.extend(evaluate_claims(
+            condition, cell, reference, claims, days=days,
+        ))
 
+    # ``passed is False`` estricto: las claims NOT EVALUABLE (passed=None,
+    # por debajo de min_days) NUNCA marcan la condición como ablación nula
+    # — son un artefacto de horizonte, no un hallazgo.
     null_ablations = sorted({
-        v["condition"] for v in verdicts if not v["passed"] and "error" not in v
+        v["condition"] for v in verdicts if v["passed"] is False and "error" not in v
     })
+    not_evaluable = [
+        v for v in verdicts if v.get("status") == "not_evaluable"
+    ]
     errors = [v for v in verdicts if "error" in v]
     skipped = [
         c.condition for c in claims
@@ -596,6 +729,7 @@ def run_preflight(
         },
         "verdicts": verdicts,
         "null_ablations": null_ablations,
+        "not_evaluable": not_evaluable,
         "claim_errors": errors,
         "skipped_claims": sorted(set(skipped)),
         "out_dir": str(out_dir),
@@ -639,6 +773,11 @@ def _fmt_table(report: dict) -> str:
         "=" * 78,
     ]
     for v in report["verdicts"]:
+        if v["passed"] is None:
+            lines.append(
+                f"  [NE ] {v['condition']} ({v['channel']}): {v['reason']}"
+            )
+            continue
         mark = "PASS" if v["passed"] else "FAIL"
         if "error" in v:
             lines.append(f"  [{mark}] {v['condition']} ({v['channel']}): {v['error']}")
@@ -646,6 +785,14 @@ def _fmt_table(report: dict) -> str:
             lines.append(
                 f"  [{mark}] {v['condition']} ({v['channel']}): {v['assertion']}"
             )
+            if v.get("measured"):
+                m = v["measured"]
+                lines.append(
+                    f"      measured: count_div={m.get('count_div')} "
+                    f"fired_div={m.get('fired_div')} "
+                    f"gap_div={m.get('gap_div')} "
+                    f"times_identical={m.get('times_identical')}"
+                )
     if report["null_ablations"]:
         lines.append("")
         lines.append(
@@ -700,13 +847,15 @@ def main(argv: list[str] | None = None) -> int:
         description="Ablation pre-flight on the fake client (it3 B8 / G2)."
     )
     parser.add_argument("--days", type=int, default=DEFAULT_DAYS,
-                        help="virtual days per cell (default 3)")
+                        help="virtual days per cell (default 30 — confirmatory horizon)")
     parser.add_argument("--seeds", type=str, default=",".join(map(str, SEEDS)),
                         help="comma-separated seeds (default all frozen)")
     parser.add_argument("--conditions", type=str, default=",".join(MATRIX_CONDITIONS),
                         help="comma-separated conditions (default all matrix)")
     parser.add_argument("--out", type=str, default=None,
                         help="scratch dir for cell DBs (default tempdir)")
+    parser.add_argument("--smoke", action="store_true",
+                        help="fast 3-day structural smoke only (no claim evaluation)")
     args = parser.parse_args(argv)
 
     seeds = tuple(int(s) for s in args.seeds.split(",") if s.strip())
@@ -714,6 +863,7 @@ def main(argv: list[str] | None = None) -> int:
     report = run_preflight(
         days=args.days, seeds=seeds, conditions=conditions,
         out_dir=Path(args.out) if args.out else None,
+        smoke=args.smoke,
     )
     print(_fmt_table(report))
     out_dir = Path(report["out_dir"])
