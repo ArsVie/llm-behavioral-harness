@@ -1,0 +1,142 @@
+{
+  "seed": 5001,
+  "condition": "FULL",
+  "structured_observability": {
+    "M_series": [
+      1.0,
+      6.0,
+      3.0,
+      6.0,
+      4.0,
+      3.0,
+      7.0
+    ],
+    "g_series": [
+      1.2066,
+      1.2799,
+      1.304,
+      1.2508,
+      1.2437,
+      1.1466,
+      1.1141
+    ],
+    "mu_series": [
+      0.0,
+      -0.09,
+      -0.2031,
+      -0.2229,
+      -0.1572,
+      -0.0703,
+      0.0587
+    ],
+    "phase_series": [
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "menstrual",
+      "follicular"
+    ],
+    "arcs_by_day": {
+      "0": {
+        "arc_2": [
+          0.264,
+          "active"
+        ],
+        "arc_1": [
+          0.72,
+          "active"
+        ]
+      },
+      "1": {
+        "arc_2": [
+          0.264,
+          "active"
+        ],
+        "arc_1": [
+          0.72,
+          "active"
+        ]
+      },
+      "2": {
+        "arc_2": [
+          0.264,
+          "active"
+        ],
+        "arc_1": [
+          0.72,
+          "active"
+        ]
+      },
+      "3": {
+        "arc_2": [
+          0.264,
+          "active"
+        ],
+        "arc_1": [
+          0.72,
+          "active"
+        ]
+      },
+      "4": {
+        "arc_2": [
+          0.301,
+          "active"
+        ],
+        "arc_1": [
+          0.72,
+          "active"
+        ]
+      },
+      "5": {
+        "arc_2": [
+          0.328,
+          "active"
+        ],
+        "arc_1": [
+          0.72,
+          "active"
+        ]
+      },
+      "6": {
+        "arc_2": [
+          0.339,
+          "active"
+        ],
+        "arc_1": [
+          0.741,
+          "active"
+        ]
+      }
+    },
+    "n_arcs_total": 2,
+    "n_arcs_active_end": 2,
+    "n_arcs_completed": 0,
+    "n_arcs_abandoned": 0,
+    "distinct_agenda_activities": 20
+  },
+  "behavioral_dynamics": {
+    "n_messages": 43,
+    "delay_mean": 18.713,
+    "delay_sd": 3.874,
+    "delay_min": 10.637,
+    "delay_max": 27.071,
+    "max_tokens_mean": 485.7,
+    "max_tokens_sd": 72.7,
+    "initiative_mean": 0.352,
+    "initiative_sd": 0.068,
+    "closing_tendency_sd": 0.121,
+    "M8a_rho_init_tokens": 1.0,
+    "M8b_token_gap": 79.42,
+    "M8c_rho_energy_delay": -0.3571,
+    "M9_rho_proactive_prevscore": 0.6625,
+    "M10_rho_proactive_initiative": 0.7115
+  },
+  "state_to_observable": {
+    "rho_M_initiative": 0.7092,
+    "rho_M_max_tokens": 0.7092,
+    "rho_g_delay": 0.5714,
+    "rho_mu_proactive_count": 0.5534
+  }
+}

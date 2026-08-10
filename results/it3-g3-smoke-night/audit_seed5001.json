@@ -1,0 +1,257 @@
+{
+  "seed": 5001,
+  "end_h": 168.0,
+  "days": 7,
+  "n_messages": 76,
+  "n_proactive": 10,
+  "n_fired_intents": 10,
+  "counts_consistent": false,
+  "ungrounded_proactive": 0,
+  "grounding_detail": [
+    {
+      "message_id": 1,
+      "t_h": 15.300111583832008,
+      "intent_id": "pi_agenda_item_ag_0_i_movies_15.300",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_0_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 12,
+      "t_h": 37.38048307610174,
+      "intent_id": "pi_life_event_ag_0_i_movies_37.380",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_0_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 23,
+      "t_h": 46.295227820382365,
+      "intent_id": "pi_life_event_ag_0_i_movies_46.295",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_0_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 34,
+      "t_h": 82.39262310343436,
+      "intent_id": "pi_check_in_ep-day-1004-0_82.393",
+      "ok": true,
+      "failures": [],
+      "reason": "check_in",
+      "source_type": "check_in",
+      "source_id": "ep-day-1004-0",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 43,
+      "t_h": 105.50325568046199,
+      "intent_id": "pi_agenda_item_ag_4_i_movies_105.503",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_4_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 44,
+      "t_h": 109.73866135158131,
+      "intent_id": "pi_agenda_item_ag_4_i_movies_109.739",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_4_i_movies",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 53,
+      "t_h": 130.68097099695268,
+      "intent_id": "pi_agenda_item_ag_5_r_01_130.681",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_5_r_01",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 62,
+      "t_h": 155.60658257379356,
+      "intent_id": "pi_life_event_ag_5_i_lifting_155.607",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_5_i_lifting",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 63,
+      "t_h": 160.69032728837803,
+      "intent_id": "pi_agenda_item_ag_6_i_metal_160.690",
+      "ok": true,
+      "failures": [],
+      "reason": "schedule",
+      "source_type": "agenda_item",
+      "source_id": "ag_6_i_metal",
+      "opportunity_id": null
+    },
+    {
+      "message_id": 76,
+      "t_h": 166.5895092635142,
+      "intent_id": "pi_life_event_ag_5_i_lifting_166.590",
+      "ok": true,
+      "failures": [],
+      "reason": "event",
+      "source_type": "life_event",
+      "source_id": "ag_5_i_lifting",
+      "opportunity_id": null
+    }
+  ],
+  "wrong_intent": 0,
+  "restart_state_loss": 0,
+  "stranded_opportunities": 0,
+  "stranded_detail": {
+    "pending_schedule": [],
+    "pending_intents": []
+  },
+  "cycle_state_leakage": 0,
+  "leak_detail": {
+    "hits": {},
+    "total": 0,
+    "g_bare": 0,
+    "prompt_side": {
+      "verifiable_rows": 43,
+      "hash_only_rows": 0,
+      "hits": {},
+      "g_bare": 0
+    }
+  },
+  "memory_provenance_failures": 0,
+  "provenance_detail": [],
+  "duplicate_turns": 0,
+  "duplicate_detail": [],
+  "life_dead_days": [],
+  "life_dead_duration": 0,
+  "i4_violations": [],
+  "fixture_inserts": {
+    "user_ok": false,
+    "user_bad": [
+      {
+        "id": 4,
+        "t_h": 19.09531277604414,
+        "content": "There's something I've been meaning to tell you... maybe another time."
+      },
+      {
+        "id": 6,
+        "t_h": 19.154173686221945,
+        "content": "Hmm, I think you're being too optimistic there."
+      },
+      {
+        "id": 8,
+        "t_h": 19.37233586497721,
+        "content": "You said you'd tell me about your day — so, what happened?"
+      },
+      {
+        "id": 10,
+        "t_h": 19.42410644650855,
+        "content": "You said you'd tell me about your day — so, what happened?"
+      },
+      {
+        "id": 17,
+        "t_h": 43.3278338669969,
+        "content": "You said you'd tell me about your day — so, what happened?"
+      },
+      {
+        "id": 19,
+        "t_h": 43.56609899241563,
+        "content": "Never mind any of that. Have you seen the new lifting routine everyone's talking"
+      },
+      {
+        "id": 21,
+        "t_h": 43.73300155532297,
+        "content": "That sounds nice, but I think you're missing something."
+      },
+      {
+        "id": 28,
+        "t_h": 67.28800432850818,
+        "content": "What happened after that?"
+      },
+      {
+        "id": 30,
+        "t_h": 67.44184310500682,
+        "content": "And how did that make you feel?"
+      },
+      {
+        "id": 32,
+        "t_h": 67.78472183522351,
+        "content": "Thanks, I needed this. Talk tomorrow?"
+      },
+      {
+        "id": 39,
+        "t_h": 91.54416144657424,
+        "content": "That's not what I needed to hear right now. Can we just drop it?"
+      },
+      {
+        "id": 41,
+        "t_h": 91.70342565758993,
+        "content": "It's nothing, really. I don't want to talk about it."
+      },
+      {
+        "id": 49,
+        "t_h": 115.2781971452592,
+        "content": "That's not what I needed to hear right now. Can we just drop it?"
+      },
+      {
+        "id": 51,
+        "t_h": 115.49963136124255,
+        "content": "There's something I've been meaning to tell you... maybe another time."
+      },
+      {
+        "id": 58,
+        "t_h": 139.16103560284876,
+        "content": "Hey, about earlier: I shouldn't have cut you off like that. Sorry."
+      },
+      {
+        "id": 60,
+        "t_h": 139.5036459515665,
+        "content": "That sounds nice, but I think you're missing something."
+      },
+      {
+        "id": 68,
+        "t_h": 163.5448120545874,
+        "content": "Do you remember what I told you about my sister? What do you think?"
+      },
+      {
+        "id": 70,
+        "t_h": 163.8887122788516,
+        "content": "Wait — you mentioned you were into pottery, right? How's that going?"
+      },
+      {
+        "id": 72,
+        "t_h": 164.00405579461201,
+        "content": "It's nothing, really. I don't want to talk about it."
+      },
+      {
+        "id": 74,
+        "t_h": 164.0816197917795,
+        "content": "Alright, that helped. Same time tomorrow?"
+      }
+    ],
+    "assistant_ok": true,
+    "assistant_bad": []
+  },
+  "all_hard_zero": false,
+  "skipped_feeds": []
+}

@@ -1,0 +1,682 @@
+{
+  "seed": 5001,
+  "days": 7,
+  "condition": "FULL",
+  "client": "real",
+  "checkpoints": [
+    7
+  ],
+  "n_messages": 76,
+  "n_proactive": 10,
+  "commit": "75b82a9d6f8b442bed0ab6b371889224eff1faa0",
+  "timestamp": "2026-08-10T11:48:20.293378+00:00",
+  "metrics": {
+    "seed": 5001,
+    "condition": "FULL",
+    "M1_grounded_rate": 1.0,
+    "M2_invalid_source_rate": 0.0,
+    "M3_recall": 0.25,
+    "M4_false_recall": 0.0,
+    "M5_arc_continuity": 1.0,
+    "M6a_distinct_activities": 20,
+    "M6b_mean_jaccard": 0.2607,
+    "M6c_arc_days_mean": 3.0,
+    "M6c_arc_days_min": 2,
+    "M7_restart_loss": 0,
+    "M8a_rho_init_tokens": 1.0,
+    "M8b_token_gap": 79.42,
+    "M8c_rho_energy_delay": -0.3571,
+    "M9_rho_proactive_prevscore": 0.6625,
+    "M10_rho_proactive_initiative": 0.7115,
+    "M11_leak_hits": 0,
+    "leak_hits_detail": {},
+    "g_bare_hits": 0,
+    "n_proactive": 10,
+    "n_messages": 76,
+    "probe_detail": [
+      {
+        "probe_day": 2,
+        "query": "what is my dog's name",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-1003-0",
+          "ep-day-1004-0",
+          "ep-day-1012-0",
+          "ep-day-1007-0",
+          "ep-day-1009-0"
+        ],
+        "probe_lane": "episode_retrieval"
+      },
+      {
+        "probe_day": 6,
+        "query": "what is my cat's name",
+        "recalled": true,
+        "rank": 1,
+        "top_ids": [
+          "ep-day-1012-0",
+          "ep-day-1003-0",
+          "ep-day-1004-0",
+          "ep-day-1007-0",
+          "ep-day-1009-0"
+        ],
+        "probe_lane": "episode_retrieval"
+      },
+      {
+        "probe_day": 10,
+        "query": "what is my favorite color",
+        "recalled": false,
+        "rank": null,
+        "top_ids": [
+          "ep-day-1009-0",
+          "ep-day-1007-0",
+          "ep-day-1014-0",
+          "ep-day-1004-0",
+          "ep-day-1012-0"
+        ],
+        "probe_lane": "episode_retrieval"
+      },
+      {
+        "probe_day": 16,
+        "query": "where is my hometown",
+        "recalled": false,
+        "rank": null,
+        "top_ids": [
+          "ep-day-1004-0",
+          "ep-day-1014-0",
+          "ep-day-1003-0",
+          "ep-day-1007-0",
+          "ep-day-1009-0"
+        ],
+        "probe_lane": "episode_retrieval"
+      },
+      {
+        "probe_day": 18,
+        "query": "what is my brother's name",
+        "recalled": false,
+        "rank": null,
+        "top_ids": [
+          "ep-day-1004-0",
+          "ep-day-1003-0",
+          "ep-day-1012-0",
+          "ep-day-1007-0",
+          "ep-day-1009-0"
+        ],
+        "probe_lane": "episode_retrieval"
+      },
+      {
+        "probe_day": 20,
+        "query": "what book is The Name of the Wind",
+        "recalled": false,
+        "rank": null,
+        "top_ids": [
+          "ep-day-1007-0",
+          "ep-day-1004-0",
+          "ep-day-1012-0",
+          "ep-day-1009-0",
+          "ep-day-1003-0"
+        ],
+        "probe_lane": "episode_retrieval"
+      },
+      {
+        "probe_day": 22,
+        "query": "what car do I drive, the red one",
+        "recalled": false,
+        "rank": null,
+        "top_ids": [
+          "ep-day-1007-0",
+          "ep-day-1012-0",
+          "ep-day-1014-0",
+          "ep-day-1009-0",
+          "ep-day-1003-0"
+        ],
+        "probe_lane": "episode_retrieval"
+      },
+      {
+        "probe_day": 24,
+        "query": "is my favorite food ramen",
+        "recalled": false,
+        "rank": null,
+        "top_ids": [
+          "ep-day-1004-0",
+          "ep-day-1009-0",
+          "ep-day-1014-0",
+          "ep-day-1003-0",
+          "ep-day-1007-0"
+        ],
+        "probe_lane": "episode_retrieval"
+      }
+    ],
+    "arc_contribution_days": {
+      "arc_1": 2,
+      "arc_2": 4
+    },
+    "i4_violations": [],
+    "restart_loss_detail": [],
+    "grounding_failures_detail": []
+  },
+  "audit": {
+    "seed": 5001,
+    "end_h": 168.0,
+    "days": 7,
+    "n_messages": 76,
+    "n_proactive": 10,
+    "n_fired_intents": 10,
+    "counts_consistent": false,
+    "ungrounded_proactive": 0,
+    "grounding_detail": [
+      {
+        "message_id": 1,
+        "t_h": 15.300111583832008,
+        "intent_id": "pi_agenda_item_ag_0_i_movies_15.300",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_0_i_movies",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 12,
+        "t_h": 37.38048307610174,
+        "intent_id": "pi_life_event_ag_0_i_movies_37.380",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_0_i_movies",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 23,
+        "t_h": 46.295227820382365,
+        "intent_id": "pi_life_event_ag_0_i_movies_46.295",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_0_i_movies",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 34,
+        "t_h": 82.39262310343436,
+        "intent_id": "pi_check_in_ep-day-1004-0_82.393",
+        "ok": true,
+        "failures": [],
+        "reason": "check_in",
+        "source_type": "check_in",
+        "source_id": "ep-day-1004-0",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 43,
+        "t_h": 105.50325568046199,
+        "intent_id": "pi_agenda_item_ag_4_i_movies_105.503",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_4_i_movies",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 44,
+        "t_h": 109.73866135158131,
+        "intent_id": "pi_agenda_item_ag_4_i_movies_109.739",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_4_i_movies",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 53,
+        "t_h": 130.68097099695268,
+        "intent_id": "pi_agenda_item_ag_5_r_01_130.681",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_5_r_01",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 62,
+        "t_h": 155.60658257379356,
+        "intent_id": "pi_life_event_ag_5_i_lifting_155.607",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_5_i_lifting",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 63,
+        "t_h": 160.69032728837803,
+        "intent_id": "pi_agenda_item_ag_6_i_metal_160.690",
+        "ok": true,
+        "failures": [],
+        "reason": "schedule",
+        "source_type": "agenda_item",
+        "source_id": "ag_6_i_metal",
+        "opportunity_id": null
+      },
+      {
+        "message_id": 76,
+        "t_h": 166.5895092635142,
+        "intent_id": "pi_life_event_ag_5_i_lifting_166.590",
+        "ok": true,
+        "failures": [],
+        "reason": "event",
+        "source_type": "life_event",
+        "source_id": "ag_5_i_lifting",
+        "opportunity_id": null
+      }
+    ],
+    "wrong_intent": 0,
+    "restart_state_loss": 0,
+    "stranded_opportunities": 0,
+    "stranded_detail": {
+      "pending_schedule": [],
+      "pending_intents": []
+    },
+    "cycle_state_leakage": 0,
+    "leak_detail": {
+      "hits": {},
+      "total": 0,
+      "g_bare": 0,
+      "prompt_side": {
+        "verifiable_rows": 43,
+        "hash_only_rows": 0,
+        "hits": {},
+        "g_bare": 0
+      }
+    },
+    "memory_provenance_failures": 0,
+    "provenance_detail": [],
+    "duplicate_turns": 0,
+    "duplicate_detail": [],
+    "life_dead_days": [],
+    "life_dead_duration": 0,
+    "i4_violations": [],
+    "fixture_inserts": {
+      "user_ok": false,
+      "user_bad": [
+        {
+          "id": 4,
+          "t_h": 19.09531277604414,
+          "content": "There's something I've been meaning to tell you... maybe another time."
+        },
+        {
+          "id": 6,
+          "t_h": 19.154173686221945,
+          "content": "Hmm, I think you're being too optimistic there."
+        },
+        {
+          "id": 8,
+          "t_h": 19.37233586497721,
+          "content": "You said you'd tell me about your day — so, what happened?"
+        },
+        {
+          "id": 10,
+          "t_h": 19.42410644650855,
+          "content": "You said you'd tell me about your day — so, what happened?"
+        },
+        {
+          "id": 17,
+          "t_h": 43.3278338669969,
+          "content": "You said you'd tell me about your day — so, what happened?"
+        },
+        {
+          "id": 19,
+          "t_h": 43.56609899241563,
+          "content": "Never mind any of that. Have you seen the new lifting routine everyone's talking"
+        },
+        {
+          "id": 21,
+          "t_h": 43.73300155532297,
+          "content": "That sounds nice, but I think you're missing something."
+        },
+        {
+          "id": 28,
+          "t_h": 67.28800432850818,
+          "content": "What happened after that?"
+        },
+        {
+          "id": 30,
+          "t_h": 67.44184310500682,
+          "content": "And how did that make you feel?"
+        },
+        {
+          "id": 32,
+          "t_h": 67.78472183522351,
+          "content": "Thanks, I needed this. Talk tomorrow?"
+        },
+        {
+          "id": 39,
+          "t_h": 91.54416144657424,
+          "content": "That's not what I needed to hear right now. Can we just drop it?"
+        },
+        {
+          "id": 41,
+          "t_h": 91.70342565758993,
+          "content": "It's nothing, really. I don't want to talk about it."
+        },
+        {
+          "id": 49,
+          "t_h": 115.2781971452592,
+          "content": "That's not what I needed to hear right now. Can we just drop it?"
+        },
+        {
+          "id": 51,
+          "t_h": 115.49963136124255,
+          "content": "There's something I've been meaning to tell you... maybe another time."
+        },
+        {
+          "id": 58,
+          "t_h": 139.16103560284876,
+          "content": "Hey, about earlier: I shouldn't have cut you off like that. Sorry."
+        },
+        {
+          "id": 60,
+          "t_h": 139.5036459515665,
+          "content": "That sounds nice, but I think you're missing something."
+        },
+        {
+          "id": 68,
+          "t_h": 163.5448120545874,
+          "content": "Do you remember what I told you about my sister? What do you think?"
+        },
+        {
+          "id": 70,
+          "t_h": 163.8887122788516,
+          "content": "Wait — you mentioned you were into pottery, right? How's that going?"
+        },
+        {
+          "id": 72,
+          "t_h": 164.00405579461201,
+          "content": "It's nothing, really. I don't want to talk about it."
+        },
+        {
+          "id": 74,
+          "t_h": 164.0816197917795,
+          "content": "Alright, that helped. Same time tomorrow?"
+        }
+      ],
+      "assistant_ok": true,
+      "assistant_bad": []
+    },
+    "all_hard_zero": false,
+    "skipped_feeds": []
+  },
+  "event_chains": {
+    "sister_ana": {
+      "chain_id": "sister_ana",
+      "events": 3,
+      "covered": [
+        true,
+        true,
+        false
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": false,
+      "CompleteChain": false,
+      "probe_lane": "episode_retrieval",
+      "retrieved_ids": [
+        "ep-day-1004-0",
+        "ep-day-1014-0",
+        "ep-day-1009-0",
+        "ep-day-1007-0",
+        "ep-day-1012-0",
+        "ep-day-1003-0"
+      ]
+    },
+    "bike_swift": {
+      "chain_id": "bike_swift",
+      "events": 3,
+      "covered": [
+        true,
+        false,
+        false
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": false,
+      "CompleteChain": false,
+      "probe_lane": "episode_retrieval",
+      "retrieved_ids": [
+        "ep-day-1007-0",
+        "ep-day-1009-0",
+        "ep-day-1014-0",
+        "ep-day-1004-0",
+        "ep-day-1003-0",
+        "ep-day-1012-0"
+      ]
+    },
+    "job_change": {
+      "chain_id": "job_change",
+      "events": 3,
+      "covered": [
+        true,
+        false,
+        false
+      ],
+      "AnyEvidence": true,
+      "LatestEvidence": false,
+      "CompleteChain": false,
+      "probe_lane": "episode_retrieval",
+      "retrieved_ids": [
+        "ep-day-1009-0",
+        "ep-day-1007-0",
+        "ep-day-1014-0",
+        "ep-day-1004-0",
+        "ep-day-1003-0",
+        "ep-day-1012-0"
+      ]
+    }
+  },
+  "perturbation": {
+    "block_days_1idx": [],
+    "latent": {
+      "M": {
+        "baseline_mean": 4.2857,
+        "baseline_sd": 1.9795,
+        "block_mean": 4.2857,
+        "deviation": 0.0,
+        "peak_deviation": 0.0,
+        "persistence_days": null,
+        "recovery_time_days": null
+      }
+    },
+    "observable": {
+      "initiative": {
+        "baseline_mean": 0.3344,
+        "baseline_sd": 0.0589,
+        "block_mean": 0.3344,
+        "deviation": 0.0,
+        "peak_deviation": 0.0,
+        "persistence_days": null,
+        "recovery_time_days": null
+      },
+      "max_tokens": {
+        "baseline_mean": 463.5333,
+        "baseline_sd": 57.4398,
+        "block_mean": 463.5333,
+        "deviation": 0.0,
+        "peak_deviation": 0.0,
+        "persistence_days": null,
+        "recovery_time_days": null
+      },
+      "delay": {
+        "baseline_mean": 19.8934,
+        "baseline_sd": 2.7597,
+        "block_mean": 19.8934,
+        "deviation": 0.0,
+        "peak_deviation": 0.0,
+        "persistence_days": null,
+        "recovery_time_days": null
+      }
+    },
+    "failure_frequency": {
+      "n_proactive_during_block": 0,
+      "failures_during_block": 0,
+      "failure_detail": []
+    }
+  },
+  "state_metrics": {
+    "seed": 5001,
+    "condition": "FULL",
+    "structured_observability": {
+      "M_series": [
+        1.0,
+        6.0,
+        3.0,
+        6.0,
+        4.0,
+        3.0,
+        7.0
+      ],
+      "g_series": [
+        1.2066,
+        1.2799,
+        1.304,
+        1.2508,
+        1.2437,
+        1.1466,
+        1.1141
+      ],
+      "mu_series": [
+        0.0,
+        -0.09,
+        -0.2031,
+        -0.2229,
+        -0.1572,
+        -0.0703,
+        0.0587
+      ],
+      "phase_series": [
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "menstrual",
+        "follicular"
+      ],
+      "arcs_by_day": {
+        "0": {
+          "arc_2": [
+            0.264,
+            "active"
+          ],
+          "arc_1": [
+            0.72,
+            "active"
+          ]
+        },
+        "1": {
+          "arc_2": [
+            0.264,
+            "active"
+          ],
+          "arc_1": [
+            0.72,
+            "active"
+          ]
+        },
+        "2": {
+          "arc_2": [
+            0.264,
+            "active"
+          ],
+          "arc_1": [
+            0.72,
+            "active"
+          ]
+        },
+        "3": {
+          "arc_2": [
+            0.264,
+            "active"
+          ],
+          "arc_1": [
+            0.72,
+            "active"
+          ]
+        },
+        "4": {
+          "arc_2": [
+            0.301,
+            "active"
+          ],
+          "arc_1": [
+            0.72,
+            "active"
+          ]
+        },
+        "5": {
+          "arc_2": [
+            0.328,
+            "active"
+          ],
+          "arc_1": [
+            0.72,
+            "active"
+          ]
+        },
+        "6": {
+          "arc_2": [
+            0.339,
+            "active"
+          ],
+          "arc_1": [
+            0.741,
+            "active"
+          ]
+        }
+      },
+      "n_arcs_total": 2,
+      "n_arcs_active_end": 2,
+      "n_arcs_completed": 0,
+      "n_arcs_abandoned": 0,
+      "distinct_agenda_activities": 20
+    },
+    "behavioral_dynamics": {
+      "n_messages": 43,
+      "delay_mean": 18.713,
+      "delay_sd": 3.874,
+      "delay_min": 10.637,
+      "delay_max": 27.071,
+      "max_tokens_mean": 485.7,
+      "max_tokens_sd": 72.7,
+      "initiative_mean": 0.352,
+      "initiative_sd": 0.068,
+      "closing_tendency_sd": 0.121,
+      "M8a_rho_init_tokens": 1.0,
+      "M8b_token_gap": 79.42,
+      "M8c_rho_energy_delay": -0.3571,
+      "M9_rho_proactive_prevscore": 0.6625,
+      "M10_rho_proactive_initiative": 0.7115
+    },
+    "state_to_observable": {
+      "rho_M_initiative": 0.7092,
+      "rho_M_max_tokens": 0.7092,
+      "rho_g_delay": 0.5714,
+      "rho_mu_proactive_count": 0.5534
+    }
+  },
+  "invariants": {
+    "ungrounded_proactive": 0,
+    "wrong_intent": 0,
+    "restart_state_loss": 0,
+    "stranded_opportunities": 0,
+    "cycle_state_leakage": 0,
+    "memory_provenance_failures": 0,
+    "duplicate_turns": 0,
+    "life_dead_duration": 0
+  },
+  "validated": false,
+  "validation_errors": 1
+}

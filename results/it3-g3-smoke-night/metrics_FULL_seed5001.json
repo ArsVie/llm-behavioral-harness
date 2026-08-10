@@ -1,0 +1,145 @@
+{
+  "seed": 5001,
+  "condition": "FULL",
+  "M1_grounded_rate": 1.0,
+  "M2_invalid_source_rate": 0.0,
+  "M3_recall": 0.25,
+  "M4_false_recall": 0.0,
+  "M5_arc_continuity": 1.0,
+  "M6a_distinct_activities": 20,
+  "M6b_mean_jaccard": 0.2607,
+  "M6c_arc_days_mean": 3.0,
+  "M6c_arc_days_min": 2,
+  "M7_restart_loss": 0,
+  "M8a_rho_init_tokens": 1.0,
+  "M8b_token_gap": 79.42,
+  "M8c_rho_energy_delay": -0.3571,
+  "M9_rho_proactive_prevscore": 0.6625,
+  "M10_rho_proactive_initiative": 0.7115,
+  "M11_leak_hits": 0,
+  "leak_hits_detail": {},
+  "g_bare_hits": 0,
+  "n_proactive": 10,
+  "n_messages": 76,
+  "probe_detail": [
+    {
+      "probe_day": 2,
+      "query": "what is my dog's name",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-1003-0",
+        "ep-day-1004-0",
+        "ep-day-1012-0",
+        "ep-day-1007-0",
+        "ep-day-1009-0"
+      ],
+      "probe_lane": "episode_retrieval"
+    },
+    {
+      "probe_day": 6,
+      "query": "what is my cat's name",
+      "recalled": true,
+      "rank": 1,
+      "top_ids": [
+        "ep-day-1012-0",
+        "ep-day-1003-0",
+        "ep-day-1004-0",
+        "ep-day-1007-0",
+        "ep-day-1009-0"
+      ],
+      "probe_lane": "episode_retrieval"
+    },
+    {
+      "probe_day": 10,
+      "query": "what is my favorite color",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-1009-0",
+        "ep-day-1007-0",
+        "ep-day-1014-0",
+        "ep-day-1004-0",
+        "ep-day-1012-0"
+      ],
+      "probe_lane": "episode_retrieval"
+    },
+    {
+      "probe_day": 16,
+      "query": "where is my hometown",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-1004-0",
+        "ep-day-1014-0",
+        "ep-day-1003-0",
+        "ep-day-1007-0",
+        "ep-day-1009-0"
+      ],
+      "probe_lane": "episode_retrieval"
+    },
+    {
+      "probe_day": 18,
+      "query": "what is my brother's name",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-1004-0",
+        "ep-day-1003-0",
+        "ep-day-1012-0",
+        "ep-day-1007-0",
+        "ep-day-1009-0"
+      ],
+      "probe_lane": "episode_retrieval"
+    },
+    {
+      "probe_day": 20,
+      "query": "what book is The Name of the Wind",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-1007-0",
+        "ep-day-1004-0",
+        "ep-day-1012-0",
+        "ep-day-1009-0",
+        "ep-day-1003-0"
+      ],
+      "probe_lane": "episode_retrieval"
+    },
+    {
+      "probe_day": 22,
+      "query": "what car do I drive, the red one",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-1007-0",
+        "ep-day-1012-0",
+        "ep-day-1014-0",
+        "ep-day-1009-0",
+        "ep-day-1003-0"
+      ],
+      "probe_lane": "episode_retrieval"
+    },
+    {
+      "probe_day": 24,
+      "query": "is my favorite food ramen",
+      "recalled": false,
+      "rank": null,
+      "top_ids": [
+        "ep-day-1004-0",
+        "ep-day-1009-0",
+        "ep-day-1014-0",
+        "ep-day-1003-0",
+        "ep-day-1007-0"
+      ],
+      "probe_lane": "episode_retrieval"
+    }
+  ],
+  "arc_contribution_days": {
+    "arc_1": 2,
+    "arc_2": 4
+  },
+  "i4_violations": [],
+  "restart_loss_detail": [],
+  "grounding_failures_detail": []
+}
