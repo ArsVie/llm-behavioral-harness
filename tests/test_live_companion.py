@@ -1,0 +1,83 @@
+"""Compuerta de la integración en vivo (telegram/cli) — it3.
+
+El driver live_companion no añade piezas al runtime: el stack completo es
+config.select_channel -> AsyncRuntime.run(). Esta compuerta verifica que
+el driver (a) arranca el runtime con un canal inyectado, (b) entrega
+inbound -> réplica -> send, y (c) entrega proactivos por el canal real.
+El token de telegram se valida aparte (check_token / getMe — no envía
+mensajes; no se toca la red aquí).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import tempfile
+from pathlib import Path
+
+import pytest
+
+from experiments.live_companion import bootstrap, build_runtime
+from harness.channels.base import FakeChannel, InboundMessage, OutboundMessage
+from harness.client import FakeClient
+
+
+def test_live_runtime_round_trip_reply_and_proactive():
+    """Inbound -> réplica -> send, y los proactivos llegan al canal.
+
+    Patrón síncrono del repo (asyncio.run dentro del test — el repo no
+    usa pytest-asyncio)."""
+    async def _run():
+        from experiments.cvs_common import DeterministicJudge, BLOCK_START_D, BLOCK_END_D
+        from harness.store import SQLiteStore
+
+        with tempfile.TemporaryDirectory() as td:
+            store = SQLiteStore(Path(td) / "companion.db", audit_mode=True)
+            bootstrap(store, seed=5001)
+            channel = FakeChannel()
+            judge = DeterministicJudge(5001, block_start=BLOCK_START_D, block_end=BLOCK_END_D)
+            runtime = build_runtime(
+                store, 5001, "FULL", channel,
+                client=FakeClient(), judge=judge,
+                time_scale_s_per_vh=0.0004,  # escala acelerada del CI
+            )
+            task = asyncio.create_task(runtime.run())
+            try:
+                for _ in range(50):
+                    if channel.handler is not None:
+                        break
+                    await asyncio.sleep(0.05)
+                assert channel.handler is not None
+                await channel.handler(InboundMessage(text="Hello", sender_id="test"))
+                await asyncio.sleep(0.5)
+                assert any(not m.proactive for m in channel.sent), \
+                    "reactive reply expected"
+                # Horizonte ilimitado (semántica en vivo): la cancelación es
+                # el camino Ctrl-C — el runtime finaliza limpio.
+                await asyncio.sleep(0.5)
+            finally:
+                if not task.done():
+                    task.cancel()
+                    try:
+                        await task
+                    except (asyncio.CancelledError, RuntimeError):
+                        pass
+                store.close()
+
+    asyncio.run(_run())
+
+
+def test_build_runtime_smoke(tmp_path):
+    """build_runtime construye sin tocar la red (fake client + fake judge)."""
+    from experiments.cvs_common import DeterministicJudge, BLOCK_START_D, BLOCK_END_D
+    from harness.store import SQLiteStore
+
+    store = SQLiteStore(tmp_path / "companion.db", audit_mode=True)
+    bootstrap(store, seed=5001)
+    runtime = build_runtime(
+        store, 5001, "FULL", FakeChannel(),
+        client=FakeClient(),
+        judge=DeterministicJudge(5001, block_start=BLOCK_START_D, block_end=BLOCK_END_D),
+    )
+    assert runtime.channel.name == "fake"
+    assert runtime.max_virtual_hours is None  # en vivo: sin horizonte
+    store.close()

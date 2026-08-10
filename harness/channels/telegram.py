@@ -74,6 +74,39 @@ class TelegramChannel:
         application = cls._build_application(token)
         return cls(application=application, owner_chat_id=owner_chat_id)
 
+    async def check_token(self) -> bool:
+        """Validate the bot token via getMe — sends NOTHING.
+
+        Gate-style verification for the stolen-Hermes-token path: proves
+        the token is live without delivering a single message. Works
+        without python-telegram-bot (raw HTTP)."""
+        import httpx
+
+        token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
+        if not token:
+            return False
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                resp = await client.get(
+                    f"https://api.telegram.org/bot{token}/getMe"
+                )
+                if resp.status_code != 200:
+                    return False
+                data = resp.json()
+                ok = bool(data.get("ok"))
+                if ok and self.owner_chat_id is None and self.application is not None:
+                    # Sin chat del dueño configurado, el bot no puede
+                    # entregar proactivos: el check lo reporta (no falla —
+                    # el inbound filtering es lo que lo necesita).
+                    print(
+                        "[telegram] WARNING: TELEGRAM_CHAT_ID not set — "
+                        "outbound works, owner-only inbound filtering is off",
+                        flush=True,
+                    )
+                return ok
+        except Exception:
+            return False
+
     @staticmethod
     def _build_application(token):
         if not _PTB_AVAILABLE:
