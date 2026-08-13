@@ -40,7 +40,16 @@ from experiments.cvs_manifest import JUDGE_FAMILIES, JUDGE_PASSES
 def _family_route_ok(family: dict, timeout_s: float = 30.0) -> bool:
     """Sonda rápida: el modelo de la familia devuelve contenido real?
     Evita quemar el presupuesto de reintentos de TODO un pass sobre una
-    ruta muerta (episodio opencode-go 2026-08-10: flash 100% vacío)."""
+    ruta muerta (episodio opencode-go 2026-08-10: flash 100% vacío).
+
+    PITFALL 2026-08-13 (probe artifact): NUNCA cap max_tokens en la sonda.
+    deepseek-v4-flash es un modelo de RAZONAMIENTO: consume su presupuesto de
+    tokens en reasoning ANTES de emitir contenido, así que con max_tokens=10
+    devuelve HTTP 200 con content vacío (finish_reason='length') aunque la
+    ruta esté viva — la sonda antigua marcaba flash como muerto ~100% de las
+    veces mientras las llamadas reales del juez (sin cap) funcionaban.
+    Sondear SIN max_tokens (o ≥512) para medir contenido real.
+    """
     import httpx
 
     from experiments.cvs_matrix import _load_env
@@ -55,8 +64,7 @@ def _family_route_ok(family: dict, timeout_s: float = 30.0) -> bool:
             family["base_url"].rstrip("/") + "/chat/completions",
             headers={"Authorization": f"Bearer {key}"},
             json={"model": family["model"],
-                  "messages": [{"role": "user", "content": "ping"}],
-                  "max_tokens": 10},
+                  "messages": [{"role": "user", "content": "ping"}]},
             timeout=timeout_s,
         )
         if r.status_code != 200:
@@ -81,6 +89,11 @@ def build_client(family: dict, *, dry_run: bool, seed: int):
         base_url=family["base_url"],
         api_key=None,  # env: family["env_key"] (mapeado por _load_env)
         model=family["model"],
+        # Judge calls on reasoning models are SLOW (20-47s for ~13K-char
+        # pairwise prompts; verified 2026-08-13) — the 60s default read
+        # timeout tripped mid-run. 120s headroom for full 2-transcript
+        # prompts.
+        timeout_s=120,
     )
 
 
