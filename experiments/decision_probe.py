@@ -48,6 +48,15 @@ from pathlib import Path
 import httpx
 
 import engine.rng as rng_mod  # read-only: stream helpers (never modified)
+from harness.assembler import assemble_snapshot
+from harness.domain import (
+    AgendaItem,
+    BehaviorBrief,
+    CompanionSnapshot,
+    CurrentActivity,
+    MemoryContext,
+    PersonaProfile,
+)
 from harness.store import SQLiteStore
 from harness.tools import (
     Capabilities,
@@ -450,21 +459,67 @@ class FakeModel:
         return reply
 
 
-def _system_for(request) -> str:
-    """System prompt for one pop-up call: personality + state brief + the
-    tool protocol note (the pop-up block itself goes in the user message)."""
-    state = request.inputs.get("state_variant", "neutral")
-    brief = STATES.get(state, STATES["neutral"])
-    return (
-        "You are Lily, a warm, independent companion with your own life, "
-        "mood and schedule.\n"
-        f"State: {brief}\n"
-        "When a pop-up decision block appears, answer it as yourself: "
-        "decide from your feelings and the situation, and always give a "
-        "short honest reason. Never name the state card. For pop-ups that "
-        "offer a tool, answer by calling the tool with your verdict; "
-        "otherwise answer in the exact form 'tool_decide_*: {verdict}'."
+def _brief_for(state: str) -> BehaviorBrief:
+    """Conversation-safe channels for the state-card availability line.
+
+    Only ``energy`` is load-bearing here (it selects the availability prose);
+    the rest are neutral defaults. The prose itself is NOT exposed — the
+    variant brief goes through ``prompt_brief``, the single source."""
+    energy = {"good": 0.85, "low": 0.25}.get(state, 0.6)
+    warmth = {"good": 0.75, "low": 0.45}.get(state, 0.6)
+    return BehaviorBrief(
+        valence=0.5, energy=energy, reactivity=0.5, warmth=warmth,
+        expressiveness=0.5, playfulness=0.5, reflectiveness=0.5,
+        initiative=0.5, response_length_scale=0.5, response_delay_s=1.0,
+        closing_tendency=0.5,
     )
+
+
+def _system_for(request) -> str:
+    """NEW ARCHITECTURE system prompt: 3-tier via ``assemble_snapshot``.
+
+    Tier 1 stable core + Tier 2 day-start block (persona + today's agenda
+    carrying the sample's event) + Tier 3 state card (mood brief from the
+    state variant, availability, current activity for in-progress samples).
+    The pop-up itself stays in the user message (steer-wrapped), exactly as
+    the runtime delivers it at a safe boundary.
+    """
+    state = request.inputs.get("state_variant", "neutral")
+    t_h = float(request.inputs.get("time", "12.0"))
+    kind = request.popup_kind
+    event_label = request.inputs.get("event_label", "event")
+    state_label = request.inputs.get("state_label", "start")
+
+    item = AgendaItem(
+        id=f"evt-{event_label}",
+        start_t_h=t_h,
+        end_t_h=round(t_h + 2.0, 2),
+        activity=event_label,
+        source_type="arc",
+        source_id="probe",
+        salience=0.8,
+        status="planned",
+    )
+    in_progress = kind == "tool_decide_reply"
+    snapshot = CompanionSnapshot(
+        persona=PersonaProfile(
+            name="Lily",
+            core=("You are Lily, a warm, independent companion with your own "
+                  "life, mood and schedule."),
+            interests=(), routines=(),
+        ),
+        current_behavior=_brief_for(state),
+        current_activity=(
+            CurrentActivity(t_h=t_h, item=item, description=event_label)
+            if in_progress else None
+        ),
+        agenda=(item,) if not in_progress else (),
+        life_arcs=(),
+        memory_context=MemoryContext((), (), (), None, ()),
+        recent_conversation=(),
+        proactive_intent=None,
+    )
+    return assemble_snapshot(snapshot, prompt_brief=STATES[state])
 
 
 # --------------------------------------------------------------------------- #
