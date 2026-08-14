@@ -29,7 +29,12 @@ def test_fake_client_records_max_tokens_per_call():
 
     assert client.calls[0]["max_tokens"] == 123
     assert client.calls[1]["max_tokens"] is None
-    assert set(client.calls[0]) == {"messages", "system", "temperature", "json_mode", "max_tokens"}
+    # The call record carries the full request (WS3): tools/tool_choice/
+    # reasoning_effort are recorded even when absent (None).
+    assert set(client.calls[0]) == {
+        "messages", "system", "temperature", "json_mode", "max_tokens",
+        "tools", "tool_choice", "reasoning_effort",
+    }
 
 
 def test_openai_client_payload_and_system_prepend():
@@ -213,3 +218,237 @@ def test_openai_client_truncation_finish_reason_records_marker(caplog):
     # and the truncation is recorded as a marker log line.
     assert client.chat([{"role": "user", "content": "q"}]) == "partial reply"
     assert "truncated (finish_reason=length" in caplog.text
+
+
+# -- WS3: tools, reasoning, ChatResult -------------------------------------- #
+
+
+def _client_with(handler, **kwargs):
+    transport = httpx.MockTransport(handler)
+    client = OpenAICompatibleClient(
+        base_url="https://example.test/v1", api_key="k", model="m", **kwargs
+    )
+    client._client = httpx.Client(transport=transport)
+    return client
+
+
+def test_openai_client_tools_passthrough():
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content.decode())
+        seen.append(payload)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = _client_with(handler)
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "decide_event",
+                "description": "Decide whether to initiate the event.",
+                "parameters": {"type": "object", "properties": {"initiate": {"type": "boolean"}}},
+            },
+        }
+    ]
+    client.chat_with_meta([{"role": "user", "content": "q"}], tools=tools, tool_choice="auto")
+    assert seen[0]["tools"] == tools
+    assert seen[0]["tool_choice"] == "auto"
+
+    # Without tools: keys absent from the payload (never sent empty).
+    client.chat_with_meta([{"role": "user", "content": "q"}])
+    assert "tools" not in seen[1]
+    assert "tool_choice" not in seen[1]
+
+
+def test_openai_client_parses_tool_calls():
+    calls = {"n": 0}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": None,
+                            "tool_calls": [
+                                {
+                                    "id": "call_1",
+                                    "type": "function",
+                                    "function": {
+                                        "name": "decide_event",
+                                        "arguments": '{"event": "gym", "initiate": true}',
+                                    },
+                                },
+                                {
+                                    "id": "call_2",
+                                    "type": "function",
+                                    "function": {"name": "decide_reply", "arguments": "{}"},
+                                },
+                            ],
+                        },
+                        "finish_reason": "tool_calls",
+                    }
+                ]
+            },
+        )
+
+    client = _client_with(handler, max_retries=2)
+    result = client.chat_with_meta([{"role": "user", "content": "q"}])
+
+    # Tool-call-only reply: no text, no raise, NO retry.
+    assert result.content == ""
+    assert result.finish_reason == "tool_calls"
+    assert result.tool_calls == [
+        {"id": "call_1", "name": "decide_event", "arguments_json": '{"event": "gym", "initiate": true}'},
+        {"id": "call_2", "name": "decide_reply", "arguments_json": "{}"},
+    ]
+    assert calls["n"] == 1
+    # chat() stays a thin wrapper: plain content string even for tool calls.
+    assert client.chat([{"role": "user", "content": "q"}]) == ""
+
+
+def test_openai_client_tool_calls_stay_raw_json_strings():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {
+                        "message": {
+                            "content": "deciding",
+                            "tool_calls": [
+                                {
+                                    "id": "c1",
+                                    "type": "function",
+                                    "function": {"name": "decide_event", "arguments": "not json!"},
+                                }
+                            ],
+                        },
+                        "finish_reason": "tool_calls",
+                    }
+                ]
+            },
+        )
+
+    client = _client_with(handler)
+    result = client.chat_with_meta([{"role": "user", "content": "q"}])
+
+    # arguments_json is passed through verbatim; semantic parsing (and the
+    # loud failure on invalid JSON) belongs to WS2's runner.
+    assert result.tool_calls[0]["arguments_json"] == "not json!"
+
+
+def test_openai_client_reasoning_effort_and_extraction():
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content.decode())
+        seen.append(payload)
+        reasoning = payload.get("reasoning_effort")
+        message = {"content": "visible reply"}
+        if reasoning == "high":
+            message["reasoning_content"] = "hidden thinking"
+        return httpx.Response(200, json={"choices": [{"message": message}]})
+
+    client = _client_with(handler)
+
+    result = client.chat_with_meta([{"role": "user", "content": "q"}], reasoning_effort="high")
+    assert seen[0]["reasoning_effort"] == "high"
+    assert result.reasoning == "hidden thinking"
+    assert result.content == "visible reply"  # reasoning never contaminates content
+
+    # Not provided → not emitted; no reasoning in response → None.
+    client.chat_with_meta([{"role": "user", "content": "q"}])
+    assert "reasoning_effort" not in seen[1]
+
+
+def test_openai_client_reasoning_alternate_key():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "choices": [
+                    {"message": {"content": "c", "reasoning": "alternate placement"}}
+                ]
+            },
+        )
+
+    client = _client_with(handler)
+    result = client.chat_with_meta([{"role": "user", "content": "q"}])
+    assert result.reasoning == "alternate placement"
+
+
+def test_openai_client_supports_tools_capability_flag():
+    # Endpoint capability, not model capability: the flag gates whether the
+    # tools param is SENT; model-level failures are WS2's parse path.
+    assert OpenAICompatibleClient.supports_tools is True
+    assert FakeClient.supports_tools is True
+
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        payload = json.loads(request.content.decode())
+        seen.append(payload)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    client = _client_with(handler)
+    client.supports_tools = False
+    client.chat_with_meta(
+        [{"role": "user", "content": "q"}],
+        tools=[{"type": "function", "function": {"name": "f"}}],
+        tool_choice="auto",
+    )
+    assert "tools" not in seen[0]
+    assert "tool_choice" not in seen[0]
+
+
+def test_fake_client_scripts_dict_responses():
+    client = FakeClient(
+        responses=[
+            {
+                "content": "text",
+                "reasoning": "think",
+                "tool_calls": [{"id": "c1", "name": "decide_event", "arguments_json": "{}"}],
+                "finish_reason": "tool_calls",
+            },
+            "plain",
+        ]
+    )
+    r1 = client.chat_with_meta(
+        [{"role": "user", "content": "q"}], tools=[{"type": "function"}], reasoning_effort="low"
+    )
+    assert r1.content == "text"
+    assert r1.reasoning == "think"
+    assert r1.tool_calls == [{"id": "c1", "name": "decide_event", "arguments_json": "{}"}]
+    assert r1.finish_reason == "tool_calls"
+    # Plain-string entries keep working; chat() returns content only.
+    assert client.chat([{"role": "user", "content": "q"}]) == "plain"
+
+
+def test_fake_client_records_full_request():
+    client = FakeClient()
+    tools = [{"type": "function", "function": {"name": "decide_event"}}]
+    client.chat_with_meta(
+        [{"role": "user", "content": "q"}],
+        tools=tools,
+        tool_choice="auto",
+        reasoning_effort="medium",
+    )
+    call = client.calls[0]
+    assert call["tools"] == tools
+    assert call["tool_choice"] == "auto"
+    assert call["reasoning_effort"] == "medium"
+
+
+def test_fake_client_chat_with_meta_records_defaults():
+    client = FakeClient()
+    client.chat_with_meta([{"role": "user", "content": "q"}])
+    call = client.calls[0]
+    assert call["tools"] is None
+    assert call["tool_choice"] is None
+    assert call["reasoning_effort"] is None
+    assert call["temperature"] == 0.8
+    assert call["json_mode"] is False
