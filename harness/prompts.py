@@ -53,13 +53,20 @@ SYSTEM_CORE = (
 )
 
 #: Tool protocol paragraph (design D1 textual fallback; the specific tool
-#: schemas land with the decision layer). Generic on purpose: it describes
-#: HOW offered tools work, not which tools exist.
+#: schemas land with the decision layer). The two pop-up kinds are named
+#: because the textual fallback must match the EXACT prefix the parser
+#: expects — a bare "<name>" placeholder gets read as the event label
+#: (observed: deepseek-v4-flash emitted "tool_decide_gym:" and was
+#: re-queued). Mechanics stay generic; names are protocol.
 TOOL_PROTOCOL = (
     "When a decision tool is offered, it arrives with its own instructions "
     "and a small form to fill: a verdict and a short plain-language reason. "
     "Call it only when the moment genuinely calls for it, fill exactly what "
-    "it asks, and keep the tool's mechanics out of the conversation."
+    "it asks, and keep the tool's mechanics out of the conversation. If no "
+    "decision tool is attached to this call, answer the pop-up with the "
+    "exact verdict form: 'tool_decide_event: <verdict JSON>' for event "
+    "pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups — "
+    "nothing before it, nothing after it."
 )
 
 #: Stable core = instructions + tool protocol + steer trust rule. Constant

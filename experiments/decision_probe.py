@@ -27,10 +27,11 @@ Design (WS2):
   frontmatter + per-evaluation table + plain-language verbatim answers),
   probe.json (raw records) and decision_probe.db (the store).
 
-Run::
+Run (``-m`` form — running the file directly puts ``experiments/`` on
+``sys.path`` and ``harness.*`` imports fail)::
 
-    .venv/bin/python experiments/decision_probe.py            # real
-    .venv/bin/python experiments/decision_probe.py --fake     # offline
+    .venv/bin/python -m experiments.decision_probe     # real
+    .venv/bin/python -m experiments.decision_probe --fake   # offline
 
 The user reads outputs himself — the report quotes every raw model answer.
 """
@@ -409,6 +410,12 @@ def make_real_callable() -> tuple:
         ctx.reasoning_present = bool(message.get("reasoning_content"))
         tool_calls = message.get("tool_calls")
         content = message.get("content")
+        # record the raw answer so requeued rows stay loud (the fake model
+        # keeps last_raw; the real callable must too)
+        _call.last_raw = (  # type: ignore[attr-defined]  # functions are objects
+            json.dumps(tool_calls, ensure_ascii=False) if tool_calls
+            else (content or "")
+        )
         if tool_calls:
             return RawReply(tool_calls=tool_calls)
         return RawReply(text=content or "")
