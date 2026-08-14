@@ -229,9 +229,9 @@ def test_log_llm_call_eval_mode_persists_repro(tmp_path):
     store.close()
 
 
-def test_schema_version_is_four(tmp_path):
+def test_schema_version_is_five(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
-    assert SCHEMA_VERSION == 4
+    assert SCHEMA_VERSION == 5
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == 4
+    assert len(rows) == 1 and rows[0]["version"] == 5
     store.close()
