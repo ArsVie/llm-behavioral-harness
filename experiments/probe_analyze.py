@@ -146,8 +146,20 @@ def record_from_dict(raw: dict) -> dict:
 
 
 def load_records(path: Path) -> tuple[list[dict], dict]:
-    """Load ``{meta, records}`` (or v1-style ``{meta, evaluations}``) JSON."""
+    """Load ``{meta, records}`` (or v1-style ``{meta, evaluations}``) JSON.
+
+    Bare-list input (the run loop writes a bare records list to probe.json and
+    probe_outcome preserves that shape) falls back to the sibling ``meta.json``
+    for metadata.
+    """
     data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if isinstance(data, list):
+        meta: dict = {}
+        meta_path = Path(path).with_name("meta.json")
+        if meta_path.exists():
+            meta_raw = json.loads(meta_path.read_text(encoding="utf-8"))
+            meta = meta_raw if isinstance(meta_raw, dict) else {}
+        return [record_from_dict(r) for r in data], meta
     if not isinstance(data, dict):
         raise ValueError(f"{path}: expected a JSON object with meta + records")
     records = data.get("records", data.get("evaluations"))
@@ -538,6 +550,61 @@ def references_by_dose(records: list[dict]) -> list[dict]:
     return rows
 
 
+def _terminate_spread(records: list[dict]) -> str:
+    """Rep-level spread of terminate_event (1 = terminate)."""
+    return "".join(
+        "1" if r.get("terminate_event") is True else (
+            "0" if r.get("terminate_event") is False else "?"
+        )
+        for r in records
+    )
+
+
+def terminate_by_dose(records: list[dict]) -> dict:
+    """terminate_event rate over K per mood dose (reply pop-ups only).
+
+    The reply axis itself (choice == 'reply') is often boundary-dominated;
+    terminate_event is the discretionary action *inside* the reply verdict
+    (leave rest to go out, end the event to follow the user's intent).
+    Returns pooled rows plus per-scenario cells: n, k, rate, Wilson CI,
+    rep spread. Legs with terminate_event None are excluded.
+    """
+    reply_legs = [
+        r for r in records
+        if r.get("popup_kind") == "tool_decide_reply"
+        and r.get("terminate_event") is not None
+    ]
+
+    def _cells(legs: list[dict]) -> list[dict]:
+        by_dose: dict[str, list[dict]] = {}
+        for leg in legs:
+            by_dose.setdefault(leg["dose_id"], []).append(leg)
+        cells = []
+        for dose_id in sorted(by_dose):
+            dose_legs = by_dose[dose_id]
+            n = len(dose_legs)
+            k = sum(1 for r in dose_legs if r["terminate_event"] is True)
+            cells.append({
+                "dose_id": dose_id,
+                "n": n,
+                "k": k,
+                "rate": k / n,
+                "ci": wilson_ci(k, n),
+                "spread": _terminate_spread(dose_legs),
+            })
+        return cells
+
+    by_scenario: dict[str, list[dict]] = {}
+    for r in reply_legs:
+        by_scenario.setdefault(r["scenario_id"], []).append(r)
+    return {
+        "pooled": _cells(reply_legs),
+        "per_scenario": {
+            sid: _cells(legs) for sid, legs in sorted(by_scenario.items())
+        },
+    }
+
+
 def headline_split(records: list[dict]) -> dict:
     """Pooled headline buckets + per-scenario breakdown (rates over K)."""
     pooled = _bucket_stats(records)
@@ -573,6 +640,7 @@ def analyze(records: list[dict], meta: dict | None = None) -> dict:
         "valence_sweep": channel_sweep(records, "M"),
         "energy_sweep": channel_sweep(records, "hour"),
         "references_by_dose": references_by_dose(records),
+        "terminate_by_dose": terminate_by_dose(records),
         "headline": headline_split(records),
         "acceptance": acceptance_checks(records),
         "runtime_schema": runtime_schema_check(),
@@ -878,6 +946,45 @@ def render_report(analysis: dict, records: list[dict],
         lines.append(f"### {sid}")
         lines.append("")
         lines.append(_render_cell_table(cells, "dose_id"))
+        lines.append("")
+    lines.append("## Action level — terminate_event by dose (reply pop-ups)")
+    lines.append("")
+    lines.append(
+        "The reply verdict carries a discretionary action: whether to "
+        "terminate the in-progress event (leave rest to go out, end the "
+        "event to follow the user's intent). `choice` is often "
+        "boundary-dominated on reply pop-ups; `terminate_event` is where "
+        "mood shows. Per scenario over K, then pooled across scenarios."
+    )
+    lines.append("")
+    term = analysis.get("terminate_by_dose")
+    if term:
+        for sid, cells in term["per_scenario"].items():
+            if not cells:
+                continue
+            lines.append(f"### {sid}")
+            lines.append("")
+            lines.append(
+                "| dose | n | terminate | P(terminate) | 95% CI (Wilson) | "
+                "spread (reps) |"
+            )
+            lines.append("|---|---|---|---|---|---|")
+            for row in cells:
+                lines.append(
+                    f"| {row['dose_id']} | {row['n']} | {row['k']} | "
+                    f"{_fmt_pct(row['rate'])} | {_fmt_ci(row['ci'])} | "
+                    f"`{row['spread']}` |"
+                )
+            lines.append("")
+        lines.append("### Pooled across scenarios")
+        lines.append("")
+        lines.append("| dose | n | terminate | P(terminate) | 95% CI (Wilson) |")
+        lines.append("|---|---|---|---|---|")
+        for row in term["pooled"]:
+            lines.append(
+                f"| {row['dose_id']} | {row['n']} | {row['k']} | "
+                f"{_fmt_pct(row['rate'])} | {_fmt_ci(row['ci'])} |"
+            )
         lines.append("")
     lines.append("## Per-channel sweeps (one lever per channel)")
     lines.append("")

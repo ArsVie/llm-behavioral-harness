@@ -1,11 +1,11 @@
-"""#22 decision probe tests — fake mode runs end to end.
+"""#22/#27 decision probe tests — v2 fake mode runs end to end.
 
-Runs experiments/decision_probe.py in --fake mode (scripted model, no
-network) into a tmp dir and verifies the full pipeline: ~105 evaluations
-(15 samples x 3 states x 2 transports + 15 server draws), the OKF report
-with the per-evaluation table and verbatim answers, the probe.json record,
-the LOUD parse-failure path (s09 textual legs are requeued and recorded as
-state events), and replay determinism when re-running over the same store.
+Runs experiments/decision_probe.py in --fake mode (scripted model + scripted
+doses, no network) into a tmp dir and verifies the v2 dose-response
+pipeline: scenarios x doses x K legs, the probe.json record (bare list of
+ProbeRecord dicts), the LOUD parse-failure path (s09 textual legs are
+requeued and flagged), replay determinism when re-running over the same
+store, and cross-dir determinism.
 """
 
 import json
@@ -19,102 +19,93 @@ from experiments.decision_probe import (
 )
 
 N_SAMPLES = len(SAMPLES)
-N_MODEL_CALLS = N_SAMPLES * 3 * 2      # states x transports
-N_DRAWS = N_SAMPLES
-N_TOTAL = N_MODEL_CALLS + N_DRAWS
-# s09 textual legs (3 states) are scripted to be unparseable -> requeued
-N_REQUEUED = 3
-N_RECORDS = N_MODEL_CALLS - N_REQUEUED + N_DRAWS
+N_SCRIPTED_DOSES = 6            # 2 extremes + 2 valence + 2 energy (fake)
+N_LEGS = N_SAMPLES * N_SCRIPTED_DOSES  # per K=1
+
+
+def _expected(K: int) -> tuple[int, int]:
+    """(legs, parse_failures) for a fake run: s09 always fails to parse."""
+    legs = N_LEGS * K
+    return legs, N_SCRIPTED_DOSES * K
 
 
 def test_fake_probe_runs_end_to_end(tmp_path):
-    meta = run_probe(out=tmp_path, fake=True)
+    K = 2
+    legs, pf = _expected(K)
+    meta = run_probe(out=tmp_path, fake=True, K=K)
 
     assert meta["mode"] == "fake"
-    assert meta["n_samples"] == N_SAMPLES == 15
     s = meta["summary"]
-    assert s["evaluations"] == N_TOTAL == 105  # ~100 calls per the #22 spec
-    assert s["parse_failures"] == N_REQUEUED == 3
+    assert s["legs"] == meta["n_legs"] == legs
+    assert s["parse_failures"] == meta["n_parse_failures"] == pf
+    assert s["replayed"] == 0
 
     # outputs exist
-    report = (tmp_path / "report.md").read_text(encoding="utf-8")
     probe_json = json.loads((tmp_path / "probe.json").read_text(
         encoding="utf-8"
     ))
     assert (tmp_path / "decision_probe.db").exists()
+    assert (tmp_path / "meta.json").exists()
 
-    # OKF frontmatter: type + seeds, starting at byte 0
-    assert report.startswith("---\ntype: decision-probe-report")
-    assert "seeds: [20260814]" in report
-    # per-evaluation table with the required columns
-    for col in ("sample", "transport", "reasoning", "verdict", "reason",
-                "parse failure"):
-        assert f"| {col}" in report
-    # plain-language verbatim listing quotes the exact model answers
-    assert "## Verbatim answers (plain-language listing)" in report
-    assert "fake: s01" in report
-    assert "tool_decide_reply:" in report
+    # probe.json is a bare list of v2 ProbeRecord dicts, one per leg
+    assert isinstance(probe_json, list)
+    assert len(probe_json) == legs
+    assert {r["sample_id"] for r in probe_json} == \
+        {s["sample_id"] for s in SAMPLES}
+    assert {r["dose_id"] for r in probe_json} == \
+        {"ext-M10", "ext-M0", "val-M8", "val-M2", "ene-h8", "ene-h20"}
+    for r in probe_json:
+        assert r["leg_id"]
+        assert r["brief"]            # the mood brief reached the record
+        assert r["reasoning_content"]  # verbatim reasoning captured
+        assert r["raw_reply"]        # dual persistence of the raw answer
+        if r["sample_id"] != "s09":
+            assert r["verdict"] is not None
+            assert r["parse_failure"] is False
+        else:
+            # LOUD parse failure: s09 legs are flagged, verdict stays None
+            assert r["parse_failure"] is True
+            assert r["verdict"] is None
 
-    # probe.json carries every evaluation with the raw reply
-    evals = probe_json["evaluations"]
-    assert len(evals) == N_TOTAL
-    assert {r["sample_id"] for r in evals} == {s["sample_id"] for s in SAMPLES}
-    by_kind = {s["sample_id"]: s["kind"] for s in SAMPLES}
-    for r in evals:
-        assert r["popup_kind"] == by_kind[r["sample_id"]]
-        if r["transport"] in ("native", "textual"):
-            assert r["raw_reply"]  # dual persistence of the raw answer
-    # requeued legs are flagged loudly
-    requeued = [r for r in evals if r.get("requeued")]
-    assert len(requeued) == N_REQUEUED
-    assert {r["sample_id"] for r in requeued} == {"s09"}
-    assert all(r["parse_failure"] for r in requeued)
-    # server draws never call the model and carry the canned reason
-    draws = [r for r in evals if r["transport"] == "server_draw"]
-    assert len(draws) == N_DRAWS
-    assert all(r["source"] == "server_draw" for r in draws)
-    assert all("server draw" in r["reason"] for r in draws)
-
-    # store: every non-requeued evaluation has a decision record
+    # store: every non-requeued leg has a decision record
     store = SQLiteStore(tmp_path / "decision_probe.db", audit_mode=True)
     try:
         assert store.conn.execute(
             "SELECT COUNT(*) AS n FROM decision_records"
-        ).fetchone()["n"] == N_RECORDS
+        ).fetchone()["n"] == legs - pf
         # LOUD parse failures: state events recorded for the requeued legs
         events = store.events_since(0)
         failed = [e for e in events if e["event"] == EVENT_DECISION_PARSE_FAILED]
-        assert len(failed) == N_REQUEUED
+        assert len(failed) == pf
         assert all("s09" in e["detail"] for e in failed)
-        # budget untouched: no forced replies in the probe (budget off)
-        assert not any(e["event"] == "budget_exhausted_forced_reply"
-                       for e in events)
     finally:
         store.close()
 
 
 def test_fake_probe_deterministic_across_dirs(tmp_path):
+    K = 2
     out1 = tmp_path / "run1"
     out2 = tmp_path / "run2"
-    meta1 = run_probe(out=out1, fake=True)
-    meta2 = run_probe(out=out2, fake=True)
-    assert meta1["summary"]["replied_or_initiated"] == \
-        meta2["summary"]["replied_or_initiated"]
-    evals1 = json.loads((out1 / "probe.json").read_text(
-        encoding="utf-8"))["evaluations"]
-    evals2 = json.loads((out2 / "probe.json").read_text(
-        encoding="utf-8"))["evaluations"]
-    v1 = [(r["sample_id"], r["state"], r["transport"], r.get("reply"))
-          for r in evals1]
-    v2 = [(r["sample_id"], r["state"], r["transport"], r.get("reply"))
-          for r in evals2]
+    meta1 = run_probe(out=out1, fake=True, K=K)
+    meta2 = run_probe(out=out2, fake=True, K=K)
+    assert meta1["summary"]["legs"] == meta2["summary"]["legs"]
+    recs1 = json.loads((out1 / "probe.json").read_text(encoding="utf-8"))
+    recs2 = json.loads((out2 / "probe.json").read_text(encoding="utf-8"))
+    v1 = [(r["sample_id"], r["dose_id"], r["rep_k"], r.get("source"),
+           r.get("verdict")) for r in recs1]
+    v2 = [(r["sample_id"], r["dose_id"], r["rep_k"], r.get("source"),
+           r.get("verdict")) for r in recs2]
     assert v1 == v2
 
 
 def test_fake_probe_rerun_same_dir_replays(tmp_path):
     """Re-running over the same store replays recorded verdicts: the model
-    is never consulted again and no new decision records are written."""
-    run_probe(out=tmp_path, fake=True)
+    is never consulted again for recorded legs and no new decision records
+    are written; the requeued (s09) legs fail loudly again."""
+    K = 2
+    legs, pf = _expected(K)
+    recorded = legs - pf
+    run_probe(out=tmp_path, fake=True, K=K)
     before = SQLiteStore(tmp_path / "decision_probe.db", audit_mode=True)
     try:
         n_before = before.conn.execute(
@@ -123,11 +114,12 @@ def test_fake_probe_rerun_same_dir_replays(tmp_path):
     finally:
         before.close()
 
-    meta2 = run_probe(out=tmp_path, fake=True)
+    meta2 = run_probe(out=tmp_path, fake=True, K=K)
     s2 = meta2["summary"]
-    assert s2["evaluations"] == N_TOTAL  # replay still yields rows
+    assert s2["legs"] == legs          # replay still yields rows
+    assert s2["replayed"] == recorded  # recorded legs replayed, not re-rolled
     # the requeued legs never recorded a verdict, so they fail loudly again
-    assert s2["parse_failures"] == N_REQUEUED
+    assert s2["parse_failures"] == pf
 
     store = SQLiteStore(tmp_path / "decision_probe.db", audit_mode=True)
     try:
@@ -135,18 +127,22 @@ def test_fake_probe_rerun_same_dir_replays(tmp_path):
             "SELECT COUNT(*) AS n FROM decision_records"
         ).fetchone()["n"]
         # no new records: every recorded decision was replayed, not re-rolled
-        assert n_after == n_before == N_RECORDS
+        assert n_after == n_before == recorded
         replay_events = [e for e in store.events_since(0)
                          if e["event"] == "decision_replayed"]
-        assert len(replay_events) == N_RECORDS
+        assert len(replay_events) == recorded
     finally:
         store.close()
 
 
-def test_fake_probe_samples_subset(tmp_path):
-    meta = run_probe(out=tmp_path, fake=True, limit_samples=3)
-    assert meta["n_samples"] == 3
-    assert meta["summary"]["evaluations"] == 3 * 6 + 3
+def test_fake_probe_scenarios_subset(tmp_path):
+    """A scenarios subset runs only those samples (v2 equivalent of the
+    v1 limit_samples knob)."""
+    meta = run_probe(out=tmp_path, fake=True, scenarios=["s01"], K=2)
+    assert meta["scenarios"] == ["s01"]
+    # s01 never parse-fails: 1 scenario x 6 doses x K=2 = 12 clean legs
+    assert meta["summary"]["legs"] == 12
+    assert meta["summary"]["parse_failures"] == 0
 
 
 # =========================================================================== #
