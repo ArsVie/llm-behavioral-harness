@@ -79,8 +79,10 @@ nothing (no import of httpx, no network).
 Idempotency
 -----------
 CLI: ``.venv/bin/python -m experiments.probe_outcome --in probe.json
---out probe.classified.json``. A record is "already classified" when ANY of
-the six A3 keys is already present in its dict; such records are skipped
+--out probe.classified.json``. A record is "already classified" when its
+``responded`` key is a real bool (None on fresh ProbeRecords, always set by
+classify) — key presence alone is NOT the marker, because ProbeRecord
+serializes all A3 keys with null defaults; such records are skipped
 verbatim. Output mirrors the input container (top-level list, or dict with a
 "records"/"evaluations" list key).
 
@@ -462,7 +464,7 @@ def main(argv: list[str] | None = None) -> int:
     for rec in records:
         if not isinstance(rec, dict):
             raise ValueError(f"record is not a dict: {rec!r}")
-        if any(key in rec for key in A3_FIELDS):
+        if rec.get("responded") is not None:
             skipped += 1  # already classified — idempotent skip
             continue
         rec.update(_classify_dict(rec))
