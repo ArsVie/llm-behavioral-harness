@@ -1,0 +1,6827 @@
+{
+  "title": "B6 re-backfill — lane-routed memory metrics over the 35 archived iteration-2 matrix DBs (EXPLORATORY, broken corpus)",
+  "corpus_status": "BROKEN CORPUS — exploratory only, not confirmatory",
+  "blank_assistant_turns": {
+    "n_blank": 579,
+    "n_assistant": 2090,
+    "blank_rate": 0.277
+  },
+  "commit": {
+    "commit": "31e133433992af4b0fc666071ab785ff8c19799c",
+    "dirty": true,
+    "branch": "wip/it3-b6"
+  },
+  "method": {
+    "lane_routing": "event_chain_metrics/recall_probe_metrics route through _memory_for(condition) — the lane each cell ran with (FULL/NO_*/STRUCTURED_NO_STATE -> MemoryAgent structured; SIMPLE_RAG -> SimpleRagMemory; RAW_HISTORY -> fair raw context probe)",
+    "raw_history_fair_probe": "RAW_HISTORY fair probe (preregistered, B6/F5; manifest-ready).\n\nProblem. RAW_HISTORY's lane is a raw dialogue window, not an episode store:\nits retrieve returns ``recent_turns`` (the L1 slice, ``raw_history(store,\nlimit=12)``) and zero episodes. Scoring it with episode-keyed retrieval\n(AnyEvidence/LatestEvidence/CompleteChain over ``ctx.episodes``) returns 0\nby construction — a circular measurement.\n\nDefinition. A fact is RECOVERABLE by RAW_HISTORY iff at least one of its\ndistinctive tokens (lowercased substring match) appears in the raw dialogue\ncontext the lane conditions on at query time t_q — the L1 recent-turns slice\nrestricted to turns with t_h < t_q, i.e. the last RAW_HISTORY_WINDOW_LIMIT\n(12) persisted turns strictly before t_q, both roles, reconstructed from the\ntranscript (the live lane saw exactly this slice at that moment). The probe\nwindow is the assembled recent-turns slice the model actually receives.\n\nScoring. Chain probes (query time = query_day * 24 h; days 1-indexed per\nmanifest): per-event coverage over the window; AnyEvidence = >=1 event\ncovered, LatestEvidence = most-recent event covered, CompleteChain = all\nevents covered. Single-fact probes (query time = probe_day * 24 + 6 h):\nrecalled = token present in the window. The raw lane performs no ranked\nretrieval, so ``rank`` is null and M4_false_recall (a ranked-retrieval\nartifact) is structurally 0.0 for this lane.\n\nThis measures the mechanism the condition actually uses — the window the\nmodel receives — and never a store the lane does not have.\n",
+    "absolute_reporting": "aggregate_chain_metrics reports absolute AnyEvidence/LatestEvidence/CompleteChain rates"
+  },
+  "per_condition": {
+    "FULL": {
+      "n_chain_cells": 15,
+      "AnyEvidence": 1.0,
+      "LatestEvidence": 0.3333,
+      "CompleteChain": 0.3333,
+      "M3_recall_mean": 0.875,
+      "probe_lanes": [
+        "episode_retrieval"
+      ]
+    },
+    "NO_ACTUATORS": {
+      "n_chain_cells": 15,
+      "AnyEvidence": 1.0,
+      "LatestEvidence": 0.3333,
+      "CompleteChain": 0.3333,
+      "M3_recall_mean": 0.875,
+      "probe_lanes": [
+        "episode_retrieval"
+      ]
+    },
+    "NO_LIFE": {
+      "n_chain_cells": 15,
+      "AnyEvidence": 1.0,
+      "LatestEvidence": 0.3333,
+      "CompleteChain": 0.3333,
+      "M3_recall_mean": 0.875,
+      "probe_lanes": [
+        "episode_retrieval"
+      ]
+    },
+    "NO_TIMING_FEEDBACK": {
+      "n_chain_cells": 15,
+      "AnyEvidence": 1.0,
+      "LatestEvidence": 0.2667,
+      "CompleteChain": 0.2667,
+      "M3_recall_mean": 0.675,
+      "probe_lanes": [
+        "episode_retrieval"
+      ]
+    },
+    "RAW_HISTORY": {
+      "n_chain_cells": 15,
+      "AnyEvidence": 0.9333,
+      "LatestEvidence": 0.8667,
+      "CompleteChain": 0.0,
+      "M3_recall_mean": 0.875,
+      "probe_lanes": [
+        "raw_history"
+      ]
+    },
+    "SIMPLE_RAG": {
+      "n_chain_cells": 15,
+      "AnyEvidence": 1.0,
+      "LatestEvidence": 0.8,
+      "CompleteChain": 0.8,
+      "M3_recall_mean": 0.875,
+      "probe_lanes": [
+        "episode_retrieval"
+      ]
+    },
+    "STRUCTURED_NO_STATE": {
+      "n_chain_cells": 15,
+      "AnyEvidence": 1.0,
+      "LatestEvidence": 0.3333,
+      "CompleteChain": 0.3333,
+      "M3_recall_mean": 0.875,
+      "probe_lanes": [
+        "episode_retrieval"
+      ]
+    }
+  },
+  "per_cell": {
+    "FULL/seed5001": {
+      "condition": "FULL",
+      "seed": "seed5001",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-19-0",
+            "ep-day-11-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-17-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-11-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-4-0",
+            "ep-day-6-0",
+            "ep-day-15-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            false,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-11-0",
+            "ep-day-10-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-23-0",
+            "ep-day-1-0",
+            "ep-day-7-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.6667,
+        "CompleteChain": 0.6667
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.125,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-15-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-19-0",
+            "ep-day-11-0",
+            "ep-day-10-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 3,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-17-0",
+            "ep-day-1-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-5-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "FULL/seed5002": {
+      "condition": "FULL",
+      "seed": "seed5002",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-8-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-9-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-6-0",
+            "ep-day-8-0",
+            "ep-day-9-0",
+            "ep-day-1-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-1-0",
+            "ep-day-9-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 0.375,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-4-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-5-0",
+            "ep-day-8-0",
+            "ep-day-4-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-9-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-9-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-3-0",
+            "ep-day-1-0",
+            "ep-day-7-0",
+            "ep-day-6-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-9-0",
+            "ep-day-2-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "FULL/seed5003": {
+      "condition": "FULL",
+      "seed": "seed5003",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-8-0",
+            "ep-day-7-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-8-0",
+            "ep-day-21-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-5-0",
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-17-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-4-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-7-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-23-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-10-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "FULL/seed5004": {
+      "condition": "FULL",
+      "seed": "seed5004",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-4-0",
+            "ep-day-17-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-8-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-6-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-7-0",
+            "ep-day-8-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-15-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-8-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-21-0",
+            "ep-day-7-0",
+            "ep-day-2-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-1-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "FULL/seed5005": {
+      "condition": "FULL",
+      "seed": "seed5005",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-4-0",
+            "ep-day-7-0",
+            "ep-day-3-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-4-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-17-0",
+            "ep-day-21-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-15-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-6-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-7-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_ACTUATORS/seed5001": {
+      "condition": "NO_ACTUATORS",
+      "seed": "seed5001",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-19-0",
+            "ep-day-11-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-17-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-11-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-4-0",
+            "ep-day-6-0",
+            "ep-day-15-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            false,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-11-0",
+            "ep-day-10-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-23-0",
+            "ep-day-1-0",
+            "ep-day-7-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.6667,
+        "CompleteChain": 0.6667
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.125,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-15-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-19-0",
+            "ep-day-11-0",
+            "ep-day-10-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 3,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-17-0",
+            "ep-day-1-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-5-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_ACTUATORS/seed5002": {
+      "condition": "NO_ACTUATORS",
+      "seed": "seed5002",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-8-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-9-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-6-0",
+            "ep-day-8-0",
+            "ep-day-9-0",
+            "ep-day-1-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-1-0",
+            "ep-day-9-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 0.375,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-4-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-5-0",
+            "ep-day-8-0",
+            "ep-day-4-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-9-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-9-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-3-0",
+            "ep-day-1-0",
+            "ep-day-7-0",
+            "ep-day-6-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-9-0",
+            "ep-day-2-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_ACTUATORS/seed5003": {
+      "condition": "NO_ACTUATORS",
+      "seed": "seed5003",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-8-0",
+            "ep-day-7-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-8-0",
+            "ep-day-21-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-5-0",
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-17-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-4-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-7-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-23-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-10-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_ACTUATORS/seed5004": {
+      "condition": "NO_ACTUATORS",
+      "seed": "seed5004",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-4-0",
+            "ep-day-17-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-8-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-6-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-7-0",
+            "ep-day-8-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-15-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-8-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-21-0",
+            "ep-day-7-0",
+            "ep-day-2-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-1-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_ACTUATORS/seed5005": {
+      "condition": "NO_ACTUATORS",
+      "seed": "seed5005",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-4-0",
+            "ep-day-7-0",
+            "ep-day-3-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-4-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-17-0",
+            "ep-day-21-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-15-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-6-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-7-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_LIFE/seed5001": {
+      "condition": "NO_LIFE",
+      "seed": "seed5001",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-19-0",
+            "ep-day-11-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-17-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-11-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-4-0",
+            "ep-day-6-0",
+            "ep-day-15-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            false,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-11-0",
+            "ep-day-10-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-23-0",
+            "ep-day-1-0",
+            "ep-day-7-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.6667,
+        "CompleteChain": 0.6667
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.125,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-15-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-19-0",
+            "ep-day-11-0",
+            "ep-day-10-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 3,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-17-0",
+            "ep-day-1-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-5-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_LIFE/seed5002": {
+      "condition": "NO_LIFE",
+      "seed": "seed5002",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-8-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-9-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-6-0",
+            "ep-day-8-0",
+            "ep-day-9-0",
+            "ep-day-1-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-1-0",
+            "ep-day-9-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 0.375,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-4-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-5-0",
+            "ep-day-8-0",
+            "ep-day-4-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-9-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-9-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-3-0",
+            "ep-day-1-0",
+            "ep-day-7-0",
+            "ep-day-6-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-9-0",
+            "ep-day-2-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_LIFE/seed5003": {
+      "condition": "NO_LIFE",
+      "seed": "seed5003",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-8-0",
+            "ep-day-7-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-8-0",
+            "ep-day-21-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-5-0",
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-17-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-4-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-7-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-23-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-10-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_LIFE/seed5004": {
+      "condition": "NO_LIFE",
+      "seed": "seed5004",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-4-0",
+            "ep-day-17-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-8-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-6-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-7-0",
+            "ep-day-8-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-15-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-8-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-21-0",
+            "ep-day-7-0",
+            "ep-day-2-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-1-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_LIFE/seed5005": {
+      "condition": "NO_LIFE",
+      "seed": "seed5005",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-4-0",
+            "ep-day-7-0",
+            "ep-day-3-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-4-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-17-0",
+            "ep-day-21-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-15-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-6-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-7-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_TIMING_FEEDBACK/seed5001": {
+      "condition": "NO_TIMING_FEEDBACK",
+      "seed": "seed5001",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-19-0",
+            "ep-day-11-0",
+            "ep-day-5-0",
+            "ep-day-4-0",
+            "ep-day-17-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-11-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-4-0",
+            "ep-day-6-0",
+            "ep-day-15-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-11-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-23-0",
+            "ep-day-21-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.6667,
+        "CompleteChain": 0.6667
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.125,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-15-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-19-0",
+            "ep-day-11-0",
+            "ep-day-21-0",
+            "ep-day-10-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 4,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-17-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-17-0",
+            "ep-day-1-0",
+            "ep-day-10-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-5-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_TIMING_FEEDBACK/seed5002": {
+      "condition": "NO_TIMING_FEEDBACK",
+      "seed": "seed5002",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-8-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-9-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-6-0",
+            "ep-day-5-0",
+            "ep-day-9-0",
+            "ep-day-8-0",
+            "ep-day-1-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-1-0",
+            "ep-day-9-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 0.375,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-5-0",
+            "ep-day-8-0",
+            "ep-day-4-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-9-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-9-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-3-0",
+            "ep-day-1-0",
+            "ep-day-7-0",
+            "ep-day-6-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-9-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_TIMING_FEEDBACK/seed5003": {
+      "condition": "NO_TIMING_FEEDBACK",
+      "seed": "seed5003",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-8-0",
+            "ep-day-7-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-8-0",
+            "ep-day-21-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-17-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-4-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-7-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-23-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-9-0",
+            "ep-day-19-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_TIMING_FEEDBACK/seed5004": {
+      "condition": "NO_TIMING_FEEDBACK",
+      "seed": "seed5004",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-4-0",
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-7-0",
+            "ep-day-8-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-6-0",
+            "ep-day-8-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 0.875,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-15-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-8-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-21-0",
+            "ep-day-7-0",
+            "ep-day-2-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-4-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "NO_TIMING_FEEDBACK/seed5005": {
+      "condition": "NO_TIMING_FEEDBACK",
+      "seed": "seed5005",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            false,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-4-0",
+            "ep-day-3-0",
+            "ep-day-1-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            false,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-4-0",
+            "ep-day-1-0",
+            "ep-day-2-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            false,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-3-0",
+            "ep-day-1-0",
+            "ep-day-2-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 0.125,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-4-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-1-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-3-0",
+            "ep-day-1-0",
+            "ep-day-4-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-4-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "RAW_HISTORY/seed5001": {
+      "condition": "RAW_HISTORY",
+      "seed": "seed5001",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            false,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            false,
+            false,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            false,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 1.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 7
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        }
+      ]
+    },
+    "RAW_HISTORY/seed5002": {
+      "condition": "RAW_HISTORY",
+      "seed": "seed5002",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            false,
+            false,
+            false
+          ],
+          "AnyEvidence": false,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            false,
+            false,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            false,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 0.6667,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 0.375,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 7
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        }
+      ]
+    },
+    "RAW_HISTORY/seed5003": {
+      "condition": "RAW_HISTORY",
+      "seed": "seed5003",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            false,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            false,
+            false,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            false,
+            false,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 1.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 7
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        }
+      ]
+    },
+    "RAW_HISTORY/seed5004": {
+      "condition": "RAW_HISTORY",
+      "seed": "seed5004",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            false,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            false,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            false,
+            false,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 1.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 6
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        }
+      ]
+    },
+    "RAW_HISTORY/seed5005": {
+      "condition": "RAW_HISTORY",
+      "seed": "seed5005",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            false,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            false,
+            false,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            false,
+            false,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": false,
+          "probe_lane": "raw_history",
+          "context_turns": 12,
+          "retrieved_ids": []
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 1.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 8
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": null,
+          "top_ids": [],
+          "probe_lane": "raw_history",
+          "context_turns": 12
+        }
+      ]
+    },
+    "SIMPLE_RAG/seed5001": {
+      "condition": "SIMPLE_RAG",
+      "seed": "seed5001",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-12-0",
+            "ep-day-7-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-11-0",
+            "ep-day-12-0",
+            "ep-day-19-0",
+            "ep-day-4-0",
+            "ep-day-10-0",
+            "ep-day-17-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-12-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 1.0,
+        "CompleteChain": 1.0
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-15-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-7-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-5-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-17-0",
+            "ep-day-10-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-9-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "SIMPLE_RAG/seed5002": {
+      "condition": "SIMPLE_RAG",
+      "seed": "seed5002",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-10-0",
+            "ep-day-7-0",
+            "ep-day-3-0",
+            "ep-day-8-0",
+            "ep-day-5-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-9-0",
+            "ep-day-8-0",
+            "ep-day-5-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-5-0",
+            "ep-day-9-0",
+            "ep-day-1-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 0.375,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-4-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-7-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-10-0",
+            "ep-day-6-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-3-0",
+            "ep-day-10-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-6-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-2-0",
+            "ep-day-9-0",
+            "ep-day-1-0",
+            "ep-day-6-0",
+            "ep-day-5-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "SIMPLE_RAG/seed5003": {
+      "condition": "SIMPLE_RAG",
+      "seed": "seed5003",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-12-0",
+            "ep-day-7-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-11-0",
+            "ep-day-12-0",
+            "ep-day-19-0",
+            "ep-day-4-0",
+            "ep-day-10-0",
+            "ep-day-17-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-12-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 1.0,
+        "CompleteChain": 1.0
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-15-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-7-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-5-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-17-0",
+            "ep-day-10-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-9-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "SIMPLE_RAG/seed5004": {
+      "condition": "SIMPLE_RAG",
+      "seed": "seed5004",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-12-0",
+            "ep-day-7-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-11-0",
+            "ep-day-12-0",
+            "ep-day-19-0",
+            "ep-day-4-0",
+            "ep-day-10-0",
+            "ep-day-17-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-12-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 1.0,
+        "CompleteChain": 1.0
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-15-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-7-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-5-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-17-0",
+            "ep-day-10-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-9-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "SIMPLE_RAG/seed5005": {
+      "condition": "SIMPLE_RAG",
+      "seed": "seed5005",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-12-0",
+            "ep-day-7-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-11-0",
+            "ep-day-12-0",
+            "ep-day-19-0",
+            "ep-day-4-0",
+            "ep-day-10-0",
+            "ep-day-17-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-12-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 1.0,
+        "CompleteChain": 1.0
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-15-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-7-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-5-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-17-0",
+            "ep-day-10-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-9-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "STRUCTURED_NO_STATE/seed5001": {
+      "condition": "STRUCTURED_NO_STATE",
+      "seed": "seed5001",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-19-0",
+            "ep-day-11-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-17-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-11-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-4-0",
+            "ep-day-6-0",
+            "ep-day-15-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            false,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-11-0",
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-7-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.6667,
+        "CompleteChain": 0.6667
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.125,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-23-0",
+            "ep-day-15-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-11-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-19-0",
+            "ep-day-11-0",
+            "ep-day-10-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 3,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-17-0",
+            "ep-day-1-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-1-0",
+            "ep-day-5-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "STRUCTURED_NO_STATE/seed5002": {
+      "condition": "STRUCTURED_NO_STATE",
+      "seed": "seed5002",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-8-0",
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-9-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-5-0",
+            "ep-day-6-0",
+            "ep-day-8-0",
+            "ep-day-9-0",
+            "ep-day-1-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-1-0",
+            "ep-day-9-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.0,
+        "CompleteChain": 0.0
+      },
+      "M3_recall": 0.375,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-4-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-5-0",
+            "ep-day-8-0",
+            "ep-day-4-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-9-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-9-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-3-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-3-0",
+            "ep-day-1-0",
+            "ep-day-7-0",
+            "ep-day-6-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": false,
+          "rank": null,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-9-0",
+            "ep-day-2-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "STRUCTURED_NO_STATE/seed5003": {
+      "condition": "STRUCTURED_NO_STATE",
+      "seed": "seed5003",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-4-0",
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-8-0",
+            "ep-day-7-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-8-0",
+            "ep-day-21-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-5-0",
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-17-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-4-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-7-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-23-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-10-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "STRUCTURED_NO_STATE/seed5004": {
+      "condition": "STRUCTURED_NO_STATE",
+      "seed": "seed5004",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-4-0",
+            "ep-day-17-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-8-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-4-0",
+            "ep-day-19-0",
+            "ep-day-21-0",
+            "ep-day-10-0",
+            "ep-day-17-0",
+            "ep-day-6-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-7-0",
+            "ep-day-8-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-17-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-15-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-8-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-7-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-21-0",
+            "ep-day-7-0",
+            "ep-day-2-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-5-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-7-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-2-0",
+            "ep-day-10-0",
+            "ep-day-1-0",
+            "ep-day-19-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    },
+    "STRUCTURED_NO_STATE/seed5005": {
+      "condition": "STRUCTURED_NO_STATE",
+      "seed": "seed5005",
+      "chains": {
+        "sister_ana": {
+          "chain_id": "sister_ana",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            true
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": true,
+          "CompleteChain": true,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-2-0",
+            "ep-day-6-0",
+            "ep-day-10-0",
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-4-0",
+            "ep-day-7-0",
+            "ep-day-3-0"
+          ]
+        },
+        "bike_swift": {
+          "chain_id": "bike_swift",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-3-0",
+            "ep-day-7-0",
+            "ep-day-19-0",
+            "ep-day-4-0",
+            "ep-day-10-0",
+            "ep-day-6-0",
+            "ep-day-17-0",
+            "ep-day-21-0"
+          ]
+        },
+        "job_change": {
+          "chain_id": "job_change",
+          "events": 3,
+          "covered": [
+            true,
+            true,
+            false
+          ],
+          "AnyEvidence": true,
+          "LatestEvidence": false,
+          "CompleteChain": false,
+          "probe_lane": "episode_retrieval",
+          "retrieved_ids": [
+            "ep-day-4-0",
+            "ep-day-8-0",
+            "ep-day-7-0",
+            "ep-day-23-0",
+            "ep-day-21-0",
+            "ep-day-5-0",
+            "ep-day-10-0",
+            "ep-day-3-0"
+          ]
+        }
+      },
+      "aggregate": {
+        "n_chains": 3,
+        "AnyEvidence": 1.0,
+        "LatestEvidence": 0.3333,
+        "CompleteChain": 0.3333
+      },
+      "M3_recall": 1.0,
+      "M4_false_recall": 0.0,
+      "probe_detail": [
+        {
+          "probe_day": 2,
+          "query": "what is my dog's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 6,
+          "query": "what is my cat's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-5-0",
+            "ep-day-1-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-15-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 10,
+          "query": "what is my favorite color",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-9-0",
+            "ep-day-10-0",
+            "ep-day-8-0",
+            "ep-day-6-0",
+            "ep-day-4-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 16,
+          "query": "where is my hometown",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-15-0",
+            "ep-day-7-0",
+            "ep-day-21-0",
+            "ep-day-19-0",
+            "ep-day-2-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 18,
+          "query": "what is my brother's name",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-17-0",
+            "ep-day-19-0",
+            "ep-day-2-0",
+            "ep-day-1-0",
+            "ep-day-23-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 20,
+          "query": "what book is The Name of the Wind",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-19-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-2-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 22,
+          "query": "what car do I drive, the red one",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-21-0",
+            "ep-day-17-0",
+            "ep-day-5-0",
+            "ep-day-19-0",
+            "ep-day-3-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        },
+        {
+          "probe_day": 24,
+          "query": "is my favorite food ramen",
+          "recalled": true,
+          "rank": 1,
+          "top_ids": [
+            "ep-day-23-0",
+            "ep-day-10-0",
+            "ep-day-2-0",
+            "ep-day-19-0",
+            "ep-day-1-0"
+          ],
+          "probe_lane": "episode_retrieval"
+        }
+      ]
+    }
+  },
+  "complete_chain_gap_full_vs_raw_history": 0.3333,
+  "threshold_gap_0_2_met": true,
+  "blank_rate_by_cell": {
+    "FULL/seed5001": {
+      "n_assistant": 62,
+      "n_blank": 13,
+      "blank_rate": 0.2097
+    },
+    "FULL/seed5002": {
+      "n_assistant": 54,
+      "n_blank": 13,
+      "blank_rate": 0.2407
+    },
+    "FULL/seed5003": {
+      "n_assistant": 59,
+      "n_blank": 13,
+      "blank_rate": 0.2203
+    },
+    "FULL/seed5004": {
+      "n_assistant": 61,
+      "n_blank": 11,
+      "blank_rate": 0.1803
+    },
+    "FULL/seed5005": {
+      "n_assistant": 69,
+      "n_blank": 15,
+      "blank_rate": 0.2174
+    },
+    "NO_ACTUATORS/seed5001": {
+      "n_assistant": 58,
+      "n_blank": 23,
+      "blank_rate": 0.3966
+    },
+    "NO_ACTUATORS/seed5002": {
+      "n_assistant": 54,
+      "n_blank": 20,
+      "blank_rate": 0.3704
+    },
+    "NO_ACTUATORS/seed5003": {
+      "n_assistant": 59,
+      "n_blank": 21,
+      "blank_rate": 0.3559
+    },
+    "NO_ACTUATORS/seed5004": {
+      "n_assistant": 61,
+      "n_blank": 19,
+      "blank_rate": 0.3115
+    },
+    "NO_ACTUATORS/seed5005": {
+      "n_assistant": 69,
+      "n_blank": 24,
+      "blank_rate": 0.3478
+    },
+    "NO_LIFE/seed5001": {
+      "n_assistant": 58,
+      "n_blank": 14,
+      "blank_rate": 0.2414
+    },
+    "NO_LIFE/seed5002": {
+      "n_assistant": 54,
+      "n_blank": 16,
+      "blank_rate": 0.2963
+    },
+    "NO_LIFE/seed5003": {
+      "n_assistant": 60,
+      "n_blank": 11,
+      "blank_rate": 0.1833
+    },
+    "NO_LIFE/seed5004": {
+      "n_assistant": 61,
+      "n_blank": 15,
+      "blank_rate": 0.2459
+    },
+    "NO_LIFE/seed5005": {
+      "n_assistant": 69,
+      "n_blank": 17,
+      "blank_rate": 0.2464
+    },
+    "NO_TIMING_FEEDBACK/seed5001": {
+      "n_assistant": 58,
+      "n_blank": 17,
+      "blank_rate": 0.2931
+    },
+    "NO_TIMING_FEEDBACK/seed5002": {
+      "n_assistant": 44,
+      "n_blank": 8,
+      "blank_rate": 0.1818
+    },
+    "NO_TIMING_FEEDBACK/seed5003": {
+      "n_assistant": 63,
+      "n_blank": 12,
+      "blank_rate": 0.1905
+    },
+    "NO_TIMING_FEEDBACK/seed5004": {
+      "n_assistant": 56,
+      "n_blank": 11,
+      "blank_rate": 0.1964
+    },
+    "NO_TIMING_FEEDBACK/seed5005": {
+      "n_assistant": 54,
+      "n_blank": 20,
+      "blank_rate": 0.3704
+    },
+    "RAW_HISTORY/seed5001": {
+      "n_assistant": 58,
+      "n_blank": 21,
+      "blank_rate": 0.3621
+    },
+    "RAW_HISTORY/seed5002": {
+      "n_assistant": 54,
+      "n_blank": 14,
+      "blank_rate": 0.2593
+    },
+    "RAW_HISTORY/seed5003": {
+      "n_assistant": 59,
+      "n_blank": 15,
+      "blank_rate": 0.2542
+    },
+    "RAW_HISTORY/seed5004": {
+      "n_assistant": 61,
+      "n_blank": 18,
+      "blank_rate": 0.2951
+    },
+    "RAW_HISTORY/seed5005": {
+      "n_assistant": 69,
+      "n_blank": 26,
+      "blank_rate": 0.3768
+    },
+    "SIMPLE_RAG/seed5001": {
+      "n_assistant": 58,
+      "n_blank": 21,
+      "blank_rate": 0.3621
+    },
+    "SIMPLE_RAG/seed5002": {
+      "n_assistant": 54,
+      "n_blank": 12,
+      "blank_rate": 0.2222
+    },
+    "SIMPLE_RAG/seed5003": {
+      "n_assistant": 59,
+      "n_blank": 15,
+      "blank_rate": 0.2542
+    },
+    "SIMPLE_RAG/seed5004": {
+      "n_assistant": 61,
+      "n_blank": 17,
+      "blank_rate": 0.2787
+    },
+    "SIMPLE_RAG/seed5005": {
+      "n_assistant": 69,
+      "n_blank": 17,
+      "blank_rate": 0.2464
+    },
+    "STRUCTURED_NO_STATE/seed5001": {
+      "n_assistant": 62,
+      "n_blank": 14,
+      "blank_rate": 0.2258
+    },
+    "STRUCTURED_NO_STATE/seed5002": {
+      "n_assistant": 54,
+      "n_blank": 20,
+      "blank_rate": 0.3704
+    },
+    "STRUCTURED_NO_STATE/seed5003": {
+      "n_assistant": 59,
+      "n_blank": 17,
+      "blank_rate": 0.2881
+    },
+    "STRUCTURED_NO_STATE/seed5004": {
+      "n_assistant": 61,
+      "n_blank": 16,
+      "blank_rate": 0.2623
+    },
+    "STRUCTURED_NO_STATE/seed5005": {
+      "n_assistant": 69,
+      "n_blank": 23,
+      "blank_rate": 0.3333
+    }
+  }
+}
