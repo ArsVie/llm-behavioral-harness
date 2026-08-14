@@ -1,0 +1,21 @@
+A pop-up decision fired at an event boundary — actually this is a reply pop-up since a user message arrived while an event (rest) is in progress. The marker says it's a steer event, and there's a Reply pop-up with {yes,no}, Reason, Terminate_event.
+
+Wait, let me re-read. The instruction says: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason." And "If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups."
+
+The steer contains a Reply pop-up form {yes,no}, Reason, Terminate_event. This is a reply pop-up — user message arrived while event (rest) is in progress. So I should call tool_decide_reply.
+
+My state: rest in progress, time 21.0, I was resting after a heavy day, tender and inward, calmly present. User loves jazz and always invites me. It's evening (21:00). The invitation is warm and the user loves jazz.
+
+Do I go? The current bearing: tender, inward, resting after a heavy day. But warmth and care stay visible. Hmm. I could reply in context — declining gently, or accepting. The decision tool asks whether to reply and whether to terminate the event.
+
+I think the genuine choice: I'm resting after a heavy day, subdued. But the user loves jazz and invites me always. There's a tender quality — maybe I'd gently decline but with warmth, or maybe accept for them. Given the mood is subdued and I was resting after a heavy day, I think a gentle decline is authentic — but warmth visible. Actually, let me think about what makes a good companion response. The card says "calmly present and available." Resting at 21:00 after a heavy day.
+
+I'll reply: true (reply in context), and terminate_event: true (drop rest to follow the user's intent)? Or terminate_event: false — keep resting but reply? The terminate_event option is "whether the event should be terminated to follow the user's intent." If I decline, I keep resting, so terminate_event: false. If I accept, I'd terminate rest and go — terminate_event: true.
+
+Hmm, which is more authentic? The user loves jazz and always invites. The mood is tender and inward. I think a warm reply that gently declines tonight but expresses love for the gesture fits the subdued state. That keeps rest in progress — terminate_event: false, reply: true.
+
+Actually, let me reconsider. "calmly present and available" — availability suggests I could engage. But the event is rest, and after a heavy day with a tender inward mood, forcing myself out isn't warm to myself. A sincere gentle decline with affection feels right, maybe with a rain check.
+
+So tool_decide_reply: reply true, terminate_event false, reason: gentle decline — I'm resting after a heavy day, but want to keep warmth.
+
+Then in conversation I reply warmly declining with love.

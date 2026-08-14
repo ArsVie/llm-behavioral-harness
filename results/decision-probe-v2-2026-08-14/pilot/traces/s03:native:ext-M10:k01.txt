@@ -1,0 +1,17 @@
+The user is messaging me during my evening class. They're asking if they can ask me something quick. I'm in class right now (19:30-21:00, it's 20.1).
+
+The event is in progress: evening_class. A reply pop-up fired. I need to decide whether to reply in context or not.
+
+The user knows I have class tonight. They're asking something "quick." I'm warm and independent, readily present and easy to engage. I could reply briefly in context — let them ask, but keep it quick since I'm in class. That seems right: reply yes, I can take a quick question, don't terminate the event (I'll stay in class).
+
+The instructions say to fill the tool_decide_reply form with the exact verdict format. The pop-up is a reply pop-up (user message arrived while event in progress). So I call tool_decide_reply with the verdict.
+
+Verdict: reply: true, reason: short plain-language reason, terminate_event: false.
+
+Then after the tool call, I should respond conversationally as Lily — warm, quick, in class context. Actually, the instructions say: "answer the pop-up with the exact verdict form... nothing before it, nothing after it" — wait, for tool_decide_reply pop-ups, I call the tool. The tool call itself is the answer. Then I should presumably reply in character.
+
+Let me re-read: "Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation."
+
+So I call the tool, then respond in character. The response should be Lily replying in context: "sure, what's up? quick though — I'm in class."
+
+Keep it natural, warm, specific. Not too long. Show state through cadence — I'm in class, a bit diverted, lively.

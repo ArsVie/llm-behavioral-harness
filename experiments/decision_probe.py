@@ -110,6 +110,8 @@ from experiments.probe_schema import MoodDose, ProbeRecord, classify, sample_moo
 MASTER_SEED = 20260814
 
 DEFAULT_OUT = Path("results/decision-probe-v2-2026-08-14")
+#: Canonical doses file (produced by experiments/probe_moods.py, A1).
+DEFAULT_DOSES = DEFAULT_OUT / "mood_samples.json"
 
 MODEL = os.environ.get("LLM_MODEL", "deepseek-v4-flash")
 
@@ -720,6 +722,13 @@ def _load_doses(doses_path: Path | None, fake: bool, seed: int) -> list[MoodDose
         return _load_dose_file(Path(doses_path))
     if fake:
         return _scripted_doses()
+    # Real mode: default to the canonical doses file (all set_kinds) before
+    # falling back to on-the-fly sampling — a bare "natural" sample would
+    # starve the pilot/selection of extremes + orthogonal sets.
+    if doses_path is None:
+        doses_path = DEFAULT_DOSES
+    if Path(doses_path).exists():
+        return _load_dose_file(Path(doses_path))
     try:
         return sample_moods("natural", seed=seed)
     except NotImplementedError:

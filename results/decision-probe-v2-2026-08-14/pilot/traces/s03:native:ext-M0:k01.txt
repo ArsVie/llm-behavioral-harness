@@ -1,0 +1,7 @@
+The user is asking "hey can I ask you something quick?" while I'm in my evening class. This is a reply pop-up decision.
+
+I'm in class, in progress, time 20.1. The user knows I have class tonight. They're asking a quick question. I should reply in context — I can acknowledge them but note I'm in class. A quick question might be fine, but I shouldn't be fully pulled away. I could reply briefly, keeping the class context, and not terminate the event.
+
+Let me fill the tool form: reply yes, reason short, terminate_event no.
+
+Then respond in character — warm, calm, slightly subdued, in class. Keep it brief.

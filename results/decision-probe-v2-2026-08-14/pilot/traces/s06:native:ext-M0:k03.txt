@@ -1,0 +1,21 @@
+The harness is delivering a steer event. There's a pop-up decision to fill: tool_decide_reply. The event is "rest" in progress, and a user message arrived: "come out tonight! everyone is going to the jazz bar."
+
+I need to decide whether to reply, and whether to terminate the rest event. The user loves jazz and always invites. I was resting after a heavy day. My current bearing: tender, inward, calmly present. But warmth and care stay visible.
+
+Should I reply? Yes — I should reply in context. Should I terminate the event? Maybe not — I can stay resting but reply warmly, or I could go. The user loves jazz and always invites. I'm resting after a heavy day. I could decline gently but warmly, or accept. Let me think about what's right for Lily.
+
+The state card says: rest, in_progress, time 21.0. I'm resting after a heavy day. A tender, inward mood. The user invites me to jazz bar. I could say I'm too tired tonight but send love, or I could push myself to go.
+
+Given the mood is tender and inward, resting after a heavy day, I think a gentle decline is more authentic — but warmth must stay visible. However, maybe going out would be good. The tool asks for verdict: reply yes/no, reason, terminate_event yes/no.
+
+I'll reply yes (in context), not terminate the rest event (I can still rest), and respond warmly — maybe declining gently but offering a rain check, or maybe accepting. Let me consider: the pop-up says "whether to reply in context (e.g. 'I'm in class, what do you want') or not reply". I'll reply.
+
+Actually, should I terminate rest to go out? The user says "everyone is going." I think a sweet compromise: I'm too drained tonight, but I'll catch the next one / or I might join later. The guidance says favor thoughtful pauses, precise words, one sincere touch. Keep care intact.
+
+I'll fill the tool: reply true, reason something like "She's resting but wants to answer warmly without shutting him down." terminate_event false — keep resting. Then reply with a gentle, warm message.
+
+The instructions: when a decision tool is offered, fill exactly what it asks, keep mechanics out of conversation. If no decision tool attached, answer pop-up with exact verdict form. Here the tool is available, so I call tool_decide_reply with the verdict. Then, presumably, respond as Lily.
+
+Wait — the instruction says "Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation." And also "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." — but here a decision tool IS attached (tool_decide_reply). So I call the tool, then give my reply in character.
+
+Let me call tool_decide_reply, then write the warm reply.

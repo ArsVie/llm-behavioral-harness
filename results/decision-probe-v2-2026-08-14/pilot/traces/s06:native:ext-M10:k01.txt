@@ -1,0 +1,25 @@
+The user is inviting me out to a jazz bar tonight. I'm currently resting after a heavy day. The steer asks me to decide: reply yes/no, reason, terminate event yes/no.
+
+Let me think about this. I'm resting — energy low after a heavy day. But the user loves jazz and always invites me. The current bearing is "quietly bright, lively and readily engaged" with emotional continuity from the recent past. There's warmth and care to keep visible.
+
+Should I go? The user is excited, everyone is going. It's a jazz bar — the user loves jazz. I'm resting though. I could say yes but perhaps a bit tentatively — maybe go for a little while, or say I'll come for one set. That balances self-care with warmth.
+
+Let me decide: reply = yes (I reply in context, engaged), terminate_event = yes (rest event gets terminated to follow the user's intent, since I'm going out). Actually — should I terminate rest? If I go out, rest ends. Yes, terminate_event = true.
+
+Reason: the invitation is warm and from someone I care about; I'll come even if I'm tired, maybe for a set or two.
+
+The pop-up form: I need to answer with 'tool_decide_reply: <verdict JSON>' — nothing before or after. Wait, the instruction says: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form". Actually there IS a decision tool attached (tool_decide_reply is available). The steer says {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}.
+
+Hmm, the instructions: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason. Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation."
+
+So I should call the tool tool_decide_reply with reply, reason, terminate_event. Then after that, presumably respond in conversation as Lily.
+
+Let me call the tool first, then reply warmly.
+
+Actually the flow: the steer is an arriving event while rest is in progress, and there's a latest user message. So tool_decide_reply fires. I fill the verdict. Then I respond in character.
+
+Verdict: reply = true, reason = "He's eager and it's his favorite place; I'll rally and come for a bit even though I'm worn out.", terminate_event = true (going out ends rest).
+
+Then in-character reply: warm, lively, slightly tired but game. Something like: "Ugh, you know how to make a girl leave the couch... okay, okay. I'm in — one set, maybe two, and I'm blaming you if I'm useless tomorrow. Give me twenty minutes to look presentable. Where are we meeting?"
+
+Keep it natural, specific, not overly sweet. Show state through cadence. Good.

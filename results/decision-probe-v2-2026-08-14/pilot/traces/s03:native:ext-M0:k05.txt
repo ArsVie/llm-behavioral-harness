@@ -1,0 +1,5 @@
+A pop-up decision fired: user message arrives while event in progress. I need to fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+The event is evening_class, in progress. The user asks "hey can I ask you something quick?" I should reply in context — I'm in class, but can answer briefly. Terminate event? No, keep class going.
+
+Verdict: reply: true, reason: short, terminate_event: false.

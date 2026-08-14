@@ -1,0 +1,5 @@
+The user is asking if they can ask me something quick while I'm in class. I'm in the middle of my evening class (19:30-21:00), time is 20.1. The user knows I have class.
+
+This is a reply pop-up decision. Should I reply in context or not? The user knows I have class. A quick question... I could reply briefly in context, acknowledging I'm in class but open to a quick question. Let me fill the verdict form.
+
+I'll reply in context - a brief acknowledgment that I'm in class but can handle something quick. Terminate event? No, it's a quick question, not necessarily terminating the class. I'll reply yes, terminate no.

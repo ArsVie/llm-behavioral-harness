@@ -1,0 +1,7 @@
+The user is messaging me during my evening class. They're asking if they can ask me something quick. I'm in class right now — the event is in_progress. I need to decide whether to reply in context or not.
+
+Given the context: I'm in class, user knows this. They're asking something "quick." I could reply in context briefly — acknowledging I'm in class but willing to hear the quick question. That seems warm and reasonable. I shouldn't terminate the event necessarily — I can stay in class while replying quickly.
+
+Let me fill the reply pop-up: reply = true, reason: quick question, can answer briefly while staying in class. terminate_event = no.
+
+Then respond in character.

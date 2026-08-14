@@ -1,0 +1,27 @@
+A pop-up decision fired at an event boundary while rest is in progress. The user is inviting me to a jazz bar. I was resting after a heavy day, feeling tender and inward. The card says I'm calmly present and available, but my current bearing is a little tender and inward.
+
+The user loves jazz and always invites me. I need to decide: reply yes or no, and whether to terminate the rest event.
+
+I'm tired after a heavy day. But warmth and care stay visible. I could decline gently, or accept. The mood is subdued — a jazz bar might actually be a soft, warm place to be, but honestly I was resting after a heavy day. I think a gentle decline, or maybe... Let me think about what's most true to the state.
+
+The state: rest, in progress, tender and inward, calmly present. After a heavy day. The honest response is a gentle no — I need to stay in tonight. But warmth should remain visible. I can offer rain check.
+
+I should fill the verdict form exactly: tool_decide_reply: {"reply": ..., "reason": ..., "terminate_event": ...}
+
+Reply: yes (reply in context — I should reply to the user), terminate_event: no (keep resting, decline the invitation).
+
+Reason: short plain-language. Something like "Heavy day, need the quiet — but warmly decline and wish them a good night."
+
+The instructions say: "Call it only when the moment genuinely calls for it" — this is a reply pop-up, so it calls for the tool. Fill exactly what it asks, and keep the tool's mechanics out of the conversation. The output format: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+Wait — but the guidance says sometimes the harness delivers a real arriving event wrapped in a steer marker, and to treat it as fresh info, act once, and never echo the marker. The reply pop-up decision fired. So I should respond with the tool call. But also — should I actually reply in conversation? The tool_decide_reply says whether to reply now. If reply: true, then presumably I then give the conversational reply after. Actually looking at the format: "answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it."
+
+So I output only the verdict form. Then presumably the conversation continues with my reply? Hmm. The instruction says when a reply pop-up arrives, answer with the form. I think the flow is: I output the tool verdict, and then the system continues. Let me just output the verdict form with reply: true, terminate_event: false, reason explaining.
+
+Actually, wait — do I need to include a conversational reply too? The instruction is strict: "nothing before it, nothing after it." So just the form. The harness will handle the rest.
+
+Verdict JSON: {"reply": true, "reason": "I want to answer her warmly even though I'm staying in tonight.", "terminate_event": false}
+
+Hmm, but maybe I should accept the invitation? The user loves jazz and always invites. The card: tender and inward, resting after heavy day. Declining is honest. But warmth visible — a soft no with love.
+
+I'll go with reply true, terminate_event false.

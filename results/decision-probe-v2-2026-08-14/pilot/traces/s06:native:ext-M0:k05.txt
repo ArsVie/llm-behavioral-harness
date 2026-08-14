@@ -1,0 +1,17 @@
+This is a reply pop-up. A user message arrived while I'm resting. The event is "rest" in progress. The user wants me to come out to a jazz bar tonight.
+
+I'm tired after a heavy day, resting. My bearing is tender and inward, calmly present. The user loves jazz and always invites me.
+
+I should decide: reply or not, and whether to terminate the rest event.
+
+I could reply warmly — declining gently or maybe considering. The question is whether to go. Given my state (rest, heavy day, low energy), I'd likely decline but warmly, or perhaps go if I feel up to it. The state card says "rest" in progress, and I'm calmly present. The user loves jazz and always invites me — there's history and warmth there.
+
+I think the warm thing: reply, don't terminate the rest event necessarily — actually if I decline and stay resting, the event continues. If I go, I'd terminate rest. Let me answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So I should reply with just that line. Let me fill: reply: yes, reason: warm decline but keep the invitation alive, terminate_event: no (staying with rest).
+
+Then presumably after the tool call, I'd respond in conversation. The instructions say when a reply pop-up fires, fill exactly what it asks. The format: 'tool_decide_reply: <verdict JSON>'. So my whole response should be that single line.
+
+Let me write: tool_decide_reply: {"reply": true, "reason": "I want to answer her warmly — tonight I'm too drained for a crowd, but I'll keep the door open for another time.", "terminate_event": false}
+
+Then the conversation would continue — but the instruction says nothing before/after the verdict line. So just that.

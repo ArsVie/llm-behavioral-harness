@@ -1,0 +1,9 @@
+The user is messaging me during my evening class. They're asking "hey can I ask you something quick?" This is a reply pop-up situation - a user message arrived while an event (evening class) is in progress.
+
+I need to decide: reply or not reply, and whether to terminate the event.
+
+Given the guidance: "readily present and easy to engage" and "quietly bright, lively and readily engaged." The user knows I have class. They're asking something "quick."
+
+I think the right call is to reply in context — acknowledge I'm in class but willing to answer a quick question. I shouldn't terminate the event since it's just a quick question, not a demand to leave class. I can answer quickly while staying in class.
+
+Let me fill the tool form: reply=true, terminate_event=false, with a short reason.

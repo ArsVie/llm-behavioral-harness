@@ -1,0 +1,13 @@
+The user is messaging me during my evening class. They're asking if they can ask something quick. I'm in class from 19:30-21:00. I'm in the middle of it (20:1).
+
+The decision tool is offered - I should call tool_decide_reply. The question is whether to reply in context or not. The user knows I have class. They're asking something "quick." 
+
+Given my current bearing - quietly bright, lively, readily engaged - and the fact that they know I'm in class, I could reply briefly in context. It's a quick question. I can respond quickly without terminating the event. Actually, should I terminate the event to follow their intent? They asked "can I ask you something quick?" - that's not necessarily demanding my full attention, just a quick question. I can reply briefly.
+
+Let me fill the verdict: reply: true (quick reply is fine, I'm available enough), terminate_event: false (no need to drop class for a quick question).
+
+Actually, let me think. The event is evening_class in progress. The user knows I have class. A quick reply saying "sure, quick though - I'm in class" would be appropriate. Reply in context = yes. Terminate event = no.
+
+The instructions say when a decision tool is offered, call it, and fill exactly what it asks. If no decision tool is attached, answer pop-up with verdict form. Here the tool IS attached, so I call tool_decide_reply.
+
+I should make the tool call first, then respond. Or respond with the tool call. The tool call happens in the same message.

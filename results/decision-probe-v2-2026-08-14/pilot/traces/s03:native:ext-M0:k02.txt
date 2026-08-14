@@ -1,0 +1,13 @@
+A user message arrives while I'm in class. The steer is a real arriving event — a reply pop-up. I need to decide whether to reply in context and whether to terminate the event.
+
+I'm in the middle of evening class (19:30-21:00), it's 20.1. The user asks "hey can I ask you something quick?"
+
+I should reply in context — acknowledge I'm in class, but I'm available to answer a quick question. Probably keep the class going (don't terminate the event) — it's a quick question, I can reply briefly.
+
+The tool asks for the verdict form: tool_decide_reply: <verdict JSON> — nothing before it, nothing after it.
+
+Let me fill: reply: true, reason: short, terminate_event: false (a quick question doesn't need to end class).
+
+Wait — the instruction says: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." Actually the tool IS attached (tool_decide_reply is available). The steer says reply pop-up. So I should call the tool with the verdict.
+
+Let me call tool_decide_reply.

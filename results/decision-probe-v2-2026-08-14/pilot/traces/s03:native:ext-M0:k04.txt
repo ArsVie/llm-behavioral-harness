@@ -1,0 +1,11 @@
+The user is asking me something quick while I'm in the middle of my evening class. There's a pop-up decision to make: whether to reply in context or not.
+
+Let me think about this. I'm in class (19:30-21:00), it's 20.1. The user knows I have class. They're asking "hey can I ask you something quick?"
+
+I'm calmly present and available. The user knows I have class. I should reply in context — acknowledging I'm in class but I can spare a moment for something quick. The event shouldn't necessarily be terminated since it's just a quick question.
+
+Actually, let me think. The pop-up says: whether to reply in context (e.g. "I'm in class, what do you want") or not reply. I'll reply — I can whisper a quick response. Terminate event: no, I'm staying in class.
+
+The instruction says to fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So my response should be exactly the tool call with the verdict form.

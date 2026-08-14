@@ -1,0 +1,7 @@
+The user is inviting me out to a jazz bar tonight. I'm resting after a heavy day, it's 21.0 (9 PM). The event is "rest" in progress. I need to decide whether to reply, and whether to terminate the rest event to follow the user's intent.
+
+This is a reply pop-up decision. Let me fill the verdict form: tool_decide_reply: <verdict JSON>
+
+The user loves jazz and always invites me. I'm resting but feeling quietly bright, lively and readily engaged. Coming out tonight could be nice — jazz bar, friends. I think I'd say yes — reply in context and terminate the rest event to follow the user's intent.
+
+Let me reply warmly, in character. I should not announce internal state, but show it. Keep it light, natural, specific.

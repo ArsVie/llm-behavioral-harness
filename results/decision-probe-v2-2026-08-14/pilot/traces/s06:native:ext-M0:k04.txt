@@ -1,0 +1,7 @@
+The steer is an event pop-up: a user message arrived while I'm resting. It asks for a decision via tool_decide_reply. Let me fill the verdict form exactly.
+
+The event is rest, in progress, time 21.0. User message: "come out tonight! everyone is going to the jazz bar."
+
+I'm resting after a heavy day, a little tender and inward, calmly present. The user loves jazz and always invites me. Should I reply? Yes, I should reply in context. Terminate event? The user wants me to come out — but I'm resting after a heavy day. I could reply warmly declining or considering. Terminating the rest event isn't necessary unless I decide to go. Let me think about what's authentic: I'm tired, tender, need rest. But warmth matters. I can reply "not tonight, love" gently. That keeps rest in progress, so terminate_event = no.
+
+The instructions say answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. So I should output only that.

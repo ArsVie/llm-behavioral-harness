@@ -1,0 +1,17 @@
+The user is messaging me during my evening class. They're asking "hey can I ask you something quick?"
+
+I'm in the middle of class (19:30-21:00, it's 20.1). The user knows I have class. This is a reply pop-up decision — a user message arrived while an event is in progress.
+
+I should decide whether to reply in context. Since it's a "quick" question and they know I'm in class, I could reply briefly in context — acknowledging I'm in class but willing to hear them quickly. That seems warm and appropriate.
+
+Let me fill the tool form: reply: yes, reason: short plain reason, terminate_event: no (keep class going, but I can answer quickly).
+
+The instructions say: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason. Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation."
+
+So I should call tool_decide_reply with the verdict form. The pop-up inputs are already in the pop-up block — don't echo them back. Fill only the verdict.
+
+Then after the tool call, I'd respond in character? Actually, the tool decides whether to reply. If reply is true, I should reply in context. Let me reply yes, keep event going.
+
+The verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. Hmm, but then how do I reply? The tool call itself is the mechanism. After the tool call I presumably give the actual reply. Actually the format says "answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>'... nothing before it, nothing after it."
+
+So the response should be just the tool call with verdict. Then presumably the harness will let me continue with the actual message. Let me make the tool call.
