@@ -12,7 +12,7 @@ The pre-slice schema is version 1 and is frozen verbatim in ``_SCHEMA``; it is
 executed with ``CREATE TABLE IF NOT EXISTS`` on every open (legacy behavior,
 idempotent). ``schema_meta(version)`` creates the ``schema_meta`` bookkeeping
 table; the migration framework (``_migrate``) reads the recorded version and
-applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 4).
+applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 5).
 Migrations never drop or alter existing columns; all ``ALTER TABLE`` steps are
 guarded by ``PRAGMA table_info``. On a fresh database the effective version is
 1 (only the v1 base tables exist), so the migration chain runs and the
@@ -34,6 +34,20 @@ Migration v2 -> v3 (A7) adds:
   - ``llm_calls.repro_json`` — call-reproducibility audit payload (JSON) for
     eval mode: exact request/response fields needed to reproduce a call.
     Production privacy default: not logged (configurable via ``audit_mode``).
+
+Migration v4 -> v5 (runtime redesign WS2) adds:
+  - ``decision_records`` — one row per pop-up decision (tool_decide_event /
+    tool_decide_reply): the drawn pop-up inputs (JSON), the RAW model reply,
+    the parsed verdict (JSON), source (model|server_draw), transport
+    (native|textual|server_draw|server_draw_fallback), budget consumption
+    and the ``replay_id`` natural key. Replay reads the recorded verdict —
+    it never re-rolls.
+  - ``steering_queue`` — pending arriving events (pop-ups due, user messages
+    mid-turn, schedule fires) awaiting delivery at the next safe boundary;
+    ``status`` is 'pending' | 'delivered', delivery records the actual
+    ``delivered_t_h``/``boundary``/``seen_turn_id`` (summary #23). The
+    enqueue/pending/mark/requeue methods are the WS3 steering backend
+    contract.
 
 Tables (slice scope of the plan's data model):
   - daily_state(day PK, M, m_level, g, p, arg, mu, eta, cycle_day, phase_label,
@@ -67,6 +81,13 @@ Tables (slice scope of the plan's data model):
     source_memory_ids_json, status)
   - memory_embeddings(episode_id PK, vector BLOB, dim)   -- local BLOB
     embeddings, brute-force cosine at retrieval (no vector DB)
+  - decision_records(id PK, day, t_h, popup_kind, event_id, event_label,
+    state_label, time, inputs_json, raw_reply, verdict_json, source,
+    transport, delivered_t_h, budget_consumed, replay_id)  -- v5: one row
+    per pop-up decision; raw reply AND parsed verdict (dual persistence)
+  - steering_queue(id PK, day, t_h, kind, payload_json, delivered_t_h,
+    boundary, status, seen_turn_id)   -- v5: pending arriving events (WS3
+    backend contract)
 
 Conventions (no business logic lives here — pure persistence + simple queries)
 -------------------------------------------------------------------------------
@@ -116,7 +137,7 @@ from harness.domain import (
     UserModelCategory,
 )
 
-SCHEMA_VERSION = 4
+SCHEMA_VERSION = 5
 
 # --------------------------------------------------------------------------- #
 # v1 base schema — FROZEN verbatim from the pre-slice store (do not edit).
@@ -475,6 +496,63 @@ def _migrate_v4(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "messages", "conversation_id", "TEXT")
 
 
+# --------------------------------------------------------------------------- #
+# Migration v4 -> v5 (runtime redesign WS2, additive only): decisions +
+# steering queue
+# --------------------------------------------------------------------------- #
+# v5 adds the decision layer persistence: ``decision_records`` (one row per
+# pop-up decision — drawn inputs, raw reply, parsed verdict, source,
+# transport, budget, replay natural key) and ``steering_queue`` (pending
+# arriving events awaiting delivery at the next safe boundary; the WS3
+# steering backend contract). Both are pure additive tables; no existing
+# table or column is touched.
+_V5_TABLES = """
+CREATE TABLE IF NOT EXISTS decision_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    day INTEGER NOT NULL,
+    t_h REAL NOT NULL,
+    popup_kind TEXT NOT NULL,          -- 'tool_decide_event' | 'tool_decide_reply'
+    event_id TEXT,
+    event_label TEXT,
+    state_label TEXT,
+    time TEXT,
+    inputs_json TEXT,                  -- the drawn pop-up inputs, verbatim
+    raw_reply TEXT,                    -- the RAW model output (dual persistence)
+    verdict_json TEXT,                 -- the parsed verdict (dual persistence)
+    source TEXT NOT NULL,              -- 'model' | 'server_draw'
+    transport TEXT NOT NULL,           -- 'native' | 'textual' | 'server_draw'
+                                       -- | 'server_draw_fallback'
+    delivered_t_h REAL,
+    budget_consumed INTEGER NOT NULL DEFAULT 0,
+    replay_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_decision_records_day
+    ON decision_records(day);
+CREATE INDEX IF NOT EXISTS idx_decision_records_replay
+    ON decision_records(replay_id);
+CREATE TABLE IF NOT EXISTS steering_queue (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    day INTEGER NOT NULL,
+    t_h REAL NOT NULL,                 -- enqueue time (virtual hour)
+    kind TEXT NOT NULL,                -- e.g. 'popup' | 'user_message' | 'schedule'
+    payload_json TEXT NOT NULL DEFAULT '{}',
+    delivered_t_h REAL,                -- actual delivery time (summary #23)
+    boundary TEXT,                     -- 'idle' | 'after_tool' | 'after_reply'
+    status TEXT NOT NULL DEFAULT 'pending',  -- 'pending' | 'delivered'
+    seen_turn_id TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_steering_queue_status
+    ON steering_queue(status);
+CREATE INDEX IF NOT EXISTS idx_steering_queue_day
+    ON steering_queue(day);
+"""
+
+
+def _migrate_v5(conn: sqlite3.Connection) -> None:
+    """v4 -> v5: additive decision_records + steering_queue tables."""
+    conn.executescript(_V5_TABLES)
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Bring the schema up to SCHEMA_VERSION with additive migrations only.
 
@@ -491,6 +569,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         _migrate_v3(conn)
     if version < 4:
         _migrate_v4(conn)
+    if version < 5:
+        _migrate_v5(conn)
     if version < SCHEMA_VERSION:
         conn.execute("DELETE FROM schema_meta")
         conn.execute(
@@ -1728,3 +1808,151 @@ class SQLiteStore:
         if st in ("episodic_memory", "callback", "shared_interest", "check_in"):
             return self.get_episode(intent.source_id)
         return None
+
+    # -- steering_queue (WS3 backend contract) ------------------------------
+
+    def enqueue_steer(
+        self, day: int, t_h: float, kind: str, payload: dict | list | str
+    ) -> int:
+        """Queue one arriving event for delivery at the next safe boundary;
+        returns the steer id. ``payload`` is persisted as JSON (dict/list)
+        or verbatim (str). Status starts as ``'pending'``."""
+        payload_json = (
+            payload if isinstance(payload, str) else _json(payload)
+        )
+        cur = self.conn.execute(
+            "INSERT INTO steering_queue (day, t_h, kind, payload_json, "
+            "status) VALUES (?, ?, ?, ?, 'pending')",
+            (day, t_h, kind, payload_json),
+        )
+        self.conn.commit()
+        last_id = cur.lastrowid
+        return int(last_id) if last_id is not None else -1
+
+    def pending_steers(
+        self, day: int | None = None, limit: int = 50
+    ) -> list[dict]:
+        """Undelivered steers, oldest first; ``payload`` parsed back to a
+        dict when it is JSON. ``day`` filters the queue to one day (None =
+        all days)."""
+        if day is None:
+            rows = self.conn.execute(
+                "SELECT * FROM steering_queue WHERE status = 'pending' "
+                "ORDER BY id LIMIT ?",
+                (limit,),
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM steering_queue WHERE status = 'pending' "
+                "AND day = ? ORDER BY id LIMIT ?",
+                (day, limit),
+            ).fetchall()
+        out = []
+        for r in rows:
+            row = dict(r)
+            try:
+                row["payload"] = _unjson(row["payload_json"], {})
+            except ValueError:
+                # enqueue_steer also accepts verbatim string payloads
+                row["payload"] = row["payload_json"]
+            out.append(row)
+        return out
+
+    def mark_steer_delivered(
+        self,
+        steer_id: int,
+        delivered_t_h: float,
+        boundary: str,
+        seen_turn_id: str | None,
+    ) -> None:
+        """Record the delivery of one steer: status -> 'delivered' with the
+        actual delivery time, boundary ('idle'|'after_tool'|'after_reply')
+        and the turn id that saw it (summary #23)."""
+        self.conn.execute(
+            "UPDATE steering_queue SET status = 'delivered', "
+            "delivered_t_h = ?, boundary = ?, seen_turn_id = ? WHERE id = ?",
+            (delivered_t_h, boundary, seen_turn_id, steer_id),
+        )
+        self.conn.commit()
+
+    def requeue_steer(self, steer_id: int) -> None:
+        """Return a steer to 'pending' (interrupted delivery: the turn it
+        was appended to did not complete). Delivery fields are cleared so a
+        pending row always means undelivered."""
+        self.conn.execute(
+            "UPDATE steering_queue SET status = 'pending', delivered_t_h = "
+            "NULL, boundary = NULL, seen_turn_id = NULL WHERE id = ?",
+            (steer_id,),
+        )
+        self.conn.commit()
+
+    # -- decision_records (pop-up decision layer, WS2) ----------------------
+
+    def record_decision(
+        self,
+        day: int,
+        t_h: float,
+        popup_kind: str,
+        event_id: str | None,
+        event_label: str | None,
+        state_label: str | None,
+        time: str | None,
+        inputs_json: str | None,
+        raw_reply: str | None,
+        verdict_json: str | None,
+        source: str,
+        transport: str,
+        delivered_t_h: float | None,
+        budget_consumed: int,
+        *,
+        replay_id: str | None = None,
+    ) -> int:
+        """Persist one pop-up decision (raw reply AND parsed verdict — dual
+        persistence); returns the record id. ``replay_id`` is the natural
+        key used by :meth:`decision_for_replay` (deterministic replay)."""
+        cur = self.conn.execute(
+            "INSERT INTO decision_records (day, t_h, popup_kind, event_id, "
+            "event_label, state_label, time, inputs_json, raw_reply, "
+            "verdict_json, source, transport, delivered_t_h, "
+            "budget_consumed, replay_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "
+            "?, ?, ?, ?, ?, ?)",
+            (
+                day, t_h, popup_kind, event_id, event_label, state_label,
+                time, inputs_json, raw_reply, verdict_json, source, transport,
+                delivered_t_h, budget_consumed, replay_id,
+            ),
+        )
+        self.conn.commit()
+        last_id = cur.lastrowid
+        return int(last_id) if last_id is not None else -1
+
+    def decision_for_replay(self, decision_id: str) -> dict | None:
+        """The latest decision recorded for a natural key (``replay_id``),
+        with ``inputs`` and ``verdict`` parsed back to dicts. Replay reads
+        this — it never re-rolls. None when the key is unknown."""
+        row = self.conn.execute(
+            "SELECT * FROM decision_records WHERE replay_id = ? "
+            "ORDER BY id DESC LIMIT 1",
+            (decision_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        out = dict(row)
+        out["inputs"] = _unjson(out["inputs_json"], {})
+        out["verdict"] = _unjson(out["verdict_json"], {})
+        return out
+
+    def decisions_for_day(self, day: int) -> list[dict]:
+        """All decision records for one day, oldest first, with ``inputs``
+        and ``verdict`` parsed back to dicts (the budget window key)."""
+        rows = self.conn.execute(
+            "SELECT * FROM decision_records WHERE day = ? ORDER BY id",
+            (day,),
+        ).fetchall()
+        out = []
+        for r in rows:
+            row = dict(r)
+            row["inputs"] = _unjson(row["inputs_json"], {})
+            row["verdict"] = _unjson(row["verdict_json"], {})
+            out.append(row)
+        return out
