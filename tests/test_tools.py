@@ -205,6 +205,10 @@ def test_render_popup_reply_matches_sketch():
 
 
 def test_tool_schemas_shape():
+    # The tool IS the answer form: required params are the VERDICT fields,
+    # never the pop-up inputs (the inputs live in the pop-up block; a schema
+    # requiring them makes the model echo them and skip the verdict — caught
+    # by the real-probe run, deepseek-v4-flash).
     assert [t["name"] for t in TOOL_SCHEMAS] == [
         "tool_decide_event", "tool_decide_reply",
     ]
@@ -213,13 +217,14 @@ def test_tool_schemas_shape():
         assert t["parameters"]["type"] == "object"
         assert t["parameters"]["required"]
     event = TOOL_SCHEMAS[0]
-    assert event["parameters"]["required"] == [
-        "event_id", "event_label", "state_label", "time",
-    ]
+    assert set(event["parameters"]["required"]) == {"initiate", "reason"}
+    assert set(event["parameters"]["properties"]) == {
+        "initiate", "reason", "action",
+    }
     reply = TOOL_SCHEMAS[1]
-    assert set(reply["parameters"]["required"]) == {
-        "event_label", "state_label", "time", "latest_user_message",
-        "conversation_context",
+    assert set(reply["parameters"]["required"]) == {"reply", "reason"}
+    assert set(reply["parameters"]["properties"]) == {
+        "reply", "reason", "terminate_event",
     }
 
 

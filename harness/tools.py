@@ -68,77 +68,68 @@ TOOL_SCHEMAS: list[dict] = [
         "name": "tool_decide_event",
         "description": (
             "Pop-up decision fired at an event boundary (event start or "
-            "end). The server draws the pop-up inputs {Event, State, Time}; "
-            "you return a verdict: whether to initiate (or stay with) the "
-            "event and a prose reason. When the pop-up closes an event in "
-            "progress, optionally choose an action: follow (stay with the "
-            "event), abandon (drop it), or defer (postpone it)."
+            "end). The pop-up inputs {{Event, State, Time}} are already in "
+            "the pop-up block — do NOT echo them back. Fill ONLY the "
+            "verdict: whether to initiate (or stay with) the event and a "
+            "prose reason. When the pop-up closes an event in progress, "
+            "optionally choose an action: follow (stay with the event), "
+            "abandon (drop it), or defer (postpone it)."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "event_id": {
-                    "type": "string",
-                    "description": "Stable id of the event being decided.",
+                "initiate": {
+                    "type": "boolean",
+                    "description": "Whether to initiate (or stay with) the "
+                                   "event: true = yes, false = no.",
                 },
-                "event_label": {
+                "reason": {
                     "type": "string",
-                    "description": "Human label of the event, e.g. 'gym'.",
+                    "description": "Short plain-language reason for the "
+                                   "verdict.",
                 },
-                "state_label": {
+                "action": {
                     "type": "string",
-                    "description": "Pop-up state, e.g. 'start' or 'end'.",
-                },
-                "time": {
-                    "type": "string",
-                    "description": "Virtual time of the pop-up, e.g. '19.5'.",
+                    "enum": ["follow", "abandon", "defer"],
+                    "description": "Optional, only when the pop-up closes an "
+                                   "event in progress.",
                 },
             },
-            "required": ["event_id", "event_label", "state_label", "time"],
+            "required": ["initiate", "reason"],
         },
     },
     {
         "name": "tool_decide_reply",
         "description": (
             "Pop-up decision fired when a user message arrives while an "
-            "event is in progress. The server draws the pop-up inputs "
-            "{Event, State, Time} plus the latest user message; you return a "
-            "verdict: whether to reply in context (e.g. \"I'm in class, what "
-            "do you want\") or not reply (the server notifies the user), and "
-            "whether the event should be terminated to follow the user's "
-            "intent."
+            "event is in progress. The pop-up inputs {{Event, State, Time}} "
+            "and the latest user message are already in the pop-up block — "
+            "do NOT echo them back. Fill ONLY the verdict: whether to reply "
+            "in context (e.g. \"I'm in class, what do you want\") or not "
+            "reply (the server notifies the user), and whether the event "
+            "should be terminated to follow the user's intent."
         ),
         "parameters": {
             "type": "object",
             "properties": {
-                "event_label": {
-                    "type": "string",
-                    "description": "Human label of the event in progress, "
-                                   "e.g. 'gym'.",
+                "reply": {
+                    "type": "boolean",
+                    "description": "Whether to reply now: true = reply in "
+                                   "context, false = do not reply (server "
+                                   "notifies the user).",
                 },
-                "state_label": {
+                "reason": {
                     "type": "string",
-                    "description": "Pop-up state, e.g. 'in_progress'.",
+                    "description": "Short plain-language reason for the "
+                                   "verdict.",
                 },
-                "time": {
-                    "type": "string",
-                    "description": "Virtual time of the pop-up, e.g. '19.5'.",
-                },
-                "latest_user_message": {
-                    "type": "string",
-                    "description": "The user message that triggered the "
-                                   "pop-up, verbatim.",
-                },
-                "conversation_context": {
-                    "type": "string",
-                    "description": "Brief context of the conversation so far "
-                                   "(recent turns, condensed).",
+                "terminate_event": {
+                    "type": "boolean",
+                    "description": "Whether the in-progress event should be "
+                                   "terminated to follow the user's intent.",
                 },
             },
-            "required": [
-                "event_label", "state_label", "time",
-                "latest_user_message", "conversation_context",
-            ],
+            "required": ["reply", "reason"],
         },
     },
 ]
