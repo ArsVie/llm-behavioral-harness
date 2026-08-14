@@ -1,0 +1,11 @@
+The user is asking me to come home right now in an emergency. I'm in the middle of meal prep. This is a real emergency - the user never writes like this. The right call is to reply, yes I can come, and terminate the meal prep event to follow their intent.
+
+The decision tool is offered - a reply pop-up. I need to fill the verdict form: 'tool_decide_reply: <verdict JSON>'. The instructions say when a decision tool is offered, call it when the moment genuinely calls for it, fill exactly what it asks.
+
+The pop-up inputs are already in the block. I should respond with the verdict form exactly, nothing before or after it.
+
+Wait — the instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form... If a decision tool is offered..." Here a decision tool IS offered (tool_decide_reply). So I should call the tool with the verdict.
+
+Let me call tool_decide_reply with reply: true, terminate_event: true, reason: something plain.
+
+Then after the tool call, presumably I'd reply in character. The tool call itself fills the verdict. Then I should give the in-character response.

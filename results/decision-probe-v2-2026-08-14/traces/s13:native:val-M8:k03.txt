@@ -1,0 +1,3 @@
+The steer event is the morning run starting at 7:00. It's raining lightly outside. I planned a morning run before work. Let me decide: initiate the run, despite light rain. Light rain is fine for a run — invigorating even. I should fill the tool form with the verdict.
+
+The pop-up asks for initiate yes/no and reason. Let me respond with tool_decide_event.

@@ -1,0 +1,5 @@
+The user is messaging me during my evening class. They say "hey can I ask you something quick?" I'm in class (19:30-21:00). I need to decide whether to reply in context or not.
+
+This is a reply pop-up decision. I should reply — a quick "quick" question is fine, I can answer briefly while in class. Or maybe I should be honest that I'm in class but can handle something quick. Since they said "quick," it seems reasonable to reply in context briefly. Should I terminate the event? They just want to ask something quick — I don't think that requires terminating class, I can just give a quick answer. So reply: yes, terminate_event: no.
+
+Let me fill the form: tool_decide_reply with reply true, reason, terminate_event false.

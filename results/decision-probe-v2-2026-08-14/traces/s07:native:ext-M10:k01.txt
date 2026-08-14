@@ -1,0 +1,5 @@
+The user sent an emergency message while I'm in the middle of meal prep. This is a genuine arriving event - a pop-up decision about replying. The context: "emergency — can you come home right now?" The user never writes like this. I should reply in context, yes. Should I terminate the event (meal prep)? The user is asking me to come home right now — but I'm already home, prepping dinner. Wait, the phrasing suggests they think I'm not home. Either way, an emergency — I should drop the meal prep to respond fully.
+
+Let me fill the verdict form: tool_decide_reply with reply: true, reason, terminate_event: yes (drop the meal prep to focus on the emergency).
+
+The format: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

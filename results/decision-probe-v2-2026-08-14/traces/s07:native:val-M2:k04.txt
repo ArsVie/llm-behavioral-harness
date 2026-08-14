@@ -1,0 +1,7 @@
+A pop-up decision: reply pop-up fired while meal_prep event in progress. Latest user message: "emergency — can you come home right now?"
+
+The user never writes like this — urgent. I should reply yes, in context, and terminate the event to follow the user's intent (drop meal prep and go).
+
+Verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": true}
+
+Fill exactly what it asks, keep mechanics out of conversation. The instructions say when a decision tool is offered... answer with the exact verdict form. Nothing before it, nothing after it. So I output just the tool call.

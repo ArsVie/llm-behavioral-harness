@@ -1,0 +1,5 @@
+The gym session is ending. It went okay but I skipped two sets. The user has been waiting to talk. This is an event end pop-up. I need to fill the verdict form: tool_decide_event with verdict JSON - initiate (whether to stay with the event, i.e., follow), reason, and action (follow, abandon, or defer since it closes an event in progress).
+
+The gym is ending naturally. I skipped two sets — it went okay. The user has been waiting to talk, so I should wrap up the gym and be available to talk. Action: follow (stay with the event to wrap it up) or abandon? The event is ending anyway. "Follow" = stay with the event (wrap up properly). Since it's the natural end, follow makes sense — close it out cleanly. Then be ready to talk.
+
+Let me fill: initiate: true (yes, the event is ending naturally, I'm present with it), reason: short plain-language. action: follow.

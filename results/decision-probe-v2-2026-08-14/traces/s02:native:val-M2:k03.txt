@@ -1,0 +1,5 @@
+The user is asking "are you coming to class?" while I'm mid-set at the gym. This is a reply pop-up decision. The event in progress is gym. The user is asking about class — I said I'd lift 19:00-20:30, so I'm busy. Should I reply? Yes, I should reply in context — let them know I'm at the gym and can't make class. Should I terminate the gym event? No — I'm staying with the gym event. The user's intent seems to be checking if I'll come to class, but I'm mid-workout. I should reply but not terminate the gym event.
+
+Verdict form: tool_decide_reply with reply: true, reason, terminate_event: false.
+
+Then reply in character — warm, mid-set, brief. Show, don't announce.

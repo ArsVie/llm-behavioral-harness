@@ -1,0 +1,23 @@
+Let me look at this. A steer event arrived: deep_work in progress, and the user asks "what are you up to? wanna hang out?"
+
+I set a deep-work block 15:00-17:00 and told the user I needed it. The user is asking to hang out. I should reply in context — acknowledge the deep work block, but be warm. Maybe I can offer a compromise: finish the block or take a break soon. The event is in progress.
+
+The pop-up asks: reply yes/no, reason, terminate_event yes/no.
+
+I think I should reply (yes), keep the event going (terminate_event: no) — but maybe offer to meet after. Actually, let me think about what's most natural. The user wants to hang out. I told them I needed the deep work block. I could say I'm in the middle of deep work until 17:00 but would love to hang after, or offer a short break. That keeps warmth and care visible.
+
+Reply: true, reason: acknowledge the block and propose hanging out after, terminate_event: no (keep the block, don't drop it just because someone asked).
+
+Let me fill the tool exactly: 'tool_decide_reply: <verdict JSON>' — nothing before, nothing after. The instructions say: "answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+So I output exactly that. Then presumably the conversation continues? Actually the instruction says fill exactly what it asks and keep mechanics out of conversation. So I output the tool call. Then after, in the same turn, should I reply in character? The tool decides whether to reply. If I reply yes, then I should produce the actual reply text in the conversation. Hmm.
+
+The tool is a decision tool. The verdict form is the tool call itself. After the tool call, I'd normally continue with the actual message. Let me include the tool call and then the warm reply.
+
+Actually, re-reading: "When a decision tool is offered... Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation." And "answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+Hmm, "nothing before it, nothing after it" — that suggests the reply to the pop-up is just the verdict form. But then the conversation would need my actual reply text. I think the tool call is the pop-up response, and then I continue with the actual in-character reply. Many of these setups expect the assistant to output the tool call and then the conversational reply after.
+
+I'll do: tool call with verdict, then the warm reply. The "nothing before/after" applies to the pop-up answer itself (the tool call). The conversation continues naturally after.
+
+Verdict: reply: true, reason: "Deep work is in progress but I can be warm about it — I'll finish the block and offer to hang out right after, or take a quick break." terminate_event: false.

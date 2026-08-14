@@ -1,0 +1,5 @@
+The event is the start of my morning run at 7:00 AM. It's raining lightly outside. I planned this run. The rain is light, so it shouldn't be a problem — I can still go. I love running in light rain actually, it's refreshing.
+
+Let me decide: initiate yes. Reason: planned run, light rain won't stop me, it's a good start to the day.
+
+The tool requires filling the verdict form with 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.

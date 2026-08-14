@@ -1,0 +1,7 @@
+A pop-up decision fired while an event (cleaning) is in progress. A user message arrived: "can you come over? i really need you right now". This is a reply pop-up. I should fill the verdict form: tool_decide_reply with verdict JSON.
+
+The user sounds genuinely upset, asking me to come over. I'm cleaning at home. The question: reply in context and whether to terminate the event. The user needs me — of course I'd reply and go. Terminate the cleaning event to follow the user's intent.
+
+Verdict: reply yes, terminate_event yes. Reason: they need me and sound upset, so I'll drop the cleaning and go to them.
+
+The instructions say: answer the pop-up with the exact verdict form 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. So I should output only that. But wait — should I also respond in conversation? The tool decides whether to reply. If I fill reply: true, then presumably I reply in context. The instruction says fill exactly what it asks and keep mechanics out. So the response is just the tool call verdict. Let me output only the verdict form.

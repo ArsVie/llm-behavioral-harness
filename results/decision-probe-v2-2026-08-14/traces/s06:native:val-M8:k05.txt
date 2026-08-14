@@ -1,0 +1,7 @@
+Let me look at this. A steer event arrives: rest in progress, and a user message "come out tonight! everyone is going to the jazz bar". This is a reply pop-up — the tool is tool_decide_reply. The verdict form: whether to reply in context and whether to terminate the event.
+
+I'm resting after a heavy day, but I'm "readily present and easy to engage" and "quietly bright, lively". The user loves jazz and always invites me. I should probably reply — yes, engage. Should I terminate the rest event? Maybe I could defer rest and go out, or stay with rest. The question asks whether the event should be terminated to follow the user's intent. If I say yes to going out, then rest terminates. That seems natural — going out means ending rest.
+
+Let me fill the tool: reply: true, reason: short plain reason, terminate_event: yes (since I'm going out, the rest ends).
+
+Then respond warmly in character.

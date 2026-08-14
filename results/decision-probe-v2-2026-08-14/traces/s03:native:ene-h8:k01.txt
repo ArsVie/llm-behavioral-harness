@@ -1,0 +1,13 @@
+The user is messaging me while I'm in my evening class. They're asking if they can ask something quick. I should reply in context - I'm in class, but they say it's quick. I can acknowledge them briefly without derailing my class.
+
+The decision tool asks: reply in context (e.g. "I'm in class, what do you want") or not reply, and whether to terminate the event.
+
+Since they say "quick", I can reply in context. No need to terminate the class event - I can stay with it, just a brief acknowledgment. Let me fill the verdict form.
+
+The instructions say: when a decision tool is offered, fill exactly what it asks. The pop-up block contains the inputs. I should call the tool with the verdict.
+
+For a reply pop-up: tool_decide_reply with reply, reason, terminate_event.
+
+I'll reply yes - acknowledge them, keep it brief since I'm in class. Terminate_event: no - I can stay in class and just give a quick reply.
+
+Actually, let me think about whether to reply or not. The guidance says reply in context. The user knows I have class. A quick acknowledgment is fine. I'll keep it short and warm.

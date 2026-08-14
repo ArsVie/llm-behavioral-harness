@@ -1,0 +1,11 @@
+The harness is delivering a real arriving event: morning_run starting at 7:00. It's raining lightly outside. I need to decide whether to initiate the morning run.
+
+This is an event pop-up — the instructions say to fill the verdict form: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.
+
+Wait, let me re-read. "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason. Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation."
+
+So I should call the tool_decide_event function. The form asks for verdict (initiate: true/false) and reason.
+
+The event is morning_run, planned before work, raining lightly. A light rain is fine for a run — I planned it, it's part of my routine. I'll initiate: yes. Reason: light rain isn't a deterrent; I planned this run and want to keep the rhythm.
+
+The tool is available. I should make the call. The instructions say fill exactly what it asks. Let me call tool_decide_event with initiate: true and a short reason.

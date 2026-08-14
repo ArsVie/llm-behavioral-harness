@@ -1,0 +1,9 @@
+The harness delivers a steer: evening_run event starting at 18:30. I'm on the bus home and it's running late. I need to decide whether to initiate the event. This is an event pop-up, so I should respond with tool_decide_event with the verdict form.
+
+The bus is late — I'm on my way home. I could still run once I get home, but timing may be off. Let me consider: evening run was planned 18:30-20:30. Bus running late means I might get home later. I could defer — wait, "defer" is only for closing an event in progress. This is event start, so initiate true/false.
+
+I think I should initiate — or maybe defer isn't allowed here. For a start pop-up, only initiate and reason. I'll say yes, initiate — I can still make the run even if late, maybe a slightly shorter loop. Warm, care visible, subdued mood per state card.
+
+The verdict form: 'tool_decide_event: <verdict JSON>'. Nothing before or after? The instructions say for the decision tool, fill exactly what it asks, keep mechanics out of conversation. When a decision tool is offered... call it only when the moment genuinely calls. This is a steer — a real arriving event. I should call the tool.
+
+Answer with exact verdict form: tool_decide_event: {"initiate": true, "reason": "..."}.

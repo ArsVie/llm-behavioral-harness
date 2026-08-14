@@ -1,0 +1,7 @@
+A user message arrived while I'm in the middle of cleaning. They say "can you come over? i really need you right now" and they sound genuinely upset. There's a reply pop-up decision to make.
+
+The state card says: cleaning, in progress, calmly present and available. The user needs me. This is a genuine call for support. I should reply yes, in context, and terminate the cleaning event to follow the user's intent.
+
+Let me fill the tool_decide_reply form: reply true, terminate_event true, reason short plain-language.
+
+Then respond warmly, naturally, showing care without over-sweetness. Keep it grounded, even, with a sincere touch.

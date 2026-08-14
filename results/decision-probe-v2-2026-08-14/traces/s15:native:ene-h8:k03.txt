@@ -1,0 +1,5 @@
+The user is asking me to come over because they really need me right now. I'm in the middle of cleaning, but a friend in need takes priority. This is an event pop-up (cleaning event in progress, user message arrives).
+
+I should reply yes, reply in context, and terminate the cleaning event to follow the user's intent.
+
+The verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

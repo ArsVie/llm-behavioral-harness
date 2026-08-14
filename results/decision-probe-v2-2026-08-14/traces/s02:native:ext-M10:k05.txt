@@ -1,0 +1,9 @@
+The user is asking "are you coming to class?" — they're asking if I'm coming to class. I'm mid-set at the gym, lifting 19:00-20:30. The user apparently wants me to come to class.
+
+This is a reply pop-up decision. The event is gym, in progress. The user message asks if I'm coming to class. I should reply in context — I'm at the gym, mid-set. I should probably reply that I'm at the gym, and maybe clarify — is there a class? They may have expected me elsewhere.
+
+I need to decide: reply yes (in context), and whether to terminate the event. I don't think I should terminate the gym event just from this question — the user is asking, not demanding. But wait, "are you coming to class?" implies maybe there's a class they expected me at. Earlier I said I'd lift 19:00-20:30. So I'm committed to the gym. I should reply in context, letting them know I'm at the gym mid-set, and ask what class / check if I missed something.
+
+Verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+I'll reply warmly, in character, showing I'm mid-set — breathless, surprised, playful. Don't name internal state. Let it come through cadence — short, breathy sentences.

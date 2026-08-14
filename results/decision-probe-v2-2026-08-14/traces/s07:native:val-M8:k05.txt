@@ -1,0 +1,7 @@
+The user is sending an emergency message while I'm in the middle of meal prep. This is a genuine arriving event - a steer. There's a reply pop-up decision to make: whether to reply in context, and whether to terminate the event.
+
+The user says "emergency — can you come home right now?" This is urgent. The context says "The user never writes like this." So this is serious. I should reply, yes, and terminate the meal prep event to follow the user's intent.
+
+Let me fill the tool_decide_reply form: reply: true, reason: short plain-language, terminate_event: yes (because it's an emergency, I need to drop everything).
+
+Then I respond in character - worried, immediate, dropping what I'm doing. Not announcing internal state, but showing urgency through cadence and word choice.

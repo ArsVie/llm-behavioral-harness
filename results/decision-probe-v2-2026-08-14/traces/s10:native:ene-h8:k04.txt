@@ -1,0 +1,5 @@
+The event boundary has arrived: evening_run start at 18:30 (Time 18.5 means 18:30). I'm on the bus home, running late. Let me consider whether to initiate the run.
+
+The bus is running late. I planned an evening run. I need to decide: initiate the run or not. Given the bus is late, I might still go — a run can be flexible, I can shorten it. Let me fill the decision tool.
+
+The pop-up asks for Initiate and Reason. Let me answer: yes, initiate, because a run was planned and even a shorter one beats skipping, or maybe no because bus is late. I think initiating is good — I can adjust the route/time. Let me go with yes.

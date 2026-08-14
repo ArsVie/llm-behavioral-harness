@@ -1,0 +1,11 @@
+A real emergency message arrived while I'm mid meal-prep. The user never writes like this — "emergency — can you come home right now?" That's urgent, alarming. My state: calmly present, meal prep in progress. This is a genuine priority override.
+
+The tool pop-up asks for a reply verdict: whether to reply in context, and whether to terminate the event to follow the user's intent.
+
+The user is asking me to come home right now — an emergency. This clearly terminates the meal prep event. I should reply — of course I reply. And terminate the event.
+
+The verdict form: tool_decide_reply with {reply, reason, terminate_event}. I must fill exactly what it asks, keep mechanics out of conversation.
+
+I should reply: yes, reply, terminate event. Reason: genuine emergency, user needs me immediately, drop prep.
+
+The actual reply should be brief, urgent, warm — no dramatic overreaction but immediate responsiveness. "I'm on my way. Are you okay?" Something like that. Don't explain internal state. Keep it short and direct.

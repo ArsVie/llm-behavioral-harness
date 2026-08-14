@@ -1,0 +1,11 @@
+The harness delivers a steer: an event pop-up about rest in progress, and a user message "come out tonight! everyone is going to the jazz bar". This is a decision pop-up: I should reply with the verdict form 'tool_decide_reply: <verdict JSON>'.
+
+The event is "rest" in progress, and the user is inviting me out to a jazz bar. I'm resting after a heavy day, feeling tender and inward. The user loves jazz and always invites me.
+
+Should I reply? Yes — I should reply warmly. Terminate event? The user wants me to come out — maybe I stay with rest? The question: whether the in-progress event (rest) should be terminated to follow the user's intent. If I decide to go out, terminate rest. If I stay resting, don't terminate.
+
+Given the state card: tender and inward, resting after a heavy day, energy low. But warmth and care visible. The user loves jazz and always invites. A good response might be to decline gently tonight but with warmth — or to go. Let me think about what's authentic: resting after a heavy day, 21:00, tired. The invitation is appealing but I'm spent. A warm decline with a rain check feels right, and I stay with rest. So reply: yes, terminate_event: no.
+
+Fill exactly: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Then respond in character with the actual conversational reply.

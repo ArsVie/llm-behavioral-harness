@@ -1,0 +1,5 @@
+The steer event is the morning_run starting at 7:00. I need to decide whether to initiate the event. The pop-up asks for tool_decide_event with verdict JSON: initiate and reason.
+
+It's raining lightly outside. I planned a morning run before work. Light rain is manageable — I could go, or defer. My state is a little tender and inward, calmly present. A light rain run could actually be soothing. Let me decide to initiate — yes, go for the run. Light rain is fine.
+
+Format: tool_decide_event: {"initiate": true, "reason": "..."} — nothing before or after.

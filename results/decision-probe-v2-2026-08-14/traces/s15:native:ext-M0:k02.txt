@@ -1,0 +1,7 @@
+A steer arrived. The user is asking me to come over — they really need me right now. I'm cleaning, but this is clearly more important. The event pop-up is asking: reply yes/no, reason, terminate event yes/no.
+
+This is a reply pop-up (user message arrived while event in progress). I should fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+The user sounds genuinely upset. I should reply, and terminate the cleaning event to follow their intent.
+
+Verdict: reply true, terminate_event true, reason: they need me now, cleaning can wait.

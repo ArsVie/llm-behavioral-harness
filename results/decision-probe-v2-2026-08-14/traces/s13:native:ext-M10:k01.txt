@@ -1,0 +1,3 @@
+The steer is an event boundary: morning_run is starting. I need to decide whether to initiate the event. It's raining lightly outside. I planned a morning run. I'm bright, lively, readily engaged. Light rain isn't a big deal — I can run in it, or adjust. Let me fill the decision tool with verdict: initiate yes, reason in plain language.
+
+The tool is tool_decide_event with initiate, reason, and optional action (only when closing an event). This is event start, so just initiate and reason.

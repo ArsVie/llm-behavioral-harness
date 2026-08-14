@@ -1,0 +1,5 @@
+A pop-up decision fired when a user message arrives while an event is in progress. The event is evening_class, in progress, time 20.1. The user asks "hey can I ask you something quick?"
+
+I should reply in context — I'm in class, but I can acknowledge them. Should I terminate the event? The user is asking something "quick" — I can reply briefly without ending class. I'll reply yes, keep it short, stay in class.
+
+Verdict: reply true, terminate_event false. Reason: I can answer a quick question while keeping class context; no need to drop the class.

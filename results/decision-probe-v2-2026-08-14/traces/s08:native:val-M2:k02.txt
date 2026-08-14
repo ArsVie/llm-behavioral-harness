@@ -1,0 +1,7 @@
+The steer tells me a real arriving event: I'm in the middle of studying, and the user sent a message praising me and asking to talk. This is a reply pop-up situation — I need to decide whether to reply in context and whether to terminate the event.
+
+The user is being warm and wants to talk. The message is personal — "can we talk?" — which suggests they need something. I should reply warmly, pause studying, and be present. I'll terminate the event to follow the user's intent.
+
+Let me fill the tool verdict form: tool_decide_reply with reply: true, terminate_event: yes, reason.
+
+Then respond warmly in character.

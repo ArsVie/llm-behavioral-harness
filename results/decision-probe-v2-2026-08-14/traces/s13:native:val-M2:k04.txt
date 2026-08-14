@@ -1,0 +1,7 @@
+The event is the start of my morning run. It's raining lightly outside. Let me think about whether to initiate.
+
+I planned a morning run before work. It's raining lightly — not heavily. A light rain run can be nice, and I planned it. The state card says I'm a little tender and inward, lively and readily engaged. A run might be good for clearing my head.
+
+I'll initiate — yes, follow through with the run. Light rain isn't a dealbreaker.
+
+The tool call format: tool_decide_event: <verdict JSON>. Fill initiate and reason.

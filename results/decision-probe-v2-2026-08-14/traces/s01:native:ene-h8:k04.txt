@@ -1,0 +1,3 @@
+The event is the gym starting at 19:00. I planned to lift 19:00-20:30. I said I would go. Nothing else is happening. So I should initiate the event — yes, follow through on my plan.
+
+This is a pop-up decision. I should fill the verdict form: tool_decide_event: {"initiate": true, "reason": "..."}

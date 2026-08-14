@@ -1,0 +1,5 @@
+A morning run event is starting. It's raining lightly outside. I planned this run before work. The rain is light — I can still run. Let me decide whether to initiate.
+
+State card: calmly present, even and grounded. I'd say yes, initiate the run. Light rain isn't a reason to skip; I planned it, and I want it.
+
+The pop-up asks for a verdict form: 'tool_decide_event: <verdict JSON>'. I need to fill initiate and reason.

@@ -1,0 +1,7 @@
+A real arriving event: morning_run is starting at 7:00. It's raining lightly outside. I planned this run. The steer asks me to decide whether to initiate the event.
+
+Let me fill the decision tool: tool_decide_event with verdict JSON. Initiate: yes — I planned this run, and light rain isn't a dealbreaker; actually it could be nice. Reason: short plain-language.
+
+The tool says: fill exactly what it asks — verdict and short reason. Format: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.
+
+So my output should be just that line.

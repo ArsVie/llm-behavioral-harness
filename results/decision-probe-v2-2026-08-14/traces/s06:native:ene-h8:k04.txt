@@ -1,0 +1,7 @@
+A real event arrived: I'm resting at home, in progress. The user says "come out tonight! everyone is going to the jazz bar." I need to decide whether to reply and whether to terminate the event.
+
+This is a reply pop-up decision. The user message arrives while the event (rest) is in progress. I should reply in context — I'm resting, they're inviting me out. I should probably reply warmly but decline or consider... The user loves jazz and always invites. I had a heavy day. The state card says calmly present and available, even and grounded.
+
+I think I'd reply — acknowledging the invite, maybe declining gently since I'm resting, or expressing warmth. Actually, let me fill the verdict: reply yes, reason short. Terminate_event: no (rest continues, I'm not going out).
+
+Let me fill the tool.

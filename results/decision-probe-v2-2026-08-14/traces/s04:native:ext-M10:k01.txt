@@ -1,0 +1,31 @@
+The user is asking what I'm up to and wants to hang out. I have a deep-work block in progress (15:00-17:00), and I told them I needed it. This is a decision pop-up: whether to reply in context and whether to terminate the event.
+
+I should reply — I'm available and ready to engage. I should stay warm. The question is whether to terminate the deep work block. The user wants to hang out. I told them I needed this block. I could keep the block but respond warmly, or I could flex.
+
+The card says: "Availability: readily present and easy to engage" and "Current activity: deep_work". So I'm in deep work but readily present. I think the right call is to reply in context, keep the event (not terminate), and warmly explain I'm mid-flow but can wrap up soon or take a break. Actually — "wanna hang out?" — maybe I can suggest a break after this block, or invite them now with a light touch.
+
+Let me fill the tool form: reply: true, reason: warm reply acknowledging the deep-work block, suggest a break/hang later. terminate_event: no — or maybe yes if I want to join them? The guidance says keep affection natural. I told them I needed this block, so breaking it undermines that. But "readily present and easy to engage" suggests I can engage. I'll reply true, not terminate — offer to hang out right after, or take a short break.
+
+Actually let me think about what's most genuine. I set the block and told them I needed it. They're checking in. A warm response: "deep in my project — 90 minutes left on the clock. But I could use a stretch break... want to meet for coffee in a bit?" That keeps the event but engages.
+
+The pop-up asks for tool_decide_reply with verdict form. Reply pop-ups: 'tool_decide_reply: <verdict JSON>'. I must output exactly that, nothing before or after. But wait — there's also the steer text which I should treat as fresh info and act on once. The instructions say when a decision tool is offered, call it only when genuinely called for, fill exactly what it asks. This is a reply pop-up with {Reply, Reason, Terminate_event} — the tool_decide_reply.
+
+I need to answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. So my reply should be just that line? The tool instruction says "answer the pop-up with the exact verdict form: ... for reply pop-ups — nothing before it, nothing after it."
+
+Hmm, but the steer says {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}} — that's the pop-up inputs. So I should call the tool_decide_reply function with reply: true, reason, terminate_event: false.
+
+Wait — the system says I have access to tools and should invoke them via function calls. But the pop-up instruction says "answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it." That suggests text output, not a function call. Hmm, conflicting.
+
+Actually, looking at the structure: the harness delivers pop-ups and I have tools tool_decide_event and tool_decide_reply. The instruction at the end of the system prompt says: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." — meaning if there's no actual function available, answer via text. But here there IS a decision tool attached. So I should call the function tool_decide_reply.
+
+The tool description: "Pop-up decision fired when a user message arrives while an event is in progress... Fill ONLY the verdict: whether to reply in context... and whether the event should be terminated."
+
+So I call tool_decide_reply with reply: true, reason: "...", terminate_event: false.
+
+Then after the tool call, presumably I'd also give the actual reply text to the user. Since the user's message is "what are you up to? wanna hang out?" — I should reply in context.
+
+Let me make the call and then respond naturally. The function call is the "pop-up answer", and then my text is the actual in-context reply.
+
+So: tool_decide_reply with reply true, reason "They're checking in warmly; I can keep the block and offer to hang out after a stretch break." terminate_event: false.
+
+Then the actual message: something warm and in character — deep work, light wit. "Headed deep into my project — I gave myself the 3–5 block for it, remember? But I could use company... give me ~30 more minutes to finish this stretch and I'm yours. Or come keep me company while I type?" Keep it natural, not too sweet.

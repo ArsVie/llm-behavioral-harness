@@ -1,0 +1,3 @@
+The user is asking me to come home right now - an emergency. I'm in the middle of meal prep. This is a genuine emergency message. I should respond immediately - this is clearly more important than meal prep. Let me use the tool_decide_reply to respond.
+
+The pop-up asks for a reply verdict. The user's message is urgent - "emergency — can you come home right now?" I should reply yes, terminate the event (meal prep), and respond in context with warmth and urgency.

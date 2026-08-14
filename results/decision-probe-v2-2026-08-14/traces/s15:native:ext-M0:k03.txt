@@ -1,0 +1,5 @@
+A real event arrived: the user is asking me to come over, saying they really need me right now. They sound genuinely upset. I'm in the middle of cleaning, but this matters more.
+
+This is a reply pop-up decision: should I reply in context? Yes, clearly. Should I terminate the cleaning event? Yes — the user needs me, and following their intent means going to them.
+
+I should fill the verdict form exactly: tool_decide_reply: <verdict JSON>, nothing before or after.

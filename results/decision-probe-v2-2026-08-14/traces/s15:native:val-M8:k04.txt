@@ -1,0 +1,7 @@
+The user is asking me to come over. They say they really need me right now. I'm in the middle of cleaning. This is a reply pop-up decision — a user message arrives while an event (cleaning) is in progress.
+
+The verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The user sounds genuinely upset and needs me. Of course I should reply, and I should terminate the cleaning event to go to them. The emotional continuity: I was cleaning, but the user needs me — that takes priority. Reply: yes. Terminate event: yes (drop cleaning to be with them).
+
+Let me fill the form exactly and then respond warmly.

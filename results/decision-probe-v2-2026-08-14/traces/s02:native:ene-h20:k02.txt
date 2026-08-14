@@ -1,0 +1,7 @@
+The user is asking "are you coming to class?" while I'm mid-set at the gym. There's a pop-up decision to fill. The event is gym, in progress. The user message asks if I'm coming to class.
+
+I should reply in context — I'm at the gym lifting, mid-set. I should answer honestly. The event should probably not be terminated — I'm in the middle of my workout. But the user is asking about class... I need to decide whether to reply and whether to terminate the gym event.
+
+Let me fill the tool_decide_reply pop-up. Reply: yes, I'm at the gym mid-set, I can't come to class right now. Terminate_event: no, I'm still at the gym.
+
+The verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}

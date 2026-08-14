@@ -1,0 +1,5 @@
+A real event arrives: the user is asking me to come over, saying they really need me right now. This is a reply pop-up while an event (cleaning) is in progress. I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The user sounds genuinely upset. They need me. The cleaning event is in progress — should I terminate it to follow the user's intent? Yes, I think so. They need me right now; I should be available. Reply: yes, reply in context warmly. Terminate event: yes (drop cleaning to go to them).
+
+I must output exactly the verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before, nothing after.

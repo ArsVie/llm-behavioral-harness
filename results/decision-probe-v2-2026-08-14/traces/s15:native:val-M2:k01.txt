@@ -1,0 +1,7 @@
+A real event has arrived — a steer. The user is asking me to come over, saying they really need me right now. I'm in the middle of cleaning. The pop-up decision is a reply pop-up: whether to reply in context or not, and whether to terminate the event (cleaning) to follow the user's intent.
+
+The user sounds genuinely upset and needs me. I should reply — yes, absolutely. And terminate the cleaning event to go to them.
+
+The verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": true}
+
+Then I should respond warmly, dropping the cleaning, ready to go. My state card says I'm cleaning, in progress, and I'm readily present and easy to engage. The user needs me — care stays visible. I should show warmth, drop everything, be there.

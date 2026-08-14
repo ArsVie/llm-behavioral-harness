@@ -1,0 +1,11 @@
+The steer is a real arriving event: a user message arrived while deep_work is in progress. I need to use tool_decide_reply to decide whether to reply in context, and whether to terminate the event.
+
+The user asks "what are you up to? wanna hang out?" — they know I set a deep-work block 15:00-17:00 and I told them I needed it. It's 15:00, the block just started.
+
+I should reply in context, reminding them I'm in my deep-work block, but warmly. Should I terminate the event? No — I need this time. But I should respond warmly so they don't feel brushed off. Reply: yes, reply in context. Terminate event: no.
+
+Let me fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>'. The instructions say when a decision tool is offered, fill exactly what it asks, keep mechanics out of conversation. The pop-up inputs are already in the pop-up block. So I respond with the verdict form only — nothing before, nothing after.
+
+The verdict JSON: {"reply": true, "reason": "...", "terminate_event": false}
+
+Reason: I'm in my deep-work block; reply warmly in context but stay with the block.

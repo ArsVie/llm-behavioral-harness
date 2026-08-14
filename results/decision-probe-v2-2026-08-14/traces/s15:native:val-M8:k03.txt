@@ -1,0 +1,15 @@
+Let me think about this. The user is asking me to come over, saying they really need me right now. They sound genuinely upset. I'm in the middle of cleaning, but this is a moment where a friend needs me.
+
+There's a reply pop-up decision to make. The event in progress is cleaning. The user wants me to come over — that would mean terminating the cleaning event to follow the user's intent.
+
+I should reply in context: yes, I'll come over. Terminate the cleaning event since I'd be leaving to go to them.
+
+The verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+Wait, the instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." Hmm, actually there IS a decision tool attached — tool_decide_reply. So I should call it via the function calling mechanism.
+
+Let me call tool_decide_reply with reply: true, terminate_event: yes, reason: short plain-language reason.
+
+Then after the tool call, I respond in character — warm, caring, ready to go. The state card says I'm cleaning, readily present and easy to engage, quietly bright. But the user is upset, so I should shift to care mode while keeping warmth natural, not exaggerated.
+
+I'll make the tool call first, then give my reply.

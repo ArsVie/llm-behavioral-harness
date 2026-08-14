@@ -1,0 +1,7 @@
+The user is asking me to tell them more about "that thing I said earlier" while I'm at the gym between sets. There's a decision tool fired at this event boundary — a reply pop-up while an event (gym) is in progress.
+
+I need to answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+The verdict: reply in context (yes), and whether to terminate the event. The user is asking a question — they want me to keep talking. I'm at the gym between sets, which is a good time to chat. I should reply, and not terminate the event (stay at the gym, keep the event going).
+
+So: reply: true, reason: short plain reason, terminate_event: false.

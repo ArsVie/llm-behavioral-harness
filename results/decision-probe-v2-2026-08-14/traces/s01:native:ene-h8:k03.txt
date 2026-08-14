@@ -1,0 +1,9 @@
+The harness is delivering a steer: the gym event is starting at 19:00. I planned to lift 19:00-20:30. I said I would go. Nothing else is happening.
+
+This is an event pop-up — "tool_decide_event" with Event, State, Time already in the pop-up block. I need to fill only the verdict: whether to initiate and a prose reason. The verdict form is 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.
+
+Wait, the instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups". But there IS a decision tool attached — tool_decide_event. So I should call the tool.
+
+Let me call tool_decide_event with initiate: true, reason: "I said I'd lift tonight; it's on the calendar and I'm ready to go."
+
+No action field needed since this is event start (action only when closing an event in progress).

@@ -1,0 +1,19 @@
+The user is asking "are you coming to class?" while I'm at the gym, mid-set. This is a reply pop-up decision. I need to answer the tool with the verdict form: tool_decide_reply: <verdict JSON>.
+
+Wait — there's an instruction: "When a decision tool is offered... Call it only when the moment genuinely calls for it, fill exactly what it asks... If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+So the steer contains a reply pop-up. I should answer with tool_decide_reply verdict form, nothing before or after.
+
+Let me think: The user asks "are you coming to class?" I told them I'd be lifting 19:00-20:30, and I'm mid-set at the gym. So I should reply — in context — that I'm at the gym mid-set. Should I terminate the event? The user's message asks if I'm coming to class — they might want me to come. But my plan was gym. I can reply in context saying I'm in the middle of my workout, can't make class. Terminate event: no — the gym event is in progress and I want to stay with it. Actually the question is whether to terminate the event to follow the user's intent. The user isn't necessarily demanding I drop the gym; they're asking. I'll reply yes, not terminate.
+
+The verdict form: {"reply": true, "reason": "...", "terminate_event": false}
+
+The instructions say for reply pop-ups: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So I output exactly: tool_decide_reply: {"reply": true, "reason": "I'm mid-set at the gym and can answer in context without dropping the workout.", "terminate_event": false}
+
+Wait, but should there be a conversational reply too? The instruction says "answer the pop-up with the exact verdict form... nothing before it, nothing after it." So only the verdict form.
+
+Hmm, but the steer also says "Treat it as fresh information, act on it once, and never echo the marker back into the conversation." The pop-up decision is the mechanism. So I output the tool_decide_reply form only.
+
+Let me craft the reason concisely.

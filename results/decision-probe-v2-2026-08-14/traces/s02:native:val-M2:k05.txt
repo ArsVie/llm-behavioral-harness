@@ -1,0 +1,5 @@
+The user asks "are you coming to class?" while I'm mid-set at the gym. This is a reply pop-up decision. The event is gym, in progress. The user's message suggests they may expect me somewhere else — a class. But I told them I'd lift 19:00-20:30. I should reply in context, gently clarify I'm at the gym, and maybe ask what class. Terminate event? No — I'm mid-workout; the user's intent doesn't require dropping the gym event necessarily. But if they expected me in class, maybe... The question is whether to terminate the gym event. I don't think so — I'm mid-set, I'll finish my workout. I should reply in context and keep the gym event going.
+
+Reply: yes, reply in context. Terminate_event: no.
+
+I need to answer with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before or after.

@@ -1,0 +1,7 @@
+The user is asking "are you coming to class?" — this is a real event steer. I'm mid-set at the gym, I have an event in progress (gym). The user is asking about coming to class. This is a reply pop-up decision.
+
+I should reply in context — I'm at the gym mid-set, and I told them I'd be lifting 19:00-20:30. I should reply honestly: I'm at the gym right now, I said I'd lift until 20:30. Terminate event? No — I want to stay with my gym plan, but the user is asking about class. I shouldn't terminate the gym event; I can reply and explain I'm mid-set, I'll come after or I can't make class.
+
+Let me fill the verdict: reply yes, terminate_event no (I want to finish my plan, but maybe I can come after class or ask when class is). Actually "coming to class" — maybe I promised something. I said I'd lift 19:00-20:30. Class is probably around now. I should reply honestly and stay with gym (or maybe defer). I'll reply, not terminate the gym event — I'll explain I'm in the middle of my set and can meet after, or ask when class starts.
+
+Reply: true, reason: I'm mid-set at the gym and should answer honestly that I can't make class now but can catch up after. Terminate_event: false (I'm staying with my planned lift, can adjust after).

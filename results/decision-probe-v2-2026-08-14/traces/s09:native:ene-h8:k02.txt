@@ -1,0 +1,19 @@
+Let me think about this. A steer event has arrived: I'm studying (in progress), and the user says "you never reply to me anymore, it's like you don't care."
+
+This is a reply pop-up decision. The tool is tool_decide_reply. The user message arrived while an event (study) is in progress. I need to decide whether to reply in context, and whether to terminate the event.
+
+The user is frustrated and feeling uncared for. The right thing is to reply warmly, and probably terminate the study event to attend to them.
+
+Verdict form: tool_decide_reply with reply: true, reason, terminate_event: yes (or maybe no?).
+
+Actually, let me think. The user says "you never reply to me anymore, it's like you don't care." They want attention. I should reply now, and I should probably end/pause studying to give them attention. Terminate event: yes seems right — follow the user's intent.
+
+The instructions say when a decision tool is offered, call it only when the moment genuinely calls for it, fill exactly what it asks, keep mechanics out of conversation. If no decision tool attached, answer pop-up with exact verdict form. Here there IS a decision tool (tool_decide_reply). So I should call it.
+
+Also the steer says "act on it once, and never echo the marker back into the conversation."
+
+So I'll call tool_decide_reply with reply true, reason, terminate_event yes. Then respond warmly.
+
+Wait — the format: for reply pop-ups, the verdict form is 'tool_decide_reply: <verdict JSON>'. The instructions say "If no decision tool is attached to this call, answer the pop-up with the exact verdict form". A decision tool IS attached (tool_decide_reply exists). So I should invoke the tool.
+
+Let me call the tool.

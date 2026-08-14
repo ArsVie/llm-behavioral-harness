@@ -1,0 +1,7 @@
+The harness delivered a steer: the gym event is starting at 19:00. I planned to lift 19:00-20:30 and said I'd go. This is an event pop-up — I need to fill the verdict form exactly: 'tool_decide_event: <verdict JSON>' with nothing before or after.
+
+Let me consider: current bearing is tender, inward, calmly present. But I said I would go. The event is starting. Do I initiate? Yes — I committed, and going to the gym could be grounding. I'll initiate.
+
+Verdict JSON: {"initiate": true, "reason": "..."}
+
+Keep it short and plain.

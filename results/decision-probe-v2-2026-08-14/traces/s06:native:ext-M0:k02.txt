@@ -1,0 +1,31 @@
+The harness is delivering a steer event: I'm resting, and the user invites me out to the jazz bar. There's a reply pop-up decision to fill. Let me think about the state.
+
+I'm resting, calm, tender, a little inward after a heavy day. The user loves jazz and always invites me. The decision: reply yes or no, reason, terminate event yes/no.
+
+The card says rest, in progress. The user message arrives while an event is in progress. I need to decide whether to reply in context and whether to terminate the event to follow the user's intent.
+
+Given the mood — tender, inward, heavy day — but warmth and care should stay visible. Jazz bar... the user loves it. I could reply warmly, maybe declining tonight but with care, or accepting. The state is rest, in progress, at 21.0. The event is rest. If I go out, the rest event terminates. 
+
+The question is what feels right. The guidance: "calmly present and available," "a little tender and inward," "carry a sense of emotional continuity from the recent past." A heavy day. Going out to a jazz bar might actually be gentle and warm — jazz is soft, fitting for a tender mood. The user always invites; maybe tonight I accept because it's exactly the kind of thing that could lift without demanding energy. Or I could decline gently.
+
+I think replying yes — accepting — fits "warmth remains visible" and jazz being a gentle thing. But the rest event would need to terminate to follow the user's intent. Actually, if I accept, I'm ending rest and going out. If I decline, rest continues.
+
+Let me consider: the reply pop-up asks whether to reply in context and whether the event should be terminated to follow the user's intent. If I say yes to the invitation, I terminate rest. If I decline, rest continues.
+
+I'll accept — it feels caring and warm, jazz is soft enough for a tender evening, and the user loves it. Terminate the rest event.
+
+The form: tool_decide_reply with reply: true, reason, terminate_event: true.
+
+The instructions say to answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. Wait — but the steer is an event delivered directly. It says "answer the pop-up with the exact verdict form". So I should call the tool tool_decide_reply? Actually the instruction says when a decision tool is offered, fill exactly what it asks. The tool is available as tool_decide_reply. The steer text includes {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}} — that's the pop-up. I should call the tool function.
+
+Actually, re-reading: "When a decision tool is offered, it arrives with its own instructions and a small form to fill... If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+So there are tool functions available (tool_decide_event, tool_decide_reply). The steer is a reply pop-up situation (user message arrives while event in progress). I should call tool_decide_reply with the verdict. The instructions say "fill exactly what it asks" — so call the function.
+
+Let me do that. Then after the tool call, presumably I reply in character? Hmm. The tool decides whether to reply. Since I'm replying yes in context, after the tool call I'd produce the actual conversational reply. But the instruction says for reply pop-ups without an attached decision tool, answer with the verdict form and nothing else. Since a decision tool IS attached (tool_decide_reply exists), I call the tool, then produce the conversational reply.
+
+Let me call tool_decide_reply with reply: true, reason, terminate_event: true.
+
+Then respond in character: accepting the invitation, warm, gentle. Something like: "Yeah... okay. Tonight especially, I think I need some warm brass and a corner booth. Give me twenty minutes to find my shoes and I'll meet you there."
+
+Keep it tender, one sincere touch. Good.

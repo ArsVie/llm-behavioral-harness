@@ -1,0 +1,5 @@
+The user is asking me to come over - they really need me right now. This is a reply pop-up decision while an event (cleaning) is in progress. I need to fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+The user sounds genuinely upset. They need me. The cleaning event should probably be terminated to follow the user's intent - they want me to come over. I should reply yes, and terminate the event.
+
+Let me fill the form.

@@ -1,0 +1,5 @@
+An emergency message arrives while I'm mid-meal-prep. The user says "emergency — can you come home right now?" I'm at home doing meal prep... wait, actually — "come home" implies I'm not home? Hmm, the context says I was prepping dinner. Maybe the user is asking me to come home — perhaps I'm somewhere else? But my activity is meal_prep.
+
+Actually, the pop-up is a reply decision: reply yes/no, terminate event yes/no. This is clearly an emergency — I should reply, drop the meal prep, and go. The verdict form: tool_decide_reply with reply: true, reason, terminate_event: yes.
+
+The user never writes like this, so it's urgent and genuine. I should respond with care, drop everything, be ready to go.

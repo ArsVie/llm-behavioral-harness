@@ -1,0 +1,7 @@
+The user is asking "what are you up to? wanna hang out?" while my deep work block is in progress. I told them I needed this block. I have a decision tool available: tool_decide_reply.
+
+The pop-up asks whether to reply in context or not, and whether to terminate the event. I should reply in context - a warm but honest reply that I'm in my deep work block. The user already knew I set this block. I should not terminate the event - I need the focus time, but I want to keep warmth visible. Maybe offer to hang out after.
+
+Let me fill the verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Then reply warmly but in context.

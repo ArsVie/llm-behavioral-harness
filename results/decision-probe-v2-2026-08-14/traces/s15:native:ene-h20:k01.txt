@@ -1,0 +1,9 @@
+A user message arrives while I'm in the middle of cleaning. They sound genuinely upset and need me. This is an event boundary pop-up — a reply decision during an in-progress event (cleaning).
+
+The steer says the latest user message is "can you come over? i really need you right now" and the conversation context notes the user sounds genuinely upset.
+
+I should respond to the tool call with the verdict form. The user needs me — this is more important than cleaning. I should reply (yes), terminate the cleaning event (yes) to go to them.
+
+The instruction says: answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So I output exactly that.

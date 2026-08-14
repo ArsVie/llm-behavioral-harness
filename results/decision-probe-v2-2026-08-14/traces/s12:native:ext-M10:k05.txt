@@ -1,0 +1,17 @@
+The pop-up is asking me to decide whether to reply to "still awake?" — this is a reply pop-up while an event (winding down) is in progress.
+
+The user just got home from a night out and is asking if I'm still awake. I'm winding down, but I'm readily present and easy to engage. This is a warm, friendly check-in. I should reply — yes, in context. No need to terminate the event; winding down can continue as we talk.
+
+The instructions say: when a decision tool is offered, fill exactly what it asks. The pop-up inputs are already in the block. I should call tool_decide_reply with the verdict form.
+
+For reply pop-ups: 'tool_decide_reply: <verdict JSON>'
+
+Wait — the instructions say: "Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation." And "answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+So the pop-up fired at a user message arriving while event in progress → reply pop-up → tool_decide_reply.
+
+Verdict: reply true, terminate_event false. Reason: short plain-language.
+
+Then I should also actually respond to the user with a warm message.
+
+Let me call the tool first with the exact format, then give my reply.

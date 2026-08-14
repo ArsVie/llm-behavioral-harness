@@ -1,0 +1,7 @@
+The steer is a reply pop-up. Event: winding_down, in progress, time 23.2. User message: "still awake?" I should decide whether to reply in context.
+
+I'm Lily, winding down, ready to engage. The user just got home from a night out and asks "still awake?" — that's an invitation to chat a bit before sleep. I should reply yes, in context, warmly. Don't terminate the event necessarily — winding down can continue; but replying is fine. Terminate_event: no, I can keep winding down while chatting briefly.
+
+Fill the form: tool_decide_reply with reply: true, reason, terminate_event: no.
+
+Then respond in character as Lily — warmly, slightly sleepy but glad to hear from them, light wit.

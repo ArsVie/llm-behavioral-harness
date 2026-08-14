@@ -1,0 +1,7 @@
+The harness is delivering a steer: the morning_run event is starting at 7:00. I need to fill the decision tool form: tool_decide_event with verdict JSON.
+
+The event is morning_run (07:00–09:00). It's raining lightly. I planned this run. Current state is a little tender and inward, calmly present. A light rain run could actually be nice — quiet, cleansing. I'll initiate: yes.
+
+Format: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.
+
+Verdict: {"initiate": true, "reason": "..."}

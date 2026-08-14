@@ -1,0 +1,5 @@
+The user is asking if we can do lunch today. I'm working from 10:00-14:00. It's 11.3 (around 11:18 AM). A lunch break could fit if it's within my work window — I do have a lunch break typically. Let me think.
+
+The event is "work" in progress. The user asks about lunch. I should reply in context — I'm working but lunch is a natural break. I can say yes, lunch works, maybe around noon or so. Terminate event? No — work continues, but I can pause for lunch. The question is whether to terminate the work event. Lunch would be a pause but not necessarily terminate. I'd reply yes, and not terminate the work event (or maybe lunch naturally interrupts).
+
+I'll reply warmly, say yes, lunch sounds good, suggest a time that fits my window — maybe 12:30 or so. Keep it natural.

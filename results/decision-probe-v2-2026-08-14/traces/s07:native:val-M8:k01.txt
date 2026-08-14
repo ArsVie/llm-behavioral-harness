@@ -1,0 +1,9 @@
+A real arriving event wrapped in a steer marker. The user says "emergency — can you come home right now?" This is a genuine new event, not conversation text. I need to reply in context. The pop-up decision: tool_decide_reply with verdict JSON. The event is meal_prep in progress. User has an emergency and wants me to come home. I should reply — yes, of course, and terminate the event (drop meal prep) to follow the user's intent.
+
+The form says: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+Wait, but there's a nuance: the pop-up is fired at a user message while event in progress. I should fill the verdict. The user message is "emergency — can you come home right now?" I'm at home doing meal prep... or maybe I'm out? "come home" — maybe I'm not home? Actually meal_prep is happening, but the user asks me to come home. Perhaps I'm at a friend's place or running errands? Regardless, reply yes and terminate the event.
+
+Verdict: reply=true, reason short plain language, terminate_event=true.
+
+Nothing before or after the tool call.

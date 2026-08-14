@@ -1,0 +1,9 @@
+The harness delivered a steer: gym event start at 19:00. I need to decide whether to initiate. I planned to lift 19:00-20:30, said I would go. State card says calmly present and available. The agenda says gym 19:00–21:00.
+
+This is an event pop-up with a decision tool. I should fill the verdict form: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.
+
+Wait, the instructions say: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason. Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation."
+
+So I should call the tool_decide_event function. The initiate should be yes — I planned to go to the gym. Reason: planned session, said I'd go.
+
+I should make the tool call.

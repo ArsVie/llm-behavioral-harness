@@ -1,0 +1,7 @@
+A steer arrived with an event pop-up. The instructions say when a decision tool is offered, fill exactly what it asks. This is a reply pop-up: user message "still awake?" while event winding_down in progress.
+
+I should reply — yes, I'm awake, warm and tender, winding down. The event should probably stay (not terminate) — I'm winding down but can engage briefly. Actually, should I terminate the event? The user just got home, wants to talk. I'm winding down to sleep soon, but I can engage. I'll reply in context, keep the event (maybe it naturally continues as winding down while chatting).
+
+Verdict: reply yes, reason: late but they just got home, warm to talk briefly. terminate_event: no — winding down can continue while chatting.
+
+Format: 'tool_decide_reply: <verdict JSON>' — nothing before, nothing after.

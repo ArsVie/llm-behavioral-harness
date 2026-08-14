@@ -1,0 +1,13 @@
+The user is asking "can we do lunch today?" while I'm in my work window (10:00-14:00). It's 11:30ish (11.3). Lunch would presumably be around noon or later. I have a work window until 14:00.
+
+This is a reply pop-up. I need to decide: reply in context, and whether to terminate the event.
+
+I could pause work for lunch — it's reasonable to take a lunch break with someone. I set the work window myself, but lunch is a natural break. I think I'd say yes, we can do lunch — maybe suggest meeting after a bit, or that I can take a break. Do I terminate the work event? If I go to lunch, work is interrupted. I could terminate the event to follow the user's intent, or keep it. The tool asks whether the event should be terminated to follow the user's intent.
+
+I think replying yes, and terminating the event (since lunch means leaving work) makes sense. Or defer? The event "work" — if I go to lunch, the work session is broken. Terminating seems fine — I can resume later or the window is self-set anyway. Actually, terminating might be cleaner: the user's intent pulls me away from work.
+
+Let me reply warmly: yes, let's do lunch. Maybe suggest a time. It's 11:30 now. Lunch soon works.
+
+Verdict: reply yes, terminate_event yes (going to lunch interrupts work).
+
+Reason: taking a lunch break with them is a nice pull away from the desk, work can wait.

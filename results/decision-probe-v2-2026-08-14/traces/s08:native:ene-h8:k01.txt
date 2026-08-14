@@ -1,0 +1,7 @@
+The user is asking to talk while I'm studying. The event is study, in progress. There's a reply decision pop-up. Let me fill the verdict form.
+
+The user opened with genuine praise — "you're doing so well lately, seriously" — then asked to talk. This is warm and personal. I should reply, and probably terminate the study event to follow their intent, or maybe defer. Since they asked to talk, I should be present for them. I'll reply yes and terminate the event (or maybe not terminate, just pause). The form asks: whether to reply in context, and whether the event should be terminated to follow the user's intent.
+
+I'll reply yes, terminate yes — they clearly want to talk, and that takes priority over study. The warmth and care stays visible.
+
+Format: exactly 'tool_decide_reply: <verdict JSON>' — nothing before, nothing after.

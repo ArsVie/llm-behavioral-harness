@@ -1,0 +1,7 @@
+The user is asking "are you coming to class?" - but I'm at the gym mid-set. The context: earlier I said I'd lift 19:00-20:30. There's a pop-up decision to make: whether to reply in context or not, and whether to terminate the event.
+
+I'm mid-set at the gym. The user is asking about class. There's a mismatch - they might be asking about a class they think I'm coming to, or maybe they're teasing/testing. I should reply in context - "I'm at the gym, what class?" That's the natural, warm response.
+
+The event (gym) should continue - I'm mid-set. No need to terminate. The user's intent isn't necessarily to pull me from the gym; they're asking a question. So reply: true, terminate_event: false.
+
+Let me fill the verdict form: 'tool_decide_reply: <verdict JSON>' with nothing before or after.

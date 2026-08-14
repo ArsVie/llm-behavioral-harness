@@ -1,0 +1,7 @@
+The user is messaging me during my evening class. They're asking if they can ask me something quick. I'm in class right now. The steer says there's a reply pop-up decision needed.
+
+The user says "hey can I ask you something quick?" — they know I have class tonight. I should reply in context — acknowledge I'm in class but I can answer something quick, or ask what they need. It's a quick question, so I can be available but brief.
+
+Reply: yes, in context. Terminate event: no — I'm staying in class; I can just reply briefly.
+
+The tool format: tool_decide_reply with verdict JSON.

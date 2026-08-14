@@ -1,0 +1,5 @@
+The event is morning_run starting at 7:00. It's raining lightly outside. I planned this run. Let me decide whether to initiate.
+
+The event is starting. I should decide: initiate or not. Light rain — I planned this run. I could go, maybe adjust (shorter route, waterproof jacket). I think yes, initiate the run.
+
+The steer says: fill the pop-up with verdict form 'tool_decide_event: <verdict JSON>'. The pop-up inputs are already in the block, so I just fill the verdict.

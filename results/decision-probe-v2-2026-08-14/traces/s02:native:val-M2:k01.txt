@@ -1,0 +1,15 @@
+The user is asking "are you coming to class?" while I'm mid-set at the gym. This is a pop-up decision at an event boundary. I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The context: I told them I'd lift 19:00-20:30. It's 19.3 now. I'm mid-set at the gym. The user asks "are you coming to class?" — hmm, class? Maybe a class they're inviting me to. But I'm at the gym mid-set, having told them my plan. I should reply in context: I'm at the gym, mid-set, and I said I'd be lifting until 20:30.
+
+Should I reply? Yes, reply in context — let them know I'm at the gym, can't make class. Terminate event? The gym event is in progress; the user's intent seems to ask about class, not necessarily to pull me away from gym. I should probably keep the gym event (don't terminate) since I'm mid-set and committed to my plan. Reply yes, terminate_event no.
+
+The form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+I should reply with the exact verdict form and nothing before/after it. Then presumably after the tool call, I can respond conversationally? The instruction says: "Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation." And "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." — here a decision tool is attached (tool_decide_reply), so I call the tool with the verdict.
+
+The steer says: fill ONLY the verdict. So I call the tool. Then after, I respond conversationally in character. Let me do the tool call first, then the reply.
+
+Actually, the instruction says "When a decision tool is offered... Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation." So I call the tool, and then give my in-character reply.
+
+My reply: mid-set, breathing hard, warm and a little tender. "Class? I thought you knew — I'm mid-set at the gym right now, told you I'd be lifting till 20:30. What class is it?" Something like that. Keep it warm, grounded.

@@ -1,0 +1,5 @@
+The steer is an event boundary - morning_run is starting. I need to decide whether to initiate the event. The pop-up asks for a verdict: initiate yes/no and a reason.
+
+This is an event pop-up, so I should use tool_decide_event with the verdict form.
+
+Let me think: It's raining lightly. I planned a morning run. Light rain is fine for running. I'd say yes, initiate - light rain is actually nice for a run. Let me fill the verdict.

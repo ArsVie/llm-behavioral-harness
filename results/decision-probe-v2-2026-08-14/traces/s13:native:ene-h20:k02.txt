@@ -1,0 +1,5 @@
+The state card says: morning_run event starting at 7:00. It's raining lightly outside. I planned this run. Let me decide whether to initiate.
+
+The weather is a light rain — I planned this run, and light rain is fine for a run. I'm calmly present and available. I should initiate the run. A light drizzle can even be pleasant. I'll lace up and go.
+
+The steer asks me to fill the verdict form with tool_decide_event: {verdict JSON}. Let me do that.

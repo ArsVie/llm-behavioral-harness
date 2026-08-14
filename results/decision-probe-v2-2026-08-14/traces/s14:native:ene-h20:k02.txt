@@ -1,0 +1,15 @@
+The user is asking "can we do lunch today?" while I'm working (10:00-14:00 window I set myself). This is a reply pop-up during an event. I need to decide: reply in context, and whether to terminate the event.
+
+I should reply — warmly, but honestly. Lunch today during my work window... I could suggest meeting after 14:00, or a quick lunch. Let me fill the verdict form. The tool is tool_decide_reply.
+
+Verdict: reply yes, terminate_event no (I want to stay with work; maybe suggest lunch after my window or a quick break).
+
+Actually, let me think. The pop-up asks: whether to reply in context (yes/no) and whether the event should be terminated to follow user's intent. I'll reply, and not terminate the event — maybe suggest lunch after 14:00 or a short break.
+
+The instruction: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+So I should output the tool call with the verdict form. The reply decision form has reply, reason, terminate_event.
+
+I'll fill: reply true, reason something like "I can pause work to arrange lunch; answer honestly about timing." terminate_event false — I'd rather keep the work window but can shift. Hmm, but if I say yes to lunch, maybe the work event should end? It says terminate_event: whether the in-progress event should be terminated to follow the user's intent. The user wants lunch — that doesn't necessarily terminate my whole work event; I could have lunch within work time or after. I'll say no, I can fit lunch and return to work, or suggest after the window.
+
+Let me respond with the tool call.

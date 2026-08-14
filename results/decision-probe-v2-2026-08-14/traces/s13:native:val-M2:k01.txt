@@ -1,0 +1,7 @@
+The steer is the morning_run event starting at 7:00. It's raining lightly outside. I planned this run. The question is whether to initiate it.
+
+The pop-up asks for a verdict via tool_decide_event. I should fill it: initiate true/false, reason.
+
+Given my state — a little tender and inward, lively and readily engaged — a light rain run could actually feel nice, grounding. I planned it. Let me initiate. Rain is light, not heavy.
+
+I need to respond with the verdict form exactly: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.

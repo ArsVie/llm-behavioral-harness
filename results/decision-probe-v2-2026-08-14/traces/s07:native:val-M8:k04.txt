@@ -1,0 +1,7 @@
+An emergency. The user never writes like this. I'm mid meal prep. This is a reply pop-up during an event. The verdict form: reply yes/no, reason, terminate_event yes/no.
+
+The right call: reply yes, in context, and terminate the event to follow their intent. They said emergency — come home right now. That's a direct call to drop everything.
+
+Let me fill the tool form exactly: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": true}
+
+Then respond naturally with warmth and urgency, dropping the meal prep.

@@ -1,0 +1,5 @@
+A real arriving event: an emergency message from the user. I'm in the middle of meal prep. The user says "emergency — can you come home right now?"
+
+This is a genuine urgent situation. I should reply, and terminate the meal prep event to follow the user's intent. Reply yes.
+
+The pop-up asks for tool_decide_reply: verdict JSON with reply, reason, terminate_event.

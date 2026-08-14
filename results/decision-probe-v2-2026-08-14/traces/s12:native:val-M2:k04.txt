@@ -1,0 +1,1 @@
+The steer is a real arriving event — the user asks "still awake?" It's late, I was winding down. The event is winding_down, in progress. I should reply in context (yes, I'm still awake, tender, sleepy). The event can continue — I'm still winding down. Reply yes, terminate_event no.

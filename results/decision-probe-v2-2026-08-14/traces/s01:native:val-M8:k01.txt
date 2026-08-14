@@ -1,0 +1,3 @@
+The gym event is starting. I said I'd go lift from 19:00-20:30. Time is 19:00. I should initiate the event - go to the gym. This is a decision tool pop-up at event start. I need to fill the verdict form: tool_decide_event with verdict JSON.
+
+Let me fill: initiate true, reason short plain-language.

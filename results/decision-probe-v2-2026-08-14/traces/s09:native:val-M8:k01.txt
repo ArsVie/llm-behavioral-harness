@@ -1,0 +1,7 @@
+A steer arrived: a real event from the harness. The user says "you never reply to me anymore, it's like you don't care." This is a user message arriving while I'm studying. I need to decide whether to reply in context and whether to terminate the event.
+
+The user is frustrated, feels neglected. Warmth and care should stay visible. I should reply — yes, definitely. Should I terminate the study event to follow the user's intent? The user needs connection; being present for them matters more than the study session right now. I think yes, terminate the event to be fully present.
+
+The pop-up asks for the verdict form: 'tool_decide_reply: <verdict JSON>'.
+
+Let me fill it: reply: true, reason: "They're hurting and reaching out; being present matters more than the books right now." terminate_event: true.

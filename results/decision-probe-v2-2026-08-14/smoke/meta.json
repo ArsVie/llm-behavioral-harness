@@ -1,0 +1,37 @@
+{
+  "mode": "real",
+  "model": "deepseek-v4-flash",
+  "seed": 20260814,
+  "K": 1,
+  "pool": 1,
+  "pilot": false,
+  "doses_per_scenario": 1,
+  "transport": "native",
+  "scenarios": [
+    "s01"
+  ],
+  "doses": [
+    "ext-M10"
+  ],
+  "dose_set_kinds": [
+    "extremes"
+  ],
+  "doses_file": "results/decision-probe-v2-2026-08-14/mood_samples.json",
+  "n_legs": 1,
+  "n_parse_failures": 0,
+  "n_replayed": 0,
+  "n_reasoning_present": 1,
+  "started_at": "2026-08-14T22:53:12Z",
+  "finished_at": "2026-08-14T22:53:15Z",
+  "summary": {
+    "legs": 1,
+    "parse_failures": 0,
+    "replayed": 0,
+    "by_scenario": {
+      "s01": {
+        "legs": 1,
+        "parse_failures": 0
+      }
+    }
+  }
+}

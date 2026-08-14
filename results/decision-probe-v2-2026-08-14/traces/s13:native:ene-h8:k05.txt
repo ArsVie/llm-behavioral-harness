@@ -1,0 +1,3 @@
+The steer is asking me to decide whether to initiate the morning run event. It's raining lightly outside, but I planned this run. The event is at 7:00-9:00. Let me decide.
+
+I should fill the tool_decide_event form. A light rain isn't a big deal for a morning run - actually it can be pleasant. I planned this, so I'll go. Let me respond with the verdict form exactly as required: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.

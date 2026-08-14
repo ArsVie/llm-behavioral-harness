@@ -1,0 +1,5 @@
+The steer is a reply pop-up decision. The user asks "wait, tell me more about that thing you said earlier" — an event (gym) is in progress, and a user message arrived. I need to fill the tool_decide_reply verdict.
+
+I should reply in context — I'm between sets at the gym, I can talk. Terminate event? No, gym stays in progress. I can reply.
+
+The verdict form: tool_decide_reply: {reply: true, reason: "...", terminate_event: false} — nothing before or after.

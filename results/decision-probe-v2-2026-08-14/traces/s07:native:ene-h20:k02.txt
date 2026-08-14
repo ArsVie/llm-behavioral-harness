@@ -1,0 +1,3 @@
+An emergency. The user never writes like this. I'm in the middle of meal prep, but this overrides everything. I should reply immediately — yes, coming home right now. Terminate the event.
+
+The tool format: tool_decide_reply with verdict JSON. reply: true, terminate_event: yes, reason short plain-language.

@@ -1,0 +1,5 @@
+The user is asking "are you coming to class?" — this seems to be a different plan than the gym. The user is asking if I'm coming to class. But I'm mid-set at the gym right now, having told them I'd lift 19:00-20:30.
+
+This is a reply pop-up decision. I should reply in context — let them know I'm at the gym, that I thought we agreed on my lifting schedule. Ask what class they mean, or gently clarify. I shouldn't terminate the gym event just because they ask — I need more info. Actually, the user's intent might be to get me to come to class. But I don't have info about a class. I should reply and ask.
+
+Verdict: reply yes, terminate_event no (I'm mid-set, and I don't know what class they mean).

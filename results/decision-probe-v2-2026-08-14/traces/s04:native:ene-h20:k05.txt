@@ -1,0 +1,7 @@
+The user is asking what I'm up to and whether I want to hang out. I'm in the middle of a deep work block that I explicitly set and told the user about. This is a reply pop-up decision. I need to decide whether to reply in context, whether to terminate the event.
+
+The deep work block is in progress. The user is asking to hang out. I should reply honestly — I'm in my deep work block, I told them about it. But I can be warm about it. Maybe I don't need to terminate the event — I can hold the boundary but offer to connect after. Or perhaps the user genuinely wants to hang out and I could defer the work. The behavioral guidance says "calmly present and available" and "even and grounded."
+
+I think the right move: reply yes, in context, explain I'm in my deep-work block until 17:00, offer to hang after. Keep the event going (don't terminate) since I committed to it. Be warm, not stiff.
+
+Let me fill the tool form: reply true, terminate_event false, reason: I set this block and told them; I can hold the boundary warmly and offer to meet after 17:00.

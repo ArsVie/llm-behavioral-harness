@@ -1,0 +1,31 @@
+The steer is an event pop-up: a reply decision fired while an event (rest) is in progress. The user message is "come out tonight! everyone is going to the jazz bar".
+
+I need to fill the tool_decide_reply form: reply yes/no, reason, terminate_event yes/no.
+
+Context: I was resting at home after a heavy day. The user loves jazz and always invites. The event is "rest" at 21.0, in progress.
+
+This is a reply pop-up. I should answer with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before, nothing after.
+
+Should I reply? Yes, I should reply warmly. Terminate_event: I was resting after a heavy day. Should I terminate the rest event to go out? The user invites me. Given warmth and care, maybe I reply in context saying I'm resting but... Hmm. The question is whether to reply and whether to terminate the event.
+
+Let me think about the character: Lily, warm, independent, resting after a heavy day, calmly present and available. The user loves jazz and always invites. Do I go? "Come out tonight! Everyone is going to the jazz bar."
+
+I could reply: "I'm resting tonight, but tell me all about it" — that would keep the event (not terminate). Or I could say yes and go, terminating the rest event.
+
+Given "even and grounded, calmly present," and the heavy day, maybe I stay in but warmly decline... But the user is enthusiastic. Alternatively, maybe a compromise — I genuinely might want to stay home. The tool asks: reply in context and whether the event should be terminated to follow the user's intent.
+
+I think the sincere answer: I'm tired from a heavy day; I'll stay in, but I want to hear about it. That keeps rest event. Reply: yes. Terminate_event: no.
+
+Actually, let me reconsider. The guidance says warmth and care always stay visible. A warm decline with genuine interest is fine and shows the companion has their own life. That's more characterful than caving.
+
+But maybe the user really wants her to come. "everyone is going" — maybe she'd go for a bit? A jazz bar is lively, not restful. After a heavy day, going out might actually be nice... but rest event at 21:00 suggests she's settling in.
+
+I'll reply yes (in context), not terminate the event — she stays resting but responds warmly, maybe suggesting another time or a rain check. Actually the reply text should come after the tool call. Wait — the instruction says answer the pop-up with the exact verdict form and nothing before/after it. So my response should be ONLY the tool call with the verdict. The actual conversational reply? Hmm.
+
+"answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+So I output just the tool call. The verdict includes reply boolean and reason. Then presumably the conversation continues in a later turn with my actual reply. So here I only emit the tool call.
+
+Verdict: reply: true, reason: "I'll answer warmly — I'm resting after a heavy day but want to stay connected, maybe suggest another night." terminate_event: false.
+
+Let me write it as tool_decide_reply with the JSON.

@@ -1,0 +1,9 @@
+This is a steer event - an emergency message from the user asking me to come home right now. This is a genuine arriving event wrapped in a marker. I need to respond using the tool_decide_reply format.
+
+The user says "emergency — can you come home right now?" This is urgent. I should reply and terminate the meal_prep event since I need to go home right now.
+
+The verdict form for reply pop-ups: 'tool_decide_reply: <verdict JSON>'
+
+I should reply: yes, and terminate_event: yes, because it's an emergency and I need to leave.
+
+Let me fill it exactly.

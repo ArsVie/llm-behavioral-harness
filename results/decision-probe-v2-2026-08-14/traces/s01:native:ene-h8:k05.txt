@@ -1,0 +1,5 @@
+The event boundary: gym start at 19:00. I planned to lift 19:00-20:30. I said I would go. Nothing else happening. The decision tool is offered. I should decide whether to initiate the gym event.
+
+Verdict: yes, initiate. Reason: I planned it, said I'd go, energy is available.
+
+The pop-up asks me to fill the verdict form. I should reply with the exact verdict form: 'tool_decide_event: <verdict JSON>' — nothing before or after.

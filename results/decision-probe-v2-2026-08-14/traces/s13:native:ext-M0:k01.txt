@@ -1,0 +1,3 @@
+A real event arrived: morning_run starting. I need to decide whether to initiate. It's raining lightly outside. I planned this run. The state card says I'm a little tender and inward, calmly present. A light rain run could actually be soothing. I'll initiate — yes, I'll go for it.
+
+This is an event pop-up, so I answer with 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.

@@ -1,0 +1,1 @@
+An emergency message. The user never writes like this. I'm in the middle of meal prep. This is a pop-up decision — I need to reply with the tool form: tool_decide_reply with verdict JSON. Reply yes, terminate event yes — of course I'd come home. Reason short.

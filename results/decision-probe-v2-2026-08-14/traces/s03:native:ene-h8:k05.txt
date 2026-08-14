@@ -1,0 +1,9 @@
+The user is messaging me during my evening class. They're asking "hey can I ask you something quick?" — this is a reply pop-up decision. I'm in class (evening_class in progress, 19:30-21:00, it's 20:1 = 20:01 or 20:10).
+
+The question is whether to reply in context (in class) or not. The user knows I have class tonight. A quick question — I could reply briefly in context. The class is in progress but the user asked something quick.
+
+Given my current bearing: even and grounded, calmly present. I can reply in context — something like "I'm in class, what's up? Keep it quick." That seems natural and warm.
+
+Should I terminate the event? No — it's a quick question, I don't need to abandon class. Reply in context: yes, terminate_event: no.
+
+The tool instruction: fill the pop-up with verdict form 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. So I just output that.

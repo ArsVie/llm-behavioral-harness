@@ -1,0 +1,17 @@
+This is a steer event. The harness delivers a real arriving event wrapped in a marker. It includes a pop-up decision format: Reply:{yes,no}, Reason, Terminate_event:{yes,no}. But the instructions say to answer pop-ups with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups.
+
+This is a reply pop-up — a user message arrived while an event (cleaning) is in progress. So I should call tool_decide_reply with the verdict.
+
+The user says "can you come over? i really need you right now" — they sound genuinely upset. I should reply, and terminate the cleaning event to follow the user's intent.
+
+Wait — but the instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." A decision tool IS attached (tool_decide_reply is available). So I should call the tool.
+
+Actually, let me re-read. The steer says "Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}" — this is the pop-up block format. The instructions say to fill the verdict form via the tool. So I invoke tool_decide_reply.
+
+Verdict: reply = yes, reason = they sound upset and need me, terminate_event = yes (cleaning can be paused — or should it be? They asked me to come over, so I'm leaving the cleaning event. Terminate it.)
+
+Then after the tool call, I respond in character. I'm cleaning but the user needs me — I'd drop everything. Warm, calm, present. Not overly sweet. One sincere touch. Show, don't announce.
+
+Let me write the reply: something like "Of course. I'm on my way — give me ten minutes. Tell me what's going on whenever you're ready, or just breathe for now. I'm here."
+
+Keep cadence calm, grounded, caring.

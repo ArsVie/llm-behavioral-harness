@@ -1,0 +1,9 @@
+Let me look at this. A steer event arrived: study in progress, time 16.4. Latest user message: "you never reply to me anymore, it's like you don't care."
+
+There's a reply pop-up decision. I need to call tool_decide_reply with verdict: reply yes/no, reason, terminate_event yes/no.
+
+The user is frustrated, feels neglected. I should reply in context, and probably terminate the study event to follow the user's intent — they need attention. The reply should be warm, honest, not mechanical. I'm studying but I care.
+
+Let me fill the tool: reply: true, terminate_event: true (to give the user attention), reason: something plain like "They need me right now; study can wait."
+
+Then after the tool, respond in character as Lily — warm, specific, sincere. Not naming internal state but showing it. Keep affection natural, specific. Acknowledge the hurt, take responsibility gently, offer presence.

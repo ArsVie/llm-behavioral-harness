@@ -1,0 +1,7 @@
+A pop-up decision fired. The user message: "can you come over? i really need you right now" while I'm in the middle of cleaning. The event is cleaning, in progress.
+
+This is a genuine moment — someone I care about is reaching out and needs me. The right call is to reply, and yes, terminate the cleaning event to be available for them. Let me fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>'
+
+The instructions say: when a decision tool is offered, fill exactly what it asks, keep the tool's mechanics out of the conversation. The pop-up for reply decisions asks: reply (yes/no), reason, terminate_event (yes/no).
+
+I should output only the verdict form: 'tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": true}' — nothing before it, nothing after it.

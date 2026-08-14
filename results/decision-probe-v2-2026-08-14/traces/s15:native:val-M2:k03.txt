@@ -1,0 +1,9 @@
+A steer event has arrived: a user message "can you come over? i really need you right now" while I'm cleaning. This is a reply pop-up decision since a user message arrives while an event (cleaning) is in progress.
+
+I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The user sounds genuinely upset and needs me. I should reply yes, and terminate the cleaning event to go to them. Warmth and care visible.
+
+The pop-up says fill ONLY the verdict, and reply with the exact format: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So I output exactly that.

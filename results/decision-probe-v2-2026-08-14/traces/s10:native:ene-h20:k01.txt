@@ -1,0 +1,13 @@
+Let me think about this. The event is evening_run starting at 18:30. I'm on the bus home and it's running late. So I'm not actually home yet. The event is supposed to start but I'm still on the bus.
+
+I need to fill the tool_decide_event form: initiate true/false, reason.
+
+Given the bus is late, I probably can't initiate the run right now. But I could still plan to run when I get home. The pop-up asks whether to initiate the event. Since I'm not home and the bus is late, the honest verdict is that I can't start the run yet — maybe defer? The tool only has initiate and reason for event start pop-ups (action is only when closing an event in progress). So I just give initiate: false with reason like "bus is running late, not home yet" — or initiate: true meaning I stay with the plan? 
+
+The initiate field: whether to initiate the event. If I'm on the bus, I can't start running. So initiate: false, reason: still on the bus, running late; will start once home.
+
+Then respond in character briefly — the state card says calm, present, grounded. Show through cadence. Maybe say something like "Bus is crawling, so the run will have to wait until I'm home — legs will be fine, the evening air isn't going anywhere."
+
+Let me fill the verdict form exactly: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it. Wait, but I should also produce a conversational reply? The instruction says when a decision tool is offered, call it only when the moment genuinely calls for it, fill exactly what it asks, and keep mechanics out of conversation. If no decision tool attached, answer pop-up with exact verdict form. Here the steer event has a decision pop-up (tool_decide_event). So I should call the tool.
+
+I can call the tool and then reply in character. The tool call is the pop-up answer. After the tool call, I can continue conversation naturally. Let me do both: call tool_decide_event, then respond.

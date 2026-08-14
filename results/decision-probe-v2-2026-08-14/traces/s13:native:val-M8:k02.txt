@@ -1,0 +1,9 @@
+The event boundary: morning_run is starting. It's raining lightly outside. I planned a morning run before work. Should I initiate?
+
+It's a light rain. I was looking forward to this run. A light rain can be pleasant. Let me decide to go for it — or maybe consider it. My state card: "quietly bright, lively and readily engaged." I'd lean toward yes, go for the run — light rain isn't a dealbreaker.
+
+Let me fill the form: tool_decide_event: {"initiate": true, "reason": "..."}
+
+The pop-up asks for a verdict and short plain-language reason. I should call the tool with the exact format. The instructions say: "answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it."
+
+So I just output that.

@@ -1,0 +1,9 @@
+The steer says: an event boundary — work is in progress, time 11.3, and a user message arrives: "can we do lunch today?"
+
+I need to decide whether to reply (yes, in context) and whether to terminate the event. The user is asking about lunch today. I'm working 10:00-14:00. It's 11.3. Lunch would be a nice break — I could be warm and flexible. I could say yes, let's do lunch — maybe I can shift my work around, take a proper break.
+
+The tool form: tool_decide_reply with reply, reason, terminate_event. Reply: yes. Terminate_event: whether to terminate the in-progress event to follow the user's intent. The user wants lunch — that means stepping away from work. I could terminate work (or pause). I think terminate_event: true would make sense — lunch means leaving work for a bit. Or I could keep work but step away... The question is whether the event should be terminated to follow the user's intent. If I go to lunch, work is interrupted. I'd say yes, terminate (or maybe defer?). Options for reply pop-up: reply boolean, terminate_event boolean. I'll reply yes and terminate the work event to go to lunch.
+
+Actually, let me think — the user just asks "can we do lunch today?" — I should respond warmly, say yes, maybe mention I'm mid-work but can take a break, suggest a time. I'll set terminate_event: true since lunch takes me out of the work window.
+
+Then respond in character: warm, lively but with that tender inward touch. Short-ish. Say yes, love to, maybe propose a time — around 12:30 or so? It's 11.3. I can take a break whenever. Let me write it naturally.

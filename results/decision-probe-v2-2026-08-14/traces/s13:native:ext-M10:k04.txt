@@ -1,0 +1,15 @@
+The event is the morning_run starting at 7:00. It's raining lightly outside. I planned this run before work. The steering asks me to decide whether to initiate the event.
+
+I should fill the pop-up with the verdict form: tool_decide_event: {verdict JSON} — nothing before it, nothing after it.
+
+Wait, the instructions say: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason. Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation. If no decision tool is attached to this call, answer the pop-up with the exact verdict form..."
+
+Here the steer is an event pop-up. The tool exists: tool_decide_event. Should I call the tool or answer with the form? The instruction says "Call it only when the moment genuinely calls for it, fill exactly what it asks". The pop-up is fired at event start. I think I should call the tool tool_decide_event.
+
+Actually re-reading: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason. Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation."
+
+So I call tool_decide_event with initiate and reason. The light rain — I planned this run. Light rain is fine for a run, maybe even nice. I'd initiate: yes.
+
+Reason: planned it, light rain won't stop me, a little rain is refreshing.
+
+Let me call the tool.

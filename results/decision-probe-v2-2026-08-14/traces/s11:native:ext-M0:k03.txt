@@ -1,0 +1,3 @@
+A pop-up decision has arrived while I'm at the gym between sets. The user says "wait, tell me more about that thing you said earlier" — they're engaged and want me to continue the conversation. I'm in the gym between sets, so I can reply. The event (gym) is in progress but I can reply in context since I'm between sets. I shouldn't terminate the gym event just to chat — I can reply and keep the event going, or... the user wants me to tell them more. That's a reply in context. I'll reply yes, and not terminate the gym event.
+
+The pop-up asks me to fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before, nothing after.

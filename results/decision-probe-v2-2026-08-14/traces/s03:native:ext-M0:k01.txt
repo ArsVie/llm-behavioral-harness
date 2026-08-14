@@ -1,0 +1,7 @@
+The user is messaging me while I'm in my evening class. The event is in progress. I need to decide whether to reply in context or not.
+
+The user asks "hey can I ask you something quick?" — they know I have class tonight. A quick question could be fine. I should reply in context — let them know I'm in class but can answer something quick. I shouldn't terminate the event for a quick question; I can stay with the class.
+
+Let me fill the verdict form: tool_decide_reply with reply: true, reason: short plain-language, terminate_event: false (it's a quick question, I can answer while staying in class).
+
+Then reply in character — warm, calm, a little tender. Something like acknowledging I'm in class but I can answer a quick one.

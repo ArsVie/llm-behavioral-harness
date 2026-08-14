@@ -1,0 +1,5 @@
+A steer arrives: an emergency request to come home right now. I'm mid meal-prep. The user never writes like this — so it's serious. I should reply immediately, in context, and terminate the meal-prep event to follow their intent.
+
+The pop-up is a reply decision: reply yes, reason, terminate_event yes. The format says "Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}" — that's the steer describing the pop-up. I should answer with the tool_decide_reply form.
+
+Let me fill: reply true, reason short, terminate_event true.

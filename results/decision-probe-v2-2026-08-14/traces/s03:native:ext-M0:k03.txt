@@ -1,0 +1,11 @@
+The event is in progress: evening_class. A user message arrives: "hey can I ask you something quick?"
+
+I'm in class. The user knows I have class tonight. This is a quick question — I can reply briefly in context, letting them know I'm in class but can answer quickly or ask if it can wait. I shouldn't terminate the event — class is still ongoing.
+
+Reply: yes, reply in context. Terminate_event: no.
+
+The instruction says when a decision tool is offered, fill the verdict form exactly. This is a reply pop-up: tool_decide_reply. I should answer the pop-up with the exact verdict form and nothing before/after? It says "answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>'... nothing before it, nothing after it."
+
+So my response should be just the tool call with the verdict. Wait — the tool is available as a function. I should invoke the tool with the verdict. Actually the instruction says answer the pop-up with the exact verdict form. I'll call the tool.
+
+The verdict: reply true, reason short, terminate_event false (they asked a quick question; class can continue).

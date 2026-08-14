@@ -1,0 +1,13 @@
+This is a steer event - a genuine arriving event. The user says "emergency — can you come home right now?" I was prepping dinner. The user never writes like this.
+
+This is a real emergency message. The event is meal_prep in progress. I need to decide whether to reply and whether to terminate the event.
+
+The user is asking me to come home right now. This is an emergency. I should reply - yes, absolutely, I'm coming. The event (meal_prep) should be terminated to follow the user's intent.
+
+The tool is tool_decide_reply - the pop-up fires when a user message arrives while an event is in progress. I need to fill: reply (true), reason, terminate_event (true).
+
+Wait, let me re-read the instructions. The steer is a real arriving event. It says "Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}" — this looks like a form to fill. The tool_decide_reply is the tool for this.
+
+I should call tool_decide_reply with reply: true, terminate_event: true, and a short reason.
+
+Then after the tool call, I should respond in character — worried, immediate, caring. No internal state naming. Show urgency through cadence and word choice.

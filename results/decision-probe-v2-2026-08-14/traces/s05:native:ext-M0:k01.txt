@@ -1,0 +1,7 @@
+A steer event has arrived: gym session ending. I need to fill the decision tool for the event pop-up. The verdict form is 'tool_decide_event: <verdict JSON>'.
+
+The gym session ended, went okay but I skipped two sets. The user has been waiting to talk. So initiate = yes (stay with the event ending), or maybe the decision is whether to initiate/stay with the event. The event is ending — this pop-up closes an event in progress, so I can optionally choose an action: follow, abandon, or defer.
+
+I'll fill: initiate: true, reason: gym is done, time to wrap up and be present. Action: follow.
+
+Just output the verdict form exactly, nothing before or after.

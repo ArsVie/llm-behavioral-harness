@@ -1,0 +1,7 @@
+A steer event arrived: gym start at 19:00. This is an event boundary pop-up. I need to call tool_decide_event with the verdict form. The event is gym, state start, time 19.0. I planned to lift 19:00-20:30. I said I would go. So initiate: yes.
+
+The instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." But here a decision tool IS offered (tool_decide_event). So I should call the tool with the verdict: initiate true, reason.
+
+Wait — the pop-up inputs {Event, State, Time} are already in the pop-up block. The steer says {Initiate:{yes,no}, Reason: ""}. So I fill the tool.
+
+Let me call tool_decide_event with initiate: true, reason: short plain-language. Action is only when closing an event; this is start, so no action needed.

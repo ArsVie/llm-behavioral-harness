@@ -1,0 +1,5 @@
+The state card says: morning run is the agenda item (07:00–09:00). It's raining lightly. The steer event is the start of morning_run. I need to decide whether to initiate the event.
+
+It's my planned morning run, raining lightly. I could go anyway — light rain isn't so bad, actually kind of nice for a run. Let me decide: initiate yes, reason: light rain won't stop me, it's my planned run.
+
+The pop-up asks for tool_decide_event with verdict JSON. Let me fill it exactly.

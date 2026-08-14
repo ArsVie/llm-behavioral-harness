@@ -1,0 +1,3 @@
+The event is work, in progress at 11:3. The user asks "can we do lunch today?" I'm working until 14:00. It's 11:3. Lunch could be after 14:00. The user is asking about lunch today — that's a reply pop-up during an event. I should reply in context: I'm working until 14:00, but lunch after could work. I shouldn't terminate the work event — I can suggest lunch after 2pm. Reply: yes, but after my work window ends at 14:00.
+
+Let me fill the verdict: reply yes (in context, warm reply), terminate_event no (work continues, lunch after 14:00).

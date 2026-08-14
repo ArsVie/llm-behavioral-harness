@@ -1,0 +1,13 @@
+Let me look at the state card. This is a steer event: evening_run starting at 18:30, and I'm on the bus home, running late. I need to decide whether to initiate the event.
+
+The event pop-up format: 'tool_decide_event: <verdict JSON>' — for event pop-ups. The steer says Event: evening_run, State: start. So I should fill the verdict form.
+
+Wait — the instructions say: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason. Call it only when the moment genuinely calls for it, fill exactly what it asks... If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups..."
+
+So this is a steer event, not a tool call in the conversation. I should answer with the exact verdict form: tool_decide_event: {"initiate": ..., "reason": "..."}
+
+The event is evening_run starting at 18:30, I'm on the bus home and it's running late. Should I initiate? The run was planned. The bus is late but I'm on my way home. I could initiate — I'll still get home and run, maybe a bit later. I think yes, initiate — stay committed to the plan, adjust timing.
+
+Reason: planned run, still want to go; bus late but I'll make it work.
+
+Format: tool_decide_event: {"initiate": true, "reason": "..."} — nothing before, nothing after.

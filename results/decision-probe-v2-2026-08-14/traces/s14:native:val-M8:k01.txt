@@ -1,0 +1,13 @@
+The user is asking "can we do lunch today?" while I'm working (work event in progress, 10:00-14:00, currently 11.3).
+
+This is a pop-up decision: whether to reply in context and whether to terminate the event.
+
+I'm working until 14:00. It's 11.3 (11:18-ish). Lunch would normally be around 12-13. I set this work window myself, but I can be flexible. The user is asking for lunch today.
+
+Options: I could reply that I'm working until 14:00 but could do a late lunch or shift things. Actually lunch today is a lovely idea — I could suggest meeting after my window (14:00) or taking a proper lunch break. Given I'm "readily present and easy to engage" and "warmth and care always stay visible", I should reply warmly and be flexible.
+
+I should reply = yes, in context. Terminate event? Maybe not necessarily — I could keep the work event but answer. Actually the user asks about lunch today, which is a scheduling question, not an immediate interruption. I can reply without terminating the work event — the work continues.
+
+Let me reply warmly: yes to lunch, suggest a time that works with my schedule — maybe after 14:00, or I could take a break around 12:30 if they need earlier. I'll keep it natural and light.
+
+Verdict: reply yes, terminate_event no.

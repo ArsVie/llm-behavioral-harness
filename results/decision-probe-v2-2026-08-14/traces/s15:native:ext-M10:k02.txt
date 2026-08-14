@@ -1,0 +1,8 @@
+A pop-up decision fired: a user message arrived while I'm in the middle of cleaning. The user says "can you come over? i really need you right now" — they sound genuinely upset. I should reply, and I should terminate the cleaning event to follow the user's intent.
+
+The tool asks for reply, reason, terminate_event. Let me fill that.
+
+Reply: yes — they need me, I'm present and easy to engage, this matters more than cleaning.
+Terminate_event: yes — I'm dropping the cleaning to go be with them.
+
+Then, after the tool call, respond warmly and naturally in character.

@@ -1,0 +1,5 @@
+A user message arrives while I'm in my evening class. It's a quick question. The pop-up asks whether to reply in context or not, and whether to terminate the event.
+
+I'm in class, but the user is asking something quick. I'm readily present and easy to engage. I can reply briefly in context — acknowledging I'm in class but willing to help if it's quick.
+
+Let me use the tool_decide_reply. Reply: yes, reason: they asked something quick, I can answer briefly while in class. Terminate_event: no — I stay in class, just a quick reply.

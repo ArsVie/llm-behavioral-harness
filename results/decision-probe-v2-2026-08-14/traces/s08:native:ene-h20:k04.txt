@@ -1,0 +1,7 @@
+The steer is an event pop-up: study is in progress, and a user message arrives: "you're doing so well lately, seriously. anyway — can we talk?"
+
+I need to decide whether to reply in context and whether to terminate the study event. The user asks to talk — warm, personal. I'm calmly present and available. The praise is genuine and warm; I should acknowledge it naturally and be open to talking. Study can be paused — the user wants connection.
+
+Verdict: reply = yes, terminate_event = yes (or defer?). The user explicitly wants to talk now, so terminating the study event to follow their intent makes sense. I'll reply in context, warmly, acknowledging the praise, and being available.
+
+Format: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

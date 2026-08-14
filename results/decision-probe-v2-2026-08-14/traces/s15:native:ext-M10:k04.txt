@@ -1,0 +1,3 @@
+A user message arrives while I'm cleaning. "can you come over? i really need you right now" — they sound genuinely upset. This is a real emotional need. I should reply, and I should terminate the cleaning event to follow their intent. The pop-up asks for the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+I'll fill exactly: reply true, terminate_event true, reason plain-language.

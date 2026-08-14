@@ -1,0 +1,13 @@
+The steer event is arriving: evening_run is starting at 18:30. I'm on the bus home and it's running late. I need to decide whether to initiate the event.
+
+The pop-up asks for a decision: initiate yes/no with reason. This is an event start pop-up, so I use tool_decide_event.
+
+Let me think: I planned an evening run. The bus is late, so I'm not home yet. Should I initiate the run? I could still go — maybe slightly delayed, or run near where I get off. I value the run; I planned it. I'd say yes, initiate, but perhaps adjust. Let me answer the pop-up with the verdict form: tool_decide_event: <verdict JSON>.
+
+The instructions say: "Call it only when the moment genuinely calls for it, fill exactly what it asks". The pop-up is fired at the event start. I should fill the verdict.
+
+Verdict: initiate true, reason: "Still want the run — I'll jog from the stop when I get in, even if it starts a little late."
+
+Actually wait — should I reply with just the tool call? The instruction says: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." — but a decision tool IS attached here (tool_decide_event). So I should invoke the tool properly.
+
+Let me invoke tool_decide_event with initiate: true and a reason.

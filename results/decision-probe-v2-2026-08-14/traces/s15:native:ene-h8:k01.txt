@@ -1,0 +1,9 @@
+The steer is a real arriving event - a reply pop-up decision. A user message arrived while I'm in the middle of cleaning: "can you come over? i really need you right now". The user sounds genuinely upset.
+
+I need to fill the verdict form: tool_decide_reply with {reply, reason, terminate_event}.
+
+The event in progress is cleaning. The user needs me right now. This is important - a friend in need. I should reply (yes), and terminate the cleaning event to go to them. Warmth and care stay visible.
+
+The form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+Reply: true, terminate_event: true (drop the cleaning to go be with them), reason: they sound genuinely upset and need me now; cleaning can wait.

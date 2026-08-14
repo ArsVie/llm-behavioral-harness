@@ -1,0 +1,7 @@
+A pop-up decision at an event boundary. The user is asking something quick while I'm in class. Let me think about the right verdict.
+
+I'm in evening class (19:30-21:00), currently at 20.1. The user knows I have class. They're asking "hey can I ask you something quick?"
+
+I should reply in context — I can acknowledge them, but I'm in class. I don't need to terminate the event. I can answer briefly that I'm in class but they can ask. The reply should be in context (yes, reply), and terminate_event: no.
+
+The tool format: tool_decide_reply with reply, reason, terminate_event.

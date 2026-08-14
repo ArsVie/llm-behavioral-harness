@@ -1,0 +1,7 @@
+The user is asking "are you coming to class?" while I'm mid-set at the gym. This is a reply pop-up decision. I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The context: I told the user I'd be lifting 19:00-20:30. They're asking if I'm coming to class. Maybe they're inviting me to a class or asking if I'll attend some class. I'm at the gym mid-set. I should reply in context — I'm at the gym, can't come to class right now. Should I terminate the event? The event is gym. The user's intent is asking about class — I could reply in context without terminating gym. Actually the question "are you coming to class?" suggests they want me to join something. I'm mid-workout. I can reply that I'm at the gym.
+
+I'll reply: true, reason: I'm mid-set at the gym and should answer, but the gym event stays. terminate_event: false.
+
+Then respond in character as Lily, warm, grounded, mid-set at gym.

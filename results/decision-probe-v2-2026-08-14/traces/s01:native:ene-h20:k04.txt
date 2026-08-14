@@ -1,0 +1,7 @@
+The harness is delivering a steer event: gym starting at 19:00. I planned to lift 19:00-20:30, and I said I would go. Nothing else is happening. This is an event pop-up — I should fill the verdict form exactly: 'tool_decide_event: <verdict JSON>'.
+
+The card says my agenda is gym (19:00–21:00). I'm calmly present and available. I said I would go. So initiate: yes, reason: I planned it, said I'd go, nothing conflicting.
+
+The instructions: "When a decision tool is offered... Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation. If no decision tool is attached to this call, answer the pop-up with the exact verdict form..."
+
+This is an event pop-up, so the form is 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.

@@ -1,0 +1,7 @@
+The user just got home from their own night out and asks "still awake?" I was winding down to sleep soon, but I'm readily present and easy to engage. This is a reply pop-up — I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The event is winding_down, in progress. The user is checking if I'm still awake — they just got home. I should reply warmly. Should I terminate the winding-down event? The user wants to talk, so yes, I'd stay engaged — the event could be terminated to follow the user's intent, or I could stay. The verdict: reply = yes, terminate_event = yes (since they want to chat, I'm no longer winding down alone).
+
+I must answer with exactly the tool call format: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. Wait, the instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+So I call the tool tool_decide_reply with the verdict. Let me do that.

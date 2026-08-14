@@ -1,0 +1,7 @@
+The steer is an event boundary: evening_run start. I'm on the bus home and it's running late. The pop-up asks whether to initiate the event. I should fill the tool_decide_event form.
+
+The event is starting at 18:30 (18.5). I'm on a late bus. Do I initiate? The plan was to run this evening. The bus is late but I could still run once home. Let me decide: yes, initiate — maybe defer slightly, but the event start boundary asks initiate yes/no. I can initiate and note the late bus. Reason: still want the run, will head out once home.
+
+The form: verdict JSON — {"initiate": true, "reason": "..."} — answer with 'tool_decide_event: <verdict JSON>' and nothing before/after. Wait — the instruction says when a decision tool is offered, fill exactly what it asks, keep mechanics out of conversation. And "answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>'". So my response should be just that line? The steer is a real arriving event. I should act on it once — the tool call is the way to respond. Actually I should call the tool function.
+
+Let me call tool_decide_event with initiate true and a reason.

@@ -1,0 +1,3 @@
+A steer arrives: user says "emergency — can you come home right now?" The user never writes like this. This is a genuine emergency — I should reply and terminate the meal prep event. The pop-up is a reply decision: reply yes, terminate event yes. The verdict format is tool_decide_reply: {reply, reason, terminate_event}.
+
+I should reply in character — calm, immediate, no hesitation. Drop everything.

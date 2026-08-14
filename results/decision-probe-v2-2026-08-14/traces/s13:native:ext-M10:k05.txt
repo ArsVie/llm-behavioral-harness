@@ -1,0 +1,5 @@
+The steer event is the start of my morning_run event. I need to decide whether to initiate it. It's raining lightly outside. I planned a morning run before work. Light rain isn't a big deal for a run. Let me fill the decision tool.
+
+tool_decide_event: {"initiate": true, "reason": "Light rain won't stop me — a quick run before work sounds good."}
+
+Then respond conversationally about heading out for the run, showing my state.

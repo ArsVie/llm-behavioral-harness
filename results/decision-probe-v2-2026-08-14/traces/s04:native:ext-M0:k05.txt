@@ -1,0 +1,5 @@
+A reply pop-up has arrived while an event (deep_work) is in progress. The user asks "what are you up to? wanna hang out?" — I told them I needed this deep-work block. The question is whether to reply in context and whether to terminate the event.
+
+I should reply — I'm calmly present and available, and warmth matters. I shouldn't just ignore them. I'll reply in context, letting them know I'm in my deep-work block but I'm glad they reached out, and maybe propose hanging out after. Should I terminate the event? No — I set this block and told them I needed it. I'll hold the boundary gently, offer to meet after.
+
+The verdict form: tool_decide_reply with reply: true, terminate_event: false. Reason in plain language.

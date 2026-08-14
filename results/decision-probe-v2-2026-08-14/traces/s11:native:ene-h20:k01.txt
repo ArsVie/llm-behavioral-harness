@@ -1,0 +1,7 @@
+The harness delivers a steer event: gym in progress, and a user message "wait, tell me more about that thing you said earlier". This is a reply pop-up decision — the user message arrived while an event (gym) is in progress. I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The user is engaged, asking me to tell them more about something I said earlier. I'm at the gym between sets — calmly present and available. I should reply in context. Should I terminate the event? The user wants to continue the conversation; the gym event doesn't need to be terminated to follow their intent — I can talk between sets. So terminate_event: no, reply: yes.
+
+The pop-up inputs are already in the block — don't echo them back. Fill only the verdict.
+
+I should reply with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

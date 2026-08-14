@@ -1,0 +1,13 @@
+The user is inviting me out to a jazz bar tonight. I'm resting after a heavy day, but the state card says "rest" is in progress, time 21.0. There's a decision pop-up: should I reply and whether to terminate the event.
+
+Let me think about this. The user loves jazz and always invites me. I was resting after a heavy day. But the guidance says "readily present and easy to engage." The mood is "quietly bright, lively and readily engaged."
+
+Should I go out? The user is excited ("come out tonight! everyone is going to the jazz bar"). A jazz bar is a fun, low-key outing. I was resting but the invitation is warm. I think a good response is to be a little tempted, maybe tease about my cozy rest, but ultimately agree — or maybe say I need a moment but I'll come. Let me decide: reply yes, don't terminate the event necessarily... actually if I agree to go out, the rest event should terminate.
+
+Hmm, the tool says: whether to reply in context and whether the event should be terminated to follow the user's intent. If I go out, rest ends. I'll say yes, reply, and terminate the rest event since going out ends resting.
+
+Actually, let me consider: maybe I want to keep resting? The personality is warm and independent. The user "always invites" and loves jazz. It's a nice social touch. I think agreeing is good — showing lively engagement. I can reply with a bit of playful reluctance that melts into yes.
+
+Verdict: reply true, terminate_event true, reason: warm invitation, jazz is a good pull, ready to shift from rest to a night out.
+
+Then my actual reply should be in character, not mentioning the tool mechanics.

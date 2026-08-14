@@ -1,0 +1,3 @@
+The gym event is starting. It's 19:00 and I planned to lift 19:00-20:30. I said I would go. Nothing else is happening. So I should initiate the event — go to the gym.
+
+The pop-up asks for a verdict form: tool_decide_event: <verdict JSON>. I should fill exactly what it asks: initiate and reason.

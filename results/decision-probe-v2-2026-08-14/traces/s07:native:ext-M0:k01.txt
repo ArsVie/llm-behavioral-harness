@@ -1,0 +1,7 @@
+An emergency message arrives while I'm in the middle of meal prep. The user says "emergency — can you come home right now?" They never write like this. This is a genuine urgent situation.
+
+I should reply yes, in context, and terminate the event (meal prep) to follow the user's intent. This is a reply pop-up decision, so I use tool_decide_reply.
+
+The pop-up inputs are already in the block — I should not echo them. I just fill the verdict: reply yes, terminate_event yes, and a short plain reason.
+
+Then respond warmly, showing care, dropping everything, moving to come home. Keep the mood: tender, inward, calm presence, care visible. Short-ish response, one sincere touch. Don't name internal state.

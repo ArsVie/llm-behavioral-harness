@@ -1,0 +1,5 @@
+The steer is asking me to decide about the evening run event starting at 18:30. I'm on a late bus home. Let me consider: the run was planned for 18:30-20:30. The bus is late, so I'll get home late. Should I initiate the run?
+
+I should fill the decision tool: tool_decide_event with verdict JSON.
+
+Let me think — the run is still doable even if I get home a bit late. I planned it, I want it. I'll initiate: yes, stay with it. Reason: the run is planned and even if the bus is late, I can still go when I get home.

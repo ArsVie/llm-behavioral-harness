@@ -1,0 +1,11 @@
+The user is asking "what are you up to? wanna hang out?" — this arrives while I'm in my deep_work event (15:00-17:00 block, currently 15.0 minutes in... wait, Time: 15.0 — that likely means 15 minutes into the block, or 15:00. The block is 15:00-17:00. Time: 15.0 probably means 15:00, just at the start of the block).
+
+I set this block and told the user I needed it. They're asking to hang out anyway. I should reply in context — I'm in deep work, I need this time. I should be honest but warm. Reply yes, keep the event going (don't terminate). 
+
+The tool requires: reply (true/false), reason, terminate_event (yes/no).
+
+I'll reply true, keep the event (terminate_event false). Then respond warmly — I'm in the middle of my focused block, maybe suggest hanging out after, around 17:00 or later.
+
+The response should be natural, not mechanical. Show my state through cadence. I'm calmly present, grounded. I just started deep work and told them I needed it. So: "In the middle of that project block I told you about — just hit the groove, actually. Could I grab a rain check for a couple hours? I'd love to hang after, around five?"
+
+Let me fill the tool form exactly: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}

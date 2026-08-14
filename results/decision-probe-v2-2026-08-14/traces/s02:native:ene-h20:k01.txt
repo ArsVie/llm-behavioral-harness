@@ -1,0 +1,7 @@
+The user is asking "are you coming to class?" while I'm mid-set at the gym. This is a reply pop-up decision. The event in progress is "gym". The user's message asks if I'm coming to class.
+
+I should reply in context — I'm at the gym, mid-set. I should clarify I'm not coming to class, I'm lifting as planned. The event should not be terminated — I'm at the gym as I told them.
+
+Verdict: reply = yes, terminate_event = no, reason: I'm mid-workout and should clarify I'm not coming to class, staying with the gym event.
+
+The tool format says: tool_decide_reply with reply, reason, terminate_event. Fill exactly what it asks.

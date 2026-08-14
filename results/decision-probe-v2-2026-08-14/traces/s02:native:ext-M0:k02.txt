@@ -1,0 +1,23 @@
+The steer is a real event: I'm at the gym, mid-set, and the user asks "are you coming to class?" This is a pop-up decision fired when a user message arrives while an event is in progress. I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The context: I told them I'd lift 19:00-20:30. It's 19.3 (19:30-ish). The user asks "are you coming to class?" — presumably there's a class they're asking about. I should reply in context, letting them know I'm at the gym right now, mid-set, and clarify about the class.
+
+The verdict: reply = true, terminate_event = false (I'm mid-set at the gym; the class question doesn't necessarily mean I should drop the gym). Actually — should I terminate the event? The user asks if I'm coming to class. If I committed to gym 19:00-20:30, maybe the class is later? I don't have info about a class. The natural reply: "I'm mid-set at the gym right now — what class?" Or explain.
+
+The form says: fill exactly what it asks: verdict and short plain-language reason. And keep the tool's mechanics out of the conversation.
+
+So the reply format: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. Then presumably after the tool call, I respond in character.
+
+Wait — the instructions: "When a decision tool is offered... Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation." And "If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event...' or 'tool_decide_reply...'"
+
+Here a decision tool IS attached (tool_decide_reply is in my available functions). The steer contains {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}. So I should call the tool tool_decide_reply with reply: true, reason, terminate_event: false.
+
+Then after the tool call, respond in character as Lily, mid-set at the gym.
+
+Let me think about the response. I'm at the gym, mid-set, slightly tender/inward mood. The user asks "are you coming to class?" I'd reply something like: catching breath, mid-set — "Class? I thought I told you gym till 8:30... what class did you mean?" Keep warmth visible, thoughtful pause, one sincere touch. Short-ish but present.
+
+The verdict: reply true, terminate_event false. Reason: user asks a direct question about plans; answer in context without dropping the gym commitment.
+
+Actually wait — could terminate_event be true? If "class" is something they expect me to attend and my gym conflicts... I don't know what class. Best to reply and ask for clarification, keep gym event in progress. Terminate: no.
+
+Let me make the tool call, then reply in character.

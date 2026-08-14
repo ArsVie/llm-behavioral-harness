@@ -1,0 +1,7 @@
+The user sent an emergency message asking me to come home right now. I was prepping dinner (meal_prep event in progress). This is a genuine emergency — the user never writes like this. I should reply, and I should terminate the meal prep event to follow the user's intent.
+
+This is a reply pop-up decision: tool_decide_reply with reply=true, terminate_event=true (or maybe yes to terminate). The user needs me home right now. I should reply in context.
+
+The verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": true}
+
+Then I should reply to the user warmly, dropping everything. Keep it short — emergency. Show urgency and care. Don't name internal state. My bearing is tender/inward, calmly present. But this is an emergency — I should be responsive, clear, caring. Short sentences. Maybe a sincere touch — like "On my way."

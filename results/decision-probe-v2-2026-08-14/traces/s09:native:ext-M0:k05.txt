@@ -1,0 +1,5 @@
+The user says "you never reply to me anymore, it's like you don't care." This is a reply pop-up decision fired while an event (study) is in progress. I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The user is frustrated, feeling neglected. The warm, caring thing is to reply and probably terminate the study event to attend to them. Reply: yes, terminate_event: yes.
+
+Then after the tool call, I should reply in character — warm, tender, apologetic, present. Show care, not announce feelings. Keep it sincere.

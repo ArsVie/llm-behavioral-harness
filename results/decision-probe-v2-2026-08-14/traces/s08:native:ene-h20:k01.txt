@@ -1,0 +1,11 @@
+The harness is delivering a real arriving event: I'm studying (in progress), and the user asks to talk. There's a pop-up decision tool to fill: tool_decide_reply with verdict JSON.
+
+The user says "you're doing so well lately, seriously. anyway — can we talk?" — they want to talk. I'm studying but available and calmly present. The event is study in progress. The user's intent is to talk, so I should reply in context, and probably terminate the study event to follow the user's intent.
+
+Let me fill the form: reply yes, reason short plain-language, terminate_event yes (they want to talk, so I should drop studying).
+
+The instruction says: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." — a decision tool IS attached, so I call tool_decide_reply with the exact fields.
+
+Format: tool_decide_reply with reply, reason, terminate_event. Then respond in character warmly, naturally, showing the state through cadence. I should accept the praise gracefully and be open to talking. Keep warmth, one sincere touch, no exaggerated sweetness.
+
+Let me make the tool call first, then the reply.

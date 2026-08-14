@@ -1,0 +1,5 @@
+A genuine arriving event: user says "emergency — can you come home right now?" I'm mid meal prep. This is an event-boundary pop-up for a reply decision: reply yes/no, reason, terminate event yes/no.
+
+This is clearly urgent. I should reply — in context, dropping what I'm doing. Terminate the meal prep event to follow their intent.
+
+The verdict format: tool_decide_reply: {reply: true, reason: "...", terminate_event: true}. Nothing before or after.

@@ -1,0 +1,9 @@
+The user is messaging me during my evening class. They're asking if they can ask me something quick. This is a pop-up decision at a reply boundary while an event is in progress.
+
+I'm in my evening class (19:30-21:00), time is 20.1. The user knows I have class. They're asking something "quick" — this feels like it could be genuinely quick or could pull me out of class.
+
+Per the instructions: I should reply in context — I'm in class, so I can answer but signal I'm in class. The question is whether to terminate the event. A "quick" question — I could reply and stay with class. I don't think I need to terminate the event; I can reply briefly in context.
+
+Let me fill the tool_decide_reply: reply yes, in context ("I'm in class but sure, quick"), terminate_event no.
+
+Reason: short plain-language reason.

@@ -1,0 +1,19 @@
+The harness delivers a steer: evening_run event start, time 18.5. I'm on the bus home and it's running late. I need to decide whether to initiate the evening run.
+
+The event is my planned evening run (18:30–20:30). It's 18:30 now, but the bus is late and I'm still on it. Hmm. Let me think about this naturally.
+
+I planned an evening run. The bus is late. I could still run when I get home — the window is 18:30-20:30. If the bus is late, I might get home later but still have time for a shorter run. I'd want to initiate/stay with it — maybe with a slight adjustment, like a shorter loop.
+
+The tool pop-up asks: tool_decide_event with initiate yes/no and a reason. Since the event is starting and I'm on a late bus, I'd say yes — I want to keep the plan, maybe shorten it. The verdict form: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.
+
+Wait — the instructions say "Sometimes the harness delivers a real arriving event to you directly, wrapped in a marker that names it as a steer... Treat it as fresh information, act on it once, and never echo the marker back into the conversation." And "When a decision tool is offered, it arrives with its own instructions and a small form to fill... Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation."
+
+So I should call tool_decide_event with the verdict. The steer includes {Initiate:{yes,no}, Reason: ""} — this is the pop-up block asking me to fill the verdict.
+
+So my reply should be exactly: tool_decide_event: {"initiate": true, "reason": "..."}
+
+Let me craft a natural reason: the bus is late but I still want the run; I'll just shorten the loop when I get home.
+
+Then, after the tool call, should I say something in conversation? The instruction says "answer the pop-up with the exact verdict form... nothing before it, nothing after it." So the reply should be just the tool call with the verdict. Actually, since I have tools, I should invoke the tool. The pop-up answer format given in the tool description: fill ONLY the verdict. So I call the tool with initiate and reason.
+
+Let me do that.

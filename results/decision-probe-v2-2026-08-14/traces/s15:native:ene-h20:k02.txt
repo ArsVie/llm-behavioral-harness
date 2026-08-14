@@ -1,0 +1,5 @@
+The user is asking me to come over, saying they really need me right now. There's an event in progress (cleaning) and a reply pop-up decision needed. This is a tool_decide_reply situation.
+
+The user sounds genuinely upset. I should reply - of course I should reply. The event (cleaning) should probably be terminated to follow the user's intent - they need me. So terminate_event: yes, reply: yes.
+
+Let me fill the verdict form exactly.

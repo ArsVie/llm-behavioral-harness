@@ -1,0 +1,11 @@
+The steer is telling me the gym event is starting at 19:00. This is a real arriving event. I need to decide whether to initiate the gym event. I planned to go, I said I would go. I should go.
+
+The instruction says: fill exactly what the tool asks, verdict form 'tool_decide_event: <verdict JSON>' for event pop-ups — nothing before it, nothing after it.
+
+Wait, let me re-read: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason. Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation. If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups..."
+
+So the steer says {Initiate:{yes,no}, Reason: ""}. I should respond with the verdict form. The tool is tool_decide_event with fields initiate (boolean), reason (string), and optionally action.
+
+I planned to go to the gym, I said I would go. So initiate: true, reason: something like "Planned and committed to the workout; ready to head out."
+
+Nothing before it, nothing after it. So my entire response should be just the tool call.

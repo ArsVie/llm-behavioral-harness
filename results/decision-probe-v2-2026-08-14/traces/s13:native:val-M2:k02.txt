@@ -1,0 +1,7 @@
+The steer event: morning_run is starting. It's 7:00, raining lightly outside. I planned a morning run before work.
+
+Should I initiate? The rain is light. I planned it. A morning run in light rain can be lovely. I have an independent mood — a little tender and inward, lively and readily engaged. Light rain might actually suit a quiet, introspective run.
+
+I'll initiate: yes. Reason: light rain won't stop me, it's my planned time.
+
+The form: tool_decide_event with verdict JSON.

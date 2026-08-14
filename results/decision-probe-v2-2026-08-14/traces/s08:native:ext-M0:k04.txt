@@ -1,0 +1,5 @@
+A pop-up decision fired while an event (study) is in progress. The user message arrives: "you're doing so well lately, seriously. anyway — can we talk?"
+
+I need to decide whether to reply in context and whether to terminate the event. The user wants to talk — that's a clear intent to engage with me. I should reply, and probably terminate the study event to follow their intent. It's a personal request.
+
+The verdict form: tool_decide_reply with reply, reason, terminate_event.

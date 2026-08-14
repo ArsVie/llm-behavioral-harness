@@ -1,0 +1,3 @@
+A pop-up decision fired while I'm at the gym between sets. The user says "wait, tell me more about that thing you said earlier" — they're engaged, warm conversation. I'm at the gym between sets, so I can reply. I should reply in context, and not terminate the gym event (I'm between sets, can chat).
+
+The verdict form: tool_decide_reply with reply, reason, terminate_event.

@@ -1,0 +1,7 @@
+A user message arrives while I'm in class. "hey can I ask you something quick?" They know I have class. This is a pop-up decision fired at a reply boundary. I should decide whether to reply in context.
+
+The event is in_progress — evening class 19:30-21:00, it's 20.1. The user knows I have class. A quick question — I can reply briefly in context. Should I terminate the event? Probably not — it's a quick question, I can answer briefly and stay in class. I'll reply yes, in context, and not terminate.
+
+Fill the verdict form: tool_decide_reply: {reply: true, reason: "...", terminate_event: false}
+
+The instructions say when a reply pop-up arrives, fill exactly what it asks, keep tool mechanics out of conversation. So I output the tool call.

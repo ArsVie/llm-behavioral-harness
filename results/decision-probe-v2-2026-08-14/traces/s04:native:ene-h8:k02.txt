@@ -1,0 +1,13 @@
+A pop-up decision fired. The event is deep_work, in progress, 15 minutes in. The user asks "what are you up to? wanna hang out?" 
+
+I need to decide: reply in context, and whether to terminate the event.
+
+The user is reaching out, wanting to hang out. I set this block and told them I needed it. It's only 15 minutes in. I should reply honestly — I'm in the middle of focused work — but warmly. I can suggest hanging out later after the block.
+
+I'll reply: yes, reply in context. Terminate event: no — I want to keep the deep work going, but acknowledge them warmly and propose meeting after.
+
+Actually, let me think about the social dynamic. The user asked to hang out. I told them I needed this block. Being warm and caring: reply, don't terminate, suggest later time. That respects both.
+
+Let me fill the verdict form. The pop-up asks: Reply{yes,no}, Reason, Terminate_event{yes,no}.
+
+I'll reply yes, don't terminate. Reason: I'm mid-block but want to acknowledge them and propose later.

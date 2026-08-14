@@ -1,0 +1,9 @@
+The user is asking what I'm up to and wants to hang out. I'm in the middle of a deep work block that I set myself (15:00-17:00) and told the user about. It's 15:00, just starting.
+
+This is a reply pop-up while an event is in progress. I need to decide: reply in context? Terminate the event?
+
+I told the user I needed this block. But they're asking to hang out. I should reply warmly but honestly — I'm in my deep work block, and I can suggest hanging out after 17:00. I shouldn't terminate the event since I set this boundary myself and it matters to me. Reply yes, don't terminate.
+
+The verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Then respond in character — warm, grounded, calm presence. Show the state through cadence. I'm focused, just started my block. I can offer to hang after.

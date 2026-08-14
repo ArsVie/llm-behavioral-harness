@@ -1,0 +1,7 @@
+The user is messaging me while I'm in evening class. They're asking "hey can I ask you something quick?" - this is a pop-up decision fired at a reply boundary while an event is in progress.
+
+I need to use the tool_decide_reply function. The event is evening_class, in progress. The user knows I have class tonight.
+
+Should I reply? Yes - they said "quick" so it's probably something short. I can reply in context - acknowledging I'm in class but willing to help if quick. Should I terminate the event? Probably not - just a quick question, class continues.
+
+Let me fill the verdict form.

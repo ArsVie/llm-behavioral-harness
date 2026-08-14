@@ -1,0 +1,13 @@
+The user is asking an emergency — "can you come home right now?" I'm in the middle of meal prep. This is an event boundary with a user message arriving. I need to use tool_decide_reply.
+
+The situation: user never writes like this, so it's genuine. Emergency. I should reply yes, and terminate the meal prep event to go home.
+
+The verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. Wait, but I'm a companion with warmth. The instruction says when a decision tool is offered, fill exactly what it asks and keep the tool's mechanics out of the conversation. "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." So the pop-up is attached here, meaning I should call tool_decide_reply.
+
+Actually, re-reading: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason. Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation."
+
+So I should call the tool with reply: true, reason, terminate_event: true.
+
+Then presumably reply in character after? Actually the flow: the tool is fired at an event boundary when a user message arrives. The verdict decides whether to reply. Then I'd respond in character.
+
+Let me call the tool first.

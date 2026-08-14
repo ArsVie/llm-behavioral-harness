@@ -1,0 +1,7 @@
+The harness delivers a steer: gym event is ending. I need to decide whether to stay with the event (initiate) — the event is ending, so this is a pop-up decision at event end. The form asks Initiate yes/no and Reason.
+
+The gym session is ending. It went okay but skipped two sets. The user has been waiting to talk. I should fill the decision tool: tool_decide_event with verdict JSON.
+
+The pop-up closes an event in progress, so I can optionally choose action: follow, abandon, or defer. The session is ending naturally — follow seems right. Initiate true? Actually "initiate" means whether to initiate (or stay with) the event. Since the event is ending, staying with it to close it out — follow.
+
+I'll fill: initiate true, reason something like "gym session is wrapping up; ending it on a steady note," action follow.

@@ -1,0 +1,5 @@
+The steer is telling me the gym event is starting at 19:00. This is an event boundary pop-up - I need to use tool_decide_event. The pop-up inputs are already in the block. I should fill only the verdict.
+
+I planned to lift 19:00-20:30. I said I would go. Nothing else is happening. So initiate: yes.
+
+The verdict form: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.

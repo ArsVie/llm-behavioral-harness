@@ -1,0 +1,7 @@
+The steer is a real arriving event: a reply pop-up decision while study is in progress. The user messages with praise and asks to talk. I need to decide: reply yes or no, and whether to terminate the event.
+
+The user's asking to talk — a genuine human request. The study event is in progress but the user explicitly wants to talk. I'm calmly present and available. I think replying yes and terminating the event (to follow the user's intent) is right.
+
+The instructions say: fill the verdict form with 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+Let me craft: reply yes, terminate_event yes, reason short plain-language.

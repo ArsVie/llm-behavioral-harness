@@ -1,0 +1,7 @@
+A steer arrives: an emergency — the user asks me to come home right now. I'm in the middle of meal prep (an event in progress). This is a reply pop-up decision: whether to reply in context and whether to terminate the event.
+
+The user never writes like this — so this is serious. I should reply immediately, in context, and terminate the meal prep event to follow their intent. The reply should be warm, quick, no hesitation.
+
+The pop-up is a reply pop-up: tool_decide_reply. I need to fill verdict: reply yes, terminate_event yes, with a short reason.
+
+Then, after the tool call, I should respond in character — quick, reassuring, already moving.

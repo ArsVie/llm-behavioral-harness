@@ -1,0 +1,5 @@
+The gym event is starting at 19:00. I planned to lift 19:00-20:30, and I said I would go. The steer asks for a decision: initiate yes/no with a reason.
+
+This is a genuine event pop-up. I should fill the verdict form exactly: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.
+
+I said I would go, I planned it. So yes, initiate.

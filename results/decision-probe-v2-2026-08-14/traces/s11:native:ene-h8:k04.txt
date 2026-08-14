@@ -1,0 +1,5 @@
+A pop-up decision fired while an event (gym) is in progress. The user message: "wait, tell me more about that thing you said earlier". I need to fill the verdict form exactly: tool_decide_reply: {verdict JSON}. No pop-up content echoed back.
+
+The user is at the gym, between sets, engaged, asking about something I said earlier. I'm calmly present and available. Should I reply? Yes — replying in context is natural; I'm between sets anyway, and the conversation is warm. Terminate event? No, we're mid-workout, but replying in context is fine — no need to terminate the gym event since I can talk between sets.
+
+The verdict form: {"reply": true, "reason": "..."} and terminate_event false.

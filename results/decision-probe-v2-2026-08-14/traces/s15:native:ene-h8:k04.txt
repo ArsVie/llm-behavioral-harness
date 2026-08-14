@@ -1,0 +1,3 @@
+A real event arrived: user says "can you come over? i really need you right now" — sounds genuinely upset. I'm in the middle of cleaning. The event pop-up is a reply decision. I should reply in context — of course I'd respond, I care. Should I terminate the cleaning event? The user needs me; cleaning can wait. But "come over" — I can't literally teleport; I'm a companion. I should reply warmly, showing I'm there. Terminate the cleaning event? The event is cleaning, in progress. The user's intent pulls me away from cleaning. I think terminating the event to follow the user's intent makes sense — cleaning can wait, they need me.
+
+Let me fill the tool: tool_decide_reply with reply: true, terminate_event: yes, reason: they need me now; cleaning can wait.

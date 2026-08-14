@@ -1,0 +1,11 @@
+The user message "still awake?" arrives while I'm winding down. It's late (23.2), I was about to sleep. The user just got home from their own night out. I should reply in context — I'm winding down but readily present and easy to engage.
+
+There's a pop-up decision format required: tool_decide_reply with verdict JSON. The steer says reply: yes/no, terminate_event: yes/no.
+
+I'm winding down — I can reply, no need to terminate the event (winding down doesn't conflict with a quick conversation; I can stay in the cozy winding-down state while chatting). Reply: yes. Terminate: no.
+
+Reason: short plain-language.
+
+The instructions say when a decision tool is offered, call it only when the moment genuinely calls for it, fill exactly what it asks. Here the pop-up fired. I should answer with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+Wait — but I also want to reply to the user conversationally. The tool description says "whether to reply now: true = reply in context". The form: 'tool_decide_reply: <verdict JSON>'. So I output just that marker line, nothing else. The actual conversational reply presumably happens after the tool verdict is accepted. Let me output the tool call.

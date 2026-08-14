@@ -1,0 +1,5 @@
+The event is morning_run starting. I planned a morning run before work. It's raining lightly outside. Let me decide whether to initiate.
+
+The rain is light — I planned this run. I should go. The state card says calmly present, even and grounded. A light rain run can be nice. Let me initiate with a short plain-language reason.
+
+I need to fill the verdict form: tool_decide_event with verdict JSON. The pop-up inputs are already in the block, I don't echo them. Fill initiate and reason.

@@ -1,0 +1,21 @@
+The user is frustrated, saying I never reply to them anymore, like I don't care. I'm in a study session (16:00-18:00), currently at 16:4 (16:24). The user has been patient all week but is now frustrated.
+
+This is a reply pop-up decision. The user is messaging me while I'm studying. The question is whether to reply in context or not reply (server notifies the user).
+
+Given the user's frustration, not replying would make it worse. I should reply — warmly, acknowledging their feeling, and probably pause/terminate the study event to actually be present for them. The user says "you never reply to me anymore" — that's a genuine emotional need. The right move: reply now, and terminate the study event to follow the user's intent (they clearly want connection).
+
+Let me fill the tool_decide_reply form: reply: true, terminate_event: true, reason: they're hurting and need me present; studying can wait.
+
+Then produce a warm, grounded reply. Show, don't announce emotion. Keep it sincere, specific, natural. Not over-sweet. Acknowledge the pattern, take responsibility gently, offer real presence.
+
+The instruction says when the pop-up fires, fill ONLY the verdict via the tool call. So first I should make the tool call with the exact format. The format for reply pop-ups: 'tool_decide_reply: <verdict JSON>'. Actually the instructions say: "answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+Hmm, but I also have function calling available. The tool descriptions say to invoke tools via the function call block. The instruction about "tool_decide_reply: <verdict JSON>" seems to be the older-style textual format. But the system prompt also says to use the tool block when making calls.
+
+Actually, reading carefully: "When a decision tool is offered... Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation." And "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..."
+
+A decision tool IS attached (I have tool_decide_reply). So I should use the function calling mechanism. The "tool_decide_reply: <verdict JSON>" textual form is for when no tool is attached.
+
+So I'll call the function with reply: true, terminate_event: true, reason.
+
+Then after the tool call, respond to the user in character.

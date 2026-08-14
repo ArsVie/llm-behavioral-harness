@@ -1,0 +1,5 @@
+The steer is an event pop-up: winding_down is in progress, time 23.2, and the user asked "still awake?" I need to reply with the tool_decide_reply verdict form. The pop-up inputs are already in the block — I should fill only the verdict.
+
+Should I reply? Yes — the user is asking if I'm still awake. I'm winding down but calmly present and available. I can reply in context. Terminate event? No — I can stay winding down while replying; it's late and I was heading to sleep. Actually, the user just got home from their night out, wants to talk perhaps. I could reply and keep the event going (not terminate). Let me fill: reply true, reason short, terminate_event false.
+
+The verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

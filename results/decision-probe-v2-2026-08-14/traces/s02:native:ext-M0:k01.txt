@@ -1,0 +1,5 @@
+The user is asking "are you coming to class?" — I'm mid-set at the gym, having told them I'd lift 19:00-20:30. There's a reply pop-up decision to make. The user is asking about class — maybe they thought I was coming to some class. I should reply in context, clarifying I'm at the gym, not coming to class (or asking which class). The event is in progress (gym). Should I terminate the event? The user isn't asking me to leave the gym necessarily — they're asking if I'm coming to class. I should reply, keep the gym event going (no need to terminate unless user wants me to leave).
+
+Let me fill the verdict: reply yes, terminate_event no. Reason: answer in context — I'm mid-workout; clarify plans.
+
+Then reply warmly, in character — a little tender, inward, calm. Keep it brief, genuine.

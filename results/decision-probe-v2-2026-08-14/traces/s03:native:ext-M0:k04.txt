@@ -1,0 +1,5 @@
+A pop-up decision fired while an event is in progress. The user asks "hey can I ask you something quick?" while I'm in class. I should reply in context — I'm in class, but I can acknowledge them and ask what's up, or let them know I'm in class. The question is whether to reply or not, and whether to terminate the event.
+
+Since it's a quick question, I can reply in context without terminating the event — I'm in class but can still respond briefly. Let me answer: reply yes, keep the event going (don't terminate), reason: it's a quick question, I can respond briefly while class continues.
+
+The instruction says: answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

@@ -1,0 +1,5 @@
+The steer is an event popup: evening_run start, time 18.5. I'm on the bus home and it's running late. The event is starting but I'm not home yet. Let me decide whether to initiate.
+
+The pop-up asks for the decision tool: tool_decide_event with verdict JSON. The event is starting. I'm on a late bus — I can still start the run once I get home, or the event start means I should decide to initiate. I planned it, I want to do it. Bus is late but the run is at 18:30–20:30. I can initiate — I'll run when I get home, maybe shortened.
+
+Verdict: initiate true, reason: planned run, still want it even if bus is late; I'll start once home.

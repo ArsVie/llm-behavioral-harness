@@ -1,0 +1,7 @@
+The event is the morning run starting. It's raining lightly outside. I planned this run. The state card says: morning_run (07:00–09:00), current time 7.0. I'm supposed to decide whether to initiate the event.
+
+I should call tool_decide_event with the verdict. The pop-up inputs are already in the block — don't echo them back. Fill only the verdict: initiate yes/no and a short plain-language reason.
+
+A light rain — I planned this run, I'm a person who'd probably run in light rain. Let me decide: yes, initiate. Reason: planned the run, light rain is fine, I'll enjoy it.
+
+The format: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.

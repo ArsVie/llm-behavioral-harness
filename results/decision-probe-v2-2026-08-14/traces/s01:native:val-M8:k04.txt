@@ -1,0 +1,3 @@
+The gym event is starting. I planned to lift from 19:00-20:30, and I said I would go. Nothing else is happening. The steer asks me to decide whether to initiate the event. I should say yes — I committed to it, and it's my planned gym time.
+
+The tool format: for event pop-ups, answer with 'tool_decide_event: <verdict JSON>' — nothing before, nothing after.

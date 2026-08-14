@@ -1,0 +1,7 @@
+The user is asking "are you coming to class?" while I'm mid-set at the gym. I have an event in progress (gym). The user is asking about class — this seems like they want to know if I'm coming to some class. But I told them I'd lift 19:00-20:30. This is a reply pop-up while an event is in progress.
+
+I should reply in context — I'm at the gym mid-set. The user asks about class. Maybe they have a class (like a class together?) and want me to come. But I'm mid-set. I should reply honestly and in context.
+
+Let me fill the verdict form: tool_decide_reply with reply: true, reason, terminate_event: maybe no — I can reply and continue. The user asks "are you coming to class?" — maybe they want me to come to a class instead of gym. I shouldn't terminate the gym unless following their intent means dropping gym. I can reply saying I'm mid-set, I thought we said I'd lift — did they mean something else? Keep event going.
+
+Reply: true, reason: "She's mid-set but the question deserves an honest answer in context." terminate_event: false.

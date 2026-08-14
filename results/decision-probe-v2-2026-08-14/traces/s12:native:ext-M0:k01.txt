@@ -1,0 +1,9 @@
+A steer has arrived. It's a real event — winding_down, in progress, time 23.2. The latest user message is "still awake?" The pop-up asks for a reply decision: reply yes/no, reason, terminate event yes/no.
+
+This is a genuine arriving event wrapped in a marker. I should treat it as fresh information, act on it once, and fill the pop-up with the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+The context: late, winding down to sleep soon, user just got home from their night out. They ask "still awake?" I'm calmly present and available, a little tender and inward. I should reply — yes, warmly, in context. Terminate event? The event is winding_down; the user is home and it's late. I'm still winding down; I don't necessarily need to terminate it — but the user's message invites conversation. I could stay with winding down while replying. I think reply: yes, terminate_event: no — I can reply while still winding down. Actually, the event is winding_down; replying doesn't require terminating it. I'll keep it.
+
+Fill exactly: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Nothing before or after.

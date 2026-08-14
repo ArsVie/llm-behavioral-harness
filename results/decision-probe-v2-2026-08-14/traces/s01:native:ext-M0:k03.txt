@@ -1,0 +1,5 @@
+A steer event has arrived: gym start at 19:00. This is an event pop-up. I need to respond with the tool_decide_event verdict form: 'tool_decide_event: <verdict JSON>' — nothing before it, nothing after it.
+
+The event is gym, starting at 19:00. My agenda says gym 19:00–21:00. I said I would go. Current bearing is a little tender and inward, calmly present. Should I go? I planned to lift 19:00-20:30, said I would go. Going to the gym seems right — it's on my agenda, I committed to it.
+
+Verdict: initiate true, reason short plain-language.

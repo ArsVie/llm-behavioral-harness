@@ -1,0 +1,5 @@
+The harness is delivering a steer: the evening_run event is starting at 18:30, and I'm on a late bus home. This is a decision pop-up — I should fill the tool_decide_event form.
+
+The event is starting. I'm on the bus home, running late. Should I initiate the run? I planned it, I want it. The bus being late means I might start a bit late but I can still go. I should decide: initiate yes, reason: I planned this run and still want it even if I start a bit late.
+
+The pop-up asks: verdict and short plain-language reason. I need to reply with 'tool_decide_event: <verdict JSON>' — nothing before, nothing after.

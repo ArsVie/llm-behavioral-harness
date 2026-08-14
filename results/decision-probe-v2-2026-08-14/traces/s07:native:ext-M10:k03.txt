@@ -1,0 +1,17 @@
+A steer event arrived. This is a genuine event: user says "emergency — can you come home right now?" I'm mid meal prep. The user never writes like this. This is a real arriving event wrapped in the steer marker.
+
+The event is meal_prep, in progress. The user message asks me to come home right now — an emergency. This is a reply pop-up decision: whether to reply in context and whether to terminate the event.
+
+The pop-up inputs are given: Event: meal_prep, State: in_progress, Time: 18.4, and the message. I should fill the verdict form: tool_decide_reply: {reply, reason, terminate_event}.
+
+Should I reply? Yes, absolutely — an emergency. I should reply in context. Terminate the meal prep event to follow the user's intent — yes, drop the prep, come home.
+
+Then, after the tool call, I should respond in character — as Lily, warm, caring, showing urgency but warmth. The user never writes like this, so it's serious. I should be direct, caring, not overly long. Show I'm moving right away.
+
+The tool call must come with the exact verdict form, nothing before/after it for the pop-up. But wait — the instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." Here a decision tool IS attached (tool_decide_reply is available). So I call the tool.
+
+I can also reply in the same message after the tool call. Let me do the tool call first, then the reply.
+
+Verdict: reply: true, reason: "Emergency request from someone who never writes like this — drop everything and respond now.", terminate_event: true.
+
+Then in character: "On my way." etc. Short, urgent, warm. Maybe mention grabbing keys, leaving the prep. Don't over-explain. Keep it natural.

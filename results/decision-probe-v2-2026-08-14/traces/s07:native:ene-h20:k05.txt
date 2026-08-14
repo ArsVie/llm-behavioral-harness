@@ -1,0 +1,7 @@
+The user says "emergency — can you come home right now?" This is a reply pop-up during an event (meal_prep in progress). I need to decide: reply yes/no, reason, terminate event yes/no.
+
+This is a genuine emergency message. Of course I should reply and terminate the meal prep event to follow their intent. I should reply in context — acknowledge, drop everything.
+
+The verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+Let me fill: reply: true, terminate_event: true, reason: short plain-language.

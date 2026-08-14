@@ -1,0 +1,114 @@
+{
+  "mode": "real",
+  "model": "deepseek-v4-flash",
+  "seed": 20260814,
+  "K": 5,
+  "pool": 24,
+  "pilot": false,
+  "doses_per_scenario": 6,
+  "transport": "native",
+  "scenarios": [
+    "s01",
+    "s02",
+    "s03",
+    "s04",
+    "s05",
+    "s06",
+    "s07",
+    "s08",
+    "s09",
+    "s10",
+    "s11",
+    "s12",
+    "s13",
+    "s14",
+    "s15"
+  ],
+  "doses": [
+    "ext-M10",
+    "ext-M0",
+    "val-M2",
+    "val-M8",
+    "ene-h8",
+    "ene-h20"
+  ],
+  "dose_set_kinds": [
+    "extremes",
+    "orthogonal_energy",
+    "orthogonal_valence"
+  ],
+  "doses_file": "results/decision-probe-v2-2026-08-14/mood_samples.json",
+  "n_legs": 450,
+  "n_parse_failures": 0,
+  "n_replayed": 0,
+  "n_reasoning_present": 450,
+  "started_at": "2026-08-14T23:01:38Z",
+  "finished_at": "2026-08-14T23:03:17Z",
+  "summary": {
+    "legs": 450,
+    "parse_failures": 0,
+    "replayed": 0,
+    "by_scenario": {
+      "s01": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s02": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s03": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s04": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s05": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s06": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s07": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s08": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s09": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s10": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s11": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s12": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s13": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s14": {
+        "legs": 30,
+        "parse_failures": 0
+      },
+      "s15": {
+        "legs": 30,
+        "parse_failures": 0
+      }
+    }
+  }
+}

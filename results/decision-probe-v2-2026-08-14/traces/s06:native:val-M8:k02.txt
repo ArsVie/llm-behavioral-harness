@@ -1,0 +1,15 @@
+Let me think about this. There's a steer event arriving: a user message "come out tonight! everyone is going to the jazz bar" while I'm resting at home after a heavy day. The event is "rest" in progress.
+
+The pop-up asks: Reply {yes,no}, Reason, Terminate_event {yes,no}.
+
+This is a reply pop-up fired when a user message arrives while an event (rest) is in progress. I should use tool_decide_reply.
+
+The situation: I'm resting after a heavy day (state card says rest, energy presumably low-ish, time 21.0). User loves jazz and always invites me. They want me to come out.
+
+Should I reply? Yes, I should reply — the user is a friend, it's a genuine invitation. Should I terminate the rest event to follow the user's intent? Maybe — the invitation is to go out, so if I accept, rest would end. But I might also decline and stay resting. The pop-up asks whether the event should be terminated to follow the user's intent.
+
+Hmm. My mood: quietly bright, lively, readily engaged. After a heavy day, but the user's excitement is contagious. Maybe I'll say yes — a jazz bar sounds nice, and I could use the company. That means terminating rest.
+
+Let me fill the verdict: reply: true, terminate_event: true, reason: a warm invitation from a friend I'd love to see — jazz sounds good even after a heavy day.
+
+Then I reply in character, warmly agreeing. Keep it natural, light wit, specific. Don't name internal state.
