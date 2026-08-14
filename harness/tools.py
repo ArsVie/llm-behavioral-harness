@@ -1,0 +1,918 @@
+"""Pop-up decision tools for the harness (WS2, runtime redesign D1).
+
+Two "pop-up" tools (user directives L361/L365/L369, session item #21/#22):
+the server draws the pop-up inputs ``{Event, State, Time}`` and the MODEL
+returns a verdict + prose reason. Verdict + inputs are recorded as state
+next to the reason (audit: reason shows the user, inputs debug the draw).
+Replay reads the recorded verdict and NEVER re-rolls (deterministic replay
+is sacred — see ``DecisionRunner.execute``).
+
+- ``tool_decide_event`` — fired at event boundaries (event start/end).
+  Verdict: ``{initiate: bool, reason: str, action?: 'follow'|'abandon'|'defer'}``.
+- ``tool_decide_reply`` — fired when a user message arrives while an event
+  is in progress (L356). Verdict:
+  ``{reply: bool, reason: str, terminate_event: bool}``. A no-reply verdict
+  triggers a server-side notice per the verbose flag; optionally the event
+  is terminated and the user intent followed.
+
+Transport (reviewer-endorsed D1): native function calling when the client
+has it, textual fallback (``tool_decide_event: {...}`` parsed from the reply
+content — matches the user's sketch) behind capability detection. The RAW
+reply AND the parsed verdict are both persisted (dual persistence); a parse
+failure is a LOUD recorded event (``state_events: decision_parse_failed``),
+never a silent skip. ``decision_on_parse_failure`` config:
+``requeue`` (default) | ``server_draw`` | ``abort``.
+
+Budget (L361/L365): a per-day window of accepted no-reply verdicts; the
+window resets at day rollover. ``0`` = must always reply (every no-reply
+verdict is rejected), unset/empty = off (unlimited). At exhaustion the
+no-reply verdict is rejected, a reply is forced, and the state event
+``budget_exhausted_forced_reply`` is recorded.
+
+Decision source (L365, "we're not making a calculator", but test both):
+default ``model``; ``server_draw`` draws the verdict from the injected
+seeded RNG (a dedicated stream, never the day_rng draw order) for the #22
+comparison.
+
+Config — env-only, no config.yaml. Loader: :func:`load_decision_config`.
+Defaults:
+
+======================  ============  ======================================
+Env var                 Default       Meaning
+======================  ============  ======================================
+HARNESS_VERBOSE         0             server ALWAYS notifies on no-reply;
+                                      0 = short notice, 1 = with the reason
+HARNESS_BUDGET          (unset)       no-reply budget per day; 0 = always
+                                      reply; N = N no-replies allowed;
+                                      unset/empty = off (unlimited)
+HARNESS_DECISION_SOURCE model         model | server_draw
+HARNESS_DECISION_PARSE_FAILURE requeue requeue | server_draw | abort
+HARNESS_TOOL_MODE       auto          auto | native | textual
+======================  ============  ======================================
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import re
+from dataclasses import dataclass, field
+from typing import Any, Callable, Protocol
+
+# --------------------------------------------------------------------------- #
+# Tool schemas (Hermes-style {name, description, parameters})
+# --------------------------------------------------------------------------- #
+
+TOOL_SCHEMAS: list[dict] = [
+    {
+        "name": "tool_decide_event",
+        "description": (
+            "Pop-up decision fired at an event boundary (event start or "
+            "end). The server draws the pop-up inputs {Event, State, Time}; "
+            "you return a verdict: whether to initiate (or stay with) the "
+            "event and a prose reason. When the pop-up closes an event in "
+            "progress, optionally choose an action: follow (stay with the "
+            "event), abandon (drop it), or defer (postpone it)."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "event_id": {
+                    "type": "string",
+                    "description": "Stable id of the event being decided.",
+                },
+                "event_label": {
+                    "type": "string",
+                    "description": "Human label of the event, e.g. 'gym'.",
+                },
+                "state_label": {
+                    "type": "string",
+                    "description": "Pop-up state, e.g. 'start' or 'end'.",
+                },
+                "time": {
+                    "type": "string",
+                    "description": "Virtual time of the pop-up, e.g. '19.5'.",
+                },
+            },
+            "required": ["event_id", "event_label", "state_label", "time"],
+        },
+    },
+    {
+        "name": "tool_decide_reply",
+        "description": (
+            "Pop-up decision fired when a user message arrives while an "
+            "event is in progress. The server draws the pop-up inputs "
+            "{Event, State, Time} plus the latest user message; you return a "
+            "verdict: whether to reply in context (e.g. \"I'm in class, what "
+            "do you want\") or not reply (the server notifies the user), and "
+            "whether the event should be terminated to follow the user's "
+            "intent."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "event_label": {
+                    "type": "string",
+                    "description": "Human label of the event in progress, "
+                                   "e.g. 'gym'.",
+                },
+                "state_label": {
+                    "type": "string",
+                    "description": "Pop-up state, e.g. 'in_progress'.",
+                },
+                "time": {
+                    "type": "string",
+                    "description": "Virtual time of the pop-up, e.g. '19.5'.",
+                },
+                "latest_user_message": {
+                    "type": "string",
+                    "description": "The user message that triggered the "
+                                   "pop-up, verbatim.",
+                },
+                "conversation_context": {
+                    "type": "string",
+                    "description": "Brief context of the conversation so far "
+                                   "(recent turns, condensed).",
+                },
+            },
+            "required": [
+                "event_label", "state_label", "time",
+                "latest_user_message", "conversation_context",
+            ],
+        },
+    },
+]
+
+#: Verdict shape a ``tool_decide_event`` call must produce.
+EVENT_VERDICT_KEYS = ("initiate", "reason")
+#: Verdict shape a ``tool_decide_reply`` call must produce.
+REPLY_VERDICT_KEYS = ("reply", "reason")
+
+#: Canonical state-event names recorded by the decision layer.
+EVENT_DECISION_PARSE_FAILED = "decision_parse_failed"
+EVENT_BUDGET_FORCED_REPLY = "budget_exhausted_forced_reply"
+EVENT_DECISION_REPLAYED = "decision_replayed"
+
+
+class DecisionError(RuntimeError):
+    """Base class for decision-layer failures (always loud, never silent)."""
+
+
+class DecisionParseError(DecisionError):
+    """The model's raw reply could not be parsed into a verdict.
+
+    The failure is recorded as a ``decision_parse_failed`` state event
+    BEFORE this is raised, and the raw reply is persisted.
+    """
+
+
+class DecisionRequeue(DecisionError):
+    """Parse-failure policy ``requeue``: raise so the caller re-queues the
+    pop-up and delivers it at the next safe boundary (the raw reply stays
+    persisted; the verdict is not)."""
+
+
+@dataclass
+class Capabilities:
+    """Client capabilities injected by WS4 (protocol: ``has_native_tools``).
+
+    The DecisionRunner never imports harness.client (WS3 owns it); callers
+    pass a real capability object or a fake for tests.
+    """
+
+    has_native_tools: bool = False
+
+
+@dataclass(frozen=True)
+class RawReply:
+    """The model's raw output for one pop-up, exactly as produced.
+
+    Exactly one of ``text`` (textual transport) / ``tool_calls`` (native
+    transport) is set; both may be set when a native-capable model answers
+    in text anyway (the runner prefers the tool call). This is what gets
+    persisted verbatim (dual persistence: raw reply + parsed verdict).
+    """
+
+    text: str | None = None
+    tool_calls: list[dict] | None = None
+
+
+@dataclass(frozen=True)
+class PopupRequest:
+    """Everything the injected model callable needs to make the LLM call.
+
+    The callable (wired by WS4, which owns the transcript) builds the real
+    request: it embeds ``popup`` where the model should see it, offers
+    ``tools`` when ``native`` is True, and may use ``inputs`` (e.g.
+    ``conversation_context``) to assemble the message list.
+    """
+
+    popup_kind: str
+    popup: str
+    tools: list[dict]
+    native: bool
+    inputs: dict
+
+
+#: Callable contract: given the pop-up request, return the raw model reply.
+ModelCall = Callable[[PopupRequest], RawReply]
+
+
+@dataclass
+class DecisionResult:
+    """Outcome of one pop-up decision, fully recorded in the store."""
+
+    decision_id: str
+    popup_kind: str
+    verdict: dict
+    source: str            # 'model' | 'server_draw' | 'replay'
+    transport: str         # 'native' | 'textual' | 'server_draw' | 'replay'
+    record_id: int | None
+    budget_consumed: bool = False
+    forced: bool = False   # budget exhaustion forced a reply
+    from_replay: bool = False
+    raw_reply: str | None = None
+    notice: str | None = None
+    parse_failed: bool = False
+
+    @property
+    def reason(self) -> str:
+        return str(self.verdict.get("reason", ""))
+
+
+# --------------------------------------------------------------------------- #
+# Pop-up rendering (user L369 sketch: System: {Event, State, Time} ->
+# {Initiate, Reason}; the "System:" label is applied by the caller's
+# injection point, the block itself is the sketch).
+# --------------------------------------------------------------------------- #
+
+def render_popup(popup_kind: str, inputs: dict) -> str:
+    """Render the pop-up block exactly per the user's L369 sketch.
+
+    decide_event::
+
+        {Event: gym, State: start, Time: 19.5}
+        {Initiate:{yes,no}, Reason: ""}
+
+    decide_reply::
+
+        {Event: gym, State: in_progress, Time: 19.5}
+        {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}
+        Latest user message: "are you coming to class?"
+
+    ``inputs`` keys used: event_id/event_label -> Event, state_label ->
+    State, time -> Time, latest_user_message (decide_reply only).
+    """
+    event = inputs.get("event_label") or inputs.get("event_id") or "?"
+    state = inputs.get("state_label") or "?"
+    time = inputs.get("time") or "?"
+    if popup_kind == "tool_decide_event":
+        return (
+            f"{{Event: {event}, State: {state}, Time: {time}}}\n"
+            '{Initiate:{yes,no}, Reason: ""}'
+        )
+    if popup_kind == "tool_decide_reply":
+        lines = [
+            f"{{Event: {event}, State: {state}, Time: {time}}}",
+            '{Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}',
+        ]
+        latest = inputs.get("latest_user_message")
+        if latest:
+            lines.append(f'Latest user message: "{latest}"')
+        return "\n".join(lines)
+    raise ValueError(f"unknown popup_kind: {popup_kind!r}")
+
+
+# --------------------------------------------------------------------------- #
+# Verdict parsing (native tool_calls + textual fallback)
+# --------------------------------------------------------------------------- #
+
+def _brace_payload(text: str, start: int) -> str | None:
+    """Extract the brace-balanced payload beginning at ``text[start] == '{'``.
+
+    Tolerant of newlines and nested braces inside string values, so a reason
+    containing ``}`` does not truncate the payload.
+    """
+    depth = 0
+    in_str = False
+    esc = False
+    for i in range(start, len(text)):
+        ch = text[i]
+        if in_str:
+            if esc:
+                esc = False
+            elif ch == "\\":
+                esc = True
+            elif ch == '"':
+                in_str = False
+            continue
+        if ch == '"':
+            in_str = True
+        elif ch == "{":
+            depth += 1
+        elif ch == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : i + 1]
+    return None
+
+
+#: Textual marker per tool, tolerant of quotes/whitespace/linebreaks.
+_TEXTUAL_MARKER = re.compile(
+    r"tool_(decide_event|decide_reply)\s*:\s*(\{)",
+    re.IGNORECASE,
+)
+
+#: Shorthand payload: {yes, "too tired"} / {no, "too tired"} (L369 sketch).
+_SHORTHAND = re.compile(
+    r"^\{\s*(yes|no|true|false|1|0)\s*,\s*\"((?:[^\"\\]|\\.)*)\"\s*\}$",
+    re.IGNORECASE | re.DOTALL,
+)
+
+
+def _parse_shorthand(payload: str) -> dict | None:
+    m = _SHORTHAND.match(payload.strip())
+    if not m:
+        return None
+    token = m.group(1).lower()
+    affirmative = token in ("yes", "true", "1")
+    reason = m.group(2)
+    return {"verdict": affirmative, "reason": reason}
+
+
+def parse_verdict(popup_kind: str, payload: str) -> dict:
+    """Parse one textual pop-up payload into a verdict dict.
+
+    Accepts (in order):
+      1. a JSON object — ``{"initiate": true, "reason": "..."}`` for
+         decide_event, ``{"reply": false, "reason": "...",
+         "terminate_event": false}`` for decide_reply (missing optional
+         verdict fields default: ``terminate_event=False``,
+         ``action=None``, ``reason=""``);
+      2. the L369 shorthand — ``{yes, "too tired"}`` / ``{no, "too tired"}``
+         mapped onto the ``initiate``/``reply`` key of the pop-up kind.
+
+    Raises ``ValueError`` on anything else.
+    """
+    raw = payload.strip()
+    if not raw:
+        raise ValueError("empty pop-up payload")
+    try:
+        obj = json.loads(raw)
+    except json.JSONDecodeError:
+        obj = None
+    if isinstance(obj, dict):
+        verdict = _normalize_verdict(popup_kind, obj)
+        if _valid_verdict(popup_kind, verdict):
+            return verdict
+        raise ValueError(
+            f"JSON verdict missing required key for {popup_kind}: "
+            f"{sorted(obj)}"
+        )
+    short = _parse_shorthand(raw)
+    if short is not None:
+        verdict = _normalize_verdict(
+            popup_kind, {_verdict_key(popup_kind): short["verdict"],
+                         "reason": short["reason"]}
+        )
+        if _valid_verdict(popup_kind, verdict):
+            return verdict
+    raise ValueError(
+        f"unparseable {popup_kind} payload (expected JSON object or "
+        f'{{yes, "reason"}} shorthand): {raw[:200]!r}'
+    )
+
+
+def _verdict_key(popup_kind: str) -> str:
+    if popup_kind == "tool_decide_event":
+        return "initiate"
+    if popup_kind == "tool_decide_reply":
+        return "reply"
+    raise ValueError(f"unknown popup_kind: {popup_kind!r}")
+
+
+def _as_bool(value: Any) -> bool | None:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)) and value in (0, 1):
+        return bool(value)
+    if isinstance(value, str):
+        v = value.strip().lower()
+        if v in ("yes", "true", "1", "y"):
+            return True
+        if v in ("no", "false", "0", "n"):
+            return False
+    return None
+
+
+def _normalize_verdict(popup_kind: str, obj: dict) -> dict:
+    """Coerce raw keys to the canonical verdict shape with safe defaults."""
+    if popup_kind == "tool_decide_event":
+        verdict: dict = {"initiate": False, "reason": "", "action": None}
+        flag = _as_bool(obj.get("initiate", obj.get("verdict")))
+        if flag is not None:
+            verdict["initiate"] = flag
+        if isinstance(obj.get("reason"), str):
+            verdict["reason"] = obj["reason"]
+        action = obj.get("action")
+        if action in ("follow", "abandon", "defer"):
+            verdict["action"] = action
+        return verdict
+    if popup_kind == "tool_decide_reply":
+        verdict = {"reply": False, "reason": "", "terminate_event": False}
+        flag = _as_bool(obj.get("reply", obj.get("verdict")))
+        if flag is not None:
+            verdict["reply"] = flag
+        if isinstance(obj.get("reason"), str):
+            verdict["reason"] = obj["reason"]
+        term = _as_bool(obj.get("terminate_event"))
+        if term is not None:
+            verdict["terminate_event"] = term
+        return verdict
+    raise ValueError(f"unknown popup_kind: {popup_kind!r}")
+
+
+def _valid_verdict(popup_kind: str, verdict: dict) -> bool:
+    """A verdict is valid when the deciding flag is a real bool."""
+    return isinstance(verdict.get(_verdict_key(popup_kind)), bool)
+
+
+def parse_textual_reply(popup_kind: str, text: str) -> dict:
+    """Locate ``tool_decide_event: {...}`` / ``tool_decide_reply: {...}`` in
+    free-form reply text and parse the payload.
+
+    Tolerant of quotes, linebreaks and surrounding prose (the model may
+    think out loud before or after the marker, per the user's sketch
+    ``{name}: {thinking} tool_decide_event: {yes, "too tired"}``).
+    """
+    m = _TEXTUAL_MARKER.search(text)
+    if not m:
+        raise ValueError(
+            f"no '{popup_kind}:' marker found in reply text"
+        )
+    found_kind = "tool_" + m.group(1).lower()
+    payload = _brace_payload(text, m.start(2))
+    if payload is None:
+        raise ValueError(f"unbalanced braces after '{found_kind}:' marker")
+    return parse_verdict(found_kind, payload)
+
+
+def parse_native_reply(popup_kind: str, tool_calls: list[dict]) -> dict:
+    """Extract the verdict from a native function-calling response.
+
+    ``tool_calls`` entries are ``{"id", "type", "function": {"name",
+    "arguments"}}`` (OpenAI shape). The first call whose name matches the
+    pop-up kind wins; its ``arguments`` (JSON string or dict) are parsed.
+    """
+    for call in tool_calls or []:
+        fn = call.get("function") or {}
+        name = fn.get("name", "")
+        if name != popup_kind:
+            continue
+        args = fn.get("arguments")
+        if isinstance(args, str):
+            args = json.loads(args) if args.strip() else {}
+        if not isinstance(args, dict):
+            raise ValueError(
+                f"native {popup_kind} arguments are not an object: {args!r}"
+            )
+        return _normalize_verdict(popup_kind, args)
+    raise ValueError(
+        f"no tool call named {popup_kind} in native reply "
+        f"(got: {[ (c.get('function') or {}).get('name') for c in tool_calls or [] ]})"
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Notice builder (user L361 verbose flag)
+# --------------------------------------------------------------------------- #
+
+def build_notice(name: str, verdict: dict, verbose: bool) -> str | None:
+    """Server notice for a no-reply verdict; None when she replies.
+
+    verbose OFF: ``"{name} saw your message but chose not to reply yet"``
+    verbose ON:  ``"{name} is not replying, reason: {Reason}"``
+    """
+    if verdict.get("reply") is not False:
+        return None
+    if verbose:
+        return f"{name} is not replying, reason: {verdict.get('reason', '')}"
+    return f"{name} saw your message but chose not to reply yet"
+
+
+# --------------------------------------------------------------------------- #
+# Config (env-only; WS4 wires these into the runtime)
+# --------------------------------------------------------------------------- #
+
+@dataclass
+class DecisionConfig:
+    """Resolved decision-layer configuration (env-only, no config.yaml)."""
+
+    verbose: bool = False
+    budget: int | None = None        # None = off/unlimited; 0 = always reply
+    decision_source: str = "model"   # 'model' | 'server_draw'
+    parse_failure_mode: str = "requeue"  # 'requeue' | 'server_draw' | 'abort'
+    tool_mode: str = "auto"          # 'auto' | 'native' | 'textual'
+    name: str = "Lily"
+
+    def __post_init__(self) -> None:
+        if self.decision_source not in ("model", "server_draw"):
+            raise ValueError(
+                f"HARNESS_DECISION_SOURCE must be 'model' or 'server_draw', "
+                f"got {self.decision_source!r}"
+            )
+        if self.parse_failure_mode not in ("requeue", "server_draw", "abort"):
+            raise ValueError(
+                f"HARNESS_DECISION_PARSE_FAILURE must be one of "
+                f"requeue|server_draw|abort, got {self.parse_failure_mode!r}"
+            )
+        if self.tool_mode not in ("auto", "native", "textual"):
+            raise ValueError(
+                f"HARNESS_TOOL_MODE must be one of auto|native|textual, "
+                f"got {self.tool_mode!r}"
+            )
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
+
+
+def _env_budget() -> int | None:
+    """HARNESS_BUDGET: unset/empty -> None (off); '0' -> 0 (always reply);
+    otherwise a non-negative int (per-day window)."""
+    raw = os.environ.get("HARNESS_BUDGET")
+    if raw is None or raw.strip() == "":
+        return None
+    try:
+        value = int(raw.strip())
+    except ValueError as exc:
+        raise ValueError(
+            f"HARNESS_BUDGET must be an integer or empty (off), got {raw!r}"
+        ) from exc
+    if value < 0:
+        raise ValueError(f"HARNESS_BUDGET must be >= 0, got {value}")
+    return value
+
+
+def load_decision_config() -> DecisionConfig:
+    """Load the decision configuration from the environment.
+
+    Env vars (see module docstring): ``HARNESS_VERBOSE``, ``HARNESS_BUDGET``,
+    ``HARNESS_DECISION_SOURCE``, ``HARNESS_DECISION_PARSE_FAILURE``,
+    ``HARNESS_TOOL_MODE``. WS4 calls this once at startup and passes the
+    resulting ``DecisionConfig`` to the runner.
+    """
+    return DecisionConfig(
+        verbose=_env_bool("HARNESS_VERBOSE"),
+        budget=_env_budget(),
+        decision_source=os.environ.get(
+            "HARNESS_DECISION_SOURCE", "model"
+        ).strip().lower() or "model",
+        parse_failure_mode=os.environ.get(
+            "HARNESS_DECISION_PARSE_FAILURE", "requeue"
+        ).strip().lower() or "requeue",
+        tool_mode=os.environ.get("HARNESS_TOOL_MODE", "auto").strip().lower()
+        or "auto",
+        name=os.environ.get("HARNESS_NAME", "Lily"),
+    )
+
+
+# --------------------------------------------------------------------------- #
+# Store protocol (implemented by harness.store.SQLiteStore; duck-typed so
+# tests and WS4 can substitute fakes)
+# --------------------------------------------------------------------------- #
+
+class DecisionStore(Protocol):
+    """The store surface the runner needs (subset of SQLiteStore)."""
+
+    def record_decision(
+        self, day: int, t_h: float, popup_kind: str, event_id: str | None,
+        event_label: str | None, state_label: str | None, time: str | None,
+        inputs_json: str | None, raw_reply: str | None,
+        verdict_json: str | None, source: str, transport: str,
+        delivered_t_h: float | None, budget_consumed: int, *,
+        replay_id: str | None = None,
+    ) -> int: ...
+
+    def decision_for_replay(self, decision_id: str) -> dict | None: ...
+
+    def decisions_for_day(self, day: int) -> list[dict]: ...
+
+    def log_event(
+        self, day: int, t_h: float, event: str, detail: str | None = None
+    ) -> None: ...
+
+
+# --------------------------------------------------------------------------- #
+# DecisionRunner
+# --------------------------------------------------------------------------- #
+
+#: Server-drawn verdict reason (decision_source=server_draw, #22 comparison).
+SERVER_DRAW_REASON = "server draw (decision_source=server_draw)"
+#: Reason attached to the forced reply at budget exhaustion.
+FORCED_REPLY_REASON = "budget exhausted — forced reply"
+
+
+class DecisionRunner:
+    """Executes pop-up decisions end to end and persists everything.
+
+    One ``execute`` call per pop-up: replay check -> transport selection ->
+    model call (or server draw) -> parse -> budget enforcement -> dual
+    persistence -> notice. Deterministic replay: when a decision record
+    already exists for ``decision_id`` (the natural key), the recorded
+    verdict is returned and the model is NEVER called again.
+    """
+
+    def __init__(
+        self,
+        store: DecisionStore,
+        *,
+        verbose: bool = False,
+        budget: int | None = None,
+        decision_source: str = "model",
+        parse_failure_mode: str = "requeue",
+        tool_mode: str = "auto",
+        rng: Any | None = None,
+        draw_p: float = 0.6,
+        name: str = "Lily",
+    ):
+        self.store = store
+        self.verbose = bool(verbose)
+        self.budget = budget            # None = off; 0 = always reply
+        self.decision_source = decision_source
+        self.parse_failure_mode = parse_failure_mode
+        self.tool_mode = tool_mode
+        self.rng = rng                  # injected Generator (dedicated stream)
+        self.draw_p = draw_p
+        self.name = name
+
+    # -- public API ---------------------------------------------------------
+
+    def execute(
+        self,
+        decision_id: str,
+        popup_kind: str,
+        inputs: dict,
+        capabilities: Capabilities,
+        call: ModelCall,
+        *,
+        day: int | None = None,
+        t_h: float | None = None,
+        delivered_t_h: float | None = None,
+    ) -> DecisionResult:
+        """Run one pop-up decision; always persists a decision record.
+
+        ``decision_id`` is the stable natural key (e.g. the steer id): a
+        record already present for it is replayed verbatim (never re-rolled).
+        ``call`` is the injected model callable (WS4 wraps the real client).
+        ``capabilities`` gates native vs textual transport. ``day``/``t_h``
+        default to the pop-up ``time`` input (``day = int(t_h // 24)``).
+        """
+        if popup_kind not in ("tool_decide_event", "tool_decide_reply"):
+            raise ValueError(f"unknown popup_kind: {popup_kind!r}")
+        if day is None or t_h is None:
+            derived = self._derive_clock(inputs)
+            if day is None:
+                day = derived[0]
+            if t_h is None:
+                t_h = derived[1]
+
+        replay = self.store.decision_for_replay(decision_id)
+        if replay is not None:
+            return self._replay_result(decision_id, popup_kind, replay, day, t_h)
+
+        source = self.decision_source
+        transport: str
+        raw_reply: str | None = None
+        parse_failed = False
+
+        if source == "server_draw":
+            transport = "server_draw"
+            verdict = self._draw_verdict(popup_kind)
+        else:
+            transport = self._choose_transport(capabilities)
+            request = PopupRequest(
+                popup_kind=popup_kind,
+                popup=render_popup(popup_kind, inputs),
+                tools=TOOL_SCHEMAS,
+                native=(transport == "native"),
+                inputs=inputs,
+            )
+            raw = call(request)
+            raw_reply = self._raw_to_text(raw, transport)
+            try:
+                verdict = self._parse_raw(popup_kind, raw, transport)
+            except DecisionParseError:
+                parse_failed = True
+                self._record_parse_failure(
+                    decision_id, popup_kind, transport, raw_reply, day, t_h
+                )
+                if self.parse_failure_mode == "requeue":
+                    raise DecisionRequeue(
+                        f"{popup_kind} parse failed (decision {decision_id}) — "
+                        f"re-queue for the next boundary"
+                    ) from None
+                if self.parse_failure_mode == "server_draw":
+                    transport = "server_draw_fallback"
+                    source = "server_draw"
+                    verdict = self._draw_verdict(popup_kind)
+                else:  # abort
+                    raise DecisionParseError(
+                        f"{popup_kind} parse failed (decision {decision_id}) — "
+                        f"aborting per HARNESS_DECISION_PARSE_FAILURE=abort"
+                    ) from None
+
+        forced = False
+        budget_consumed = 0
+        if popup_kind == "tool_decide_reply" and verdict.get("reply") is False:
+            used = self._no_replies_used(day, decision_id)
+            if self.budget is not None and used >= self.budget:
+                forced = True
+                verdict = {
+                    "reply": True,
+                    "reason": FORCED_REPLY_REASON,
+                    "terminate_event": False,
+                    "forced": True,
+                }
+                self.store.log_event(
+                    day, t_h, EVENT_BUDGET_FORCED_REPLY,
+                    json.dumps(
+                        {"decision_id": decision_id, "popup_kind": popup_kind,
+                         "day": day, "budget": self.budget},
+                        sort_keys=True,
+                    ),
+                )
+            else:
+                budget_consumed = 1
+
+        record_id = self.store.record_decision(
+            day,
+            t_h,
+            popup_kind,
+            inputs.get("event_id"),
+            inputs.get("event_label"),
+            inputs.get("state_label"),
+            str(inputs.get("time")) if inputs.get("time") is not None else None,
+            json.dumps(inputs, ensure_ascii=False, sort_keys=True),
+            raw_reply,
+            json.dumps(verdict, ensure_ascii=False, sort_keys=True),
+            source,
+            transport,
+            delivered_t_h,
+            budget_consumed,
+            replay_id=decision_id,
+        )
+
+        notice = None
+        if popup_kind == "tool_decide_reply" and verdict.get("reply") is False:
+            notice = build_notice(self.name, verdict, self.verbose)
+
+        return DecisionResult(
+            decision_id=decision_id,
+            popup_kind=popup_kind,
+            verdict=verdict,
+            source=source,
+            transport=transport,
+            record_id=record_id,
+            budget_consumed=bool(budget_consumed),
+            forced=forced,
+            from_replay=False,
+            raw_reply=raw_reply,
+            notice=notice,
+            parse_failed=parse_failed,
+        )
+
+    # -- internals ----------------------------------------------------------
+
+    def _derive_clock(self, inputs: dict) -> tuple[int, float]:
+        time = inputs.get("time")
+        if time is None:
+            raise ValueError(
+                "decision inputs carry no 'time' and no day/t_h were given"
+            )
+        t_h = float(time)
+        return int(t_h // 24), t_h
+
+    def _choose_transport(self, capabilities: Capabilities) -> str:
+        if self.tool_mode == "native":
+            return "native"
+        if self.tool_mode == "textual":
+            return "textual"
+        return "native" if capabilities.has_native_tools else "textual"
+
+    def _parse_raw(
+        self, popup_kind: str, raw: RawReply, transport: str
+    ) -> dict:
+        try:
+            if transport == "native" and raw.tool_calls:
+                verdict = parse_native_reply(popup_kind, raw.tool_calls)
+            elif raw.text and raw.text.strip():
+                # Textual transport, or a native-capable model that answered
+                # in prose anyway: try the textual marker before failing.
+                verdict = parse_textual_reply(popup_kind, raw.text)
+            else:
+                raise ValueError("model returned no content at all")
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise DecisionParseError(
+                f"{popup_kind} verdict parse failed ({transport}): {exc}"
+            ) from exc
+        if not _valid_verdict(popup_kind, verdict):
+            raise DecisionParseError(
+                f"{popup_kind} verdict missing deciding flag ({transport}): "
+                f"{verdict!r}"
+            )
+        return verdict
+
+    @staticmethod
+    def _raw_to_text(raw: RawReply, transport: str) -> str | None:
+        if raw.tool_calls:
+            return json.dumps(raw.tool_calls, ensure_ascii=False)
+        return raw.text
+
+    def _record_parse_failure(
+        self, decision_id: str, popup_kind: str, transport: str,
+        raw_reply: str | None, day: int, t_h: float,
+    ) -> None:
+        """LOUD parse failure: a state event + the raw reply persisted."""
+        detail = json.dumps(
+            {
+                "decision_id": decision_id,
+                "popup_kind": popup_kind,
+                "transport": transport,
+                "parse_failure_mode": self.parse_failure_mode,
+                "raw_excerpt": (raw_reply or "")[:500],
+            },
+            ensure_ascii=False,
+            sort_keys=True,
+        )
+        self.store.log_event(day, t_h, EVENT_DECISION_PARSE_FAILED, detail)
+
+    def _no_replies_used(self, day: int, decision_id: str) -> int:
+        """Accepted no-reply verdicts recorded so far this day (the budget
+        window resets at day rollover: it is keyed on ``day``)."""
+        return sum(
+            1
+            for row in self.store.decisions_for_day(day)
+            if row.get("popup_kind") == "tool_decide_reply"
+            and row.get("budget_consumed")
+            and row.get("replay_id") != decision_id
+        )
+
+    def _draw_verdict(self, popup_kind: str) -> dict:
+        """Server-drawn verdict (decision_source=server_draw, #22). The RNG
+        is injected (dedicated stream, never the day_rng draw order) so the
+        draws are deterministic per seed and independent of the engine's
+        stream layout."""
+        if self.rng is None:
+            raise DecisionError(
+                "decision_source=server_draw requires an injected rng "
+                "(a dedicated stream Generator)"
+            )
+        affirmative = float(self.rng.random()) < self.draw_p
+        if popup_kind == "tool_decide_event":
+            return {
+                "initiate": affirmative,
+                "reason": SERVER_DRAW_REASON,
+                "action": None,
+            }
+        return {
+            "reply": affirmative,
+            "reason": SERVER_DRAW_REASON,
+            "terminate_event": False,
+        }
+
+    def _replay_result(
+        self, decision_id: str, popup_kind: str, record: dict,
+        day: int, t_h: float,
+    ) -> DecisionResult:
+        """Replay path: read the recorded verdict, NEVER re-roll. The model
+        is not called; a ``decision_replayed`` state event marks the read."""
+        verdict = json.loads(record["verdict_json"]) if record.get(
+            "verdict_json"
+        ) else {}
+        self.store.log_event(
+            day, t_h, EVENT_DECISION_REPLAYED,
+            json.dumps(
+                {"decision_id": decision_id, "record_id": record.get("id")},
+                sort_keys=True,
+            ),
+        )
+        notice = None
+        if popup_kind == "tool_decide_reply" and verdict.get("reply") is False:
+            notice = build_notice(self.name, verdict, self.verbose)
+        return DecisionResult(
+            decision_id=decision_id,
+            popup_kind=popup_kind,
+            verdict=verdict,
+            source="replay",
+            transport="replay",
+            record_id=record.get("id"),
+            budget_consumed=bool(record.get("budget_consumed")),
+            forced=bool((verdict or {}).get("forced")),
+            from_replay=True,
+            raw_reply=record.get("raw_reply"),
+            notice=notice,
+        )
