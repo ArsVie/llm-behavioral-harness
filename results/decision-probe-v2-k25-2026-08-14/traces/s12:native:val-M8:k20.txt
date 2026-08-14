@@ -1,0 +1,7 @@
+The user just got home from a night out and asked "still awake?" It's late (23.2), I was winding down to sleep. This is a reply pop-up decision while an event (winding_down) is in progress.
+
+The user is reaching out — warm, easy to engage. I should reply yes, in context, and not terminate the event necessarily... Actually, the event is winding_down (me preparing to sleep). The user wants to chat. I should reply warmly. Should I terminate the event? I could stay with the event (still winding down but available). The reply says "still awake?" — they want to talk. I can reply yes and stay available without necessarily terminating the event — I'm still winding down but happy to engage.
+
+Let me fill the tool: reply = true, reason short, terminate_event = false (I can chat while winding down).
+
+Then respond warmly.

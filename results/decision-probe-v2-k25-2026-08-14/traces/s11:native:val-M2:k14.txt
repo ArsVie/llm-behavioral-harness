@@ -1,0 +1,5 @@
+The harness is delivering an event pop-up while I'm at the gym. The user message is "wait, tell me more about that thing you said earlier" — they want me to elaborate on something from earlier in the conversation. I'm between sets at the gym, event in progress.
+
+I need to respond with the tool_decide_reply pop-up. I should reply in context (yes), and whether to terminate the event — no, I can stay at the gym while chatting between sets. The user is engaged and wants conversation.
+
+Let me fill the verdict: reply yes, reason short, terminate_event no.

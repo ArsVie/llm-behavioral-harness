@@ -1,0 +1,5 @@
+A reply pop-up is fired: the user asks "still awake?" while I'm winding down (event in progress). The form asks for reply yes/no, reason, and terminate_event yes/no.
+
+I should reply in context — they just got home, asking if I'm still awake. Yes, I'm awake, winding down. I shouldn't terminate the winding-down event necessarily; I can stay with it — reply and continue winding down, or maybe just a short reply. Terminate_event: no, I'm still winding down, just chatting briefly.
+
+Fill the tool form exactly: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}. Then give the actual reply in character, showing warmth but subdued, late-night cadence.

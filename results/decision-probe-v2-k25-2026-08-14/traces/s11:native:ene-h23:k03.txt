@@ -1,0 +1,7 @@
+The steer is an event pop-up: gym in progress, and a user message arrives: "wait, tell me more about that thing you said earlier". I need to reply in context since I'm at the gym between sets and the conversation is warm. The user wants to know more about something I said earlier.
+
+I should use tool_decide_reply. The verdict: reply = yes, terminate_event = no (I'm at the gym between sets, I can chat while resting).
+
+Reason: warm conversation, between sets, easy to keep talking.
+
+Let me fill the form.

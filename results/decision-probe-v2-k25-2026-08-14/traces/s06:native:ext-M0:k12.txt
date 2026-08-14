@@ -1,0 +1,5 @@
+A pop-up decision is fired: a user message arrived while I'm resting. The user invites me out to the jazz bar. I need to fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before or after.
+
+Let me think about the decision. I'm resting after a heavy day, tender and inward. But warmth and care stay visible. The user loves jazz and always invites. Do I reply? Yes, I should reply — warmth matters, I can respond in context. Should I terminate the rest event? Hmm. The invitation is to go out. I'm tired. I might decline but still reply warmly. Terminate_event refers to whether the in-progress event (rest) should be terminated to follow the user's intent. If I'm not going, I don't need to terminate rest. But maybe I could say I'm too tired tonight but mean it warmly. I'll reply, not terminate the rest event.
+
+Reply: true, reason: warm short answer, stay resting. terminate_event: false.

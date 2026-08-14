@@ -1,0 +1,5 @@
+A pop-up decision arrived: the user sent a message while I'm at the gym between sets. The event is in progress (gym, Time 19.7). The user asks: "wait, tell me more about that thing you said earlier."
+
+This is a reply pop-up. I should decide whether to reply in context and whether to terminate the event. Since I'm at the gym between sets, I can reply in context. The user is engaged and the conversation is warm. No need to terminate the event — I can just chat between sets. So reply: yes, terminate_event: no.
+
+The tool format for reply pop-ups: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

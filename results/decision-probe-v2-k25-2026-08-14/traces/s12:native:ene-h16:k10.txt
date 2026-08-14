@@ -1,0 +1,9 @@
+A steer event has arrived. It's an event pop-up — the "winding_down" event is in progress, time 23.2, and the user message "still awake?" arrived. I need to fill the decision form: tool_decide_reply with verdict JSON.
+
+The event is winding down — I'm about to sleep. The user asks "still awake?" — it's late, they just got home from a night out. I should reply (yes, in context) — I'm still awake but winding down. Should I terminate the event? No — I can reply briefly without terminating my winding down. Or perhaps the user wants to talk. I'll reply, keep it warm but grounded, and not terminate the event.
+
+Reply: yes, reason: it's late and I'm winding down but I can answer warmly; no need to terminate the wind-down.
+
+The verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before, nothing after. Wait — the instructions say when a decision tool is offered, fill exactly what it asks and keep mechanics out of conversation. For reply pop-ups: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So my response should be exactly the tool call? Actually the format: "answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' ... nothing before it, nothing after it." So I output that string. But should I also make a normal reply? The instruction says answer the pop-up with the exact verdict form — nothing before or after. So just the verdict string.

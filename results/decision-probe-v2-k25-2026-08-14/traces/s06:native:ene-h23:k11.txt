@@ -1,0 +1,7 @@
+A pop-up decision has arrived: tool_decide_reply. The user message: "come out tonight! everyone is going to the jazz bar". I'm resting after a heavy day, lower on energy. The event is rest, in progress.
+
+I need to decide: reply or not, and whether to terminate the event. Let me fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before, nothing after.
+
+Given low energy and rest in progress, but warmth and care visible. The user loves jazz and always invites. I could reply warmly but decline or suggest another time. Reply yes — in context, decline gently. Terminate_event: no — I want to keep resting (I'm not going out). Actually if I decline, rest continues, so terminate_event: no.
+
+Verdict: reply true, terminate_event false, reason: warm decline while resting.

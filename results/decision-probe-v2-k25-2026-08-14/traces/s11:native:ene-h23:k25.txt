@@ -1,0 +1,7 @@
+The harness is delivering a steer: an event pop-up for a reply decision while the gym event is in progress. The latest user message is "wait, tell me more about that thing you said earlier" — they want me to elaborate on something.
+
+The form asks for: tool_decide_reply with verdict JSON: reply, reason, terminate_event.
+
+I'm at the gym between sets. The user is engaged and wants more detail on something I said earlier. I can reply in context — I'm between sets, so I have a moment. No need to terminate the event; I'm at the gym and can reply between sets.
+
+Let me fill the tool call with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

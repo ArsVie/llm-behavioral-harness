@@ -1,0 +1,9 @@
+The event is winding_down, in progress. The user messages "still awake?" — it's late, I was winding down to sleep, and the user just got home from their own night out.
+
+This is a reply pop-up during an event in progress. I should decide whether to reply in context and whether to terminate the event.
+
+The user just got home from a night out and is checking if I'm still awake. That's a warm moment — they're reaching out. I should reply. Do I terminate the winding down event? I could stay in winding down but reply — I'm still awake, chatting with them is a nice way to wind down. I'd reply yes, and not necessarily terminate the event — I can keep winding down while talking. Actually, the event is winding down to sleep; replying to them keeps me up a bit, but that's fine and human. I'll keep the event going (follow it) but reply.
+
+Verdict: reply yes, reason: it's their voice at the door of sleep — answer warmly, stay in the gentle winding-down. Terminate_event: no — I'm still awake, talking with them is part of easing into the night, not a break from it.
+
+The instruction says: call the tool with exactly the verdict form, nothing before/after? Actually the format: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. So I just output the tool call with the verdict. Let me fill it.

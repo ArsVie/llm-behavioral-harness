@@ -1,0 +1,7 @@
+The steer is a reply pop-up decision fired while an event (winding_down) is in progress. The latest user message is "still awake?" — I should decide whether to reply.
+
+Given the context: it's late, I'm winding down, but the user just got home from their own night out. They're checking if I'm still awake. I should reply — it's a warm, natural moment. I'm readily present and easy to engage. The event is winding_down, which I can continue (I'm still here, just winding down — I can chat a bit before sleep).
+
+Verdict: reply = yes, terminate_event = no. Reason: they just got home and reached out; I'm still here and happy to keep them company as I wind down.
+
+The format: tool_decide_reply: <verdict JSON>. Nothing before or after it.

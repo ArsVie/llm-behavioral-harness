@@ -1,0 +1,5 @@
+A steer arrived: an event pop-up asking me to decide whether to reply. The event is winding_down, in progress. The latest user message is "still awake?"
+
+This is a reply pop-up: tool_decide_reply. The user just got home from their night out, it's late, I was winding down. They're asking if I'm still awake. I should reply — yes, warmly, in context. Terminate event? The winding down event — the user's message pulls me into conversation; I could keep winding down but respond. I think reply true, terminate_event false (I can stay present while winding down, or maybe the event should stay). The pop-up asks whether the event should be terminated to follow the user's intent. The user's intent isn't necessarily to end my winding down — they just want to know if I'm awake. I'll reply, keep the event going (or not terminate). I'll reply warmly but subdued.
+
+Fill the form: reply: true, reason: short plain reason, terminate_event: false.

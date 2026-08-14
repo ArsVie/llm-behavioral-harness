@@ -1,0 +1,3 @@
+The steer arrives: an event pop-up for a reply decision. The latest user message is "still awake?" while I'm winding down at 23.2. I should reply — yes, I'm awake, just winding down. The event (winding_down) should stay in progress — no need to terminate; the user is checking in. I'll reply warmly, calmly present.
+
+The instructions say: when a reply pop-up arrives, fill exactly the verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. So my response should be just that tool call.

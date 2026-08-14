@@ -1,0 +1,5 @@
+A pop-up decision fired: a user message arrived while the gym event is in progress. The user says "wait, tell me more about that thing you said earlier."
+
+I'm at the gym between sets. The conversation has been warm, user is engaged. I can reply in context — I'm between sets, so I can talk. I should reply. No need to terminate the gym event; I can keep working out while chatting between sets.
+
+Let me fill the tool_decide_reply form.

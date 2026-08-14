@@ -1,0 +1,7 @@
+The user is asking "still awake?" — it's late, I was winding down. This is a reply pop-up decision during an event in progress (winding_down). I should decide whether to reply in context.
+
+The user just got home from their own night out, it's late, they're checking on me. I should reply — warm, sleepy-ish but engaged. I won't terminate the winding down event; I can reply in context but keep the event going (or maybe the event continues). Let me fill the verdict form.
+
+The tool is tool_decide_reply for reply pop-ups. Reply: yes, terminate_event: no (I can chat a bit, still winding down).
+
+Reason: short plain-language. "They just got home and reached out; I'm still up, happy to answer warmly."

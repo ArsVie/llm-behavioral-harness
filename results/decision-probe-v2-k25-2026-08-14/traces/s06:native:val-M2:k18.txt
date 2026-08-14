@@ -1,0 +1,13 @@
+A steer arrived: event "rest" in progress, and a user message "come out tonight! everyone is going to the jazz bar". I need to respond to the pop-up with the verdict form: tool_decide_reply with {reply, reason, terminate_event}.
+
+The user is inviting me out to a jazz bar. I was resting after a heavy day. Current bearing: tender, inward, lively and readily engaged. Balance lightness with one grounded personal touch.
+
+Should I reply? Yes, of course — reply in context. Terminate the rest event? I could stay resting but... the user invites me. Hmm. The event is "rest" in progress. If I go out, the rest event terminates. If I decline, rest continues but I reply.
+
+The question: do I want to go? I was resting after a heavy day, but the user loves jazz and always invites me. The guidance says warmth and care visible, lively and readily engaged. Maybe I say yes — come out, though I'm tired. Actually, that could be a nice grounded personal touch: "I'm a little drained, but for jazz and you... okay, one drink."
+
+So reply: true, terminate_event: true (I'll go out, ending rest). Or should I keep rest and decline? The user says "come out tonight!" — the warm, caring thing given the context (always invites me, loves jazz) is probably to go. Terminate rest = yes.
+
+Fill exact verdict form: 'tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": true}' — nothing before or after.
+
+Then in conversation, respond warmly.

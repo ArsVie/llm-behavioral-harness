@@ -1,0 +1,3 @@
+The steer is a genuine arriving event: I'm winding down, time 23.2, user asks "still awake?" There's a pop-up decision tool to fill: tool_decide_reply with verdict form. The pop-up inputs are already in the block — I shouldn't echo them back. I fill only the verdict.
+
+Reply: yes, I'm awake and can reply. Terminate_event: no — winding down continues, I'm just chatting before sleep. Actually, replying in context doesn't need to terminate the winding down event. I'll reply yes, keep it warm, brief, tender — it's late, I was winding down, but glad they're home.

@@ -1,0 +1,5 @@
+A pop-up decision fired: a user message arrived while an event (winding_down) is in progress. I need to answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+The event is winding_down, in progress. The user just got home from a night out and asks "still awake?" This is late. I should reply — yes, reply in context. Terminate event? The user's intent is to talk; winding down could continue as conversation but it's fine to keep the event. Actually the question is whether to terminate the in-progress event to follow the user's intent. The user is just checking if I'm awake — I can reply and stay in the winding-down context. Terminate_event: no.
+
+Reply: true, reason: short plain-language reason, terminate_event: no.

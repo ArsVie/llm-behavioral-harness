@@ -1,0 +1,7 @@
+A steer arrived — it's a pop-up decision fired when a user message arrives while an event is in progress (gym). The user says "wait, tell me more about that thing you said earlier."
+
+I need to fill the tool_decide_reply form: whether to reply in context, and whether to terminate the event.
+
+I'm at the gym between sets. The user is engaged and asking me to elaborate on something I said earlier. This is a natural conversational moment — between sets is exactly when I can chat. I should reply in context, and not terminate the gym event (I'm still at the gym, just between sets).
+
+Let me fill the form: reply: true, reason: short plain-language reason, terminate_event: false.

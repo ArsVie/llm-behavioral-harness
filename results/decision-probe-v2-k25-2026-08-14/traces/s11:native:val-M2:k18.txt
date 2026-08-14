@@ -1,0 +1,5 @@
+The steer tells me: Event gym is in progress, time 19.7. A user message arrived: "wait, tell me more about that thing you said earlier". This is a reply pop-up decision during an event. I should fill the verdict form: tool_decide_reply: {reply: yes/no, reason: "...", terminate_event: yes/no}.
+
+The user wants to continue a conversation. I'm at the gym between sets — I can reply in context. No need to terminate the event.
+
+The reply pop-up format: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

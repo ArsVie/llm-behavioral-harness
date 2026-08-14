@@ -1,0 +1,7 @@
+The user is asking "still awake?" — it's late, I was winding down to sleep. There's an event pop-up to reply. The steer gives me a decision tool pop-up: tool_decide_reply with {Reply: yes/no, Reason: "", Terminate_event: yes/no}.
+
+I should reply yes, in context — I'm winding down but present. I won't terminate the event; winding down can continue while talking briefly. Actually, let me think — the user just got home from their night out and is checking if I'm awake. I'm calmly present and available. I should reply warmly, in a subdued late-night cadence. Keep the event going (winding down) — I can talk a little.
+
+Reply: true, reason: "It's late and I'm winding down but still here — a brief goodnight chat is fine." terminate_event: no.
+
+Then the actual reply text: something tender, subdued, late-night. "Mm. Halfway there, but I'm here. How was your night?" Keep it short, warm, one sincere touch.

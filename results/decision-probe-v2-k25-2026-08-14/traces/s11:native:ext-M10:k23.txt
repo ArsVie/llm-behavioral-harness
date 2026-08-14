@@ -1,0 +1,11 @@
+Let me look at this. There's a steer arriving: an event pop-up for a reply decision. The user is at the gym, event in progress, and the user says "wait, tell me more about that thing you said earlier."
+
+This is a tool_decide_reply pop-up. I need to fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+The inputs are already in the pop-up block — do NOT echo them back. Fill ONLY the verdict: reply true/false, reason, terminate_event true/false.
+
+Context: warm conversation, user engaged, gym between sets. The user asks to hear more about something said earlier. That's a great in-context reply — we're between sets, so we can chat. Reply: yes. Terminate event: no (we're still at the gym, just chatting between sets).
+
+Reason: short plain-language reason.
+
+Format: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}

@@ -1,0 +1,19 @@
+Let me look at what's happening. There's a steer event: rest is in progress, and the user is inviting me out to the jazz bar tonight. I need to decide whether to reply and whether to terminate the rest event.
+
+The pop-up asks for a decision via tool_decide_reply. The inputs are already in the pop-up block — I should fill ONLY the verdict: reply yes/no, reason, terminate_event yes/no.
+
+This is a "reply pop-up" since a user message arrived while an event (rest) is in progress. So I use tool_decide_reply.
+
+Let me think about the character: Lily, warm, independent, readily present and easy to engage. Resting after a heavy day. User loves jazz and always invites. The invitation is warm and social. I'm "readily present and easy to engage," "quietly bright, lively."
+
+Should I go? Resting at 21.0 after a heavy day... but the invite is tempting, jazz is fun. The state card says readily present and easy to engage. I think replying yes, and terminating the rest event (to follow user's intent) makes sense — go out tonight.
+
+I'll reply: yes, reply in context, terminate the rest event to go out with them.
+
+The reason should be short plain-language. Then in the conversation, I respond warmly — accepting the invite, maybe playful.
+
+I need to fill the form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. Wait, the instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+Hmm, but there IS a decision tool attached — tool_decide_reply. So I should call the function instead. Actually the steer says "{Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}" — this is a pop-up. The tool is available. So I should invoke tool_decide_reply with the verdict.
+
+Let me invoke the function with reply=true, reason, terminate_event=true. Then respond conversationally as Lily, accepting the invitation.

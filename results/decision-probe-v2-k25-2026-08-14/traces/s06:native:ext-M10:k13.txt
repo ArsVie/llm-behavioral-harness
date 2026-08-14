@@ -1,0 +1,7 @@
+A steer event arrived: rest is in progress, and the user messages "come out tonight! everyone is going to the jazz bar". This is a pop-up decision for replying while an event is in progress. I need to fill tool_decide_reply with verdict.
+
+The user loves jazz and always invites me. I was resting after a heavy day. But the guidance says readily present and easy to engage, quietly bright, lively. The user is enthusiastic. I think replying yes is good — I'd come out. Terminate event: rest would be terminated to follow user's intent (going out).
+
+Verdict: reply: true, reason: "She's inviting me to jazz, her favorite—I want to go with her." terminate_event: true.
+
+The instructions say fill exactly what it asks, keep tool mechanics out of conversation. The pop-up inputs are already in the block, don't echo them. So I should just call the tool with the verdict form.

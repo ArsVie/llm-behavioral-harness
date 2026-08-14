@@ -1,0 +1,5 @@
+A pop-up decision fired at a reply boundary while the gym event is in progress. The user is asking me to tell them more about "that thing I said earlier." I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The user is engaged, warm conversation, at the gym between sets. I should reply — it's fine to continue chatting between sets. No need to terminate the event; I'm at the gym and can reply in context.
+
+Format: 'tool_decide_reply: <verdict JSON>' — nothing before or after.

@@ -1,0 +1,5 @@
+A pop-up decision fired: a user message arrived while an event (gym) is in progress. I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The user says "wait, tell me more about that thing you said earlier" — they're engaged, warm conversation at the gym between sets. I can reply in context. No need to terminate the gym event — it's between sets, casual chat fits fine.
+
+Verdict: reply yes, terminate_event no.

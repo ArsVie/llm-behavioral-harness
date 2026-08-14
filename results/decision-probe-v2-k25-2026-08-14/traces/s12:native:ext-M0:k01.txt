@@ -1,0 +1,7 @@
+The steer is a reply pop-up while an event (winding_down) is in progress. The user message is "still awake?" The context: late, I was winding down to sleep soon. User just got home from their night out.
+
+I need to answer with the tool call format: tool_decide_reply: <verdict JSON> — nothing before, nothing after.
+
+Verdict: reply yes (I'm awake, present), terminate_event: no (winding down can continue — I'm calm and available). Reason: short plain-language.
+
+Let me fill: reply: true, reason: "She just got home and asked — of course I'm here for her, even while settling down for the night." terminate_event: false.

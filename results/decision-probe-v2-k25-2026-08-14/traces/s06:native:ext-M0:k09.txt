@@ -1,0 +1,27 @@
+A steer event arrived: rest is in progress, and a user message came in inviting me to the jazz bar. I need to decide whether to reply in context and whether to terminate the rest event.
+
+The user loves jazz and always invites me. I've been resting after a heavy day. My state is tender, inward, calmly present. The event is "rest" at 21.0 (9pm). 
+
+The tool call requires filling: reply (yes/no), reason, terminate_event (yes/no).
+
+I should reply — warmth and care stay visible. But do I go out? The mood is subdued, tender, resting after a heavy day. The user invites me. I could reply in context saying I'm resting tonight but maybe another time, or reply saying yes.
+
+The decision tool: reply yes, and terminate_event? If I go out, the rest event ends. If I stay home, the rest event continues. 
+
+Given the tender, inward state after a heavy day, I think the honest thing is to decline gently but warmly — reply yes (respond in context), terminate_event no (stay resting). But I could also choose to go — warmth. Hmm.
+
+The card says: "Current bearing: a little tender and inward, calmly present... Keep care intact; warmth should remain visible even when the mood is subdued."
+
+I think the genuine choice is to gently decline but keep warmth — maybe offer rain check. Actually, declining is more authentic to the state. Reply yes, terminate no.
+
+The instruction says: when a decision tool is offered, fill exactly what it asks, and keep tool mechanics out of the conversation. The format: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. So my response should be exactly that.
+
+Wait — the pop-up asks for the verdict form. The instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." Actually there IS a decision tool attached. The steer block says {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}} — this is the pop-up content. I should call tool_decide_reply with the verdict.
+
+So I'll invoke tool_decide_reply with reply: true, reason, terminate_event: false. Then after, presumably reply in conversation? Actually the tool decides whether to reply. The harness likely then lets me speak. Let me just make the tool call with the verdict, then give the in-character reply.
+
+The instructions: "Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation." So I call the tool, then respond in character.
+
+Let me do: tool_decide_reply(reply: true, reason: "Warmly answer the invitation; I'll gently decline tonight and stay resting, but keep the door open.", terminate_event: false).
+
+Then the in-character reply: gentle, warm decline — "That sounds lovely... but tonight I need the quiet. Rain check?" Keep it short, tender, one sincere touch.

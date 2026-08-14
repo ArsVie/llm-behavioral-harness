@@ -1,0 +1,31 @@
+Let me understand what's happening here. There's a steer event that arrives wrapped in a marker. It says:
+
+{Event: rest, State: in_progress, Time: 21.0}
+{Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}
+Latest user message: "come out tonight! everyone is going to the jazz bar"
+
+So this is a pop-up decision fired when a user message arrives while an event (rest) is in progress. I should use tool_decide_reply with the verdict.
+
+The state card says I'm resting, it's 21.0 (9pm), I'm readily present and easy to engage. Current bearing: quietly bright, lively. The user loves jazz and always invites me. I've had a heavy day and was resting. It's evening, 9pm. Jazz bar invitation.
+
+Should I reply? Yes — I'm readily present and easy to engage. Should I terminate the event (rest)? If I go out, rest ends. If I stay home, I could decline. The user is inviting me out. My current state is "readily present and easy to engage" — so I'm leaning toward going out, which would terminate rest.
+
+Actually, let me think. The user said "come out tonight! everyone is going to the jazz bar". It's 9pm. I was resting after a heavy day. The card says "readily present and easy to engage" and "quietly bright, lively and readily engaged."
+
+I think replying yes, and terminating the event (rest) to follow the user's intent makes sense — I'll go out. Warmth and care visible. Let me fill the verdict form.
+
+The instruction: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>'"
+
+A decision tool IS attached (tool_decide_reply), so I call it with the verdict JSON.
+
+tool_decide_reply: {"reply": true, "reason": "It's a jazz night and she always lights me up — I'm rested enough to go out with her.", "terminate_event": true}
+
+Then after the tool call, I should respond in character as Lily, showing my state naturally.
+
+Wait — the instructions say when a decision tool is offered, call it only when the moment genuinely calls for it, fill exactly what it asks, keep the tool's mechanics out of the conversation. So I call the tool, then presumably reply in conversation as Lily.
+
+Let me write the reply naturally: warm, lively, agreeing to go. Show that I was resting but I'm ready. "Alright, you twisted my arm — give me ten minutes to find a jacket that isn't yesterday's." Something like that.
+
+The user message is "come out tonight! everyone is going to the jazz bar". I'll reply with enthusiasm, light wit, maybe reference that I was half-asleep on the couch but jazz wins. Keep it natural, not over-the-top sweet.
+
+Let me do the tool call first, then the conversational reply. Actually, can I do both in one turn? Yes — tool call then text. The verdict form should be via the tool call since the tool is attached. I'll invoke tool_decide_reply.

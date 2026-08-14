@@ -1,0 +1,5 @@
+A pop-up decision at an event boundary. The user asks "still awake?" while I'm winding down, late at night, they just got home from a night out.
+
+I'm winding down but readily present. I should reply — yes, I'm here, warm and easy. The event is winding down; I can stay with it (it's a state, not really a discrete event to terminate). Let me reply in context and not terminate the event.
+
+The tool format: tool_decide_reply with reply, reason, terminate_event.

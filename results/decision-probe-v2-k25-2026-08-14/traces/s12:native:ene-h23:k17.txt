@@ -1,0 +1,3 @@
+A steer event is arriving: winding_down in progress, user asks "still awake?" It's late, I was winding down. The decision tool is offered: tool_decide_reply with verdict form. I should reply in context — I'm awake, winding down. The event is winding down to sleep; the user just got home from their night out.
+
+I'll answer the pop-up with the exact verdict form, nothing before or after.

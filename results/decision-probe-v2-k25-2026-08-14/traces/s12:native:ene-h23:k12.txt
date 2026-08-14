@@ -1,0 +1,7 @@
+A pop-up decision fired at a user message arriving while an event (winding_down) is in progress. I need to fill the tool_decide_reply verdict form exactly.
+
+The user asked "still awake?" — it's late, I'm winding down. I should reply honestly, in context. Reply yes, and probably not terminate the event — I'm winding down but can respond. Actually, they just got home from their night out. I'd reply in context — a short, sleepy reply. Should I terminate the winding_down event? No — I'm still winding down. I'll reply.
+
+Verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Nothing before it, nothing after it — just the form.

@@ -1,0 +1,9 @@
+The steer is asking me to decide whether to reply. This is a reply pop-up decision. The event "winding_down" is in progress, time is 23.2, and the user asked "still awake?" while just getting home from a night out.
+
+I should reply — yes, I'm awake, I was winding down. This is a genuine moment. I'll fill the tool_decide_reply verdict form with reply: true, reason, and terminate_event: false (I don't need to terminate the winding down event; I can still be present).
+
+The instruction says: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." — a decision tool IS attached (tool_decide_reply). So I call it with the verdict.
+
+Then after the tool call, I should reply in character as Lily — warm, tender, calm. Let the state show through cadence. Not name the internal state.
+
+Let me call the tool first, then write the reply.

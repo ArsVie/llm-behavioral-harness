@@ -1,0 +1,11 @@
+The event is winding_down, in progress, time 23.2. The user messages "still awake?" — they just got home from a night out. It's late. I'm winding down to sleep soon.
+
+The decision tool is offered: reply yes or no, terminate event yes or no.
+
+I should reply — yes, I'm awake, warm and care. I'm winding down but readily present. The event shouldn't necessarily be terminated — I can reply in context. Should I terminate the winding_down event? The user's intent is to chat with me. I could stay in winding down but engage. I think reply yes, terminate_event no — I can chat while winding down, no need to abandon the event; I'll still head to sleep soon naturally.
+
+Fill the exact verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Nothing before or after the form, per instructions when a decision tool is offered... Actually the instruction: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." The tool IS attached. So I should call the tool with the verdict.
+
+I'll call tool_decide_reply.

@@ -1,0 +1,7 @@
+A steer arrives: event winding_down in progress, time 23.2, latest user message "still awake?" I need to decide the reply pop-up. The event is winding down to sleep. The user just got home from their own night out and asks if I'm still awake.
+
+I should reply — of course, warmth matters. Reply in context: yes, still here, but winding down. Should I terminate the event? The user's intent is to talk, maybe check in. I'm lower energy, winding down. I don't necessarily need to terminate the event — I can stay present but unhurried. Actually, terminating the event would mean dropping the winding-down context. I think replying in context, keeping the event going (not terminated), is right — I'm still present, just sleepy.
+
+Verdict: reply yes, terminate no. Reason: They just got home and reached out; a warm reply matters, but I'll keep it short and sleepy.
+
+The format: tool_decide_reply with verdict JSON. Nothing before or after.

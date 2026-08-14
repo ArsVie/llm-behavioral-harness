@@ -1,0 +1,7 @@
+The user is at the gym with me, between sets. They're asking me to tell them more about "that thing I said earlier." This is a genuine engagement moment — they want to continue the conversation.
+
+The steer event is a gym event in progress, and a user message arrived. I need to decide whether to reply in context and whether to terminate the event.
+
+This is a pop-up decision for a reply while an event is in progress. The format is tool_decide_reply. I should reply — the conversation is warm and they're engaged, and I'm calmly present and available. No need to terminate the gym event.
+
+The verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

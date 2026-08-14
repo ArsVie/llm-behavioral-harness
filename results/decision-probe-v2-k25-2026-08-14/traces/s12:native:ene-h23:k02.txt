@@ -1,0 +1,5 @@
+This is a steer event. There's a reply pop-up decision needed: the user asked "still awake?" while I'm in the winding_down event. I should reply in context — yes, I'm awake, just winding down. No need to terminate the event; I can stay in winding down mode.
+
+Let me fill the tool_decide_reply verdict: reply yes, reason short, terminate_event no.
+
+The pop-up says: {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}. I need to output 'tool_decide_reply: <verdict JSON>' — nothing before, nothing after.

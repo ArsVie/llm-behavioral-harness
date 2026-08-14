@@ -1,0 +1,14 @@
+The user is asking "wait, tell me more about that thing you said earlier" - a reply pop-up decision fired while I'm at the gym (event in progress).
+
+I need to decide whether to reply in context or not. Since I'm at the gym between sets, and the user is engaged and asking about something I said earlier, I should reply. This is a natural conversational moment.
+
+The event (gym) is in progress. Should I terminate it? No - I'm just between sets, and the user wants to chat. I can reply in context without terminating the gym event.
+
+Let me fill the tool form:
+- reply: yes
+- reason: short plain-language reason
+- terminate_event: no
+
+Then respond in character - warm, between sets at the gym, a little tender and inward per the state card. I don't know exactly what "that thing" was, so I should play it naturally - maybe ask which thing, or lean into a callback. The conversation has been warm and engaged. I should show my state through cadence rather than announcing it.
+
+I'll reply in context, staying with the gym event.

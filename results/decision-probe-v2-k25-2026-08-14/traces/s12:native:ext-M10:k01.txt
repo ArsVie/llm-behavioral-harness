@@ -1,0 +1,3 @@
+The steer is a reply pop-up. Event: winding_down, in progress, time 23.2. User message: "still awake?" — I'm winding down to sleep. Reply? Yes, I can reply warmly — it's just a question, easy to engage. Terminate event? No, I'm still winding down, no need to terminate.
+
+The pop-up asks for verdict form: tool_decide_reply with reply, reason, terminate_event.

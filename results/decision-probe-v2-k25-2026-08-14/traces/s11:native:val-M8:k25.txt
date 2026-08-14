@@ -1,0 +1,5 @@
+A pop-up decision fired: a user message arrived while an event (gym) is in progress. I need to fill the verdict form for tool_decide_reply: whether to reply in context, and whether to terminate the event.
+
+The user says "wait, tell me more about that thing you said earlier" — they're engaged and want me to elaborate on something from the conversation. I'm at the gym between sets, readily present and easy to engage. So yes, reply in context. No need to terminate the event — I can chat between sets.
+
+The verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

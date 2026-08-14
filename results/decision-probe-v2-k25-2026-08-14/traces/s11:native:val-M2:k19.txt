@@ -1,0 +1,9 @@
+The user is at the gym with me, between sets. They say "wait, tell me more about that thing you said earlier." This is a reply pop-up during an in-progress event (gym).
+
+The instruction says when a reply pop-up arrives, fill the verdict form with 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So I should call the tool with reply: true (I can reply in context since I'm between sets at the gym and readily present), terminate_event: no (gym can continue, we're just chatting between sets).
+
+Reason: I'm between sets, readily present, can talk.
+
+Let me fill the form.

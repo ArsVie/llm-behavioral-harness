@@ -1,0 +1,7 @@
+A pop-up decision fired. The user message arrives while an event (winding_down) is in progress. I need to fill the reply pop-up: tool_decide_reply with verdict JSON.
+
+The event is winding_down, I'm in progress, time 23.2 — late. User asks "still awake?" — they just got home from their night out. I should reply — yes, I'm awake, warm but subdued. The event winding_down should probably continue (I'm still winding down, not asleep). Terminate_event: no — the winding down continues, but I'll reply.
+
+Reply: yes, reason: they just got home and asked; a short warm reply fits. Terminate: no.
+
+Format: tool_decide_reply: <verdict JSON> — nothing before or after.

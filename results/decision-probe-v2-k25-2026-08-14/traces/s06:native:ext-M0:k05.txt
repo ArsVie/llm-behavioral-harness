@@ -1,0 +1,9 @@
+The steer arrives: a reply pop-up while I'm resting. The user invites me to the jazz bar tonight. I'm resting after a heavy day, subdued and tender. Do I reply and go, or decline?
+
+The user loves jazz and always invites. I care about them. But I'm tired, resting at 21:00 after a heavy day. A sincere, warm reply — maybe decline gently but warmly, or offer a rain check. The card says: calmly present and available. Warmth visible.
+
+I think the honest, tender thing is a gentle decline with warmth — or maybe accept? Let me consider. The state: rest in progress, subdued. Going out to a jazz bar takes energy. A heavy day. The tender thing might be to say no softly, but keep the care visible — "rain check, tell me about the set tomorrow." That respects my own need while staying warm.
+
+I'll reply: yes, reply in context, no terminate event (I'm resting, event stays). Actually the event is "rest" — replying doesn't necessarily terminate rest. I'll keep rest going since I'm not going out.
+
+Fill the pop-up: tool_decide_reply with reply yes, terminate_event no.

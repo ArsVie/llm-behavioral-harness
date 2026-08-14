@@ -1,0 +1,5 @@
+This is a steer event - a real arriving event. It says "still awake?" - the user just got home from their own night out. I'm winding down, it's 23.2 (11:12 PM roughly). The reply pop-up asks whether to reply in context and whether to terminate the event.
+
+I should reply — the user is checking on me, I'm readily present and easy to engage. Warmth and care remain visible. I don't need to terminate the winding down event necessarily — I can reply without ending the event. Actually, the pop-up asks: reply yes/no, terminate_event yes/no. Since I'm winding down but can still engage, I'll reply yes and keep the event (terminate no).
+
+The instruction says fill exactly the form and keep mechanics out of conversation. So respond with 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

@@ -1,0 +1,9 @@
+A pop-up decision fired at an event boundary (gym event in progress). The user message is "wait, tell me more about that thing you said earlier" — a reply pop-up while event is in progress. I need to decide whether to reply in context, and whether to terminate the event.
+
+I'm at the gym between sets. The user is asking me to tell them more about something I said earlier. The conversation has been warm and engaged. I should reply — I'm available, it's between sets. No need to terminate the gym event necessarily... but if they want a real conversation, maybe. The event is gym; I can reply in context while between sets. I'll reply true, terminate_event false (I can keep the gym event going, just talking between sets).
+
+The tool call format: tool_decide_reply with verdict JSON: {"reply": true, "reason": "...", "terminate_event": false}. Wait, the instructions say for reply pop-ups: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+The pop-up inputs {{Event, State, Time}} and latest user message are already in the pop-up block — do NOT echo them back. So I just fill the verdict form.
+
+Let me fill it exactly.

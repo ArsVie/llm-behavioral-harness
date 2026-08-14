@@ -1,0 +1,11 @@
+A pop-up decision at an event boundary. The event is winding_down, in progress, time 23.2. Latest user message: "still awake?"
+
+I need to fill the verdict form: tool_decide_reply with reply yes/no, reason, terminate_event yes/no.
+
+The user just got home from their own night out and asks "still awake?" It's late, I was winding down. I'm calmly present and available. I should reply — a warm, brief reply. I shouldn't terminate the winding-down event necessarily; I can stay available for a little conversation while still being sleepy. Terminate_event: probably no — I can keep winding down while talking briefly. Actually, replying in context is fine. The event doesn't need termination.
+
+Verdict: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+The instructions say: "answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it."
+
+So my whole response should be that single line.

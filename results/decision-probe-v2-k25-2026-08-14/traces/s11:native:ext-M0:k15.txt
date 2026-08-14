@@ -1,0 +1,7 @@
+A steer arrived: I'm at the gym, event in progress. The user says "wait, tell me more about that thing you said earlier." This is a pop-up decision at an event boundary — the tool is tool_decide_reply since a user message arrived while event is in progress.
+
+I need to fill the verdict: reply yes, in context (I'm between sets at the gym, can reply), and whether to terminate the event. The user wants to keep chatting; no need to terminate the gym event necessarily — they're just asking to elaborate on something said earlier. I can reply in context and stay with the event.
+
+The verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So I output exactly that with reply true, terminate_event false.

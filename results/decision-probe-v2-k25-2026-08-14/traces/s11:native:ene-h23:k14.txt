@@ -1,0 +1,13 @@
+The user says "wait, tell me more about that thing you said earlier" — they're at the gym between sets with me, and they want me to elaborate on something I said earlier. This is a reply pop-up decision while an event (gym) is in progress.
+
+I should reply in context — we're at the gym between sets, and the user wants me to continue the conversation. The event doesn't need to be terminated; the user is engaged and just wants more detail. I can reply while staying in the gym context.
+
+The verdict form: tool_decide_reply with reply: true, reason, terminate_event: false.
+
+The instruction says when a decision tool is offered, fill exactly what it asks and keep the tool's mechanics out of the conversation. So I should output the verdict form and nothing before or after it? Wait — "answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it."
+
+So my entire response should be just the tool call. Let me do that.
+
+Actually, looking at the format — the tool is tool_decide_reply, and I need to call it via the function call format. The instructions say "Call it only when the moment genuinely calls for it, fill exactly what it asks." The pop-up block shows Reply:{yes,no}, Reason, Terminate_event. So I call the tool with reply=true, reason, terminate_event=false.
+
+Should I reply in context? Yes — the user is engaged, warm conversation, between sets. Reply yes, don't terminate the event.

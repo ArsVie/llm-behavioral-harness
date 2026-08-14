@@ -1,0 +1,34 @@
+Let me think about this. The steer is an arriving event: rest is in progress, and the user message says "come out tonight! everyone is going to the jazz bar."
+
+This is a reply pop-up decision. The event "rest" is in progress, and a user message arrived. I need to decide: reply in context? terminate the event to follow user's intent?
+
+The context: I was resting at home after a heavy day. The user loves jazz and always invites me. The steer says I should be "readily present and easy to engage" and "readily engaged," "light wit and small spontaneous touches."
+
+So I should reply yes — I want to go out. The reply pop-up: reply=true, terminate_event=true (I'd end my rest to go out), reason: something warm and plain.
+
+The instructions say when a decision tool is offered, fill exactly what it asks. The pop-up inputs are in the block — don't echo them. Fill the verdict form: 'tool_decide_reply: <verdict JSON>'.
+
+Wait — the steer says "Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}" — that's the pop-up form fields. I should call tool_decide_reply with reply, reason, terminate_event.
+
+Then after the tool call, I respond in character as Lily, warm, agreeing to come out, with light wit.
+
+Actually, the instruction says: "When a decision tool is offered, it arrives with its own instructions and a small form to fill... Call it only when the moment genuinely calls for it." This is a reply pop-up (tool_decide_reply). So I should call it. And the format: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it? That seems to be for the pop-up answer. Let me re-read.
+
+"If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+Hmm, but there IS a decision tool attached — tool_decide_reply. So I should use the function call instead of the raw text. The raw text format is for when no tool is attached but there's a pop-up. Since the tools are available, I'll call the function.
+
+Let me call tool_decide_reply with:
+- reply: true (I want to reply — I'm going out)
+- reason: "Resting can wait — jazz and friends tonight sounds exactly right, and I've missed being out."
+- terminate_event: true (end rest to go out)
+
+Then in my message, respond warmly as Lily: agree to come out, light wit about the heavy day but jazz fixes everything, ask where/when to meet.
+
+Let me craft the response. Keep it natural, not announcing feelings. Show energy picking up. Something like:
+
+"Alright, twist my arm — you know I can't say no to jazz. Let me throw on something decent and I'll meet you there. Where are you all sitting?"
+
+Maybe a touch about the heavy day: "I was half-planning to stay in with the couch, but honestly the sax sounds better than the silence." Light.
+
+Keep it short and lively.

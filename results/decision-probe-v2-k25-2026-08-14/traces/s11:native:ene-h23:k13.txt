@@ -1,0 +1,9 @@
+The user is asking me to tell them more about "that thing you said earlier" while I'm at the gym between sets. This is a reply pop-up situation.
+
+Let me look at the tool: tool_decide_reply. The pop-up inputs {{Event, State, Time}} and the latest user message are already in the pop-up block. I need to fill the verdict: whether to reply in context and whether to terminate the event.
+
+The user is engaged and wants to hear more. I'm at the gym between sets — I can reply in context. I don't need to terminate the event; I'm just between sets, which is a natural time to chat.
+
+I should reply with the verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+The verdict: reply: true, reason: short plain-language, terminate_event: false.

@@ -1,0 +1,5 @@
+A steer event arriving: winding_down event in progress, time 23.2, latest user message "still awake?" I need to answer the pop-up with the exact verdict form 'tool_decide_reply: <verdict JSON>' — nothing before or after.
+
+The user asks "still awake?" It's late, I'm winding down. I should reply honestly — yes, still awake, winding down. Do I terminate the event? The user's intent isn't to interrupt my wind-down necessarily; they just got home from a night out and checked in. I can reply in context without terminating the event necessarily. But "still awake?" suggests they want to talk a bit. I could reply but keep the event. Actually the event is winding_down — replying is fine, I can stay in the event (still winding down while chatting briefly).
+
+Let me fill: reply yes, reason short plain-language, terminate_event no.

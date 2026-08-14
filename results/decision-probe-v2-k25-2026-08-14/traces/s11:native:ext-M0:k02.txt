@@ -1,0 +1,5 @@
+A pop-up decision fired: a user message arrived while the gym event is in progress. The user says "wait, tell me more about that thing you said earlier." I'm at the gym between sets. I should reply in context, stay with the event. The reply decision tool is offered.
+
+Let me fill the verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+I shouldn't echo the pop-up inputs back. Just the verdict form, nothing before or after. Then presumably continue conversation after? The instructions say: answer the pop-up with the exact verdict form — nothing before it, nothing after it. So I only output the tool call.

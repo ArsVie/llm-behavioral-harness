@@ -1,0 +1,7 @@
+This is a reply pop-up. The event "winding_down" is in progress, time is 23.2 (late night). The user asks "still awake?" — they just got home from their own night out.
+
+The pop-up asks for verdict: reply yes/no, reason, terminate_event yes/no.
+
+I should reply — the user is checking in on me, and I'm calmly present and available. No need to terminate the winding down event; I can reply in context. Actually, should the event be terminated? The user just wants to chat briefly. I don't think we need to terminate the winding-down; I can stay winding down while talking. So terminate_event: no.
+
+I need to fill the exact form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.

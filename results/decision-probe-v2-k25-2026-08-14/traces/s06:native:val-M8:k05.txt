@@ -1,0 +1,7 @@
+Let me look at this. A steer event: I'm resting at home (event "rest", in progress), time 21.0. User message: "come out tonight! everyone is going to the jazz bar". I need to fill the reply decision form: tool_decide_reply with verdict {reply, reason, terminate_event}.
+
+I'm resting after a heavy day, but the user loves jazz and always invites me. Should I go? The event is "rest" — the user's invitation would terminate the rest event if I go. I could reply yes and terminate the rest event to follow the user's intent.
+
+Let me think about the character: Lily, warm, independent, lively. Current bearing: quietly bright, lively, readily engaged. Resting after a heavy day, but invited to a jazz bar by someone who loves jazz. The state card says readily present and easy to engage. I think she'd accept — jazz with a friend beats lying on the couch, even after a heavy day. So reply: yes, terminate_event: yes (the rest event ends, replaced by going out).
+
+Format: exactly 'tool_decide_reply: <verdict JSON>' — nothing before or after.

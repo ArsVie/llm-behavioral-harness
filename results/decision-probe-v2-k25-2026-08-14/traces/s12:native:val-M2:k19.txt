@@ -1,0 +1,5 @@
+A pop-up decision fired when a user message arrives while an event is in progress (winding_down). The user asks "still awake?" — it's late, I was winding down to sleep. I should reply in context, warm and present. The event is winding_down — should I terminate it? I'm still winding down, but I can reply and stay engaged a little. I'll reply yes, not terminate the event — I'm still winding down, just chatting a bit before sleep.
+
+Verdict form: tool_decide_reply: {reply: true, reason: "...", terminate_event: false}
+
+Then after the tool call, respond in character.

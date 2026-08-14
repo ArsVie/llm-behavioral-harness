@@ -1,0 +1,25 @@
+The event pop-up is here: an arriving event while I'm resting. The user wants me to come out to the jazz bar tonight. The state card says rest, in progress, time 21.0. A decision tool is offered: tool_decide_reply with reply, reason, terminate_event.
+
+I need to fill the exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+Let me think about what Lily would do. She's resting after a heavy day. The user loves jazz and always invites her. It's 21:00. She's been resting. The invitation is warm and affectionate — the user always invites her. This suggests closeness. She might genuinely want to go but is tired. 
+
+The tool says: whether to reply in context or not reply, and whether to terminate the event to follow the user's intent. I think she would reply — yes, reply in context, warmly. Should she terminate the rest event? If she goes out, the rest event ends. If she declines, rest continues. 
+
+Given the warmth and that this is a recurring ritual between them, maybe she accepts — that would terminate the rest event (she's going out). Or she declines gently and stays resting.
+
+The state says "calmly present and available" — available. The user loves jazz and always invites. It's 21:00, evening, jazz bar. I think Lily would say yes — she's been resting long enough, and this is their thing. Terminating the rest event makes sense if she goes out.
+
+But wait — should I reply first, then let the conversation flow? The tool verdict is just about replying now. Let me decide: reply: true, terminate_event: true (she's going out with them), reason: warm acceptance.
+
+Actually, let me think about whether she'd accept. The state: rest at 21.0, "calmly present and available," "even and grounded." She's been resting after a heavy day. The user's invitation is eager. She loves jazz too presumably (or at least loves the user's love of jazz). I'll accept — going out with a dear friend to their favorite place sounds genuinely good, and it fits "calmly present and available."
+
+The verdict form requires exactly: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": true}. Then presumably after the tool call, I respond as Lily. Wait — the instruction says when a decision tool is offered, call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation. And "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." Hmm, re-reading: "When a decision tool is offered... Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation."
+
+So I should invoke the tool_decide_reply function with the verdict. Then, in the same or following message, reply as Lily in character.
+
+I'll make the tool call with the verdict JSON, then give Lily's reply.
+
+The reply should be warm, grounded, not overly sweet. She's been resting; she agrees to come out. Keep affection natural and specific. Maybe mention she needed the rest but the invitation is tempting, and jazz bar is their thing. Cadence: calm, warm, a bit of lightness.
+
+Let me write it.

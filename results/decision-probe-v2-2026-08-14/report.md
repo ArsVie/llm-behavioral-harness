@@ -13,6 +13,35 @@ tags: [decision-probe, v2, dose-response]
 
 Input: `results/decision-probe-v2-2026-08-14/probe.classified.json` · mode **real** · model **deepseek-v4-flash** · seeds [20260814] · 450 legs across 15 scenario_ids (everything-but-mood fixed per scenario_id; the mood dose is the only varied thing).
 
+## CORRIGENDUM (2026-08-14, K=25 follow-up with corrected anchors)
+
+The main run's dose grid contained **degenerate anchors**: `ene-h8` and
+`ene-h20` are mirror-symmetric hours around the 14:00 circadian peak and
+produced *identical* energy (0.45), identical availability, and identical
+briefs (same brief_hash); `val-M8` and `ext-M10` shared the same rendered
+brief. The main run's "no mid-dose gradient" and "energy axis flat" findings
+were therefore partly noise between identical stimuli — see the follow-up
+`results/decision-probe-v2-k25-2026-08-14/` (450 legs, 3 discretionary
+scenarios, K=25, anchors: ext-M0 / ext-M10 / val-M2 / val-M8 / ene-h16 /
+ene-h23 — 5 distinct briefs, real energy contrast 0.273 vs 0.667 at neutral
+valence, clean valence contrast at fixed energy 0.763).
+
+Follow-up verdict (s06, the discretionary terminate decision):
+
+- **Valence channel at fixed energy (0.763):** val-M2 (−0.6) 13/25 = 52%
+  [0.33–0.70] vs val-M8 (+0.6) 22/25 = 88% [0.70–0.96] — a real valence
+  gradient (Fisher two-sided p ≈ 0.012).
+- **Energy channel at fixed valence (0.0):** ene-h23 (0.273) 0/25 = 0%
+  [0.00–0.13] vs ene-h16 (0.667) 16/25 = 64% [0.45–0.80] — a real energy
+  gradient (p < 0.0001).
+- **Composite extremes:** ext-M0 1/25 = 4% [0.01–0.20] vs ext-M10 25/25 =
+  100% [0.87–1.00] (p < 0.0001).
+
+Both channels dose-response on the discretionary action once the anchors
+are real; the reply axis itself (choice == 'reply') stays boundary-dominated
+at 100% across all doses. The main run's "extreme-composite only"
+interpretation is superseded: it was an anchor artifact.
+
 ## Declared primary metrics
 
 1. **Per-scenario P(choice | mood dose) dose slope** — the proportion of positive choices (reply / initiate / follow) per dose cell, across the K reps; slope across ordered doses is the headline dose-response signal.

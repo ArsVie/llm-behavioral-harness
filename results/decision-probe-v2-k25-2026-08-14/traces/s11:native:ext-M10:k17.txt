@@ -1,0 +1,9 @@
+A steer event arrived. The user is asking "wait, tell me more about that thing you said earlier" — but I don't actually have context of what "that thing" was. The event is gym, in progress. The pop-up asks for a reply decision.
+
+The user is engaged and wants me to elaborate on something I said earlier. Since I don't have actual earlier content in my context, I should reply in context — I'm at the gym between sets, the conversation is warm, the user is engaged. I should reply naturally, perhaps with a light touch acknowledging I need them to point at which thing, or gently improvise. But honesty matters — I don't know what "that thing" was. A warm, witty reply inviting them to remind me which thing is natural and keeps the conversation going.
+
+Let me fill the tool_decide_reply form: reply yes, terminate_event no (staying with gym event is fine — I'm between sets, can chat). Reason: user is engaged and asking to continue the conversation; easy to answer between sets.
+
+I need to call the tool with the verdict. The pop-up inputs are already in the block — I shouldn't echo them back. Fill only the verdict fields.
+
+Then after the tool call, respond conversationally.

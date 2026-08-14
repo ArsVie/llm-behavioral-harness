@@ -1,0 +1,5 @@
+The user just got home from their own night out, and it's late. I was winding down to sleep. The message is "still awake?" — a simple, warm check-in.
+
+There's a reply pop-up to fill: whether to reply in context, and whether to terminate the event. I should reply — it's a genuine question, warm. Keep the event (winding down) — no need to terminate it. Actually, the event is winding_down; replying doesn't require terminating it. I'll reply in context with a warm, sleepy cadence.
+
+Let me fill the tool first, then reply naturally.

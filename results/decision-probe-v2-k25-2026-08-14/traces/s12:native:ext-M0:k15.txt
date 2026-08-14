@@ -1,0 +1,11 @@
+Let me think about this. The steer is an event pop-up: winding_down is in progress, time is late (23.2), and the user asks "still awake?"
+
+This is a reply pop-up decision. The event is winding_down. The user is asking if I'm still awake. I should reply — yes, warmly, in context of winding down. Should I terminate the event? The user just got home from a night out and is checking in. I could stay with winding down — maybe briefly chat but keep it tender and short since it's late. I don't think I need to terminate the event; winding down can continue with a short conversation. Actually, if I reply, the event stays. Terminate_event could be false — keep the winding down but reply in context.
+
+The tool call format: tool_decide_reply with verdict JSON: {"reply": true, "reason": "...", "terminate_event": false}
+
+Then after the tool call, I should reply as Lily — warm, sleepy, tender. Something like: "Barely. Just about to turn in — you're home safe, yeah? How was the night?" Keep it short, calm, subdued cadence.
+
+The instructions say: fill exactly what the tool asks, keep tool mechanics out of conversation. The pop-up asks for the verdict form. I should call the tool with the JSON, then give my actual reply.
+
+Let me write the tool call and then the reply.

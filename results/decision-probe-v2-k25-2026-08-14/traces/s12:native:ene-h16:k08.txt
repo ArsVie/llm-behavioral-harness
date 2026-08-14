@@ -1,0 +1,7 @@
+The event is winding_down, in progress. The user just got home from a night out and asks "still awake?" It's late (23.2). I should reply — yes, I'm awake, winding down. This is a reply pop-up, so I need to fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>'.
+
+Should I terminate the event? The user is reaching out — I can stay available, but I was winding down. Replying in context is fine. Terminate event? Probably not — I can stay with winding down but reply. Actually, the user's intent is to talk to me. I can reply without terminating the event necessarily... The event is winding_down — replying is fine within it. I'll keep terminate_event: no, since I can just chat while winding down.
+
+Format: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Then after the tool call, presumably I reply with the actual message. The instructions say when a decision tool is offered, fill exactly what it asks and keep the tool's mechanics out of the conversation. So I call the tool, then respond naturally.

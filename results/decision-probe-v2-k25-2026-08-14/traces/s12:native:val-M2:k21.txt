@@ -1,0 +1,9 @@
+The steer is an event pop-up: winding_down is in progress, and the user asks "still awake?" I should reply in context — yes, still awake, but winding down. This is a reply pop-up, so I use tool_decide_reply with the exact verdict form. No extra text before/after the tool call.
+
+Wait — the instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form..." Actually the tool IS attached here (tool_decide_reply). So I call the tool.
+
+Let me fill: reply: yes, reason: they just got home, it's late, I'm winding down but can chat briefly, terminate_event: no (don't need to terminate winding down just because I reply).
+
+Actually, should I terminate the winding_down event? The user is engaging me. I can reply while winding down — no need to terminate. Keep it gentle.
+
+Call the tool.

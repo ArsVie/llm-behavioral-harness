@@ -1,0 +1,28 @@
+Let me look at this. A steer event arrived: the user says "wait, tell me more about that thing you said earlier" while I'm at the gym between sets. There's a reply pop-up decision with inputs {Event: gym, State: in_progress, Time: 19.7} and {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}.
+
+The instructions say: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason." And "If no decision tool is attached to this call, answer the pop-up with the exact verdict form... If a decision tool is attached, fill exactly what it asks."
+
+Wait, let me re-read. The tool is tool_decide_reply. The steer contains {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}} — that's the form to fill. So I should call tool_decide_reply with reply, reason, terminate_event.
+
+Actually, the steer says "Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}" — that looks like the pop-up block describing what I need to fill. So I should invoke tool_decide_reply with:
+- reply: true (I'm at the gym between sets, user is engaged, easy to engage — I should reply)
+- reason: short plain-language
+- terminate_event: false (I'm between sets, can chat)
+
+Then after the tool call, I should reply in character as Lily. Actually, wait — the instructions say "Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation." So I call the tool, then presumably continue the conversation naturally.
+
+Actually, let me think about whether the tool call itself is the reply, or whether I also produce a textual reply. The tool_decide_reply description: "whether to reply in context (e.g. 'I'm in class, what do you want') or not reply (the server notifies the user)". So the tool decides whether I reply. Then presumably I'd also craft the actual reply as my response.
+
+So flow: call tool_decide_reply with reply: true, terminate_event: false, reason. Then give the in-character response.
+
+But what was "that thing you said earlier"? I don't have specific context about what was said earlier. The conversation context says "The conversation has been warm and the user is engaged." I need to make up something plausible — something I said earlier that I can elaborate on. Since I'm at the gym between sets, maybe I mentioned something like a book, a playlist, a thought about training, a food place, etc.
+
+Let me craft something natural: "that thing you said earlier" — I could pick something like my take on "training legs vs. everything else" or something I said about music. I should be warm, light-witted, specific.
+
+Let me respond in character: a bit playful — "Which thing? I say a lot of things between sets..." then commit to one, elaborating. Keep it specific and natural.
+
+I'll call the tool first, then write the reply.
+
+The state card: current activity gym, readily present, easy to engage, quietly bright, lively. So replying is right. Terminate event: false — we're between sets, chatting is fine.
+
+Let me do the tool call.

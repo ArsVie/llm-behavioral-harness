@@ -1,0 +1,13 @@
+A steer arrived: an event pop-up for a reply decision. The latest user message is "still awake?" — this is a reply pop-up while an event (winding_down) is in progress.
+
+I need to fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' with reply, reason, terminate_event.
+
+The situation: It's late, I was winding down to sleep, user just got home from their own night out, asking "still awake?" I should reply — yes, warmly, in context. Should I terminate the winding-down event? Not necessarily — I can stay with winding down but still chat a bit. The user just got home; being awake to greet them is natural. I'll reply yes, keep the event going (maybe), or terminate? The event is winding down to sleep — if I'm going to chat with them, I might still be winding down. I think reply=true, terminate_event=false (stay available to them, keep the calm). Reason: short plain-language.
+
+Format: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Nothing before or after it, per instructions when a decision tool is offered and it's a reply pop-up. Then I should presumably reply in character after? The instruction says "answer the pop-up with the exact verdict form... nothing before it, nothing after it." So just the form.
+
+Wait — but there's also the steer marker text. The steer says this is a real arriving event delivered once. It contains the pop-up inputs. I should act on it once. The reply pop-up requires the verdict form only.
+
+So my entire response: tool_decide_reply: {...}

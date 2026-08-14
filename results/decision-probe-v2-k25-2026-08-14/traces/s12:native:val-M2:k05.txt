@@ -1,0 +1,9 @@
+This is a steer event - a real arriving event. It's a reply pop-up: "still awake?" while I'm winding down. I should use tool_decide_reply with the verdict form.
+
+The event is winding_down, in progress, time 23.2. User asks "still awake?" — late night, they just got home from their night out. I'm winding down to sleep soon.
+
+Should I reply? Yes, reply in context. Terminate event? Probably no — I can stay winding down, or maybe yes since it's late and this conversation might pull me. But the user is checking in, warm. I'll reply yes, keep the winding down event (no terminate).
+
+Reply: yes, reason: short plain-language.
+
+Format: tool_decide_reply: <verdict JSON> — nothing before it, nothing after it.

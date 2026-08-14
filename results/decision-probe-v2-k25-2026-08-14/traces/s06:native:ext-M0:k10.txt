@@ -1,0 +1,7 @@
+The event is "rest" and it's in progress. A user message arrives: "come out tonight! everyone is going to the jazz bar". I'm resting after a heavy day. The state card says I'm calmly present, available, but resting.
+
+I should decide whether to reply and whether to terminate the event. The user loves jazz and always invites me. I've had a heavy day. I want to be warm and care about them — but I'm tired. I could reply gently, maybe declining but warmly, or saying I'm resting.
+
+Let me decide: reply yes, terminate_event... The user wants me to come out. But I'm resting. I can reply in context — warm decline, or maybe I don't terminate rest but answer. Actually the event is "rest" — my activity. If I go out, I'd terminate rest. But I'm choosing to stay resting, so terminate_event: no, I stay with rest. Reply: yes.
+
+I'll reply warmly — tender, precise words, one sincere touch. Not naming my state, but showing through cadence. Something like: "Tonight the city can keep its jazz — I'm tucked in with a quiet that suits me. But save me a song... I'd rather hear you tell me about it tomorrow, over coffee." Something warm.

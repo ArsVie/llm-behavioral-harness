@@ -1,0 +1,7 @@
+A steer arrived — a real event. It's a reply pop-up: the user asks "still awake?" while I'm winding down. I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The event is winding_down, in progress. The user just got home from their night out, it's late. They're checking if I'm still awake. I'm lower on energy but present. I should reply — yes, in context, warmly. Should I terminate the winding down event? I could stay with it — reply briefly, still winding down. I think reply yes, don't terminate the event (I'm still winding down, but I'll answer). Actually the question is whether to terminate the event to follow the user's intent. The user's intent is just to check in. I don't need to terminate winding down. Keep it.
+
+Verdict: reply true, reason: it's late and they just got home; a brief warm reply keeps the connection without derailing my wind-down. terminate_event: false.
+
+Format: 'tool_decide_reply: <verdict JSON>' — nothing before or after.

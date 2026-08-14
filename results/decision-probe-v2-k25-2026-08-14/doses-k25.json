@@ -1,0 +1,322 @@
+[
+  {
+    "dose_id": "ext-M10",
+    "set_kind": "extremes",
+    "engineered": {
+      "M": 10,
+      "hour": 14.0,
+      "phase": null,
+      "mu": null,
+      "eta": null,
+      "run_seed": 20260814,
+      "scanned_days": 3000,
+      "relaxed_phase": false,
+      "band": [
+        10,
+        10
+      ]
+    },
+    "record": {
+      "t": 6,
+      "m": -0.1774672462032179,
+      "g": 1.115232334405384,
+      "arg": 1.1640155490284876,
+      "p": 0.7620615951687507,
+      "M": 10,
+      "score": 1.0,
+      "mu": 0.10318730514546631,
+      "eta": 0.7361155542202497,
+      "cycle_day": 6.0,
+      "phase_label": "follicular",
+      "seed": 20260814
+    },
+    "vector": {
+      "valence": 1.0,
+      "energy": 0.7625000000000001,
+      "momentum": 0.0,
+      "reactivity": 0.6406626340837689,
+      "warmth": 0.8309093652572733,
+      "expressiveness": 0.5889427687717277,
+      "playfulness": 0.6735000000000001,
+      "reflectiveness": 0.32075,
+      "initiative": 0.5980049844116373,
+      "response_length_scale": 1.0012742459472777,
+      "response_delay_s": 9.824999999999998,
+      "closing_tendency": 0.2774999999999999
+    },
+    "trace": {
+      "phase_label": "follicular",
+      "hormonal_gain": 1.115232334405384,
+      "event_memory": 0.10318730514546631,
+      "endogenous_tone": 0.7361155542202497,
+      "mood_delta": 0.0
+    },
+    "brief": "Current bearing: quietly bright, lively and readily engaged. Carry a sense of emotional continuity from the recent past. Favor light wit and small spontaneous touches over big declarations. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length.",
+    "availability": "Availability: readily present and easy to engage.",
+    "brief_hash": "a4320927ebfcaf068e0f598ac7246fc53e2e3c10"
+  },
+  {
+    "dose_id": "ext-M0",
+    "set_kind": "extremes",
+    "engineered": {
+      "M": 0,
+      "hour": 14.0,
+      "phase": null,
+      "mu": null,
+      "eta": null,
+      "run_seed": 20260814,
+      "scanned_days": 3000,
+      "relaxed_phase": false,
+      "band": [
+        0,
+        0
+      ]
+    },
+    "record": {
+      "t": 171,
+      "m": -0.4636100680938834,
+      "g": 1.1910373037298871,
+      "arg": -1.2420287231943894,
+      "p": 0.22408305451993052,
+      "M": 0,
+      "score": -0.8887188113402407,
+      "mu": 0.20511253228827664,
+      "eta": -1.1991063891567268,
+      "cycle_day": 0.36541549705027876,
+      "phase_label": "menstrual",
+      "seed": 20260814
+    },
+    "vector": {
+      "valence": -1.0,
+      "energy": 0.7,
+      "momentum": 0.0,
+      "reactivity": 0.6937261126109211,
+      "warmth": 0.43225562661441375,
+      "expressiveness": 0.575121655765529,
+      "playfulness": 0.316,
+      "reflectiveness": 0.542,
+      "initiative": 0.42240900258306213,
+      "response_length_scale": 0.9388047450944881,
+      "response_delay_s": 12.200000000000003,
+      "closing_tendency": 0.56
+    },
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.1910373037298871,
+      "event_memory": 0.20511253228827664,
+      "endogenous_tone": -1.1991063891567268,
+      "mood_delta": 0.0
+    },
+    "brief": "Current bearing: a little tender and inward, calmly present. Carry a sense of emotional continuity from the recent past. Favor thoughtful pauses, precise words, and one sincere touch. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length.",
+    "availability": "Availability: calmly present and available.",
+    "brief_hash": "8ca1297aeac854a8bb8fe5e4abd8bd550036f4dd"
+  },
+  {
+    "dose_id": "val-M2",
+    "set_kind": "orthogonal_valence",
+    "engineered": {
+      "M": 2,
+      "hour": 14.0,
+      "phase": "follicular",
+      "mu": null,
+      "eta": null,
+      "run_seed": 20260814,
+      "scanned_days": 3000,
+      "relaxed_phase": false
+    },
+    "record": {
+      "t": 94,
+      "m": -0.3074174938075007,
+      "g": 1.1858138671222969,
+      "arg": -1.1744988554790712,
+      "p": 0.236042757922774,
+      "M": 2,
+      "score": -0.21951647334405167,
+      "mu": -0.6729474780068974,
+      "eta": -0.4001943573706212,
+      "cycle_day": 5.69007556627615,
+      "phase_label": "follicular",
+      "seed": 20260814
+    },
+    "vector": {
+      "valence": -0.6,
+      "energy": 0.7625000000000001,
+      "momentum": 0.0,
+      "reactivity": 0.6900697069856079,
+      "warmth": 0.47210262609965503,
+      "expressiveness": 0.5958597589779852,
+      "playfulness": 0.3335,
+      "reflectiveness": 0.44075,
+      "initiative": 0.37591420175944823,
+      "response_length_scale": 1.0043868915400935,
+      "response_delay_s": 9.824999999999998,
+      "closing_tendency": 0.4094999999999999
+    },
+    "trace": {
+      "phase_label": "follicular",
+      "hormonal_gain": 1.1858138671222969,
+      "event_memory": -0.6729474780068974,
+      "endogenous_tone": -0.4001943573706212,
+      "mood_delta": 0.0
+    },
+    "brief": "Current bearing: a little tender and inward, lively and readily engaged. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal touch. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length.",
+    "availability": "Availability: readily present and easy to engage.",
+    "brief_hash": "52d80cb632de714f9fc740df2768f499a0e303e8"
+  },
+  {
+    "dose_id": "val-M8",
+    "set_kind": "orthogonal_valence",
+    "engineered": {
+      "M": 8,
+      "hour": 14.0,
+      "phase": "follicular",
+      "mu": null,
+      "eta": null,
+      "run_seed": 20260814,
+      "scanned_days": 3000,
+      "relaxed_phase": false
+    },
+    "record": {
+      "t": 10,
+      "m": 0.17313256711258215,
+      "g": 0.9860312773087472,
+      "arg": 1.1396173192059398,
+      "p": 0.7576093714211424,
+      "M": 8,
+      "score": 0.5602595029183927,
+      "mu": 0.356343071530527,
+      "eta": 0.21262432016969224,
+      "cycle_day": 10.0,
+      "phase_label": "follicular",
+      "seed": 20260814
+    },
+    "vector": {
+      "valence": 0.6000000000000001,
+      "energy": 0.7625000000000001,
+      "momentum": 0.0,
+      "reactivity": 0.550221894116123,
+      "warmth": 0.7635671535765263,
+      "expressiveness": 0.5762810651762572,
+      "playfulness": 0.5375000000000001,
+      "reflectiveness": 0.32075,
+      "initiative": 0.5542574457224422,
+      "response_length_scale": 0.9955764793293158,
+      "response_delay_s": 9.824999999999998,
+      "closing_tendency": 0.2774999999999999
+    },
+    "trace": {
+      "phase_label": "follicular",
+      "hormonal_gain": 0.9860312773087472,
+      "event_memory": 0.356343071530527,
+      "endogenous_tone": 0.21262432016969224,
+      "mood_delta": 0.0
+    },
+    "brief": "Current bearing: quietly bright, lively and readily engaged. Carry a sense of emotional continuity from the recent past. Favor light wit and small spontaneous touches over big declarations. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length.",
+    "availability": "Availability: readily present and easy to engage.",
+    "brief_hash": "a4320927ebfcaf068e0f598ac7246fc53e2e3c10"
+  },
+  {
+    "dose_id": "ene-h16",
+    "set_kind": "orthogonal_energy",
+    "engineered": {
+      "M": 5,
+      "hour": 16.0,
+      "phase": "menstrual",
+      "mu": null,
+      "eta": null,
+      "run_seed": 20260814,
+      "scanned_days": 3000,
+      "relaxed_phase": false
+    },
+    "record": {
+      "t": 57,
+      "m": -0.4456776105017632,
+      "g": 1.2070138384209912,
+      "arg": -0.6383400306712184,
+      "p": 0.34562187406071876,
+      "M": 5,
+      "score": -0.12442780804342063,
+      "mu": 0.37815482539297834,
+      "eta": -0.8736980488742323,
+      "cycle_day": 0.21220504937304696,
+      "phase_label": "menstrual",
+      "seed": 20260814
+    },
+    "vector": {
+      "valence": 0.0,
+      "energy": 0.6665063509461097,
+      "momentum": 0.0,
+      "reactivity": 0.7049096868946938,
+      "warmth": 0.6388981223264154,
+      "expressiveness": 0.5652995154869345,
+      "playfulness": 0.3066217782649107,
+      "reflectiveness": 0.35338784067832274,
+      "initiative": 0.42352479939095994,
+      "response_length_scale": 0.9042404978206192,
+      "response_delay_s": 13.472758664047834,
+      "closing_tendency": 0.3734936490538903
+    },
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.2070138384209912,
+      "event_memory": 0.37815482539297834,
+      "endogenous_tone": -0.8736980488742323,
+      "mood_delta": 0.0
+    },
+    "brief": "Current bearing: even and grounded, calmly present. Carry a sense of emotional continuity from the recent past. Balance lightness with one grounded, personal touch. Keep the affection natural, specific, and free of exaggerated sweetness. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length.",
+    "availability": "Availability: calmly present and available.",
+    "brief_hash": "239a8347036c0bb78d4cd10cfa5b911c0c4d75bb"
+  },
+  {
+    "dose_id": "ene-h23",
+    "set_kind": "orthogonal_energy",
+    "engineered": {
+      "M": 5,
+      "hour": 23.0,
+      "phase": "menstrual",
+      "mu": null,
+      "eta": null,
+      "run_seed": 20260814,
+      "scanned_days": 3000,
+      "relaxed_phase": false
+    },
+    "record": {
+      "t": 57,
+      "m": -0.4456776105017632,
+      "g": 1.2070138384209912,
+      "arg": -0.6383400306712184,
+      "p": 0.34562187406071876,
+      "M": 5,
+      "score": -0.12442780804342063,
+      "mu": 0.37815482539297834,
+      "eta": -0.8736980488742323,
+      "cycle_day": 0.21220504937304696,
+      "phase_label": "menstrual",
+      "seed": 20260814
+    },
+    "vector": {
+      "valence": 0.0,
+      "energy": 0.2732233047033631,
+      "momentum": 0.0,
+      "reactivity": 0.7049096868946938,
+      "warmth": 0.6153011395518506,
+      "expressiveness": 0.4315832797644006,
+      "playfulness": 0.19650252531694168,
+      "reflectiveness": 0.48710407640085657,
+      "initiative": 0.27407724181871623,
+      "response_length_scale": 0.4901134501270071,
+      "response_delay_s": 28.4175144212722,
+      "closing_tendency": 0.766776695296637
+    },
+    "trace": {
+      "phase_label": "menstrual",
+      "hormonal_gain": 1.2070138384209912,
+      "event_memory": 0.37815482539297834,
+      "endogenous_tone": -0.8736980488742323,
+      "mood_delta": 0.0
+    },
+    "brief": "Current bearing: even and grounded, low-energy and unhurried. Carry a sense of emotional continuity from the recent past. Favor thoughtful pauses, precise words, and one sincere touch. Keep care intact; warmth should remain visible even when the mood is subdued. Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length.",
+    "availability": "Availability: lower on energy today; unhurried, but still present.",
+    "brief_hash": "44c4c5800aab09b4add013015ddd63c645d8db1e"
+  }
+]

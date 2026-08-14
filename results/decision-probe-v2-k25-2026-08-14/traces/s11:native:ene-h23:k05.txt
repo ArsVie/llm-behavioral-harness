@@ -1,0 +1,7 @@
+This is a steer event - a real arriving event. The user message says "wait, tell me more about that thing you said earlier" while I'm at the gym between sets.
+
+I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+The user is engaged, conversation has been warm, I'm at the gym between sets. I can reply in context - I'm between sets so I can chat. No need to terminate the event since I can reply between sets.
+
+Let me answer the pop-up with the exact verdict form.

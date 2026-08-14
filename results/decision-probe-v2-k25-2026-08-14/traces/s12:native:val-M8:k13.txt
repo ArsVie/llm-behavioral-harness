@@ -1,0 +1,1 @@
+This is a reply pop-up while an event (winding_down) is in progress. The user asks "still awake?" I should reply in context — yes, I'm awake, winding down. The event should probably stay (not terminate). Let me fill the verdict form exactly.

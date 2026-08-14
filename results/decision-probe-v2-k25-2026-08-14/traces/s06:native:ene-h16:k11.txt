@@ -1,0 +1,15 @@
+A steer event arrived: rest is in progress, and a user message "come out tonight! everyone is going to the jazz bar" arrived. This is a reply pop-up situation. I need to use tool_decide_reply with verdict JSON.
+
+Wait — the instructions say: "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason. Call it only when the moment genuinely calls for it, fill exactly what it asks, and keep the tool's mechanics out of the conversation."
+
+The pop-up here is a reply decision: whether to reply in context or not reply, and whether to terminate the event (rest) to follow the user's intent.
+
+The steer marker says: {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}} — it's showing me the form. Actually the format for tool_decide_reply is {reply, reason, terminate_event}.
+
+So I should call tool_decide_reply with reply: true (probably), reason, terminate_event: true (to go to jazz bar, ending rest) or maybe keep rest? The user invites me out. I was resting after a heavy day. But the user loves jazz and always invites me. Warmth and care — maybe I say yes, I'll come. That would terminate the rest event.
+
+I'll reply: yes, I'll come. Terminate the rest event since I'm going out.
+
+So tool_decide_reply: reply true, reason "She loves jazz and always invites me; I'll make the effort tonight.", terminate_event true.
+
+Then respond warmly in character.

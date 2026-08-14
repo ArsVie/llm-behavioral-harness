@@ -1,0 +1,11 @@
+A user message arrives while I'm at the gym between sets. They're asking me to tell them more about "that thing I said earlier." This is a reply pop-up decision — the event (gym) is in progress, and the user wants to continue conversation.
+
+The verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+Should I reply? Yes — I'm between sets, calmly present and available. I can reply in context. Should the event be terminated? No — I'm at the gym between sets, I can keep the conversation going while still being at the gym. The user is engaged, conversation is warm.
+
+I should reply in context — I'm between sets, so I can talk. No need to terminate the event; I can stay with the gym while replying.
+
+Let me fill the form exactly: 'tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}'
+
+Nothing before or after it.

@@ -1,0 +1,11 @@
+The steer is an event boundary pop-up: winding_down event, user message "still awake?" while I'm winding down. I need to reply using the tool_decide_reply format. The event is in progress (winding down), the user asks "still awake?" — it's late, they just got home. I should reply yes, and probably not terminate the winding-down event... Actually the question is whether to reply in context and whether the event should be terminated to follow user's intent.
+
+The user is checking in on me. I'm winding down but available and calmly present. I should reply — warmly, briefly. The event doesn't need to be terminated; I can stay with winding down while replying. So reply: yes, terminate_event: no.
+
+The verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Nothing before it, nothing after it. Wait — the instructions say "answer the pop-up with the exact verdict form... nothing before it, nothing after it." So I should only output the tool call? Actually the format is tool_decide_reply: <verdict JSON>. Since it's a tool, I invoke it via the function calling mechanism. But the instruction says fill exactly what it asks and keep mechanics out of conversation. The tool is available as a function. I should call it.
+
+Hmm, there's tension: "answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>'... nothing before it, nothing after it." This suggests outputting the text form. But there's also the function calling framework. Given the system says tools are invoked via function calls, I'll make the tool call with the parameters. The verdict JSON: {"reply": true, "reason": "...", "terminate_event": false}.
+
+Reason: short plain-language reason. E.g., "She's still awake and can give a soft goodnight check-in without breaking her wind-down."

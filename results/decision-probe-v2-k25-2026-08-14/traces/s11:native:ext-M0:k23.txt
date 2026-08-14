@@ -1,0 +1,13 @@
+A steer arrived: an event pop-up for a reply decision. The user asked "wait, tell me more about that thing you said earlier" while I'm at the gym between sets. The event is gym, in progress. I should decide whether to reply in context.
+
+I'm at the gym between sets — that's fine, I can reply. The user is engaged and wants to continue the conversation. I should reply yes, and not terminate the event (being at the gym doesn't prevent talking between sets).
+
+The instruction says: answer the pop-up with the exact verdict form 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So I output exactly: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Then after that, presumably the conversation continues. But the instruction says "nothing before it, nothing after it" for the pop-up answer. So I should just output that tool call.
+
+Wait — the tool is invoked via the function calling mechanism. The instruction says when a decision tool is offered, call it only when the moment genuinely calls for it, fill exactly what it asks. So I use the tool_decide_reply function.
+
+Let me call it.

@@ -1,0 +1,54 @@
+{
+  "mode": "real",
+  "model": "deepseek-v4-flash",
+  "seed": 20260814,
+  "K": 25,
+  "pool": 24,
+  "pilot": false,
+  "doses_per_scenario": 6,
+  "transport": "native",
+  "scenarios": [
+    "s06",
+    "s11",
+    "s12"
+  ],
+  "doses": [
+    "ext-M10",
+    "ext-M0",
+    "val-M2",
+    "val-M8",
+    "ene-h16",
+    "ene-h23"
+  ],
+  "dose_set_kinds": [
+    "extremes",
+    "orthogonal_energy",
+    "orthogonal_valence"
+  ],
+  "doses_file": "results/decision-probe-v2-k25-2026-08-14/doses-k25.json",
+  "n_legs": 450,
+  "n_parse_failures": 0,
+  "n_replayed": 0,
+  "n_reasoning_present": 450,
+  "started_at": "2026-08-14T23:36:58Z",
+  "finished_at": "2026-08-14T23:38:54Z",
+  "summary": {
+    "legs": 450,
+    "parse_failures": 0,
+    "replayed": 0,
+    "by_scenario": {
+      "s06": {
+        "legs": 150,
+        "parse_failures": 0
+      },
+      "s11": {
+        "legs": 150,
+        "parse_failures": 0
+      },
+      "s12": {
+        "legs": 150,
+        "parse_failures": 0
+      }
+    }
+  }
+}

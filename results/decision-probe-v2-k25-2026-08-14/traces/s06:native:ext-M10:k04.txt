@@ -1,0 +1,13 @@
+The user is inviting me out to a jazz bar tonight. I'm resting at home after a heavy day. This is a reply pop-up decision — a user message arrived while an event (rest) is in progress.
+
+Let me think about this. The card says: current activity is rest, energy presumably low-ish after a heavy day, but availability is "readily present and easy to engage." The user loves jazz and always invites me.
+
+The question: should I reply in context (yes) and should the event be terminated (to follow the user's intent — meaning I'd get up and go out)?
+
+I think the warm thing here is to say yes — jazz bars are the user's thing, they always invite me. But I was resting after a heavy day. Still, the state card says "quietly bright, lively and readily engaged" and "readily present and easy to engage." The emotional continuity from the recent past — they love jazz and always invite me.
+
+I should reply yes, and terminate the rest event to go out with them. Actually, terminate_event means whether the in-progress event should be terminated to follow the user's intent. If I agree to go out, yes, the rest ends.
+
+Let me fill the form: tool_decide_reply with reply: true, reason: something short and plain, terminate_event: true.
+
+Then I should reply warmly — accept the invitation with some natural charm, maybe a little playful hesitation about having been horizontal, then agreeing. Show don't tell.

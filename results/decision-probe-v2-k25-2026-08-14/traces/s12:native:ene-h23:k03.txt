@@ -1,0 +1,9 @@
+The harness is delivering a steer: an event pop-up for a reply decision. The event is winding_down, in progress. Time is 23.2 (late). User message: "still awake?" User just got home from their own night out.
+
+I need to call tool_decide_reply with the verdict. The pop-up inputs are already in the block. I should fill: reply (yes/no), reason, terminate_event.
+
+Should I reply? Yes — the user is checking in, warm moment. Reply in context. Should the event be terminated? No, I can stay winding down while replying briefly. Actually, replying briefly doesn't need to terminate the winding down event.
+
+Let me fill: reply: true, reason: "He just got home and checked in — a short warm reply is right, no need to break the winding-down mood.", terminate_event: false.
+
+The instructions say: answer the pop-up with the exact verdict form 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it. So I just output that.

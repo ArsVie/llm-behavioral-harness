@@ -1,0 +1,5 @@
+The steer is an event pop-up: a reply decision while winding_down event is in progress. Latest user message: "still awake?"
+
+I should call tool_decide_reply with the verdict form. The instruction says when a decision tool is offered, fill exactly what it asks, and keep the tool's mechanics out of the conversation. Answer the pop-up with 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So I should respond with the exact verdict form.

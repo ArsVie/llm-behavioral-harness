@@ -1,0 +1,5 @@
+A pop-up decision fired: a reply decision while event winding_down is in progress. The user asks "still awake?" It's late, I was winding down to sleep soon. The user just got home from their own night out.
+
+I should reply — yes, in context. Warm, sleepy, tender. Reply: true, reason: short plain-language. Terminate event? The event is winding_down — I'm still in it, but replying doesn't necessarily terminate it. I can reply in context without terminating the winding down. Actually, the question is whether the event should be terminated to follow user's intent. The user is just checking in; I can reply while staying in winding_down. So terminate_event: false.
+
+Fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before or after.

@@ -1,0 +1,5 @@
+The event is gym, in progress. A user message arrived: "wait, tell me more about that thing you said earlier" — a reply pop-up decision. I'm at the gym between sets, conversation warm and engaged. I should reply in context — yes, I can talk between sets. Terminate event? No, I'm still at the gym, just between sets. I can reply while continuing the event.
+
+Verdict: reply yes, terminate_event no.
+
+The tool format: tool_decide_reply: <verdict JSON> — nothing before or after.

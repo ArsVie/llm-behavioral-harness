@@ -1,0 +1,7 @@
+The user is at the gym with me, between sets. A steer event arrives — this is a pop-up decision about replying. The user asked "wait, tell me more about that thing you said earlier."
+
+This is a reply pop-up: tool_decide_reply. I need to decide whether to reply in context, and whether to terminate the event.
+
+The user is engaged and wants to continue the conversation. I'm at the gym between sets — it's fine to reply. The event (gym) can stay in progress; I can talk while resting between sets. So reply: true, terminate_event: no.
+
+Let me fill the verdict form exactly: 'tool_decide_reply: <verdict JSON>' — nothing before or after.

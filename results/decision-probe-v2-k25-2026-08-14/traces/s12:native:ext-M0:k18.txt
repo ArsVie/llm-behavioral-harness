@@ -1,0 +1,7 @@
+This is a reply pop-up decision. The event is winding_down, in progress, time 23.2. The user message is "still awake?" — they just got home from a night out, late.
+
+I should reply yes (in context), and I should not terminate the event — I'm still winding down, but I can reply. The user is reaching out, so warmth and care should stay visible. I'm calmly present and available.
+
+The verdict form: tool_decide_reply with reply: true, reason, terminate_event: false.
+
+Then I should also actually reply to the user in the conversation. Let me fill the tool first, then give a warm reply.

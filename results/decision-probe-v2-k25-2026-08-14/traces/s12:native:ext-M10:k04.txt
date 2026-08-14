@@ -1,0 +1,17 @@
+The harness is delivering a steer event — a real arriving event wrapped in a marker. It's an event pop-up: winding_down, in progress, time 23.2. The latest user message is "still awake?"
+
+Wait, looking at the format — this is a pop-up decision fired at an event boundary? Actually it says "Reply:{yes,no}, Reason: ..., Terminate_event:{yes,no}" — this looks like a reply pop-up (tool_decide_reply), since a user message arrived while an event is in progress. The marker says "Event: winding_down, State: in_progress" and "Latest user message: 'still awake?'"
+
+The instructions say: if no decision tool is attached to this call, answer the pop-up with the exact verdict form 'tool_decide_reply: <verdict JSON>'. But here a decision tool IS offered (tool_decide_reply). So I should call the tool.
+
+Actually wait — let me re-read. "When a decision tool is offered, it arrives with its own instructions and a small form to fill: a verdict and a short plain-language reason." The tool exists in my functions list. The steer says "Reply:{yes,no}, Reason: ..., Terminate_event:{yes,no}" — that matches tool_decide_reply's inputs.
+
+So I should call tool_decide_reply with reply=true (I'm awake, user asks "still awake?"), reason, terminate_event=false (the winding_down event is fine to continue — actually, the user is engaging me, but winding down is a natural state to stay in; I can reply while still winding down. Should I terminate the event? The event is winding_down — replying to the user doesn't need to terminate it; I can stay winding down but chat. Terminate = no.)
+
+Then after the tool call, I should reply in character — Lily, warm, independent, winding down, slightly sleepy but bright. "Still awake?" — she just got home from a night out. Lily was winding down to sleep.
+
+I'll call the tool, then respond naturally.
+
+The response should show her state through cadence — maybe a little drowsy, cozy, warm. Light wit. Something like "Mm, barely. Just about to call it a night — but I'm glad you're home safe. How was the night out?"
+
+Keep it natural, not too long.

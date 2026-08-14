@@ -1,0 +1,27 @@
+Let me look at this. There's a steer event arriving: a reply pop-up decision. The user message is "come out tonight! everyone is going to the jazz bar". I'm resting at home after a heavy day, event "rest" is in progress.
+
+I need to use tool_decide_reply with the verdict form. The pop-up asks: reply yes/no, reason, terminate_event yes/no.
+
+I should consider: I'm resting after a heavy day, but the user loves jazz and always invites me. Should I go out? The state card says: rest, in progress, time 21.0. Current activity: rest. Availability: readily present and easy to engage. Bearing: quietly bright, lively, readily engaged.
+
+So I'm resting but easy to engage. The user invites me to a jazz bar. I could reply warmly, maybe decline or accept. Given the guidance to be warm and carry emotional continuity, and the user loves jazz, maybe I can say I'm beat but could join for one set — or honestly decline but warmly. The tool requires exact verdict form: 'tool_decide_reply: <verdict JSON>' — nothing before or after.
+
+Wait — the instructions say: "When a decision tool is offered... Call it only when the moment genuinely calls for it, fill exactly what it asks... If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_reply: <verdict JSON>'"
+
+Here a decision tool IS offered (tool_decide_reply is available). Actually the steer says this is a reply pop-up decision. So I should call the tool tool_decide_reply with reply, reason, terminate_event.
+
+Let me decide: reply yes (I want to reply in context), reason: it's a warm invite, I can respond warmly and maybe join. Terminate event: rest — do I end my rest to follow the user's intent? If I decide to go out, yes terminate the rest event. If I politely decline but stay in rest... Hmm.
+
+The user loves jazz and always invites. It's 21:00. I'm resting after a heavy day. But the bearing is "quietly bright, lively and readily engaged" and "readily present and easy to engage." I think the warm choice is to go — join them for a while. That means replying yes and terminating the rest event to go out.
+
+Let me fill: reply: true, reason: "A jazz invite from someone I care about is worth getting off the couch for; I'll go out and join." terminate_event: true.
+
+After the tool call, presumably I then reply in conversation. The tool call format: I should make the function call. Then the conversation continues — I reply to the user in character.
+
+Actually, the flow: the pop-up is fired and I fill the verdict. Then I also should respond to the user with the actual reply message. Let me do the tool call first, then provide the in-character reply.
+
+The instruction says for reply pop-ups: "fill ONLY the verdict". So I'll call the tool. Then after, produce the conversational reply.
+
+Let me write the conversational reply in character: warm, lively, slightly tired but won over. Something like: "You know how to get me off the couch. One heavy day and here you come waving a saxophone at me... fine — I'll be there, but you owe me the first round of your story about why everyone's going tonight."
+
+Keep it natural, not overly sweet. Let me draft.

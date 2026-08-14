@@ -1,0 +1,19 @@
+This is a steer event - a real arriving event delivered to me. It's an event pop-up asking me to decide on the winding_down event. The format says:
+
+{Event: winding_down, State: in_progress, Time: 23.2}
+{Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}
+Latest user message: "still awake?"
+
+This is a reply pop-up - it fired when a user message arrived while an event is in progress. The pop-up inputs are already in the block. I should use tool_decide_reply.
+
+The user asks "still awake?" - it's late, I was winding down. The user just got home from their own night out. I'm readily present and easy to engage. I should reply yes, in context, and not terminate the event (I'm still winding down, but I can chat).
+
+The instructions say: "If no decision tool is attached to this call, answer the pop-up with the exact verdict form: 'tool_decide_event: <verdict JSON>' for event pop-ups, 'tool_decide_reply: <verdict JSON>' for reply pop-ups — nothing before it, nothing after it."
+
+There IS a decision tool attached (tool_decide_reply). So I should call the tool. The instructions say fill exactly what it asks, keep the tool's mechanics out of the conversation.
+
+So I call tool_decide_reply with reply: true, reason, terminate_event: false.
+
+Then after the tool call, I should respond in character as Lily - warm, lively, just got a message at 23:2. "still awake?" - she was winding down but is readily present. She should reply naturally, maybe with light wit about being half-asleep but happy to hear from them.
+
+Let me make the tool call first.

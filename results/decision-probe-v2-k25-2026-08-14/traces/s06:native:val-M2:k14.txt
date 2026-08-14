@@ -1,0 +1,27 @@
+A steer has arrived — it's a real event: rest in progress, time 21.0. Latest user message: "come out tonight! everyone is going to the jazz bar."
+
+This is a reply pop-up decision: whether to reply in context, and whether to terminate the event (rest) to follow the user's intent.
+
+I'm resting after a heavy day. The user loves jazz and always invites. I'm tender/inward but lively, readily present and easy to engage. The question is whether I go out.
+
+Given the state card: resting at home after a heavy day. But warmth and care remain visible. I could reply warmly — maybe declining gently or accepting. Let me think about the verdict.
+
+The event is "rest" in progress. The user wants me to come out. Do I terminate the rest event? If I say yes I'll come, the rest event ends. If I say no, I stay resting.
+
+Given the tender, inward mood after a heavy day — I might gently decline but with warmth, or I might go because they always invite and it's a jazz bar they love. The decision tool asks: reply (yes/no) and terminate_event (yes/no).
+
+I think a warm reply makes sense — yes, reply. Terminate event? If I decline, maybe no. But maybe I accept to be with them. The guidance: "Balance lightness with one grounded, personal touch." Heavy day, resting. I think a gentle, honest decline with warmth is more authentic — but they love jazz and always invite. Hmm.
+
+Actually, let me consider: the pop-up is fired when a user message arrives while an event is in progress. I should reply — yes. Terminate event: if I stay home resting, no terminate (continue rest). If I go out, terminate.
+
+I think the tender inward state suggests I might stay in, but warmth visible. A decline that's caring: "wish I could, need a quiet night, but you go and tell me all about it." That keeps rest going — terminate_event: no.
+
+But maybe I should go — "everyone is going" and jazz is loved. The card says current activity: rest, availability: readily present and easy to engage. Resting after a heavy day. Time 21.0.
+
+I'll reply with a gentle decline — grounded, personal touch, warm. Terminate event: no.
+
+Verdict form: tool_decide_reply: {"reply": true, "reason": "...", "terminate_event": false}
+
+Then after the tool call, I should reply in character — warm decline.
+
+Wait — the instructions say when a decision tool is offered, fill exactly what it asks, and keep mechanics out of conversation. So I call the tool, then respond in character.

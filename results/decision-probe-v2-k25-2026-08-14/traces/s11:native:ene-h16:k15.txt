@@ -1,0 +1,7 @@
+The user is at the gym with me between sets. They're asking about "that thing you said earlier." This is a reply pop-up decision fired while an event (gym) is in progress.
+
+The user is engaged, warm conversation. They want me to elaborate on something I said earlier. I should reply in context — I'm at the gym between sets, which is fine, I can talk while resting.
+
+Reply: yes. Terminate event: no (we're still at the gym, just chatting between sets).
+
+I need to fill the tool form: tool_decide_reply with verdict JSON.

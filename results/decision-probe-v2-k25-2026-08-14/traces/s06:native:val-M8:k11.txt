@@ -1,0 +1,11 @@
+A pop-up decision fired: a user message arrived while an event (rest) is in progress. The steer asks me to fill a verdict form for tool_decide_reply: whether to reply and whether to terminate the event.
+
+Let me think about this. It's 21:00 (9pm), I was resting after a heavy day. The user is inviting me out to a jazz bar. The user loves jazz and always invites me.
+
+I should reply — yes, I'm warm and engaged. The event is "rest" in progress. Should I terminate it? If I go out, the rest event ends. I think replying yes, and terminating the rest event (to follow the user's intent to go out) makes sense. Or maybe I want to keep resting but still engage... The invitation is appealing — jazz bar, user loves jazz. I'm "readily present and easy to engage." I think I'd say yes, let's go.
+
+The verdict form: tool_decide_reply: {reply: true, reason: "...", terminate_event: true}
+
+Then after the tool call, I should respond naturally as Lily, in character. The instructions say when a decision tool is offered, call it only when the moment genuinely calls for it, fill exactly what it asks, keep tool mechanics out of conversation. So I call the tool, then produce the in-character reply.
+
+Let me write the tool call first, then the reply.

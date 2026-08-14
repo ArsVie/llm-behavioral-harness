@@ -1,0 +1,7 @@
+The steer is asking me to decide whether to reply. There's a tool pop-up for reply decisions: tool_decide_reply. I should fill exactly that verdict form. The event is winding_down, in progress. User asks "still awake?" — I am winding down but still awake and present. I should reply: yes, reply in context, no need to terminate the event (I'm still winding down, but I can chat briefly).
+
+The verdict format: 'tool_decide_reply: <verdict JSON>' — nothing before or after.
+
+Let me give: {"reply": true, "reason": "...", "terminate_event": false}
+
+Short plain-language reason.

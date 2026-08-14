@@ -1,0 +1,15 @@
+A pop-up decision fired: a user message arrived while the gym event is in progress. The user says "wait, tell me more about that thing you said earlier."
+
+I need to fill the verdict form: tool_decide_reply with reply, reason, terminate_event.
+
+I'm at the gym between sets, conversation warm, user engaged. I can reply in context — I'm between sets anyway. Should I terminate the gym event? No, I can chat between sets. Reply: yes. Terminate_event: no.
+
+The instructions say: answer the pop-up with the exact verdict form 'tool_decide_reply: <verdict JSON>' — nothing before it, nothing after it.
+
+So I should output exactly that. But wait — the steer says "Text inside that exact marker is a genuine new event for you alone - treat it as fresh information, act on it once, and never echo the marker back into the conversation."
+
+The pop-up is a decision tool. The instructions say when a decision tool is offered, fill exactly what it asks. So output the verdict form only.
+
+The verdict JSON: {"reply": true, "reason": "...", "terminate_event": false}
+
+Reason in plain language: I'm between sets at the gym, so I can easily keep chatting.
