@@ -84,6 +84,7 @@ from harness.domain import (
     Conversation,
     ConversationTurn,
     CurrentActivity,
+    DailyAgenda,
     GenerationControls,
     LifeArc,
     MemoryContext,
@@ -933,22 +934,26 @@ class Session:
         )
 
     def _current_activity(self, day: int, t_h: float) -> CurrentActivity | None:
-        """Read-only view of today's main activity from the persisted agenda.
+        """NOW semantics (plan §5-A2 T2, orchestrator invariant 8).
 
-        The life lane owns the agenda; the session only composes the view —
-        in-progress item first, else today's highest-salience item.
+        Read-only view of today's agenda from the persisted store, resolved
+        through ``life.current_activity_now``: only an item actually in
+        progress at ``t_h`` (``start_t_h <= t_h < end_t_h`` and not
+        skipped/shifted — those are not happening at their planned slot)
+        can be current, choosing the highest salience when several overlap;
+        ``None`` when nothing is active. A 7 PM plan is never what she is
+        doing at 10 AM, and a day with nothing in progress reports None
+        instead of the day's highest-salience item (the documented 53-56%
+        error this replaces).
         """
         items = (
             self.store.list_agenda_items(day=day)
             if hasattr(self.store, "list_agenda_items")
-            else []
+            else ()
         )
         if not items:
             return None
-        in_progress = [it for it in items if it.start_t_h <= t_h < it.end_t_h]
-        candidates = in_progress or items
-        main = max(candidates, key=lambda it: (it.salience, it.start_t_h))
-        return CurrentActivity(t_h=t_h, item=main, description=main.activity)
+        return life.current_activity_now(DailyAgenda(day=day, items=tuple(items)), t_h)
 
     def _resolve_intent(self, reason: str | None) -> ProactiveIntent | None:
         """LEGACY reason-path fallback: most recently created stored intent
@@ -1089,7 +1094,12 @@ class Session:
             query = intent.hook
 
         snapshot = self._build_snapshot(day, t_h, brief=brief, intent=intent, query=query)
-        system = assemble_snapshot(snapshot, controls=controls)
+        # v2 unified brief renderer: the state card's mood line consumes
+        # BehaviorDirective.prompt_brief VERBATIM (single source of the
+        # 'Current bearing' prose; the assembler never re-renders it).
+        system = assemble_snapshot(
+            snapshot, controls=controls, prompt_brief=directive.prompt_brief
+        )
         if user_text is None and intent is None:
             # Legacy ungrounded proactive call (pre-slice callers/tests):
             # generic opening without any invented source claim.

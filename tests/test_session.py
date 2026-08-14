@@ -745,3 +745,149 @@ def test_persistent_empty_raises_and_persists_no_assistant_row(
     assert [m["role"] for m in msgs] == ["user"]  # user turn only
     assert store.conn.execute("SELECT COUNT(*) FROM llm_calls").fetchone()[0] == 0
     store.close()
+
+
+# --------------------------------------------------------------------------- #
+# WS1 context v2: current-activity NOW semantics (plan §1/§2.1 fix)
+# --------------------------------------------------------------------------- #
+
+
+def _agenda_session(tmp_path):
+    """Fresh store + session whose day-0 agenda the test controls directly."""
+    store = SQLiteStore(tmp_path / "s.db")
+    clock = VirtualClock()
+    session = Session(
+        store,
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+        client=FakeClient(responses=["ok!"]),
+        clock=clock,
+        judge=ScriptedJudge(score=0.5).judge_day,
+    )
+    return store, clock, session
+
+
+def _replace_day0_agenda(store, items) -> None:
+    from harness.domain import DailyAgenda
+
+    store.save_agenda(0, DailyAgenda(day=0, items=tuple(items)))
+
+
+def test_current_activity_documented_bad_case_returns_none(tmp_path):
+    """Documented bad case (plan §1): at t_h=19.00 on day 0 the 6.96-7.46
+    'morning coffee' item must NOT be current — nothing is in progress, so
+    the session reports None instead of the day's highest-salience item
+    (the 53-56% error the NOW-semantics fix removes)."""
+    from harness.domain import AgendaItem
+
+    store, _clock, session = _agenda_session(tmp_path)
+    _replace_day0_agenda(store, (
+        AgendaItem("ag_coffee", 6.96, 7.46, "morning coffee", "routine",
+                   "r1", 0.9, "planned"),
+        AgendaItem("ag_run", 18.0, 18.75, "evening run", "interest",
+                   "running", 0.4, "planned"),
+    ))
+    current = session._current_activity(0, 19.0)
+    assert current is None, (
+        f"19:00 must not report the day's highest-salience item "
+        f"(got {current!r})"
+    )
+    store.close()
+
+
+def test_current_activity_in_progress_item_returned(tmp_path):
+    from harness.domain import AgendaItem
+
+    store, _clock, session = _agenda_session(tmp_path)
+    _replace_day0_agenda(store, (
+        AgendaItem("ag_coffee", 6.96, 7.46, "morning coffee", "routine",
+                   "r1", 0.9, "planned"),
+        AgendaItem("ag_run", 18.0, 19.5, "evening run", "interest",
+                   "running", 0.4, "planned"),
+    ))
+    # 07:00: the coffee item is actually in progress -> current
+    current = session._current_activity(0, 7.0)
+    assert current is not None and current.item.id == "ag_coffee"
+    # 19:00: the run is in progress -> current (not None)
+    current = session._current_activity(0, 19.0)
+    assert current is not None and current.item.id == "ag_run"
+    store.close()
+
+
+def test_current_activity_skipped_and_shifted_not_current(tmp_path):
+    """A skipped/shifted item is NOT happening at its planned slot: at its
+    slot the session reports None, and the fallback to the day's
+    highest-salience item is gone."""
+    from harness.domain import AgendaItem
+
+    store, _clock, session = _agenda_session(tmp_path)
+    _replace_day0_agenda(store, (
+        AgendaItem("ag_skip", 6.96, 7.46, "morning coffee", "routine",
+                   "r1", 0.9, "skipped"),
+        AgendaItem("ag_shift", 18.5, 19.5, "evening run", "interest",
+                   "running", 0.8, "shifted"),
+    ))
+    assert session._current_activity(0, 7.0) is None   # skipped slot
+    assert session._current_activity(0, 19.0) is None  # shifted slot
+    store.close()
+
+
+def test_current_activity_overlap_picks_highest_salience(tmp_path):
+    from harness.domain import AgendaItem
+
+    store, _clock, session = _agenda_session(tmp_path)
+    _replace_day0_agenda(store, (
+        AgendaItem("ag_a", 18.0, 19.5, "pottery class", "arc", "a1",
+                   0.5, "planned"),
+        AgendaItem("ag_b", 18.5, 19.5, "evening run", "interest",
+                   "running", 0.9, "planned"),
+    ))
+    current = session._current_activity(0, 19.0)
+    assert current is not None and current.item.id == "ag_b"  # higher salience
+    store.close()
+
+
+def test_current_activity_empty_agenda_none(tmp_path):
+    store, _clock, session = _agenda_session(tmp_path)
+    _replace_day0_agenda(store, ())
+    assert session._current_activity(0, 12.0) is None
+    store.close()
+
+
+def test_current_activity_reaches_the_system_prompt(tmp_path):
+    """E2E through the real chat path: at 19:00 with nothing in progress the
+    state card carries NO 'Current activity:' line; with an item actually in
+    progress it does (NOW semantics, not the highest-salience fallback)."""
+    from harness.domain import AgendaItem
+
+    store, clock, session = _agenda_session(tmp_path)
+    session.ensure_day(0)  # rollover (generates a seed agenda, replaced next)
+    _replace_day0_agenda(store, (
+        AgendaItem("ag_coffee", 6.96, 7.46, "morning coffee", "routine",
+                   "r1", 0.9, "planned"),
+        AgendaItem("ag_run", 18.0, 18.75, "evening run", "interest",
+                   "running", 0.4, "planned"),
+    ))
+    clock.advance_hours(19.0)
+    session.on_message("hi there")
+    system = session.client.calls[-1]["system"]
+    assert "Current activity:" not in system
+    store.close()
+
+
+def test_current_activity_in_progress_reaches_the_system_prompt(tmp_path):
+    from harness.domain import AgendaItem
+
+    store, clock, session = _agenda_session(tmp_path)
+    session.ensure_day(0)
+    _replace_day0_agenda(store, (
+        AgendaItem("ag_run", 18.0, 19.5, "evening run", "interest",
+                   "running", 0.4, "planned"),
+    ))
+    clock.advance_hours(19.0)
+    session.on_message("hi there")
+    system = session.client.calls[-1]["system"]
+    assert "Current activity: evening run" in system
+    store.close()
