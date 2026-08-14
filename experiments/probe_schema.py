@@ -119,8 +119,14 @@ class ProbeRecord:
 # --------------------------------------------------------------------------- #
 
 def sample_moods(set_kind: str, seed: int, **cfg: Any) -> list[MoodDose]:
-    """A1: engine-driven brief sampler. Real engine chain only."""
-    raise NotImplementedError("implemented by experiments/probe_moods.py (A1)")
+    """A1: engine-driven brief sampler. Real engine chain only.
+
+    Delegates to experiments/probe_moods.py (lazy import — that module
+    imports MoodDose from here, so a module-level import would cycle).
+    """
+    from experiments.probe_moods import sample_moods as _sample_moods
+
+    return _sample_moods(set_kind, seed, **cfg)
 
 
 def classify(record: ProbeRecord) -> ProbeRecord:
