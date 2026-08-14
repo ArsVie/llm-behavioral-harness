@@ -10,7 +10,7 @@ Rules: append-only for others' entries; mark your own resolved when done; never 
 - **Task:** Runtime redesign orchestration — design at `plans/harness-runtime-design-2026-08-14.md`; approvals D1(a)/D2/D3 + budget default (per-day, forced reply, 0=always, unset=off) via best-judgment (user away). All four streams merged into `wip/harness-integration`; finalization (suite, smokes, docs/context-flow-2026-08-14.md, commit) done by orchestrator.
 - **Files/dirs:** plans/harness-runtime-design-2026-08-14.md; docs/context-flow-2026-08-14.md; hey.md
 - **Boundaries:** engine/ and frozen files (engine/types.py, engine/rng.py, tests/conftest.py, pyproject.toml, CONVENTIONS.md) are OFF-LIMITS.
-- **Status:** resolved (finalization in progress)
+- **Status:** resolved — all streams merged into `wip/harness-integration`, full suite green, probe runs committed, branch merged to main (2026-08-14)
 
 ### WS4 — integration (wip/harness-integration)
 - **Timestamp:** 2026-08-14T02:33Z
