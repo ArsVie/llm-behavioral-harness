@@ -247,16 +247,51 @@ class AsyncRuntime:
         """Reactive path: advance the clock to msg.t_h if the channel
         supplied one (never backwards), reply via Session.on_message, wait
         the requested response_delay_s (injectable sleeper, wall-clock),
-        then send the reply as a non-proactive OutboundMessage."""
+        then send the reply as a non-proactive OutboundMessage.
+
+        WS4 (runtime redesign): before the turn runs, the user message is
+        queued as a ``user_message_mid_turn`` steer (when the decision layer
+        is enabled). The session's idle boundary then turns it into a
+        ``tool_decide_reply`` pop-up when an event is in progress (user
+        L356). The asyncio lock serializes turns, so a message can never
+        arrive WHILE a turn is generating — the steer still records the
+        arrival for the next safe boundary, which is the same contract the
+        design specifies for the mid-turn case.
+        """
         async with self._lock:
             if msg.t_h is not None and msg.t_h > self.session.clock.now_h():
                 self.session.clock.advance_hours(
                     msg.t_h - self.session.clock.now_h()
                 )
-            reply = await self._executor.run_in_thread(self.session.on_message, msg.text)
-            await self.sleeper(self._response_delay(reply))
+            enqueue = getattr(self.session, "enqueue_user_message_steer", None)
+            if enqueue is not None:
+                enqueue(msg.text, self.session.clock.now_h())
+            result = await self._executor.run_in_thread(self.session.on_message, msg.text)
+            await self.sleeper(self._response_delay(result))
+            await self._send_turn_outputs(result, proactive=False)
+
+    async def _send_turn_outputs(
+        self, result, *, proactive: bool, reason: str | None = None
+    ) -> None:
+        """Send everything one turn produced through the channel.
+
+        WS4 order (single reply-path invariant): decision-layer channel
+        outputs first — ``proactive_out`` (initiate verdicts) as proactive
+        messages, ``notices`` (no-reply verdicts) as plain messages — then
+        the ordinary reply, when there is one (a suppressed reply is
+        ``""`` and sends nothing).
+        """
+        for out_reason, text in getattr(result, "proactive_out", ()):
             await self.channel.send(
-                OutboundMessage(text=reply.reply, proactive=False)
+                OutboundMessage(text=text, proactive=True, reason=out_reason)
+            )
+        for notice in getattr(result, "notices", ()):
+            await self.channel.send(OutboundMessage(text=notice, proactive=False))
+        if (result.reply or "").strip():
+            await self.channel.send(
+                OutboundMessage(
+                    text=result.reply, proactive=proactive, reason=reason
+                )
             )
 
     # ------------------------------------------------------------------ #
@@ -544,10 +579,8 @@ class AsyncRuntime:
                         continue
                     result = await self._fire_exact_intent(intent)
                     await self.sleeper(self._response_delay(result))
-                    await self.channel.send(
-                        OutboundMessage(
-                            text=result.reply, proactive=True, reason=intent.reason
-                        )
+                    await self._send_turn_outputs(
+                        result, proactive=True, reason=intent.reason
                     )
                     self.store.update_proactive_intent_status(intent.id, "fired")
                     self.schedule.mark_fired_persisted(

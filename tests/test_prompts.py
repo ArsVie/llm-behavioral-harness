@@ -28,6 +28,7 @@ from harness.prompts import (
     HEADER_USER,
     POPUP_MARKER_CLOSE,
     POPUP_MARKER_OPEN,
+    STEER_TRUST_RULE,
     SYSTEM_CORE,
     SYSTEM_CORE_WITH_TOOLS,
     TOOL_PROTOCOL,
@@ -66,7 +67,11 @@ def test_system_core_names_the_state_card_and_rules():
     assert "Comply with the personality" in core
     # the tool protocol is a separate paragraph, attached to the core
     assert "decision tool" in TOOL_PROTOCOL
-    assert SYSTEM_CORE_WITH_TOOLS == SYSTEM_CORE + "\n\n" + TOOL_PROTOCOL
+    # the steer trust rule (WS3 marker contract) is the third paragraph
+    assert "steer" in STEER_TRUST_RULE
+    assert SYSTEM_CORE_WITH_TOOLS == (
+        SYSTEM_CORE + "\n\n" + TOOL_PROTOCOL + "\n\n" + STEER_TRUST_RULE
+    )
 
 
 def test_typed_headers_match_l393_sketch():

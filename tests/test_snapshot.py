@@ -25,7 +25,7 @@ from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.assembler import MAX_PROMPT_CHARS
 from harness.client import FakeClient
 from harness.clock import VirtualClock
-from harness.domain import Interest, PersonaProfile, Routine
+from harness.domain import AgendaItem, DailyAgenda, Interest, PersonaProfile, Routine
 from harness.judge import ScriptedJudge
 from harness.session import Session
 from harness.store import SQLiteStore
@@ -95,6 +95,35 @@ def _battery_session(tmp_path, seed: int, variant: MoodVariant):
     return store, clock, client, session
 
 
+def _ensure_activity_at(store, session, day: int, t_h: float) -> None:
+    """Guarantee an agenda item IN PROGRESS at ``t_h``.
+
+    The battery's structural assertions require ``Current activity:`` in
+    the prompt. Under NOW semantics (WS1, design §2.1) an activity is only
+    current when an item is genuinely in progress at that hour — the old
+    highest-salience fallback is gone, so a 15:00 message may have no
+    activity. The life-generated agenda is kept and a guaranteed
+    in-progress item (highest salience) is merged in; the forbidden-token
+    scan still covers the real generated agenda and all other sections.
+    """
+    session.ensure_day(day)
+    agenda = store.load_agenda(day)
+    items = agenda.items if agenda is not None else ()
+    extra = AgendaItem(
+        f"batt_{day}_{t_h:.0f}",
+        t_h - 0.5,
+        t_h + 0.5,
+        "battery walk",
+        "interest",
+        "batt",
+        0.9,
+        "planned",
+    )
+    if extra.id in {it.id for it in items}:
+        return  # already merged (resume: the item survived in the store)
+    store.save_agenda(day, DailyAgenda(day, tuple(items) + (extra,)))
+
+
 def _check_prompt(prompt: str, *, seed: int, day: int) -> None:
     low = prompt.lower()
     for token in FORBIDDEN_SUBSTRINGS:
@@ -123,6 +152,7 @@ def test_forbidden_tokens_never_reach_assembled_prompt(tmp_path):
         for day in range(10):
             clock.advance_to_day(day)
             clock.advance_hours(15.0 + (day % 4))  # vary the local hour
+            _ensure_activity_at(store, session, day, clock.now_h())
             result = session.on_message(BATTERY_MESSAGES[day % len(BATTERY_MESSAGES)])
             phases_seen.add(result.directive.trace.phase_label)
             _check_prompt(client.calls[-1]["system"], seed=seed, day=day)
@@ -155,6 +185,7 @@ def test_forbidden_tokens_absent_after_finalize_and_resume(tmp_path):
     session.on_message("I like hiking on weekends.")
     clock.advance_to_day(2)  # finalizes day 0 and 1 (memory close + life step)
     session.ensure_day(2)
+    _ensure_activity_at(store, session, 2, clock.now_h())
     session.on_message("hello again")
     _check_prompt(client.calls[-1]["system"], seed=7, day=2)
     store.close()
@@ -173,6 +204,7 @@ def test_forbidden_tokens_absent_after_finalize_and_resume(tmp_path):
         judge=ScriptedJudge(score=0.4).judge_day,
         feedback=True,
     )
+    _ensure_activity_at(store2, session2, 2, 67.0)
     session2.on_message("one more")
     _check_prompt(client2.calls[-1]["system"], seed=7, day=2)
     store2.close()
@@ -208,6 +240,7 @@ def test_grounded_proactive_prompt_is_clean(tmp_path):
         evidence="agenda_item:ag_0_a_arc_1",
     )
     store.save_proactive_intent(intent)
+    _ensure_activity_at(store, session, 0, 10.0)
     session.fire_proactive("schedule")
     _check_prompt(client.calls[-1]["system"], seed=7, day=0)
     assert intent.hook in client.calls[-1]["system"]

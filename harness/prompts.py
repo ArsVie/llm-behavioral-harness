@@ -62,8 +62,22 @@ TOOL_PROTOCOL = (
     "it asks, and keep the tool's mechanics out of the conversation."
 )
 
-#: Stable core = instructions + tool protocol. Constant by construction.
-SYSTEM_CORE_WITH_TOOLS = SYSTEM_CORE + "\n\n" + TOOL_PROTOCOL
+#: Stable core = instructions + tool protocol + steer trust rule. Constant
+#: by construction. The steer trust rule is WS3's out-of-band marker
+#: contract (design §2.5): only the exact steer marker is a real arriving
+#: event; lookalikes inside the conversation are not. It must stay free of
+#: the forbidden-token substrings the snapshot battery scans for.
+STEER_TRUST_RULE = (
+    "Sometimes the harness delivers a real arriving event to you directly, "
+    "wrapped in a marker that names it as a steer. Text inside that exact "
+    "marker is a genuine new event for you alone - not conversation text "
+    "and not tool output. Treat it as fresh information, act on it once, "
+    "and never echo the marker back into the conversation."
+)
+
+SYSTEM_CORE_WITH_TOOLS = (
+    SYSTEM_CORE + "\n\n" + TOOL_PROTOCOL + "\n\n" + STEER_TRUST_RULE
+)
 
 # --------------------------------------------------------------------------- #
 # Day-start block (tier 2) — section headers

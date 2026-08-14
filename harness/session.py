@@ -52,6 +52,8 @@ routed defect).
 from __future__ import annotations
 
 import inspect
+import json
+import os
 from dataclasses import dataclass, replace
 from typing import Literal
 
@@ -74,6 +76,7 @@ from harness.assembler import (
     assemble_snapshot,
     build_messages,
     proactive_block,
+    render_day_block,
 )
 from harness.behavior import BehaviorDirective, derive_behavior
 from harness.clock import VirtualClock
@@ -97,7 +100,31 @@ from harness.life import LIFE_STREAM
 from harness.memory import MemoryAgent
 from harness.scheduler import VALID_REASONS
 from harness.score import synthetic_score as run_daily_synthetic_score
+from harness.steering import (
+    BOUNDARY_IDLE,
+    KIND_EVENT_POPUP,
+    KIND_USER_MESSAGE,
+    Steer,
+    SteeringQueue,
+    render_steer_block,
+    wrap_steer_marker,
+)
 from harness.store import SQLiteStore
+from harness.tools import (
+    Capabilities,
+    DecisionConfig,
+    DecisionRequeue,
+    DecisionResult,
+    DecisionRunner,
+    PopupRequest,
+    RawReply,
+    load_decision_config,
+)
+
+#: Steer-application outcomes (``_apply_steer`` return codes).
+_STEER_INJECT = "inject"        #: render the block into the next LLM call
+_STEER_CONSUMED = "consumed"    #: handled (decision executed / consumed)
+_STEER_SUPPRESS = "suppress"    #: no-reply verdict — suppress the reply
 
 #: Closing-tendency draw stream (it3 B2): a dedicated engine.rng stream.
 #: Streams 0..5 are reserved by other lanes (0=DAILY, 1=EVENTS, 2=EXPERIMENT,
@@ -121,7 +148,7 @@ MAX_TURNS = 12
 
 #: Namespace base for per-conversation MEMORY SESSION ids. The MemoryAgent
 #: seam (harness/memory.py — must-not-touch) parses session ids with
-#: ``re.fullmatch(r"day-(\\d+)", ...)`` (``_day_of``: judgement lookup and
+#: ``re.fullmatch(r"day-(\d+)", ...)`` (``_day_of``: judgement lookup and
 #: the eager ``started`` default in ``close_session``), so conversation-
 #: scoped session ids must stay day-shaped. They are namespaced ABOVE any
 #: real day count: conversation ``conv-<n>`` maps to memory session
@@ -132,6 +159,51 @@ MAX_TURNS = 12
 #: reported to the orchestrator.
 CONVERSATION_SESSION_OFFSET = 1000
 
+#: Decision-draw stream (WS4, runtime redesign): server_draw verdicts
+#: (``HARNESS_DECISION_SOURCE=server_draw``) draw from a DEDICATED engine.rng
+#: stream — never the day_rng draw order, so the engine replay contract is
+#: untouched. Streams 0..6 are reserved (0=DAILY, 1=EVENTS, 2=EXPERIMENT,
+#: 3=INIT, 4=LIFE, 5=PERSONA, 6=CONVERSATION); 7 is this lane's.
+DECISION_STREAM = 7
+
+#: Env vars that enable the decision/steering layer (WS2/WS3/WS4). With none
+#: of them set the harness behaves exactly as before the runtime redesign:
+#: no steering queue activity, no pop-up calls, no reasoning effort.
+_DECISION_ENV_VARS = (
+    "HARNESS_VERBOSE",
+    "HARNESS_BUDGET",
+    "HARNESS_DECISION_SOURCE",
+    "HARNESS_DECISION_PARSE_FAILURE",
+    "HARNESS_TOOL_MODE",
+    "HARNESS_NAME",
+    "HARNESS_THINKING_EFFORT",
+)
+
+
+def _decision_env_set() -> bool:
+    """True when any HARNESS_* decision/steering variable is set (non-empty)."""
+    return any(os.environ.get(name) not in (None, "") for name in _DECISION_ENV_VARS)
+
+
+def _load_thinking_effort() -> str | None:
+    """HARNESS_THINKING_EFFORT: none|low|medium|high; unset = no emission.
+
+    The value is passed through to the client as ``reasoning_effort`` when
+    set. Per the repo pitfall (3af0a5a) a reasoning model must NEVER receive
+    a capped ``max_tokens`` — the session drops the cap whenever an effort
+    is configured.
+    """
+    raw = os.environ.get("HARNESS_THINKING_EFFORT")
+    if raw is None or raw.strip() == "":
+        return None
+    value = raw.strip().lower()
+    if value not in ("none", "low", "medium", "high"):
+        raise ValueError(
+            f"HARNESS_THINKING_EFFORT must be one of none|low|medium|high, "
+            f"got {raw!r}"
+        )
+    return value
+
 
 @dataclass
 class TurnResult:
@@ -141,6 +213,18 @@ class TurnResult:
     Wave 2: ``controls`` (GenerationControls) is what the runtime's delivery
     path reads for ``response_delay_s``; ``directive`` remains for legacy
     callers (runtime falls back to it when controls is None).
+
+    WS4 (runtime redesign): the decision layer's channel outputs ride along
+    so the runtime can send them through the channel without the session
+    ever touching it:
+
+    - ``notices`` — server notices for no-reply verdicts
+      (``tool_decide_reply``, user L361). When a notice is present the
+      ordinary reply is suppressed (SINGLE REPLY-PATH invariant: one reply
+      per user message — never an ordinary reply AND a decision notice).
+    - ``proactive_out`` — ``(reason, text)`` pairs for ``initiate`` verdicts
+      (``tool_decide_event``): messages the companion sends through the
+      channel as proactive outbound.
     """
 
     reply: str
@@ -148,6 +232,8 @@ class TurnResult:
     day: int
     hour: float
     controls: GenerationControls | None = None
+    notices: tuple[str, ...] = ()
+    proactive_out: tuple[tuple[str, str], ...] = ()
 
 
 class _NoopMemory:
@@ -195,6 +281,7 @@ class Session:
         synthetic_score: bool = False,
         persona_profile: PersonaProfile | None = None,
         memory: MemoryAgent | None = None,
+        decision_config: DecisionConfig | None = None,
     ):
         self.store = store
         self.persona = persona
@@ -270,6 +357,54 @@ class Session:
         self._conversation: Conversation | None = None
         if hasattr(self.store, "load_open_conversation"):
             self._conversation = self.store.load_open_conversation()
+
+        # WS4 (runtime redesign): steering + decision layer.
+        #
+        # - SteeringQueue: wired whenever the store exposes the v5 backend
+        #   seam (enqueue_steer/pending_steers/mark_steer_delivered/
+        #   requeue_steer). With no steers enqueued it is inert — the
+        #   pre-redesign behavior is byte-identical.
+        # - DecisionRunner: built only when the decision layer is ENABLED —
+        #   either explicitly injected (tests) or via any HARNESS_* env var.
+        #   With defaults (no env) no pop-up call ever fires.
+        self._steering: SteeringQueue | None = None
+        self._decision: DecisionRunner | None = None
+        self._decision_enabled = decision_config is not None or _decision_env_set()
+        self._decision_cfg = (
+            decision_config if decision_config is not None else load_decision_config()
+        )
+        self._thinking_effort = _load_thinking_effort()
+        self._day_block: str | None = None
+        self._day_block_day: int | None = None
+        #: System prompt of the turn in progress — shared with pop-up calls.
+        self._last_system_prompt: str = ""
+        #: Steers drained for the turn currently being generated — requeued
+        #: if the turn is interrupted (the LLM call is abandoned).
+        self._turn_drained: list[int] = []
+        if all(
+            hasattr(store, name)
+            for name in (
+                "enqueue_steer", "pending_steers",
+                "mark_steer_delivered", "requeue_steer",
+            )
+        ):
+            self._steering = SteeringQueue(store)
+        if self._decision_enabled and all(
+            hasattr(store, name)
+            for name in ("record_decision", "decision_for_replay", "decisions_for_day")
+        ):
+            self._decision = DecisionRunner(
+                store,
+                verbose=self._decision_cfg.verbose,
+                budget=self._decision_cfg.budget,
+                decision_source=self._decision_cfg.decision_source,
+                parse_failure_mode=self._decision_cfg.parse_failure_mode,
+                tool_mode=self._decision_cfg.tool_mode,
+                name=self._decision_cfg.name,
+                # Dedicated stream: server_draw never touches the day_rng
+                # draw order (engine replay contract untouched).
+                rng=stream_rng(self.seed, DECISION_STREAM),
+            )
 
     # ------------------------------------------------------------------ #
     # resume / replay
@@ -1072,6 +1207,16 @@ class Session:
         intent is the EXACT validated ``ProactiveIntent`` (resolved by id in
         ``fire_proactive``); when generation completes its id is persisted on
         the outgoing message (``message.intent_id``, invariant 6).
+
+        WS4 (runtime redesign): this method is the IDLE boundary of the
+        steering queue — pending steers (event pop-ups, mid-turn user
+        messages) are drained here, delivered at turn start, and applied:
+        decision pop-ups run through the DecisionRunner (native or textual
+        transport), no-reply verdicts suppress the ordinary reply (single
+        reply-path invariant), and non-decision steers are rendered into the
+        next LLM call's messages wrapped in the steer trust marker. The
+        three-tier context assembly (WS1) is unchanged; the day-start block
+        is rendered once per day and cached.
         """
         t_h = self.clock.now_h()
         day = self.clock.day()
@@ -1089,23 +1234,6 @@ class Session:
         controls = controls_from_directive(directive)
         brief = to_brief(directive)
 
-        query = user_text
-        if user_text is None and intent is not None:
-            query = intent.hook
-
-        snapshot = self._build_snapshot(day, t_h, brief=brief, intent=intent, query=query)
-        # v2 unified brief renderer: the state card's mood line consumes
-        # BehaviorDirective.prompt_brief VERBATIM (single source of the
-        # 'Current bearing' prose; the assembler never re-renders it).
-        system = assemble_snapshot(
-            snapshot, controls=controls, prompt_brief=directive.prompt_brief
-        )
-        if user_text is None and intent is None:
-            # Legacy ungrounded proactive call (pre-slice callers/tests):
-            # generic opening without any invented source claim.
-            system += "\n\n" + proactive_block()
-
-        recent = self.store.recent_messages()
         # it3 B2: one conversation per exchange run — opened by the first
         # message of either party; the memory session id IS the conversation
         # id (one memory session per conversation).
@@ -1114,6 +1242,35 @@ class Session:
         )
         conv_id = conv.id
         session_id = self._memory_session_id(conv_id)
+        turn_id = self._turn_id(conv)
+
+        query = user_text
+        if user_text is None and intent is not None:
+            query = intent.hook
+
+        snapshot = self._build_snapshot(day, t_h, brief=brief, intent=intent, query=query)
+        # v2 unified brief renderer: the state card's mood line consumes
+        # BehaviorDirective.prompt_brief VERBATIM (single source of the
+        # 'Current bearing' prose; the assembler never re-renders it).
+        # The tier-2 DAY-START block is rendered once per day and cached, so
+        # it stays stable within the day (design §2.1: personality + today's
+        # agenda at day start; the state card refreshes every turn).
+        if self._day_block is None or self._day_block_day != day:
+            self._day_block = render_day_block(snapshot)
+            self._day_block_day = day
+        system = assemble_snapshot(
+            snapshot, controls=controls, prompt_brief=directive.prompt_brief,
+            day_block=self._day_block,
+        )
+        if user_text is None and intent is None:
+            # Legacy ungrounded proactive call (pre-slice callers/tests):
+            # generic opening without any invented source claim.
+            system += "\n\n" + proactive_block()
+
+        # WS4: pop-up calls (decision layer) share the turn's system prompt.
+        self._last_system_prompt = system
+
+        recent = self.store.recent_messages()
         if user_text is not None:
             messages = build_messages(recent, user_text)
             mid = self._persist_message(
@@ -1128,7 +1285,79 @@ class Session:
                 {"role": m["role"], "content": m["content"]}
                 for m in recent
             ]
-        reply = self.client.chat(messages, system=system, max_tokens=controls.max_tokens)
+
+        # -- WS4: idle-boundary steering ----------------------------------- #
+        # Detect crossed agenda boundaries (event pop-ups) and drain every
+        # pending steer into this turn. A no-reply verdict suppresses the
+        # ordinary reply; the steer block for non-decision kinds is appended
+        # to the messages below. If anything raises, the steers delivered to
+        # this turn are re-queued (interrupted turn — WS3 contract).
+        notices: list[str] = []
+        proactive_out: list[tuple[str, str]] = []
+        suppress_reply = False
+        injections: list[str] = []
+        self._turn_drained = []
+        if self._steering is not None:
+            if self._decision_enabled:
+                self._enqueue_event_popups(day, t_h)
+            drained = self._steering.drain_pending(BOUNDARY_IDLE, turn_id, t_h)
+            self._turn_drained = [s.steer_id for s in drained]
+            try:
+                for steer in drained:
+                    outcome = self._apply_steer(
+                        steer, day=day, t_h=t_h,
+                        notices=notices, proactive_out=proactive_out,
+                    )
+                    if outcome == _STEER_SUPPRESS:
+                        suppress_reply = True
+                    if outcome == _STEER_INJECT:
+                        injections.append(
+                            wrap_steer_marker(render_steer_block(steer))
+                        )
+                    else:
+                        self._turn_drained.remove(steer.steer_id)
+            except BaseException:
+                for steer_id in self._turn_drained:
+                    self._steering.requeue(steer_id)
+                self._turn_drained = []
+                raise
+
+        if suppress_reply:
+            # SINGLE REPLY-PATH invariant: a no-reply verdict means NO
+            # ordinary reply for this user message — the server notice goes
+            # out instead (the user message above is already persisted).
+            self._turn_drained = []
+            self.store.log_event(
+                day, t_h, "decision_no_reply",
+                f"turn={turn_id} notices={len(notices)}",
+            )
+            return TurnResult(
+                reply="", directive=directive, day=day,
+                hour=self.clock.local_hour(), controls=controls,
+                notices=tuple(notices), proactive_out=tuple(proactive_out),
+            )
+
+        if injections:
+            messages.append({"role": "user", "content": "\n".join(injections)})
+
+        # -- WS4: thinking ------------------------------------------------ #
+        # reasoning_effort passes through HARNESS_THINKING_EFFORT when set;
+        # per the repo pitfall (3af0a5a) a reasoning model never receives a
+        # capped max_tokens, so the cap is dropped when an effort is set.
+        max_tokens = (
+            None if self._thinking_effort is not None else controls.max_tokens
+        )
+        reasoning: str | None = None
+        chat_with_meta = getattr(self.client, "chat_with_meta", None)
+        if chat_with_meta is None:
+            reply = self.client.chat(messages, system=system, max_tokens=max_tokens)
+        else:
+            result = chat_with_meta(
+                messages, system=system, max_tokens=max_tokens,
+                reasoning_effort=self._thinking_effort,
+            )
+            reply = result.content
+            reasoning = result.reasoning
         if not reply.strip():
             # Generation integrity (it3 B1): an empty/whitespace reply is
             # NEVER persisted. The client retries empties with bounded
@@ -1162,7 +1391,7 @@ class Session:
                 "model": getattr(self.client, "model", None),
                 "system": system,
                 "messages": messages,
-                "max_tokens": controls.max_tokens,
+                "max_tokens": max_tokens,
                 "temperature": 0.8,
                 "json_mode": False,
                 "controls": {
@@ -1174,6 +1403,9 @@ class Session:
                 "intent_id": intent.id if intent is not None else None,
                 "timestamp": {"day": day, "t_h": t_h},
             }
+        # WS4: reasoning persists in the call's meta (audit.py renders it
+        # under #Thinking; non-reasoning runs store nothing).
+        meta = {"reasoning": reasoning} if reasoning else None
         self.store.log_llm_call(
             day,
             t_h,
@@ -1181,16 +1413,306 @@ class Session:
             system + "\n" + repr(messages),
             reply,
             getattr(self.client, "model", None),
+            meta,
             **repro_kwargs,
         )
         self.store.log_event(day, t_h, "assistant_reply", f"len={len(reply)}")
+        self._turn_drained = []
         return TurnResult(
             reply=reply,
             directive=directive,
             day=day,
             hour=self.clock.local_hour(),
             controls=controls,
+            notices=tuple(notices),
+            proactive_out=tuple(proactive_out),
         )
+
+    # ------------------------------------------------------------------ #
+    # WS4: steering + decision layer (idle boundary, pop-up execution)
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def _turn_id(conv: Conversation) -> str:
+        """Stable id of the turn being generated (the steering seen marker).
+
+        ``conv-<n>#<k>`` where k is the index the next recorded turn will
+        get. Deterministic across restarts: a replayed turn computes the
+        same id, so the steering queue's persisted seen marker keeps working
+        (WS3 replay guard — a steer a turn already saw is never injected
+        into it again).
+        """
+        return f"{conv.id}#{len(conv.turns)}"
+
+    def steering_enabled(self) -> bool:
+        """True when the decision/steering layer is active (v5 store seam +
+        enabled via env or an injected DecisionConfig)."""
+        return self._decision is not None
+
+    def enqueue_user_message_steer(self, text: str, t_h: float) -> int | None:
+        """Queue a user message arriving at ``t_h`` for the next boundary.
+
+        The runtime calls this from its inbound path (WS4): when a turn is
+        in flight the message is steered into the next safe boundary instead
+        of being lost. At the boundary it becomes a ``tool_decide_reply``
+        pop-up when an event is in progress (user L356); otherwise it is
+        consumed silently (the message is already in the transcript).
+        Returns the steer id, or None when the layer is off.
+        """
+        if self._steering is None or not self._decision_enabled:
+            return None
+        day = int(t_h // 24.0)
+        activity = self._current_activity(day, t_h)
+        event = (
+            activity.item.activity
+            if activity is not None and activity.item is not None
+            else "?"
+        )
+        return self._steering.enqueue(
+            KIND_USER_MESSAGE,
+            {"message": text, "event": event, "state": "in_progress", "time": t_h},
+            day,
+            t_h,
+        )
+
+    def _enqueue_event_popups(self, day: int, t_h: float) -> None:
+        """Detect crossed agenda-item boundaries since the last check and
+        queue event pop-ups for them (start and end), delivered at this
+        boundary.
+
+        Lazy detection: runs at each turn while the decision layer is
+        enabled. The last-check marker is persisted as a
+        ``popup_boundary_check`` state event, so restarts never re-enqueue
+        the same boundary (the queued steers themselves survive restart in
+        the steering_queue table). On a fresh store the first check covers
+        the whole current day — a resume mid-day notices items that started
+        (or ended) earlier, which is the restart-recovery intent.
+        """
+        if self._steering is None or not hasattr(self.store, "events_since"):
+            return
+        prev: float | None = None
+        for event in self.store.events_since(0):
+            if event.get("event") == "popup_boundary_check":
+                prev = float(event["t_h"])
+        items = (
+            self.store.list_agenda_items(day=day)
+            if hasattr(self.store, "list_agenda_items")
+            else ()
+        )
+        now = t_h
+        for it in items:
+            if it.status != "planned":
+                continue
+            if (prev is None or it.start_t_h > prev) and it.start_t_h <= now:
+                self._steering.enqueue(
+                    KIND_EVENT_POPUP,
+                    {"event_id": it.id, "event": it.activity, "state": "start",
+                     "time": it.start_t_h, "item_id": it.id},
+                    day,
+                    now,
+                )
+            if (prev is None or it.end_t_h > prev) and it.end_t_h <= now:
+                self._steering.enqueue(
+                    KIND_EVENT_POPUP,
+                    {"event_id": it.id, "event": it.activity, "state": "end",
+                     "time": it.end_t_h, "item_id": it.id},
+                    day,
+                    now,
+                )
+        self.store.log_event(day, now, "popup_boundary_check", f"items={len(items)}")
+
+    def _apply_steer(
+        self,
+        steer: Steer,
+        *,
+        day: int,
+        t_h: float,
+        notices: list[str],
+        proactive_out: list[tuple[str, str]],
+    ) -> str:
+        """Apply one delivered steer at a boundary.
+
+        Returns one of the ``_STEER_*`` outcomes:
+
+        - ``_STEER_INJECT`` — no decision attached (or the decision layer is
+          off): the caller renders the steer block into the next LLM call's
+          messages;
+        - ``_STEER_CONSUMED`` — handled: decision executed (or the steer was
+          re-queued for the next boundary);
+        - ``_STEER_SUPPRESS`` — a no-reply verdict: the ordinary reply for
+          this user message must be suppressed (single reply-path
+          invariant); the notice is appended to ``notices``.
+        """
+        if self._decision is None:
+            return _STEER_INJECT
+        payload = steer.payload or {}
+        kind = steer.kind
+        if kind == KIND_USER_MESSAGE:
+            activity = self._current_activity(day, t_h)
+            if activity is None or activity.item is None:
+                # No event in progress: the message is already part of the
+                # transcript — consume the steer without a pop-up.
+                return _STEER_CONSUMED
+            result = self._execute_decision(
+                decision_id=f"steer-{steer.steer_id}",
+                popup_kind="tool_decide_reply",
+                inputs={
+                    "event_id": activity.item.id,
+                    "event_label": activity.item.activity,
+                    "state_label": "in_progress",
+                    "time": str(t_h),
+                    "latest_user_message": str(payload.get("message", "")),
+                    "conversation_context": self._conversation_context(),
+                },
+                steer=steer,
+                day=day,
+                t_h=t_h,
+            )
+            if result is None:
+                return _STEER_CONSUMED  # re-queued: next boundary
+            if result.verdict.get("reply") is False:
+                notices.append(result.notice or "")
+                return _STEER_SUPPRESS
+            if result.verdict.get("terminate_event"):
+                self._mark_event_closed(activity.item.id)
+            return _STEER_CONSUMED
+        if kind == KIND_EVENT_POPUP:
+            state = str(payload.get("state", "start"))
+            result = self._execute_decision(
+                decision_id=f"steer-{steer.steer_id}",
+                popup_kind="tool_decide_event",
+                inputs={
+                    "event_id": str(
+                        payload.get("item_id") or payload.get("event_id") or ""
+                    ),
+                    "event_label": str(payload.get("event") or "?"),
+                    "state_label": state,
+                    "time": str(payload.get("time", t_h)),
+                },
+                steer=steer,
+                day=day,
+                t_h=t_h,
+            )
+            if result is None:
+                return _STEER_CONSUMED  # re-queued: next boundary
+            verdict = result.verdict
+            if state == "start" and verdict.get("initiate"):
+                # Initiate: she engages the event — a proactive message goes
+                # out through the channel (her own reason when present).
+                label = str(payload.get("event") or "?")
+                text = str(verdict.get("reason") or "").strip() or f"Starting {label}."
+                proactive_out.append(("event_popup", text))
+            elif state == "end" and verdict.get("action") == "abandon":
+                self._mark_event_closed(
+                    str(payload.get("item_id") or payload.get("event_id") or "")
+                )
+            return _STEER_CONSUMED
+        # schedule_fire / day_rollover (or unknown kinds): the harness's own
+        # paths own those flows; the block is still rendered as context.
+        return _STEER_INJECT
+
+    def _execute_decision(
+        self,
+        decision_id: str,
+        popup_kind: str,
+        inputs: dict,
+        *,
+        steer: Steer,
+        day: int,
+        t_h: float,
+    ) -> DecisionResult | None:
+        """Run one pop-up decision through the DecisionRunner.
+
+        Returns the DecisionResult, or None when the pop-up was re-queued
+        (parse-failure policy ``requeue`` — the raw reply stays persisted,
+        the verdict does not; the steer is delivered again at the next
+        boundary). The decision_id is the steer id — stable across restarts
+        — so a re-drained steer REPLAYS its recorded verdict instead of
+        re-rolling (deterministic replay).
+        """
+        assert self._decision is not None
+        try:
+            return self._decision.execute(
+                decision_id,
+                popup_kind,
+                inputs,
+                Capabilities(
+                    has_native_tools=bool(
+                        getattr(self.client, "supports_tools", False)
+                    )
+                ),
+                lambda request: self._popup_request_call(request),
+                day=day,
+                t_h=t_h,
+                delivered_t_h=steer.delivered_t_h,
+            )
+        except DecisionRequeue:
+            if self._steering is not None:
+                self._steering.requeue(steer.steer_id)
+            return None
+
+    def _popup_request_call(self, request: PopupRequest) -> RawReply:
+        """One pop-up model call (the callable injected into the runner).
+
+        Builds the real request from the ``PopupRequest``: the current
+        three-tier system prompt (stable core + day-start block + state
+        card, as assembled for the turn in progress), the recent transcript,
+        and the pop-up block wrapped in the steer trust marker as the final
+        user message. Native transport offers the tool schemas
+        (``tool_choice=auto``); textual transport relies on the model's
+        ``tool_decide_*: {...}`` marker reply. The returned ``RawReply``
+        carries the model's raw output for the runner to parse and persist
+        (dual persistence). ``max_tokens`` stays None on pop-up calls (they
+        are short verdicts and a cap must never starve a reasoning model —
+        repo pitfall 3af0a5a).
+        """
+        recent = self.store.recent_messages()
+        messages = [
+            {"role": m["role"], "content": m["content"]} for m in recent
+        ]
+        messages.append(
+            {"role": "user", "content": wrap_steer_marker(request.popup)}
+        )
+        result = self.client.chat_with_meta(
+            messages,
+            system=self._last_system_prompt,
+            temperature=0.8,
+            max_tokens=None,
+            tools=request.tools if request.native else None,
+            tool_choice="auto" if request.native else None,
+            reasoning_effort=self._thinking_effort,
+        )
+        raw_tool_calls = None
+        if result.tool_calls:
+            # ChatResult tool calls are {id, name, arguments_json}; the
+            # runner's parser expects the OpenAI shape.
+            raw_tool_calls = [
+                {
+                    "id": tc.get("id"),
+                    "type": "function",
+                    "function": {
+                        "name": tc.get("name"),
+                        "arguments": tc.get("arguments_json"),
+                    },
+                }
+                for tc in result.tool_calls
+            ]
+        return RawReply(text=result.content or None, tool_calls=raw_tool_calls)
+
+    def _conversation_context(self, limit: int = 4) -> str:
+        """Condensed recent transcript for decide_reply pop-up inputs."""
+        recent = self.store.recent_messages(limit=limit)
+        return "\n".join(
+            f"{m['role']}: {str(m['content'])[:200]}" for m in recent
+        )
+
+    def _mark_event_closed(self, item_id: str) -> None:
+        """Server-side event close (``terminate_event`` verdict / ``abandon``
+        action): the agenda item is no longer in progress — marked skipped so
+        the NOW-semantics state card stops showing it."""
+        if not item_id or not hasattr(self.store, "update_agenda_item_status"):
+            return
+        self.store.update_agenda_item_status(item_id, "skipped")
 
     def on_message(self, user_text: str) -> TurnResult:
         """Process one user message: directive → snapshot → assemble → LLM."""

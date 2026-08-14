@@ -402,11 +402,19 @@ def test_r6_restart_at_midnight_day_boundary(tmp_path):
 
 
 def test_r7_restart_after_agenda_generation_before_completion(tmp_path):
-    """R-7: day D's agenda generated, current activity = pottery item in
+    """R-7: day D's agenda generated, current activity = an agenda item in
     progress; kill at 15:00 before completion. On resume: CurrentActivity is
     the SAME item (not None, not fabricated), the agenda is NOT regenerated
     (no duplicate items), and completing the item later marks the original
-    row completed exactly once."""
+    row completed exactly once.
+
+    WS4 (NOW semantics, WS1): an activity is only current while an item is
+    genuinely in progress — the old highest-salience fallback is gone, so
+    the restart-continuity probe picks a moment inside a planned item's
+    window instead of a fixed 15:00 (which may be idle). A regression pin
+    below asserts the NOW behavior itself: at an idle hour there is no
+    current activity at all.
+    """
     store = _store(tmp_path, "r7.db")
     profile = build_persona(LIFE_SEED, graph=build_catalog())
     store.save_persona(profile)
@@ -416,9 +424,18 @@ def test_r7_restart_after_agenda_generation_before_completion(tmp_path):
     agenda_pre = store.load_agenda(5)
     assert agenda_pre is not None and agenda_pre.items
     ids_pre = [it.id for it in agenda_pre.items]
-    t_h = 5 * 24.0 + 15.0
+    planned = [it for it in agenda_pre.items if it.status == "planned"]
+    assert planned, "day 5 agenda must contain planned items"
+    item = planned[0]
+    t_h = item.start_t_h + (item.end_t_h - item.start_t_h) / 2.0  # in progress
     ca_pre = session._current_activity(5, t_h)
     assert ca_pre is not None and ca_pre.item is not None
+    assert ca_pre.item.id == item.id
+    idle_h = 5 * 24.0 + 15.0
+    if not any(it.start_t_h <= idle_h < it.end_t_h for it in agenda_pre.items):
+        # NOW-semantics regression pin: outside every window there is no
+        # current activity (the removed highest-salience fallback).
+        assert session._current_activity(5, idle_h) is None
 
     # kill + resume at the same moment
     store2 = _store(tmp_path, "r7.db")
