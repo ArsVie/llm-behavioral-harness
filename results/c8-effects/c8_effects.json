@@ -1,0 +1,187 @@
+{
+  "experiment": "C8 — message effects on high-valence days",
+  "plan_ref": "plans/advisor-orchestration-2026-08-15.md §C8",
+  "engine_contract": {
+    "driver": "sim.run_daily.run",
+    "variant": "decoupled_offsets",
+    "persona": "PersonaParams() defaults (frozen DESIGN.md)",
+    "days_per_seed": 28,
+    "seeds": [
+      5001,
+      5002,
+      5003,
+      5004,
+      5005
+    ],
+    "total_days": 140
+  },
+  "valence_primary": "p (DayRecord.p, daily mood probability, continuous)",
+  "valence_secondary": "M/N (observable daily mood, discrete 0..1 in 0.1 steps)",
+  "distribution_p": {
+    "n": 140,
+    "mean": 0.5890577220798742,
+    "sd": 0.17873770817284101,
+    "p50": 0.5790730037212761,
+    "p75": 0.7455438072771968,
+    "p90": 0.8131179349966802,
+    "p95": 0.8286719370425711,
+    "p99": 0.8703273059750993,
+    "min": 0.12300186743221568,
+    "max": 0.88968846937239
+  },
+  "distribution_MN": {
+    "n": 140,
+    "mean": 0.5678571428571428,
+    "sd": 0.22094234318790218,
+    "p50": 0.6,
+    "p75": 0.7,
+    "p90": 0.8,
+    "p95": 0.9,
+    "p99": 1.0,
+    "min": 0.1,
+    "max": 1.0
+  },
+  "threshold": {
+    "rule": "effect iff day valence p > threshold_p",
+    "threshold_p": 0.8131179349966802,
+    "threshold_p_rank": "90th percentile of pooled p (140 days)",
+    "threshold_MN_reference": 0.8,
+    "MN_strict_rule_days_selected_140": 13,
+    "top_decile_n": 14
+  },
+  "per_seed": [
+    {
+      "seed": 5001,
+      "selected_days": [
+        9,
+        10,
+        11,
+        12,
+        13
+      ],
+      "selected_count_28d": 5,
+      "effects_per_week": 1.25,
+      "weeks_with_effect": [
+        1
+      ],
+      "all_selected_in_top_decile": true,
+      "selected_p_values": [
+        0.820987,
+        0.862564,
+        0.854452,
+        0.826482,
+        0.864409
+      ],
+      "selected_MN_values": [
+        0.8,
+        0.9,
+        0.8,
+        0.9,
+        0.8
+      ]
+    },
+    {
+      "seed": 5002,
+      "selected_days": [
+        8,
+        10,
+        11,
+        13,
+        14,
+        15
+      ],
+      "selected_count_28d": 6,
+      "effects_per_week": 1.5,
+      "weeks_with_effect": [
+        1,
+        2
+      ],
+      "all_selected_in_top_decile": true,
+      "selected_p_values": [
+        0.826888,
+        0.835514,
+        0.889688,
+        0.874111,
+        0.845444,
+        0.814727
+      ],
+      "selected_MN_values": [
+        0.6,
+        0.6,
+        0.7,
+        0.9,
+        0.8,
+        0.7
+      ]
+    },
+    {
+      "seed": 5003,
+      "selected_days": [],
+      "selected_count_28d": 0,
+      "effects_per_week": 0.0,
+      "weeks_with_effect": [],
+      "all_selected_in_top_decile": true,
+      "selected_p_values": [],
+      "selected_MN_values": []
+    },
+    {
+      "seed": 5004,
+      "selected_days": [
+        14
+      ],
+      "selected_count_28d": 1,
+      "effects_per_week": 0.25,
+      "weeks_with_effect": [
+        2
+      ],
+      "all_selected_in_top_decile": true,
+      "selected_p_values": [
+        0.814051
+      ],
+      "selected_MN_values": [
+        0.7
+      ]
+    },
+    {
+      "seed": 5005,
+      "selected_days": [
+        10,
+        13
+      ],
+      "selected_count_28d": 2,
+      "effects_per_week": 0.5,
+      "weeks_with_effect": [
+        1
+      ],
+      "all_selected_in_top_decile": true,
+      "selected_p_values": [
+        0.828312,
+        0.826606
+      ],
+      "selected_MN_values": [
+        0.9,
+        0.8
+      ]
+    }
+  ],
+  "checks": {
+    "only_top_decile_days_selected": true,
+    "selected_equals_top_decile_exactly": true,
+    "expected_freq_per_week": 0.7,
+    "freq_le_1_per_week": true,
+    "per_seed_max_28d": 6,
+    "criterion_b_pass": true
+  },
+  "supplementary_cap": {
+    "note": "optional hard guard, NOT part of plan criterion: at most 4 effects per 28d per seed (drop lowest-p extras)",
+    "capped_counts_per_seed": [
+      4,
+      4,
+      0,
+      1,
+      2
+    ],
+    "capped_total_140d": 11,
+    "capped_freq_per_week": 0.55
+  }
+}
