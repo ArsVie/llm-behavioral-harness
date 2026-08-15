@@ -292,6 +292,42 @@ def test_inform_verdict_not_parsed_without_phase():
     assert verdict["initiate"] is False
 
 
+def test_inform_plain_prose_is_the_mention():
+    """G2 finding: a real model answering the inform popup in plain prose
+    (no tool call, no textual marker) IS the natural mention — the inform
+    is a mention, not a verdict. The runner's _parse_raw must accept it."""
+    from harness.tools import RawReply, DecisionRunner
+    from harness.store import SQLiteStore
+
+    store = SQLiteStore(":memory:", audit_mode=True)
+    runner = DecisionRunner(store)
+    verdict = runner._parse_raw(
+        "tool_decide_event",
+        RawReply(
+            text=(
+                "haha wait, that's the whole thing? you can't just leave "
+                "me hanging — also heads up, it's gym o'clock for me in a "
+                "bit, so if I go quiet you'll know where I ran off to"
+            ),
+            tool_calls=None,
+        ),
+        "native",
+        phase="inform",
+    )
+    assert verdict["message"].startswith("haha wait")
+    # Decide phase stays strict: prose without a marker is still a failure.
+    from harness.tools import DecisionParseError
+
+    with pytest.raises(DecisionParseError):
+        runner._parse_raw(
+            "tool_decide_event",
+            RawReply(text="just some prose", tool_calls=None),
+            "native",
+            phase="decide",
+        )
+    store.close()
+
+
 # --------------------------------------------------------------------------- #
 # popup rendering: negotiation context lines, legacy byte-identical
 # --------------------------------------------------------------------------- #

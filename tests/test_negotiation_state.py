@@ -162,6 +162,16 @@ def test_decide_status_forced_at_window_close():
     assert st.turns_to_decide == 0  # forced: no state mutation
 
 
+def test_decide_status_forced_in_inform_phase_at_window_close():
+    """G2 finding: the backstop is phase-independent — a negotiation stuck
+    in INFORM (inform never landed) is forced-skipped at end_t_h, so
+    termination holds on every path (the contract's termination floor)."""
+    st = _st(end_t_h=10.0, phase=NegotiationPhase.INFORM.value)
+    assert decide_status_at(st, now=10.0, companion_turn=False) == "forced"
+    # before the window close the inform phase still never fires a decide
+    assert decide_status_at(st, now=9.0, companion_turn=True) == "inactive"
+
+
 def test_decide_status_turn_trigger_and_decrement():
     st = _st(turns_to_decide=1, afk_deadline_t_h=None)
     # one turn passes without a decide: the counter decrements
