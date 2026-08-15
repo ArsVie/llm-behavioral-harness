@@ -533,7 +533,7 @@ def test_behavioral_projection_visible_internals_absent():
     prose = _render_brief(valence=0.2, energy=0.2, momentum=0.0,
                           warmth=0.9, playfulness=0.2, reflectiveness=0.8)
     prompt = assemble_snapshot(_snapshot(brief=brief), prompt_brief=prose)
-    assert "low-energy" in prompt  # the behavioral projection is visible
+    assert "subdued" in prompt  # the behavioral projection is visible
     low = prompt.lower()
     for token in (
         "cycle_day", "phase_label", "menstrual", "follicular",

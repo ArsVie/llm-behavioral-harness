@@ -58,19 +58,35 @@ def _render_brief(
     playfulness: float,
     reflectiveness: float,
 ) -> str:
-    if valence > 0.35:
-        bearing = "quietly bright"
-    elif valence < -0.35:
-        bearing = "a little tender and inward"
+    if valence > 0.9:
+        bearing = "radiant"
+    elif valence > 0.65:
+        bearing = "buoyant"
+    elif valence > 0.35:
+        bearing = "bright"
+    elif valence > 0.05:
+        bearing = "even"
+    elif valence > -0.25:
+        bearing = "quiet"
+    elif valence > -0.55:
+        bearing = "tender"
+    elif valence > -0.85:
+        bearing = "somber"
     else:
-        bearing = "even and grounded"
+        bearing = "heavy"
 
-    if energy > 0.7:
-        pace = "lively and readily engaged"
-    elif energy < 0.35:
-        pace = "low-energy and unhurried"
+    if energy > 0.83:
+        pace = "vibrant"
+    elif energy > 0.67:
+        pace = "energized"
+    elif energy > 0.5:
+        pace = "lively"
+    elif energy > 0.33:
+        pace = "calm"
+    elif energy > 0.17:
+        pace = "subdued"
     else:
-        pace = "calmly present"
+        pace = "drained"
 
     if momentum > 0.2:
         continuity = "There is a gentle sense of opening up compared with recently."
