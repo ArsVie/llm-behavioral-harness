@@ -6,6 +6,11 @@ the agent. New asks get appended here as they are spoken.
 
 ## Open
 
+### Bot timezone command (bot time is not real time)
+- Date: 2026-08-15
+- Verbatim: "another thing for the backlog, bot time is not real time. we should have a command to set the timezone of the bot too"
+- Summary: The bot's virtual clock starts at 0.0 at launch and is not anchored to the user's wall clock, so quiet hours, proactives, and day rollover drift from the user's local time. Add a command to set the bot's timezone so its day aligns with the owner's.
+
 ### Setup window for themes / common settings
 - Date: 2026-08-15
 - Verbatim: "I didn't have a window to set the common themes and things like that"
