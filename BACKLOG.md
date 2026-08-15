@@ -10,6 +10,7 @@ the agent. New asks get appended here as they are spoken.
 - Date: 2026-08-15
 - Verbatim: "spike how consecutive user messages affect the output fo the model and whether we should have a small window for users to keep writting, backlog too"
 - Summary: Spike how rapid consecutive user messages change the model's replies, and whether the channel should hold a small window for the user to finish writing before replying (debounce). Deliverable is a recommendation, including window size if adopted.
+- Result (spike 2026-08-15): recommendation YES — 2s trailing-edge debounce at the Telegram channel (max-wait cap ~8s), turning N-message bursts into one reply; verified vs recorded probe DBs, caveat n=2 seeds, single model.
 
 ### Typing / processing feedback
 - Date: 2026-08-15
