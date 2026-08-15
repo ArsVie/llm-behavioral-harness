@@ -41,13 +41,23 @@ class StubUpdate:
 class FakeBot:
     def __init__(self):
         self.calls = []
+        self.chat_actions = []
 
     async def send_message(self, chat_id, text, **kwargs):
         self.calls.append({"chat_id": chat_id, "text": text})
 
+    async def send_chat_action(self, chat_id, action, **kwargs):
+        self.chat_actions.append({"chat_id": chat_id, "action": action})
+
 
 class FakeApplication:
-    """Records registered handlers; never polls, never touches the network."""
+    """Records registered handlers; never polls, never touches the network.
+
+    Wave-1 growth (shared seam; Wave 2 consumes it unmodified):
+      - ``bot.send_chat_action`` recording (typing-indicator tests)
+      - ``command_update()`` — build a stub update carrying a /command
+        (command-routing tests drive the registered command handler with it)
+    """
 
     def __init__(self):
         self.bot = FakeBot()
@@ -55,6 +65,10 @@ class FakeApplication:
 
     def add_handler(self, handler):
         self.handlers.append(handler)
+
+    def command_update(self, text, chat_id):
+        """Stub update carrying a slash-command (command-update injection)."""
+        return StubUpdate(text, chat_id)
 
 
 # --- env contract ---
