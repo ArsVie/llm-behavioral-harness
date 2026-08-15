@@ -54,7 +54,7 @@ from experiments.cvs_common import (
     make_session,
 )
 from harness.runtime import AsyncRuntime, IntentResolver
-from harness.scheduler import ProactiveSchedule
+from harness.scheduler import ProactiveSchedule, day_scores
 from harness.client import OpenAICompatibleClient
 
 #: 1 hora virtual = 1 hora real (modo en vivo; la matriz usa 0.0004).
@@ -98,9 +98,18 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
                            persona, timing, variant)
     # Día 0 up-front (misma razón que run_cell): el primer replan del
     # runtime ocurre en la medianoche del día 1 y planificaría el día 0
-    # retroactivamente.
+    # retroactivamente. El plan nace con ESTADO real: si el store aún no
+    # tiene la fila daily_state del día 0 (arranque limpio), se dibuja el
+    # mood con ensure_day(0) ANTES de planificar (el mismo paso del
+    # rollover de medianoche) y se pasa day_scores reales — nunca
+    # scores=None (espejo del _replan de producción). En resume la fila ya
+    # existe y el plan es un no-op (INSERT OR IGNORE nunca toca filas
+    # fired/expired).
+    if store.load_daily_state(0) is None:
+        session.ensure_day(0)
     ProactiveSchedule.plan_and_persist(
-        1, seed, persona, timing, store, reason=REASON_SCHEDULE, scores=None,
+        1, seed, persona, timing, store,
+        reason=REASON_SCHEDULE, scores=day_scores(store, 0, timing),
     )
     rt = AsyncRuntime(
         session,

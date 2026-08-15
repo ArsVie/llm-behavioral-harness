@@ -1065,11 +1065,16 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
         # Plan inicial del día 0: el primer replan del runtime ocurre en la
         # medianoche del día 1 y planificaría el día 0 retroactivamente —
         # cada evento del día 0 nacería vencido y expiraría espuriamente.
-        # Planificar el primer día up-front (adj neutro, scores=None) le da
-        # al firing loop sus filas del día 0 desde t_h=0 (INSERT OR IGNORE).
+        # El plan debe existir ANTES del firing loop, pero con ESTADO real:
+        # se dibuja el mood del día 0 primero (ensure_day — el mismo paso
+        # del rollover de medianoche; la fila daily_state alimenta
+        # state_factors_for_plan) y se planifica con day_scores reales,
+        # como el _replan de producción (nunca scores=None en vivo).
+        session.ensure_day(0)
+        scores = day_scores(store, 0, timing)
         ProactiveSchedule.plan_and_persist(
             1, seed, persona, timing, store,
-            reason=REASON_SCHEDULE, scores=None,
+            reason=REASON_SCHEDULE, scores=scores,
         )
 
         all_controls: dict[int, dict] = {}
