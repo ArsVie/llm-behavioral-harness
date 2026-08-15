@@ -6,6 +6,11 @@ the agent. New asks get appended here as they are spoken.
 
 ## Open
 
+### Consecutive user messages — spike (debounce window?)
+- Date: 2026-08-15
+- Verbatim: "spike how consecutive user messages affect the output fo the model and whether we should have a small window for users to keep writting, backlog too"
+- Summary: Spike how rapid consecutive user messages change the model's replies, and whether the channel should hold a small window for the user to finish writing before replying (debounce). Deliverable is a recommendation, including window size if adopted.
+
 ### Typing / processing feedback
 - Date: 2026-08-15
 - Verbatim: "add to backlog, add feedback, meaning, user should know when the agent is replying to him"
