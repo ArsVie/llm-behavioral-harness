@@ -1,0 +1,210 @@
+{
+  "experiment": "c1-reactions",
+  "timestamp": "2026-08-15T11:03:21Z",
+  "seeds": [
+    5001,
+    5002,
+    5003,
+    5004,
+    5005
+  ],
+  "days": 14,
+  "n_messages": 280,
+  "n_days": 70,
+  "theta": 0.735,
+  "linear": {
+    "a": 0.05,
+    "b": 0.388411,
+    "target_mean_p": 0.3
+  },
+  "energy_identity_maxdiff": 0.0,
+  "pooled": {
+    "rho_threshold": 1.0,
+    "rho_threshold_ci_pair": [
+      0.9999999999999998,
+      1.0
+    ],
+    "rho_threshold_ci_block": [
+      0.9999999999999998,
+      1.0
+    ],
+    "rho_linear": -0.08054790132126567,
+    "rho_linear_ci_pair": [
+      -0.31864495806879833,
+      0.16072467863959392
+    ],
+    "freq_threshold": 0.16785714285714284,
+    "freq_linear": 0.3142857142857143,
+    "n_react_threshold": 47,
+    "n_react_linear": 88,
+    "rate_mean": 0.16785714285714284,
+    "rate_sd": 0.15766312332148738
+  },
+  "per_seed": [
+    {
+      "seed": 5001,
+      "phases": "menstrual→ovulatory",
+      "mean_energy": 0.567857142857143,
+      "mean_rate": 0.16071428571428573,
+      "freq": 0.16071428571428573,
+      "rho": 1.0
+    },
+    {
+      "seed": 5002,
+      "phases": "menstrual→ovulatory",
+      "mean_energy": 0.567857142857143,
+      "mean_rate": 0.16071428571428573,
+      "freq": 0.16071428571428573,
+      "rho": 1.0
+    },
+    {
+      "seed": 5003,
+      "phases": "menstrual→ovulatory",
+      "mean_energy": 0.567857142857143,
+      "mean_rate": 0.16071428571428573,
+      "freq": 0.16071428571428573,
+      "rho": 1.0
+    },
+    {
+      "seed": 5004,
+      "phases": "menstrual→ovulatory",
+      "mean_energy": 0.567857142857143,
+      "mean_rate": 0.16071428571428573,
+      "freq": 0.16071428571428573,
+      "rho": 1.0
+    },
+    {
+      "seed": 5005,
+      "phases": "menstrual→ovulatory",
+      "mean_energy": 0.5857142857142857,
+      "mean_rate": 0.19642857142857142,
+      "freq": 0.19642857142857142,
+      "rho": 1.0
+    }
+  ],
+  "theta_sweep": [
+    {
+      "theta": 0.7,
+      "freq": 0.3142857142857143,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.705,
+      "freq": 0.3142857142857143,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.71,
+      "freq": 0.3142857142857143,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.715,
+      "freq": 0.3142857142857143,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.72,
+      "freq": 0.3142857142857143,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.725,
+      "freq": 0.3142857142857143,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.73,
+      "freq": 0.18928571428571428,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.735,
+      "freq": 0.16785714285714284,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.74,
+      "freq": 0.16785714285714284,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.745,
+      "freq": 0.16785714285714284,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.75,
+      "freq": 0.16785714285714284,
+      "rho": 1.0
+    },
+    {
+      "theta": 0.755,
+      "freq": 0.04285714285714286,
+      "rho": 0.5410017808004594
+    },
+    {
+      "theta": 0.76,
+      "freq": 0.04285714285714286,
+      "rho": 0.5410017808004594
+    },
+    {
+      "theta": 0.765,
+      "freq": 0.04285714285714286,
+      "rho": 0.5410017808004594
+    },
+    {
+      "theta": 0.77,
+      "freq": 0.04285714285714286,
+      "rho": 0.5410017808004594
+    },
+    {
+      "theta": 0.775,
+      "freq": 0.04285714285714286,
+      "rho": 0.5410017808004594
+    },
+    {
+      "theta": 0.78,
+      "freq": 0.04285714285714286,
+      "rho": 0.5410017808004594
+    },
+    {
+      "theta": 0.785,
+      "freq": 0.04285714285714286,
+      "rho": 0.5410017808004594
+    },
+    {
+      "theta": 0.79,
+      "freq": 0.02142857142857143,
+      "rho": 0.5410017808004594
+    },
+    {
+      "theta": 0.795,
+      "freq": 0.02142857142857143,
+      "rho": 0.5410017808004594
+    },
+    {
+      "theta": 0.8,
+      "freq": 0.02142857142857143,
+      "rho": 0.5410017808004594
+    },
+    {
+      "theta": 0.805,
+      "freq": 0.02142857142857143,
+      "rho": 0.5410017808004594
+    }
+  ],
+  "api_finding": {
+    "available": true,
+    "private_chats_allowed": true,
+    "source": "https://core.telegram.org/bots/api#setmessagereaction (official Telegram Bot API docs, retrieved 2026-08-15)",
+    "changelog": "https://core.telegram.org/bots/api-changelog — Bot API 7.0 (Dec 2023): \"Added the method setMessageReaction that allows bots to react to messages\"; also announced on @BotNews: \"Bots can now react to messages with setMessageReaction.\"",
+    "notes": "chat_id accepts any chat (private chats included; no private-chat exclusion, contrast sendChatAction). Constraints: bots cannot use paid reactions; as non-premium users bots can set up to ONE reaction per message (matches the <=1/3-per-message policy); custom emoji only if already present on the message or allowed by chat admins (use default emoji); service messages of some types cannot be reacted to. Reaction updates (MessageReactionUpdated) are delivered to bots, so reactions are observable."
+  },
+  "verdicts": {
+    "c1": "PASS",
+    "c2": "PASS",
+    "c3": "PASS",
+    "overall": "PASS"
+  }
+}
