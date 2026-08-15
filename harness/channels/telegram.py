@@ -175,11 +175,14 @@ class TelegramChannel:
             await app.stop()
             await app.shutdown()
 
-    async def _on_update(self, update) -> None:
+    async def _on_update(self, update, context=None) -> None:
         """ptb update callback: wrap the update and forward it to the handler.
 
         Declared async so ptb (which supports coroutine callbacks) and
-        injected fakes can both drive it directly.
+        injected fakes can both drive it directly. The ``context`` argument
+        is optional: real ptb MessageHandler callbacks receive
+        (update, context) — the fake applications used in tests call with a
+        single argument.
         """
         message = self._wrap_update(update)
         if message is not None and self._handler is not None:
