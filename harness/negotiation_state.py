@@ -129,10 +129,17 @@ def decide_status_at(
     * ``"waiting"``  — nothing due; on a companion turn the turn counter is
       decremented (the turn passes without a decide).
     """
-    if state.phase != NegotiationPhase.DECIDE.value or state.resolved:
+    if state.resolved:
         return "inactive"
+    # BACKSTOP first, phase-independent: once the window closes, an
+    # unresolved negotiation is forced-skipped no matter which phase it
+    # is in. Guarantees termination even when Inform never landed (e.g.
+    # the model answered in prose that could not be re-delivered) — the
+    # contract's termination floor holds for every path.
     if now >= state.end_t_h - 1e-12:
         return "forced"
+    if state.phase != NegotiationPhase.DECIDE.value:
+        return "inactive"
     afk_fired = (
         state.afk_deadline_t_h is not None
         and now >= state.afk_deadline_t_h - 1e-12

@@ -1033,6 +1033,12 @@ class DecisionRunner:
             else:
                 raise ValueError("model returned no content at all")
         except (ValueError, json.JSONDecodeError) as exc:
+            if phase == "inform" and raw.text and raw.text.strip():
+                # G0 inform: the natural mention may arrive as plain prose
+                # with no tool call / no textual marker — the inform is a
+                # MENTION, not a verdict. The model's own words are the
+                # mention (the session routes them through the channel).
+                return {"message": raw.text.strip()}
             raise DecisionParseError(
                 f"{popup_kind} verdict parse failed ({transport}): {exc}"
             ) from exc

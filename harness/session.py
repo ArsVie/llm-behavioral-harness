@@ -1751,12 +1751,23 @@ class Session:
         messages.append(
             {"role": "user", "content": wrap_steer_marker(request.popup)}
         )
+        # Native transport: the runner's schemas are Hermes-style
+        # {name, description, parameters}; OpenAI-compatible endpoints
+        # require the {"type": "function", "function": ...} wrapper (the
+        # decision-probe callable wraps its own copy the same way — this
+        # is the ONLY consumer of request.tools, so the wrap belongs
+        # here, at the transport boundary).
+        native_tools = None
+        if request.native and request.tools:
+            native_tools = [
+                {"type": "function", "function": t} for t in request.tools
+            ]
         result = self.client.chat_with_meta(
             messages,
             system=self._last_system_prompt,
             temperature=0.8,
             max_tokens=None,
-            tools=request.tools if request.native else None,
+            tools=native_tools,
             tool_choice="auto" if request.native else None,
             reasoning_effort=self._thinking_effort,
         )
