@@ -36,6 +36,7 @@ import argparse
 import asyncio
 import os
 import sys
+import time
 from pathlib import Path
 
 from harness.channels.base import InboundMessage
@@ -53,7 +54,8 @@ from experiments.cvs_common import (
     VirtualClock,
     make_session,
 )
-from harness.runtime import AsyncRuntime, IntentResolver
+from harness.anchor import anchor_for_fresh_start
+from harness.runtime import AsyncRuntime, IntentResolver, load_anchor, persist_anchor
 from harness.scheduler import ProactiveSchedule, day_scores
 from harness.client import OpenAICompatibleClient
 
@@ -83,7 +85,8 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
                   channel, persona=None, timing=None,
                   max_virtual_hours: float | None = None,
                   client=None, judge=None,
-                  time_scale_s_per_vh: float = LIVE_TIME_SCALE_S_PER_VH) -> AsyncRuntime:
+                  time_scale_s_per_vh: float = LIVE_TIME_SCALE_S_PER_VH,
+                  anchor=None) -> AsyncRuntime:
     from experiments.cvs_common import stream_rng, rng_mod
 
     if client is None:
@@ -122,12 +125,13 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
         max_virtual_hours=max_virtual_hours,  # en vivo: None (Ctrl-C para salir)
         resolver=IntentResolver(store, rng=stream_rng(seed, rng_mod.EXPERIMENT_STREAM)),
         sleeper=None,
+        anchor=anchor,
     )
     return rt
 
 
 async def _amain(channel_name: str, db_path: Path, seed: int,
-                 condition: str, check_only: bool) -> int:
+                 condition: str, check_only: bool, tz: str | None = None) -> int:
     from harness.config import select_channel
 
     if check_only:
@@ -143,10 +147,25 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
 
     store = build_store(db_path)
     bootstrap(store, seed)
+    # Real-time anchor (S2): a persisted anchor (resume) wins; otherwise a
+    # fresh anchor is drawn from --tz/HARNESS_TZ and persisted. anchor=None
+    # keeps the pre-anchor behavior. AsyncRuntime uses it for absolute sleeps
+    # and resume repositioning — restart no longer lands at virtual midnight
+    # (quiet hours) regardless of the real launch time.
+    anchor = load_anchor(store)
+    if anchor is None and tz:
+        try:
+            anchor = anchor_for_fresh_start(time.time(), tz)
+        except Exception as exc:  # noqa: BLE001 - bad IANA name -> clean exit
+            print(f"[live] invalid timezone {tz!r}: {exc}", flush=True)
+            store.close()
+            return 2
+        persist_anchor(store, anchor)
     channel = select_channel(channel_name)
-    runtime = build_runtime(store, seed, condition, channel)
+    runtime = build_runtime(store, seed, condition, channel, anchor=anchor)
     print(f"[live] channel={channel_name} condition={condition} "
-          f"seed={seed} db={db_path}", flush=True)
+          f"seed={seed} db={db_path} tz={anchor.tz if anchor else 'none'}",
+          flush=True)
     print("[live] Ctrl-C to stop; the DB persists between sessions", flush=True)
     try:
         await runtime.run()
@@ -165,10 +184,15 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--condition", type=str, default="FULL")
     parser.add_argument("--check", action="store_true",
                         help="validate the telegram token via getMe (no message sent)")
+    parser.add_argument("--tz", type=str, default=None,
+                        help="IANA timezone for the real-time anchor (e.g. "
+                             "America/Mexico_City); default HARNESS_TZ env; "
+                             "neither = no anchor (pre-anchor behavior)")
     args = parser.parse_args(argv)
+    tz = args.tz or os.environ.get("HARNESS_TZ") or None
     try:
         return asyncio.run(_amain(args.channel, Path(args.db), args.seed,
-                                  args.condition, args.check))
+                                  args.condition, args.check, tz))
     except KeyboardInterrupt:
         return 0
 

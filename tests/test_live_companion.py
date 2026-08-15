@@ -81,3 +81,56 @@ def test_build_runtime_smoke(tmp_path):
     assert runtime.channel.name == "fake"
     assert runtime.max_virtual_hours is None  # en vivo: sin horizonte
     store.close()
+
+
+def test_build_runtime_wires_anchor_and_resume_positions(tmp_path):
+    """live_companion wires the real-time anchor into AsyncRuntime, and the
+    persisted anchor positions a restart at the real local hour instead of
+    virtual midnight (the resume→midnight bug fix, WS-A)."""
+    import time
+    import datetime
+    import zoneinfo
+    from experiments.cvs_common import DeterministicJudge, BLOCK_START_D, BLOCK_END_D
+    from harness.store import SQLiteStore
+    from harness.anchor import anchor_for_fresh_start
+    from harness.runtime import load_anchor, persist_anchor
+
+    tz = "America/Mexico_City"
+    now = time.time()
+    anchor = anchor_for_fresh_start(now, tz)
+
+    store = SQLiteStore(tmp_path / "companion.db", audit_mode=True)
+    bootstrap(store, seed=5001)
+    persist_anchor(store, anchor)
+
+    # anchor round-trips and the runtime receives it
+    rt = build_runtime(
+        store, 5001, "FULL", FakeChannel(),
+        client=FakeClient(),
+        judge=DeterministicJudge(5001, block_start=BLOCK_START_D, block_end=BLOCK_END_D),
+        anchor=load_anchor(store),
+    )
+    assert rt.anchor is not None and rt.anchor.tz == tz
+
+    # resume positioning: t_h_at(now) maps to the real local hour-of-day
+    local = datetime.datetime.fromtimestamp(now, zoneinfo.ZoneInfo(tz))
+    expected = local.hour + local.minute / 60 + local.second / 3600
+    assert abs((rt.anchor.t_h_at(now) % 24.0) - expected) < 0.02
+    store.close()
+
+
+def test_build_runtime_no_tz_keeps_pre_anchor_behavior(tmp_path):
+    """No anchor persisted and no tz -> anchor=None (byte-identical to the
+    pre-anchor live path; the accelerated/test fleet is untouched)."""
+    from experiments.cvs_common import DeterministicJudge, BLOCK_START_D, BLOCK_END_D
+    from harness.store import SQLiteStore
+
+    store = SQLiteStore(tmp_path / "companion.db", audit_mode=True)
+    bootstrap(store, seed=5001)
+    rt = build_runtime(
+        store, 5001, "FULL", FakeChannel(),
+        client=FakeClient(),
+        judge=DeterministicJudge(5001, block_start=BLOCK_START_D, block_end=BLOCK_END_D),
+    )
+    assert rt.anchor is None
+    store.close()
