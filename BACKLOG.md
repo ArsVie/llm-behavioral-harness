@@ -6,6 +6,16 @@ the agent. New asks get appended here as they are spoken.
 
 ## Open
 
+### Setup window for themes / common settings
+- Date: 2026-08-15
+- Verbatim: "I didn't have a window to set the common themes and things like that"
+- Summary: There was no step where the owner could configure the companion's common themes, interests, and similar profile settings before or after launch. Provide a configuration window (setup flow or command) so the bot can run with user-chosen themes instead of defaults.
+
+### Bot command set (beyond init/setup)
+- Date: 2026-08-15
+- Verbatim: "what kind of commands should we have for the bot, besides initializing and maybe the setup"
+- Summary: Define the command set the bot should expose to its owner beyond initialization/setup (e.g., status, themes, interests, reset, help). Deliverable is a proposed command list with semantics and scope.
+
 ### Consecutive user messages — spike (debounce window?)
 - Date: 2026-08-15
 - Verbatim: "spike how consecutive user messages affect the output fo the model and whether we should have a small window for users to keep writting, backlog too"
