@@ -575,6 +575,14 @@ class AsyncRuntime:
                 await self._executor.run_in_thread(
                     self.session.check_conversation_lifecycle, now
                 )
+                # G0 A1: availability-negotiation wakes — lazy event-
+                # boundary detection plus every due decide leg (AFK bomb
+                # fired / window-close backstop). A go verdict closes the
+                # conversation inside the session and returns her natural
+                # close as a proactive outbound, sent below.
+                neg_outs = await self._executor.run_in_thread(
+                    self.session.check_negotiation, now
+                )
                 pending = self.schedule.next_pending(now)
                 if pending is not None and pending < now - 1e-9:
                     # STRICTLY overdue row: ask the firing loop's OWN
@@ -596,8 +604,21 @@ class AsyncRuntime:
                 # exist, the later park assignment keeps the EARLIER
                 # instant — close_t wins if it precedes the pending row.)
                 close_t = self.session.next_conversation_close_t_h(now)
+                # G0 A1: park at the next availability-negotiation wake —
+                # the AFK-bomb decide instant or the window-close backstop
+                # instant — exactly like the conversation-close park above
+                # (strictly-future instants only; a past deadline fires at
+                # the next wake of any kind). The earlier of close_t and
+                # neg_t wins via the min-style assignment below.
+                neg_t = self.session.next_negotiation_trigger_t_h(now)
+            for out_reason, text in neg_outs:
+                await self.channel.send(
+                    OutboundMessage(text=text, proactive=True, reason=out_reason)
+                )
             if close_t is not None and close_t < target:
                 target = close_t
+            if neg_t is not None and neg_t < target:
+                target = neg_t
             if (
                 pending is not None
                 # Overdue rows INCLUDED (no now <= pending bound): next_pending
@@ -665,6 +686,12 @@ class AsyncRuntime:
                 await self._executor.run_in_thread(
                     self.session.check_conversation_lifecycle, now
                 )
+                # G0 A1: the clock landed on (or crossed) a negotiation
+                # park instant — run the due decide legs (AFK bomb /
+                # backstop) at the boundary and send any natural close.
+                neg_outs = await self._executor.run_in_thread(
+                    self.session.check_negotiation, now
+                )
                 day = self.session.clock.day()
                 if target >= next_midnight:
                     # A real rollover crossed midnight. At the run's end
@@ -677,6 +704,13 @@ class AsyncRuntime:
                     # at the next rollover — the epoch->t_h mapping never
                     # jumps (only the anchor's tz metadata moves).
                     self._apply_pending_tz()
+            # G0 A1: negotiation decide-leg outputs (AFK bomb / backstop /
+            # natural close) are sent AFTER the lock releases — channel I/O
+            # never runs under the runtime lock (mirrors proactive sends).
+            for out_reason, text in neg_outs:
+                await self.channel.send(
+                    OutboundMessage(text=text, proactive=True, reason=out_reason)
+                )
 
     # ------------------------------------------------------------------ #
     # proactive firing
@@ -772,6 +806,17 @@ class AsyncRuntime:
                 await self._executor.run_in_thread(
                     self.session.check_conversation_lifecycle, now
                 )
+                # G0 A1: the clock advance may also have crossed an
+                # availability-negotiation park instant (AFK bomb /
+                # backstop) — run the due decide legs here and send any
+                # natural close through the channel.
+                neg_outs = await self._executor.run_in_thread(
+                    self.session.check_negotiation, now
+                )
+                for out_reason, text in neg_outs:
+                    await self.channel.send(
+                        OutboundMessage(text=text, proactive=True, reason=out_reason)
+                    )
                 if defer_until is None:
                     day = self.session.clock.day()
                     # Contact opportunity -> contact reason: the scheduler's

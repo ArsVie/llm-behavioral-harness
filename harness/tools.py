@@ -15,6 +15,35 @@ is sacred — see ``DecisionRunner.execute``).
   triggers a server-side notice per the verbose flag; optionally the event
   is terminated and the user intent followed.
 
+Availability-event negotiation (G0 contract,
+docs/availability-negotiation-contract.md): the ``tool_decide_event``
+request/inputs gain ``phase`` ("inform" | "decide") and ``skippable``
+(bool), plus ``delay_count`` (int) and ``window_ending`` (bool) on decide
+legs; :func:`render_popup` draws them so the model sees the negotiation
+state. Verdict rules:
+
+- **Inform phase** (phase == "inform"): the model produces a natural
+  mention with NO go/skip/delay action. The verdict shape is
+  ``{message: str}`` — the mention. The legacy ``{initiate, reason}`` form
+  (forced by the pinned decide-phase schema) and the
+  ``{yes/no, "reason"}`` shorthand are also accepted and normalized onto it
+  (``message := reason``); an ``action`` key is deliberately dropped. A
+  model-supplied ``reason`` is preserved alongside the canonical
+  ``message`` (records written by either transport keep the mention).
+- **Decide phase** (phase == "decide", the default when absent): the
+  legacy ``{initiate, reason, action?}`` shape, unchanged. A verdict with
+  ``action == 'defer'`` gains the SERVER-FILLED ``defer_turns`` key
+  (``negotiation_contract.DEFER_TURNS_KEY``): the runtime maps the reason
+  text through ``negotiation_contract.DEFER_N_PATTERNS`` deterministically
+  (see :func:`map_defer_turns`). The MODEL never emits N — a
+  model-supplied ``defer_turns`` in the raw call is dropped by verdict
+  normalization and replaced by the server mapping. The recorded decision
+  verdict carries the final ``defer_turns`` (back-filled on replay too, so
+  every defer verdict carries its N).
+- **Backward compatibility**: pop-ups without the new input keys render
+  exactly as before, and legacy verdicts parse exactly as before (phase
+  defaults to "decide" when absent). ``tool_decide_reply`` is untouched.
+
 Transport (reviewer-endorsed D1): native function calling when the client
 has it, textual fallback (``tool_decide_event: {...}`` parsed from the reply
 content — matches the user's sketch) behind capability detection. The RAW
@@ -59,6 +88,14 @@ import re
 from dataclasses import dataclass
 from typing import Any, Callable, Protocol
 
+from harness.negotiation_contract import (
+    DEFAULT_DEFER_TURNS,
+    DEFER_N_MAX,
+    DEFER_N_MIN,
+    DEFER_N_PATTERNS,
+    DEFER_TURNS_KEY,
+)
+
 # --------------------------------------------------------------------------- #
 # Tool schemas (Hermes-style {name, description, parameters})
 # --------------------------------------------------------------------------- #
@@ -68,12 +105,18 @@ TOOL_SCHEMAS: list[dict] = [
         "name": "tool_decide_event",
         "description": (
             "Pop-up decision fired at an event boundary (event start or "
-            "end). The pop-up inputs {{Event, State, Time}} are already in "
-            "the pop-up block — do NOT echo them back. Fill ONLY the "
-            "verdict: whether to initiate (or stay with) the event and a "
-            "prose reason. When the pop-up closes an event in progress, "
-            "optionally choose an action: follow (stay with the event), "
-            "abandon (drop it), or defer (postpone it)."
+            "end). The pop-up block already carries the context (Event, "
+            "State, Time, Phase, Skippable, ...) — do NOT echo it back. "
+            "Phase inform: the event is coming up — just mention it "
+            "naturally (put the mention in reason), NO verdict, do not "
+            "choose an action, do not leave. Phase decide: choose your "
+            "verdict — whether to initiate (or stay with) the event, with "
+            "a prose reason, and optionally an action: follow (go to the "
+            "event now), abandon (skip it), or defer (stay a bit longer — "
+            "the runtime will ask again in a few turns; you never pick a "
+            "number). Skippable yes: the event is discretionary — you may "
+            "follow, abandon or defer freely. Skippable no: the event is a "
+            "commitment — a heads-up only; stay with it."
         ),
         "parameters": {
             "type": "object",
@@ -86,13 +129,14 @@ TOOL_SCHEMAS: list[dict] = [
                 "reason": {
                     "type": "string",
                     "description": "Short plain-language reason for the "
-                                   "verdict.",
+                                   "verdict (in Phase inform: your natural "
+                                   "mention of the event).",
                 },
                 "action": {
                     "type": "string",
                     "enum": ["follow", "abandon", "defer"],
                     "description": "Optional, only when the pop-up closes an "
-                                   "event in progress.",
+                                   "event in progress. Never in Phase inform.",
                 },
             },
             "required": ["initiate", "reason"],
@@ -134,7 +178,36 @@ TOOL_SCHEMAS: list[dict] = [
     },
 ]
 
-#: Verdict shape a ``tool_decide_event`` call must produce.
+#: Inform-phase variant of ``tool_decide_event``: the verdict is the
+#: natural mention only — ``{message: str}`` — with NO go/skip/delay
+#: action. The runner offers this schema (same tool NAME, so the textual
+#: marker and native name matching are unchanged) on inform legs; the
+#: decide-phase schema above stays pinned to {initiate, reason, action}.
+TOOL_SCHEMAS_INFORM: list[dict] = [
+    {
+        "name": "tool_decide_event",
+        "description": (
+            "The pop-up block already carries the event context (Event, "
+            "State, Time, Phase: inform) — do NOT echo it back. Phase "
+            "inform: the event is coming up; just mention it naturally in "
+            "message. This is NOT a verdict: do not initiate, do not "
+            "choose follow/abandon/defer, do not leave."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "message": {
+                    "type": "string",
+                    "description": "Your natural one-line mention of the "
+                                   "upcoming event.",
+                },
+            },
+            "required": ["message"],
+        },
+    },
+]
+
+#: Verdict shape a ``tool_decide_event`` call must produce (decide phase).
 EVENT_VERDICT_KEYS = ("initiate", "reason")
 #: Verdict shape a ``tool_decide_reply`` call must produce.
 REPLY_VERDICT_KEYS = ("reply", "reason")
@@ -195,7 +268,12 @@ class PopupRequest:
     The callable (wired by WS4, which owns the transcript) builds the real
     request: it embeds ``popup`` where the model should see it, offers
     ``tools`` when ``native`` is True, and may use ``inputs`` (e.g.
-    ``conversation_context``) to assemble the message list.
+    ``conversation_context``) to assemble the message list. On inform legs
+    ``tools`` is the mention-only variant (``TOOL_SCHEMAS_INFORM``); on
+    decide legs it is the pinned verdict schema (``TOOL_SCHEMAS``). The
+    negotiation inputs (``phase``, ``skippable``, ``delay_count``,
+    ``window_ending``) ride along in ``inputs`` and are drawn by
+    :func:`render_popup`.
     """
 
     popup_kind: str
@@ -253,15 +331,44 @@ def render_popup(popup_kind: str, inputs: dict) -> str:
 
     ``inputs`` keys used: event_id/event_label -> Event, state_label ->
     State, time -> Time, latest_user_message (decide_reply only).
+
+    Negotiation context (G0 contract, decide_event only): when the caller
+    supplies the keys, extra lines are drawn so the model sees the phase
+    and the negotiation state: ``phase`` ("inform" | "decide"), ``skippable``
+    (bool), ``delay_count`` (int, decide only) and ``window_ending`` (bool,
+    decide only). Inform legs draw ``{Message: ""}`` instead of the verdict
+    line (the mention, no go/skip/delay action); decide legs keep the L369
+    sketch. Pop-ups WITHOUT these keys render byte-identically to the
+    legacy sketch (backward compatible).
     """
     event = inputs.get("event_label") or inputs.get("event_id") or "?"
     state = inputs.get("state_label") or "?"
     time = inputs.get("time") or "?"
     if popup_kind == "tool_decide_event":
-        return (
-            f"{{Event: {event}, State: {state}, Time: {time}}}\n"
-            '{Initiate:{yes,no}, Reason: ""}'
-        )
+        lines = [
+            f"{{Event: {event}, State: {state}, Time: {time}}}",
+            # Inform legs ask for the natural mention, decide legs for the
+            # verdict (L369 sketch).
+            (
+                '{Message: ""}'
+                if inputs.get("phase") == "inform"
+                else '{Initiate:{yes,no}, Reason: ""}'
+            ),
+        ]
+        # Negotiation context lines: only when the caller supplies the
+        # keys, so legacy pop-ups render byte-identically.
+        if "phase" in inputs:
+            lines.append(f"Phase: {inputs['phase']}")
+        skippable = inputs.get("skippable")
+        if isinstance(skippable, bool):
+            lines.append(f"Skippable: {'yes' if skippable else 'no'}")
+        delay_count = inputs.get("delay_count")
+        if isinstance(delay_count, int):
+            lines.append(f"Delays so far: {delay_count}")
+        window_ending = inputs.get("window_ending")
+        if isinstance(window_ending, bool):
+            lines.append(f"Window ending: {'yes' if window_ending else 'no'}")
+        return "\n".join(lines)
     if popup_kind == "tool_decide_reply":
         lines = [
             f"{{Event: {event}, State: {state}, Time: {time}}}",
@@ -331,7 +438,7 @@ def _parse_shorthand(payload: str) -> dict | None:
     return {"verdict": affirmative, "reason": reason}
 
 
-def parse_verdict(popup_kind: str, payload: str) -> dict:
+def parse_verdict(popup_kind: str, payload: str, phase: str | None = None) -> dict:
     """Parse one textual pop-up payload into a verdict dict.
 
     Accepts (in order):
@@ -343,6 +450,11 @@ def parse_verdict(popup_kind: str, payload: str) -> dict:
       2. the L369 shorthand — ``{yes, "too tired"}`` / ``{no, "too tired"}``
          mapped onto the ``initiate``/``reply`` key of the pop-up kind.
 
+    ``phase="inform"`` (G0 negotiation) switches decide_event to the
+    inform verdict: ``{message: str}`` — the natural mention, no
+    go/skip/delay action. The legacy ``{initiate, reason}`` form and the
+    shorthand are normalized onto it (``message := reason``).
+
     Raises ``ValueError`` on anything else.
     """
     raw = payload.strip()
@@ -353,8 +465,8 @@ def parse_verdict(popup_kind: str, payload: str) -> dict:
     except json.JSONDecodeError:
         obj = None
     if isinstance(obj, dict):
-        verdict = _normalize_verdict(popup_kind, obj)
-        if _valid_verdict(popup_kind, verdict):
+        verdict = _normalize_verdict(popup_kind, obj, phase=phase)
+        if _valid_verdict(popup_kind, verdict, phase=phase):
             return verdict
         raise ValueError(
             f"JSON verdict missing required key for {popup_kind}: "
@@ -364,9 +476,10 @@ def parse_verdict(popup_kind: str, payload: str) -> dict:
     if short is not None:
         verdict = _normalize_verdict(
             popup_kind, {_verdict_key(popup_kind): short["verdict"],
-                         "reason": short["reason"]}
+                         "reason": short["reason"]},
+            phase=phase,
         )
-        if _valid_verdict(popup_kind, verdict):
+        if _valid_verdict(popup_kind, verdict, phase=phase):
             return verdict
     raise ValueError(
         f"unparseable {popup_kind} payload (expected JSON object or "
@@ -396,9 +509,31 @@ def _as_bool(value: Any) -> bool | None:
     return None
 
 
-def _normalize_verdict(popup_kind: str, obj: dict) -> dict:
+def _normalize_verdict(
+    popup_kind: str, obj: dict, phase: str | None = None,
+) -> dict:
     """Coerce raw keys to the canonical verdict shape with safe defaults."""
     if popup_kind == "tool_decide_event":
+        if phase == "inform":
+            # Inform verdict: the natural mention, NO go/skip/delay action.
+            # Canonical shape {message: str}; the legacy {initiate, reason}
+            # form (pinned decide-phase schema) and the {yes/no, "reason"}
+            # shorthand normalize onto it (message := reason). An action
+            # key is deliberately dropped — inform legs never carry one.
+            # When the model supplied the legacy reason form, the reason
+            # text is PRESERVED alongside the canonical message (both
+            # transports record the mention; consumers read message).
+            message = obj.get("message")
+            if not isinstance(message, str):
+                message = (
+                    obj.get("reason")
+                    if isinstance(obj.get("reason"), str)
+                    else ""
+                )
+            verdict: dict = {"message": message}
+            if isinstance(obj.get("reason"), str):
+                verdict["reason"] = obj["reason"]
+            return verdict
         verdict: dict = {"initiate": False, "reason": "", "action": None}
         flag = _as_bool(obj.get("initiate", obj.get("verdict")))
         if flag is not None:
@@ -423,18 +558,30 @@ def _normalize_verdict(popup_kind: str, obj: dict) -> dict:
     raise ValueError(f"unknown popup_kind: {popup_kind!r}")
 
 
-def _valid_verdict(popup_kind: str, verdict: dict) -> bool:
-    """A verdict is valid when the deciding flag is a real bool."""
+def _valid_verdict(
+    popup_kind: str, verdict: dict, phase: str | None = None,
+) -> bool:
+    """A verdict is valid when the deciding flag is a real bool; an inform
+    verdict is valid when it carries a non-empty mention (a silent inform
+    is a protocol failure, recorded loudly like any other parse failure)."""
+    if popup_kind == "tool_decide_event" and phase == "inform":
+        return isinstance(verdict.get("message"), str) and bool(
+            verdict["message"].strip()
+        )
     return isinstance(verdict.get(_verdict_key(popup_kind)), bool)
 
 
-def parse_textual_reply(popup_kind: str, text: str) -> dict:
+def parse_textual_reply(
+    popup_kind: str, text: str, phase: str | None = None,
+) -> dict:
     """Locate ``tool_decide_event: {...}`` / ``tool_decide_reply: {...}`` in
     free-form reply text and parse the payload.
 
     Tolerant of quotes, linebreaks and surrounding prose (the model may
     think out loud before or after the marker, per the user's sketch
     ``{name}: {thinking} tool_decide_event: {yes, "too tired"}``).
+    ``phase`` selects the inform verdict shape for decide_event (see
+    :func:`parse_verdict`); defaults to decide-phase (legacy) parsing.
     """
     m = _TEXTUAL_MARKER.search(text)
     if not m:
@@ -445,15 +592,19 @@ def parse_textual_reply(popup_kind: str, text: str) -> dict:
     payload = _brace_payload(text, m.start(2))
     if payload is None:
         raise ValueError(f"unbalanced braces after '{found_kind}:' marker")
-    return parse_verdict(found_kind, payload)
+    return parse_verdict(found_kind, payload, phase=phase)
 
 
-def parse_native_reply(popup_kind: str, tool_calls: list[dict]) -> dict:
+def parse_native_reply(
+    popup_kind: str, tool_calls: list[dict], phase: str | None = None,
+) -> dict:
     """Extract the verdict from a native function-calling response.
 
     ``tool_calls`` entries are ``{"id", "type", "function": {"name",
     "arguments"}}`` (OpenAI shape). The first call whose name matches the
     pop-up kind wins; its ``arguments`` (JSON string or dict) are parsed.
+    ``phase`` selects the inform verdict shape for decide_event (see
+    :func:`parse_verdict`); defaults to decide-phase (legacy) parsing.
     """
     for call in tool_calls or []:
         fn = call.get("function") or {}
@@ -467,11 +618,61 @@ def parse_native_reply(popup_kind: str, tool_calls: list[dict]) -> dict:
             raise ValueError(
                 f"native {popup_kind} arguments are not an object: {args!r}"
             )
-        return _normalize_verdict(popup_kind, args)
+        return _normalize_verdict(popup_kind, args, phase=phase)
     raise ValueError(
         f"no tool call named {popup_kind} in native reply "
         f"(got: {[ (c.get('function') or {}).get('name') for c in tool_calls or [] ]})"
     )
+
+
+# --------------------------------------------------------------------------- #
+# Defer turns (G0 contract): the SERVER fills N, the model never emits it
+# --------------------------------------------------------------------------- #
+
+def map_defer_turns(reason: str) -> int:
+    """Map a defer reason phrase to a concrete N (deterministic).
+
+    Uses ``negotiation_contract.DEFER_N_PATTERNS`` with FIRST-match-wins
+    in the frozen row order, exactly like the runtime's re-arm arithmetic
+    (A1 ``negotiation_state.map_defer_n``), so the recorded ``defer_turns``
+    always equals the N the runtime re-arms with. Mapping table:
+
+    =========================================  =============================
+    Reason phrase                              N
+    =========================================  =============================
+    "just a sec" / "a moment" / "a minute"     1
+    "a bit longer"                             DEFAULT_DEFER_TURNS (2)
+    "a few more"                               3
+    "N more turns/messages/replies"            N, clamped to 1..4
+    anything else                              DEFAULT_DEFER_TURNS (2)
+    =========================================  =============================
+    """
+    text = (reason or "").strip()
+    for pattern, n in DEFER_N_PATTERNS:
+        m = re.search(pattern, text, re.IGNORECASE)
+        if m is None:
+            continue
+        if n == 0:  # explicit "N more turns/messages": extract + clamp
+            return min(max(int(m.group(1)), DEFER_N_MIN), DEFER_N_MAX)
+        return n
+    return DEFAULT_DEFER_TURNS
+
+
+def fill_defer_turns(verdict: dict) -> dict:
+    """Server-fill ``defer_turns`` on a defer verdict (G0 contract).
+
+    Only when ``action == 'defer'``; all other verdicts pass through
+    untouched. The N is mapped deterministically from the reason text (see
+    :func:`map_defer_turns`). The MODEL never emits N: any model-supplied
+    ``defer_turns`` is overridden by the server mapping (and dropped by
+    verdict normalization anyway). Callers must treat the returned verdict
+    as the final recorded shape.
+    """
+    if verdict.get("action") != "defer":
+        return verdict
+    out = dict(verdict)
+    out[DEFER_TURNS_KEY] = map_defer_turns(str(verdict.get("reason", "")))
+    return out
 
 
 # --------------------------------------------------------------------------- #
@@ -664,6 +865,15 @@ class DecisionRunner:
         """
         if popup_kind not in ("tool_decide_event", "tool_decide_reply"):
             raise ValueError(f"unknown popup_kind: {popup_kind!r}")
+        # Negotiation phase (G0): "inform" = mention-only verdict
+        # {message: str}; "decide" (default, legacy) = {initiate, reason,
+        # action?}. Loud on a bad value — the contract has exactly two.
+        phase = inputs.get("phase", "decide")
+        if phase not in ("inform", "decide"):
+            raise ValueError(
+                f"decision inputs phase must be 'inform' or 'decide', "
+                f"got {phase!r}"
+            )
         if day is None or t_h is None:
             derived = self._derive_clock(inputs)
             if day is None:
@@ -682,20 +892,26 @@ class DecisionRunner:
 
         if source == "server_draw":
             transport = "server_draw"
-            verdict = self._draw_verdict(popup_kind)
+            verdict = self._draw_verdict(popup_kind, phase=phase)
         else:
             transport = self._choose_transport(capabilities)
             request = PopupRequest(
                 popup_kind=popup_kind,
                 popup=render_popup(popup_kind, inputs),
-                tools=TOOL_SCHEMAS,
+                # Inform legs get the mention-only schema (same tool name);
+                # decide legs get the pinned verdict schema.
+                tools=(
+                    TOOL_SCHEMAS_INFORM if phase == "inform" else TOOL_SCHEMAS
+                ),
                 native=(transport == "native"),
                 inputs=inputs,
             )
             raw = call(request)
             raw_reply = self._raw_to_text(raw, transport)
             try:
-                verdict = self._parse_raw(popup_kind, raw, transport)
+                verdict = self._parse_raw(
+                    popup_kind, raw, transport, phase=phase
+                )
             except DecisionParseError:
                 parse_failed = True
                 self._record_parse_failure(
@@ -709,12 +925,19 @@ class DecisionRunner:
                 if self.parse_failure_mode == "server_draw":
                     transport = "server_draw_fallback"
                     source = "server_draw"
-                    verdict = self._draw_verdict(popup_kind)
+                    verdict = self._draw_verdict(popup_kind, phase=phase)
                 else:  # abort
                     raise DecisionParseError(
                         f"{popup_kind} parse failed (decision {decision_id}) — "
                         f"aborting per HARNESS_DECISION_PARSE_FAILURE=abort"
                     ) from None
+
+        # Negotiation (G0): a defer verdict carries the SERVER-FILLED N.
+        # The model never emits N — normalization drops any model-supplied
+        # defer_turns and the deterministic reason mapping replaces it, so
+        # the recorded verdict below carries the final defer_turns.
+        if popup_kind == "tool_decide_event":
+            verdict = fill_defer_turns(verdict)
 
         forced = False
         budget_consumed = 0
@@ -795,22 +1018,31 @@ class DecisionRunner:
         return "native" if capabilities.has_native_tools else "textual"
 
     def _parse_raw(
-        self, popup_kind: str, raw: RawReply, transport: str
+        self, popup_kind: str, raw: RawReply, transport: str,
+        phase: str | None = None,
     ) -> dict:
         try:
             if transport == "native" and raw.tool_calls:
-                verdict = parse_native_reply(popup_kind, raw.tool_calls)
+                verdict = parse_native_reply(
+                    popup_kind, raw.tool_calls, phase=phase
+                )
             elif raw.text and raw.text.strip():
                 # Textual transport, or a native-capable model that answered
                 # in prose anyway: try the textual marker before failing.
-                verdict = parse_textual_reply(popup_kind, raw.text)
+                verdict = parse_textual_reply(popup_kind, raw.text, phase=phase)
             else:
                 raise ValueError("model returned no content at all")
         except (ValueError, json.JSONDecodeError) as exc:
+            if phase == "inform" and raw.text and raw.text.strip():
+                # G0 inform: the natural mention may arrive as plain prose
+                # with no tool call / no textual marker — the inform is a
+                # MENTION, not a verdict. The model's own words are the
+                # mention (the session routes them through the channel).
+                return {"message": raw.text.strip()}
             raise DecisionParseError(
                 f"{popup_kind} verdict parse failed ({transport}): {exc}"
             ) from exc
-        if not _valid_verdict(popup_kind, verdict):
+        if not _valid_verdict(popup_kind, verdict, phase=phase):
             raise DecisionParseError(
                 f"{popup_kind} verdict missing deciding flag ({transport}): "
                 f"{verdict!r}"
@@ -852,7 +1084,7 @@ class DecisionRunner:
             and row.get("replay_id") != decision_id
         )
 
-    def _draw_verdict(self, popup_kind: str) -> dict:
+    def _draw_verdict(self, popup_kind: str, phase: str | None = None) -> dict:
         """Server-drawn verdict (decision_source=server_draw, #22). The RNG
         is injected (dedicated stream, never the day_rng draw order) so the
         draws are deterministic per seed and independent of the engine's
@@ -864,6 +1096,8 @@ class DecisionRunner:
             )
         affirmative = float(self.rng.random()) < self.draw_p
         if popup_kind == "tool_decide_event":
+            if phase == "inform":
+                return {"message": SERVER_DRAW_REASON}
             return {
                 "initiate": affirmative,
                 "reason": SERVER_DRAW_REASON,
@@ -884,6 +1118,11 @@ class DecisionRunner:
         verdict = json.loads(record["verdict_json"]) if record.get(
             "verdict_json"
         ) else {}
+        # G0: back-fill defer_turns on defer verdicts recorded before the
+        # fill existed (deterministic pure function of the recorded reason
+        # — never a re-roll), so every defer verdict carries its N.
+        if popup_kind == "tool_decide_event":
+            verdict = fill_defer_turns(verdict)
         self.store.log_event(
             day, t_h, EVENT_DECISION_REPLAYED,
             json.dumps(
