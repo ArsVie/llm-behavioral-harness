@@ -10,32 +10,38 @@ the agent. New asks get appended here as they are spoken.
 - Date: 2026-08-15
 - Verbatim: "another thing for the backlog, bot time is not real time. we should have a command to set the timezone of the bot too"
 - Summary: The bot's virtual clock starts at 0.0 at launch and is not anchored to any real timezone, so day rollover, quiet hours, and proactive scheduling drift from the user's local time. Core ask: bot time should run on a real timezone; a command to set/change the timezone is a bonus, not the requirement.
+- Status 2026-08-15 (overnight): RealTimeAnchor seam merged on main (flag-off, pure module); runtime wiring (absolute sleeps + resume fix) and /tz command in Wave 2, in flight.
 
 ### Closing tendency as inform-then-decide (like events)
 - Date: 2026-08-15
 - Verbatim: "backlog, closing tendency should work the same as events (one turn inform, next turn decide)"
 - Summary: Closing tendency currently fires as a silent per-turn draw that ends the conversation abruptly. It should work like the event mechanism: one turn informs (the companion signals the conversation is winding down), the next turn decides the close.
+- Status 2026-08-15 (overnight): IMPLEMENTED + MERGED on main, flag-gated HARNESS_TWO_PHASE_CLOSE — closing draw persists a pending marker, wind-down guidance renders, user reply closes deterministically, 1vh silence grace, 12h backstop unchanged; replay parity pinned by test.
 
 ### Setup window for themes / common settings
 - Date: 2026-08-15
 - Verbatim: "I didn't have a window to set the common themes and things like that"
 - Summary: There was no step where the owner could configure the companion's common themes, interests, and similar profile settings before or after launch. Provide a configuration window (setup flow or command) so the bot can run with user-chosen themes instead of defaults.
+- Status 2026-08-15 (overnight): /setup command (refuses after persona exists) + --defer-bootstrap in Wave 2, in flight.
 
 ### Bot command set (beyond init/setup)
 - Date: 2026-08-15
 - Verbatim: "what kind of commands should we have for the bot, besides initializing and maybe the setup"
 - Summary: Define the command set the bot should expose to its owner beyond initialization/setup (e.g., status, themes, interests, reset, help). Deliverable is a proposed command list with semantics and scope.
+- Status 2026-08-15 (overnight): command set defined and implemented in Wave 2 (in flight): /help /ping /setup /tz /status /state /mute /version — NO /reset (destructive ops stay at the launcher); --enable-commands default off.
 
 ### Consecutive user messages — spike (debounce window?)
 - Date: 2026-08-15
 - Verbatim: "spike how consecutive user messages affect the output fo the model and whether we should have a small window for users to keep writting, backlog too"
 - Summary: Spike how rapid consecutive user messages change the model's replies, and whether the channel should hold a small window for the user to finish writing before replying (debounce). Deliverable is a recommendation, including window size if adopted.
 - Result (spike 2026-08-15): recommendation YES — 2s trailing-edge debounce at the Telegram channel (max-wait cap ~8s), turning N-message bursts into one reply; verified vs recorded probe DBs, caveat n=2 seeds, single model.
+- Status 2026-08-15 (overnight): IMPLEMENTED + MERGED on main, flag-gated HARNESS_DEBOUNCE (2s trailing / 8s cap, command flush).
 
 ### Typing / processing feedback
 - Date: 2026-08-15
 - Verbatim: "add to backlog, add feedback, meaning, user should know when the agent is replying to him"
 - Summary: The Telegram channel should signal the user that the companion is working on a reply (typing indicator) while the LLM generation runs, so silence is not mistaken for a dead bot. Carded on kanban as `ars-telegram-typing-feedback` (t_0b54451a).
+- Status 2026-08-15 (overnight): IMPLEMENTED + MERGED on main, flag-gated HARNESS_TYPING (~4.5s refresh chat action during generation).
 
 ## Done
 
