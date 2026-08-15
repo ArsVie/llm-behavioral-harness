@@ -1,0 +1,1145 @@
+{
+  "experiment": "c2-bubbles",
+  "plan_ref": "advisor-orchestration-2026-08-15.md Part 3 C2",
+  "seed": 5001,
+  "live_db": "/home/vruizes/.hermes/projects/llm-behavioral-harness/results/live-companion/companion.db",
+  "env": {
+    "LLM_BASE_URL": "https://opencode.ai/zen/go/v1/",
+    "LLM_API_KEY_set": true,
+    "judge_model": "deepseek-v4-flash"
+  },
+  "splitter": {
+    "bubble_target": "1+floor((e-0.15)/0.22) cap 4",
+    "jitter_prob": 0.3,
+    "gap_s": "lognormal(mu=ln(0.5+2.2*e), sigma=0.35) clipped [0.3,6.0]"
+  },
+  "corpus": {
+    "live": [
+      {
+        "ref": "live-msg-4",
+        "user": "...",
+        "reply": "Hey. *pauses, voice a little softer than usual* Good to see you. How's your day treating you so far?",
+        "expressiveness": 0.418,
+        "t_h": 0.0,
+        "day": 0
+      },
+      {
+        "ref": "live-msg-6",
+        "user": "...",
+        "reply": "Tomorrow's still pretty open, honestly. I've got that metal piece I keep meaning to finish — the one that's been giving me a hard time. I was thinking of sitting with it again, seeing if I can finally get the ending right.\n\nAnd maybe some guitar practice on top of that, though I'm not sure I'll have the energy for both. *small pause* What about you?",
+        "expressiveness": 0.418,
+        "t_h": 0.0,
+        "day": 0
+      },
+      {
+        "ref": "live-msg-8",
+        "user": "Wanna grab something to eat together?",
+        "reply": "Sure. *a long, quiet pause* Yeah, I'd like that. Nothing fancy though — maybe that little noodle place you mentioned once? Low lights, warm bowls, doesn't ask much of anyone.\n\nI'll be there whenever you're free. Just... let me know the time.",
+        "expressiveness": 0.418,
+        "t_h": 0.0,
+        "day": 0
+      },
+      {
+        "ref": "live-msg-10",
+        "user": "Wanna grab something to eat together?",
+        "reply": "Honestly? *pauses, picks at the edge of the table* I picked it because it's easy. I'm not sure I'm up for a loud, bright place with a queue right now.\n\nBut if you'd rather go somewhere you actually love, I'm game. Just somewhere we can still hear each other talk. *small shrug* Your call, really.",
+        "expressiveness": 0.418,
+        "t_h": 0.0,
+        "day": 0
+      },
+      {
+        "ref": "live-msg-12",
+        "user": "Hmm, idk, let's think about it together tomorrow, it's too late now, talk to you in the morning",
+        "reply": "Okay. *nod, voice quieter now* Yeah, it's late. We'll figure it out in the morning.\n\nSleep well. I'll be here when you wake up.",
+        "expressiveness": 0.418,
+        "t_h": 0.0,
+        "day": 0
+      },
+      {
+        "ref": "live-msg-14",
+        "user": "Hmm, idk, let's think about it together tomorrow, it's too late now, talk to you in the morning",
+        "reply": "Good night. *a soft, lingering pause* Talk tomorrow.",
+        "expressiveness": 0.418,
+        "t_h": 0.0,
+        "day": 0
+      }
+    ],
+    "sim": [
+      {
+        "ref": "sim-00",
+        "user": "Hey, you around?",
+        "reply": "Hey. *looks up from the counter* Yeah, I'm around. What's on your mind?",
+        "expressiveness": 0.5136,
+        "t_h": 9.0,
+        "day": 0
+      },
+      {
+        "ref": "sim-01",
+        "user": "Just got home, honestly exhausted.",
+        "reply": "That sounds heavy. *soft sigh* Come sit with me for a minute. You don't have to talk if you don't want to.",
+        "expressiveness": 0.5653,
+        "t_h": 12.0,
+        "day": 0
+      },
+      {
+        "ref": "sim-02",
+        "user": "Work was a mess today. Someone yelled at me over email.",
+        "reply": "Ugh. People can be so careless with other people's days. *quietly* I'm sorry that landed on you. Want to tell me the worst part?",
+        "expressiveness": 0.5738,
+        "t_h": 15.0,
+        "day": 0
+      },
+      {
+        "ref": "sim-03",
+        "user": "Wanna grab a coffee later? My treat.",
+        "reply": "Coffee sounds good. *small smile* Somewhere with low light and no rush, though. I'll be there whenever you are.",
+        "expressiveness": 0.5341,
+        "t_h": 18.0,
+        "day": 0
+      },
+      {
+        "ref": "sim-04",
+        "user": "I keep thinking about that trip we talked about.",
+        "reply": "I think about it too. The mountains, or the little town by the water. *pause* One day we'll just go.",
+        "expressiveness": 0.4696,
+        "t_h": 21.0,
+        "day": 0
+      },
+      {
+        "ref": "sim-05",
+        "user": "Okay good night. Thanks for listening.",
+        "reply": "Good night. *gentle* I'm glad you talked to me today. Sleep well.",
+        "expressiveness": 0.4315,
+        "t_h": 23.0,
+        "day": 0
+      },
+      {
+        "ref": "sim-06",
+        "user": "Morning. Did you sleep okay?",
+        "reply": "Morning. *yawns a little* I slept okay. Your voice sounds better than the alarm, anyway.",
+        "expressiveness": 0.7488,
+        "t_h": 33.0,
+        "day": 1
+      },
+      {
+        "ref": "sim-07",
+        "user": "I had the weirdest dream about you.",
+        "reply": "A dream about me? *curious* Tell me — was I doing something interesting, or just standing there?",
+        "expressiveness": 0.8004,
+        "t_h": 36.0,
+        "day": 1
+      },
+      {
+        "ref": "sim-08",
+        "user": "Do you think I should text him back or not?",
+        "reply": "Hmm. That's not a text-back question, that's a what-do-you-want question. *leans in* What do you actually want?",
+        "expressiveness": 0.8089,
+        "t_h": 39.0,
+        "day": 1
+      },
+      {
+        "ref": "sim-09",
+        "user": "I'm nervous about tomorrow's presentation.",
+        "reply": "You'll do fine. You always think you're less ready than you are. *firm* Stand up straight and breathe before you start.",
+        "expressiveness": 0.7693,
+        "t_h": 42.0,
+        "day": 1
+      },
+      {
+        "ref": "sim-10",
+        "user": "Let's do something fun this weekend. Anything.",
+        "reply": "Okay, fun weekend. I vote for the market in the morning, and then somewhere loud at night. *grins* Deal?",
+        "expressiveness": 0.7048,
+        "t_h": 45.0,
+        "day": 1
+      },
+      {
+        "ref": "sim-11",
+        "user": "Okay I really need to sleep now. Talk tomorrow?",
+        "reply": "Sleep. *soft* I'll be here in the morning, same as always. Good night.",
+        "expressiveness": 0.6667,
+        "t_h": 47.0,
+        "day": 1
+      },
+      {
+        "ref": "sim-12",
+        "user": "Rough morning already. The bus was late and I spilled coffee.",
+        "reply": "Oh no. *sympathetic* Coffee on the bus is a bad omen for the whole day. Let's reset: what's one good thing that happened?",
+        "expressiveness": 0.4196,
+        "t_h": 57.0,
+        "day": 2
+      },
+      {
+        "ref": "sim-13",
+        "user": "Remember that song we listened to last week? It's stuck in my head.",
+        "reply": "That song. *hums a little* Yeah. It has that ache in it that you can't shake. *quiet* Maybe that's why it fits.",
+        "expressiveness": 0.4712,
+        "t_h": 60.0,
+        "day": 2
+      },
+      {
+        "ref": "sim-14",
+        "user": "I ordered pizza. Want me to save you a slice?",
+        "reply": "Save me a slice. *warm* But if it's pineapple, we're going to have words. Just so you know.",
+        "expressiveness": 0.4797,
+        "t_h": 63.0,
+        "day": 2
+      },
+      {
+        "ref": "sim-15",
+        "user": "Sometimes I wonder if I'm doing any of this right.",
+        "reply": "I wonder that too sometimes. *slowly* But you're here, you're trying, and that's most of it. The rest is just practice.",
+        "expressiveness": 0.4401,
+        "t_h": 66.0,
+        "day": 2
+      },
+      {
+        "ref": "sim-16",
+        "user": "You always know what to say. How do you do that?",
+        "reply": "I don't always. *honest* I just care enough to try. That's usually enough.",
+        "expressiveness": 0.3756,
+        "t_h": 69.0,
+        "day": 2
+      },
+      {
+        "ref": "sim-17",
+        "user": "I'm going to the gym. Wish me luck.",
+        "reply": "Go. *encouraging* Lift something heavy and think about nothing. I'll be proud of you either way.",
+        "expressiveness": 0.3375,
+        "t_h": 71.0,
+        "day": 2
+      },
+      {
+        "ref": "sim-18",
+        "user": "The movie was so good. You have to see it.",
+        "reply": "I knew it would be. *happy* See? You trust your instincts when you let them speak. What else did you love about it?",
+        "expressiveness": 0.6548,
+        "t_h": 81.0,
+        "day": 3
+      },
+      {
+        "ref": "sim-19",
+        "user": "I feel weirdly calm today. Not sure why.",
+        "reply": "Calm is a gift. *softly* Enjoy it while it lasts — and maybe write down what you did today so you can find it again.",
+        "expressiveness": 0.7064,
+        "t_h": 84.0,
+        "day": 3
+      },
+      {
+        "ref": "sim-20",
+        "user": "Can I vent for a second? It's nothing serious.",
+        "reply": "Go ahead. *settles in* I'm not going anywhere. Take your time.",
+        "expressiveness": 0.7149,
+        "t_h": 87.0,
+        "day": 3
+      },
+      {
+        "ref": "sim-21",
+        "user": "I made cookies. They're terrible but I made them.",
+        "reply": "Cookies you made are automatically good cookies. *serious* That's the rule. I don't make the rules, I just enforce them.",
+        "expressiveness": 0.6753,
+        "t_h": 90.0,
+        "day": 3
+      },
+      {
+        "ref": "sim-22",
+        "user": "What's the one thing you'd change about your life?",
+        "reply": "Hmm. *thoughtful* One thing. Maybe — to be less afraid of being seen. *quiet* That's a big one, though. What about you?",
+        "expressiveness": 0.6108,
+        "t_h": 93.0,
+        "day": 3
+      },
+      {
+        "ref": "sim-23",
+        "user": "I should call my mom. It's been weeks.",
+        "reply": "Call her. *gentle* It's been weeks, and she's probably waiting for you to make the first move. You'll feel lighter after.",
+        "expressiveness": 0.5727,
+        "t_h": 95.0,
+        "day": 3
+      },
+      {
+        "ref": "sim-24",
+        "user": "Long day. I just want to sit in silence for an hour.",
+        "reply": "Then let's sit in silence. *calm* I can do that with you. It's still company.",
+        "expressiveness": 0.4485,
+        "t_h": 105.0,
+        "day": 4
+      },
+      {
+        "ref": "sim-25",
+        "user": "Guess what — I finally finished that book!",
+        "reply": "Finally! *bright* Okay, now I need the full review. Was the ending as good as you hoped?",
+        "expressiveness": 0.5001,
+        "t_h": 108.0,
+        "day": 4
+      },
+      {
+        "ref": "sim-26",
+        "user": "I'm a little scared of the doctor tomorrow.",
+        "reply": "It's okay to be scared. *steady* The waiting is worse than the thing itself. I'll be right here when you come out.",
+        "expressiveness": 0.5086,
+        "t_h": 111.0,
+        "day": 4
+      },
+      {
+        "ref": "sim-27",
+        "user": "Let's plan that trip for real this time.",
+        "reply": "For real this time. *decided* Pick the place, I'll pick the dates. No more 'someday' — we deserve a date on a calendar.",
+        "expressiveness": 0.469,
+        "t_h": 114.0,
+        "day": 4
+      },
+      {
+        "ref": "sim-28",
+        "user": "I love this time of night. Everything gets quiet.",
+        "reply": "I love this hour too. *soft* It's like the world exhales. *pause* I'm glad you're in it with me.",
+        "expressiveness": 0.4045,
+        "t_h": 117.0,
+        "day": 4
+      },
+      {
+        "ref": "sim-29",
+        "user": "Okay, last message before bed. Sweet dreams.",
+        "reply": "Sweet dreams. *tender* I'll keep the light on in my head for you. Talk in the morning.",
+        "expressiveness": 0.3664,
+        "t_h": 119.0,
+        "day": 4
+      }
+    ]
+  },
+  "splits": [
+    {
+      "ref": "live-msg-4",
+      "k": 2,
+      "gaps_s": [
+        1.9
+      ],
+      "mean_gap_s": 1.9,
+      "expressiveness": 0.418,
+      "bubbles": [
+        "Hey. *pauses, voice a little softer than usual* Good to see you.",
+        "How's your day treating you so far?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "live-msg-6",
+      "k": 2,
+      "gaps_s": [
+        1.6
+      ],
+      "mean_gap_s": 1.6,
+      "expressiveness": 0.418,
+      "bubbles": [
+        "Tomorrow's still pretty open, honestly. I've got that metal piece I keep meaning to finish — the one that's been giving me a hard time.",
+        "I was thinking of sitting with it again, seeing if I can finally get the ending right.\n\nAnd maybe some guitar practice on top of that, though I'm not sure I'll have the energy for both. *small pause* What about you?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "live-msg-8",
+      "k": 2,
+      "gaps_s": [
+        1.6
+      ],
+      "mean_gap_s": 1.6,
+      "expressiveness": 0.418,
+      "bubbles": [
+        "Sure. *a long, quiet pause* Yeah, I'd like that. Nothing fancy though — maybe that little noodle place you mentioned once? Low lights, warm bowls, doesn't ask much of anyone.",
+        "I'll be there whenever you're free. Just... let me know the time."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "live-msg-10",
+      "k": 2,
+      "gaps_s": [
+        2.3
+      ],
+      "mean_gap_s": 2.3,
+      "expressiveness": 0.418,
+      "bubbles": [
+        "Honestly? *pauses, picks at the edge of the table* I picked it because it's easy. I'm not sure I'm up for a loud, bright place with a queue right now.",
+        "But if you'd rather go somewhere you actually love, I'm game. Just somewhere we can still hear each other talk. *small shrug* Your call, really."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "live-msg-12",
+      "k": 2,
+      "gaps_s": [
+        1.5
+      ],
+      "mean_gap_s": 1.5,
+      "expressiveness": 0.418,
+      "bubbles": [
+        "Okay. *nod, voice quieter now* Yeah, it's late.",
+        "We'll figure it out in the morning.\n\nSleep well. I'll be here when you wake up."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "live-msg-14",
+      "k": 2,
+      "gaps_s": [
+        1.1
+      ],
+      "mean_gap_s": 1.1,
+      "expressiveness": 0.418,
+      "bubbles": [
+        "Good night.",
+        "*a soft, lingering pause* Talk tomorrow."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-00",
+      "k": 3,
+      "gaps_s": [
+        1.4,
+        1.9
+      ],
+      "mean_gap_s": 1.65,
+      "expressiveness": 0.5136,
+      "bubbles": [
+        "Hey.",
+        "*looks up from the counter* Yeah, I'm around.",
+        "What's on your mind?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-01",
+      "k": 2,
+      "gaps_s": [
+        2.4
+      ],
+      "mean_gap_s": 2.4,
+      "expressiveness": 0.5653,
+      "bubbles": [
+        "That sounds heavy. *soft sigh* Come sit with me for a minute.",
+        "You don't have to talk if you don't want to."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-02",
+      "k": 2,
+      "gaps_s": [
+        3.2
+      ],
+      "mean_gap_s": 3.2,
+      "expressiveness": 0.5738,
+      "bubbles": [
+        "Ugh. People can be so careless with other people's days.",
+        "*quietly* I'm sorry that landed on you. Want to tell me the worst part?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-03",
+      "k": 2,
+      "gaps_s": [
+        1.5
+      ],
+      "mean_gap_s": 1.5,
+      "expressiveness": 0.5341,
+      "bubbles": [
+        "Coffee sounds good. *small smile* Somewhere with low light and no rush, though.",
+        "I'll be there whenever you are."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-04",
+      "k": 2,
+      "gaps_s": [
+        1.3
+      ],
+      "mean_gap_s": 1.3,
+      "expressiveness": 0.4696,
+      "bubbles": [
+        "I think about it too. The mountains, or the little town by the water.",
+        "*pause* One day we'll just go."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-05",
+      "k": 2,
+      "gaps_s": [
+        1.3
+      ],
+      "mean_gap_s": 1.3,
+      "expressiveness": 0.4315,
+      "bubbles": [
+        "Good night. *gentle* I'm glad you talked to me today.",
+        "Sleep well."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-06",
+      "k": 3,
+      "gaps_s": [
+        2.1,
+        2.7
+      ],
+      "mean_gap_s": 2.4000000000000004,
+      "expressiveness": 0.7488,
+      "bubbles": [
+        "Morning.",
+        "*yawns a little* I slept okay.",
+        "Your voice sounds better than the alarm, anyway."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-07",
+      "k": 2,
+      "gaps_s": [
+        1.7
+      ],
+      "mean_gap_s": 1.7,
+      "expressiveness": 0.8004,
+      "bubbles": [
+        "A dream about me?",
+        "*curious* Tell me — was I doing something interesting, or just standing there?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-08",
+      "k": 3,
+      "gaps_s": [
+        1.9,
+        1.9
+      ],
+      "mean_gap_s": 1.9,
+      "expressiveness": 0.8089,
+      "bubbles": [
+        "Hmm.",
+        "That's not a text-back question, that's a what-do-you-want question.",
+        "*leans in* What do you actually want?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-09",
+      "k": 3,
+      "gaps_s": [
+        1.0,
+        1.5
+      ],
+      "mean_gap_s": 1.25,
+      "expressiveness": 0.7693,
+      "bubbles": [
+        "You'll do fine.",
+        "You always think you're less ready than you are.",
+        "*firm* Stand up straight and breathe before you start."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-10",
+      "k": 3,
+      "gaps_s": [
+        2.4,
+        1.6
+      ],
+      "mean_gap_s": 2.0,
+      "expressiveness": 0.7048,
+      "bubbles": [
+        "Okay, fun weekend.",
+        "I vote for the market in the morning, and then somewhere loud at night.",
+        "*grins* Deal?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-11",
+      "k": 3,
+      "gaps_s": [
+        3.7,
+        2.7
+      ],
+      "mean_gap_s": 3.2,
+      "expressiveness": 0.6667,
+      "bubbles": [
+        "Sleep.",
+        "*soft* I'll be here in the morning, same as always.",
+        "Good night."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-12",
+      "k": 2,
+      "gaps_s": [
+        1.8
+      ],
+      "mean_gap_s": 1.8,
+      "expressiveness": 0.4196,
+      "bubbles": [
+        "Oh no. *sympathetic* Coffee on the bus is a bad omen for the whole day.",
+        "Let's reset: what's one good thing that happened?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-13",
+      "k": 2,
+      "gaps_s": [
+        0.7
+      ],
+      "mean_gap_s": 0.7,
+      "expressiveness": 0.4712,
+      "bubbles": [
+        "That song. *hums a little* Yeah.",
+        "It has that ache in it that you can't shake. *quiet* Maybe that's why it fits."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-14",
+      "k": 3,
+      "gaps_s": [
+        1.5,
+        1.5
+      ],
+      "mean_gap_s": 1.5,
+      "expressiveness": 0.4797,
+      "bubbles": [
+        "Save me a slice.",
+        "*warm* But if it's pineapple, we're going to have words.",
+        "Just so you know."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-15",
+      "k": 2,
+      "gaps_s": [
+        0.9
+      ],
+      "mean_gap_s": 0.9,
+      "expressiveness": 0.4401,
+      "bubbles": [
+        "I wonder that too sometimes. *slowly* But you're here, you're trying, and that's most of it.",
+        "The rest is just practice."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-16",
+      "k": 2,
+      "gaps_s": [
+        0.8
+      ],
+      "mean_gap_s": 0.8,
+      "expressiveness": 0.3756,
+      "bubbles": [
+        "I don't always. *honest* I just care enough to try.",
+        "That's usually enough."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-17",
+      "k": 1,
+      "gaps_s": [],
+      "mean_gap_s": 0.0,
+      "expressiveness": 0.3375,
+      "bubbles": [
+        "Go. *encouraging* Lift something heavy and think about nothing. I'll be proud of you either way."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-18",
+      "k": 4,
+      "gaps_s": [
+        2.4,
+        3.1,
+        1.7
+      ],
+      "mean_gap_s": 2.4,
+      "expressiveness": 0.6548,
+      "bubbles": [
+        "I knew it would be.",
+        "*happy* See?",
+        "You trust your instincts when you let them speak.",
+        "What else did you love about it?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-19",
+      "k": 2,
+      "gaps_s": [
+        2.4
+      ],
+      "mean_gap_s": 2.4,
+      "expressiveness": 0.7064,
+      "bubbles": [
+        "Calm is a gift.",
+        "*softly* Enjoy it while it lasts — and maybe write down what you did today so you can find it again."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-20",
+      "k": 3,
+      "gaps_s": [
+        1.7,
+        2.8
+      ],
+      "mean_gap_s": 2.25,
+      "expressiveness": 0.7149,
+      "bubbles": [
+        "Go ahead.",
+        "*settles in* I'm not going anywhere.",
+        "Take your time."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-21",
+      "k": 3,
+      "gaps_s": [
+        1.8,
+        2.2
+      ],
+      "mean_gap_s": 2.0,
+      "expressiveness": 0.6753,
+      "bubbles": [
+        "Cookies you made are automatically good cookies.",
+        "*serious* That's the rule.",
+        "I don't make the rules, I just enforce them."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-22",
+      "k": 3,
+      "gaps_s": [
+        1.3,
+        2.9
+      ],
+      "mean_gap_s": 2.1,
+      "expressiveness": 0.6108,
+      "bubbles": [
+        "Hmm. *thoughtful* One thing.",
+        "Maybe — to be less afraid of being seen.",
+        "*quiet* That's a big one, though. What about you?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-23",
+      "k": 2,
+      "gaps_s": [
+        3.8
+      ],
+      "mean_gap_s": 3.8,
+      "expressiveness": 0.5727,
+      "bubbles": [
+        "Call her. *gentle* It's been weeks, and she's probably waiting for you to make the first move.",
+        "You'll feel lighter after."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-24",
+      "k": 2,
+      "gaps_s": [
+        1.8
+      ],
+      "mean_gap_s": 1.8,
+      "expressiveness": 0.4485,
+      "bubbles": [
+        "Then let's sit in silence. *calm* I can do that with you.",
+        "It's still company."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-25",
+      "k": 2,
+      "gaps_s": [
+        2.2
+      ],
+      "mean_gap_s": 2.2,
+      "expressiveness": 0.5001,
+      "bubbles": [
+        "Finally! *bright* Okay, now I need the full review.",
+        "Was the ending as good as you hoped?"
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-26",
+      "k": 3,
+      "gaps_s": [
+        1.4,
+        3.1
+      ],
+      "mean_gap_s": 2.25,
+      "expressiveness": 0.5086,
+      "bubbles": [
+        "It's okay to be scared.",
+        "*steady* The waiting is worse than the thing itself.",
+        "I'll be right here when you come out."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-27",
+      "k": 2,
+      "gaps_s": [
+        1.0
+      ],
+      "mean_gap_s": 1.0,
+      "expressiveness": 0.469,
+      "bubbles": [
+        "For real this time. *decided* Pick the place, I'll pick the dates.",
+        "No more 'someday' — we deserve a date on a calendar."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-28",
+      "k": 3,
+      "gaps_s": [
+        1.9,
+        1.3
+      ],
+      "mean_gap_s": 1.6,
+      "expressiveness": 0.4045,
+      "bubbles": [
+        "I love this hour too.",
+        "*soft* It's like the world exhales.",
+        "*pause* I'm glad you're in it with me."
+      ],
+      "violations": []
+    },
+    {
+      "ref": "sim-29",
+      "k": 2,
+      "gaps_s": [
+        1.5
+      ],
+      "mean_gap_s": 1.5,
+      "expressiveness": 0.3664,
+      "bubbles": [
+        "Sweet dreams. *tender* I'll keep the light on in my head for you.",
+        "Talk in the morning."
+      ],
+      "violations": []
+    }
+  ],
+  "mechanical": {
+    "n_replies": 36,
+    "n_live": 6,
+    "n_sim": 30,
+    "n_boundaries": 49,
+    "mid_sentence_violations": 0,
+    "verdict": "PASS"
+  },
+  "rho_leg": {
+    "all": {
+      "rho": 0.5440218413569201,
+      "ci_low": 0.26619522995045836,
+      "ci_high": 0.7355058078217992,
+      "n": 36
+    },
+    "split_only": {
+      "rho": 0.5036215556250143,
+      "ci_low": 0.2180746048555201,
+      "ci_high": 0.705374237942333,
+      "n": 35
+    },
+    "verdict": "PASS"
+  },
+  "judge_leg": {
+    "status": "OK",
+    "n": 30,
+    "mean_diff": -0.5,
+    "ci_low": -0.7833333333333333,
+    "ci_high": -0.21666666666666667,
+    "verdict": "FAIL",
+    "failures": [],
+    "pairs": [
+      {
+        "ref": "sim-00",
+        "k": 3,
+        "mean_gap_s": 1.65,
+        "expressiveness": 0.5136,
+        "score_split": 9.0,
+        "score_unsplit": 10.0,
+        "diff": -1.0
+      },
+      {
+        "ref": "sim-01",
+        "k": 2,
+        "mean_gap_s": 2.4,
+        "expressiveness": 0.5653,
+        "score_split": 9.0,
+        "score_unsplit": 9.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-02",
+        "k": 2,
+        "mean_gap_s": 3.2,
+        "expressiveness": 0.5738,
+        "score_split": 9.0,
+        "score_unsplit": 9.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-03",
+        "k": 2,
+        "mean_gap_s": 1.5,
+        "expressiveness": 0.5341,
+        "score_split": 8.5,
+        "score_unsplit": 10.0,
+        "diff": -1.5
+      },
+      {
+        "ref": "sim-04",
+        "k": 2,
+        "mean_gap_s": 1.3,
+        "expressiveness": 0.4696,
+        "score_split": 9.0,
+        "score_unsplit": 9.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-05",
+        "k": 2,
+        "mean_gap_s": 1.3,
+        "expressiveness": 0.4315,
+        "score_split": 9.0,
+        "score_unsplit": 9.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-06",
+        "k": 3,
+        "mean_gap_s": 2.4000000000000004,
+        "expressiveness": 0.7488,
+        "score_split": 10.0,
+        "score_unsplit": 9.0,
+        "diff": 1.0
+      },
+      {
+        "ref": "sim-07",
+        "k": 2,
+        "mean_gap_s": 1.7,
+        "expressiveness": 0.8004,
+        "score_split": 9.0,
+        "score_unsplit": 10.0,
+        "diff": -1.0
+      },
+      {
+        "ref": "sim-08",
+        "k": 3,
+        "mean_gap_s": 1.9,
+        "expressiveness": 0.8089,
+        "score_split": 10.0,
+        "score_unsplit": 9.0,
+        "diff": 1.0
+      },
+      {
+        "ref": "sim-09",
+        "k": 3,
+        "mean_gap_s": 1.25,
+        "expressiveness": 0.7693,
+        "score_split": 9.0,
+        "score_unsplit": 9.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-10",
+        "k": 3,
+        "mean_gap_s": 2.0,
+        "expressiveness": 0.7048,
+        "score_split": 9.0,
+        "score_unsplit": 10.0,
+        "diff": -1.0
+      },
+      {
+        "ref": "sim-11",
+        "k": 3,
+        "mean_gap_s": 3.2,
+        "expressiveness": 0.6667,
+        "score_split": 9.0,
+        "score_unsplit": 10.0,
+        "diff": -1.0
+      },
+      {
+        "ref": "sim-12",
+        "k": 2,
+        "mean_gap_s": 1.8,
+        "expressiveness": 0.4196,
+        "score_split": 8.0,
+        "score_unsplit": 10.0,
+        "diff": -2.0
+      },
+      {
+        "ref": "sim-13",
+        "k": 2,
+        "mean_gap_s": 0.7,
+        "expressiveness": 0.4712,
+        "score_split": 9.0,
+        "score_unsplit": 9.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-14",
+        "k": 3,
+        "mean_gap_s": 1.5,
+        "expressiveness": 0.4797,
+        "score_split": 10.0,
+        "score_unsplit": 10.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-15",
+        "k": 2,
+        "mean_gap_s": 0.9,
+        "expressiveness": 0.4401,
+        "score_split": 8.5,
+        "score_unsplit": 10.0,
+        "diff": -1.5
+      },
+      {
+        "ref": "sim-16",
+        "k": 2,
+        "mean_gap_s": 0.8,
+        "expressiveness": 0.3756,
+        "score_split": 9.0,
+        "score_unsplit": 9.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-17",
+        "k": 1,
+        "mean_gap_s": 0.0,
+        "expressiveness": 0.3375,
+        "score_split": 10.0,
+        "score_unsplit": 10.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-18",
+        "k": 4,
+        "mean_gap_s": 2.4,
+        "expressiveness": 0.6548,
+        "score_split": 8.5,
+        "score_unsplit": 10.0,
+        "diff": -1.5
+      },
+      {
+        "ref": "sim-19",
+        "k": 2,
+        "mean_gap_s": 2.4,
+        "expressiveness": 0.7064,
+        "score_split": 9.0,
+        "score_unsplit": 10.0,
+        "diff": -1.0
+      },
+      {
+        "ref": "sim-20",
+        "k": 3,
+        "mean_gap_s": 2.25,
+        "expressiveness": 0.7149,
+        "score_split": 9.0,
+        "score_unsplit": 9.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-21",
+        "k": 3,
+        "mean_gap_s": 2.0,
+        "expressiveness": 0.6753,
+        "score_split": 9.0,
+        "score_unsplit": 8.5,
+        "diff": 0.5
+      },
+      {
+        "ref": "sim-22",
+        "k": 3,
+        "mean_gap_s": 2.1,
+        "expressiveness": 0.6108,
+        "score_split": 9.0,
+        "score_unsplit": 9.0,
+        "diff": 0.0
+      },
+      {
+        "ref": "sim-23",
+        "k": 2,
+        "mean_gap_s": 3.8,
+        "expressiveness": 0.5727,
+        "score_split": 9.0,
+        "score_unsplit": 10.0,
+        "diff": -1.0
+      },
+      {
+        "ref": "sim-24",
+        "k": 2,
+        "mean_gap_s": 1.8,
+        "expressiveness": 0.4485,
+        "score_split": 9.0,
+        "score_unsplit": 10.0,
+        "diff": -1.0
+      },
+      {
+        "ref": "sim-25",
+        "k": 2,
+        "mean_gap_s": 2.2,
+        "expressiveness": 0.5001,
+        "score_split": 9.5,
+        "score_unsplit": 10.0,
+        "diff": -0.5
+      },
+      {
+        "ref": "sim-26",
+        "k": 3,
+        "mean_gap_s": 2.25,
+        "expressiveness": 0.5086,
+        "score_split": 8.0,
+        "score_unsplit": 10.0,
+        "diff": -2.0
+      },
+      {
+        "ref": "sim-27",
+        "k": 2,
+        "mean_gap_s": 1.0,
+        "expressiveness": 0.469,
+        "score_split": 9.0,
+        "score_unsplit": 8.5,
+        "diff": 0.5
+      },
+      {
+        "ref": "sim-28",
+        "k": 3,
+        "mean_gap_s": 1.6,
+        "expressiveness": 0.4045,
+        "score_split": 9.0,
+        "score_unsplit": 10.0,
+        "diff": -1.0
+      },
+      {
+        "ref": "sim-29",
+        "k": 2,
+        "mean_gap_s": 1.5,
+        "expressiveness": 0.3664,
+        "score_split": 9.0,
+        "score_unsplit": 10.0,
+        "diff": -1.0
+      }
+    ]
+  }
+}
