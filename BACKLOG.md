@@ -6,10 +6,15 @@ the agent. New asks get appended here as they are spoken.
 
 ## Open
 
-### Bot timezone command (bot time is not real time)
+### Bot time anchored to a real timezone
 - Date: 2026-08-15
 - Verbatim: "another thing for the backlog, bot time is not real time. we should have a command to set the timezone of the bot too"
-- Summary: The bot's virtual clock starts at 0.0 at launch and is not anchored to the user's wall clock, so quiet hours, proactives, and day rollover drift from the user's local time. Add a command to set the bot's timezone so its day aligns with the owner's.
+- Summary: The bot's virtual clock starts at 0.0 at launch and is not anchored to any real timezone, so day rollover, quiet hours, and proactive scheduling drift from the user's local time. Core ask: bot time should run on a real timezone; a command to set/change the timezone is a bonus, not the requirement.
+
+### Closing tendency as inform-then-decide (like events)
+- Date: 2026-08-15
+- Verbatim: "backlog, closing tendency should work the same as events (one turn inform, next turn decide)"
+- Summary: Closing tendency currently fires as a silent per-turn draw that ends the conversation abruptly. It should work like the event mechanism: one turn informs (the companion signals the conversation is winding down), the next turn decides the close.
 
 ### Setup window for themes / common settings
 - Date: 2026-08-15
