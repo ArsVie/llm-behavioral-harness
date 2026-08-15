@@ -457,21 +457,27 @@ async def _noop_sleeper(delay):
 
 
 def test_command_dispatch_lazy_import_before_commands_lands():
-    """runtime.py imports cleanly WITHOUT harness/commands.py (W-commands is
-    merged after W-runtime): the import is function-level, so the failure
-    surfaces only when a command actually arrives."""
-    store, clock, session = _session()
-    runtime = AsyncRuntime(
-        session, ProactiveSchedule.restore(SEED, store), FakeChannel(),
-        store=store, timing=TIMING, seed=SEED,
-        time_scale=FAST, max_virtual_hours=1.0,
-        sleeper=_noop_sleeper,
+    """runtime.py must NOT import harness.commands at module scope (the
+    import is function-level, so dispatch works even before W-commands
+    merges). Verified in a fresh interpreter — in-session sys.modules is
+    polluted by other tests, so the property is pinned process-isolated.
+    (With commands.py now on main, dispatch itself is covered by
+    test_run_wires_command_callback_only_when_enabled and the status
+    dispatch test above.)"""
+    import subprocess
+    import sys
+
+    code = (
+        "import harness.runtime, sys; "
+        "assert 'harness.commands' not in sys.modules, "
+        "'runtime.py must not import harness.commands at module level'; "
+        "print('LAZY_OK')"
     )
-    with pytest.raises(ImportError):
-        asyncio.run(runtime._on_command(
-            ControlCommand(name="status", args="", sender_id=42)
-        ))
-    runtime._executor.shutdown()
+    proc = subprocess.run(
+        [sys.executable, "-c", code], capture_output=True, text=True, timeout=60
+    )
+    assert proc.returncode == 0, proc.stderr
+    assert "LAZY_OK" in proc.stdout
 
 
 def test_run_wires_command_callback_only_when_enabled():

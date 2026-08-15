@@ -449,17 +449,53 @@ def test_defer_bootstrap_on_initialized_db_is_a_noop(tmp_path) -> None:
 
 
 def test_cli_accepts_the_new_flags_without_commands(tmp_path) -> None:
-    """--tz + --enable-commands on the fake channel: launcher warning, no
-    crash, default-inert behavior preserved for the plain path."""
+    """--enable-commands on the fake channel: launcher warning, no
+    crash, default-inert behavior preserved for the plain path.
+
+    NOTE: --tz is intentionally NOT passed here — after the W-runtime merge
+    --tz builds a real-time anchor, and anchored mode is 1:1 real time (it
+    must not be combined with --time-scale acceleration). --tz acceptance is
+    covered by test_tz_flag_resolves_anchor (resolution layer) and by
+    argparse parsing itself (the subprocess below proves flags parse).
+    """
     db = tmp_path / "flags.db"
     proc = _run_async_cli(
-        tmp_path, db, "--tz", "UTC", "--enable-commands",
+        tmp_path, db, "--enable-commands",
     )
     # The fake channel has no command seam -> warning, commands dropped.
     assert "no command seam" in proc.stdout
     store = SQLiteStore(db)
     assert store.load_persona() is not None  # bootstrap unchanged
     store.close()
+
+
+def test_tz_flag_resolves_anchor(tmp_path) -> None:
+    """--tz acceptance at the resolution layer: explicit flag wins, absent
+    everywhere -> (None, None) (today's behavior), bad IANA name raises.
+    Anchored mode is 1:1 real time by design, so no accelerated subprocess
+    may combine --tz with --time-scale (that combination times out)."""
+    from sim.run_async import resolve_tz
+
+    tz, anchor = resolve_tz("UTC", env={})
+    assert tz == "UTC"
+    assert anchor is not None
+    assert anchor.tz == "UTC"
+
+    tz, anchor = resolve_tz(None, env={})
+    assert tz is None and anchor is None
+
+    tz, anchor = resolve_tz("", env={"HARNESS_TZ": "America/Mexico_City"})
+    assert tz == "America/Mexico_City"
+    assert anchor is not None
+
+    import zoneinfo
+
+    try:
+        resolve_tz("Not/AZone", env={})
+    except zoneinfo.ZoneInfoNotFoundError:
+        pass
+    else:
+        raise AssertionError("bad IANA name must raise ZoneInfoNotFoundError")
 
 
 if __name__ == "__main__":  # pragma: no cover
