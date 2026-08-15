@@ -12,7 +12,7 @@ The pre-slice schema is version 1 and is frozen verbatim in ``_SCHEMA``; it is
 executed with ``CREATE TABLE IF NOT EXISTS`` on every open (legacy behavior,
 idempotent). ``schema_meta(version)`` creates the ``schema_meta`` bookkeeping
 table; the migration framework (``_migrate``) reads the recorded version and
-applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 5).
+applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 6).
 Migrations never drop or alter existing columns; all ``ALTER TABLE`` steps are
 guarded by ``PRAGMA table_info``. On a fresh database the effective version is
 1 (only the v1 base tables exist), so the migration chain runs and the
@@ -88,6 +88,10 @@ Tables (slice scope of the plan's data model):
   - steering_queue(id PK, day, t_h, kind, payload_json, delivered_t_h,
     boundary, status, seen_turn_id)   -- v5: pending arriving events (WS3
     backend contract)
+  - kv_store(key PK, value)   -- v6: generic key/value table (seam S1);
+    Wave-2 real-time anchor persists under keys ``anchor.epoch0_s`` /
+    ``anchor.t_h0`` / ``anchor.tz``; ``conversations`` gains the nullable
+    ``closing_pending_t_h`` column (v6: NULL = no wind-down pending).
 
 Conventions (no business logic lives here — pure persistence + simple queries)
 -------------------------------------------------------------------------------
@@ -137,7 +141,7 @@ from harness.domain import (
     UserModelCategory,
 )
 
-SCHEMA_VERSION = 5
+SCHEMA_VERSION = 6
 
 # --------------------------------------------------------------------------- #
 # v1 base schema — FROZEN verbatim from the pre-slice store (do not edit).
@@ -553,6 +557,31 @@ def _migrate_v5(conn: sqlite3.Connection) -> None:
     conn.executescript(_V5_TABLES)
 
 
+# --------------------------------------------------------------------------- #
+# Migration v5 -> v6 (W-close, additive only): kv_store + wind-down column
+# --------------------------------------------------------------------------- #
+# v6 adds the two-phase-close persistence (seam S1): ``kv_store`` — a generic
+# key/value table (INSERT OR REPLACE semantics; the Wave-2 real-time anchor
+# persists under keys ``anchor.epoch0_s``/``anchor.t_h0``/``anchor.tz``) —
+# and the nullable ``conversations.closing_pending_t_h`` column (NULL = no
+# wind-down pending; a real value = the closing draw fired and the
+# conversation is in its wind-down grace window). Purely additive: a new
+# table plus one guarded nullable column; no existing table or column is
+# touched, so the migration is safe on a populated live database.
+_V6_TABLES = """
+CREATE TABLE IF NOT EXISTS kv_store (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+"""
+
+
+def _migrate_v6(conn: sqlite3.Connection) -> None:
+    """v5 -> v6: additive kv_store table + conversations.closing_pending_t_h."""
+    conn.executescript(_V6_TABLES)
+    _ensure_column(conn, "conversations", "closing_pending_t_h", "REAL")
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Bring the schema up to SCHEMA_VERSION with additive migrations only.
 
@@ -571,6 +600,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         _migrate_v4(conn)
     if version < 5:
         _migrate_v5(conn)
+    if version < 6:
+        _migrate_v6(conn)
     if version < SCHEMA_VERSION:
         conn.execute("DELETE FROM schema_meta")
         conn.execute(
@@ -881,6 +912,49 @@ class SQLiteStore:
             self._row_to_conversation(dict(r), self._turns_for_conversation(r["id"]))
             for r in rows
         ]
+
+    # -- kv_store (seam S1, v6) -------------------------------------------
+
+    def get_kv(self, key: str) -> str | None:
+        """Value stored under ``key`` (seam S1), or None when absent."""
+        row = self.conn.execute(
+            "SELECT value FROM kv_store WHERE key = ?", (key,)
+        ).fetchone()
+        return row["value"] if row is not None else None
+
+    def set_kv(self, key: str, value: str) -> None:
+        """Store ``value`` under ``key`` (``INSERT OR REPLACE`` semantics)."""
+        self.conn.execute(
+            "INSERT OR REPLACE INTO kv_store (key, value) VALUES (?, ?)",
+            (key, value),
+        )
+        self.conn.commit()
+
+    def set_conversation_closing_pending(
+        self, conversation_id: str, t_h: float | None
+    ) -> None:
+        """Persist (or clear, with None) the conversation's wind-down marker.
+
+        ``closing_pending_t_h`` is the virtual hour at which the closing
+        draw fired (two-phase close, seam S1); NULL means no wind-down is
+        pending. Additive v6 column; idempotent.
+        """
+        self.conn.execute(
+            "UPDATE conversations SET closing_pending_t_h = ? WHERE id = ?",
+            (t_h, conversation_id),
+        )
+        self.conn.commit()
+
+    def conversation_closing_pending(self, conversation_id: str) -> float | None:
+        """The conversation's persisted ``closing_pending_t_h``, or None."""
+        row = self.conn.execute(
+            "SELECT closing_pending_t_h FROM conversations WHERE id = ?",
+            (conversation_id,),
+        ).fetchone()
+        if row is None:
+            return None
+        value = row["closing_pending_t_h"]
+        return float(value) if value is not None else None
 
     # -- judgements ----------------------------------------------------------
 

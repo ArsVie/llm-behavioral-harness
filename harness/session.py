@@ -142,6 +142,20 @@ CONVERSATION_STREAM = 6
 #: conversation is closed.
 USER_LEFT_THRESHOLD_H = 12.0
 
+#: Two-phase close (seam S1, flag ``two_phase_close``): wind-down guidance
+#: rendered through the assembler's EXISTING ``closing_guidance`` channel
+#: into the state card of the next companion turn once the closing draw has
+#: fired. The conversation then closes deterministically with reason
+#: ``closing_tendency`` after the user's next reply.
+WIND_DOWN_GUIDANCE = "You're wrapping up, say a natural goodbye."
+
+#: Two-phase close grace: virtual hours after the persisted
+#: ``closing_pending_t_h`` at which an UNANSWERED wind-down closes with
+#: reason ``closing_tendency`` (a candidate in ``next_conversation_close_t_h``
+#: plus one branch in ``check_conversation_lifecycle``). Always shorter than
+#: ``USER_LEFT_THRESHOLD_H`` (12 h), which remains the outer backstop.
+WIND_DOWN_GRACE_H = 1.0
+
 #: Hard cap on conversation length in total turns (user + companion): no
 #: conversation runs forever (``close_reason == "max_turns"``).
 MAX_TURNS = 12
@@ -183,6 +197,16 @@ _DECISION_ENV_VARS = (
 def _decision_env_set() -> bool:
     """True when any HARNESS_* decision/steering variable is set (non-empty)."""
     return any(os.environ.get(name) not in (None, "") for name in _DECISION_ENV_VARS)
+
+
+def _two_phase_close_env_set() -> bool:
+    """True when ``HARNESS_TWO_PHASE_CLOSE`` is set (any non-empty value).
+
+    Two-phase close (seam S1) is OFF by default: with the variable unset the
+    session behaves exactly as before — the closing draw closes the
+    conversation at the drawn turn (byte parity).
+    """
+    return os.environ.get("HARNESS_TWO_PHASE_CLOSE") not in (None, "")
 
 
 def _load_thinking_effort() -> str | None:
@@ -282,6 +306,7 @@ class Session:
         persona_profile: PersonaProfile | None = None,
         memory: MemoryAgent | None = None,
         decision_config: DecisionConfig | None = None,
+        two_phase_close: bool = False,
     ):
         self.store = store
         self.persona = persona
@@ -357,6 +382,16 @@ class Session:
         self._conversation: Conversation | None = None
         if hasattr(self.store, "load_open_conversation"):
             self._conversation = self.store.load_open_conversation()
+
+        # W-close (seam S1): two-phase close flag — OFF by default (env
+        # HARNESS_TWO_PHASE_CLOSE overrides). When ON, the closing draw sets
+        # a persisted ``closing_pending_t_h`` instead of closing, and the
+        # conversation closes after the user's next reply (or by the grace
+        # deadline when the user never replies). The resumed wind-down state
+        # rides along with the reopened conversation.
+        self.two_phase_close = two_phase_close or _two_phase_close_env_set()
+        self._closing_pending_t_h: float | None = None
+        self._sync_closing_pending()
 
         # WS4 (runtime redesign): steering + decision layer.
         #
@@ -801,7 +836,7 @@ class Session:
     def check_conversation_lifecycle(self, t_h: float) -> str | None:
         """Close the open conversation if a boundary close is due at ``t_h``.
 
-        Exactly two boundary closes live here (the other two — the
+        Exactly three boundary closes live here (the other two — the
         ``closing_tendency`` draw and ``max_turns`` — fire at companion
         turns inside ``_chat``):
 
@@ -809,6 +844,10 @@ class Session:
           of the current quiet window (the conversation crossed the 23:00
           boundary; a conversation that OPENED inside quiet hours has no
           crossed boundary and keeps running).
+        * ``closing_tendency`` — wind-down expiry (two-phase close, seam
+          S1): the closing draw fired at ``closing_pending_t_h`` and the
+          user never replied within ``WIND_DOWN_GRACE_H``. The draw already
+          decided the close; the grace is delivery, not a new decision.
         * ``user_left`` — user silence since the conversation's last user
           turn (or its opening, when the companion opened and the user
           never replied) reached ``USER_LEFT_THRESHOLD_H``.
@@ -829,6 +868,12 @@ class Session:
         if last < boundary:
             self._close_conversation(conv, t_h, "quiet_hours")
             return "quiet_hours"
+        if (
+            self._closing_pending_t_h is not None
+            and t_h - self._closing_pending_t_h >= WIND_DOWN_GRACE_H
+        ):
+            self._close_conversation(conv, t_h, "closing_tendency")
+            return "closing_tendency"
         anchor = self._last_user_turn_t_h(conv)
         if anchor is None:
             anchor = conv.opened_t_h
@@ -840,11 +885,13 @@ class Session:
     def next_conversation_close_t_h(self, now: float) -> float | None:
         """Next strictly-future close instant for the open conversation.
 
-        The earlier of the next quiet-hours boundary (when the
-        conversation's last turn precedes it) and the ``user_left``
-        deadline; None when no conversation is open or no close is pending.
-        The runtime parks the rollover at this instant so the close is
-        recorded at the boundary, not lazily at the next turn.
+        The earliest of the next quiet-hours boundary (when the
+        conversation's last turn precedes it), the ``user_left`` deadline
+        and — under two-phase close (seam S1) — the wind-down grace
+        deadline ``closing_pending_t_h + WIND_DOWN_GRACE_H``; None when no
+        conversation is open or no close is pending. The runtime parks the
+        rollover at this instant so the close is recorded at the boundary,
+        not lazily at the next turn.
         """
         conv = self._conversation
         if conv is None:
@@ -860,6 +907,10 @@ class Session:
         candidates: list[float] = []
         if last < qstart:
             candidates.append(qstart)
+        if self._closing_pending_t_h is not None:
+            grace_deadline = self._closing_pending_t_h + WIND_DOWN_GRACE_H
+            if grace_deadline > now + 1e-12:
+                candidates.append(grace_deadline)
         anchor = self._last_user_turn_t_h(conv)
         if anchor is None:
             anchor = conv.opened_t_h
@@ -923,6 +974,7 @@ class Session:
             conv = self.store.load_open_conversation()
             if conv is not None:
                 self._conversation = conv
+                self._sync_closing_pending()
         if conv is not None:
             return conv
         conv_id = self._next_conversation_id()
@@ -993,7 +1045,24 @@ class Session:
         B3's mean-turns>=4 becomes unreachable). A conversation that
         survives the draw closes with ``max_turns`` once it reaches
         ``MAX_TURNS`` total turns.
+
+        TWO-PHASE CLOSE (seam S1, flag ``two_phase_close``): the draw keys
+        and consumption are UNCHANGED — a fired draw persists
+        ``closing_pending_t_h`` instead of closing (the conversation enters
+        its wind-down grace window and the next companion turn's state card
+        renders ``WIND_DOWN_GUIDANCE`` through the existing
+        ``closing_guidance`` channel). While a wind-down is pending, the
+        NEXT companion turn closes deterministically with reason
+        ``closing_tendency`` — no second draw. A silent user's conversation
+        is closed by the grace deadline in ``check_conversation_lifecycle``
+        (``WIND_DOWN_GRACE_H``), with ``user_left`` remaining the outer
+        backstop.
         """
+        if self._closing_pending_t_h is not None:
+            # Wind-down pending: the draw already decided the close; the
+            # goodbye turn delivers it (deterministic, no second draw).
+            self._close_conversation(conv, t_h, "closing_tendency")
+            return
         if not conv.turns:
             return
         first_companion = next(
@@ -1011,10 +1080,38 @@ class Session:
             self.seed, CONVERSATION_STREAM, conv_seq, last_turn.turn_index
         )
         if rng.uniform() < float(closing_tendency):
-            self._close_conversation(conv, t_h, "closing_tendency")
+            if self.two_phase_close:
+                self._begin_wind_down(conv, t_h)
+            else:
+                self._close_conversation(conv, t_h, "closing_tendency")
             return
         if len(conv.turns) >= MAX_TURNS:
             self._close_conversation(conv, t_h, "max_turns")
+
+    def _begin_wind_down(self, conv: Conversation, t_h: float) -> None:
+        """Two-phase close (seam S1): persist the wind-down marker instead
+        of closing. The conversation stays open — the next companion turn
+        renders the wind-down guidance and closes deterministically, or the
+        grace deadline in ``check_conversation_lifecycle`` closes it.
+        """
+        self._closing_pending_t_h = t_h
+        if hasattr(self.store, "set_conversation_closing_pending"):
+            self.store.set_conversation_closing_pending(conv.id, t_h)
+        self.store.log_event(
+            int(t_h // 24.0), t_h, "wind_down_started", f"id={conv.id}"
+        )
+
+    def _sync_closing_pending(self) -> None:
+        """Restore ``_closing_pending_t_h`` from the store's open
+        conversation (resume). No-op without the v6 seam or without an open
+        conversation."""
+        if self._conversation is None:
+            self._closing_pending_t_h = None
+            return
+        if hasattr(self.store, "conversation_closing_pending"):
+            self._closing_pending_t_h = self.store.conversation_closing_pending(
+                self._conversation.id
+            )
 
     def _close_conversation(
         self, conv: Conversation, closed_t_h: float, reason: str
@@ -1022,10 +1119,16 @@ class Session:
         """Persist the close (``close_reason``) and drive the per-
         conversation memory tail (L1->L2->L3->L4) at the conversation
         boundary. Idempotent: the store close is an UPDATE and the memory
-        tail is summary-guarded."""
+        tail is summary-guarded. Any pending wind-down marker (two-phase
+        close, seam S1) is cleared — a closed conversation has no wind-down
+        state."""
         if conv.close_reason is not None:
             return
         self._conversation = None
+        if self._closing_pending_t_h is not None:
+            self._closing_pending_t_h = None
+            if hasattr(self.store, "set_conversation_closing_pending"):
+                self.store.set_conversation_closing_pending(conv.id, None)
         closed = replace(conv, closed_t_h=closed_t_h, close_reason=reason)
         if hasattr(self.store, "close_conversation"):
             self.store.close_conversation(conv.id, closed_t_h, reason)
@@ -1232,6 +1335,13 @@ class Session:
             self.current_record, self.timing, hour=self.clock.local_hour(), previous=previous
         )
         controls = controls_from_directive(directive)
+        if self.two_phase_close and self._closing_pending_t_h is not None:
+            # Two-phase close (seam S1): a wind-down is pending — render the
+            # wind-down guidance through the assembler's EXISTING
+            # ``closing_guidance`` channel (the state card carries it into
+            # this companion turn; the turn then closes deterministically in
+            # ``_maybe_close_conversation``).
+            controls = replace(controls, closing_guidance=WIND_DOWN_GUIDANCE)
         brief = to_brief(directive)
 
         # it3 B2: one conversation per exchange run — opened by the first
