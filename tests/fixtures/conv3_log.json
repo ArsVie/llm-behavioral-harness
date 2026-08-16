@@ -1,0 +1,56 @@
+{
+  "conversation_id": "conv-3",
+  "turns": [
+    {
+      "speaker": "user",
+      "text": "Hi?",
+      "t_h": 13.544419927199682,
+      "turn_index": 0,
+      "conversation_id": "conv-3"
+    },
+    {
+      "speaker": "companion",
+      "text": "Hey. *voice a little rough, morning slow* Morning. I'm here.\n\nYou get any sleep?",
+      "t_h": 13.544419927199682,
+      "turn_index": 1,
+      "conversation_id": "conv-3"
+    },
+    {
+      "speaker": "user",
+      "text": "A bit, what time is it on your side?",
+      "t_h": 13.544419927199682,
+      "turn_index": 2,
+      "conversation_id": "conv-3"
+    },
+    {
+      "speaker": "companion",
+      "text": "Just past seven. *pauses, clears throat* Coffee's still warm, so I'm a little slow this morning.\n\nWhat about you — were you thinking about that place for lunch, or did you want to keep noodling on it? *soft, almost amused* Pun intended.",
+      "t_h": 13.544419927199682,
+      "turn_index": 3,
+      "conversation_id": "conv-3"
+    },
+    {
+      "speaker": "companion",
+      "text": "*quiet hum, the sound of a can opener in the background* A bit of sleep is better than none. I'm just puttering — beans on the stove, nothing urgent.\n\nNoodle place's still open as an idea. But I've got time to be convinced otherwise. No rush.",
+      "t_h": 15.415875082255857,
+      "turn_index": 4,
+      "conversation_id": "conv-3"
+    },
+    {
+      "speaker": "user",
+      "text": "Idk, I'm not feeling it today, got anything else planned?",
+      "t_h": 15.415875082255857,
+      "turn_index": 5,
+      "conversation_id": "conv-3"
+    },
+    {
+      "speaker": "companion",
+      "text": "*quiet sound, like I'm setting the phone down for a second* Yeah. Morning's open — I was going to do a little walking loop along the river trail if the rain holds off. Nothing demanding, just fresh air.\n\nYou're welcome to come if you want. No pressure either way. I'll shoot you the spot in a bit.",
+      "t_h": 15.415875082255857,
+      "turn_index": 6,
+      "conversation_id": "conv-3"
+    }
+  ],
+  "opened_t_h": 13.544419927199682,
+  "closed_t_h": 15.415875082255857
+}
