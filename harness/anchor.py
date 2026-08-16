@@ -37,6 +37,15 @@ class RealTimeAnchor:
         """Wall-clock epoch seconds at virtual hour `t_h` (inverse of t_h_at)."""
         return self.epoch0_s + (t_h - self.t_h0) * SECONDS_PER_HOUR
 
+    def real_at(self, t_h: float) -> datetime:
+        """The aware datetime of virtual hour ``t_h`` (UTC instant + tz name).
+
+        ``datetime.fromtimestamp(self.epoch_of(t_h), tz=ZoneInfo(self.tz))``:
+        pure epoch math, so the returned instant is exact and DST-invariant;
+        only its LOCAL rendering depends on the zone's offset history.
+        """
+        return datetime.fromtimestamp(self.epoch_of(t_h), tz=ZoneInfo(self.tz))
+
 
 def anchor_for_fresh_start(now_epoch_s: float, tz: str = "America/Mexico_City") -> RealTimeAnchor:
     """Anchor a fresh start: t_h0 = hours since local midnight in `tz`.

@@ -92,3 +92,54 @@ def test_fresh_start_dst_historical_mexico_city():
     now = _epoch(2022, 4, 3, 3, 30, tz="America/Mexico_City")
     a = anchor_for_fresh_start(now, "America/Mexico_City")
     assert a.t_h0 == pytest.approx(2.5)
+
+
+# -- real_at (S1): aware datetime of a virtual hour ---------------------------
+
+
+def test_real_at_round_trip():
+    a = RealTimeAnchor(epoch0_s=1_750_000_000.0, t_h0=7.25,
+                       tz="America/New_York")
+    for t_h in (0.0, 7.25, 15.4, 23.75, 100.0):
+        dt = a.real_at(t_h)
+        assert dt.tzinfo is not None, "real_at must return an AWARE datetime"
+        assert dt.timestamp() == pytest.approx(a.epoch_of(t_h), abs=1e-6)
+
+
+def test_real_at_timezone_correctness():
+    # Anchors built at LOCAL midnight (t_h0=0) of 2026-08-15 in two zones
+    # that differ in offset that day (America/Chihuahua: UTC-6, no DST;
+    # America/New_York: EDT, UTC-4). The same virtual hour 15.4 must render
+    # as 15:24 local in BOTH zones, and the two UTC instants must differ by
+    # exactly the offset difference (2 h) — the correct offset is applied.
+    a_chih = RealTimeAnchor(epoch0_s=_epoch(2026, 8, 15, 0, 0, tz="America/Chihuahua"),
+                            t_h0=0.0, tz="America/Chihuahua")
+    a_nyc = RealTimeAnchor(epoch0_s=_epoch(2026, 8, 15, 0, 0, tz="America/New_York"),
+                           t_h0=0.0, tz="America/New_York")
+
+    dt_chih = a_chih.real_at(15.4)
+    dt_nyc = a_nyc.real_at(15.4)
+    # correct local wall clock in both zones: 15.4 h -> 15:24
+    assert (dt_chih.hour, dt_chih.minute) == (15, 24)
+    assert (dt_nyc.hour, dt_nyc.minute) == (15, 24)
+    # correct offsets applied (Chihuahua UTC-6, New York EDT UTC-4)
+    assert dt_chih.utcoffset().total_seconds() == -6 * SECONDS_PER_HOUR
+    assert dt_nyc.utcoffset().total_seconds() == -4 * SECONDS_PER_HOUR
+    # same t_h -> instants differ by exactly the offset difference
+    assert (dt_chih.timestamp() - dt_nyc.timestamp()) == pytest.approx(
+        2 * SECONDS_PER_HOUR, abs=1e-6)
+
+
+def test_real_at_dst_spring_forward_instant_arithmetic():
+    # America/New_York 2026-03-08: 02:00 -> 03:00 (23-hour day). real_at is
+    # pure epoch math, so the round-trip holds across the gap, and the local
+    # rendering reflects the skipped hour: 3.5 h after midnight (EST) is
+    # 04:30 EDT, not the naive 03:30.
+    a = RealTimeAnchor(epoch0_s=_epoch(2026, 3, 8, 0, 0, tz="America/New_York"),
+                       t_h0=0.0, tz="America/New_York")
+    for t_h in (1.5, 2.0, 2.5, 3.0, 3.5, 15.4):
+        assert a.real_at(t_h).timestamp() == pytest.approx(
+            a.epoch_of(t_h), abs=1e-6)
+    dt = a.real_at(3.5)
+    assert (dt.hour, dt.minute) == (4, 30)
+    assert dt.utcoffset().total_seconds() == -4 * SECONDS_PER_HOUR
