@@ -508,7 +508,7 @@ def stage_p2b(h: QwenHarness, train_sample: dict[str, list[dict]], seed: int) ->
             bins_out[b]["top_tokens"] = bins_out[near]["top_tokens"]
             bins_out[b]["mean_y"] = bins_out[near]["mean_y"]
         wu = h.model.lm_head.weight.detach().float()
-        scores = torch.softmax(wu @ torch.from_numpy(dirs["norm"].astype(np.float32)), dim=-1).numpy()
+        scores = torch.softmax(wu @ torch.from_numpy(dirs["norm"].astype(np.float32)).to(wu.device), dim=-1).numpy()
         dir_tokens = []
         for t in np.argsort(scores)[::-1]:
             s = toks.decode([int(t)], skip_special_tokens=True)
@@ -528,6 +528,12 @@ def stage_p2b(h: QwenHarness, train_sample: dict[str, list[dict]], seed: int) ->
             "readout": {"method": "softmax(mean last-pos logits, T=1.0)", "top_tokens_per_bin": 30},
             "jlens_direction_tokens": dir_tokens,
         }
+        (EXTRACT / f"jlens_{axis}.json").write_text(json.dumps(
+            {"model": MODEL_ID, "revision": MODEL_REVISION, "seed": seed, "axis": axis,
+             "fallback": out.get("fallback"), "n_train": out["axes"][axis]["n"],
+             "binning": out["axes"][axis]["binning"], "empty_bins": out["axes"][axis]["empty_bins"],
+             "jlens_direction_tokens": dir_tokens, "bins": bins_out}, indent=2) + "\n")
+        print(f"[P2b] checkpoint jlens_{axis}.json written", flush=True)
     out["peak_alloc_mib"] = round(torch.cuda.max_memory_allocated() / (1024 * 1024), 1)
     out["_directions"] = directions
     return out
