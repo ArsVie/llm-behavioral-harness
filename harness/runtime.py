@@ -472,9 +472,25 @@ class AsyncRuntime:
         S4 (typing): generation + response_delay_s run inside the channel's
         ``typing_context()`` when the channel exposes one (duck-typed probe;
         channels without it — CLI, fakes — are a no-op).
+
+        S1 clock-advance (WS-A): in anchor mode the REAL arrival time is
+        authoritative. The virtual clock is advanced to
+        ``anchor.t_h_at(msg.received_at)`` (never backwards), so the store
+        resolves ``sent_at = real_at(t_h)`` — the anchor's exact inverse —
+        to the TRUE arrival instant and the clock keeps flowing
+        mid-conversation (previously frozen at the last loop wake, which
+        stamped every trial message with one shared sent_at). Unanchored
+        (anchor=None): the ``msg.t_h`` path is unchanged — no t_h means no
+        advance and sent_at stays NULL, byte-identical replay.
         """
         async with self._lock:
-            if msg.t_h is not None and msg.t_h > self.session.clock.now_h():
+            if self.anchor is not None and msg.received_at is not None:
+                arrival_t_h = self.anchor.t_h_at(msg.received_at)
+                if arrival_t_h > self.session.clock.now_h():
+                    self.session.clock.advance_hours(
+                        arrival_t_h - self.session.clock.now_h()
+                    )
+            elif msg.t_h is not None and msg.t_h > self.session.clock.now_h():
                 self.session.clock.advance_hours(
                     msg.t_h - self.session.clock.now_h()
                 )

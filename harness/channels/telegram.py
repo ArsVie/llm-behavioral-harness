@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import math
 import os
 import time
 from collections.abc import Callable
@@ -60,15 +61,57 @@ try:  # optional dependency — see module docstring
 except ImportError:  # pragma: no cover - depends on install
     _PTB_AVAILABLE = False
 
-#: Trailing-edge debounce window (HARNESS_DEBOUNCE): flush this long after the
-#: LAST buffered message arrived.
-_DEBOUNCE_TRAILING_S = 2.0
-#: Debounce hard cap (HARNESS_DEBOUNCE): flush at most this long after the
-#: FIRST buffered message, even if messages keep arriving.
-_DEBOUNCE_MAX_WAIT_S = 8.0
+#: Default trailing-edge debounce window (HARNESS_DEBOUNCE): flush this long
+#: after the LAST buffered message arrived. Default 4.5 s — a human
+#: follow-up window so she waits for a normal-paced continuation (the
+#: wave-2 default was 2.0 s). Env-configurable via HARNESS_DEBOUNCE_TRAILING_S
+#: (float seconds; invalid values fail loudly at channel construction).
+DEFAULT_DEBOUNCE_TRAILING_S = 4.5
+#: Default debounce hard cap (HARNESS_DEBOUNCE): flush at most this long
+#: after the FIRST buffered message, even if messages keep arriving.
+#: Default 12.0 s (the wave-2 default was 8.0 s). Env-configurable via
+#: HARNESS_DEBOUNCE_MAX_WAIT_S.
+DEFAULT_DEBOUNCE_MAX_WAIT_S = 12.0
 #: Typing refresh cadence (HARNESS_TYPING): the Telegram typing indicator
 #: expires after ~5 s, so 4.5 s keeps it alive.
 _TYPING_INTERVAL_S = 4.5
+
+#: User-facing command menu registered via Telegram ``setMyCommands`` when
+#: commands are enabled (seam S3). ``/state`` is deliberately ABSENT: mood
+#: internals in the user's view contaminate the perceptual read (standing
+#: decision) — the handler stays dispatchable but is never user-visible.
+USER_COMMANDS: tuple[tuple[str, str], ...] = (
+    ("help", "list of commands and usage"),
+    ("ping", "alive check"),
+    ("setup", "initialize a fresh database (pre-bootstrap only)"),
+    ("tz", "change timezone (IANA name), applied at the next rollover"),
+    ("status", "day, local hour, pending proactives, last-exchange age"),
+    ("mute", "pause proactive messages for N hours"),
+    ("version", "commit, seed, active flags"),
+)
+
+
+def _debounce_window(name: str, default: float) -> float:
+    """Resolve one debounce window from its env var (float seconds).
+
+    Unset/empty -> default. Invalid values FAIL LOUDLY (ValueError at
+    channel construction): a misconfigured HARNESS_DEBOUNCE_* must never
+    silently change the merge window.
+    """
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    try:
+        value = float(raw)
+    except ValueError as exc:
+        raise ValueError(
+            f"{name} must be a number of seconds, got {raw!r}"
+        ) from exc
+    if not math.isfinite(value) or value <= 0:
+        raise ValueError(
+            f"{name} must be a positive number of seconds, got {raw!r}"
+        )
+    return value
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -142,6 +185,15 @@ class TelegramChannel:
         #: Flag-gated Wave-1 behavior (both OFF by default).
         self.debounce_enabled: bool = _env_bool("HARNESS_DEBOUNCE")
         self.typing_enabled: bool = _env_bool("HARNESS_TYPING")
+        #: Debounce windows (env-configurable; defaults trailing 4.5 s /
+        #: cap 12 s). Resolved at construction — an invalid
+        #: HARNESS_DEBOUNCE_* value fails loudly here.
+        self.debounce_trailing_s: float = _debounce_window(
+            "HARNESS_DEBOUNCE_TRAILING_S", DEFAULT_DEBOUNCE_TRAILING_S
+        )
+        self.debounce_max_wait_s: float = _debounce_window(
+            "HARNESS_DEBOUNCE_MAX_WAIT_S", DEFAULT_DEBOUNCE_MAX_WAIT_S
+        )
         #: Debounce state: buffered (text, sender_id) pairs, monotonic times
         #: of the first/last arrival, and the single flush task.
         self._buffer: list[tuple[str, str | None]] = []
@@ -257,6 +309,10 @@ class TelegramChannel:
             app.add_handler(self._on_update)
             if on_command is not None:
                 app.add_handler(self._on_command_update)
+        if on_command is not None:
+            # setMyCommands (WS-A): the user-facing command menu registers
+            # ONLY when commands are enabled; /state is never registered.
+            await self._register_commands()
 
     async def send(self, message: OutboundMessage) -> None:
         """Post an outbound (reactive or proactive) message to the owner chat."""
@@ -410,6 +466,49 @@ class TelegramChannel:
                 ControlCommand(name=name, args=args.strip(), sender_id=int(chat_id))
             )
 
+    # ------------------------------------------------------------------ #
+    # setMyCommands (WS-A): user-facing command menu (seam S3)
+    # ------------------------------------------------------------------ #
+
+    def _bot_commands(self) -> list:
+        """The user-facing command list as ptb ``BotCommand`` values.
+
+        Lazy ptb import (optional dependency — the guarded-import pattern).
+        ``/state`` is never included: mood internals in the user's view
+        contaminate the perceptual read (standing decision); the handler
+        stays dispatchable but is not user-visible.
+        """
+        from telegram import BotCommand  # lazy ptb (optional dep)
+
+        return [
+            BotCommand(command=name, description=desc)
+            for name, desc in USER_COMMANDS
+        ]
+
+    async def _register_commands(self) -> None:
+        """Register ``USER_COMMANDS`` via Telegram ``setMyCommands``.
+
+        Runs at channel start ONLY when commands are enabled (``start()``
+        was given ``on_command`` — the seam-S3 gate). Best-effort: a
+        network failure logs a warning and the channel still starts — the
+        menu is client UI; the command dispatch itself is unaffected.
+        Fakes (tests) record the call on their bot.
+        """
+        if self._command_callback is None:
+            return  # commands not enabled: nothing to register
+        bot = getattr(self.application, "bot", None)
+        setter = getattr(bot, "set_my_commands", None)
+        if setter is None:
+            return  # seam-less stub: nothing to register on
+        try:
+            await setter(self._bot_commands())
+        except Exception as exc:  # noqa: BLE001 - cosmetic; dispatch unaffected
+            print(
+                f"[telegram] WARNING: setMyCommands failed (the command menu "
+                f"will not appear in the client): {exc}",
+                flush=True,
+            )
+
     def _wrap_update(self, update) -> InboundMessage | None:
         """Map a raw update to an InboundMessage, or None when it is not a
         text message from the owner (photos, stickers, strangers). Command
@@ -476,8 +575,8 @@ class TelegramChannel:
             since_last = now - self._last_arrival_at
             since_first = now - self._buffer_first_at
             wait = min(
-                _DEBOUNCE_TRAILING_S - since_last,
-                _DEBOUNCE_MAX_WAIT_S - since_first,
+                self.debounce_trailing_s - since_last,
+                self.debounce_max_wait_s - since_first,
             )
             if wait > 0:
                 await self._sleeper(wait)
