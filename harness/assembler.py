@@ -24,6 +24,19 @@ Context construction v2 (WS1, design plans/harness-runtime-design-2026-08-14.md
      pulled memories (quoted evidence), user-model facts, proactive intent
      if any, and the arriving-event pop-up block when one is injected.
 
+W2+W3 (time-aware, sectioned card): the state card is restructured into
+named sections in fixed order — ``TEMPORAL FRAME`` (current-time/day line
+from ``anchor.real_at`` + the agenda partition Done earlier / Happening
+now / Later today; rendered ONLY when the run is anchored, never raw
+``t_h``), ``AFFECTIVE BEARING`` (the pre-wave renderer's mood brief +
+availability line VERBATIM — a clean slot the codebook fills later, G5),
+``BEHAVIORAL BEARING`` (initiative / reactivity / persistence-as-
+``1 - closing_tendency`` as band prose, never floats), and ``CURRENT
+INTENT`` (an empty reserved slot until S5). Agenda item statuses
+transition ``planned → completed`` as windows pass (``life.transition_
+past_windows``, persisted per turn by the session) so the render and the
+store agree.
+
 Prompt boundary (Iteration-2 A5, invariants 14/15/16): raw recent dialogue
 is NEVER rendered into the system prompt — it lives in the user/assistant
 message payload only (``build_messages``), so each turn appears exactly
