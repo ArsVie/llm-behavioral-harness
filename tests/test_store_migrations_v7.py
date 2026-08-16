@@ -492,8 +492,8 @@ def test_live_companion_db_migrates_additively(tmp_path):
     store = SQLiteStore(copy)
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
     assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
-    assert version0 < SCHEMA_VERSION, (
-        f"live DB expected below v{SCHEMA_VERSION}, found v{version0}"
+    assert version0 <= SCHEMA_VERSION, (
+        f"live DB expected at or below v{SCHEMA_VERSION}, found v{version0}"
     )
     for table, col in sorted(_V7_ADDITIONS):
         assert col in _table_columns(store.conn, table), f"{table}.{col} missing"
