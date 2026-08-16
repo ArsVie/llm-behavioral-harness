@@ -1397,10 +1397,6 @@ class Session:
         # boundary crossed / user silence past USER_LEFT_THRESHOLD_H); the
         # current message then opens a fresh conversation.
         self.check_conversation_lifecycle(t_h)
-        # W2 (S2): agenda status transitions as windows pass — keyed off the
-        # current t_h, persisted via the store; the state card's temporal
-        # partition and the persisted status agree.
-        self._transition_agenda_windows(day, t_h)
 
         previous = self._records.get(day - 1)
         directive = derive_behavior(
@@ -1525,6 +1521,14 @@ class Session:
                     self._steering.requeue(steer_id)
                 self._turn_drained = []
                 raise
+
+        # W2 (S2): agenda status transitions as windows pass — keyed off the
+        # current t_h, persisted via the store, so the persisted status and
+        # the state card's temporal partition agree. Runs AFTER the steering
+        # drain: the decision layer must still see planned items whose
+        # window just ended (END pop-ups / abandon), and any steer outcome
+        # (completed/skipped) is never re-drawn by the transition.
+        self._transition_agenda_windows(day, t_h)
 
         if suppress_reply:
             # SINGLE REPLY-PATH invariant: a no-reply verdict means NO
