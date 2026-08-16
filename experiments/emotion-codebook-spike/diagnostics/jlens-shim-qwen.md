@@ -108,9 +108,32 @@ correct end-to-end (checkpointing + backward hooks + leaf graph).
    J-lens vocabulary quality is then deferred to rental scale. Never dropped
    silently.
 3. No fitting on held-out data anywhere; held-out used once, for evaluation.
-4. Seeds: bringup=1, p2a=2, p2b=3, p3=4, boot=5 via derive_seed(20260815, k);
-   seed_everything() before every stochastic stage (here: no sampling, dropout
-   0.0 in config — determinism is structural).
+4. Seeds: bringup=1, p2a=2, p2b=3, p3=4, boot=5, sample=6 via
+   derive_seed(20260815, k); seed_everything() before every stochastic stage
+   (here: no sampling, dropout 0.0 in config — determinism is structural).
+
+## 4b. Amendments after P1 stimuli landed (2026-08-15, before the P2 run)
+
+- **Sequence scheme**: BOS + stimulus tokens, variable length (no padding,
+  batch 1, L ≤ 128). Labels = stimulus tokens (next-token prediction from BOS
+  context) so single-word NRC-VAD stimuli ("hurt") are usable. Labeled
+  positions 0..L−2; forward activation means exclude the BOS position;
+  vocabulary readout = logits at the last real position. The analytic check
+  (§2) is unchanged and remains exact (verified cos > 0.99999 on sentence,
+  2-token and 1-token inputs; backward peak 4520.9 MiB worst case).
+- **High/low split**: `contrast_group` side suffix (`:hi`/`:lo`) — P1's own
+  contrastive construction (per-group hi mean ≥ lo mean, verified by P1).
+  Fallbacks: intensity median, then axis-value median.
+- **Seeded stratified sampling for fitting passes** (efficiency, budget):
+  the full train corpus (87,278 rows) cannot be backward-passed on 8 GB in
+  reasonable time, so P2a/P2b fit on up to 2,000 rows per axis sampled
+  deterministically (`rng_for(master, 6, axis)`) stratified by P1's intensity
+  bins (width 0.1) to preserve coverage across [0,1]; sample ids + counts are
+  recorded in `diagnostics/sample_ids-qwen.json`. P3 evaluates ALL held-out
+  rows (15,240). Directions/readouts are sample-conditional; this is recorded
+  and reproducible, not a data modification.
+- The vocabulary readout per bin is the model's own next-token distribution at
+  the last real position, softmax-mean over stimuli in the bin (T=1.0).
 
 ---
 

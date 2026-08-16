@@ -10,16 +10,26 @@ Pre-registered contract: docs/exp-affect-codebook-pipeline-2026-08-15.md
 - P3: H1 gate for the Qwen family ONLY — Pearson r on HELD-OUT stimuli,
   bootstrap 95% CI (>= 1000 resamples, seeded).
 
-All randomness via harness/determinism.py (derive_seed/seed_everything/rng_for).
-Model: Qwen/Qwen3-1.7B @ pinned revision (repro_bundle.json).
+Stimulus protocol (P1, data/stimuli/README.md): rows carry axis, intensity
+(= axis coordinate), v/a/d, contrast_group "<axis>:<split>:gNNNN:<side>".
+Fitting passes use a SEEDED STRATIFIED SAMPLE of train (documented; the full
+87k-row corpus is beyond the 8 GB GPU budget for backward passes); held-out
+evaluation uses ALL held-out rows. Sample ids are recorded.
 
-Seed keys (int, documented): 1 bringup, 2 p2a, 3 p2b, 4 p3, 5 bootstrap
-(axis_idx, method_idx, layer), 99 selftest. 0 is reserved (P0 smoke).
+Sequence scheme: BOS + stimulus tokens, variable length (no padding), batch 1.
+Labels = stimulus tokens (next-token prediction from BOS context) so
+single-word NRC-VAD stimuli are usable. Labeled positions 0..L-2; forward
+activation means exclude the BOS position; vocabulary readout = logits at the
+last real position.
+
+All randomness via harness/determinism.py. Seed keys (int): 1 bringup,
+2 p2a, 3 p2b, 4 p3, 5 bootstrap (axis, method, layer), 6 sampling (axis),
+99 selftest. 0 reserved (P0 smoke).
 
 Usage:
-  python scripts/p2_qwen_extract.py selftest          # synthetic math self-test
-  python scripts/p2_qwen_extract.py bringup           # 1 real seq fwd+bwd (GPU)
-  python scripts/p2_qwen_extract.py all [--wait-min 60]  # full pipeline
+  python scripts/p2_qwen_extract.py selftest
+  python scripts/p2_qwen_extract.py bringup
+  python scripts/p2_qwen_extract.py all [--wait-min 60] [--n-sample 2000]
 """
 from __future__ import annotations
 
@@ -40,12 +50,12 @@ from harness.determinism import MASTER_SEED, derive_seed, rng_for, seed_everythi
 
 MODEL_ID = "Qwen/Qwen3-1.7B"
 MODEL_REVISION = "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
-SEQ_LEN = 128
+SEQ_LEN = 128  # max total length INCLUDING the BOS token
 BIN_WIDTH = 0.10
 N_BINS = 10
 BOOT_N = 1000
 GATES = {"valence": 0.60, "arousal": 0.40}
-SEED_KEY = {"bringup": 1, "p2a": 2, "p2b": 3, "p3": 4, "boot": 5, "selftest": 99}
+SEED_KEY = {"bringup": 1, "p2a": 2, "p2b": 3, "p3": 4, "boot": 5, "sample": 6, "selftest": 99}
 AXIS_IDX = {"valence": 0, "arousal": 1}
 METHOD_IDX = {"emotion_vectors": 0, "jlens": 1}
 DIAG = SPIKE_ROOT / "diagnostics"
@@ -82,12 +92,8 @@ def schema_report(rows: list[dict]) -> dict:
 
 
 def axis_rows(rows: list[dict], axis: str) -> list[dict]:
-    """Rows belonging to an axis. If no row carries an explicit axis field,
-    every row belongs to every axis (schema fallback, documented)."""
-    explicit = [r for r in rows if r.get("axis") is not None]
-    if explicit:
-        return [r for r in rows if str(r.get("axis")) == axis]
-    return rows
+    """Rows belonging to an axis (every row carries an explicit axis field)."""
+    return [r for r in rows if str(r.get("axis")) == axis]
 
 
 def axis_value(row: dict, axis: str) -> float:
@@ -97,29 +103,63 @@ def axis_value(row: dict, axis: str) -> float:
     return float(row[key])
 
 
-def high_low_split(rows: list[dict], axis: str) -> tuple[list[dict], list[dict], str]:
-    """Pre-registered: contrast_group (2 distinct values) > intensity median
-    > axis-value median."""
-    cgs = {str(r.get("contrast_group")) for r in rows if r.get("contrast_group") is not None}
-    if len(cgs) == 2:
-        groups = sorted(cgs)
-        y0 = np.mean([axis_value(r, axis) for r in rows if str(r.get("contrast_group")) == groups[0]])
-        y1 = np.mean([axis_value(r, axis) for r in rows if str(r.get("contrast_group")) == groups[1]])
-        high_g, low_g = (groups[0], groups[1]) if y0 >= y1 else (groups[1], groups[0])
-        high = [r for r in rows if str(r.get("contrast_group")) == high_g]
-        low = [r for r in rows if str(r.get("contrast_group")) == low_g]
-        return high, low, f"contrast_group({high_g} vs {low_g})"
+def high_low_split(rows: list[dict], axis: str) -> tuple[list[dict], list[dict], str, dict]:
+    """Pre-registered: contrast_group side (hi/lo — P1's contrastive pairs).
+    Fallbacks: intensity median, then axis-value median."""
+    hi = [r for r in rows if str(r.get("contrast_group", "")).endswith(":hi")]
+    lo = [r for r in rows if str(r.get("contrast_group", "")).endswith(":lo")]
+    note = {}
+    if hi and lo and len(hi) + len(lo) == len(rows):
+        mh = float(np.mean([axis_value(r, axis) for r in hi]))
+        ml = float(np.mean([axis_value(r, axis) for r in lo]))
+        note = {"split": "contrast_group side (hi/lo)", "hi_mean_intensity": mh, "lo_mean_intensity": ml}
+        if mh < ml:
+            note["ANOMALY"] = "hi group mean intensity < lo group mean (contrast reversed in data)"
+        return hi, lo, note["split"], note
     vals = [r.get("intensity") for r in rows if r.get("intensity") is not None]
     if vals and all(isinstance(v, (int, float)) for v in vals):
         med = float(np.median(vals))
-        high = [r for r in rows if float(r["intensity"]) >= med]
-        low = [r for r in rows if float(r["intensity"]) < med]
-        return high, low, f"intensity median {med:.3f}"
+        hi = [r for r in rows if float(r["intensity"]) >= med]
+        lo = [r for r in rows if float(r["intensity"]) < med]
+        return hi, lo, f"intensity median {med:.3f}", note
     ys = [axis_value(r, axis) for r in rows]
     med = float(np.median(ys))
-    high = [r for r in rows if axis_value(r, axis) >= med]
-    low = [r for r in rows if axis_value(r, axis) < med]
-    return high, low, f"axis-value median {med:.3f}"
+    hi = [r for r in rows if axis_value(r, axis) >= med]
+    lo = [r for r in rows if axis_value(r, axis) < med]
+    return hi, lo, f"axis-value median {med:.3f}", note
+
+
+def sample_rows(rows: list[dict], axis: str, n_target: int) -> tuple[list[dict], dict]:
+    """Seeded stratified sample over P1's intensity bins (width 0.1).
+
+    Pre-registered efficiency decision (documented in jlens-shim-qwen.md): the
+    full train corpus (87,278 rows) exceeds the 8 GB GPU budget for backward
+    passes; directions/readouts are fitted on a stratified sample that keeps
+    coverage across the [0,1] value range. Held-out evaluation uses ALL rows.
+    """
+    rng = rng_for(MASTER_SEED, SEED_KEY["sample"], AXIS_IDX[axis])
+    by_bin: dict[int, list] = {}
+    for r in rows:
+        b = min(N_BINS - 1, int(min(0.999, axis_value(r, axis)) * 10))
+        by_bin.setdefault(b, []).append(r)
+    per = max(1, n_target // N_BINS)
+    chosen: list[dict] = []
+    for b in sorted(by_bin):
+        pool = by_bin[b]
+        idx = rng.permutation(len(pool))[:per]
+        chosen.extend(pool[i] for i in idx)
+    if len(chosen) < n_target:
+        chosen_ids = {r["id"] for r in chosen}
+        rest = [r for r in rows if r["id"] not in chosen_ids]
+        perm = rng.permutation(len(rest))
+        chosen.extend(rest[i] for i in perm[: n_target - len(chosen)])
+    bin_counts = {str(b): sum(1 for r in chosen if min(N_BINS - 1, int(min(0.999, axis_value(r, axis)) * 10)) == b)
+                  for b in range(N_BINS)}
+    meta = {"n_target": n_target, "n": len(chosen),
+            "seed": derive_seed(MASTER_SEED, SEED_KEY["sample"], AXIS_IDX[axis]),
+            "procedure": "stratified by intensity bin (0.1 width), seeded permutation within bin",
+            "bin_counts": bin_counts}
+    return chosen, meta
 
 
 # ---------------------------------------------------------------------------
@@ -131,9 +171,10 @@ class QwenHarness:
     Conventions (documented in diagnostics/jlens-shim-qwen.md):
     - layer i output = residual stream after layer i (input to layer i+1);
       the final RMSNorm output is the head input h_L.
-    - forward hooks: position-mean over ALL real tokens.
-    - backward hooks: position-mean over next-token-LABELED positions
-      (0..n_real-2) so the final-layer analytic check is exact.
+    - Sequence = BOS + stimulus tokens, variable length L (no padding).
+    - forward hooks: position-mean over CONTENT positions 1..L-1.
+    - backward hooks: position-mean over LABELED positions 0..L-2, so the
+      final-layer analytic check is exact.
     """
 
     def __init__(self) -> None:
@@ -188,21 +229,24 @@ class QwenHarness:
         return hook
 
     def tokenize(self, text: str):
+        """BOS + content tokens, variable length L <= SEQ_LEN. Returns
+        (input_ids [1,L], attn [1,L], L, truncated)."""
         ids = self.tok(text, add_special_tokens=False).input_ids
-        if len(ids) < 2:
-            return None, None, len(ids), 0
-        truncated = len(ids) > SEQ_LEN
-        ids = ids[:SEQ_LEN]
-        n_real = len(ids)
-        ids = ids + [self.tok.pad_token_id] * (SEQ_LEN - n_real)
+        if not ids:
+            return None, None, 0, 0
+        truncated = len(ids) > SEQ_LEN - 1
+        bos = self.tok.bos_token_id if self.tok.bos_token_id is not None else self.model.config.bos_token_id
+        ids = [bos] + ids[: SEQ_LEN - 1]
+        L = len(ids)
         input_ids = torch.tensor([ids], dtype=torch.long, device="cuda")
-        attn = torch.tensor([[1] * n_real + [0] * (SEQ_LEN - n_real)], dtype=torch.long, device="cuda")
-        return input_ids, attn, n_real, int(truncated)
+        attn = torch.ones((1, L), dtype=torch.long, device="cuda")
+        return input_ids, attn, L, int(truncated)
 
-    def forward_states(self, input_ids: torch.Tensor, attn: torch.Tensor, n_real: int):
-        """Per-layer position-mean activations + last-real-position logits (bf16 CPU)."""
+    def forward_states(self, input_ids: torch.Tensor, attn: torch.Tensor, L: int):
+        """Per-layer position-mean activations (content positions) + logits at
+        the last real position (bf16 CPU)."""
         self._collect_fwd = True
-        self._pos_mask = attn[0].bool()
+        self._pos_mask = torch.arange(1, L, device=input_ids.device)  # exclude BOS
         self.fwd_acts = {}
         try:
             with torch.no_grad():
@@ -210,15 +254,14 @@ class QwenHarness:
         finally:
             self._collect_fwd = False
         acts = {k: v.clone() for k, v in self.fwd_acts.items()}
-        z_last = out.logits[0, n_real - 1].detach().to("cpu", dtype=torch.bfloat16)
+        z_last = out.logits[0, L - 1].detach().to("cpu", dtype=torch.bfloat16)
         return acts, z_last
 
-    def backward_directions(self, input_ids: torch.Tensor, attn: torch.Tensor, n_real: int):
-        """One forward+backward of mean next-token CE; per-layer position-mean
-        grads w.r.t. the layer-output residual stream (fp32 CPU) + analytic
-        final-layer check stats. Graph leaf = embedding output (no param grads)."""
-        self._pos_mask = attn[0].bool().clone()
-        self._pos_mask[n_real - 1] = False  # labeled positions 0..n_real-2
+    def backward_directions(self, input_ids: torch.Tensor, attn: torch.Tensor, L: int):
+        """One forward+backward of mean next-token CE over labeled positions
+        0..L-2; per-layer position-mean grads (fp32 CPU) + analytic final-layer
+        check. Graph leaf = embedding output (no parameter grads)."""
+        self._pos_mask = torch.arange(0, L - 1, device=input_ids.device)  # labeled
         self._x0 = self.model.model.embed_tokens(input_ids).detach().requires_grad_(True)
         self._collect_fwd = False
         self._collect_bwd = True
@@ -227,8 +270,7 @@ class QwenHarness:
         try:
             out = self.model(input_ids=input_ids, attention_mask=attn, use_cache=False)
             logits = out.logits
-            labels = input_ids[:, 1:].clone()
-            labels[attn[:, 1:] == 0] = -100
+            labels = input_ids[:, 1:]  # stimulus tokens (next-token prediction)
             loss = torch.nn.functional.cross_entropy(
                 logits[:, :-1].reshape(-1, self.vocab), labels.reshape(-1)
             )
@@ -236,11 +278,10 @@ class QwenHarness:
             if "norm" in self.bwd_grads:
                 z = logits[0, :-1].float()
                 lab = labels[0]
-                mask = lab != -100
-                sm = torch.softmax(z[mask], dim=-1)
+                sm = torch.softmax(z, dim=-1)
                 onehot = torch.zeros_like(sm)
-                onehot.scatter_(1, lab[mask].unsqueeze(1), 1.0)
-                n_lab = int(mask.sum())
+                onehot.scatter_(1, lab.unsqueeze(1), 1.0)
+                n_lab = lab.numel()
                 # cross_entropy(reduction='mean') scales per-position gradients
                 # by 1/n_labeled — included so the check is scale-exact.
                 ana = ((sm - onehot) @ self.model.lm_head.weight.float()).mean(dim=0) / n_lab
@@ -302,47 +343,47 @@ def bin_index(p_tilde: np.ndarray) -> np.ndarray:
 # ---------------------------------------------------------------------------
 # Stage P2a — emotion vectors (forward only)
 # ---------------------------------------------------------------------------
-def stage_p2a(h: QwenHarness, train: list[dict], seed: int) -> dict:
+def stage_p2a(h: QwenHarness, train_sample: dict[str, list[dict]], seed: int) -> dict:
     seed_everything(seed)
     out = {"model": MODEL_ID, "revision": MODEL_REVISION, "seed": seed,
            "stage": "P2a emotion vectors (forward hooks)", "axes": {}}
     directions: dict[str, dict[str, np.ndarray]] = {}
     for axis in AXES:
-        rows = axis_rows(train, axis)
-        high, low, split_desc = high_low_split(rows, axis)
+        rows = train_sample[axis]
+        high, low, split_desc, split_note = high_low_split(rows, axis)
         hi_ids = {r["id"] for r in high}
         per_stim: list[dict] = []
         for r in rows:
-            input_ids, attn, n_real, _ = h.tokenize(r["text"])
+            input_ids, attn, L, _ = h.tokenize(r["text"])
             if input_ids is None:
                 continue
-            acts, _ = h.forward_states(input_ids, attn, n_real)
+            acts, _ = h.forward_states(input_ids, attn, L)
             per_stim.append({"y": axis_value(r, axis), "acts": acts, "high": r["id"] in hi_ids})
         n_used = len(per_stim)
         if n_used == 0:
-            raise RuntimeError(f"axis {axis}: no usable train stimuli (all <2 tokens?)")
+            raise RuntimeError(f"axis {axis}: no usable train stimuli (all empty texts?)")
         layers = sorted(per_stim[0]["acts"].keys())
         y_arr = np.array([s["y"] for s in per_stim])
         axes_out: dict = {"n": n_used,
                           "n_high": sum(s["high"] for s in per_stim),
                           "n_low": n_used - sum(s["high"] for s in per_stim),
-                          "split": split_desc, "layers": {}}
+                          "split": split_desc, "split_note": split_note, "layers": {}}
         directions[axis] = {}
-        for L in layers:
-            vecs = [s["acts"][L].numpy() for s in per_stim]
+        for Lk in layers:
+            vecs = [s["acts"][Lk].numpy() for s in per_stim]
             d = contrastive_direction(
                 [v for s, v in zip(per_stim, vecs) if s["high"]],
                 [v for s, v in zip(per_stim, vecs) if not s["high"]],
             )
             dhat = unit(d)
-            directions[axis][L] = dhat
+            directions[axis][Lk] = dhat
             proj = np.array([float(v @ dhat) for v in vecs])
             tr = pearson(proj, y_arr)
             hi_v = [v for s, v in zip(per_stim, vecs) if s["high"]]
             lo_v = [v for s, v in zip(per_stim, vecs) if not s["high"]]
             sd_pooled = np.sqrt((np.var(np.stack(hi_v), axis=0).mean()
                                  + np.var(np.stack(lo_v), axis=0).mean()) / 2 + 1e-12)
-            axes_out["layers"][L] = {
+            axes_out["layers"][Lk] = {
                 "norm": float(np.linalg.norm(d)), "cohen_d": float(np.linalg.norm(d) / sd_pooled),
                 "train_r": tr,
                 "proj_high_mean": float(np.mean([v @ dhat for v in hi_v])),
@@ -358,7 +399,7 @@ def stage_p2a(h: QwenHarness, train: list[dict], seed: int) -> dict:
 # ---------------------------------------------------------------------------
 # Stage P2b — J-lens (backward, layer-sharded accumulation + vocabulary readout)
 # ---------------------------------------------------------------------------
-def stage_p2b(h: QwenHarness, train: list[dict], seed: int) -> dict:
+def stage_p2b(h: QwenHarness, train_sample: dict[str, list[dict]], seed: int) -> dict:
     seed_everything(seed)
     h.model.train()
     h.model.gradient_checkpointing_enable()
@@ -366,7 +407,7 @@ def stage_p2b(h: QwenHarness, train: list[dict], seed: int) -> dict:
     torch.cuda.empty_cache()
 
     keys = [str(i) for i in range(h.n_layers)] + ["norm"]
-    axis_rows_map = {a: axis_rows(train, a) for a in AXES}
+    axis_rows_map = {a: train_sample[a] for a in AXES}
     ybar = {a: float(np.mean([axis_value(r, a) for r in axis_rows_map[a]])) for a in AXES}
     seen: dict = {}
     for a in AXES:
@@ -377,12 +418,13 @@ def stage_p2b(h: QwenHarness, train: list[dict], seed: int) -> dict:
     acc = {a: {k: np.zeros(h.hidden, dtype=np.float64) for k in keys} for a in AXES}
     analytic = None
     n_done = 0
+    t0 = time.perf_counter()
     try:
         for r in seen.values():
-            input_ids, attn, n_real, _ = h.tokenize(r["text"])
+            input_ids, attn, L, _ = h.tokenize(r["text"])
             if input_ids is None:
                 continue
-            grads, stats = h.backward_directions(input_ids, attn, n_real)
+            grads, stats = h.backward_directions(input_ids, attn, L)
             if analytic is None and stats:
                 analytic = stats
             for a in AXES:
@@ -393,6 +435,10 @@ def stage_p2b(h: QwenHarness, train: list[dict], seed: int) -> dict:
             n_done += 1
             if n_done % 25 == 0:
                 torch.cuda.empty_cache()
+            if n_done % 200 == 0:
+                rate = n_done / (time.perf_counter() - t0)
+                print(f"[P2b] {n_done} stimuli, {rate:.1f}/s, "
+                      f"ETA { (len(seen) - n_done) / rate / 60:.1f} min", flush=True)
     except torch.cuda.OutOfMemoryError:
         return {"fallback": True, "reason": "torch.cuda.OutOfMemoryError in backward pass",
                 "n_stimuli_done": n_done}
@@ -408,14 +454,13 @@ def stage_p2b(h: QwenHarness, train: list[dict], seed: int) -> dict:
         dirs = {k: unit(acc[axis][k]) for k in keys}
         directions[axis] = dirs
         y_arr = np.array([axis_value(r, axis) for r in rows])
-        # one forward pass per stimulus: projections (all layers) + z_last
         proj: dict[str, list] = {k: [] for k in keys}
         z_list: list = []
         for r in rows:
-            input_ids, attn, n_real, _ = h.tokenize(r["text"])
+            input_ids, attn, L, _ = h.tokenize(r["text"])
             if input_ids is None:
                 continue
-            acts, z_last = h.forward_states(input_ids, attn, n_real)
+            acts, z_last = h.forward_states(input_ids, attn, L)
             z_list.append(z_last)
             for k in keys:
                 proj[k].append(float(acts[k].numpy() @ dirs[k]) if k in acts else float("nan"))
@@ -461,7 +506,6 @@ def stage_p2b(h: QwenHarness, train: list[dict], seed: int) -> dict:
             bins_out[b]["fallback"] = f"copied from bin {near} (n={int(bin_n[near])})"
             bins_out[b]["top_tokens"] = bins_out[near]["top_tokens"]
             bins_out[b]["mean_y"] = bins_out[near]["mean_y"]
-        # axis-level J-lens token scores: softmax(W_U @ d_norm)
         wu = h.model.lm_head.weight.detach().float()
         scores = torch.softmax(wu @ torch.from_numpy(dirs["norm"].astype(np.float32)), dim=-1).numpy()
         dir_tokens = []
@@ -489,7 +533,7 @@ def stage_p2b(h: QwenHarness, train: list[dict], seed: int) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Stage P3 — H1 geometry on held-out (Qwen-family gate)
+# Stage P3 — H1 geometry on held-out (Qwen-family gate; ALL held-out rows)
 # ---------------------------------------------------------------------------
 def stage_p3(h: QwenHarness, held: list[dict], emo_vec: dict, jlens: dict, seed: int) -> dict:
     seed_everything(seed)
@@ -500,10 +544,10 @@ def stage_p3(h: QwenHarness, held: list[dict], emo_vec: dict, jlens: dict, seed:
         rows = axis_rows(held, axis)
         per_stim = []
         for r in rows:
-            input_ids, attn, n_real, _ = h.tokenize(r["text"])
+            input_ids, attn, L, _ = h.tokenize(r["text"])
             if input_ids is None:
                 continue
-            acts, _ = h.forward_states(input_ids, attn, n_real)
+            acts, _ = h.forward_states(input_ids, attn, L)
             per_stim.append({"y": axis_value(r, axis), "acts": acts})
         y_arr = np.array([s["y"] for s in per_stim])
         n = len(per_stim)
@@ -512,23 +556,24 @@ def stage_p3(h: QwenHarness, held: list[dict], emo_vec: dict, jlens: dict, seed:
         dirs_jl = jlens["_directions"][axis]
         prof: dict = {}
         for method, dirs in (("emotion_vectors", dirs_ev), ("jlens", dirs_jl)):
-            for L in layers:
-                if L not in dirs:
+            for Lk in layers:
+                if Lk not in dirs:
                     continue
-                dhat = dirs[L]
-                proj = np.array([float(s["acts"][L].numpy() @ dhat) for s in per_stim])
+                dhat = dirs[Lk]
+                proj = np.array([float(s["acts"][Lk].numpy() @ dhat) for s in per_stim])
                 r = pearson(proj, y_arr)
-                rng = rng_for(MASTER_SEED, SEED_KEY["boot"], AXIS_IDX[axis], METHOD_IDX[method], int(L) if L != "norm" else -1)
+                rng = rng_for(MASTER_SEED, SEED_KEY["boot"], AXIS_IDX[axis], METHOD_IDX[method],
+                              int(Lk) if Lk != "norm" else -1)
                 lo, hi = bootstrap_ci(proj, y_arr, rng)
-                prof.setdefault(L, {})[method] = {"r": r, "ci": [lo, hi], "n": n}
+                prof.setdefault(Lk, {})[method] = {"r": r, "ci": [lo, hi], "n": n}
         axes_out: dict = {"n": n, "methods": {}, "layer_profile": prof}
         for method, dirs, chosen in (
             ("emotion_vectors", dirs_ev, emo_vec["axes"][axis]["best_layer_by_abs_train_r"]),
             ("jlens", dirs_jl, jlens["axes"][axis]["best_layer_by_abs_train_r"]),
         ):
-            L = str(chosen) if str(chosen) in prof and method in prof[str(chosen)] else next(iter(prof))
-            blk = dict(prof[L][method])
-            blk["layer"] = L
+            Lk = str(chosen) if str(chosen) in prof and method in prof[str(chosen)] else next(iter(prof))
+            blk = dict(prof[Lk][method])
+            blk["layer"] = Lk
             blk["train_selected_layer"] = str(chosen)
             axes_out["methods"][method] = blk
         prim = axes_out["methods"]["emotion_vectors"]
@@ -611,23 +656,23 @@ def bringup() -> None:
     seed_everything(seed)
     h = QwenHarness()
     print(f"load {h.load_s:.1f}s, layers={h.n_layers}, hidden={h.hidden}, vocab={h.vocab}", flush=True)
-    text = "The quiet warmth of a slow evening settles over the small room."
-    input_ids, attn, n_real, trunc = h.tokenize(text)
-    print(f"tokens: n_real={n_real}, truncated={trunc}", flush=True)
-    torch.cuda.reset_peak_memory_stats()
-    acts, z_last = h.forward_states(input_ids, attn, n_real)
-    print(f"fwd peak {torch.cuda.max_memory_allocated()/1e6:.0f} MiB, captured {len(acts)} layers", flush=True)
-    h.model.train()
-    h.model.gradient_checkpointing_enable()
-    torch.cuda.reset_peak_memory_stats()
-    grads, stats = h.backward_directions(input_ids, attn, n_real)
-    peak = torch.cuda.max_memory_allocated() / (1024 * 1024)
-    print(f"bwd peak {peak:.1f} MiB, captured {len(grads)} layers", flush=True)
-    print(f"analytic check: cos={stats.get('cos')}, rel_diff={stats.get('rel_diff')}", flush=True)
-    assert len(grads) == h.n_layers + 1, f"missing layer grads: {len(grads)}"
-    assert stats.get("cos", 0) > 0.99, "analytic check failed"
-    print(json.dumps({"bringup": "PASS", "bwd_peak_mib": round(peak, 1),
-                      "analytic_cos": stats.get("cos"), "analytic_rel_diff": stats.get("rel_diff")}))
+    for text in ("The quiet warmth of a slow evening settles over the small room.", "hurt", "joy"):
+        input_ids, attn, L, trunc = h.tokenize(text)
+        print(f"'{text[:30]}' -> L={L}, truncated={trunc}", flush=True)
+        torch.cuda.reset_peak_memory_stats()
+        acts, z_last = h.forward_states(input_ids, attn, L)
+        print(f"  fwd peak {torch.cuda.max_memory_allocated()/1e6:.0f} MiB, captured {len(acts)} layers", flush=True)
+        h.model.train()
+        h.model.gradient_checkpointing_enable()
+        torch.cuda.reset_peak_memory_stats()
+        grads, stats = h.backward_directions(input_ids, attn, L)
+        peak = torch.cuda.max_memory_allocated() / (1024 * 1024)
+        print(f"  bwd peak {peak:.1f} MiB, captured {len(grads)} layers, "
+              f"analytic cos={stats.get('cos')}, rel_diff={stats.get('rel_diff')}", flush=True)
+        assert len(grads) == h.n_layers + 1, f"missing layer grads: {len(grads)}"
+        assert stats.get("cos", 0) > 0.99, "analytic check failed"
+        h.model.eval()
+    print(json.dumps({"bringup": "PASS"}))
 
 
 # ---------------------------------------------------------------------------
@@ -637,6 +682,7 @@ def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("stage", choices=["selftest", "bringup", "all"])
     ap.add_argument("--wait-min", type=int, default=60)
+    ap.add_argument("--n-sample", type=int, default=2000, help="train rows per axis for fitting passes")
     args = ap.parse_args()
 
     if args.stage == "selftest":
@@ -659,15 +705,32 @@ def main() -> None:
         print("train:", json.dumps(schema_report(tr)), flush=True)
         print("heldout:", json.dumps(schema_report(he)), flush=True)
 
+    # seeded stratified train samples (fitting passes only; held-out untouched)
+    sample_meta = {}
+    sample_ids = {}
+    train_sample = {}
+    for axis in AXES:
+        rows = axis_rows(tr, axis)
+        sample, meta = sample_rows(rows, axis, args.n_sample)
+        train_sample[axis] = sample
+        sample_meta[axis] = meta
+        sample_ids[axis] = [r["id"] for r in sample]
+        print(f"[sample] {axis}: n={meta['n']} bins={meta['bin_counts']} "
+              f"seed={meta['seed']}", flush=True)
+    (DIAG / "sample_ids-qwen.json").write_text(json.dumps(
+        {"model": MODEL_ID, "revision": MODEL_REVISION, "axes": sample_ids,
+         "meta": sample_meta}, indent=2) + "\n")
+
     gpu_clear()
     seed_a = derive_seed(MASTER_SEED, SEED_KEY["p2a"])
     print("[P2a] loading model...", flush=True)
     h = QwenHarness()
     print(f"[P2a] model loaded in {h.load_s:.1f}s", flush=True)
     t0 = time.perf_counter()
-    emo = stage_p2a(h, tr, seed_a)
+    emo = stage_p2a(h, train_sample, seed_a)
     print(f"[P2a] done in {time.perf_counter()-t0:.1f}s", flush=True)
     emo_json = {k: v for k, v in emo.items() if not k.startswith("_")}
+    emo_json["sample"] = sample_meta
     (DIAG / "emotion_vectors-qwen.json").write_text(json.dumps(emo_json, indent=2) + "\n")
     np.savez(DIAG / "emotion_vectors-qwen_dirs.npz",
              **{f"{a}__{k}": v for a in emo["_directions"] for k, v in emo["_directions"][a].items()})
@@ -677,7 +740,7 @@ def main() -> None:
     seed_b = derive_seed(MASTER_SEED, SEED_KEY["p2b"])
     print("[P2b] backward pass (J-lens)...", flush=True)
     t0 = time.perf_counter()
-    jl = stage_p2b(h, tr, seed_b)
+    jl = stage_p2b(h, train_sample, seed_b)
     print(f"[P2b] done in {time.perf_counter()-t0:.1f}s, peak {jl.get('peak_alloc_mib')} MiB, "
           f"fallback={jl.get('fallback')}", flush=True)
     for axis in AXES:
@@ -694,7 +757,7 @@ def main() -> None:
 
     gpu_clear()
     seed_p3 = derive_seed(MASTER_SEED, SEED_KEY["p3"])
-    print("[P3] held-out geometry...", flush=True)
+    print("[P3] held-out geometry (all held-out rows)...", flush=True)
     t0 = time.perf_counter()
     geo = stage_p3(h, he, emo, jl, seed_p3)
     print(f"[P3] done in {time.perf_counter()-t0:.1f}s", flush=True)
