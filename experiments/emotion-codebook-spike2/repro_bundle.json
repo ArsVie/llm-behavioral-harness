@@ -193,6 +193,75 @@
       "snapshot_path": "/home/vruizes/.cache/huggingface/hub/models--Qwen--Qwen3-1.7B/snapshots/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
       "total_bytes": 4079450110
     },
+    "models.qwen3-8B": {
+      "files": {
+        ".gitattributes": {
+          "bytes": 1570,
+          "sha256": null
+        },
+        "LICENSE": {
+          "bytes": 11343,
+          "sha256": null
+        },
+        "README.md": {
+          "bytes": 16660,
+          "sha256": null
+        },
+        "config.json": {
+          "bytes": 728,
+          "sha256": null
+        },
+        "generation_config.json": {
+          "bytes": 239,
+          "sha256": null
+        },
+        "merges.txt": {
+          "bytes": 1671853,
+          "sha256": null
+        },
+        "model-00001-of-00005.safetensors": {
+          "bytes": 3996250744,
+          "sha256": "31d6a825ae35f11fb85b195b4c42c146c051e446433125a215336abdf95cbf5f"
+        },
+        "model-00002-of-00005.safetensors": {
+          "bytes": 3993160032,
+          "sha256": "5991236cea6fe21f3d43cab0f0e84448734fbbe0789816202989f2ddc9d18282"
+        },
+        "model-00003-of-00005.safetensors": {
+          "bytes": 3959604768,
+          "sha256": "c5185c4794be2d8a9784d5753c9922db38df478ce11f9ed0b415b7304d896836"
+        },
+        "model-00004-of-00005.safetensors": {
+          "bytes": 3187841392,
+          "sha256": "b5ee7de71fbf17db3d5704e0c8f2bc7d005ca9e1d7ca2aeb19827b0cfcaa917a"
+        },
+        "model-00005-of-00005.safetensors": {
+          "bytes": 1244659840,
+          "sha256": "20c2d6366ab85c90786ccdd829cd2b9e7d30ef3b2ebbb998280e7e4014b542ff"
+        },
+        "model.safetensors.index.json": {
+          "bytes": 32878,
+          "sha256": "f9fdbcb91c23971c13ec5d5f2573d2349e8f61f2f049371ec699281748fdb1bc"
+        },
+        "tokenizer.json": {
+          "bytes": 11422654,
+          "sha256": null
+        },
+        "tokenizer_config.json": {
+          "bytes": 9732,
+          "sha256": null
+        },
+        "vocab.json": {
+          "bytes": 2776833,
+          "sha256": null
+        }
+      },
+      "repo_id": "Qwen/Qwen3-8B",
+      "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+      "snapshot_path": "/home/vruizes/.cache/huggingface/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+      "status": "PINNED + VERIFIED (8B-PREP 2026-08-16): 5 shards downloaded, sha256 verified vs LFS; 4-bit NF4 bringup PASS; EV-only track",
+      "total_bytes": 16397461266
+    },
     "seeds": {
       "master_seed": 20260815,
       "policy": "per-run seeds = derive_seed(master, *key) via SeedSequence (mirrors engine/rng.py); seed_everything() before any sampling/generation; fixed-temperature DecodingConfig below.",
@@ -217,6 +286,27 @@
       "seed": 2764385816,
       "seq_len": 128,
       "total_s": 10.66
+    },
+    "smoke.qwen3-8B": {
+      "PASS": true,
+      "analytic_cos": 1.000009,
+      "budget_mib": 8151,
+      "dtype": "4-bit NF4 (bitsandbytes 0.50.1, compute bf16, double quant)",
+      "lm_head_dtype": "bfloat16",
+      "lm_head_quantized": false,
+      "load_s": 6.0,
+      "model_id": "Qwen/Qwen3-8B",
+      "n_params": 8190735360,
+      "peak_alloc_after_load_mib": 5887.6,
+      "peak_fwd_mib": 5818.5,
+      "peak_overall_mib": 5887.6,
+      "quant": "bitsandbytes NF4",
+      "revision": "b968826d9c46dd6066d109eabc6255188de91218",
+      "seed": 1391838787,
+      "seq_len": 128,
+      "target_fwd_mib": 7000,
+      "under_fwd_target": true,
+      "verified_by": "8B-PREP 2026-08-16 (bringup: 3 sequence types, analytic readout cos>0.99, readout top tokens decode)"
     }
   },
   "spike": "emotion-codebook-spike"
