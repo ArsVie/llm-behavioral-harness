@@ -209,7 +209,9 @@ def persistence(record: LogRecord) -> float:
         if toks & seen:
             persistent += 1
         seen |= toks
-    return persistent / len(comp_idx)
+    # the first companion turn has no earlier companion turn to re-tread:
+    # it is excluded from the denominator.
+    return persistent / (len(comp_idx) - 1)
 
 
 def reactivity(record: LogRecord) -> float:
