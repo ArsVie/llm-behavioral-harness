@@ -38,6 +38,7 @@ from harness.life import (
     generate_agenda,
     init_life,
     step_life,
+    transition_past_windows,
 )
 
 #: Fixed seed for the 30-day core simulation (deterministic, documented).
@@ -777,6 +778,110 @@ def test_step_life_current_activity_with_t_h(tmp_path):
                      stream_rng(CORE_SEED, LIFE_STREAM, day),
                      t_h=_day_start(day) + AWAKE_END_H + 0.5)
     assert late.current_activity is None
+
+
+# ---------------------------------------------------------------------------
+# W2 (S2): transition_past_windows — planned -> completed as windows pass
+# ---------------------------------------------------------------------------
+
+def _transition_fixture(day: int = 0):
+    base = _day_start(day)
+    return domain.DailyAgenda(
+        day=day,
+        items=(
+            domain.AgendaItem("ag_coffee", base + 6 + 58 / 60, base + 7 + 46 / 60,
+                              "morning coffee", "routine", "r1", 0.9, "planned"),
+            domain.AgendaItem("ag_pottery", base + 15.0, base + 16.0,
+                              "pottery", "arc", "a1", 0.8, "planned"),
+            domain.AgendaItem("ag_walk", base + 20.0, base + 21.0,
+                              "evening walk", "routine", "r2", 0.5, "planned"),
+        ),
+    )
+
+
+def test_transition_past_windows_planned_to_completed():
+    """Before the window: nothing changes; inside: still planned; after the
+    window has fully passed: planned -> completed (the day's plan is treated
+    as fulfilled — 'done'; the render partition labels it 'Done earlier')."""
+    agenda = _transition_fixture()
+
+    # t_h before the first window (06:00): nothing has passed
+    assert transition_past_windows(agenda, t_h=6.0, day=0) == []
+
+    # inside the coffee window (07:00): still planned
+    changed = transition_past_windows(agenda, t_h=7.0, day=0)
+    assert [it.id for it in changed] == []
+
+    # at 15:24 the coffee window (06:58-07:46) has fully passed
+    changed = transition_past_windows(agenda, t_h=15.4, day=0)
+    assert [it.id for it in changed] == ["ag_coffee"]
+    assert changed[0].status == "completed"
+    assert changed[0].activity == "morning coffee"
+
+    # pottery is IN progress (15:00-16:00 at 15.4): stays planned
+    # (the transition only fires once a window has fully passed)
+    assert not any(it.id == "ag_pottery" for it in changed)
+
+    # after everything (22:00): all planned windows passed
+    changed = transition_past_windows(agenda, t_h=22.0, day=0)
+    assert {it.id for it in changed} == {"ag_coffee", "ag_pottery", "ag_walk"}
+    assert all(it.status == "completed" for it in changed)
+
+
+def test_transition_past_windows_never_touches_non_planned():
+    """completed/skipped/shifted items are never re-drawn — the rollover
+    draw (step_life) still owns the items left planned at day end."""
+    agenda = domain.DailyAgenda(
+        day=0,
+        items=(
+            domain.AgendaItem("ag_done", 6.0, 7.0, "done thing", "arc", "a",
+                              0.5, "completed"),
+            domain.AgendaItem("ag_skip", 8.0, 9.0, "skipped thing", "arc", "a",
+                              0.5, "skipped"),
+            domain.AgendaItem("ag_move", 10.0, 11.0, "moved thing", "arc", "a",
+                              0.5, "shifted"),
+            domain.AgendaItem("ag_planned", 12.0, 13.0, "still planned", "arc",
+                              "a", 0.5, "planned"),
+        ),
+    )
+    changed = transition_past_windows(agenda, t_h=23.0, day=0)
+    assert [it.id for it in changed] == ["ag_planned"]
+    assert changed[0].status == "completed"
+
+
+def test_transition_past_windows_scoped_to_day():
+    """Items of OTHER days are never transitioned by a turn of this day."""
+    other_day = domain.DailyAgenda(
+        day=1,
+        items=(
+            domain.AgendaItem("ag_other", 25.0, 26.0, "next-day thing", "arc",
+                              "a", 0.5, "planned"),
+        ),
+    )
+    # a day-0 turn at t_h 25.5 must not touch the day-1 item
+    assert transition_past_windows(other_day, t_h=25.5, day=0) == []
+    # the day-1 turn itself does (window 25.0-26.0 fully passed at 26.5)
+    changed = transition_past_windows(other_day, t_h=26.5, day=1)
+    assert [it.id for it in changed] == ["ag_other"]
+
+
+def test_transition_persists_through_store_seam(tmp_path):
+    """The session hook persists the transition via
+    store.update_agenda_item_status; load_agenda reflects it."""
+    store = _store(tmp_path)
+    agenda = _transition_fixture()
+    store.save_agenda(0, agenda)
+    for item in transition_past_windows(agenda, t_h=15.4, day=0):
+        store.update_agenda_item_status(item.id, item.status)
+    stored = store.load_agenda(0)
+    assert stored is not None
+    by_id = {it.id: it for it in stored.items}
+    assert by_id["ag_coffee"].status == "completed"
+    assert by_id["ag_pottery"].status == "planned"
+    assert by_id["ag_walk"].status == "planned"
+    # idempotent: re-running the transition changes nothing more
+    again = transition_past_windows(stored, t_h=15.4, day=0)
+    assert again == []
 
 
 # ---------------------------------------------------------------------------

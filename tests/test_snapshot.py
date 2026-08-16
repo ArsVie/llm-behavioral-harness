@@ -46,6 +46,23 @@ FORBIDDEN_SUBSTRINGS = (
 )
 FORBIDDEN_G_RE = re.compile(r"\bg\b")
 
+#: G2 (W2+W3): raw engine numbers never reach the assembled prompt — no
+#: bare t_h floats, no channel floats (unformatted ``digits.digits``).
+#: The ONLY numeric content allowed is clock-shaped times (HH:MM — the
+#: temporal line's 15:24, the agenda's 06:58) and the temporal line's
+#: virtual day index ("day N").
+FORBIDDEN_FLOAT_RE = re.compile(r"\d+\.\d+")
+CLOCK_TIME_RE = re.compile(r"\d{1,2}:\d{2}")
+DAY_INDEX_RE = re.compile(r"day \d+")
+
+
+def numeric_leak(prompt: str) -> list[str]:
+    """Digits remaining after masking clock times and the temporal line's
+    day index — the only numeric content allowed (G2)."""
+    masked = CLOCK_TIME_RE.sub("T:T", prompt)
+    masked = DAY_INDEX_RE.sub("day N", masked)
+    return re.findall(r"\d+", masked)
+
 #: Vocabulary used by the battery is deliberately free of the tokens
 #: ("music", "must", "much", "beta", ... would trip the substring check).
 BATTERY_MESSAGES = (
@@ -133,6 +150,16 @@ def _check_prompt(prompt: str, *, seed: int, day: int) -> None:
     assert not FORBIDDEN_G_RE.search(low), (
         f"standalone 'g' leaked (seed={seed} day={day}): {prompt[:600]}"
     )
+    # G2 (W2+W3): raw engine numbers never reach the prompt — no bare
+    # t_h/channel floats; clock times and the temporal day index are the
+    # only numeric content allowed.
+    assert not FORBIDDEN_FLOAT_RE.search(prompt), (
+        f"raw engine float leaked (seed={seed} day={day}): {prompt[:600]}"
+    )
+    leaked = numeric_leak(prompt)
+    assert not leaked, (
+        f"unexpected numeric content {leaked!r} (seed={seed} day={day}): {prompt[:600]}"
+    )
     # Persona core + life content present and bounded.
     assert "Nova" in prompt
     assert "Current activity:" in prompt
@@ -162,6 +189,50 @@ def test_forbidden_tokens_never_reach_assembled_prompt(tmp_path):
     # Sanity: the battery actually spans multiple engine phases (if this
     # ever fails, the seeds no longer cover the phase space — adjust).
     assert len(phases_seen) >= 2, f"battery collapsed onto one phase: {phases_seen}"
+
+
+TEMPORAL_LINE_RE = re.compile(
+    r"It is \d{2}:\d{2}, [A-Z][a-z]+ (morning|afternoon|evening|night) — day \d+\."
+)
+
+
+def test_time_aware_anchored_battery_clean(tmp_path):
+    """G2/G3 on REAL anchored assembled prompts: with the G3 anchor attached
+    (epoch0 2026-08-15T13:30:00Z, tz America/Chihuahua), 3 days × turns at
+    ~15:00 the temporal section renders (line + partition), the line reads
+    the right weekday for the REAL date, and the numeric scan stays clean —
+    the temporal line's times and the agenda's clock times are the ONLY
+    numeric content allowed."""
+    from datetime import datetime, timezone
+
+    from harness.anchor import RealTimeAnchor
+
+    anchor = RealTimeAnchor(
+        epoch0_s=datetime(2026, 8, 15, 13, 30, 0, tzinfo=timezone.utc).timestamp(),
+        t_h0=7.5,
+        tz="America/Chihuahua",
+    )
+    weekdays = ["Saturday", "Sunday", "Monday"]
+    for day in range(3):
+        store, clock, client, session = _battery_session(tmp_path, 44, MoodVariant.ORIGINAL)
+        store.attach_anchor(anchor)
+        clock.advance_to_day(day)
+        clock.advance_hours(15.0)
+        _ensure_activity_at(store, session, day, clock.now_h())
+        session.on_message("hello there")
+        prompt = client.calls[-1]["system"]
+        # G3: temporal line present, correct weekday + day index
+        assert f"It is 15:00, {weekdays[day]} afternoon — day {day}." in prompt, (
+            f"temporal line wrong (day={day}): {prompt[:600]}"
+        )
+        # partition labels present (life agenda spans the day)
+        assert "Done earlier:" in prompt or "Happening now:" in prompt
+        assert "Later today:" in prompt
+        # the extended G2 scan (floats + numeric leak) holds on the
+        # anchored prompts too
+        _check_prompt(prompt, seed=44, day=day)
+        store.close()
+        assert TEMPORAL_LINE_RE.search(prompt)
 
 
 def test_forbidden_tokens_absent_after_finalize_and_resume(tmp_path):
