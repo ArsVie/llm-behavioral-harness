@@ -91,11 +91,51 @@
     },
     "models.gemma3-1b-pt": {
       "fallback_note": "google/gemma-2-2b (sha c5ebcd40d208330abc697524c919956e692655cf) also gated \u2014 the token blocker applies to every Gemma model; size fallback question moot until token.",
+      "files": {
+        "README.md": {
+          "bytes": 23496,
+          "sha256": null
+        },
+        "added_tokens.json": {
+          "bytes": 35,
+          "sha256": null
+        },
+        "config.json": {
+          "bytes": 880,
+          "sha256": null
+        },
+        "generation_config.json": {
+          "bytes": 215,
+          "sha256": null
+        },
+        "model.safetensors": {
+          "bytes": 1999811208,
+          "sha256": "ee5250f6eb1aa7cfb729dfd4dc8d9964fd772324776c6d00bf2bc674c069cb27"
+        },
+        "special_tokens_map.json": {
+          "bytes": 662,
+          "sha256": null
+        },
+        "tokenizer.json": {
+          "bytes": 33384570,
+          "sha256": null
+        },
+        "tokenizer.model": {
+          "bytes": 4689074,
+          "sha256": null
+        },
+        "tokenizer_config.json": {
+          "bytes": 1155349,
+          "sha256": null
+        }
+      },
       "gated": "manual",
       "note": "google/gemma-3-1b-it is dcc83ea841ab6100d6b47a070329e1ba4cf78752 (also gated)",
       "repo_id": "google/gemma-3-1b-pt",
       "revision": "fcf18a2a879aab110ca39f8bffbccd5d49d8eb29",
-      "status": "BLOCKED \u2014 no HF token on this machine (user must supply token/auth link)"
+      "snapshot_path": "/home/vruizes/.cache/huggingface/hub/models--google--gemma-3-1b-pt/snapshots/fcf18a2a879aab110ca39f8bffbccd5d49d8eb29",
+      "status": "PINNED + VERIFIED (P2-Gemma-PREP 2026-08-15): weights downloaded, CPU analytic check + GPU bringup PASS",
+      "total_bytes": 2039065489
     },
     "models.qwen3-1.7B": {
       "files": {
