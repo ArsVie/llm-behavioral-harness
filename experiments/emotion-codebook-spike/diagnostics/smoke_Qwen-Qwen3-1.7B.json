@@ -1,0 +1,20 @@
+{
+  "model_id": "Qwen/Qwen3-1.7B",
+  "seed": 2764385816,
+  "seq_len": 128,
+  "dtype": "bfloat16",
+  "checkpointing": true,
+  "n_params": 1720574976,
+  "load_s": 2.86,
+  "fwd_s": 0.558,
+  "bwd_s": 0.288,
+  "total_s": 6.98,
+  "peak_alloc_mib": 7806.8,
+  "peak_fwd_mib": 3344.4,
+  "budget_mib": 8151,
+  "n_grad_tensors": 310,
+  "grad_finite": true,
+  "grad_norm": 88.2894,
+  "loss": 13.4375,
+  "PASS": true
+}

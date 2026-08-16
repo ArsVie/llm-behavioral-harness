@@ -1,0 +1,6 @@
+# P0 spike: never commit venv / big data / caches
+.venv/
+__pycache__/
+*.pyc
+datasets/raw/
+datasets/nrc-vad/
