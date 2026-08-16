@@ -16,8 +16,8 @@ Wire del stack completo, cero piezas nuevas en el runtime:
   misma ruta continúa la historia sin rewind.
 
 Uso:
-    # con el token de Hermes (steal the gate):
-    set -a; . ~/.hermes/.env; set +a
+    # lane token (LILY_TOKEN) vive en el .env de la raíz del repo:
+    set -a; . <repo>/.env; set +a
     .venv/bin/python -m experiments.live_companion --channel telegram \
         --db results/live-companion/companion.db
     .venv/bin/python -m experiments.live_companion --channel cli \
@@ -58,6 +58,9 @@ from harness.anchor import anchor_for_fresh_start
 from harness.runtime import AsyncRuntime, IntentResolver, load_anchor, persist_anchor
 from harness.scheduler import ProactiveSchedule, day_scores
 from harness.client import OpenAICompatibleClient
+from harness.credentials import load_env_file
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
 
 #: 1 hora virtual = 1 hora real (modo en vivo; la matriz usa 0.0004).
 LIVE_TIME_SCALE_S_PER_VH = 3600.0
@@ -90,7 +93,7 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
     from experiments.cvs_common import stream_rng, rng_mod
 
     if client is None:
-        client = OpenAICompatibleClient()
+        client = OpenAICompatibleClient(lane="product")
     if judge is None:
         judge = DeterministicJudge(seed, block_start=BLOCK_START_D, block_end=BLOCK_END_D)
     persona = persona or PersonaParams()
@@ -194,6 +197,11 @@ def main(argv: list[str] | None = None) -> int:
                              "America/Mexico_City); default HARNESS_TZ env; "
                              "neither = no anchor (pre-anchor behavior)")
     args = parser.parse_args(argv)
+    # WS-C env bootstrap (owned by the tokens lane): source the repo-root
+    # .env so the product-lane token (LILY_TOKEN) is available even when the
+    # launcher did not export it. Values are never printed. The launcher
+    # recipe remains the canonical path: set -a; . "$REPO/.env"; set +a.
+    load_env_file(REPO_ROOT / ".env")
     tz = args.tz or os.environ.get("HARNESS_TZ") or None
     try:
         return asyncio.run(_amain(args.channel, Path(args.db), args.seed,

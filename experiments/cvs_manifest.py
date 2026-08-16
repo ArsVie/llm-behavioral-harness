@@ -89,14 +89,15 @@ DIMENSIONS = (
 )
 
 #: Familias de modelo juez (§17.4: ≥2 familias independientes en el subconjunto
-#: final). La clave se lee del runner desde ~/.hermes/.env — NUNCA se imprime.
+#: final). La clave se lee del runner desde el .env de la raíz del repo vía la
+#: lane research (JUDGE_GENERATOR_TOKEN, WS-C) — NUNCA se imprime.
 JUDGE_FAMILIES = (
     {
         "id": "opencode-flash",
         "family": "opencode-deepseek",
         "model": "deepseek-v4-flash",
         "base_url": "https://opencode.ai/zen/go/v1/",
-        "env_key": "OPENCODE_GO_API_KEY",
+        "env_key": "JUDGE_GENERATOR_TOKEN",
         "role": "primary",
     },
     {
@@ -104,7 +105,7 @@ JUDGE_FAMILIES = (
         "family": "opencode-gpt",
         "model": "gpt-5.6-luna",
         "base_url": "https://opencode.ai/zen/go/v1/",
-        "env_key": "OPENCODE_GO_API_KEY",
+        "env_key": "JUDGE_GENERATOR_TOKEN",
         "role": "secondary",
     },
 )

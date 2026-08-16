@@ -360,7 +360,7 @@ def main(argv: list[str] | None = None) -> int:
         client = FakeClient(echo=True)
         synthetic = True
     else:
-        client = OpenAICompatibleClient(model=args.model)
+        client = OpenAICompatibleClient(model=args.model, lane="product")
         synthetic = args.synthetic
 
     session = Session(

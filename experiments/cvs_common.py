@@ -1020,8 +1020,9 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
     """Corre una célula (condición, semilla) por el camino integrado.
 
     Modo mock (fake=True): cliente determinista + juez guionado + checkpoints
-    de reinicio. Modo real (fake=False): cliente LLM real (el runner debe
-    haber cargado OPENCODE_GO_API_KEY) + juez guionado, sin checkpoints.
+    de reinicio. Modo real (fake=False): cliente LLM real en la lane research
+    (JUDGE_GENERATOR_TOKEN del .env de la raíz del repo) + juez guionado, sin
+    checkpoints.
     """
     out_dir = Path(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -1041,7 +1042,7 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
         else:
             from harness.client import OpenAICompatibleClient
 
-            client = OpenAICompatibleClient()
+            client = OpenAICompatibleClient(lane="research")
         judge = DeterministicJudge(seed, block_start=BLOCK_START_D,
                                    block_end=BLOCK_END_D)
 
