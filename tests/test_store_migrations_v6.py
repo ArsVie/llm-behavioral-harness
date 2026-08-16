@@ -114,7 +114,7 @@ def test_v5_to_v6_migration_is_additive_and_preserves_data(tmp_path):
 
     store = SQLiteStore(db)
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 6
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
 
     # additive only: exactly the two v6 additions
     tables = {
@@ -157,7 +157,7 @@ def test_v5_to_v6_migration_is_additive_and_preserves_data(tmp_path):
     # idempotent re-open: migration is a no-op, data still there
     store2 = SQLiteStore(db)
     rows = store2.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == 6
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
     assert store2.get_kv("k") == "v2"
     assert store2.conversation_closing_pending("conv-0") is None
     store2.close()
@@ -166,7 +166,7 @@ def test_v5_to_v6_migration_is_additive_and_preserves_data(tmp_path):
 def test_fresh_db_reaches_v6_with_all_tables(tmp_path):
     store = SQLiteStore(tmp_path / "fresh.db")
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 6
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
     tables = {
         r["name"] for r in store.conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table'"
@@ -225,8 +225,10 @@ def test_live_companion_db_migrates_additively(tmp_path):
 
     store = SQLiteStore(copy)
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 6
-    assert version0 == 5, f"live DB expected at v5, found v{version0}"
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
+    assert version0 < SCHEMA_VERSION, (
+        f"live DB expected below v{SCHEMA_VERSION}, found v{version0}"
+    )
     tables = {r["name"] for r in store.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
     assert "kv_store" in tables
     cols = {r["name"] for r in store.conn.execute("PRAGMA table_info(conversations)")}

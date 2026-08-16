@@ -369,7 +369,7 @@ def test_v4_to_v5_migration_preserves_everything(tmp_path):
     # version bookkeeping: exactly one row, at the current version
     rows = store.conn.execute("SELECT * FROM schema_meta").fetchall()
     assert len(rows) == 1
-    assert rows[0]["version"] == SCHEMA_VERSION == 6
+    assert rows[0]["version"] == SCHEMA_VERSION == 7
 
     # M1: decision_records exists with the exact WS2 column set
     dr_cols = {
@@ -467,7 +467,7 @@ def test_v5_migration_runs_twice_without_error(tmp_path):
     # re-open: migration must be a no-op, not an error, no duplicate rows
     store2 = SQLiteStore(db, audit_mode=True)
     rows = store2.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 6
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
     assert store2.pending_steers()[0]["id"] == steer_id
     replay = store2.decision_for_replay("dec-1")
     assert replay is not None and replay["id"] == dec_id
@@ -484,7 +484,7 @@ def test_v5_migration_runs_twice_without_error(tmp_path):
 def test_fresh_db_reaches_v5_with_tables_and_new_apis(tmp_path):
     store = SQLiteStore(tmp_path / "fresh.db", audit_mode=True)
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 6
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
 
     # --- steering_queue contract (WS3) ------------------------------------
     s1 = store.enqueue_steer(0, 19.0, "popup",

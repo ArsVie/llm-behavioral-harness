@@ -12,7 +12,7 @@ The pre-slice schema is version 1 and is frozen verbatim in ``_SCHEMA``; it is
 executed with ``CREATE TABLE IF NOT EXISTS`` on every open (legacy behavior,
 idempotent). ``schema_meta(version)`` creates the ``schema_meta`` bookkeeping
 table; the migration framework (``_migrate``) reads the recorded version and
-applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 6).
+applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 7).
 Migrations never drop or alter existing columns; all ``ALTER TABLE`` steps are
 guarded by ``PRAGMA table_info``. On a fresh database the effective version is
 1 (only the v1 base tables exist), so the migration chain runs and the
@@ -48,6 +48,19 @@ Migration v4 -> v5 (runtime redesign WS2) adds:
     ``delivered_t_h``/``boundary``/``seen_turn_id`` (summary #23). The
     enqueue/pending/mark/requeue methods are the WS3 steering backend
     contract.
+
+Migration v6 -> v7 (S1 real time, additive only) adds nullable REAL
+timestamp columns holding the UTC epoch instant resolved via the
+RealTimeAnchor at row-creation time:
+  - ``conversations.opened_at`` / ``conversations.closed_at``
+  - ``agenda_items.start_at`` / ``agenda_items.end_at``
+  - ``proactive_intents.created_at`` / ``proactive_intents.valid_until_at``
+  - ``messages.sent_at``
+NULL = no anchor present (pre-anchor / replay rows) — replay parity is
+preserved. No backfill, no NOT NULL, no defaults, no new indexes: purely
+additive, safe on the populated live database. The tz name already lives
+in the anchor (kv_store ``anchor.tz``), so the columns store the instant
+only.
 
 Tables (slice scope of the plan's data model):
   - daily_state(day PK, M, m_level, g, p, arg, mu, eta, cycle_day, phase_label,
@@ -141,7 +154,7 @@ from harness.domain import (
     UserModelCategory,
 )
 
-SCHEMA_VERSION = 6
+SCHEMA_VERSION = 7
 
 # --------------------------------------------------------------------------- #
 # v1 base schema — FROZEN verbatim from the pre-slice store (do not edit).
@@ -582,6 +595,34 @@ def _migrate_v6(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "conversations", "closing_pending_t_h", "REAL")
 
 
+# --------------------------------------------------------------------------- #
+# Migration v6 -> v7 (S1 real time, additive only): nullable real timestamps
+# --------------------------------------------------------------------------- #
+# v7 adds nullable REAL columns holding the UTC epoch instant resolved via
+# the RealTimeAnchor at row-creation time, alongside each virtual-hour
+# column: conversations.opened_at/closed_at, agenda_items.start_at/end_at,
+# proactive_intents.created_at/valid_until_at, messages.sent_at. NULL = no
+# anchor present (pre-anchor / replay rows) — replay parity is preserved.
+# No backfill, no NOT NULL, no defaults, no new indexes: purely additive,
+# safe on the populated live database. The tz name already lives in the
+# anchor (kv_store ``anchor.tz``), so the columns store the instant only.
+_V7_COLUMNS = (
+    ("conversations", "opened_at", "REAL"),
+    ("conversations", "closed_at", "REAL"),
+    ("agenda_items", "start_at", "REAL"),
+    ("agenda_items", "end_at", "REAL"),
+    ("proactive_intents", "created_at", "REAL"),
+    ("proactive_intents", "valid_until_at", "REAL"),
+    ("messages", "sent_at", "REAL"),
+)
+
+
+def _migrate_v7(conn: sqlite3.Connection) -> None:
+    """v6 -> v7: additive nullable REAL timestamp columns (S1 real time)."""
+    for table, column, decl in _V7_COLUMNS:
+        _ensure_column(conn, table, column, decl)
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Bring the schema up to SCHEMA_VERSION with additive migrations only.
 
@@ -602,6 +643,8 @@ def _migrate(conn: sqlite3.Connection) -> None:
         _migrate_v5(conn)
     if version < 6:
         _migrate_v6(conn)
+    if version < 7:
+        _migrate_v7(conn)
     if version < SCHEMA_VERSION:
         conn.execute("DELETE FROM schema_meta")
         conn.execute(
@@ -668,6 +711,7 @@ class SQLiteStore:
         """
         self.path = str(path)
         self.audit_mode = bool(audit_mode)
+        self._anchor = None
         self.conn = sqlite3.connect(self.path, timeout=10.0)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
@@ -685,6 +729,29 @@ class SQLiteStore:
 
     def __exit__(self, *exc) -> None:
         self.close()
+
+    # -- real-time anchor (S1) ----------------------------------------------
+
+    def attach_anchor(self, anchor) -> None:
+        """Attach the RealTimeAnchor used to resolve real timestamps (S1).
+
+        Optional and additive: with no anchor attached (the default) every
+        new ``*_at`` column stays NULL — byte-identical to the pre-v7 write
+        path (replay parity). ``anchor`` must expose
+        ``real_at(t_h) -> aware datetime`` (the ``RealTimeAnchor``
+        contract); its ``timestamp()`` is stored as UTC epoch seconds.
+        """
+        self._anchor = anchor
+
+    def _real_at(self, t_h: float) -> float | None:
+        """UTC epoch seconds of virtual hour ``t_h`` per the attached anchor.
+
+        None when no anchor is attached — all ``*_at`` columns stay NULL
+        (pre-anchor / replay rows).
+        """
+        if self._anchor is None:
+            return None
+        return self._anchor.real_at(t_h).timestamp()
 
     # -- canonical state ----------------------------------------------------
 
@@ -760,10 +827,10 @@ class SQLiteStore:
         pre-slice callers."""
         cur = self.conn.execute(
             "INSERT INTO messages (role, content, t_h, day, proactive, "
-            "session_id, intent_id, conversation_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "session_id, intent_id, conversation_id, sent_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (role, content, t_h, day, int(proactive), session_id, intent_id,
-             conversation_id),
+             conversation_id, self._real_at(t_h)),
         )
         self.conn.commit()
         last_id = cur.lastrowid
@@ -808,9 +875,9 @@ class SQLiteStore:
     ) -> None:
         """Register a conversation as open (no-op if the id already exists)."""
         self.conn.execute(
-            "INSERT OR IGNORE INTO conversations (id, opened_t_h, opened_by) "
-            "VALUES (?, ?, ?)",
-            (conversation_id, opened_t_h, opened_by),
+            "INSERT OR IGNORE INTO conversations (id, opened_t_h, opened_by, "
+            "opened_at) VALUES (?, ?, ?, ?)",
+            (conversation_id, opened_t_h, opened_by, self._real_at(opened_t_h)),
         )
         self.conn.commit()
 
@@ -819,9 +886,10 @@ class SQLiteStore:
     ) -> None:
         """Record the close of a conversation (idempotent re-close)."""
         self.conn.execute(
-            "UPDATE conversations SET closed_t_h = ?, close_reason = ? "
-            "WHERE id = ?",
-            (closed_t_h, close_reason, conversation_id),
+            "UPDATE conversations SET closed_t_h = ?, close_reason = ?, "
+            "closed_at = ? WHERE id = ?",
+            (closed_t_h, close_reason, self._real_at(closed_t_h),
+             conversation_id),
         )
         self.conn.commit()
 
@@ -1306,11 +1374,12 @@ class SQLiteStore:
         self.conn.execute("DELETE FROM agenda_items WHERE day = ?", (day,))
         self.conn.executemany(
             "INSERT INTO agenda_items (id, day, start_t_h, end_t_h, activity, "
-            "source_type, source_id, salience, status) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "source_type, source_id, salience, status, start_at, end_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (item.id, day, item.start_t_h, item.end_t_h, item.activity,
-                 item.source_type, item.source_id, item.salience, item.status)
+                 item.source_type, item.source_id, item.salience, item.status,
+                 self._real_at(item.start_t_h), self._real_at(item.end_t_h))
                 for item in agenda.items
             ],
         )
@@ -1795,19 +1864,23 @@ class SQLiteStore:
             """
             INSERT INTO proactive_intents (
                 id, reason, source_type, source_id, hook, created_t_h,
-                valid_until_t_h, salience, evidence)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                valid_until_t_h, salience, evidence, created_at, valid_until_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(id) DO UPDATE SET
                 reason=excluded.reason, source_type=excluded.source_type,
                 source_id=excluded.source_id, hook=excluded.hook,
                 created_t_h=excluded.created_t_h,
                 valid_until_t_h=excluded.valid_until_t_h,
-                salience=excluded.salience, evidence=excluded.evidence
+                salience=excluded.salience, evidence=excluded.evidence,
+                created_at=excluded.created_at,
+                valid_until_at=excluded.valid_until_at
             """,
             (
                 intent.id, intent.reason, intent.source_type, intent.source_id,
                 intent.hook, intent.created_t_h, intent.valid_until_t_h,
                 intent.salience, intent.evidence,
+                self._real_at(intent.created_t_h),
+                self._real_at(intent.valid_until_t_h),
             ),
         )
         self.conn.commit()
