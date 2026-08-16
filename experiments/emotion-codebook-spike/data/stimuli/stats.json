@@ -1,0 +1,558 @@
+{
+  "bin_counts": {
+    "arousal": {
+      "heldout": {
+        "0": 3,
+        "1": 84,
+        "2": 613,
+        "3": 966,
+        "4": 1683,
+        "5": 1185,
+        "6": 579,
+        "7": 250,
+        "8": 120,
+        "9": 41
+      },
+      "train": {
+        "0": 22,
+        "1": 476,
+        "2": 3466,
+        "3": 5536,
+        "4": 10070,
+        "5": 6771,
+        "6": 3107,
+        "7": 1470,
+        "8": 781,
+        "9": 227
+      }
+    },
+    "valence": {
+      "heldout": {
+        "0": 85,
+        "1": 274,
+        "2": 433,
+        "3": 630,
+        "4": 1160,
+        "5": 3404,
+        "6": 2548,
+        "7": 867,
+        "8": 234,
+        "9": 81
+      },
+      "train": {
+        "0": 588,
+        "1": 1525,
+        "2": 2472,
+        "3": 3544,
+        "4": 6482,
+        "5": 19232,
+        "6": 14789,
+        "7": 4988,
+        "8": 1308,
+        "9": 424
+      }
+    }
+  },
+  "built_at": "2026-08-16T03:21:21.588812+00:00",
+  "goemotions_category_vad": {
+    "0": {
+      "a": 0.4739,
+      "d": 0.5654,
+      "n_texts": 5102,
+      "n_tokens": 23029,
+      "name": "admiration",
+      "v": 0.6872
+    },
+    "1": {
+      "a": 0.4629,
+      "d": 0.5143,
+      "n_texts": 2891,
+      "n_tokens": 11581,
+      "name": "amusement",
+      "v": 0.6192
+    },
+    "2": {
+      "a": 0.5195,
+      "d": 0.4922,
+      "n_texts": 1953,
+      "n_tokens": 8657,
+      "name": "anger",
+      "v": 0.4853
+    },
+    "3": {
+      "a": 0.4808,
+      "d": 0.4923,
+      "n_texts": 3086,
+      "n_tokens": 15191,
+      "name": "annoyance",
+      "v": 0.5248
+    },
+    "4": {
+      "a": 0.442,
+      "d": 0.537,
+      "n_texts": 3680,
+      "n_tokens": 17490,
+      "name": "approval",
+      "v": 0.6271
+    },
+    "5": {
+      "a": 0.454,
+      "d": 0.528,
+      "n_texts": 1366,
+      "n_tokens": 7395,
+      "name": "caring",
+      "v": 0.6244
+    },
+    "6": {
+      "a": 0.44,
+      "d": 0.5189,
+      "n_texts": 1665,
+      "n_tokens": 7780,
+      "name": "confusion",
+      "v": 0.5904
+    },
+    "7": {
+      "a": 0.4507,
+      "d": 0.5239,
+      "n_texts": 2716,
+      "n_tokens": 11913,
+      "name": "curiosity",
+      "v": 0.6036
+    },
+    "8": {
+      "a": 0.461,
+      "d": 0.5316,
+      "n_texts": 801,
+      "n_tokens": 4214,
+      "name": "desire",
+      "v": 0.6401
+    },
+    "9": {
+      "a": 0.4704,
+      "d": 0.4924,
+      "n_texts": 1581,
+      "n_tokens": 7802,
+      "name": "disappointment",
+      "v": 0.5408
+    },
+    "10": {
+      "a": 0.461,
+      "d": 0.5171,
+      "n_texts": 2577,
+      "n_tokens": 12147,
+      "name": "disapproval",
+      "v": 0.5683
+    },
+    "11": {
+      "a": 0.497,
+      "d": 0.4684,
+      "n_texts": 1008,
+      "n_tokens": 4719,
+      "name": "disgust",
+      "v": 0.4889
+    },
+    "12": {
+      "a": 0.4747,
+      "d": 0.4704,
+      "n_texts": 374,
+      "n_tokens": 1868,
+      "name": "embarrassment",
+      "v": 0.5247
+    },
+    "13": {
+      "a": 0.4866,
+      "d": 0.5448,
+      "n_texts": 1037,
+      "n_tokens": 4335,
+      "name": "excitement",
+      "v": 0.67
+    },
+    "14": {
+      "a": 0.5236,
+      "d": 0.4898,
+      "n_texts": 759,
+      "n_tokens": 3614,
+      "name": "fear",
+      "v": 0.4803
+    },
+    "15": {
+      "a": 0.4406,
+      "d": 0.5378,
+      "n_texts": 3304,
+      "n_tokens": 14463,
+      "name": "gratitude",
+      "v": 0.7135
+    },
+    "16": {
+      "a": 0.4869,
+      "d": 0.459,
+      "n_texts": 95,
+      "n_tokens": 448,
+      "name": "grief",
+      "v": 0.4894
+    },
+    "17": {
+      "a": 0.4908,
+      "d": 0.555,
+      "n_texts": 1772,
+      "n_tokens": 8381,
+      "name": "joy",
+      "v": 0.6964
+    },
+    "18": {
+      "a": 0.4564,
+      "d": 0.5399,
+      "n_texts": 2544,
+      "n_tokens": 11888,
+      "name": "love",
+      "v": 0.6891
+    },
+    "19": {
+      "a": 0.5171,
+      "d": 0.4801,
+      "n_texts": 208,
+      "n_tokens": 1013,
+      "name": "nervousness",
+      "v": 0.4961
+    },
+    "20": {
+      "a": 0.4425,
+      "d": 0.55,
+      "n_texts": 1969,
+      "n_tokens": 11311,
+      "name": "optimism",
+      "v": 0.6554
+    },
+    "21": {
+      "a": 0.4992,
+      "d": 0.5953,
+      "n_texts": 141,
+      "n_tokens": 604,
+      "name": "pride",
+      "v": 0.6824
+    },
+    "22": {
+      "a": 0.4447,
+      "d": 0.518,
+      "n_texts": 1381,
+      "n_tokens": 6640,
+      "name": "realization",
+      "v": 0.5939
+    },
+    "23": {
+      "a": 0.4538,
+      "d": 0.5256,
+      "n_texts": 182,
+      "n_tokens": 828,
+      "name": "relief",
+      "v": 0.6438
+    },
+    "24": {
+      "a": 0.4396,
+      "d": 0.4575,
+      "n_texts": 668,
+      "n_tokens": 3215,
+      "name": "remorse",
+      "v": 0.5419
+    },
+    "25": {
+      "a": 0.4601,
+      "d": 0.4671,
+      "n_texts": 1618,
+      "n_tokens": 7645,
+      "name": "sadness",
+      "v": 0.5276
+    },
+    "26": {
+      "a": 0.4689,
+      "d": 0.5246,
+      "n_texts": 1328,
+      "n_tokens": 5596,
+      "name": "surprise",
+      "v": 0.6109
+    },
+    "27": {
+      "a": 0.4437,
+      "d": 0.5122,
+      "n_texts": 17714,
+      "n_tokens": 75479,
+      "name": "neutral",
+      "v": 0.5831
+    }
+  },
+  "master_seed": 20260815,
+  "params": {
+    "bin_width": 0.1,
+    "cell_width": 0.2,
+    "min_pair_sep": 0.05,
+    "pairs_per_group": 8,
+    "round": 4,
+    "split_train_frac": 0.85
+  },
+  "per_axis_per_split": {
+    "arousal": {
+      "heldout": {
+        "groups": 409,
+        "max_intensity": 0.98,
+        "mean_group_sep": 0.1873,
+        "min_intensity": 0.071,
+        "nonempty_bins": 10,
+        "rows": 5524
+      },
+      "train": {
+        "groups": 2075,
+        "max_intensity": 0.99,
+        "mean_group_sep": 0.1949,
+        "min_intensity": 0.046,
+        "nonempty_bins": 10,
+        "rows": 31926
+      }
+    },
+    "valence": {
+      "heldout": {
+        "groups": 671,
+        "max_intensity": 1.0,
+        "mean_group_sep": 0.1782,
+        "min_intensity": 0.016,
+        "nonempty_bins": 10,
+        "rows": 9716
+      },
+      "train": {
+        "groups": 3530,
+        "max_intensity": 1.0,
+        "mean_group_sep": 0.1787,
+        "min_intensity": 0.0,
+        "nonempty_bins": 10,
+        "rows": 55352
+      }
+    }
+  },
+  "per_axis_per_split_per_source": {
+    "arousal": {
+      "heldout": {
+        "emobank": {
+          "dropped_low_sep": 472,
+          "dropped_unmatched": 7,
+          "groups": 75,
+          "low_sep_pairs": 236,
+          "matched_items": 998,
+          "sep_max": 0.405,
+          "sep_mean": 0.1207,
+          "sep_min": 0.05
+        },
+        "goemotions": {
+          "dropped_low_sep": 7686,
+          "dropped_unmatched": 0,
+          "groups": 27,
+          "low_sep_pairs": 3843,
+          "matched_items": 408,
+          "sep_max": 0.0626,
+          "sep_mean": 0.0537,
+          "sep_min": 0.0502
+        },
+        "nrc-vad": {
+          "dropped_low_sep": 496,
+          "dropped_unmatched": 11,
+          "groups": 185,
+          "low_sep_pairs": 248,
+          "matched_items": 2466,
+          "sep_max": 0.841,
+          "sep_mean": 0.2522,
+          "sep_min": 0.05
+        },
+        "warriner": {
+          "dropped_low_sep": 408,
+          "dropped_unmatched": 5,
+          "groups": 122,
+          "low_sep_pairs": 204,
+          "matched_items": 1652,
+          "sep_max": 0.665,
+          "sep_mean": 0.1981,
+          "sep_min": 0.0501
+        }
+      },
+      "train": {
+        "emobank": {
+          "dropped_low_sep": 2728,
+          "dropped_unmatched": 5,
+          "groups": 372,
+          "low_sep_pairs": 1364,
+          "matched_items": 5670,
+          "sep_max": 0.6325,
+          "sep_mean": 0.1256,
+          "sep_min": 0.05
+        },
+        "goemotions": {
+          "dropped_low_sep": 43456,
+          "dropped_unmatched": 0,
+          "groups": 154,
+          "low_sep_pairs": 21728,
+          "matched_items": 2434,
+          "sep_max": 0.0705,
+          "sep_mean": 0.0538,
+          "sep_min": 0.0502
+        },
+        "nrc-vad": {
+          "dropped_low_sep": 2610,
+          "dropped_unmatched": 8,
+          "groups": 931,
+          "low_sep_pairs": 1305,
+          "matched_items": 14322,
+          "sep_max": 0.859,
+          "sep_mean": 0.252,
+          "sep_min": 0.05
+        },
+        "warriner": {
+          "dropped_low_sep": 2298,
+          "dropped_unmatched": 4,
+          "groups": 618,
+          "low_sep_pairs": 1149,
+          "matched_items": 9500,
+          "sep_max": 0.7125,
+          "sep_mean": 0.1977,
+          "sep_min": 0.0501
+        }
+      }
+    },
+    "valence": {
+      "heldout": {
+        "emobank": {
+          "dropped_low_sep": 480,
+          "dropped_unmatched": 7,
+          "groups": 69,
+          "low_sep_pairs": 240,
+          "matched_items": 990,
+          "sep_max": 0.7,
+          "sep_mean": 0.1621,
+          "sep_min": 0.05
+        },
+        "goemotions": {
+          "dropped_low_sep": 3660,
+          "dropped_unmatched": 0,
+          "groups": 280,
+          "low_sep_pairs": 1830,
+          "matched_items": 4434,
+          "sep_max": 0.1874,
+          "sep_mean": 0.1023,
+          "sep_min": 0.05
+        },
+        "nrc-vad": {
+          "dropped_low_sep": 384,
+          "dropped_unmatched": 10,
+          "groups": 197,
+          "low_sep_pairs": 192,
+          "matched_items": 2574,
+          "sep_max": 0.938,
+          "sep_mean": 0.2965,
+          "sep_min": 0.05
+        },
+        "warriner": {
+          "dropped_low_sep": 340,
+          "dropped_unmatched": 10,
+          "groups": 125,
+          "low_sep_pairs": 170,
+          "matched_items": 1718,
+          "sep_max": 0.7325,
+          "sep_mean": 0.2179,
+          "sep_min": 0.05
+        }
+      },
+      "train": {
+        "emobank": {
+          "dropped_low_sep": 3042,
+          "dropped_unmatched": 5,
+          "groups": 349,
+          "low_sep_pairs": 1521,
+          "matched_items": 5362,
+          "sep_max": 0.75,
+          "sep_mean": 0.162,
+          "sep_min": 0.05
+        },
+        "goemotions": {
+          "dropped_low_sep": 20514,
+          "dropped_unmatched": 1,
+          "groups": 1590,
+          "low_sep_pairs": 10257,
+          "matched_items": 25374,
+          "sep_max": 0.1892,
+          "sep_mean": 0.1015,
+          "sep_min": 0.05
+        },
+        "nrc-vad": {
+          "dropped_low_sep": 2086,
+          "dropped_unmatched": 10,
+          "groups": 962,
+          "low_sep_pairs": 1043,
+          "matched_items": 14850,
+          "sep_max": 0.98,
+          "sep_mean": 0.2944,
+          "sep_min": 0.05
+        },
+        "warriner": {
+          "dropped_low_sep": 2036,
+          "dropped_unmatched": 7,
+          "groups": 629,
+          "low_sep_pairs": 1018,
+          "matched_items": 9766,
+          "sep_max": 0.8088,
+          "sep_mean": 0.2191,
+          "sep_min": 0.05
+        }
+      }
+    }
+  },
+  "phase": "P1",
+  "seeds": {
+    "split": {
+      "emobank": 1584707868,
+      "goemotions": 1585230840,
+      "nrc-vad": 4151082425,
+      "warriner": 135302266
+    }
+  },
+  "sources": {
+    "emobank": {
+      "dup_text": 156,
+      "empty_text": 0,
+      "loaded": 9906,
+      "rows_raw": 10062
+    },
+    "goemotions": {
+      "dup_text": 269,
+      "loaded": 53994,
+      "rows_raw": 54263,
+      "rows_total": 54263
+    },
+    "nrc-vad": {
+      "bad_lines": 0,
+      "dup_words": 0,
+      "loaded": 19974,
+      "rows_raw": 19974
+    },
+    "warriner": {
+      "dup_words": 0,
+      "loaded": 13915,
+      "rows_raw": 13915,
+      "skipped_nan": 0
+    }
+  },
+  "spike": "emotion-codebook-spike",
+  "split_counts": {
+    "emobank": {
+      "heldout": 1486,
+      "train": 8420
+    },
+    "goemotions": {
+      "heldout": 8099,
+      "train": 45895
+    },
+    "nrc-vad": {
+      "heldout": 2996,
+      "train": 16978
+    },
+    "warriner": {
+      "heldout": 2087,
+      "train": 11828
+    }
+  }
+}
