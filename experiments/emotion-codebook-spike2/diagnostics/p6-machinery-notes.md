@@ -93,6 +93,40 @@ to both variants, full raw reply retained in JSONL for provenance):
   2. cut at the first line starting with `User:`.
 Verified on all selftest replies: zero card echoes remain in judged text.
 Gate thresholds untouched — this is measurement hygiene, not a gate change.
+
+## Orchestrator decisions 9-10 (2026-08-16, after chain v1) — judge instrument
+
+Chain v1 judged with the decision-3 local base models and produced an
+unreadable gate record: mid/high bands scored 0.000 (CI=[0,0]) for EVERY
+actor AND variant — including the renderer at high (buoyant) — and the
+paired G-BEH was n_pairs=0. Two defects, both machinery, not verdicts:
+
+1. **Judge collapse.** Gemma-3-1B-pt (and Qwen3-1.7B, checked) cannot do
+   abstract 3-way classification: free decoding echoes the rubric
+   ('Low:\nMid:\nHigh', parse grabs 'low'); forced-choice decoding (decision
+   9 — first token restricted to single-token low/mid/high spellings, then
+   EOS) still order-follows the label list regardless of content (reversing
+   bullet order flips every answer; a no-list variant collapses to 'low').
+   The context never moves the distribution — the judge is not a classifier.
+2. **Broken pairing.** Generation ids embed the variant
+   ('qwen-renderer-low-000' vs 'qwen-codebook-low-000'), so id-intersection
+   pairing yields 0 pairs. Seeds are correctly paired by sample index; the
+   fix pairs on the index suffix (p6_judge.paired_delta + p6_stats).
+
+**Decision 10 (adopted):** contract line 80 pre-registers the judge as
+"different family (or the hosted API model), never actor's family/size".
+The hosted API model = deepseek-v4-flash via the zen gateway (research
+lane, JUDGE_GENERATOR_TOKEN from repo .env), temperature 0, max_tokens 64
+(8 was consumed by the reasoning phase -> empty content; documented retry
+loop), same JUDGE_RUBRIC + decision-8 judged_text normalization, same
+seeds/ids. Smoke: low/mid/high probes classified correctly. Note: the
+hosted judge is the same model family the spike evaluates for rental — it
+judges ACTOR OUTPUT, not extraction; gate thresholds untouched.
+
+Also fixed: p6_stats now reads 'hosted' judged files (local fallback) and
+pairs by index suffix. Generations from chain v1 are unchanged — only the
+judge backend differs, so the two judge sets are comparable on identical
+actor outputs (local-judge files kept as artifacts of the broken run).
 - Judge: greedy (`do_sample=False`) — deterministic by construction; seed
   recorded for provenance.
 - Bootstraps: percentile 2.5/97.5, 10k resamples, `rng_for(MASTER_SEED, 12,
