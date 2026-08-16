@@ -12,7 +12,7 @@ differences are the 8B-scale-point track:
   diagnostics/qwen8b-prep-notes.md for the record.
 - EV ONLY: no P2b / J-lens / backward pass at 8B (does not fit 8 GB; EV is the
   cleaner method regardless — decision 2). Seed key 3 (p2b) is unused.
-- C2 (decision 4): layer selected on TRAIN by |valence-r| within the middle third
+- C2 (decision 4): layer selected on TRAIN by signed valence-r (pre-registered; abs would allow an anti-aligned layer) within the middle third
   of depth [floor(N/3), ceil(2N/3)) = [12, 24) for N=36. One layer per model,
   used for both axes. Full per-layer sensitivity reported.
 - C3 (decision 5): per layer, arousal direction = unit(projection of the raw
@@ -393,9 +393,9 @@ def stage_p2a(h: QwenHarness, train_sample: dict[str, list[dict]], seed: int) ->
     band_layers = [k for k in layers if lo_b <= int(k) < hi_b]
     if not band_layers:
         raise RuntimeError(f"C2 band [{lo_b},{hi_b}) empty (layers={layers})")
-    c2_layer = max(band_layers, key=lambda k: abs(layer_meta[k]["train_r"]))
+    c2_layer = max(band_layers, key=lambda k: layer_meta[k]["train_r"])
     out["c2"] = {"band": [lo_b, hi_b], "band_rule": "middle third of depth [floor(N/3), ceil(2N/3))",
-                 "selection": "argmax |valence train_r| on TRAIN within band (decision 4)",
+                 "selection": "argmax signed valence train_r on TRAIN within band (decision 4)",
                  "selected_layer": c2_layer,
                  "valence_train_r_at_selected": layer_meta[c2_layer]["train_r"],
                  "arousal_train_r_at_selected": layer_meta[c2_layer]["arousal_train_r"]}
