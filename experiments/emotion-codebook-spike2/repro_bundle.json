@@ -262,6 +262,48 @@
       "status": "PINNED + VERIFIED (8B-PREP 2026-08-16): 5 shards downloaded, sha256 verified vs LFS; 4-bit NF4 bringup PASS; EV-only track",
       "total_bytes": 16397461266
     },
+    "p6_behavioral_eval": {
+      "bands": {
+        "high": {
+          "codebook_value": 0.9,
+          "m": 9,
+          "valence": 0.8
+        },
+        "low": {
+          "codebook_value": 0.1,
+          "m": 1,
+          "valence": -0.8
+        },
+        "mid": {
+          "codebook_value": 0.6,
+          "m": 6,
+          "valence": 0.2
+        }
+      },
+      "bootstrap": {
+        "method": "percentile 2.5/97.5, seeded",
+        "n": 10000
+      },
+      "decoding": {
+        "do_sample": true,
+        "max_new_tokens": 128,
+        "repetition_penalty": 1.0,
+        "temperature": 0.8,
+        "top_k": 40,
+        "top_p": 0.9
+      },
+      "energy_fixed": 0.55,
+      "judge_decoding": "greedy do_sample=False",
+      "judge_rule": "cross-family (decision 3): qwen/qwen8b -> gemma; gemma -> qwen; never actor==judge",
+      "master_seed": 20260815,
+      "note": "P6 machinery (2026-08-16): scripts p6_common/p6_prompts/p6_generate/p6_judge/p6_stats; G-ABS/G-BEH per docs/exp-affect-codebook-spike2-2026-08-16.md",
+      "seed_keys": {
+        "boot": 12,
+        "gen": 10,
+        "judge": 11
+      },
+      "token_renderer": "P6 token-to-prose renderer v1 (top-k=10, filtered, deduped, lowercase-folded, space-joined)"
+    },
     "seeds": {
       "master_seed": 20260815,
       "policy": "per-run seeds = derive_seed(master, *key) via SeedSequence (mirrors engine/rng.py); seed_everything() before any sampling/generation; fixed-temperature DecodingConfig below.",

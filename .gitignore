@@ -3,3 +3,7 @@ __pycache__/
 *.pyc
 .pytest_cache/
 *.egg-info/
+harness-bot.env
+# Secrets — never commit any env file (LILY_TOKEN / JUDGE_GENERATOR_TOKEN live here)
+.env
+*.env
