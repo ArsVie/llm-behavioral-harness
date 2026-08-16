@@ -161,6 +161,11 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
             store.close()
             return 2
         persist_anchor(store, anchor)
+    # S1 write path: the store resolves real timestamps (opened_at etc.)
+    # from the anchor at row creation; without an anchor all *_at columns
+    # stay NULL (pre-anchor behavior, replay parity).
+    if anchor is not None:
+        store.attach_anchor(anchor)
     channel = select_channel(channel_name)
     runtime = build_runtime(store, seed, condition, channel, anchor=anchor)
     print(f"[live] channel={channel_name} condition={condition} "
