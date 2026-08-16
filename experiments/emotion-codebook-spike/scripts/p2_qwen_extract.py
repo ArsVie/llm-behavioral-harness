@@ -35,6 +35,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 import time
@@ -588,17 +589,40 @@ def stage_p3(h: QwenHarness, held: list[dict], emo_vec: dict, jlens: dict, seed:
 # GPU etiquette / stimulus waiting
 # ---------------------------------------------------------------------------
 def gpu_clear(max_wait_s: int = 1800) -> None:
+    """Wait until no OTHER process holds significant GPU memory.
+
+    Counts only compute-app pids other than this process. Total memory.used
+    includes our own loaded model and would self-deadlock the wait (observed
+    2026-08-15: P2a loaded the model, then gpu_clear() waited on its own
+    3450 MiB forever). If the query fails, proceed (never block the run).
+    """
+    own = {os.getpid()}
     waited = 0
     while waited < max_wait_s:
         try:
-            used = int(subprocess.check_output(
-                ["nvidia-smi", "--query-gpu=memory.used", "--format=csv,noheader,nounits"]
-            ).decode().strip())
+            out = subprocess.check_output(
+                ["nvidia-smi", "--query-compute-apps=pid,used_memory",
+                 "--format=csv,noheader,nounits"]
+            ).decode().strip()
         except Exception:
             return
-        if used < 1024:
+        other = 0
+        for line in out.splitlines():
+            parts = line.replace(",", " ").split()
+            if len(parts) >= 2:
+                try:
+                    pid = int(parts[0])
+                except ValueError:
+                    continue
+                if pid in own:
+                    continue
+                try:
+                    other += int(parts[1])
+                except ValueError:
+                    pass
+        if other < 1024:
             return
-        print(f"[gpu] another process holds {used} MiB — waiting 60 s", flush=True)
+        print(f"[gpu] another process holds {other} MiB — waiting 60 s", flush=True)
         time.sleep(60)
         waited += 60
     print("[gpu] still busy after wait — proceeding anyway (logged)", flush=True)
