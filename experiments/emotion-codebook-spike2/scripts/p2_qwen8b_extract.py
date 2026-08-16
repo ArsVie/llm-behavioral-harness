@@ -389,8 +389,9 @@ def stage_p2a(h: QwenHarness, train_sample: dict[str, list[dict]], seed: int) ->
             d_raw @ v_dir[Lk] / (np.linalg.norm(d_raw) + 1e-12))
         proj = np.array([float(v @ d_orth) for v in vecs_a])
         layer_meta[Lk]["arousal_train_r"] = pearson(proj, y_a)
-    # C2 selection: argmax |valence train_r| within [lo_b, hi_b) on TRAIN
-    band_layers = [k for k in layers if lo_b <= int(k) < hi_b]
+    # C2 selection: argmax signed valence train_r within [lo_b, hi_b) on TRAIN;
+    # skip non-numeric layer keys ("norm" — final-norm hook output, not a depth index)
+    band_layers = [k for k in layers if k.isdigit() and lo_b <= int(k) < hi_b]
     if not band_layers:
         raise RuntimeError(f"C2 band [{lo_b},{hi_b}) empty (layers={layers})")
     c2_layer = max(band_layers, key=lambda k: layer_meta[k]["train_r"])

@@ -1,0 +1,534 @@
+{
+  "model": "google/gemma-3-1b-pt",
+  "revision": "fcf18a2a879aab110ca39f8bffbccd5d49d8eb29",
+  "seed": 1636062555,
+  "stage": "P2a emotion vectors (forward hooks)",
+  "axes": {
+    "valence": {
+      "n": 2000,
+      "n_high": 917,
+      "n_low": 1083,
+      "split": "contrast_group side (hi/lo)",
+      "split_note": {
+        "split": "contrast_group side (hi/lo)",
+        "hi_mean_intensity": 0.7440375136314067,
+        "lo_mean_intensity": 0.2961987072945521
+      },
+      "layers": {
+        "0": {
+          "norm": 33.21279525756836,
+          "cohen_d": 5.968634605407715,
+          "train_r": 0.4374843871010598,
+          "c3_angle_deg": null,
+          "proj_high_mean": -136.15408325195312,
+          "proj_low_mean": -169.3668975830078
+        },
+        "1": {
+          "norm": 37.68830871582031,
+          "cohen_d": 5.87606143951416,
+          "train_r": 0.45675130868522573,
+          "c3_angle_deg": null,
+          "proj_high_mean": -181.8689727783203,
+          "proj_low_mean": -219.55734252929688
+        },
+        "10": {
+          "norm": 210.47447204589844,
+          "cohen_d": 3.193502426147461,
+          "train_r": 0.04055326666757709,
+          "c3_angle_deg": null,
+          "proj_high_mean": -3128.62109375,
+          "proj_low_mean": -3339.095703125
+        },
+        "11": {
+          "norm": 136.88702392578125,
+          "cohen_d": 4.758138179779053,
+          "train_r": 0.385483721465983,
+          "c3_angle_deg": null,
+          "proj_high_mean": -2516.951171875,
+          "proj_low_mean": -2653.838623046875
+        },
+        "12": {
+          "norm": 170.44776916503906,
+          "cohen_d": 5.244175434112549,
+          "train_r": 0.2885025562348095,
+          "c3_angle_deg": null,
+          "proj_high_mean": -4208.1015625,
+          "proj_low_mean": -4378.55029296875
+        },
+        "13": {
+          "norm": 174.30677795410156,
+          "cohen_d": 4.77600622177124,
+          "train_r": 0.5865046056059351,
+          "c3_angle_deg": null,
+          "proj_high_mean": -1498.6712646484375,
+          "proj_low_mean": -1672.9774169921875
+        },
+        "14": {
+          "norm": 231.99562072753906,
+          "cohen_d": 5.426267147064209,
+          "train_r": 0.2465084351894664,
+          "c3_angle_deg": null,
+          "proj_high_mean": 4723.83740234375,
+          "proj_low_mean": 4491.84130859375
+        },
+        "15": {
+          "norm": 288.2795715332031,
+          "cohen_d": 6.2762932777404785,
+          "train_r": 0.277710776012952,
+          "c3_angle_deg": null,
+          "proj_high_mean": 6280.912109375,
+          "proj_low_mean": 5992.63134765625
+        },
+        "16": {
+          "norm": 338.19244384765625,
+          "cohen_d": 5.864985942840576,
+          "train_r": 0.3444746314161057,
+          "c3_angle_deg": null,
+          "proj_high_mean": 4438.4560546875,
+          "proj_low_mean": 4100.26025390625
+        },
+        "17": {
+          "norm": 422.7247619628906,
+          "cohen_d": 5.743025302886963,
+          "train_r": 0.4567766371492516,
+          "c3_angle_deg": null,
+          "proj_high_mean": 3104.7333984375,
+          "proj_low_mean": 2682.009521484375
+        },
+        "18": {
+          "norm": 486.7455749511719,
+          "cohen_d": 5.454158306121826,
+          "train_r": 0.5382101692953597,
+          "c3_angle_deg": null,
+          "proj_high_mean": 1141.6866455078125,
+          "proj_low_mean": 654.9411010742188
+        },
+        "19": {
+          "norm": 596.011474609375,
+          "cohen_d": 5.448263168334961,
+          "train_r": 0.44801134101189655,
+          "c3_angle_deg": null,
+          "proj_high_mean": 5680.13427734375,
+          "proj_low_mean": 5084.123046875
+        },
+        "2": {
+          "norm": 48.984004974365234,
+          "cohen_d": 6.567473411560059,
+          "train_r": 0.4361334137274699,
+          "c3_angle_deg": null,
+          "proj_high_mean": -381.254638671875,
+          "proj_low_mean": -430.2386779785156
+        },
+        "20": {
+          "norm": 670.2599487304688,
+          "cohen_d": 5.237611770629883,
+          "train_r": 0.4197691619109748,
+          "c3_angle_deg": null,
+          "proj_high_mean": 6325.38330078125,
+          "proj_low_mean": 5655.11865234375
+        },
+        "21": {
+          "norm": 733.4872436523438,
+          "cohen_d": 5.18715763092041,
+          "train_r": 0.40480545945799645,
+          "c3_angle_deg": null,
+          "proj_high_mean": 7422.76123046875,
+          "proj_low_mean": 6689.275390625
+        },
+        "22": {
+          "norm": 769.0423583984375,
+          "cohen_d": 4.938435077667236,
+          "train_r": 0.4338206231039438,
+          "c3_angle_deg": null,
+          "proj_high_mean": 6585.51708984375,
+          "proj_low_mean": 5816.47021484375
+        },
+        "23": {
+          "norm": 804.6830444335938,
+          "cohen_d": 4.953151702880859,
+          "train_r": 0.47699775032117403,
+          "c3_angle_deg": null,
+          "proj_high_mean": 5349.099609375,
+          "proj_low_mean": 4544.41650390625
+        },
+        "24": {
+          "norm": 809.5260009765625,
+          "cohen_d": 4.777101039886475,
+          "train_r": 0.563539033204638,
+          "c3_angle_deg": null,
+          "proj_high_mean": 930.11328125,
+          "proj_low_mean": 120.58724212646484
+        },
+        "25": {
+          "norm": 900.0115356445312,
+          "cohen_d": 5.011650562286377,
+          "train_r": 0.49100616842519085,
+          "c3_angle_deg": null,
+          "proj_high_mean": -6986.2138671875,
+          "proj_low_mean": -7886.22705078125
+        },
+        "3": {
+          "norm": 53.955936431884766,
+          "cohen_d": 6.49377965927124,
+          "train_r": 0.4839595638503847,
+          "c3_angle_deg": null,
+          "proj_high_mean": -197.04739379882812,
+          "proj_low_mean": -251.0032958984375
+        },
+        "4": {
+          "norm": 71.41461181640625,
+          "cohen_d": 6.198752403259277,
+          "train_r": 0.3430490293830431,
+          "c3_angle_deg": null,
+          "proj_high_mean": -794.8087768554688,
+          "proj_low_mean": -866.2234497070312
+        },
+        "5": {
+          "norm": 74.55570983886719,
+          "cohen_d": 6.760159492492676,
+          "train_r": 0.5464645279079215,
+          "c3_angle_deg": null,
+          "proj_high_mean": -447.3783874511719,
+          "proj_low_mean": -521.9339599609375
+        },
+        "6": {
+          "norm": 90.1601333618164,
+          "cohen_d": 7.73537015914917,
+          "train_r": 0.4754680525530843,
+          "c3_angle_deg": null,
+          "proj_high_mean": -1256.108154296875,
+          "proj_low_mean": -1346.268798828125
+        },
+        "7": {
+          "norm": 90.96517181396484,
+          "cohen_d": 6.390645503997803,
+          "train_r": 0.4261552516366717,
+          "c3_angle_deg": null,
+          "proj_high_mean": -1225.9454345703125,
+          "proj_low_mean": -1316.910400390625
+        },
+        "8": {
+          "norm": 92.6829833984375,
+          "cohen_d": 6.722056865692139,
+          "train_r": 0.5023904662546899,
+          "c3_angle_deg": null,
+          "proj_high_mean": -1226.817626953125,
+          "proj_low_mean": -1319.4996337890625
+        },
+        "9": {
+          "norm": 99.08829498291016,
+          "cohen_d": 6.164543628692627,
+          "train_r": 0.5280190067180087,
+          "c3_angle_deg": null,
+          "proj_high_mean": -1233.3719482421875,
+          "proj_low_mean": -1332.461181640625
+        },
+        "norm": {
+          "norm": 10.977499961853027,
+          "cohen_d": 6.314319610595703,
+          "train_r": 0.3980811512132603,
+          "c3_angle_deg": null,
+          "proj_high_mean": 19.298294067382812,
+          "proj_low_mean": 8.320794105529785
+        }
+      },
+      "c2": {
+        "rule": "middle third of depth; layer selected on TRAIN by SIGNED train r within band (contract C2, dec. 4)",
+        "band": [
+          8,
+          18
+        ],
+        "n_layers": 26,
+        "selected_layer": "13"
+      },
+      "selected_layer_c2": "13",
+      "best_layer_by_abs_train_r": "13",
+      "c3": {
+        "applied": false,
+        "note": "valence is the C3 reference axis (no orthogonalization)"
+      }
+    },
+    "arousal": {
+      "n": 2000,
+      "n_high": 1063,
+      "n_low": 937,
+      "split": "contrast_group side (hi/lo)",
+      "split_note": {
+        "split": "contrast_group side (hi/lo)",
+        "hi_mean_intensity": 0.7365355597365946,
+        "lo_mean_intensity": 0.29518505869797224
+      },
+      "layers": {
+        "0": {
+          "norm": 1.0,
+          "cohen_d": 0.1610977202653885,
+          "train_r": 0.35923263147433826,
+          "c3_angle_deg": 113.2099380493164,
+          "proj_high_mean": 60.446502685546875,
+          "proj_low_mean": 34.0958137512207
+        },
+        "1": {
+          "norm": 1.0,
+          "cohen_d": 0.14027172327041626,
+          "train_r": 0.3581584779748491,
+          "c3_angle_deg": 110.21090698242188,
+          "proj_high_mean": 267.77789306640625,
+          "proj_low_mean": 233.8115997314453
+        },
+        "10": {
+          "norm": 1.0,
+          "cohen_d": 0.019007069990038872,
+          "train_r": 0.2050438194896195,
+          "c3_angle_deg": 150.12408447265625,
+          "proj_high_mean": 1217.411865234375,
+          "proj_low_mean": 961.2220458984375
+        },
+        "11": {
+          "norm": 1.0,
+          "cohen_d": 0.0449291430413723,
+          "train_r": 0.22121913537660093,
+          "c3_angle_deg": 113.45120239257812,
+          "proj_high_mean": 4968.40966796875,
+          "proj_low_mean": 4832.56982421875
+        },
+        "12": {
+          "norm": 1.0,
+          "cohen_d": 0.036510612815618515,
+          "train_r": 0.24147760776955174,
+          "c3_angle_deg": 114.96863555908203,
+          "proj_high_mean": 3648.647705078125,
+          "proj_low_mean": 3515.555419921875
+        },
+        "13": {
+          "norm": 0.9999999403953552,
+          "cohen_d": 0.034232985228300095,
+          "train_r": 0.25433432805602235,
+          "c3_angle_deg": 101.79025268554688,
+          "proj_high_mean": 5362.73291015625,
+          "proj_low_mean": 5190.98828125
+        },
+        "14": {
+          "norm": 1.0,
+          "cohen_d": 0.030038103461265564,
+          "train_r": 0.4056844147762848,
+          "c3_angle_deg": 91.67427062988281,
+          "proj_high_mean": 1459.255615234375,
+          "proj_low_mean": 1304.2799072265625
+        },
+        "15": {
+          "norm": 1.0000001192092896,
+          "cohen_d": 0.026521285995841026,
+          "train_r": 0.48410525423384204,
+          "c3_angle_deg": 87.99916076660156,
+          "proj_high_mean": 1837.9560546875,
+          "proj_low_mean": 1655.4473876953125
+        },
+        "16": {
+          "norm": 1.0,
+          "cohen_d": 0.02019011415541172,
+          "train_r": 0.49567705256105193,
+          "c3_angle_deg": 90.33234405517578,
+          "proj_high_mean": 2829.94189453125,
+          "proj_low_mean": 2593.628662109375
+        },
+        "17": {
+          "norm": 1.0,
+          "cohen_d": 0.014078227803111076,
+          "train_r": 0.5650633202121527,
+          "c3_angle_deg": 92.64620971679688,
+          "proj_high_mean": 2666.216796875,
+          "proj_low_mean": 2340.972900390625
+        },
+        "18": {
+          "norm": 0.9999999403953552,
+          "cohen_d": 0.010983196087181568,
+          "train_r": 0.5246409027217481,
+          "c3_angle_deg": 92.69847869873047,
+          "proj_high_mean": 4139.52001953125,
+          "proj_low_mean": 3735.677734375
+        },
+        "19": {
+          "norm": 1.0,
+          "cohen_d": 0.008958791382610798,
+          "train_r": 0.5801961248189712,
+          "c3_angle_deg": 88.98685455322266,
+          "proj_high_mean": 3327.260009765625,
+          "proj_low_mean": 2851.44140625
+        },
+        "2": {
+          "norm": 1.0,
+          "cohen_d": 0.12277139723300934,
+          "train_r": 0.37569595017288115,
+          "c3_angle_deg": 114.60736846923828,
+          "proj_high_mean": 259.7004699707031,
+          "proj_low_mean": 220.91343688964844
+        },
+        "20": {
+          "norm": 1.0,
+          "cohen_d": 0.007819616235792637,
+          "train_r": 0.5778720399713573,
+          "c3_angle_deg": 88.41218566894531,
+          "proj_high_mean": 3702.405517578125,
+          "proj_low_mean": 3167.3154296875
+        },
+        "21": {
+          "norm": 1.0,
+          "cohen_d": 0.007116425316780806,
+          "train_r": 0.583288949724627,
+          "c3_angle_deg": 88.16294860839844,
+          "proj_high_mean": 4130.9677734375,
+          "proj_low_mean": 3552.630126953125
+        },
+        "22": {
+          "norm": 1.0,
+          "cohen_d": 0.006418634671717882,
+          "train_r": 0.525504588006509,
+          "c3_angle_deg": 86.79520416259766,
+          "proj_high_mean": 6705.71337890625,
+          "proj_low_mean": 6055.046875
+        },
+        "23": {
+          "norm": 0.9999999403953552,
+          "cohen_d": 0.006043813657015562,
+          "train_r": 0.4680311383435751,
+          "c3_angle_deg": 87.97444152832031,
+          "proj_high_mean": 9372.357421875,
+          "proj_low_mean": 8649.666015625
+        },
+        "24": {
+          "norm": 0.9999999403953552,
+          "cohen_d": 0.0057333288714289665,
+          "train_r": 0.35994248363924125,
+          "c3_angle_deg": 91.62479400634766,
+          "proj_high_mean": 14452.685546875,
+          "proj_low_mean": 13615.03125
+        },
+        "25": {
+          "norm": 0.9999999403953552,
+          "cohen_d": 0.0052868458442389965,
+          "train_r": 0.3016166459259042,
+          "c3_angle_deg": 102.46144104003906,
+          "proj_high_mean": 15883.3564453125,
+          "proj_low_mean": 14908.744140625
+        },
+        "3": {
+          "norm": 0.9999999403953552,
+          "cohen_d": 0.11383779346942902,
+          "train_r": 0.4653321630748514,
+          "c3_angle_deg": 107.12080383300781,
+          "proj_high_mean": 167.60438537597656,
+          "proj_low_mean": 122.39753723144531
+        },
+        "4": {
+          "norm": 1.0,
+          "cohen_d": 0.08491471409797668,
+          "train_r": 0.27470758321687183,
+          "c3_angle_deg": 126.46183013916016,
+          "proj_high_mean": 612.9937744140625,
+          "proj_low_mean": 534.2727661132812
+        },
+        "5": {
+          "norm": 1.0,
+          "cohen_d": 0.08503003418445587,
+          "train_r": 0.3218043348578613,
+          "c3_angle_deg": 108.21221160888672,
+          "proj_high_mean": 1214.72412109375,
+          "proj_low_mean": 1141.813232421875
+        },
+        "6": {
+          "norm": 1.0,
+          "cohen_d": 0.08183316141366959,
+          "train_r": 0.43576551392667745,
+          "c3_angle_deg": 117.0696792602539,
+          "proj_high_mean": 722.1172485351562,
+          "proj_low_mean": 653.2865600585938
+        },
+        "7": {
+          "norm": 0.9999999403953552,
+          "cohen_d": 0.07134610414505005,
+          "train_r": 0.2342503324446599,
+          "c3_angle_deg": 97.26787567138672,
+          "proj_high_mean": -1798.7054443359375,
+          "proj_low_mean": -1882.27587890625
+        },
+        "8": {
+          "norm": 0.9999999403953552,
+          "cohen_d": 0.07179351150989532,
+          "train_r": 0.32876430022068465,
+          "c3_angle_deg": 104.81471252441406,
+          "proj_high_mean": -1354.8509521484375,
+          "proj_low_mean": -1429.99755859375
+        },
+        "9": {
+          "norm": 1.0,
+          "cohen_d": 0.06579770147800446,
+          "train_r": 0.3101033311684242,
+          "c3_angle_deg": 110.87962341308594,
+          "proj_high_mean": 1876.987548828125,
+          "proj_low_mean": 1791.14599609375
+        },
+        "norm": {
+          "norm": 0.9999999403953552,
+          "cohen_d": 0.5647727847099304,
+          "train_r": 0.42046894213809727,
+          "c3_angle_deg": 98.22783660888672,
+          "proj_high_mean": 0.8895881772041321,
+          "proj_low_mean": -7.780338287353516
+        }
+      },
+      "c2": {
+        "rule": "middle third of depth; layer selected on TRAIN by SIGNED train r within band (contract C2, dec. 4)",
+        "band": [
+          8,
+          18
+        ],
+        "n_layers": 26,
+        "selected_layer": "17"
+      },
+      "selected_layer_c2": "17",
+      "best_layer_by_abs_train_r": "21",
+      "c3": {
+        "applied": true,
+        "note": "arousal = unit(proj(raw arousal, valence-orthogonal complement)), per layer (Gram-Schmidt, dec. 5)"
+      }
+    }
+  },
+  "sample": {
+    "valence": {
+      "n_target": 2000,
+      "n": 2000,
+      "seed": 602360987,
+      "procedure": "stratified by intensity bin (0.1 width), seeded permutation within bin",
+      "bin_counts": {
+        "0": 200,
+        "1": 200,
+        "2": 200,
+        "3": 200,
+        "4": 200,
+        "5": 200,
+        "6": 200,
+        "7": 200,
+        "8": 200,
+        "9": 200
+      }
+    },
+    "arousal": {
+      "n_target": 2000,
+      "n": 2000,
+      "seed": 2026937470,
+      "procedure": "stratified by intensity bin (0.1 width), seeded permutation within bin",
+      "bin_counts": {
+        "0": 22,
+        "1": 212,
+        "2": 256,
+        "3": 221,
+        "4": 205,
+        "5": 220,
+        "6": 249,
+        "7": 235,
+        "8": 213,
+        "9": 167
+      }
+    }
+  }
+}
