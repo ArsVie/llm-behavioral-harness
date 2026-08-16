@@ -8,6 +8,16 @@ The harness wraps ANY endpoint exposing /chat/completions; `base_url`,
     LLM_MODEL     (default deepseek-v4-flash)
     JUDGE_MODEL   (default deepseek-v4-flash — judges may use a cheaper model)
 
+Two-lane credential split (WS-C, 2026-08-16): pass `lane="product"` (the
+live companion actor — token LILY_TOKEN / optional LILY_BASE_URL) or
+`lane="research"` (judges + all experiment-generated replies — token
+JUDGE_GENERATOR_TOKEN / optional JUDGE_GENERATOR_BASE_URL). Lane resolution
+goes through harness.credentials: it fails loudly at construction when the
+lane token is missing (never a silent fallback to LLM_API_KEY /
+OPENCODE_GO_API_KEY), never logs the value, and stamps the client with
+`client.lane` for spend attribution. Explicit `api_key`/`base_url` arguments
+always win over the resolver; omitting `lane` keeps the legacy env behavior.
+
 `LLMClient` is the injectable protocol; tests use `FakeClient`. JSON mode is
 a CAPABILITY, not an assumption: clients advertise `supports_json` and the
 harness gates `response_format` on it. Same for tools: `supports_tools`
@@ -32,6 +42,8 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 import httpx
+
+from harness.credentials import resolve_credentials
 
 DEFAULT_BASE_URL = "https://opencode.ai/zen/go/v1/"
 DEFAULT_MODEL = "deepseek-v4-flash"
@@ -172,9 +184,22 @@ class OpenAICompatibleClient:
         model: str | None = None,
         timeout_s: float = 60.0,
         max_retries: int = _MAX_RETRIES,
+        lane: str | None = None,
     ):
-        self.base_url = (base_url or os.environ.get("LLM_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
-        self.api_key = api_key if api_key is not None else os.environ.get("LLM_API_KEY", "")
+        # Lane resolution (WS-C): explicit args win over the resolver; the
+        # resolver fails loudly at construction when the lane token is
+        # missing. lane=None keeps the legacy LLM_* env behavior and stamps
+        # nothing (client.lane stays None).
+        if lane is not None:
+            lane_key, lane_base = resolve_credentials(lane)
+            self.api_key = api_key if api_key is not None else lane_key
+            self.base_url = (
+                base_url or lane_base or os.environ.get("LLM_BASE_URL") or DEFAULT_BASE_URL
+            ).rstrip("/")
+        else:
+            self.api_key = api_key if api_key is not None else os.environ.get("LLM_API_KEY", "")
+            self.base_url = (base_url or os.environ.get("LLM_BASE_URL") or DEFAULT_BASE_URL).rstrip("/")
+        self.lane = lane
         self.model = model or os.environ.get("LLM_MODEL", DEFAULT_MODEL)
         self.timeout_s = timeout_s
         self.max_retries = max_retries
@@ -376,10 +401,14 @@ class FakeClient:
     supports_json: bool = True
     supports_tools: bool = True
 
-    def __init__(self, responses: list[str | dict] | None = None, echo: bool = False):
+    def __init__(self, responses: list[str | dict] | None = None, echo: bool = False,
+                 lane: str | None = None):
         self.responses = deque(responses or [])
         self.calls: list[dict] = []
         self.echo = echo
+        #: Lane stamp (WS-C attribution): mirrors OpenAICompatibleClient —
+        #: None for un-laned fakes.
+        self.lane = lane
 
     def chat(
         self,

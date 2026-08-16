@@ -452,3 +452,97 @@ def test_fake_client_chat_with_meta_records_defaults():
     assert call["reasoning_effort"] is None
     assert call["temperature"] == 0.8
     assert call["json_mode"] is False
+
+
+# -- WS-C: two-lane credential split ---------------------------------------- #
+# The client resolves api_key/base_url through harness.credentials by lane:
+# product -> LILY_TOKEN/LILY_BASE_URL, research -> JUDGE_GENERATOR_TOKEN/
+# JUDGE_GENERATOR_BASE_URL. Explicit args always win; lane=None keeps the
+# legacy LLM_* env behavior. Values are never logged — only the env var NAME.
+
+
+def test_lane_product_resolves_token_and_stamp(monkeypatch):
+    monkeypatch.setenv("LILY_TOKEN", "lily-key")
+    client = OpenAICompatibleClient(lane="product", model="m")
+    assert client.api_key == "lily-key"
+    assert client.lane == "product"
+    # Lane base URL: LILY_BASE_URL absent -> LLM_BASE_URL absent -> default.
+    assert client.base_url == "https://opencode.ai/zen/go/v1"
+
+
+def test_lane_research_resolves_token_and_stamp(monkeypatch):
+    monkeypatch.setenv("JUDGE_GENERATOR_TOKEN", "judge-key")
+    client = OpenAICompatibleClient(lane="research", model="m")
+    assert client.api_key == "judge-key"
+    assert client.lane == "research"
+
+
+def test_lane_explicit_api_key_wins_over_resolver(monkeypatch):
+    monkeypatch.setenv("LILY_TOKEN", "lily-key")
+    client = OpenAICompatibleClient(lane="product", api_key="explicit", model="m")
+    assert client.api_key == "explicit"
+
+
+def test_lane_missing_token_fails_loudly_at_construction(monkeypatch):
+    monkeypatch.delenv("LILY_TOKEN", raising=False)
+    monkeypatch.delenv("LLM_API_KEY", raising=False)
+    monkeypatch.delenv("OPENCODE_GO_API_KEY", raising=False)
+    with pytest.raises(RuntimeError, match="product lane credential missing"):
+        OpenAICompatibleClient(lane="product", model="m")
+    # Same for the research lane — and the message names the env var, not a
+    # fallback: there is NO silent fallback to LLM_API_KEY/OPENCODE_GO_API_KEY.
+    monkeypatch.delenv("JUDGE_GENERATOR_TOKEN", raising=False)
+    with pytest.raises(RuntimeError, match="JUDGE_GENERATOR_TOKEN"):
+        OpenAICompatibleClient(lane="research", model="m")
+
+
+def test_lane_resolution_never_falls_back_to_opencode_key(monkeypatch):
+    # A stray OPENCODE_GO_API_KEY in the environment must NOT satisfy a lane.
+    monkeypatch.delenv("LILY_TOKEN", raising=False)
+    monkeypatch.setenv("OPENCODE_GO_API_KEY", "opencode-key")
+    monkeypatch.setenv("LLM_API_KEY", "llm-key")
+    with pytest.raises(RuntimeError, match="LILY_TOKEN"):
+        OpenAICompatibleClient(lane="product", model="m")
+
+
+def test_lane_base_url_precedence(monkeypatch):
+    monkeypatch.setenv("LILY_TOKEN", "k")
+    monkeypatch.setenv("LILY_BASE_URL", "https://lily.example/v1")
+    monkeypatch.setenv("LLM_BASE_URL", "https://generic.example/v1")
+    client = OpenAICompatibleClient(lane="product", model="m")
+    assert client.base_url == "https://lily.example/v1"
+
+    # Lane var absent -> generic LLM_BASE_URL (documented fallback).
+    monkeypatch.delenv("LILY_BASE_URL")
+    client = OpenAICompatibleClient(lane="product", model="m")
+    assert client.base_url == "https://generic.example/v1"
+
+    # Both absent -> current gateway default; explicit arg wins over all.
+    monkeypatch.delenv("LLM_BASE_URL")
+    client = OpenAICompatibleClient(lane="product", model="m")
+    assert client.base_url == "https://opencode.ai/zen/go/v1"
+    client = OpenAICompatibleClient(lane="product", base_url="https://x.test", model="m")
+    assert client.base_url == "https://x.test"
+
+
+def test_lane_redacted_label_never_renders_value(monkeypatch, caplog):
+    """The resolver logs the LANE + env var NAME — never the token value."""
+    import logging
+
+    import harness.credentials as creds
+
+    monkeypatch.setenv("LILY_TOKEN", "sekrit-lily-value")
+    with caplog.at_level(logging.INFO, logger="harness.credentials"):
+        creds.resolve_credentials("product")
+    assert "product lane" in caplog.text
+    assert "LILY_TOKEN" in caplog.text
+    assert "sekrit-lily-value" not in caplog.text
+
+
+def test_lane_stamp_default_none_for_unlaned_client(monkeypatch):
+    monkeypatch.setenv("LLM_API_KEY", "legacy-key")
+    client = OpenAICompatibleClient(model="m")
+    assert client.lane is None
+    assert client.api_key == "legacy-key"
+    assert FakeClient().lane is None
+    assert FakeClient(lane="research").lane == "research"
