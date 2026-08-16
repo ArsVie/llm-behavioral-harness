@@ -23,6 +23,19 @@ Uso:
     .venv/bin/python -m experiments.live_companion --channel cli \
         --db results/live-companion/companion.db
 
+Flags opcionales (misma superficie que sim/run_async):
+    --enable-commands   registra el handler de slash-commands (S3).
+                        Default OFF -> los comandos se descartan, igual que
+                        hoy. Con el flag ON el canal registra el menú de
+                        comandos del cliente vía setMyCommands (/state
+                        NUNCA se registra: contamina la lectura perceptual).
+    --tz <IANA>         ancla el reloj virtual a tiempo real (HARNESS_TZ
+                        como fallback; sin ninguno = sin ancla).
+    Las demás features UX (debounce HARNESS_DEBOUNCE con ventanas
+    HARNESS_DEBOUNCE_TRAILING_S / HARNESS_DEBOUNCE_MAX_WAIT_S, typing
+    HARNESS_TYPING, two-phase close HARNESS_TWO_PHASE_CLOSE) se activan por
+    env en el canal/sesión compartidos — el entry en vivo ya las consume.
+
 Verificación de compuerta (sin enviar mensajes): el driver imprime el
 estado del canal al arrancar; `--check` solo valida el token vía getMe
 (no envía nada) y sale.
@@ -34,6 +47,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import inspect
 import os
 import sys
 import time
@@ -58,12 +72,22 @@ from harness.anchor import anchor_for_fresh_start
 from harness.runtime import AsyncRuntime, IntentResolver, load_anchor, persist_anchor
 from harness.scheduler import ProactiveSchedule, day_scores
 from harness.client import OpenAICompatibleClient
+from sim.run_async import CommandBridgeChannel, build_command_callback, _commit_sha
 
 #: 1 hora virtual = 1 hora real (modo en vivo; la matriz usa 0.0004).
 LIVE_TIME_SCALE_S_PER_VH = 3600.0
 
 #: Constante de persona (misma que las células de la matriz).
 DEFAULT_PERSONA = "Ana"
+
+
+def _env_bool(name: str, default: bool = False) -> bool:
+    """Env bool with the harness convention (mirrors tools._env_bool):
+    unset/empty -> default; truthy = 1/true/yes/on."""
+    raw = os.environ.get(name)
+    if raw is None or raw.strip() == "":
+        return default
+    return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
 def build_store(db_path: Path) -> SQLiteStore:
@@ -86,7 +110,7 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
                   max_virtual_hours: float | None = None,
                   client=None, judge=None,
                   time_scale_s_per_vh: float = LIVE_TIME_SCALE_S_PER_VH,
-                  anchor=None) -> AsyncRuntime:
+                  anchor=None, clock=None) -> AsyncRuntime:
     from experiments.cvs_common import stream_rng, rng_mod
 
     if client is None:
@@ -96,7 +120,7 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
     persona = persona or PersonaParams()
     timing = timing or TimingParams()
     variant = MoodVariant.DECOUPLED_OFFSETS
-    clock = VirtualClock(0.0)
+    clock = clock or VirtualClock(0.0)
     session = make_session(condition, seed, store, clock, client, judge,
                            persona, timing, variant)
     # Día 0 up-front (misma razón que run_cell): el primer replan del
@@ -131,7 +155,8 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
 
 
 async def _amain(channel_name: str, db_path: Path, seed: int,
-                 condition: str, check_only: bool, tz: str | None = None) -> int:
+                 condition: str, check_only: bool, tz: str | None = None,
+                 enable_commands: bool = False) -> int:
     from harness.config import select_channel
 
     if check_only:
@@ -167,9 +192,42 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
     if anchor is not None:
         store.attach_anchor(anchor)
     channel = select_channel(channel_name)
-    runtime = build_runtime(store, seed, condition, channel, anchor=anchor)
+    clock = VirtualClock(0.0)
+    if enable_commands:
+        if "on_command" not in inspect.signature(channel.start).parameters:
+            print(
+                "WARNING: --enable-commands given but the selected channel has no "
+                "command seam (S3) — commands will be dropped.",
+                flush=True,
+            )
+        else:
+            # Mismo patrón que sim/run_async (superficie de referencia):
+            # CommandBridgeChannel inyecta el callback del launcher en
+            # Channel.start; un on_command propio del runtime (su dispatch
+            # _on_command bloqueado) gana sobre el bridge cuando se pasa.
+            channel = CommandBridgeChannel(
+                channel,
+                build_command_callback(
+                    store,
+                    clock,
+                    seed=seed,
+                    channel=channel,
+                    anchor=anchor,
+                    flags={"debug": _env_bool("HARNESS_DEBUG_COMMANDS")},
+                    commit_sha=_commit_sha(),
+                    request_tz_change=lambda name: store.set_kv(
+                        "cmd.tz.pending", name
+                    ),
+                    request_mute=lambda hours: store.set_kv(
+                        "cmd.mute.until_t_h", f"{clock.now_h() + hours:.3f}"
+                    ),
+                ),
+            )
+    runtime = build_runtime(store, seed, condition, channel, anchor=anchor,
+                            clock=clock)
     print(f"[live] channel={channel_name} condition={condition} "
-          f"seed={seed} db={db_path} tz={anchor.tz if anchor else 'none'}",
+          f"seed={seed} db={db_path} tz={anchor.tz if anchor else 'none'}"
+          + (" commands=on" if enable_commands else ""),
           flush=True)
     print("[live] Ctrl-C to stop; the DB persists between sessions", flush=True)
     try:
@@ -193,11 +251,20 @@ def main(argv: list[str] | None = None) -> int:
                         help="IANA timezone for the real-time anchor (e.g. "
                              "America/Mexico_City); default HARNESS_TZ env; "
                              "neither = no anchor (pre-anchor behavior)")
+    parser.add_argument(
+        "--enable-commands", action="store_true",
+        help="register the slash-command handler (S3). Default OFF -> "
+             "start(on_message=..., on_command=None) -> commands are dropped, "
+             "exactly like today. /state stays debug-only "
+             "(HARNESS_DEBUG_COMMANDS=1) and is never registered in the "
+             "client command menu.",
+    )
     args = parser.parse_args(argv)
     tz = args.tz or os.environ.get("HARNESS_TZ") or None
     try:
         return asyncio.run(_amain(args.channel, Path(args.db), args.seed,
-                                  args.condition, args.check, tz))
+                                  args.condition, args.check, tz,
+                                  args.enable_commands))
     except KeyboardInterrupt:
         return 0
 

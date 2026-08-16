@@ -10,7 +10,11 @@ import asyncio
 
 import pytest
 
-from harness.channels.telegram import ControlCommand, TelegramChannel
+from harness.channels.telegram import (
+    USER_COMMANDS,
+    ControlCommand,
+    TelegramChannel,
+)
 from test_channel_telegram import FakeApplication
 
 
@@ -109,3 +113,66 @@ def test_control_command_is_frozen_with_slashless_name() -> None:
     assert cmd.sender_id == 42
     with pytest.raises(AttributeError):
         setattr(cmd, "name", "muted")
+
+
+# --------------------------------------------------------------------------- #
+# setMyCommands (WS-A): the user-facing command menu registers only when
+# commands are enabled; /state is never registered.
+# --------------------------------------------------------------------------- #
+
+
+def test_set_my_commands_registered_when_commands_enabled() -> None:
+    """start(on_message, on_command=...) registers the user-facing menu via
+    setMyCommands on the bot (fake records the ptb BotCommand list)."""
+    app = FakeApplication()
+    channel = TelegramChannel(application=app, owner_chat_id="42")
+
+    async def scenario() -> None:
+        await channel.start(lambda msg: None, on_command=lambda cmd: None)
+
+    asyncio.run(scenario())
+    assert app.bot.registered_commands is not None
+    names = [c.command for c in app.bot.registered_commands]
+    assert names == ["help", "ping", "setup", "tz", "status", "mute", "version"]
+
+
+def test_set_my_commands_never_registers_state() -> None:
+    """The standing decision: /state is NOT user-visible — it is absent from
+    both the registered menu and the USER_COMMANDS contract itself."""
+    names = [c for c, _ in USER_COMMANDS]
+    assert "state" not in names
+    app = FakeApplication()
+    channel = TelegramChannel(application=app, owner_chat_id="42")
+
+    async def scenario() -> None:
+        await channel.start(lambda msg: None, on_command=lambda cmd: None)
+
+    asyncio.run(scenario())
+    registered = [c.command for c in app.bot.registered_commands]
+    assert "state" not in registered
+    # ... while the dispatch table still handles it (debug-gated handler).
+    from harness.commands import _COMMANDS  # noqa: PLC2701 - contract check
+
+    assert "state" in _COMMANDS
+
+
+def test_set_my_commands_not_registered_when_commands_disabled() -> None:
+    """start(on_message) without on_command (default): NO registration —
+    matching today's behavior, the live bot unchanged until the flag flips."""
+    app = FakeApplication()
+    channel = TelegramChannel(application=app, owner_chat_id="42")
+
+    async def scenario() -> None:
+        await channel.start(lambda msg: None)
+
+    asyncio.run(scenario())
+    assert app.bot.registered_commands is None
+
+
+def test_user_commands_are_documented_with_descriptions() -> None:
+    """Every registered command has a non-empty description (the client menu
+    renders it) and the set is exactly the plan's list."""
+    assert [c for c, _ in USER_COMMANDS] == [
+        "help", "ping", "setup", "tz", "status", "mute", "version",
+    ]
+    assert all(desc.strip() for _, desc in USER_COMMANDS)

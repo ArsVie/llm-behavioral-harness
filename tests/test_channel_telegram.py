@@ -42,12 +42,16 @@ class FakeBot:
     def __init__(self):
         self.calls = []
         self.chat_actions = []
+        self.registered_commands = None  # setMyCommands recording (WS-A)
 
     async def send_message(self, chat_id, text, **kwargs):
         self.calls.append({"chat_id": chat_id, "text": text})
 
     async def send_chat_action(self, chat_id, action, **kwargs):
         self.chat_actions.append({"chat_id": chat_id, "action": action})
+
+    async def set_my_commands(self, commands, **kwargs):
+        self.registered_commands = list(commands)
 
 
 class FakeApplication:
