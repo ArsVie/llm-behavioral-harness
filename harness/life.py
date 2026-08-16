@@ -476,6 +476,37 @@ def current_activity_now(agenda: DailyAgenda, t_h: float) -> CurrentActivity | N
     return CurrentActivity(t_h=t_h, item=main, description=main.activity)
 
 
+def transition_past_windows(
+    agenda: DailyAgenda, t_h: float, day: int
+) -> list[AgendaItem]:
+    """Deterministic planned→completed transition as windows pass (S2/W2).
+
+    Pure function of (item window, t_h, day) — no wall clock, no rng, no
+    store. Every item of ``day``'s agenda whose window has FULLY passed
+    (``end_t_h <= t_h``) while still ``planned`` becomes ``completed``: the
+    slot came and went on the plan with no recorded deviation, so the day's
+    plan is treated as fulfilled (``done``; ``skipped``/``shifted`` stay
+    reserved for ``step_life``'s recorded deviations at rollover). Items
+    still in their window or upcoming stay ``planned``; non-planned items
+    are never touched — ``step_life``'s rollover draw still applies to
+    whatever is left planned at day end.
+
+    Returns ONLY the changed items; the caller persists each via
+    ``store.update_agenda_item_status`` so the rendered state-card
+    partition (which keys off the same window comparison) and the
+    persisted status agree.
+    """
+    changed: list[AgendaItem] = []
+    for item in agenda.items:
+        if item.status != "planned":
+            continue
+        if int(item.start_t_h // 24) != day:
+            continue
+        if item.end_t_h <= t_h:
+            changed.append(replace(item, status="completed"))
+    return changed
+
+
 def _recent_good_days(store: LifeStore, day: int) -> int:
     """Count meaningful recent companion events (plan §5-A2 T3 source 4).
 

@@ -124,18 +124,60 @@ DEFAULT_PROACTIVE_HOOK = (
 )
 
 # --------------------------------------------------------------------------- #
-# v2: section priorities (lowest dropped first under budget pressure) and
-# the pinned decision/steering payload sections.
+# W2+W3: named state-card sections (fixed order) + time-aware agenda.
+# The state card is sectioned TEMPORAL FRAME / AFFECTIVE BEARING /
+# BEHAVIORAL BEARING / CURRENT INTENT (in that order, first four physical
+# sections of the card); the remaining card sections (activity, arcs,
+# memories, about-you, proactive, closing, pop-up) follow unchanged.
 # --------------------------------------------------------------------------- #
-_PRIO_MOOD_BRIEF = 2
-_PRIO_ACTIVITY = 3
-_PRIO_AVAILABILITY = 4
-_PRIO_ARCS = 5
-_PRIO_MEMORIES = 6
-_PRIO_USER_MODEL = 7
-_PRIO_PROACTIVE = 8
-_PRIO_CLOSING = 9
-_PRIO_POPUP = 10
+TEMPORAL_HEADER = "TEMPORAL FRAME:"
+AFFECTIVE_HEADER = "AFFECTIVE BEARING:"
+BEHAVIORAL_HEADER = "BEHAVIORAL BEARING:"
+CURRENT_INTENT_HEADER = "CURRENT INTENT:"
+
+#: Reserved-slot placeholder (W3): CURRENT INTENT stays empty until S5
+#: fills it. Fixed wording, masking-clean, no numbers.
+CURRENT_INTENT_PLACEHOLDER = "No active intent."
+
+#: Behavioral-channel prose templates (W3). Band selection only — raw
+#: channels never render (G2). Wording deliberately avoids the masking
+#: battery's forbidden substrings ("mu", "eta", ...).
+_BEHAVIOR_INITIATIVE_HIGH = (
+    "You tend to reach out first and carry the conversation forward."
+)
+_BEHAVIOR_INITIATIVE_MID = (
+    "You reach out when something matters, and otherwise follow the user's lead."
+)
+_BEHAVIOR_INITIATIVE_LOW = (
+    "You mostly follow the user's lead, letting them set the pace."
+)
+_BEHAVIOR_REACTIVITY_HIGH = "You respond quickly and pick up on what is said."
+_BEHAVIOR_REACTIVITY_MID = "You respond readily to what is said."
+_BEHAVIOR_REACTIVITY_LOW = "You respond at your own pace, unhurried."
+_BEHAVIOR_PERSISTENCE_HIGH = (
+    "You tend to stay in the conversation and see it through."
+)
+_BEHAVIOR_PERSISTENCE_MID = (
+    "You stay in the conversation while it keeps meaning something."
+)
+_BEHAVIOR_PERSISTENCE_LOW = "Your participation tends to wind down quickly."
+
+# --------------------------------------------------------------------------- #
+# v2 + W3: section priorities (lowest dropped first under budget pressure)
+# and the pinned sections (current intent slot, decision/steering payload —
+# current activity and the event/pop-up block — are NEVER dropped).
+# --------------------------------------------------------------------------- #
+_PRIO_TEMPORAL = 1
+_PRIO_AFFECTIVE = 2
+_PRIO_BEHAVIORAL = 3
+_PRIO_CURRENT_INTENT = 4
+_PRIO_ACTIVITY = 5
+_PRIO_ARCS = 6
+_PRIO_MEMORIES = 7
+_PRIO_USER_MODEL = 8
+_PRIO_PROACTIVE = 9
+_PRIO_CLOSING = 10
+_PRIO_POPUP = 11
 
 #: Pinned sections (reviewer requirement): the decision/steering payload —
 #: state-card essentials (current activity, event/pop-up block) — is NEVER
@@ -263,6 +305,130 @@ def _availability_line(brief: BehaviorBrief) -> str | None:
     return AVAILABILITY_MID
 
 
+def _band_line(value: float, high: str, mid: str, low: str) -> str:
+    """Band-template selection shared by the availability/behavioral lines
+    (the ``_availability_line`` pattern): one fixed prose string per band,
+    never a raw number."""
+    if value > 0.7:
+        return high
+    if value < 0.35:
+        return low
+    return mid
+
+
+def _behavioral_bearing(brief: BehaviorBrief) -> str:
+    """BEHAVIORAL BEARING prose (W3): the behavioral channels
+    ``derive_behavior`` computes — initiative and reactivity straight from
+    ``BehaviorBrief``, persistence mapped to ``1 - closing_tendency``
+    (staying power in the conversation; there is no literal persistence
+    channel — this is the honest existing signal). Rendered as PROSE via
+    band-template selection (``_band_line``), never raw floats (G2); the
+    BehaviorTrace is never rendered (invariant)."""
+    return BEHAVIORAL_HEADER + "\n" + "\n".join(
+        (
+            _band_line(
+                brief.initiative,
+                _BEHAVIOR_INITIATIVE_HIGH,
+                _BEHAVIOR_INITIATIVE_MID,
+                _BEHAVIOR_INITIATIVE_LOW,
+            ),
+            _band_line(
+                brief.reactivity,
+                _BEHAVIOR_REACTIVITY_HIGH,
+                _BEHAVIOR_REACTIVITY_MID,
+                _BEHAVIOR_REACTIVITY_LOW,
+            ),
+            _band_line(
+                1.0 - brief.closing_tendency,
+                _BEHAVIOR_PERSISTENCE_HIGH,
+                _BEHAVIOR_PERSISTENCE_MID,
+                _BEHAVIOR_PERSISTENCE_LOW,
+            ),
+        )
+    )
+
+
+def _day_period(hour: int) -> str:
+    """Morning/afternoon/evening/night band of a local hour (temporal line).
+
+    Fixed mapping: 05:00–11:59 morning, 12:00–16:59 afternoon,
+    17:00–21:59 evening, else night. (The plan's example line reads
+    "Saturday afternoon" at 15:24.)
+    """
+    if 5 <= hour < 12:
+        return "morning"
+    if 12 <= hour < 17:
+        return "afternoon"
+    if 17 <= hour < 22:
+        return "evening"
+    return "night"
+
+
+def _partition_agenda(
+    items, t_h: float
+) -> tuple[list, list, list]:
+    """(done earlier, happening now, later today) — the state-card agenda
+    partition (S2 decision 3: past items kept, labeled).
+
+    Bucket rule per item: ``completed``/``skipped`` → done earlier (the
+    slot is finished either way); ``shifted`` → later today (the slot is
+    not happening at its window — it was moved); anything else falls to the
+    window comparison ``end_t_h <= t_h`` → done, ``start_t_h <= t_h`` →
+    now, else later. The status transition (``life.transition_past_windows``)
+    keys off the same comparison, so the render and the persisted status
+    agree by construction. Pure function of (item window/status, t_h).
+    """
+    done: list = []
+    now: list = []
+    later: list = []
+    for it in items:
+        if it.status in ("completed", "skipped"):
+            done.append(it)
+        elif it.status == "shifted":
+            later.append(it)
+        elif t_h >= it.end_t_h:
+            done.append(it)
+        elif t_h >= it.start_t_h:
+            now.append(it)
+        else:
+            later.append(it)
+    return done, now, later
+
+
+def render_temporal_section(snapshot: CompanionSnapshot, t_h: float, anchor) -> str | None:
+    """TEMPORAL FRAME section (W2): current-time/day line + agenda partition.
+
+    The line reads the wall clock from the REAL date via ``anchor.real_at``
+    (W1) and the VIRTUAL day index: ``It is 15:24, Saturday afternoon —
+    day 0.`` (weekday + day period from the real local time; day N is
+    ``int(t_h // 24)``). The partition keeps past items, labeled (spec
+    decision 3): ``Done earlier`` / ``Happening now`` / ``Later today``.
+
+    ``anchor`` must expose ``real_at(t_h) -> aware datetime`` (the
+    ``RealTimeAnchor`` contract). Returns None when no anchor is given
+    (replay / unanchored runs): the temporal section is omitted entirely —
+    it never falls back to rendering ``t_h`` directly (that would leak
+    engine numbers, G2).
+    """
+    if anchor is None:
+        return None
+    real = anchor.real_at(t_h)
+    line = (
+        f"It is {real.hour:02d}:{real.minute:02d}, "
+        f"{real.strftime('%A')} {_day_period(real.hour)} — day {int(t_h // 24)}."
+    )
+    done, now, later = _partition_agenda(snapshot.agenda, t_h)
+    parts = [line]
+    for label, items in (
+        ("Done earlier", done),
+        ("Happening now", now),
+        ("Later today", later),
+    ):
+        if items:
+            parts.append(label + ":\n" + "\n".join(_agenda_lines(items)))
+    return TEMPORAL_HEADER + "\n" + "\n".join(parts)
+
+
 def render_day_block(snapshot: CompanionSnapshot) -> str:
     """Tier-2 DAY-START block: personality + today's agenda.
 
@@ -291,12 +457,18 @@ def assemble_snapshot(
     prompt_brief: str | None = None,
     popup: str | None = None,
     day_block: str | None = None,
+    t_h: float | None = None,
+    anchor=None,
 ) -> str:
     """Assemble ONE system prompt from a ``CompanionSnapshot`` (3-tier).
 
     Public signature backward compatible: ``assemble_snapshot(snapshot,
     controls=...)`` behaves exactly as before, now producing the full
-    three-tier context.
+    three-tier context. W2/W3 additions are keyword-only and optional:
+    ``t_h`` + ``anchor`` together render the TEMPORAL FRAME section (the
+    current-time/day line + agenda partition); with either absent the
+    section is omitted (replay / unanchored runs — never falls back to
+    raw ``t_h``).
 
     Tiers, in order:
 
@@ -305,11 +477,16 @@ def assemble_snapshot(
       2. DAY-START block — ``day_block`` when a pre-rendered (cached) block
          is passed (WS4 wires ``render_day_block`` into ``ensure_day``),
          else rendered from the snapshot: personality + today's agenda.
-      3. STATE CARD — mood brief (``prompt_brief``: the 'Current bearing'
-         prose from ``BehaviorDirective.prompt_brief``, the SINGLE source —
-         the assembler never re-renders it), energy/availability, current
-         activity, active life arcs, relevant memories (quoted evidence),
-         about-you facts, proactive block (only when
+      3. STATE CARD — the named W3 sections in fixed order (TEMPORAL FRAME
+         when anchored; AFFECTIVE BEARING — the mood brief
+         (``prompt_brief``: the 'Current bearing' prose from
+         ``BehaviorDirective.prompt_brief``, the SINGLE source — the
+         assembler never re-renders it) plus the availability line, both
+         VERBATIM from the pre-wave renderer; BEHAVIORAL BEARING — the
+         initiative/reactivity/persistence channels as prose; CURRENT
+         INTENT — the reserved placeholder slot), then the unchanged card
+         sections: current activity, active life arcs, relevant memories
+         (quoted evidence), about-you facts, proactive block (only when
          ``snapshot.proactive_intent`` is set, hook verbatim), closing
          guidance (only when ``controls`` carries it), and the pinned
          event/pop-up block when ``popup`` is provided.
@@ -318,20 +495,46 @@ def assemble_snapshot(
     in the user/assistant message payload, so every turn appears exactly
     once. If the joined prompt exceeds ``MAX_PROMPT_CHARS``, whole sections
     are dropped deterministically from lowest priority upward (text is never
-    mangled) — EXCEPT the pinned decision/steering payload sections (current
+    mangled) — EXCEPT the pinned sections (current intent slot, current
     activity, pop-up block), which are never dropped.
     """
     sections: list[tuple[int, bool, str]] = []
 
-    if prompt_brief:
-        sections.append(
-            (_PRIO_MOOD_BRIEF, False, f"{MOOD_BRIEF_HEADER} {prompt_brief.strip()}")
-        )
+    temporal = (
+        render_temporal_section(snapshot, t_h, anchor)
+        if anchor is not None and t_h is not None
+        else None
+    )
+    if temporal:
+        sections.append((_PRIO_TEMPORAL, False, temporal))
 
+    # AFFECTIVE BEARING (W3): the pre-wave renderer's output verbatim —
+    # the mood brief line (MOOD_BRIEF_HEADER + prompt_brief, byte-identical
+    # wording) and the availability line; only their position/header changed.
+    affective: list[str] = []
+    if prompt_brief:
+        affective.append(f"{MOOD_BRIEF_HEADER} {prompt_brief.strip()}")
     if snapshot.current_behavior is not None:
         availability = _availability_line(snapshot.current_behavior)
         if availability:
-            sections.append((_PRIO_AVAILABILITY, False, availability))
+            affective.append(availability)
+    if affective:
+        sections.append((_PRIO_AFFECTIVE, False, AFFECTIVE_HEADER + "\n" + "\n".join(affective)))
+
+    if snapshot.current_behavior is not None:
+        sections.append((_PRIO_BEHAVIORAL, False, _behavioral_bearing(snapshot.current_behavior)))
+
+    # CURRENT INTENT: EMPTY RESERVED SLOT until S5 — the fixed placeholder
+    # keeps the slot visibly reserved. PINNED: it survives budget pressure
+    # (it is tiny; S5 fills it later). Never carries the proactive hook —
+    # that stays in its own section (proactive_block), unchanged.
+    sections.append(
+        (
+            _PRIO_CURRENT_INTENT,
+            _PINNED,
+            CURRENT_INTENT_HEADER + "\n" + CURRENT_INTENT_PLACEHOLDER,
+        )
+    )
 
     if snapshot.current_activity is not None:
         # PINNED: decision-payload essential — never dropped by the trim.

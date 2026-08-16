@@ -96,7 +96,7 @@ from harness.domain import (
     Turn,
 )
 from harness.judge import JudgeResult, judge_day
-from harness.life import LIFE_STREAM
+from harness.life import LIFE_STREAM, transition_past_windows
 from harness.memory import MemoryAgent
 from harness.negotiation_contract import (
     DEFER_TURNS_KEY,
@@ -1267,6 +1267,32 @@ class Session:
             )
         return None
 
+    def _real_time_anchor(self):
+        """The store's attached RealTimeAnchor (W1/S1), or None when the run
+        is unanchored (replay / legacy fakes). The store exposes no public
+        getter (store.py is frozen this wave), so this reads the private
+        slot defensively — fakes simply lack it and yield None, which the
+        assembler treats as "no temporal section" (G2: never fall back to
+        rendering t_h)."""
+        return getattr(self.store, "_anchor", None)
+
+    def _transition_agenda_windows(self, day: int, t_h: float) -> None:
+        """W2/S2: persist planned→completed transitions for today's items
+        whose window has fully passed, keyed off the current ``t_h`` (pure
+        deterministic transition — no wall clock). The state card's agenda
+        partition renders from the same window comparison, so the render
+        and the persisted status agree. Fakes without the store seams are
+        skipped."""
+        if not hasattr(self.store, "load_agenda") or not hasattr(
+            self.store, "update_agenda_item_status"
+        ):
+            return
+        agenda = self.store.load_agenda(day)
+        if agenda is None:
+            return
+        for item in transition_past_windows(agenda, t_h, day):
+            self.store.update_agenda_item_status(item.id, item.status)
+
     def _build_snapshot(
         self,
         day: int,
@@ -1371,6 +1397,10 @@ class Session:
         # boundary crossed / user silence past USER_LEFT_THRESHOLD_H); the
         # current message then opens a fresh conversation.
         self.check_conversation_lifecycle(t_h)
+        # W2 (S2): agenda status transitions as windows pass — keyed off the
+        # current t_h, persisted via the store; the state card's temporal
+        # partition and the persisted status agree.
+        self._transition_agenda_windows(day, t_h)
 
         previous = self._records.get(day - 1)
         directive = derive_behavior(
@@ -1413,6 +1443,10 @@ class Session:
         system = assemble_snapshot(
             snapshot, controls=controls, prompt_brief=directive.prompt_brief,
             day_block=self._day_block,
+            # W2: the temporal section (current-time/day line + agenda
+            # partition) renders only when the run is anchored; unanchored
+            # runs (replay) omit it entirely (G2: never render raw t_h).
+            t_h=t_h, anchor=self._real_time_anchor(),
         )
         if user_text is None and intent is None:
             # Legacy ungrounded proactive call (pre-slice callers/tests):
