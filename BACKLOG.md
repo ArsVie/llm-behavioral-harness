@@ -54,3 +54,9 @@ the agent. New asks get appended here as they are spoken.
 - Date: 2026-08-15
 - Verbatim: "I'm sure this is obvious, but the launch file should not be in a tmp"
 - Summary: The live-companion launcher was moved out of /tmp to a durable location outside the repo (~/.hermes/scripts/live_telegram.sh). The launcher also gained the LLM credential mapping needed for real replies.
+
+### UX feature enablement, delimiter spike, token split, spend accounting
+- Date: 2026-08-16
+- Verbatim: docs/plan-ux-tokens-spend-2026-08-16.md — the full orchestration contract, committed verbatim.
+- Summary: Four workstreams. WS-A: enable env-gated UX through the live entry (slash commands + setMyCommands, /state stays OFF; debounce env-configurable at ~4-5 s trailing / ~12 s cap; sent_at stamped from real arrival with the clock advancing mid-conversation; mid-reply-folding separability discovery). WS-B: model-driven delimiter naturalness spike on DeepSeek-V4-Flash (last attempt after the mechanical splitter failed; pre-committed ship/no-ship decision). WS-C: two-lane token split — LILY_TOKEN for the product lane, JUDGE_GENERATOR_TOKEN for research, resolver fails loudly, repo-root .env provisioning, launcher drops the opencode-key mapping. WS-D: spend accounting — usage+cache capture, additive v7→v8 migration, pricing config with cached tier, spend report by lane/model/window.
+- Status 2026-08-16: orchestrating wave 1 (WS-A + WS-C in parallel; WS-D and WS-B follow after WS-C lands).
