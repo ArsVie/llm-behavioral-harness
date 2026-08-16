@@ -381,6 +381,10 @@ def main(argv: list[str] | None = None) -> int:
         tz_name, anchor = resolve_tz(args.tz)
     except ZoneInfoNotFoundError as exc:
         parser.error(f"invalid timezone: {exc}")
+    # S1 write path: resolve real timestamps from the anchor at row
+    # creation; without an anchor all *_at columns stay NULL.
+    if anchor is not None:
+        store.attach_anchor(anchor)
 
     channel_name = args.channel or os.environ.get("HARNESS_CHANNEL") or DEFAULT_CHANNEL
     channel = select_channel(channel_name)
