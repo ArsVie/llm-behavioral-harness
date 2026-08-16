@@ -1,0 +1,819 @@
+{
+  "actors": {
+    "gemma": {
+      "actor": "gemma",
+      "bands": {
+        "high": {
+          "codebook": {
+            "acc": 0.23333333333333334,
+            "bootstrap_seed": 2581065426,
+            "ci95": [
+              0.1,
+              0.4
+            ],
+            "ci_excludes_chance": false,
+            "n": 30
+          },
+          "gabs": {
+            "acc_ok": false,
+            "ci_ok": false,
+            "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+            "gate": "G-ABS (H3)",
+            "k_ok": true,
+            "pass": false
+          },
+          "gbeh_paired": {
+            "acc_codebook": 0.23333333333333334,
+            "acc_renderer": 0.4666666666666667,
+            "band": "high",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 2207602476
+            },
+            "ci95": [
+              -0.4,
+              -0.1
+            ],
+            "ci_excludes_zero": true,
+            "delta_acc": -0.23333333333333334,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.23333333333333334
+          },
+          "judge": "hosted",
+          "renderer": {
+            "acc": 0.4666666666666667,
+            "bootstrap_seed": 2581065426,
+            "ci95": [
+              0.3,
+              0.6333333333333333
+            ],
+            "ci_excludes_chance": false,
+            "n": 30
+          }
+        },
+        "low": {
+          "codebook": {
+            "acc": 0.2,
+            "bootstrap_seed": 3608887588,
+            "ci95": [
+              0.06666666666666667,
+              0.36666666666666664
+            ],
+            "ci_excludes_chance": false,
+            "n": 30
+          },
+          "gabs": {
+            "acc_ok": false,
+            "ci_ok": false,
+            "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+            "gate": "G-ABS (H3)",
+            "k_ok": true,
+            "pass": false
+          },
+          "gbeh_paired": {
+            "acc_codebook": 0.2,
+            "acc_renderer": 0.36666666666666664,
+            "band": "low",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 2979647146
+            },
+            "ci95": [
+              -0.36666666666666664,
+              0.0
+            ],
+            "ci_excludes_zero": false,
+            "delta_acc": -0.16666666666666663,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.16666666666666666
+          },
+          "judge": "hosted",
+          "renderer": {
+            "acc": 0.36666666666666664,
+            "bootstrap_seed": 3608887588,
+            "ci95": [
+              0.2,
+              0.5333333333333333
+            ],
+            "ci_excludes_chance": false,
+            "n": 30
+          }
+        },
+        "mid": {
+          "codebook": {
+            "acc": 0.4,
+            "bootstrap_seed": 2634267623,
+            "ci95": [
+              0.23333333333333334,
+              0.5666666666666667
+            ],
+            "ci_excludes_chance": false,
+            "n": 30
+          },
+          "gabs": {
+            "acc_ok": false,
+            "ci_ok": false,
+            "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+            "gate": "G-ABS (H3)",
+            "k_ok": true,
+            "pass": false
+          },
+          "gbeh_paired": {
+            "acc_codebook": 0.4,
+            "acc_renderer": 0.4666666666666667,
+            "band": "mid",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 1752803497
+            },
+            "ci95": [
+              -0.23333333333333334,
+              0.1
+            ],
+            "ci_excludes_zero": false,
+            "delta_acc": -0.06666666666666665,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.06666666666666667
+          },
+          "judge": "hosted",
+          "renderer": {
+            "acc": 0.4666666666666667,
+            "bootstrap_seed": 2634267623,
+            "ci95": [
+              0.3,
+              0.6333333333333333
+            ],
+            "ci_excludes_chance": false,
+            "n": 30
+          }
+        }
+      },
+      "gbeh": {
+        "condition": "DeltaAcc >= +0.10 AND 95% CI on the paired difference excludes 0",
+        "gate": "G-BEH (H4, PRIMARY)",
+        "pass": false,
+        "per_band": [
+          {
+            "acc_codebook": 0.2,
+            "acc_renderer": 0.36666666666666664,
+            "band": "low",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 2979647146
+            },
+            "ci95": [
+              -0.36666666666666664,
+              0.0
+            ],
+            "ci_excludes_zero": false,
+            "delta_acc": -0.16666666666666663,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.16666666666666666
+          },
+          {
+            "acc_codebook": 0.4,
+            "acc_renderer": 0.4666666666666667,
+            "band": "mid",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 1752803497
+            },
+            "ci95": [
+              -0.23333333333333334,
+              0.1
+            ],
+            "ci_excludes_zero": false,
+            "delta_acc": -0.06666666666666665,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.06666666666666667
+          },
+          {
+            "acc_codebook": 0.23333333333333334,
+            "acc_renderer": 0.4666666666666667,
+            "band": "high",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 2207602476
+            },
+            "ci95": [
+              -0.4,
+              -0.1
+            ],
+            "ci_excludes_zero": true,
+            "delta_acc": -0.23333333333333334,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.23333333333333334
+          }
+        ],
+        "pooled": {
+          "ci95": [
+            -0.25555555555555554,
+            -0.05555555555555555
+          ],
+          "ci_excludes_zero": true,
+          "delta_acc_mean": -0.15555555555555556,
+          "method": "bootstrap over pooled pair-level deltas (all bands)",
+          "n_pairs": 90
+        }
+      },
+      "judge": "hosted",
+      "largest_actor": false,
+      "model": "google/gemma-3-1b-pt",
+      "pooled": {
+        "codebook": {
+          "acc": 0.2777777777777778,
+          "bootstrap_seed": 2260037612,
+          "ci95": [
+            0.18888888888888888,
+            0.37777777777777777
+          ],
+          "ci_excludes_chance": false,
+          "n": 90
+        },
+        "gabs": {
+          "acc_ok": false,
+          "ci_ok": false,
+          "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+          "gate": "G-ABS (H3)",
+          "k_ok": true,
+          "pass": false
+        },
+        "renderer": {
+          "acc": 0.43333333333333335,
+          "bootstrap_seed": 2260037612,
+          "ci95": [
+            0.3333333333333333,
+            0.5333333333333333
+          ],
+          "ci_excludes_chance": true,
+          "n": 90
+        }
+      },
+      "revision": "fcf18a2a879aab110ca39f8bffbccd5d49d8eb29"
+    },
+    "qwen": {
+      "actor": "qwen",
+      "bands": {
+        "high": {
+          "codebook": {
+            "acc": 0.1,
+            "bootstrap_seed": 3309993894,
+            "ci95": [
+              0.0,
+              0.2
+            ],
+            "ci_excludes_chance": true,
+            "n": 30
+          },
+          "gabs": {
+            "acc_ok": false,
+            "ci_ok": true,
+            "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+            "gate": "G-ABS (H3)",
+            "k_ok": true,
+            "pass": false
+          },
+          "gbeh_paired": {
+            "acc_codebook": 0.1,
+            "acc_renderer": 0.5666666666666667,
+            "band": "high",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 109784768
+            },
+            "ci95": [
+              -0.6666666666666666,
+              -0.26666666666666666
+            ],
+            "ci_excludes_zero": true,
+            "delta_acc": -0.4666666666666667,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.4666666666666667
+          },
+          "judge": "hosted",
+          "renderer": {
+            "acc": 0.5666666666666667,
+            "bootstrap_seed": 3309993894,
+            "ci95": [
+              0.4,
+              0.7333333333333333
+            ],
+            "ci_excludes_chance": true,
+            "n": 30
+          }
+        },
+        "low": {
+          "codebook": {
+            "acc": 0.2,
+            "bootstrap_seed": 1022494931,
+            "ci95": [
+              0.06666666666666667,
+              0.3333333333333333
+            ],
+            "ci_excludes_chance": false,
+            "n": 30
+          },
+          "gabs": {
+            "acc_ok": false,
+            "ci_ok": false,
+            "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+            "gate": "G-ABS (H3)",
+            "k_ok": true,
+            "pass": false
+          },
+          "gbeh_paired": {
+            "acc_codebook": 0.2,
+            "acc_renderer": 0.5333333333333333,
+            "band": "low",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 4051910114
+            },
+            "ci95": [
+              -0.6,
+              -0.06666666666666667
+            ],
+            "ci_excludes_zero": true,
+            "delta_acc": -0.3333333333333333,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.3333333333333333
+          },
+          "judge": "hosted",
+          "renderer": {
+            "acc": 0.5333333333333333,
+            "bootstrap_seed": 1022494931,
+            "ci95": [
+              0.36666666666666664,
+              0.7
+            ],
+            "ci_excludes_chance": true,
+            "n": 30
+          }
+        },
+        "mid": {
+          "codebook": {
+            "acc": 0.6333333333333333,
+            "bootstrap_seed": 1877634677,
+            "ci95": [
+              0.4666666666666667,
+              0.8
+            ],
+            "ci_excludes_chance": true,
+            "n": 30
+          },
+          "gabs": {
+            "acc_ok": true,
+            "ci_ok": true,
+            "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+            "gate": "G-ABS (H3)",
+            "k_ok": true,
+            "pass": true
+          },
+          "gbeh_paired": {
+            "acc_codebook": 0.6333333333333333,
+            "acc_renderer": 0.6333333333333333,
+            "band": "mid",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 2264571132
+            },
+            "ci95": [
+              -0.23333333333333334,
+              0.23333333333333334
+            ],
+            "ci_excludes_zero": false,
+            "delta_acc": 0.0,
+            "n_pairs": 30,
+            "paired_delta_mean": 0.0
+          },
+          "judge": "hosted",
+          "renderer": {
+            "acc": 0.6333333333333333,
+            "bootstrap_seed": 1877634677,
+            "ci95": [
+              0.4666666666666667,
+              0.8
+            ],
+            "ci_excludes_chance": true,
+            "n": 30
+          }
+        }
+      },
+      "gbeh": {
+        "condition": "DeltaAcc >= +0.10 AND 95% CI on the paired difference excludes 0",
+        "gate": "G-BEH (H4, PRIMARY)",
+        "pass": false,
+        "per_band": [
+          {
+            "acc_codebook": 0.2,
+            "acc_renderer": 0.5333333333333333,
+            "band": "low",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 4051910114
+            },
+            "ci95": [
+              -0.6,
+              -0.06666666666666667
+            ],
+            "ci_excludes_zero": true,
+            "delta_acc": -0.3333333333333333,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.3333333333333333
+          },
+          {
+            "acc_codebook": 0.6333333333333333,
+            "acc_renderer": 0.6333333333333333,
+            "band": "mid",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 2264571132
+            },
+            "ci95": [
+              -0.23333333333333334,
+              0.23333333333333334
+            ],
+            "ci_excludes_zero": false,
+            "delta_acc": 0.0,
+            "n_pairs": 30,
+            "paired_delta_mean": 0.0
+          },
+          {
+            "acc_codebook": 0.1,
+            "acc_renderer": 0.5666666666666667,
+            "band": "high",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 109784768
+            },
+            "ci95": [
+              -0.6666666666666666,
+              -0.26666666666666666
+            ],
+            "ci_excludes_zero": true,
+            "delta_acc": -0.4666666666666667,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.4666666666666667
+          }
+        ],
+        "pooled": {
+          "ci95": [
+            -0.4111111111111111,
+            -0.12222222222222222
+          ],
+          "ci_excludes_zero": true,
+          "delta_acc_mean": -0.26666666666666666,
+          "method": "bootstrap over pooled pair-level deltas (all bands)",
+          "n_pairs": 90
+        }
+      },
+      "judge": "hosted",
+      "largest_actor": false,
+      "model": "Qwen/Qwen3-1.7B",
+      "pooled": {
+        "codebook": {
+          "acc": 0.3111111111111111,
+          "bootstrap_seed": 3977601307,
+          "ci95": [
+            0.2222222222222222,
+            0.4111111111111111
+          ],
+          "ci_excludes_chance": false,
+          "n": 90
+        },
+        "gabs": {
+          "acc_ok": false,
+          "ci_ok": false,
+          "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+          "gate": "G-ABS (H3)",
+          "k_ok": true,
+          "pass": false
+        },
+        "renderer": {
+          "acc": 0.5777777777777777,
+          "bootstrap_seed": 3977601307,
+          "ci95": [
+            0.4777777777777778,
+            0.6777777777777778
+          ],
+          "ci_excludes_chance": true,
+          "n": 90
+        }
+      },
+      "revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e"
+    },
+    "qwen8b": {
+      "actor": "qwen8b",
+      "bands": {
+        "high": {
+          "codebook": {
+            "acc": 0.23333333333333334,
+            "bootstrap_seed": 3251986997,
+            "ci95": [
+              0.1,
+              0.4
+            ],
+            "ci_excludes_chance": false,
+            "n": 30
+          },
+          "gabs": {
+            "acc_ok": false,
+            "ci_ok": false,
+            "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+            "gate": "G-ABS (H3)",
+            "k_ok": true,
+            "pass": false
+          },
+          "gbeh_paired": {
+            "acc_codebook": 0.23333333333333334,
+            "acc_renderer": 0.7666666666666667,
+            "band": "high",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 561783041
+            },
+            "ci95": [
+              -0.7333333333333333,
+              -0.3
+            ],
+            "ci_excludes_zero": true,
+            "delta_acc": -0.5333333333333334,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.5333333333333333
+          },
+          "judge": "hosted",
+          "renderer": {
+            "acc": 0.7666666666666667,
+            "bootstrap_seed": 3251986997,
+            "ci95": [
+              0.6,
+              0.9
+            ],
+            "ci_excludes_chance": true,
+            "n": 30
+          }
+        },
+        "low": {
+          "codebook": {
+            "acc": 0.26666666666666666,
+            "bootstrap_seed": 4085946364,
+            "ci95": [
+              0.13333333333333333,
+              0.43333333333333335
+            ],
+            "ci_excludes_chance": false,
+            "n": 30
+          },
+          "gabs": {
+            "acc_ok": false,
+            "ci_ok": false,
+            "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+            "gate": "G-ABS (H3)",
+            "k_ok": true,
+            "pass": false
+          },
+          "gbeh_paired": {
+            "acc_codebook": 0.26666666666666666,
+            "acc_renderer": 0.6,
+            "band": "low",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 1020640146
+            },
+            "ci95": [
+              -0.5333333333333333,
+              -0.13333333333333333
+            ],
+            "ci_excludes_zero": true,
+            "delta_acc": -0.3333333333333333,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.3333333333333333
+          },
+          "judge": "hosted",
+          "renderer": {
+            "acc": 0.6,
+            "bootstrap_seed": 4085946364,
+            "ci95": [
+              0.43333333333333335,
+              0.7666666666666667
+            ],
+            "ci_excludes_chance": true,
+            "n": 30
+          }
+        },
+        "mid": {
+          "codebook": {
+            "acc": 0.7333333333333333,
+            "bootstrap_seed": 2068689452,
+            "ci95": [
+              0.5666666666666667,
+              0.8666666666666667
+            ],
+            "ci_excludes_chance": true,
+            "n": 30
+          },
+          "gabs": {
+            "acc_ok": true,
+            "ci_ok": true,
+            "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+            "gate": "G-ABS (H3)",
+            "k_ok": true,
+            "pass": true
+          },
+          "gbeh_paired": {
+            "acc_codebook": 0.7333333333333333,
+            "acc_renderer": 0.7666666666666667,
+            "band": "mid",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 2017840832
+            },
+            "ci95": [
+              -0.26666666666666666,
+              0.2
+            ],
+            "ci_excludes_zero": false,
+            "delta_acc": -0.03333333333333344,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.03333333333333333
+          },
+          "judge": "hosted",
+          "renderer": {
+            "acc": 0.7666666666666667,
+            "bootstrap_seed": 2068689452,
+            "ci95": [
+              0.6,
+              0.9
+            ],
+            "ci_excludes_chance": true,
+            "n": 30
+          }
+        }
+      },
+      "gbeh": {
+        "condition": "DeltaAcc >= +0.10 AND 95% CI on the paired difference excludes 0",
+        "gate": "G-BEH (H4, PRIMARY)",
+        "pass": false,
+        "per_band": [
+          {
+            "acc_codebook": 0.26666666666666666,
+            "acc_renderer": 0.6,
+            "band": "low",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 1020640146
+            },
+            "ci95": [
+              -0.5333333333333333,
+              -0.13333333333333333
+            ],
+            "ci_excludes_zero": true,
+            "delta_acc": -0.3333333333333333,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.3333333333333333
+          },
+          {
+            "acc_codebook": 0.7333333333333333,
+            "acc_renderer": 0.7666666666666667,
+            "band": "mid",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 2017840832
+            },
+            "ci95": [
+              -0.26666666666666666,
+              0.2
+            ],
+            "ci_excludes_zero": false,
+            "delta_acc": -0.03333333333333344,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.03333333333333333
+          },
+          {
+            "acc_codebook": 0.23333333333333334,
+            "acc_renderer": 0.7666666666666667,
+            "band": "high",
+            "bootstrap": {
+              "method": "percentile 2.5/97.5 of resampled pair means",
+              "n": 10000,
+              "seed": 561783041
+            },
+            "ci95": [
+              -0.7333333333333333,
+              -0.3
+            ],
+            "ci_excludes_zero": true,
+            "delta_acc": -0.5333333333333334,
+            "n_pairs": 30,
+            "paired_delta_mean": -0.5333333333333333
+          }
+        ],
+        "pooled": {
+          "ci95": [
+            -0.43333333333333335,
+            -0.16666666666666666
+          ],
+          "ci_excludes_zero": true,
+          "delta_acc_mean": -0.3,
+          "method": "bootstrap over pooled pair-level deltas (all bands)",
+          "n_pairs": 90
+        }
+      },
+      "judge": "hosted",
+      "largest_actor": true,
+      "model": "Qwen/Qwen3-8B",
+      "pooled": {
+        "codebook": {
+          "acc": 0.4111111111111111,
+          "bootstrap_seed": 2064934514,
+          "ci95": [
+            0.3111111111111111,
+            0.5111111111111111
+          ],
+          "ci_excludes_chance": false,
+          "n": 90
+        },
+        "gabs": {
+          "acc_ok": false,
+          "ci_ok": false,
+          "condition": "acc >= 0.60 AND 95% CI excludes chance (0.33) AND K>=30/band",
+          "gate": "G-ABS (H3)",
+          "k_ok": true,
+          "pass": false
+        },
+        "renderer": {
+          "acc": 0.7111111111111111,
+          "bootstrap_seed": 2064934514,
+          "ci95": [
+            0.6222222222222222,
+            0.8
+          ],
+          "ci_excludes_chance": true,
+          "n": 90
+        }
+      },
+      "revision": "b968826d9c46dd6066d109eabc6255188de91218"
+    }
+  },
+  "bootstrap": {
+    "method": "percentile 2.5/97.5, seeded",
+    "n": 10000,
+    "seed_keys": {
+      "abs": 591187235,
+      "beh": 4051910114
+    }
+  },
+  "chance": 0.33,
+  "contract": "experiments/emotion-codebook-spike2/docs/exp-affect-codebook-spike2-2026-08-16.md",
+  "gates": {
+    "G-ABS": "codebook generations judge-classified >= 0.60 (3-way, chance 0.33), CI excludes chance, K>=30/band",
+    "G-BEH": "PRIMARY: on the largest local actor (qwen8b), codebook beats the current 48-state renderer on judge separability by DeltaAcc >= +0.10, 95% CI on the difference excludes 0 (paired, same contexts/levels)"
+  },
+  "phase": "P6",
+  "verdicts": {
+    "gabs_per_actor": {
+      "gemma": {
+        "per_band": {
+          "high": false,
+          "low": false,
+          "mid": false
+        },
+        "pooled": false
+      },
+      "qwen": {
+        "per_band": {
+          "high": false,
+          "low": false,
+          "mid": true
+        },
+        "pooled": false
+      },
+      "qwen8b": {
+        "per_band": {
+          "high": false,
+          "low": false,
+          "mid": true
+        },
+        "pooled": false
+      }
+    },
+    "gbeh_primary": false
+  }
+}

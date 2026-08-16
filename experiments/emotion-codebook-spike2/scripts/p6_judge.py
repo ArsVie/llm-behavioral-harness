@@ -201,7 +201,11 @@ def judge_reply_hosted(reply: str) -> str:
     messages = [
         {"role": "user", "content": judge_prompt(reply)},
     ]
-    return client.chat(messages, temperature=0.0, max_tokens=64).strip()
+    # max_tokens=512: deepseek-v4-flash reasons BEFORE answering (reasoning
+    # ~270-1200 chars on full-length replies); a tight cap (64) starves the
+    # thinking pass -> finish_reason='length', content empty -> 7 retries ->
+    # crash. 512 keeps the one-word verdict inside the budget (probed).
+    return client.chat(messages, temperature=0.0, max_tokens=512).strip()
 
 
 def judge_reply(model, tok, reply: str, seed: int, device: str) -> str:
