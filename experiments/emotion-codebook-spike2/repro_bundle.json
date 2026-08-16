@@ -1,0 +1,223 @@
+{
+  "master_seed": 20260815,
+  "phase": "P0",
+  "sections": {
+    "datasets.emobank": {
+      "emobank.csv": {
+        "bytes": 1335010,
+        "path": "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/emotion-codebook-spike/datasets/raw/emobank.csv",
+        "revision": "JULIELab/EmoBank master",
+        "rows": 10062,
+        "sha256": "1ade4a4a453e880c0f39d0536d2b355e8a716e0cf88236c64cdb4d438cf9605b",
+        "source": "https://github.com/JULIELab/EmoBank (corpus/emobank.csv)"
+      }
+    },
+    "datasets.goemotions_raw": {
+      "goemotions_train.parquet": {
+        "bytes": 24828322,
+        "path": "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/emotion-codebook-spike/datasets/raw/goemotions_train.parquet",
+        "revision": "add492243ff905527e67aeb8b80c082af02207c3",
+        "rows": 211225,
+        "sha256": "5de61486d0b557920f960cbe8b7579f51cdea2d80e74cf647b583967a3642a68",
+        "source": "https://huggingface.co/datasets/google-research-datasets/go_emotions"
+      }
+    },
+    "datasets.goemotions_simplified": {
+      "goemotions_simplified_test.parquet": {
+        "bytes": 346630,
+        "path": "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/emotion-codebook-spike/datasets/raw/goemotions_simplified_test.parquet",
+        "revision": "add492243ff905527e67aeb8b80c082af02207c3",
+        "sha256": "fd0953e535ba2569edc6a1daaa1133f8e4b9071691d540c9bab812fda132bc26",
+        "source": "https://huggingface.co/datasets/google-research-datasets/go_emotions",
+        "split": "test"
+      },
+      "goemotions_simplified_train.parquet": {
+        "bytes": 2767678,
+        "path": "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/emotion-codebook-spike/datasets/raw/goemotions_simplified_train.parquet",
+        "revision": "add492243ff905527e67aeb8b80c082af02207c3",
+        "sha256": "b7d74279616ae7c9b8374ab62ea9f9d6504d36a577bb17f745d720dc2b0d4e76",
+        "source": "https://huggingface.co/datasets/google-research-datasets/go_emotions",
+        "split": "train"
+      },
+      "goemotions_simplified_validation.parquet": {
+        "bytes": 350063,
+        "path": "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/emotion-codebook-spike/datasets/raw/goemotions_simplified_validation.parquet",
+        "revision": "add492243ff905527e67aeb8b80c082af02207c3",
+        "sha256": "d46ad5633c4fa41829d22d549743a7bf858d94129536a02af7280c281db5e63a",
+        "source": "https://huggingface.co/datasets/google-research-datasets/go_emotions",
+        "split": "validation"
+      }
+    },
+    "datasets.nrc_vad": {
+      "NRC-VAD-Lexicon.zip": {
+        "bytes": 41166179,
+        "path": "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/emotion-codebook-spike/datasets/raw/NRC-VAD-Lexicon.zip",
+        "revision": "sha256 of zip (see file)",
+        "rows": 19974,
+        "sha256": "8e4c356daf3419f6e100487371cb7389576b5e1296e5ce1b4aaaf16ca45db6e3",
+        "source": "https://saifmohammad.com/WebDocs/NRC-VAD-Lexicon.zip"
+      }
+    },
+    "datasets.warriner2013": {
+      "Ratings_Warriner_et_al.csv": {
+        "bytes": 3722885,
+        "path": "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/emotion-codebook-spike/datasets/raw/Ratings_Warriner_et_al.csv",
+        "revision": "JULIELab/XANEW master",
+        "rows": 13915,
+        "sha256": "78ac8107c78e116bb96538fae4faa47281a155f5f8fe39f30bbc6ea3db05b446",
+        "source": "https://github.com/JULIELab/XANEW (Warriner et al. 2013 secondary distribution)"
+      }
+    },
+    "decoding": {
+      "do_sample": true,
+      "max_new_tokens": 64,
+      "repetition_penalty": 1.0,
+      "temperature": 0.8,
+      "top_k": 40,
+      "top_p": 0.9
+    },
+    "env": {
+      "cuda_available": true,
+      "datasets": "5.0.1",
+      "gpu": "NVIDIA RTX PRO 1000 Blackwell Generation Laptop GPU, 8151 MiB, 591.64",
+      "host": "VRUIZSE-MX-LE01",
+      "huggingface_hub": "1.27.0",
+      "numpy": "2.5.2",
+      "python": "3.12.3",
+      "scipy": "1.18.0",
+      "torch": "2.11.0+cu128",
+      "torch_cuda_build": "12.8",
+      "transformers": "5.15.0"
+    },
+    "models.gemma3-1b-pt": {
+      "fallback_note": "google/gemma-2-2b (sha c5ebcd40d208330abc697524c919956e692655cf) also gated \u2014 the token blocker applies to every Gemma model; size fallback question moot until token.",
+      "files": {
+        "README.md": {
+          "bytes": 23496,
+          "sha256": null
+        },
+        "added_tokens.json": {
+          "bytes": 35,
+          "sha256": null
+        },
+        "config.json": {
+          "bytes": 880,
+          "sha256": null
+        },
+        "generation_config.json": {
+          "bytes": 215,
+          "sha256": null
+        },
+        "model.safetensors": {
+          "bytes": 1999811208,
+          "sha256": "ee5250f6eb1aa7cfb729dfd4dc8d9964fd772324776c6d00bf2bc674c069cb27"
+        },
+        "special_tokens_map.json": {
+          "bytes": 662,
+          "sha256": null
+        },
+        "tokenizer.json": {
+          "bytes": 33384570,
+          "sha256": null
+        },
+        "tokenizer.model": {
+          "bytes": 4689074,
+          "sha256": null
+        },
+        "tokenizer_config.json": {
+          "bytes": 1155349,
+          "sha256": null
+        }
+      },
+      "gated": "manual",
+      "note": "google/gemma-3-1b-it is dcc83ea841ab6100d6b47a070329e1ba4cf78752 (also gated)",
+      "repo_id": "google/gemma-3-1b-pt",
+      "revision": "fcf18a2a879aab110ca39f8bffbccd5d49d8eb29",
+      "snapshot_path": "/home/vruizes/.cache/huggingface/hub/models--google--gemma-3-1b-pt/snapshots/fcf18a2a879aab110ca39f8bffbccd5d49d8eb29",
+      "status": "PINNED + VERIFIED (P2-Gemma-PREP 2026-08-15): weights downloaded, CPU analytic check + GPU bringup PASS",
+      "total_bytes": 2039065489
+    },
+    "models.qwen3-1.7B": {
+      "files": {
+        ".gitattributes": {
+          "bytes": 1570,
+          "sha256": null
+        },
+        "LICENSE": {
+          "bytes": 11343,
+          "sha256": null
+        },
+        "README.md": {
+          "bytes": 13963,
+          "sha256": null
+        },
+        "config.json": {
+          "bytes": 726,
+          "sha256": null
+        },
+        "generation_config.json": {
+          "bytes": 239,
+          "sha256": null
+        },
+        "merges.txt": {
+          "bytes": 1671853,
+          "sha256": null
+        },
+        "model-00001-of-00002.safetensors": {
+          "bytes": 3441185608,
+          "sha256": "169ad53ec313c3a34b06c0809216e4fc072cce444a5d4ff2b59690d064130ed5"
+        },
+        "model-00002-of-00002.safetensors": {
+          "bytes": 622329984,
+          "sha256": "912becff8d60672aa8628ef08c05898d9adf17c2ad4ae3caf99b065622fdeff9"
+        },
+        "model.safetensors.index.json": {
+          "bytes": 25605,
+          "sha256": null
+        },
+        "tokenizer.json": {
+          "bytes": 11422654,
+          "sha256": "aeb13307a71acd8fe81861d94ad54ab689df773318809eed3cbe794b4492dae4"
+        },
+        "tokenizer_config.json": {
+          "bytes": 9732,
+          "sha256": null
+        },
+        "vocab.json": {
+          "bytes": 2776833,
+          "sha256": null
+        }
+      },
+      "repo_id": "Qwen/Qwen3-1.7B",
+      "revision": "70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+      "snapshot_path": "/home/vruizes/.cache/huggingface/hub/models--Qwen--Qwen3-1.7B/snapshots/70d244cc86ccca08cf5af4e1e306ecf908b1ad5e",
+      "total_bytes": 4079450110
+    },
+    "seeds": {
+      "master_seed": 20260815,
+      "policy": "per-run seeds = derive_seed(master, *key) via SeedSequence (mirrors engine/rng.py); seed_everything() before any sampling/generation; fixed-temperature DecodingConfig below.",
+      "smoke_run_seed_qwen": 2764385816
+    },
+    "smoke.qwen3-1.7B": {
+      "PASS": true,
+      "budget_mib": 8151,
+      "bwd_s": 0.256,
+      "checkpointing": true,
+      "dtype": "bfloat16",
+      "fwd_s": 0.565,
+      "grad_finite": true,
+      "grad_norm": 88.2894,
+      "load_s": 3.1,
+      "loss": 13.4375,
+      "model_id": "Qwen/Qwen3-1.7B",
+      "n_grad_tensors": 310,
+      "n_params": 1720574976,
+      "peak_alloc_mib": 7806.8,
+      "peak_fwd_mib": 3344.4,
+      "seed": 2764385816,
+      "seq_len": 128,
+      "total_s": 10.66
+    }
+  },
+  "spike": "emotion-codebook-spike"
+}
