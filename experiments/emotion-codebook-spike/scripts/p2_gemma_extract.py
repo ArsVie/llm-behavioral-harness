@@ -611,8 +611,11 @@ def stage_p3(h: GemmaHarness, held: list[dict], emo_vec: dict, jlens: dict, seed
                 dhat = dirs[Lk]
                 proj = np.array([float(s["acts"][Lk].numpy() @ dhat) for s in per_stim])
                 r = pearson(proj, y_arr)
+                # NOTE: norm-layer spawn key must be NON-NEGATIVE — SeedSequence
+                # rejects negative keys (ValueError: expected non-negative integer).
+                # 10000 cannot collide with real layer indices (<= ~64).
                 rng = rng_for(MASTER_SEED, SEED_KEY["boot"], AXIS_IDX[axis], METHOD_IDX[method],
-                              int(Lk) if Lk != "norm" else -1)
+                              int(Lk) if Lk != "norm" else 10000)
                 lo, hi = bootstrap_ci(proj, y_arr, rng)
                 prof.setdefault(Lk, {})[method] = {"r": r, "ci": [lo, hi], "n": n}
         axes_out: dict = {"n": n, "methods": {}, "layer_profile": prof}
