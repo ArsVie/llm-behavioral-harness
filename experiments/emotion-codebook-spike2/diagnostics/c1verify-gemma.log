@@ -1,0 +1,19 @@
+[c1verify] valence: train n=60 heldout n=60 seed=2521371786
+[c1verify] arousal: train n=60 heldout n=60 seed=2885350259
+Loading weights:   0%|          | 0/340 [00:00<?, ?it/s]Loading weights:  17%|█▋        | 57/340 [00:00<00:00, 569.77it/s]Loading weights:  34%|███▎      | 114/340 [00:00<00:00, 419.35it/s]Loading weights:  55%|█████▍    | 186/340 [00:00<00:00, 485.08it/s]Loading weights:  73%|███████▎  | 249/340 [00:00<00:00, 521.17it/s]Loading weights: 100%|██████████| 340/340 [00:00<00:00, 591.48it/s]
+[c1verify] model loaded in 2.3s
+[c1verify] P2a (EV) done
+[P2b] checkpoint jlens_valence.json written
+[P2b] checkpoint jlens_arousal.json written
+[c1verify] P2b (JL) done, peak 4278.5 MiB
+[c1verify] valence: n=60 EV r=0.398 (pos) | JL r=0.070 (pos) | JL(norm) r=-0.120 (neg) | match=False
+[c1verify] arousal: n=60 EV r=0.433 (pos) | JL r=0.054 (pos) | JL(norm) r=0.201 (pos) | match=True
+{
+  "c1verify": "FAIL",
+  "valence_signs_match": false,
+  "axes": {
+    "valence": false,
+    "arousal": true
+  }
+}
+C1 verify FAILED: corrected JL valence sign disagrees with EV sign

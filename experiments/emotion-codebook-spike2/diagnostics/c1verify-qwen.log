@@ -1,0 +1,20 @@
+[c1verify] valence: train n=60 heldout n=60 seed=2521371786
+[c1verify] arousal: train n=60 heldout n=60 seed=2885350259
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights:   7%|▋         | 22/311 [00:00<00:01, 180.68it/s]Loading weights:  13%|█▎        | 41/311 [00:00<00:01, 178.35it/s]Loading weights:  23%|██▎       | 71/311 [00:00<00:01, 200.95it/s]Loading weights:  32%|███▏      | 101/311 [00:00<00:00, 216.34it/s]Loading weights:  43%|████▎     | 135/311 [00:00<00:00, 232.55it/s]Loading weights:  51%|█████     | 159/311 [00:00<00:00, 190.96it/s]Loading weights:  58%|█████▊    | 179/311 [00:00<00:00, 193.20it/s]Loading weights:  64%|██████▍   | 199/311 [00:01<00:00, 177.48it/s]Loading weights:  71%|███████▏  | 222/311 [00:01<00:00, 189.53it/s]Loading weights:  78%|███████▊  | 242/311 [00:01<00:00, 176.94it/s]Loading weights:  84%|████████▍ | 261/311 [00:01<00:00, 179.98it/s]Loading weights:  90%|█████████ | 280/311 [00:01<00:00, 177.83it/s]Loading weights: 100%|██████████| 311/311 [00:01<00:00, 201.77it/s]
+[c1verify] model loaded in 4.0s
+[c1verify] P2a (EV) done
+[P2b] bins checkpoint jlens_valence.json written
+[P2b] checkpoint jlens_valence.json written
+[P2b] bins checkpoint jlens_arousal.json written
+[P2b] checkpoint jlens_arousal.json written
+[c1verify] P2b (JL) done, peak 5674.5 MiB
+[c1verify] valence: n=60 EV r=0.298 (pos) | JL r=0.101 (pos) | JL(norm) r=0.096 (pos) | match=True
+[c1verify] arousal: n=60 EV r=-0.162 (neg) | JL r=-0.039 (neg) | JL(norm) r=0.243 (pos) | match=False
+{
+  "c1verify": "PASS",
+  "valence_signs_match": true,
+  "axes": {
+    "valence": true,
+    "arousal": false
+  }
+}

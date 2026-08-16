@@ -1,0 +1,1195 @@
+[chain] 2026-08-16T04:42:14-06:00 start
+[chain] === .venv/bin/python scripts/p6_generate.py --actor qwen --variant renderer --k 30 --bands low,mid,high --device cuda --dtype bf16 ===
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 9878.67it/s]
+[p6-generate] actor=qwen variant=renderer device=cuda dtype=bf16 load=4.2s k=30 bands=['low', 'mid', 'high']
+[qwen/renderer/low] prompt_len=2573 prompt_hash=619b50d10dca7b93…
+  [low 1/30] seed=2281551864 12.6s reply_len=503
+  [low 2/30] seed=1448500881 5.4s reply_len=468
+  [low 3/30] seed=1059070863 5.6s reply_len=452
+  [low 4/30] seed=1948582956 5.4s reply_len=489
+  [low 5/30] seed=2650658013 5.2s reply_len=514
+  [low 6/30] seed=2063512873 5.6s reply_len=436
+  [low 7/30] seed=2808268864 5.2s reply_len=531
+  [low 8/30] seed=298479723 5.2s reply_len=423
+  [low 9/30] seed=2517307237 5.1s reply_len=480
+  [low 10/30] seed=3057455543 5.1s reply_len=529
+  [low 11/30] seed=239467785 5.3s reply_len=489
+  [low 12/30] seed=2260326445 5.5s reply_len=564
+  [low 13/30] seed=792325912 5.7s reply_len=406
+  [low 14/30] seed=3346713651 5.5s reply_len=448
+  [low 15/30] seed=258872874 5.2s reply_len=500
+  [low 16/30] seed=2748319474 5.7s reply_len=543
+  [low 17/30] seed=252323518 5.4s reply_len=544
+  [low 18/30] seed=1784069900 5.6s reply_len=492
+  [low 19/30] seed=3146584294 5.3s reply_len=487
+  [low 20/30] seed=3518715002 5.1s reply_len=519
+  [low 21/30] seed=2279431021 5.6s reply_len=484
+  [low 22/30] seed=3558810443 5.3s reply_len=472
+  [low 23/30] seed=3212265397 6.5s reply_len=490
+  [low 24/30] seed=3928503921 5.4s reply_len=486
+  [low 25/30] seed=38119835 5.2s reply_len=470
+  [low 26/30] seed=3560814262 6.4s reply_len=491
+  [low 27/30] seed=2666345694 6.0s reply_len=534
+  [low 28/30] seed=343755797 6.5s reply_len=487
+  [low 29/30] seed=2024306565 5.8s reply_len=468
+  [low 30/30] seed=2891852795 5.7s reply_len=469
+[low] wrote 30 rows -> data/extractions/qwen/eval/qwen_renderer_low.jsonl
+[qwen/renderer/mid] prompt_len=2586 prompt_hash=f5b01f09c3754299…
+  [mid 1/30] seed=4050986889 5.5s reply_len=498
+  [mid 2/30] seed=2251349180 6.2s reply_len=472
+  [mid 3/30] seed=3448174444 6.3s reply_len=548
+  [mid 4/30] seed=2602017446 6.0s reply_len=516
+  [mid 5/30] seed=2373067349 6.9s reply_len=504
+  [mid 6/30] seed=253803203 6.3s reply_len=480
+  [mid 7/30] seed=400455488 6.5s reply_len=483
+  [mid 8/30] seed=663396520 6.0s reply_len=528
+  [mid 9/30] seed=1194374425 5.7s reply_len=503
+  [mid 10/30] seed=3299628914 6.5s reply_len=509
+  [mid 11/30] seed=448426886 6.9s reply_len=502
+  [mid 12/30] seed=546598783 6.0s reply_len=512
+  [mid 13/30] seed=3356227161 5.7s reply_len=503
+  [mid 14/30] seed=3756589953 6.0s reply_len=496
+  [mid 15/30] seed=1391474077 6.7s reply_len=548
+  [mid 16/30] seed=2053585280 6.0s reply_len=480
+  [mid 17/30] seed=4175319505 6.4s reply_len=386
+  [mid 18/30] seed=1874000283 6.1s reply_len=523
+  [mid 19/30] seed=816557155 6.1s reply_len=487
+  [mid 20/30] seed=4216996884 6.3s reply_len=501
+  [mid 21/30] seed=1835171675 5.8s reply_len=540
+  [mid 22/30] seed=3601829698 6.5s reply_len=457
+  [mid 23/30] seed=1610668310 6.5s reply_len=494
+  [mid 24/30] seed=1735596187 5.9s reply_len=509
+  [mid 25/30] seed=2790803835 5.6s reply_len=560
+  [mid 26/30] seed=3901925946 5.6s reply_len=501
+  [mid 27/30] seed=3756829315 5.8s reply_len=481
+  [mid 28/30] seed=303791787 6.1s reply_len=525
+  [mid 29/30] seed=1704009717 5.7s reply_len=363
+  [mid 30/30] seed=57712962 6.3s reply_len=503
+[mid] wrote 30 rows -> data/extractions/qwen/eval/qwen_renderer_mid.jsonl
+[qwen/renderer/high] prompt_len=2605 prompt_hash=3001e06a94063e72…
+  [high 1/30] seed=2138597632 6.2s reply_len=545
+  [high 2/30] seed=2951673537 5.8s reply_len=539
+  [high 3/30] seed=1535161474 6.2s reply_len=474
+  [high 4/30] seed=2300756094 5.8s reply_len=574
+  [high 5/30] seed=1333424823 5.5s reply_len=566
+  [high 6/30] seed=135321506 5.8s reply_len=475
+  [high 7/30] seed=2560276679 5.8s reply_len=535
+  [high 8/30] seed=691313582 6.5s reply_len=561
+  [high 9/30] seed=3516046401 6.1s reply_len=448
+  [high 10/30] seed=4078958432 6.4s reply_len=449
+  [high 11/30] seed=4293618344 6.1s reply_len=540
+  [high 12/30] seed=956555218 7.2s reply_len=529
+  [high 13/30] seed=2847629505 6.2s reply_len=503
+  [high 14/30] seed=463570765 5.4s reply_len=520
+  [high 15/30] seed=1856076054 5.6s reply_len=503
+  [high 16/30] seed=715977617 5.3s reply_len=484
+  [high 17/30] seed=1604794454 5.8s reply_len=519
+  [high 18/30] seed=1421446110 5.5s reply_len=506
+  [high 19/30] seed=4244280874 5.6s reply_len=489
+  [high 20/30] seed=3924347982 5.7s reply_len=518
+  [high 21/30] seed=2221454047 5.9s reply_len=491
+  [high 22/30] seed=772853223 5.8s reply_len=527
+  [high 23/30] seed=3064751779 6.0s reply_len=476
+  [high 24/30] seed=3824547361 5.8s reply_len=503
+  [high 25/30] seed=133240440 6.2s reply_len=564
+  [high 26/30] seed=581645467 5.3s reply_len=521
+  [high 27/30] seed=3986433472 5.1s reply_len=458
+  [high 28/30] seed=382223067 5.4s reply_len=548
+  [high 29/30] seed=3068399244 5.5s reply_len=505
+  [high 30/30] seed=1829320771 5.1s reply_len=482
+[high] wrote 30 rows -> data/extractions/qwen/eval/qwen_renderer_high.jsonl
+[chain] === .venv/bin/python scripts/p6_generate.py --actor qwen --variant codebook --k 30 --bands low,mid,high --device cuda --dtype bf16 ===
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 62553.52it/s]
+[p6-generate] actor=qwen variant=codebook device=cuda dtype=bf16 load=4.6s k=30 bands=['low', 'mid', 'high']
+[qwen/codebook/low] prompt_len=2275 prompt_hash=b5b6cc41d2272957…
+  [low 1/30] seed=2281551864 7.2s reply_len=464
+  [low 2/30] seed=1448500881 5.3s reply_len=420
+  [low 3/30] seed=1059070863 5.4s reply_len=476
+  [low 4/30] seed=1948582956 5.2s reply_len=430
+  [low 5/30] seed=2650658013 5.0s reply_len=515
+  [low 6/30] seed=2063512873 4.8s reply_len=526
+  [low 7/30] seed=2808268864 4.9s reply_len=466
+  [low 8/30] seed=298479723 4.8s reply_len=492
+  [low 9/30] seed=2517307237 4.6s reply_len=536
+  [low 10/30] seed=3057455543 4.8s reply_len=524
+  [low 11/30] seed=239467785 4.8s reply_len=470
+  [low 12/30] seed=2260326445 4.9s reply_len=489
+  [low 13/30] seed=792325912 4.9s reply_len=497
+  [low 14/30] seed=3346713651 4.8s reply_len=488
+  [low 15/30] seed=258872874 4.7s reply_len=500
+  [low 16/30] seed=2748319474 4.6s reply_len=470
+  [low 17/30] seed=252323518 4.8s reply_len=473
+  [low 18/30] seed=1784069900 4.7s reply_len=538
+  [low 19/30] seed=3146584294 4.7s reply_len=479
+  [low 20/30] seed=3518715002 4.8s reply_len=498
+  [low 21/30] seed=2279431021 4.7s reply_len=468
+  [low 22/30] seed=3558810443 4.7s reply_len=468
+  [low 23/30] seed=3212265397 4.7s reply_len=504
+  [low 24/30] seed=3928503921 4.8s reply_len=525
+  [low 25/30] seed=38119835 4.9s reply_len=518
+  [low 26/30] seed=3560814262 4.7s reply_len=501
+  [low 27/30] seed=2666345694 4.8s reply_len=379
+  [low 28/30] seed=343755797 4.7s reply_len=499
+  [low 29/30] seed=2024306565 4.6s reply_len=410
+  [low 30/30] seed=2891852795 4.7s reply_len=548
+[low] wrote 30 rows -> data/extractions/qwen/eval/qwen_codebook_low.jsonl
+[qwen/codebook/mid] prompt_len=2302 prompt_hash=dab75ffe83e6f5c2…
+  [mid 1/30] seed=4050986889 4.7s reply_len=460
+  [mid 2/30] seed=2251349180 4.7s reply_len=431
+  [mid 3/30] seed=3448174444 4.8s reply_len=460
+  [mid 4/30] seed=2602017446 4.8s reply_len=498
+  [mid 5/30] seed=2373067349 4.7s reply_len=476
+  [mid 6/30] seed=253803203 4.7s reply_len=492
+  [mid 7/30] seed=400455488 4.7s reply_len=404
+  [mid 8/30] seed=663396520 4.9s reply_len=509
+  [mid 9/30] seed=1194374425 4.9s reply_len=489
+  [mid 10/30] seed=3299628914 4.8s reply_len=467
+  [mid 11/30] seed=448426886 4.8s reply_len=522
+  [mid 12/30] seed=546598783 4.8s reply_len=487
+  [mid 13/30] seed=3356227161 4.7s reply_len=523
+  [mid 14/30] seed=3756589953 4.7s reply_len=463
+  [mid 15/30] seed=1391474077 4.7s reply_len=509
+  [mid 16/30] seed=2053585280 4.6s reply_len=470
+  [mid 17/30] seed=4175319505 4.8s reply_len=516
+  [mid 18/30] seed=1874000283 4.7s reply_len=502
+  [mid 19/30] seed=816557155 4.8s reply_len=496
+  [mid 20/30] seed=4216996884 4.7s reply_len=568
+  [mid 21/30] seed=1835171675 4.7s reply_len=445
+  [mid 22/30] seed=3601829698 4.7s reply_len=507
+  [mid 23/30] seed=1610668310 4.9s reply_len=468
+  [mid 24/30] seed=1735596187 4.7s reply_len=459
+  [mid 25/30] seed=2790803835 4.8s reply_len=485
+  [mid 26/30] seed=3901925946 4.7s reply_len=539
+  [mid 27/30] seed=3756829315 4.9s reply_len=543
+  [mid 28/30] seed=303791787 4.7s reply_len=529
+  [mid 29/30] seed=1704009717 4.7s reply_len=131
+  [mid 30/30] seed=57712962 4.6s reply_len=498
+[mid] wrote 30 rows -> data/extractions/qwen/eval/qwen_codebook_mid.jsonl
+[qwen/codebook/high] prompt_len=2305 prompt_hash=7739bdcb52a38b65…
+  [high 1/30] seed=2138597632 4.5s reply_len=531
+  [high 2/30] seed=2951673537 4.8s reply_len=495
+  [high 3/30] seed=1535161474 4.7s reply_len=536
+  [high 4/30] seed=2300756094 4.7s reply_len=464
+  [high 5/30] seed=1333424823 4.8s reply_len=436
+  [high 6/30] seed=135321506 4.8s reply_len=501
+  [high 7/30] seed=2560276679 4.8s reply_len=551
+  [high 8/30] seed=691313582 4.8s reply_len=496
+  [high 9/30] seed=3516046401 4.8s reply_len=479
+  [high 10/30] seed=4078958432 4.8s reply_len=474
+  [high 11/30] seed=4293618344 5.0s reply_len=469
+  [high 12/30] seed=956555218 4.7s reply_len=511
+  [high 13/30] seed=2847629505 4.7s reply_len=481
+  [high 14/30] seed=463570765 4.6s reply_len=485
+  [high 15/30] seed=1856076054 4.8s reply_len=515
+  [high 16/30] seed=715977617 4.8s reply_len=516
+  [high 17/30] seed=1604794454 4.8s reply_len=441
+  [high 18/30] seed=1421446110 4.6s reply_len=573
+  [high 19/30] seed=4244280874 4.7s reply_len=407
+  [high 20/30] seed=3924347982 4.8s reply_len=413
+  [high 21/30] seed=2221454047 4.7s reply_len=436
+  [high 22/30] seed=772853223 4.6s reply_len=508
+  [high 23/30] seed=3064751779 4.7s reply_len=443
+  [high 24/30] seed=3824547361 4.5s reply_len=521
+  [high 25/30] seed=133240440 4.6s reply_len=524
+  [high 26/30] seed=581645467 4.7s reply_len=453
+  [high 27/30] seed=3986433472 4.7s reply_len=375
+  [high 28/30] seed=382223067 4.7s reply_len=545
+  [high 29/30] seed=3068399244 4.8s reply_len=396
+  [high 30/30] seed=1829320771 4.8s reply_len=420
+[high] wrote 30 rows -> data/extractions/qwen/eval/qwen_codebook_high.jsonl
+[chain] === .venv/bin/python scripts/p6_generate.py --actor gemma --variant renderer --k 30 --bands low,mid,high --device cuda --dtype bf16 ===
+Loading weights:   0%|          | 0/340 [00:00<?, ?it/s]Loading weights: 100%|██████████| 340/340 [00:00<00:00, 3821.62it/s]
+[p6-generate] actor=gemma variant=renderer device=cuda dtype=bf16 load=3.1s k=30 bands=['low', 'mid', 'high']
+[gemma/renderer/low] prompt_len=2573 prompt_hash=619b50d10dca7b93…
+  [low 1/30] seed=3601669024 5.1s reply_len=394
+  [low 2/30] seed=975306458 5.0s reply_len=444
+  [low 3/30] seed=1035198996 4.5s reply_len=426
+  [low 4/30] seed=336202066 4.4s reply_len=465
+  [low 5/30] seed=4202626052 4.6s reply_len=421
+  [low 6/30] seed=2845983108 4.6s reply_len=421
+  [low 7/30] seed=1606949689 4.6s reply_len=422
+  [low 8/30] seed=3623869054 4.5s reply_len=391
+  [low 9/30] seed=1355008843 5.1s reply_len=418
+  [low 10/30] seed=1636802180 5.5s reply_len=461
+  [low 11/30] seed=19446359 5.9s reply_len=420
+  [low 12/30] seed=3047223950 4.9s reply_len=389
+  [low 13/30] seed=1756868342 4.1s reply_len=406
+  [low 14/30] seed=353318094 4.4s reply_len=454
+  [low 15/30] seed=2696275279 4.4s reply_len=423
+  [low 16/30] seed=1186097498 4.3s reply_len=426
+  [low 17/30] seed=2995440032 4.4s reply_len=349
+  [low 18/30] seed=2435438329 4.3s reply_len=447
+  [low 19/30] seed=414088513 4.6s reply_len=382
+  [low 20/30] seed=2214986463 4.3s reply_len=424
+  [low 21/30] seed=2099994481 5.3s reply_len=458
+  [low 22/30] seed=2652427034 4.5s reply_len=418
+  [low 23/30] seed=3698974458 4.3s reply_len=440
+  [low 24/30] seed=784082381 4.4s reply_len=428
+  [low 25/30] seed=2895527634 4.3s reply_len=394
+  [low 26/30] seed=3057592760 4.4s reply_len=436
+  [low 27/30] seed=1114004838 4.3s reply_len=387
+  [low 28/30] seed=2419311236 4.8s reply_len=454
+  [low 29/30] seed=1208242817 5.2s reply_len=478
+  [low 30/30] seed=832436192 4.9s reply_len=421
+[low] wrote 30 rows -> data/extractions/gemma/eval/gemma_renderer_low.jsonl
+[gemma/renderer/mid] prompt_len=2586 prompt_hash=f5b01f09c3754299…
+  [mid 1/30] seed=2683433121 5.0s reply_len=429
+  [mid 2/30] seed=1463777251 4.3s reply_len=420
+  [mid 3/30] seed=1984349291 4.6s reply_len=419
+  [mid 4/30] seed=3246699759 5.5s reply_len=422
+  [mid 5/30] seed=4023284075 4.7s reply_len=470
+  [mid 6/30] seed=1404179595 4.9s reply_len=410
+  [mid 7/30] seed=1755227244 4.7s reply_len=373
+  [mid 8/30] seed=3145922037 4.8s reply_len=470
+  [mid 9/30] seed=1797302054 5.0s reply_len=439
+  [mid 10/30] seed=407155630 5.1s reply_len=451
+  [mid 11/30] seed=1508997885 4.6s reply_len=444
+  [mid 12/30] seed=3965271041 4.6s reply_len=417
+  [mid 13/30] seed=3587191662 4.5s reply_len=411
+  [mid 14/30] seed=4005431930 4.6s reply_len=474
+  [mid 15/30] seed=3287631982 4.7s reply_len=414
+  [mid 16/30] seed=2305494457 5.0s reply_len=429
+  [mid 17/30] seed=2997523475 5.0s reply_len=429
+  [mid 18/30] seed=1872297259 3.8s reply_len=403
+  [mid 19/30] seed=2396977879 4.0s reply_len=339
+  [mid 20/30] seed=1934767169 4.5s reply_len=439
+  [mid 21/30] seed=3319721461 4.9s reply_len=427
+  [mid 22/30] seed=933234451 4.7s reply_len=433
+  [mid 23/30] seed=2862482156 4.6s reply_len=420
+  [mid 24/30] seed=3081197372 4.9s reply_len=446
+  [mid 25/30] seed=2613652872 4.9s reply_len=437
+  [mid 26/30] seed=1996243244 4.7s reply_len=429
+  [mid 27/30] seed=2093089151 4.6s reply_len=400
+  [mid 28/30] seed=1990349194 4.2s reply_len=401
+  [mid 29/30] seed=1734348584 4.4s reply_len=459
+  [mid 30/30] seed=4122670221 5.1s reply_len=431
+[mid] wrote 30 rows -> data/extractions/gemma/eval/gemma_renderer_mid.jsonl
+[gemma/renderer/high] prompt_len=2605 prompt_hash=3001e06a94063e72…
+  [high 1/30] seed=2371365 5.1s reply_len=431
+  [high 2/30] seed=1605804209 5.0s reply_len=402
+  [high 3/30] seed=760621849 4.6s reply_len=420
+  [high 4/30] seed=44674308 4.6s reply_len=373
+  [high 5/30] seed=4177106709 4.6s reply_len=428
+  [high 6/30] seed=522234056 4.4s reply_len=431
+  [high 7/30] seed=468101772 4.4s reply_len=440
+  [high 8/30] seed=1256544768 4.6s reply_len=423
+  [high 9/30] seed=2669889221 4.4s reply_len=388
+  [high 10/30] seed=3763124030 4.5s reply_len=424
+  [high 11/30] seed=3962440798 4.8s reply_len=424
+  [high 12/30] seed=845678856 5.0s reply_len=442
+  [high 13/30] seed=1873198979 5.1s reply_len=439
+  [high 14/30] seed=1862180115 4.8s reply_len=463
+  [high 15/30] seed=62818230 4.6s reply_len=422
+  [high 16/30] seed=696552350 4.8s reply_len=415
+  [high 17/30] seed=607568110 4.6s reply_len=432
+  [high 18/30] seed=822452583 4.4s reply_len=436
+  [high 19/30] seed=4259045432 4.7s reply_len=428
+  [high 20/30] seed=1141930709 5.2s reply_len=420
+  [high 21/30] seed=3149973508 4.9s reply_len=386
+  [high 22/30] seed=3076827988 5.0s reply_len=432
+  [high 23/30] seed=835293699 4.7s reply_len=443
+  [high 24/30] seed=1290071889 4.6s reply_len=448
+  [high 25/30] seed=3684052192 4.8s reply_len=405
+  [high 26/30] seed=3543650932 4.9s reply_len=491
+  [high 27/30] seed=3230884769 4.3s reply_len=468
+  [high 28/30] seed=1730601738 4.2s reply_len=425
+  [high 29/30] seed=2215268243 4.1s reply_len=408
+  [high 30/30] seed=3927012040 4.7s reply_len=500
+[high] wrote 30 rows -> data/extractions/gemma/eval/gemma_renderer_high.jsonl
+[chain] === .venv/bin/python scripts/p6_generate.py --actor gemma --variant codebook --k 30 --bands low,mid,high --device cuda --dtype bf16 ===
+Loading weights:   0%|          | 0/340 [00:00<?, ?it/s]Loading weights: 100%|██████████| 340/340 [00:00<00:00, 10705.22it/s]
+[p6-generate] actor=gemma variant=codebook device=cuda dtype=bf16 load=2.9s k=30 bands=['low', 'mid', 'high']
+[gemma/codebook/low] prompt_len=2275 prompt_hash=868edd57953694fb…
+  [low 1/30] seed=3601669024 5.1s reply_len=390
+  [low 2/30] seed=975306458 4.3s reply_len=490
+  [low 3/30] seed=1035198996 4.4s reply_len=391
+  [low 4/30] seed=336202066 4.7s reply_len=448
+  [low 5/30] seed=4202626052 5.4s reply_len=410
+  [low 6/30] seed=2845983108 5.4s reply_len=402
+  [low 7/30] seed=1606949689 4.5s reply_len=427
+  [low 8/30] seed=3623869054 4.5s reply_len=450
+  [low 9/30] seed=1355008843 4.3s reply_len=424
+  [low 10/30] seed=1636802180 4.6s reply_len=452
+  [low 11/30] seed=19446359 4.6s reply_len=460
+  [low 12/30] seed=3047223950 4.5s reply_len=456
+  [low 13/30] seed=1756868342 4.5s reply_len=397
+  [low 14/30] seed=353318094 4.6s reply_len=526
+  [low 15/30] seed=2696275279 4.3s reply_len=412
+  [low 16/30] seed=1186097498 4.6s reply_len=416
+  [low 17/30] seed=2995440032 4.6s reply_len=365
+  [low 18/30] seed=2435438329 4.5s reply_len=441
+  [low 19/30] seed=414088513 4.4s reply_len=394
+  [low 20/30] seed=2214986463 4.9s reply_len=476
+  [low 21/30] seed=2099994481 4.7s reply_len=478
+  [low 22/30] seed=2652427034 4.4s reply_len=393
+  [low 23/30] seed=3698974458 4.1s reply_len=424
+  [low 24/30] seed=784082381 4.1s reply_len=509
+  [low 25/30] seed=2895527634 4.1s reply_len=466
+  [low 26/30] seed=3057592760 3.9s reply_len=448
+  [low 27/30] seed=1114004838 3.9s reply_len=387
+  [low 28/30] seed=2419311236 4.2s reply_len=475
+  [low 29/30] seed=1208242817 4.4s reply_len=482
+  [low 30/30] seed=832436192 4.7s reply_len=424
+[low] wrote 30 rows -> data/extractions/gemma/eval/gemma_codebook_low.jsonl
+[gemma/codebook/mid] prompt_len=2301 prompt_hash=c3751b3eadfdbf30…
+  [mid 1/30] seed=2683433121 4.2s reply_len=398
+  [mid 2/30] seed=1463777251 4.6s reply_len=408
+  [mid 3/30] seed=1984349291 4.5s reply_len=454
+  [mid 4/30] seed=3246699759 4.4s reply_len=434
+  [mid 5/30] seed=4023284075 4.5s reply_len=453
+  [mid 6/30] seed=1404179595 4.2s reply_len=414
+  [mid 7/30] seed=1755227244 4.6s reply_len=434
+  [mid 8/30] seed=3145922037 4.5s reply_len=454
+  [mid 9/30] seed=1797302054 4.7s reply_len=427
+  [mid 10/30] seed=407155630 4.4s reply_len=440
+  [mid 11/30] seed=1508997885 4.4s reply_len=464
+  [mid 12/30] seed=3965271041 4.3s reply_len=422
+  [mid 13/30] seed=3587191662 4.2s reply_len=399
+  [mid 14/30] seed=4005431930 4.5s reply_len=472
+  [mid 15/30] seed=3287631982 4.8s reply_len=435
+  [mid 16/30] seed=2305494457 4.3s reply_len=446
+  [mid 17/30] seed=2997523475 4.4s reply_len=404
+  [mid 18/30] seed=1872297259 4.3s reply_len=480
+  [mid 19/30] seed=2396977879 4.4s reply_len=421
+  [mid 20/30] seed=1934767169 4.5s reply_len=454
+  [mid 21/30] seed=3319721461 4.5s reply_len=462
+  [mid 22/30] seed=933234451 4.3s reply_len=432
+  [mid 23/30] seed=2862482156 5.3s reply_len=432
+  [mid 24/30] seed=3081197372 5.1s reply_len=451
+  [mid 25/30] seed=2613652872 4.9s reply_len=439
+  [mid 26/30] seed=1996243244 4.7s reply_len=442
+  [mid 27/30] seed=2093089151 4.6s reply_len=456
+  [mid 28/30] seed=1990349194 4.5s reply_len=409
+  [mid 29/30] seed=1734348584 4.5s reply_len=440
+  [mid 30/30] seed=4122670221 4.9s reply_len=399
+[mid] wrote 30 rows -> data/extractions/gemma/eval/gemma_codebook_mid.jsonl
+[gemma/codebook/high] prompt_len=2308 prompt_hash=ff3a5b4bcf222660…
+  [high 1/30] seed=2371365 4.7s reply_len=406
+  [high 2/30] seed=1605804209 4.3s reply_len=447
+  [high 3/30] seed=760621849 4.4s reply_len=468
+  [high 4/30] seed=44674308 4.5s reply_len=401
+  [high 5/30] seed=4177106709 4.6s reply_len=471
+  [high 6/30] seed=522234056 4.5s reply_len=471
+  [high 7/30] seed=468101772 4.6s reply_len=365
+  [high 8/30] seed=1256544768 4.5s reply_len=380
+  [high 9/30] seed=2669889221 4.8s reply_len=394
+  [high 10/30] seed=3763124030 4.5s reply_len=447
+  [high 11/30] seed=3962440798 4.4s reply_len=434
+  [high 12/30] seed=845678856 4.2s reply_len=406
+  [high 13/30] seed=1873198979 4.6s reply_len=343
+  [high 14/30] seed=1862180115 4.4s reply_len=373
+  [high 15/30] seed=62818230 4.3s reply_len=414
+  [high 16/30] seed=696552350 4.4s reply_len=389
+  [high 17/30] seed=607568110 5.3s reply_len=445
+  [high 18/30] seed=822452583 4.6s reply_len=445
+  [high 19/30] seed=4259045432 4.2s reply_len=396
+  [high 20/30] seed=1141930709 4.4s reply_len=357
+  [high 21/30] seed=3149973508 4.3s reply_len=399
+  [high 22/30] seed=3076827988 4.6s reply_len=405
+  [high 23/30] seed=835293699 4.4s reply_len=376
+  [high 24/30] seed=1290071889 4.9s reply_len=382
+  [high 25/30] seed=3684052192 4.9s reply_len=390
+  [high 26/30] seed=3543650932 4.8s reply_len=448
+  [high 27/30] seed=3230884769 5.0s reply_len=451
+  [high 28/30] seed=1730601738 4.6s reply_len=393
+  [high 29/30] seed=2215268243 4.8s reply_len=406
+  [high 30/30] seed=3927012040 4.7s reply_len=413
+[high] wrote 30 rows -> data/extractions/gemma/eval/gemma_codebook_high.jsonl
+[chain] === .venv/bin/python scripts/p6_generate.py --actor qwen8b --variant renderer --k 30 --bands low,mid,high --device cuda --dtype bf16 ===
+Loading weights:   0%|          | 0/399 [00:00<?, ?it/s]Loading weights:   0%|          | 1/399 [00:00<03:37,  1.83it/s]Loading weights:   1%|          | 2/399 [00:01<03:33,  1.86it/s]Loading weights:   1%|          | 4/399 [00:01<01:31,  4.30it/s]Loading weights:   2%|▏         | 9/399 [00:01<00:33, 11.61it/s]Loading weights:   4%|▍         | 16/399 [00:01<00:17, 22.15it/s]Loading weights:   7%|▋         | 26/399 [00:05<01:21,  4.58it/s]Loading weights:   8%|▊         | 32/399 [00:05<00:56,  6.46it/s]Loading weights:  10%|▉         | 38/399 [00:05<00:40,  8.89it/s]Loading weights:  12%|█▏        | 48/399 [00:05<00:24, 14.24it/s]Loading weights:  14%|█▎        | 54/399 [00:05<00:19, 17.78it/s]Loading weights:  15%|█▌        | 60/399 [00:05<00:15, 21.59it/s]Loading weights:  18%|█▊        | 70/399 [00:05<00:11, 28.79it/s]Loading weights:  19%|█▉        | 76/399 [00:05<00:10, 31.93it/s]Loading weights:  21%|██        | 82/399 [00:06<00:09, 34.75it/s]Loading weights:  23%|██▎       | 92/399 [00:06<00:07, 43.01it/s]Loading weights:  25%|██▍       | 98/399 [00:06<00:07, 40.87it/s]Loading weights:  26%|██▌       | 104/399 [00:06<00:06, 42.71it/s]Loading weights:  29%|██▊       | 114/399 [00:06<00:05, 53.80it/s]Loading weights:  30%|███       | 121/399 [00:06<00:04, 55.76it/s]Loading weights:  32%|███▏      | 128/399 [00:06<00:06, 42.55it/s]Loading weights:  34%|███▍      | 136/399 [00:07<00:05, 47.72it/s]Loading weights:  36%|███▌      | 142/399 [00:07<00:05, 49.45it/s]Loading weights:  37%|███▋      | 148/399 [00:07<00:05, 48.36it/s]Loading weights:  39%|███▉      | 156/399 [00:07<00:04, 54.84it/s]Loading weights:  41%|████      | 162/399 [00:07<00:06, 36.29it/s]Loading weights:  42%|████▏     | 167/399 [00:07<00:06, 37.31it/s]Loading weights:  43%|████▎     | 172/399 [00:08<00:09, 22.73it/s]Loading weights:  45%|████▌     | 180/399 [00:08<00:07, 27.83it/s]Loading weights:  46%|████▌     | 184/399 [00:08<00:07, 27.23it/s]Loading weights:  48%|████▊     | 191/399 [00:08<00:06, 33.04it/s]Loading weights:  49%|████▉     | 197/399 [00:08<00:05, 37.96it/s]Loading weights:  51%|█████     | 204/399 [00:09<00:04, 43.50it/s]Loading weights:  54%|█████▎    | 214/399 [00:09<00:03, 53.85it/s]Loading weights:  56%|█████▌    | 224/399 [00:09<00:02, 63.15it/s]Loading weights:  58%|█████▊    | 231/399 [00:09<00:02, 64.85it/s]Loading weights:  60%|█████▉    | 238/399 [00:09<00:02, 63.37it/s]Loading weights:  62%|██████▏   | 247/399 [00:09<00:02, 69.82it/s]Loading weights:  65%|██████▍   | 258/399 [00:09<00:01, 75.13it/s]Loading weights:  67%|██████▋   | 268/399 [00:09<00:01, 75.92it/s]Loading weights:  69%|██████▉   | 276/399 [00:09<00:01, 76.25it/s]Loading weights:  71%|███████   | 284/399 [00:10<00:01, 73.62it/s]Loading weights:  73%|███████▎  | 292/399 [00:10<00:01, 65.02it/s]Loading weights:  76%|███████▌  | 302/399 [00:10<00:01, 70.08it/s]Loading weights:  78%|███████▊  | 312/399 [00:10<00:01, 75.67it/s]Loading weights:  80%|████████  | 320/399 [00:10<00:01, 72.99it/s]Loading weights:  82%|████████▏ | 328/399 [00:10<00:01, 66.23it/s]Loading weights:  84%|████████▍ | 335/399 [00:10<00:01, 59.60it/s]Loading weights:  86%|████████▋ | 345/399 [00:11<00:00, 63.70it/s]Loading weights:  88%|████████▊ | 352/399 [00:11<00:00, 62.78it/s]Loading weights:  90%|████████▉ | 359/399 [00:11<00:00, 57.96it/s]Loading weights:  92%|█████████▏| 368/399 [00:11<00:00, 63.17it/s]Loading weights:  95%|█████████▍| 378/399 [00:11<00:00, 68.94it/s]Loading weights:  97%|█████████▋| 386/399 [00:11<00:00, 70.47it/s]Loading weights:  99%|█████████▊| 394/399 [00:11<00:00, 66.81it/s]Loading weights: 100%|██████████| 399/399 [00:11<00:00, 33.87it/s]
+[p6-generate] actor=qwen8b variant=renderer device=cuda dtype=bf16 load=11.9s k=30 bands=['low', 'mid', 'high']
+[qwen8b/renderer/low] prompt_len=2573 prompt_hash=619b50d10dca7b93…
+  [low 1/30] seed=1554265497 9.1s reply_len=589
+  [low 2/30] seed=1980774803 8.0s reply_len=539
+  [low 3/30] seed=3954511885 8.5s reply_len=538
+  [low 4/30] seed=3981003183 8.2s reply_len=543
+  [low 5/30] seed=215485304 8.2s reply_len=557
+  [low 6/30] seed=3438134361 7.8s reply_len=502
+  [low 7/30] seed=1545285234 7.7s reply_len=569
+  [low 8/30] seed=1585356670 7.9s reply_len=538
+  [low 9/30] seed=897980269 8.0s reply_len=602
+  [low 10/30] seed=1179433747 7.8s reply_len=520
+  [low 11/30] seed=2847696243 8.3s reply_len=593
+  [low 12/30] seed=1482392590 8.0s reply_len=547
+  [low 13/30] seed=158756390 8.0s reply_len=552
+  [low 14/30] seed=1267488141 7.9s reply_len=501
+  [low 15/30] seed=3942826510 8.2s reply_len=593
+  [low 16/30] seed=62107194 8.1s reply_len=492
+  [low 17/30] seed=3809374610 8.0s reply_len=572
+  [low 18/30] seed=2852168822 8.2s reply_len=522
+  [low 19/30] seed=2078686032 7.6s reply_len=580
+  [low 20/30] seed=176239273 7.9s reply_len=544
+  [low 21/30] seed=1809767054 8.0s reply_len=612
+  [low 22/30] seed=3603944003 8.3s reply_len=537
+  [low 23/30] seed=2972514123 8.2s reply_len=523
+  [low 24/30] seed=2376926979 7.9s reply_len=573
+  [low 25/30] seed=2650672643 8.2s reply_len=499
+  [low 26/30] seed=3548154683 7.9s reply_len=495
+  [low 27/30] seed=45250460 8.0s reply_len=483
+  [low 28/30] seed=2003758969 7.7s reply_len=518
+  [low 29/30] seed=3324842184 7.9s reply_len=495
+  [low 30/30] seed=522777596 8.0s reply_len=507
+[low] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_renderer_low.jsonl
+[qwen8b/renderer/mid] prompt_len=2586 prompt_hash=f5b01f09c3754299…
+  [mid 1/30] seed=3931014111 7.7s reply_len=522
+  [mid 2/30] seed=891622910 7.8s reply_len=569
+  [mid 3/30] seed=2909350933 8.2s reply_len=585
+  [mid 4/30] seed=847342031 8.5s reply_len=564
+  [mid 5/30] seed=1256361446 8.0s reply_len=663
+  [mid 6/30] seed=708949681 8.1s reply_len=577
+  [mid 7/30] seed=2230927252 8.0s reply_len=604
+  [mid 8/30] seed=2734760693 8.1s reply_len=573
+  [mid 9/30] seed=1794694219 8.1s reply_len=519
+  [mid 10/30] seed=356423409 8.2s reply_len=564
+  [mid 11/30] seed=634263185 8.2s reply_len=557
+  [mid 12/30] seed=1036923062 8.1s reply_len=538
+  [mid 13/30] seed=1876157486 8.0s reply_len=528
+  [mid 14/30] seed=2383530004 8.4s reply_len=514
+  [mid 15/30] seed=2624865116 8.2s reply_len=537
+  [mid 16/30] seed=3788370560 8.1s reply_len=546
+  [mid 17/30] seed=1248481202 8.0s reply_len=594
+  [mid 18/30] seed=1995743930 8.4s reply_len=537
+  [mid 19/30] seed=1641652135 8.2s reply_len=555
+  [mid 20/30] seed=1265376168 8.0s reply_len=552
+  [mid 21/30] seed=2663989669 8.0s reply_len=580
+  [mid 22/30] seed=4009666798 8.2s reply_len=479
+  [mid 23/30] seed=1297197230 7.9s reply_len=468
+  [mid 24/30] seed=3913160451 8.3s reply_len=533
+  [mid 25/30] seed=3866947726 8.8s reply_len=532
+  [mid 26/30] seed=1033263097 8.2s reply_len=507
+  [mid 27/30] seed=4074383316 8.3s reply_len=595
+  [mid 28/30] seed=1157252677 8.1s reply_len=535
+  [mid 29/30] seed=1830069909 8.4s reply_len=546
+  [mid 30/30] seed=1586317333 8.3s reply_len=536
+[mid] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_renderer_mid.jsonl
+[qwen8b/renderer/high] prompt_len=2605 prompt_hash=3001e06a94063e72…
+  [high 1/30] seed=1847885013 8.4s reply_len=563
+  [high 2/30] seed=1180770879 8.5s reply_len=575
+  [high 3/30] seed=1843530377 8.3s reply_len=540
+  [high 4/30] seed=709850434 8.4s reply_len=555
+  [high 5/30] seed=3264303711 8.7s reply_len=570
+  [high 6/30] seed=1901331855 8.6s reply_len=547
+  [high 7/30] seed=3242145683 8.3s reply_len=575
+  [high 8/30] seed=2547523629 7.8s reply_len=509
+  [high 9/30] seed=1015725230 7.8s reply_len=541
+  [high 10/30] seed=1623036341 8.2s reply_len=523
+  [high 11/30] seed=2387597829 8.2s reply_len=497
+  [high 12/30] seed=593540410 8.7s reply_len=529
+  [high 13/30] seed=876507115 8.5s reply_len=590
+  [high 14/30] seed=1197418162 8.5s reply_len=585
+  [high 15/30] seed=493744251 7.9s reply_len=548
+  [high 16/30] seed=3430670375 8.2s reply_len=542
+  [high 17/30] seed=698519260 8.1s reply_len=516
+  [high 18/30] seed=3413134660 8.1s reply_len=527
+  [high 19/30] seed=232190301 8.2s reply_len=474
+  [high 20/30] seed=2911405117 8.0s reply_len=524
+  [high 21/30] seed=229270828 8.3s reply_len=509
+  [high 22/30] seed=3384972676 8.1s reply_len=528
+  [high 23/30] seed=1997217383 7.7s reply_len=573
+  [high 24/30] seed=2426808707 8.4s reply_len=503
+  [high 25/30] seed=4238509122 8.2s reply_len=552
+  [high 26/30] seed=2252163926 8.0s reply_len=534
+  [high 27/30] seed=3004859913 7.8s reply_len=575
+  [high 28/30] seed=1446636883 8.1s reply_len=567
+  [high 29/30] seed=3194224626 8.2s reply_len=532
+  [high 30/30] seed=909676393 8.0s reply_len=506
+[high] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_renderer_high.jsonl
+[chain] === .venv/bin/python scripts/p6_generate.py --actor qwen8b --variant codebook --k 30 --bands low,mid,high --device cuda --dtype bf16 ===
+Loading weights:   0%|          | 0/399 [00:00<?, ?it/s]Loading weights:   0%|          | 1/399 [00:00<01:25,  4.64it/s]Loading weights:   1%|          | 2/399 [00:00<01:03,  6.25it/s]Loading weights:   2%|▏         | 6/399 [00:00<00:22, 17.73it/s]Loading weights:   7%|▋         | 27/399 [00:00<00:04, 80.08it/s]Loading weights:  11%|█         | 43/399 [00:00<00:03, 103.84it/s]Loading weights:  15%|█▌        | 60/399 [00:00<00:02, 118.40it/s]Loading weights:  20%|██        | 81/399 [00:00<00:02, 137.24it/s]Loading weights:  24%|██▍       | 96/399 [00:01<00:02, 133.48it/s]Loading weights:  28%|██▊       | 111/399 [00:01<00:02, 137.19it/s]Loading weights:  32%|███▏      | 127/399 [00:01<00:01, 138.93it/s]Loading weights:  37%|███▋      | 148/399 [00:01<00:01, 154.15it/s]Loading weights:  42%|████▏     | 169/399 [00:01<00:01, 162.35it/s]Loading weights:  47%|████▋     | 186/399 [00:01<00:01, 137.75it/s]Loading weights:  50%|█████     | 201/399 [00:01<00:01, 127.06it/s]Loading weights:  54%|█████▍    | 215/399 [00:01<00:01, 118.39it/s]Loading weights:  58%|█████▊    | 230/399 [00:01<00:01, 125.88it/s]Loading weights:  62%|██████▏   | 246/399 [00:02<00:01, 133.19it/s]Loading weights:  65%|██████▌   | 260/399 [00:02<00:01, 128.61it/s]Loading weights:  70%|██████▉   | 279/399 [00:02<00:00, 142.12it/s]Loading weights:  74%|███████▍  | 296/399 [00:02<00:00, 147.60it/s]Loading weights:  78%|███████▊  | 312/399 [00:02<00:00, 150.42it/s]Loading weights:  82%|████████▏ | 328/399 [00:02<00:00, 150.81it/s]Loading weights:  87%|████████▋ | 346/399 [00:02<00:00, 152.69it/s]Loading weights:  92%|█████████▏| 367/399 [00:02<00:00, 162.34it/s]Loading weights:  96%|█████████▌| 384/399 [00:03<00:00, 150.70it/s]Loading weights: 100%|██████████| 399/399 [00:03<00:00, 128.16it/s]
+[p6-generate] actor=qwen8b variant=codebook device=cuda dtype=bf16 load=6.6s k=30 bands=['low', 'mid', 'high']
+[qwen8b/codebook/low] prompt_len=2275 prompt_hash=d5fe485f1fc8a13c…
+  [low 1/30] seed=1554265497 9.2s reply_len=563
+  [low 2/30] seed=1980774803 7.8s reply_len=559
+  [low 3/30] seed=3954511885 7.9s reply_len=583
+  [low 4/30] seed=3981003183 7.9s reply_len=535
+  [low 5/30] seed=215485304 8.1s reply_len=500
+  [low 6/30] seed=3438134361 8.1s reply_len=581
+  [low 7/30] seed=1545285234 8.3s reply_len=494
+  [low 8/30] seed=1585356670 8.5s reply_len=507
+  [low 9/30] seed=897980269 8.0s reply_len=571
+  [low 10/30] seed=1179433747 8.4s reply_len=527
+  [low 11/30] seed=2847696243 8.4s reply_len=592
+  [low 12/30] seed=1482392590 8.2s reply_len=588
+  [low 13/30] seed=158756390 8.3s reply_len=619
+  [low 14/30] seed=1267488141 8.0s reply_len=536
+  [low 15/30] seed=3942826510 8.1s reply_len=573
+  [low 16/30] seed=62107194 8.1s reply_len=532
+  [low 17/30] seed=3809374610 7.8s reply_len=487
+  [low 18/30] seed=2852168822 8.0s reply_len=578
+  [low 19/30] seed=2078686032 7.7s reply_len=476
+  [low 20/30] seed=176239273 8.2s reply_len=522
+  [low 21/30] seed=1809767054 8.6s reply_len=567
+  [low 22/30] seed=3603944003 8.8s reply_len=559
+  [low 23/30] seed=2972514123 8.4s reply_len=580
+  [low 24/30] seed=2376926979 8.2s reply_len=601
+  [low 25/30] seed=2650672643 7.9s reply_len=605
+  [low 26/30] seed=3548154683 7.9s reply_len=604
+  [low 27/30] seed=45250460 8.1s reply_len=553
+  [low 28/30] seed=2003758969 8.1s reply_len=489
+  [low 29/30] seed=3324842184 8.1s reply_len=585
+  [low 30/30] seed=522777596 8.1s reply_len=521
+[low] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_codebook_low.jsonl
+[qwen8b/codebook/mid] prompt_len=2307 prompt_hash=bfb4d527be1f2c14…
+  [mid 1/30] seed=3931014111 7.8s reply_len=536
+  [mid 2/30] seed=891622910 7.8s reply_len=531
+  [mid 3/30] seed=2909350933 7.9s reply_len=621
+  [mid 4/30] seed=847342031 8.3s reply_len=508
+  [mid 5/30] seed=1256361446 8.4s reply_len=536
+  [mid 6/30] seed=708949681 8.2s reply_len=565
+  [mid 7/30] seed=2230927252 8.0s reply_len=548
+  [mid 8/30] seed=2734760693 7.6s reply_len=528
+  [mid 9/30] seed=1794694219 7.8s reply_len=547
+  [mid 10/30] seed=356423409 7.5s reply_len=492
+  [mid 11/30] seed=634263185 8.2s reply_len=558
+  [mid 12/30] seed=1036923062 7.9s reply_len=521
+  [mid 13/30] seed=1876157486 8.1s reply_len=521
+  [mid 14/30] seed=2383530004 8.4s reply_len=507
+  [mid 15/30] seed=2624865116 7.9s reply_len=534
+  [mid 16/30] seed=3788370560 8.0s reply_len=526
+  [mid 17/30] seed=1248481202 7.8s reply_len=551
+  [mid 18/30] seed=1995743930 8.2s reply_len=531
+  [mid 19/30] seed=1641652135 8.3s reply_len=606
+  [mid 20/30] seed=1265376168 8.2s reply_len=524
+  [mid 21/30] seed=2663989669 8.0s reply_len=601
+  [mid 22/30] seed=4009666798 8.0s reply_len=582
+  [mid 23/30] seed=1297197230 7.9s reply_len=612
+  [mid 24/30] seed=3913160451 7.9s reply_len=417
+  [mid 25/30] seed=3866947726 8.1s reply_len=550
+  [mid 26/30] seed=1033263097 7.9s reply_len=534
+  [mid 27/30] seed=4074383316 8.2s reply_len=556
+  [mid 28/30] seed=1157252677 8.0s reply_len=604
+  [mid 29/30] seed=1830069909 8.1s reply_len=559
+  [mid 30/30] seed=1586317333 7.9s reply_len=510
+[mid] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_codebook_mid.jsonl
+[qwen8b/codebook/high] prompt_len=2309 prompt_hash=94e0d150602f6baf…
+  [high 1/30] seed=1847885013 8.0s reply_len=533
+  [high 2/30] seed=1180770879 8.1s reply_len=585
+  [high 3/30] seed=1843530377 8.1s reply_len=500
+  [high 4/30] seed=709850434 8.0s reply_len=524
+  [high 5/30] seed=3264303711 8.2s reply_len=557
+  [high 6/30] seed=1901331855 8.3s reply_len=546
+  [high 7/30] seed=3242145683 7.8s reply_len=512
+  [high 8/30] seed=2547523629 7.9s reply_len=558
+  [high 9/30] seed=1015725230 8.1s reply_len=552
+  [high 10/30] seed=1623036341 8.5s reply_len=517
+  [high 11/30] seed=2387597829 8.0s reply_len=571
+  [high 12/30] seed=593540410 8.2s reply_len=561
+  [high 13/30] seed=876507115 7.9s reply_len=571
+  [high 14/30] seed=1197418162 8.3s reply_len=550
+  [high 15/30] seed=493744251 8.1s reply_len=554
+  [high 16/30] seed=3430670375 8.3s reply_len=560
+  [high 17/30] seed=698519260 8.0s reply_len=588
+  [high 18/30] seed=3413134660 7.7s reply_len=556
+  [high 19/30] seed=232190301 8.0s reply_len=506
+  [high 20/30] seed=2911405117 8.2s reply_len=473
+  [high 21/30] seed=229270828 8.5s reply_len=560
+  [high 22/30] seed=3384972676 8.1s reply_len=330
+  [high 23/30] seed=1997217383 8.3s reply_len=604
+  [high 24/30] seed=2426808707 8.3s reply_len=566
+  [high 25/30] seed=4238509122 8.1s reply_len=536
+  [high 26/30] seed=2252163926 8.0s reply_len=535
+  [high 27/30] seed=3004859913 8.2s reply_len=559
+  [high 28/30] seed=1446636883 8.4s reply_len=541
+  [high 29/30] seed=3194224626 8.2s reply_len=520
+  [high 30/30] seed=909676393 7.9s reply_len=527
+[high] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_codebook_high.jsonl
+[chain] === .venv/bin/python scripts/p6_judge.py --actor qwen --k 30 --device cuda --paired ===
+Loading weights:   0%|          | 0/340 [00:00<?, ?it/s]Loading weights: 100%|██████████| 340/340 [00:00<00:00, 5243.15it/s]
+[p6-judge] actor=qwen judge=gemma device=cuda dtype=bf16 load=3.1s k=30 bands=['low', 'mid', 'high']
+  [renderer qwen-renderer-low-000] level=low expected=low correct=True 0.8s
+  [renderer qwen-renderer-low-001] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-002] level=low expected=low correct=True 0.4s
+  [renderer qwen-renderer-low-003] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-004] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-005] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-006] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-007] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-008] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-009] level=low expected=low correct=True 0.2s
+  [renderer qwen-renderer-low-010] level=low expected=low correct=True 0.2s
+  [renderer qwen-renderer-low-011] level=low expected=low correct=True 0.2s
+  [renderer qwen-renderer-low-012] level=None expected=low correct=False 0.3s
+  [renderer qwen-renderer-low-013] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-014] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-015] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-016] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-017] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-018] level=low expected=low correct=True 0.2s
+  [renderer qwen-renderer-low-019] level=low expected=low correct=True 0.2s
+  [renderer qwen-renderer-low-020] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-021] level=low expected=low correct=True 0.2s
+  [renderer qwen-renderer-low-022] level=low expected=low correct=True 0.2s
+  [renderer qwen-renderer-low-023] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-024] level=None expected=low correct=False 0.3s
+  [renderer qwen-renderer-low-025] level=None expected=low correct=False 0.2s
+  [renderer qwen-renderer-low-026] level=low expected=low correct=True 0.3s
+  [renderer qwen-renderer-low-027] level=low expected=low correct=True 0.2s
+  [renderer qwen-renderer-low-028] level=low expected=low correct=True 0.2s
+  [renderer qwen-renderer-low-029] level=low expected=low correct=True 0.3s
+[low/renderer] wrote 30 rows -> data/extractions/qwen/eval/qwen_judged_gemma_renderer_low.jsonl
+  [codebook qwen-codebook-low-000] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-001] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-002] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-003] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-004] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-005] level=low expected=low correct=True 0.2s
+  [codebook qwen-codebook-low-006] level=low expected=low correct=True 0.2s
+  [codebook qwen-codebook-low-007] level=low expected=low correct=True 0.2s
+  [codebook qwen-codebook-low-008] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-009] level=None expected=low correct=False 0.2s
+  [codebook qwen-codebook-low-010] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-011] level=None expected=low correct=False 0.3s
+  [codebook qwen-codebook-low-012] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-013] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-014] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-015] level=low expected=low correct=True 0.2s
+  [codebook qwen-codebook-low-016] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-017] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-018] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-019] level=None expected=low correct=False 0.3s
+  [codebook qwen-codebook-low-020] level=None expected=low correct=False 0.3s
+  [codebook qwen-codebook-low-021] level=None expected=low correct=False 0.3s
+  [codebook qwen-codebook-low-022] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-023] level=low expected=low correct=True 0.2s
+  [codebook qwen-codebook-low-024] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-025] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-026] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-027] level=low expected=low correct=True 0.3s
+  [codebook qwen-codebook-low-028] level=low expected=low correct=True 0.2s
+  [codebook qwen-codebook-low-029] level=low expected=low correct=True 0.3s
+[low/codebook] wrote 30 rows -> data/extractions/qwen/eval/qwen_judged_gemma_codebook_low.jsonl
+  [renderer qwen-renderer-mid-000] level=low expected=mid correct=False 0.2s
+  [renderer qwen-renderer-mid-001] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-002] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-003] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-004] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-005] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-006] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-007] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-008] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-009] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-010] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-011] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-012] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-013] level=low expected=mid correct=False 0.2s
+  [renderer qwen-renderer-mid-014] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-015] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-016] level=None expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-017] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-018] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-019] level=low expected=mid correct=False 0.2s
+  [renderer qwen-renderer-mid-020] level=low expected=mid correct=False 0.2s
+  [renderer qwen-renderer-mid-021] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-022] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-023] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-024] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-025] level=low expected=mid correct=False 0.2s
+  [renderer qwen-renderer-mid-026] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-027] level=low expected=mid correct=False 0.2s
+  [renderer qwen-renderer-mid-028] level=low expected=mid correct=False 0.3s
+  [renderer qwen-renderer-mid-029] level=low expected=mid correct=False 0.3s
+[mid/renderer] wrote 30 rows -> data/extractions/qwen/eval/qwen_judged_gemma_renderer_mid.jsonl
+  [codebook qwen-codebook-mid-000] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-001] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-002] level=low expected=mid correct=False 0.2s
+  [codebook qwen-codebook-mid-003] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-004] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-005] level=low expected=mid correct=False 0.2s
+  [codebook qwen-codebook-mid-006] level=low expected=mid correct=False 0.2s
+  [codebook qwen-codebook-mid-007] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-008] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-009] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-010] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-011] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-012] level=low expected=mid correct=False 0.2s
+  [codebook qwen-codebook-mid-013] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-014] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-015] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-016] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-017] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-018] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-019] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-020] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-021] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-022] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-023] level=low expected=mid correct=False 0.2s
+  [codebook qwen-codebook-mid-024] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-025] level=low expected=mid correct=False 0.2s
+  [codebook qwen-codebook-mid-026] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-027] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-028] level=low expected=mid correct=False 0.3s
+  [codebook qwen-codebook-mid-029] level=low expected=mid correct=False 0.2s
+[mid/codebook] wrote 30 rows -> data/extractions/qwen/eval/qwen_judged_gemma_codebook_mid.jsonl
+  [renderer qwen-renderer-high-000] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-001] level=low expected=high correct=False 0.2s
+  [renderer qwen-renderer-high-002] level=low expected=high correct=False 0.2s
+  [renderer qwen-renderer-high-003] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-004] level=low expected=high correct=False 0.2s
+  [renderer qwen-renderer-high-005] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-006] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-007] level=low expected=high correct=False 0.2s
+  [renderer qwen-renderer-high-008] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-009] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-010] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-011] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-012] level=None expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-013] level=low expected=high correct=False 0.2s
+  [renderer qwen-renderer-high-014] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-015] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-016] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-017] level=low expected=high correct=False 0.2s
+  [renderer qwen-renderer-high-018] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-019] level=low expected=high correct=False 0.2s
+  [renderer qwen-renderer-high-020] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-021] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-022] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-023] level=low expected=high correct=False 0.4s
+  [renderer qwen-renderer-high-024] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-025] level=None expected=high correct=False 0.4s
+  [renderer qwen-renderer-high-026] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-027] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-028] level=low expected=high correct=False 0.3s
+  [renderer qwen-renderer-high-029] level=low expected=high correct=False 0.3s
+[high/renderer] wrote 30 rows -> data/extractions/qwen/eval/qwen_judged_gemma_renderer_high.jsonl
+  [codebook qwen-codebook-high-000] level=low expected=high correct=False 0.4s
+  [codebook qwen-codebook-high-001] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-002] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-003] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-004] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-005] level=low expected=high correct=False 0.2s
+  [codebook qwen-codebook-high-006] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-007] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-008] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-009] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-010] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-011] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-012] level=low expected=high correct=False 0.2s
+  [codebook qwen-codebook-high-013] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-014] level=low expected=high correct=False 0.2s
+  [codebook qwen-codebook-high-015] level=None expected=high correct=False 0.4s
+  [codebook qwen-codebook-high-016] level=None expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-017] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-018] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-019] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-020] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-021] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-022] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-023] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-024] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-025] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-026] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-027] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-028] level=low expected=high correct=False 0.3s
+  [codebook qwen-codebook-high-029] level=low expected=high correct=False 0.2s
+[high/codebook] wrote 30 rows -> data/extractions/qwen/eval/qwen_judged_gemma_codebook_high.jsonl
+[paired low] too few paired judgments (need both variants judged)
+[paired mid] too few paired judgments (need both variants judged)
+[paired high] too few paired judgments (need both variants judged)
+[paired] wrote -> diagnostics/p6-judge-paired.json
+[chain] === .venv/bin/python scripts/p6_judge.py --actor gemma --k 30 --device cuda --paired ===
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 5778.28it/s]
+[p6-judge] actor=gemma judge=qwen device=cuda dtype=bf16 load=2.7s k=30 bands=['low', 'mid', 'high']
+  [renderer gemma-renderer-low-000] level=low expected=low correct=True 0.7s
+  [renderer gemma-renderer-low-001] level=low expected=low correct=True 0.3s
+  [renderer gemma-renderer-low-002] level=high expected=low correct=False 0.6s
+  [renderer gemma-renderer-low-003] level=high expected=low correct=False 0.4s
+  [renderer gemma-renderer-low-004] level=high expected=low correct=False 0.6s
+  [renderer gemma-renderer-low-005] level=low expected=low correct=True 0.3s
+  [renderer gemma-renderer-low-006] level=high expected=low correct=False 0.3s
+  [renderer gemma-renderer-low-007] level=high expected=low correct=False 0.5s
+  [renderer gemma-renderer-low-008] level=low expected=low correct=True 0.4s
+  [renderer gemma-renderer-low-009] level=high expected=low correct=False 0.4s
+  [renderer gemma-renderer-low-010] level=low expected=low correct=True 0.5s
+  [renderer gemma-renderer-low-011] level=high expected=low correct=False 0.4s
+  [renderer gemma-renderer-low-012] level=low expected=low correct=True 0.3s
+  [renderer gemma-renderer-low-013] level=high expected=low correct=False 0.2s
+  [renderer gemma-renderer-low-014] level=low expected=low correct=True 0.3s
+  [renderer gemma-renderer-low-015] level=high expected=low correct=False 0.3s
+  [renderer gemma-renderer-low-016] level=low expected=low correct=True 0.3s
+  [renderer gemma-renderer-low-017] level=high expected=low correct=False 0.3s
+  [renderer gemma-renderer-low-018] level=low expected=low correct=True 0.3s
+  [renderer gemma-renderer-low-019] level=mid expected=low correct=False 0.3s
+  [renderer gemma-renderer-low-020] level=low expected=low correct=True 0.3s
+  [renderer gemma-renderer-low-021] level=high expected=low correct=False 0.2s
+  [renderer gemma-renderer-low-022] level=high expected=low correct=False 0.3s
+  [renderer gemma-renderer-low-023] level=high expected=low correct=False 0.3s
+  [renderer gemma-renderer-low-024] level=high expected=low correct=False 0.3s
+  [renderer gemma-renderer-low-025] level=high expected=low correct=False 0.3s
+  [renderer gemma-renderer-low-026] level=high expected=low correct=False 0.3s
+  [renderer gemma-renderer-low-027] level=high expected=low correct=False 0.3s
+  [renderer gemma-renderer-low-028] level=low expected=low correct=True 0.3s
+  [renderer gemma-renderer-low-029] level=high expected=low correct=False 0.3s
+[low/renderer] wrote 30 rows -> data/extractions/gemma/eval/gemma_judged_qwen_renderer_low.jsonl
+  [codebook gemma-codebook-low-000] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-001] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-002] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-003] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-004] level=high expected=low correct=False 0.2s
+  [codebook gemma-codebook-low-005] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-006] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-007] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-008] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-009] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-010] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-011] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-012] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-013] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-014] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-015] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-016] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-017] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-018] level=low expected=low correct=True 0.2s
+  [codebook gemma-codebook-low-019] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-020] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-021] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-022] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-023] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-024] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-025] level=low expected=low correct=True 0.3s
+  [codebook gemma-codebook-low-026] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-027] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-028] level=high expected=low correct=False 0.3s
+  [codebook gemma-codebook-low-029] level=high expected=low correct=False 0.3s
+[low/codebook] wrote 30 rows -> data/extractions/gemma/eval/gemma_judged_qwen_codebook_low.jsonl
+  [renderer gemma-renderer-mid-000] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-001] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-002] level=low expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-003] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-004] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-005] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-006] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-007] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-008] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-009] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-010] level=low expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-011] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-012] level=low expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-013] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-014] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-015] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-016] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-017] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-018] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-019] level=low expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-020] level=low expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-021] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-022] level=low expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-023] level=low expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-024] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-025] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-026] level=low expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-027] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-028] level=high expected=mid correct=False 0.3s
+  [renderer gemma-renderer-mid-029] level=low expected=mid correct=False 0.3s
+[mid/renderer] wrote 30 rows -> data/extractions/gemma/eval/gemma_judged_qwen_renderer_mid.jsonl
+  [codebook gemma-codebook-mid-000] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-001] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-002] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-003] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-004] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-005] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-006] level=mid expected=mid correct=True 0.3s
+  [codebook gemma-codebook-mid-007] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-008] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-009] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-010] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-011] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-012] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-013] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-014] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-015] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-016] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-017] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-018] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-019] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-020] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-021] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-022] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-023] level=low expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-024] level=mid expected=mid correct=True 0.3s
+  [codebook gemma-codebook-mid-025] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-026] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-027] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-028] level=high expected=mid correct=False 0.3s
+  [codebook gemma-codebook-mid-029] level=low expected=mid correct=False 0.3s
+[mid/codebook] wrote 30 rows -> data/extractions/gemma/eval/gemma_judged_qwen_codebook_mid.jsonl
+  [renderer gemma-renderer-high-000] level=low expected=high correct=False 0.3s
+  [renderer gemma-renderer-high-001] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-002] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-003] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-004] level=low expected=high correct=False 0.3s
+  [renderer gemma-renderer-high-005] level=low expected=high correct=False 0.3s
+  [renderer gemma-renderer-high-006] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-007] level=low expected=high correct=False 0.3s
+  [renderer gemma-renderer-high-008] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-009] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-010] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-011] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-012] level=low expected=high correct=False 0.3s
+  [renderer gemma-renderer-high-013] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-014] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-015] level=low expected=high correct=False 0.3s
+  [renderer gemma-renderer-high-016] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-017] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-018] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-019] level=low expected=high correct=False 0.3s
+  [renderer gemma-renderer-high-020] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-021] level=low expected=high correct=False 0.3s
+  [renderer gemma-renderer-high-022] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-023] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-024] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-025] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-026] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-027] level=low expected=high correct=False 0.3s
+  [renderer gemma-renderer-high-028] level=high expected=high correct=True 0.3s
+  [renderer gemma-renderer-high-029] level=high expected=high correct=True 0.3s
+[high/renderer] wrote 30 rows -> data/extractions/gemma/eval/gemma_judged_qwen_renderer_high.jsonl
+  [codebook gemma-codebook-high-000] level=low expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-001] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-002] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-003] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-004] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-005] level=mid expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-006] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-007] level=low expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-008] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-009] level=low expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-010] level=low expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-011] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-012] level=low expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-013] level=low expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-014] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-015] level=low expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-016] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-017] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-018] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-019] level=low expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-020] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-021] level=mid expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-022] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-023] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-024] level=low expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-025] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-026] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-027] level=low expected=high correct=False 0.3s
+  [codebook gemma-codebook-high-028] level=high expected=high correct=True 0.3s
+  [codebook gemma-codebook-high-029] level=high expected=high correct=True 0.3s
+[high/codebook] wrote 30 rows -> data/extractions/gemma/eval/gemma_judged_qwen_codebook_high.jsonl
+[paired low] too few paired judgments (need both variants judged)
+[paired mid] too few paired judgments (need both variants judged)
+[paired high] too few paired judgments (need both variants judged)
+[paired] wrote -> diagnostics/p6-judge-paired.json
+[chain] === .venv/bin/python scripts/p6_judge.py --actor qwen8b --k 30 --device cuda --paired ===
+Loading weights:   0%|          | 0/340 [00:00<?, ?it/s]Loading weights: 100%|██████████| 340/340 [00:00<00:00, 5580.33it/s]
+[p6-judge] actor=qwen8b judge=gemma device=cuda dtype=bf16 load=3.1s k=30 bands=['low', 'mid', 'high']
+  [renderer qwen8b-renderer-low-000] level=low expected=low correct=True 0.8s
+  [renderer qwen8b-renderer-low-001] level=low expected=low correct=True 0.2s
+  [renderer qwen8b-renderer-low-002] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-003] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-004] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-005] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-006] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-007] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-008] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-009] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-010] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-011] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-012] level=low expected=low correct=True 0.2s
+  [renderer qwen8b-renderer-low-013] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-014] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-015] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-016] level=low expected=low correct=True 0.2s
+  [renderer qwen8b-renderer-low-017] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-018] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-019] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-020] level=low expected=low correct=True 0.2s
+  [renderer qwen8b-renderer-low-021] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-022] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-023] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-024] level=None expected=low correct=False 0.2s
+  [renderer qwen8b-renderer-low-025] level=low expected=low correct=True 0.3s
+  [renderer qwen8b-renderer-low-026] level=low expected=low correct=True 0.2s
+  [renderer qwen8b-renderer-low-027] level=low expected=low correct=True 0.2s
+  [renderer qwen8b-renderer-low-028] level=low expected=low correct=True 0.2s
+  [renderer qwen8b-renderer-low-029] level=low expected=low correct=True 0.3s
+[low/renderer] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_judged_gemma_renderer_low.jsonl
+  [codebook qwen8b-codebook-low-000] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-001] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-002] level=low expected=low correct=True 0.2s
+  [codebook qwen8b-codebook-low-003] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-004] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-005] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-006] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-007] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-008] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-009] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-010] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-011] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-012] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-013] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-014] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-015] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-016] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-017] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-018] level=low expected=low correct=True 0.2s
+  [codebook qwen8b-codebook-low-019] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-020] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-021] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-022] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-023] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-024] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-025] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-026] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-027] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-028] level=low expected=low correct=True 0.3s
+  [codebook qwen8b-codebook-low-029] level=low expected=low correct=True 0.3s
+[low/codebook] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_judged_gemma_codebook_low.jsonl
+  [renderer qwen8b-renderer-mid-000] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-001] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-002] level=low expected=mid correct=False 0.2s
+  [renderer qwen8b-renderer-mid-003] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-004] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-005] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-006] level=low expected=mid correct=False 0.2s
+  [renderer qwen8b-renderer-mid-007] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-008] level=low expected=mid correct=False 0.2s
+  [renderer qwen8b-renderer-mid-009] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-010] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-011] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-012] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-013] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-014] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-015] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-016] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-017] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-018] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-019] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-020] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-021] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-022] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-023] level=low expected=mid correct=False 0.2s
+  [renderer qwen8b-renderer-mid-024] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-025] level=low expected=mid correct=False 0.2s
+  [renderer qwen8b-renderer-mid-026] level=low expected=mid correct=False 0.2s
+  [renderer qwen8b-renderer-mid-027] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-028] level=low expected=mid correct=False 0.3s
+  [renderer qwen8b-renderer-mid-029] level=low expected=mid correct=False 0.3s
+[mid/renderer] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_judged_gemma_renderer_mid.jsonl
+  [codebook qwen8b-codebook-mid-000] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-001] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-002] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-003] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-004] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-005] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-006] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-007] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-008] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-009] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-010] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-011] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-012] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-013] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-014] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-015] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-016] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-017] level=low expected=mid correct=False 0.2s
+  [codebook qwen8b-codebook-mid-018] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-019] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-020] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-021] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-022] level=low expected=mid correct=False 0.2s
+  [codebook qwen8b-codebook-mid-023] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-024] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-025] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-026] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-027] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-028] level=low expected=mid correct=False 0.3s
+  [codebook qwen8b-codebook-mid-029] level=low expected=mid correct=False 0.2s
+[mid/codebook] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_judged_gemma_codebook_mid.jsonl
+  [renderer qwen8b-renderer-high-000] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-001] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-002] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-003] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-004] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-005] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-006] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-007] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-008] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-009] level=low expected=high correct=False 0.2s
+  [renderer qwen8b-renderer-high-010] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-011] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-012] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-013] level=low expected=high correct=False 0.2s
+  [renderer qwen8b-renderer-high-014] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-015] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-016] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-017] level=low expected=high correct=False 0.2s
+  [renderer qwen8b-renderer-high-018] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-019] level=low expected=high correct=False 0.2s
+  [renderer qwen8b-renderer-high-020] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-021] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-022] level=low expected=high correct=False 0.2s
+  [renderer qwen8b-renderer-high-023] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-024] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-025] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-026] level=low expected=high correct=False 0.3s
+  [renderer qwen8b-renderer-high-027] level=low expected=high correct=False 0.2s
+  [renderer qwen8b-renderer-high-028] level=low expected=high correct=False 0.2s
+  [renderer qwen8b-renderer-high-029] level=low expected=high correct=False 0.4s
+[high/renderer] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_judged_gemma_renderer_high.jsonl
+  [codebook qwen8b-codebook-high-000] level=low expected=high correct=False 0.2s
+  [codebook qwen8b-codebook-high-001] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-002] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-003] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-004] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-005] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-006] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-007] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-008] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-009] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-010] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-011] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-012] level=low expected=high correct=False 0.2s
+  [codebook qwen8b-codebook-high-013] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-014] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-015] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-016] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-017] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-018] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-019] level=low expected=high correct=False 0.2s
+  [codebook qwen8b-codebook-high-020] level=low expected=high correct=False 0.2s
+  [codebook qwen8b-codebook-high-021] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-022] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-023] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-024] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-025] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-026] level=low expected=high correct=False 0.2s
+  [codebook qwen8b-codebook-high-027] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-028] level=low expected=high correct=False 0.3s
+  [codebook qwen8b-codebook-high-029] level=low expected=high correct=False 0.3s
+[high/codebook] wrote 30 rows -> data/extractions/qwen8b/eval/qwen8b_judged_gemma_codebook_high.jsonl
+[paired low] too few paired judgments (need both variants judged)
+[paired mid] too few paired judgments (need both variants judged)
+[paired high] too few paired judgments (need both variants judged)
+[paired] wrote -> diagnostics/p6-judge-paired.json
+[chain] === .venv/bin/python scripts/p6_stats.py ===
+[qwen] judge=gemma
+  low: codebook n=30 acc=0.833 CI=[0.700,0.967] G-ABS=PASS (k_ok=True, acc_ok=True, ci_ok=True) | renderer acc=0.900
+  mid: codebook n=30 acc=0.000 CI=[0.000,0.000] G-ABS=FAIL (k_ok=True, acc_ok=False, ci_ok=True) | renderer acc=0.000
+  high: codebook n=30 acc=0.000 CI=[0.000,0.000] G-ABS=FAIL (k_ok=True, acc_ok=False, ci_ok=True) | renderer acc=0.000
+  pooled codebook: n=90 acc=0.278 CI=[0.189,0.367] G-ABS=FAIL
+  G-BEH: FAIL (pooled delta=nan CI=None)
+[gemma] judge=qwen
+  low: codebook n=30 acc=0.400 CI=[0.233,0.567] G-ABS=FAIL (k_ok=True, acc_ok=False, ci_ok=False) | renderer acc=0.367
+  mid: codebook n=30 acc=0.067 CI=[0.000,0.167] G-ABS=FAIL (k_ok=True, acc_ok=False, ci_ok=True) | renderer acc=0.000
+  high: codebook n=30 acc=0.600 CI=[0.433,0.767] G-ABS=PASS (k_ok=True, acc_ok=True, ci_ok=True) | renderer acc=0.700
+  pooled codebook: n=90 acc=0.356 CI=[0.256,0.456] G-ABS=FAIL
+  G-BEH: FAIL (pooled delta=nan CI=None)
+[qwen8b] judge=gemma
+  low: codebook n=30 acc=1.000 CI=[1.000,1.000] G-ABS=PASS (k_ok=True, acc_ok=True, ci_ok=True) | renderer acc=0.967
+  mid: codebook n=30 acc=0.000 CI=[0.000,0.000] G-ABS=FAIL (k_ok=True, acc_ok=False, ci_ok=True) | renderer acc=0.000
+  high: codebook n=30 acc=0.000 CI=[0.000,0.000] G-ABS=FAIL (k_ok=True, acc_ok=False, ci_ok=True) | renderer acc=0.000
+  pooled codebook: n=90 acc=0.333 CI=[0.233,0.433] G-ABS=FAIL
+  G-BEH: FAIL (pooled delta=nan CI=None)
+wrote -> diagnostics/p6-eval.json
+[chain] 2026-08-16T05:46:18-06:00 DONE

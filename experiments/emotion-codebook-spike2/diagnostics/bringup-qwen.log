@@ -1,0 +1,16 @@
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 4353.38it/s]
+load 2.6s, layers=28, hidden=2048, vocab=151936
+C2 band [9,19)
+'The quiet warmth of a slow eve' -> L=14, truncated=0
+  fwd peak 3455 MiB, captured 29 layers
+  bwd peak 4520.9 MiB, captured 29 layers, analytic cos=0.9999957084655762, rel_diff=0.00480394484475255
+'hurt joy' -> L=4, truncated=0
+  fwd peak 3460 MiB, captured 29 layers
+  bwd peak 4494.7 MiB, captured 29 layers, analytic cos=0.9999967217445374, rel_diff=0.003240032820031047
+'hurt' -> L=3, truncated=0
+  fwd peak 3460 MiB, captured 29 layers
+  bwd peak 4492.0 MiB, captured 29 layers, analytic cos=0.9999967217445374, rel_diff=0.0025783951859921217
+'joy' -> L=2, truncated=0
+  fwd peak 3459 MiB, captured 29 layers
+  bwd peak 4489.4 MiB, captured 29 layers, analytic cos=0.9999975562095642, rel_diff=0.002226094249635935
+{"bringup": "PASS"}

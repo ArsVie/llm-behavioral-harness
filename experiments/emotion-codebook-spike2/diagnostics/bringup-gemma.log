@@ -1,0 +1,16 @@
+Loading weights:   0%|          | 0/340 [00:00<?, ?it/s]Loading weights: 100%|██████████| 340/340 [00:00<00:00, 4533.79it/s]
+load 1.7s, layers=26, hidden=1152, vocab=262144, lm_tied=True, tokenizer=GemmaTokenizer
+C2 band [8,18)
+'The quiet warmth of a slow eve' -> L=14 (content=13), truncated=0
+  fwd peak 2069 MiB, captured 27 layers
+  bwd peak 3188.9 MiB, captured 27 layers, analytic cos=0.9999955892562866, rel_diff=0.00405326671898365
+'hurt joy' -> L=3 (content=2), truncated=0
+  fwd peak 2071 MiB, captured 27 layers
+  bwd peak 3136.3 MiB, captured 27 layers, analytic cos=0.9999980330467224, rel_diff=0.0020230975933372974
+'hurt' -> L=2 (content=1), truncated=0
+  fwd peak 2071 MiB, captured 27 layers
+  bwd peak 3130.8 MiB, captured 27 layers, analytic cos=0.9999971985816956, rel_diff=0.0024397368542850018
+'joy' -> L=2 (content=1), truncated=0
+  fwd peak 2071 MiB, captured 27 layers
+  bwd peak 3130.8 MiB, captured 27 layers, analytic cos=0.9999960660934448, rel_diff=0.002834416925907135
+{"bringup": "PASS", "arch": {"layers": 26, "hidden": 1152, "vocab": 262144}, "lm_tied": true}
