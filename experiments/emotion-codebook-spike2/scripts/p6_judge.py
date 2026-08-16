@@ -159,8 +159,59 @@ def judged_text(reply: str) -> str:
     return "\n".join(out).strip()
 
 
+def level_single_token_ids(tok) -> dict[str, list[int]]:
+    """Single-token ids for the level words, per level (decision 9).
+
+    The judge models are BASE models — with free decoding they echo the
+    rubric ('Low:\\nMid:\\nHigh') instead of answering. Fix: constrain the
+    first generated token to single-token spellings of low/mid/high, then
+    force EOS (forced-choice classification, greedy, deterministic).
+    """
+    out = {lvl: [] for lvl in ("low", "mid", "high")}
+    for lvl in ("low", "mid", "high"):
+        for cand in (lvl, lvl.capitalize(), " " + lvl, lvl + "."):
+            ids = tok(cand, add_special_tokens=False).input_ids
+            if len(ids) == 1 and ids[0] not in out[lvl]:
+                out[lvl].append(ids[0])
+    for lvl, ids in out.items():
+        if not ids:
+            raise RuntimeError(f"no single-token spelling for level {lvl!r} "
+                               f"in vocab {tok.vocab_size}")
+    return out
+
+
+def judge_reply_hosted(reply: str) -> str:
+    """Hosted-judge classification (decision 10).
+
+    Contract line 80 pre-registers 'the hosted API model' as a valid judge
+    (never actor's family/size). The local base-model judges (Gemma-3-1B-pt,
+    Qwen3-1.7B) are empirically non-functional as 3-way classifiers — with
+    free decoding they echo the rubric ('Low:\\nMid:\\nHigh'); with
+    forced-choice decoding they order-follow the label list regardless of
+    content (demonstrated: reversing bullet order flips every answer).
+    Hosted judge = deepseek-v4-flash via the zen gateway (research lane),
+    temperature 0, same JUDGE_RUBRIC, reply-only input.
+    """
+    from harness.client import OpenAICompatibleClient
+    from harness.credentials import load_env_file
+
+    load_env_file(SPIKE_ROOT.parent.parent / ".env")  # no-op when already set
+
+    client = OpenAICompatibleClient(lane="research")
+    messages = [
+        {"role": "user", "content": judge_prompt(reply)},
+    ]
+    return client.chat(messages, temperature=0.0, max_tokens=64).strip()
+
+
 def judge_reply(model, tok, reply: str, seed: int, device: str) -> str:
-    """Greedy 3-way classification of ONE reply (reply text only)."""
+    """Greedy forced-choice 3-way classification of ONE reply.
+
+    Decision 9: the first generated token is constrained to single-token
+    level spellings (low/mid/high); every following step is forced to EOS.
+    Raw output is therefore exactly one level word (or a punctuation-
+    suffixed spelling), parsed by parse_level.
+    """
     seed_everything(seed)  # recorded for provenance; decoding is greedy
     text = judge_prompt(reply)
     ids = tok(text, add_special_tokens=False).input_ids
@@ -169,13 +220,22 @@ def judge_reply(model, tok, reply: str, seed: int, device: str) -> str:
         ids = [bos] + ids
     input_ids = torch.tensor([ids], dtype=torch.long, device=device)
     attn = torch.ones((1, len(ids)), dtype=torch.long, device=device)
+    allowed = [i for lvl_ids in level_single_token_ids(tok).values() for i in lvl_ids]
+    eos = tok.eos_token_id
+
+    def prefix_fn(batch_id, sent):
+        if len(sent) == input_ids.shape[1]:  # first generated position
+            return allowed
+        return [eos]  # force stop after the single level token
+
     out = model.generate(
         input_ids,
         attention_mask=attn,
         do_sample=False,
-        max_new_tokens=8,
+        max_new_tokens=4,
         pad_token_id=tok.pad_token_id,
-        eos_token_id=tok.eos_token_id,
+        eos_token_id=eos,
+        prefix_allowed_tokens_fn=prefix_fn,
     )
     new = out[0][input_ids.shape[1]:]
     return tok.decode(new, skip_special_tokens=True).strip()
@@ -220,25 +280,71 @@ def judge_band(model, tok, actor: str, judge: str, variant: str, band: str,
 # ---------------------------------------------------------------------------
 # Paired G-BEH statistic (--paired)
 # ---------------------------------------------------------------------------
+def judge_band_hosted(actor: str, judge: str, variant: str, band: str,
+                      k: int) -> list[dict]:
+    """Hosted-judge equivalent of judge_band (decision 10).
+
+    Same reply-only input, same rubric, same seeds/ids — only the judge
+    backend differs (deepseek-v4-flash via zen gateway, temperature 0).
+    """
+    band_idx = BAND_ORDER.index(band)
+    rows: list[dict] = []
+    for row in load_jsonl(gen_path(actor, variant, band))[:k]:
+        seed = derive_seed(SEED_KEY["judge"], band_idx,
+                           int(row["id"].rsplit("-", 1)[1]))
+        t0 = time.perf_counter()
+        jtext = judged_text(row["reply"])
+        raw = judge_reply_hosted(jtext)
+        level = parse_level(raw)
+        expected = row["band"]
+        rows.append({
+            "id": row["id"],
+            "band": row["band"],
+            "variant": row["variant"],
+            "judge": judge,
+            "judge_model": "deepseek-v4-flash (hosted, zen gateway)",
+            "judge_revision": "hosted",
+            "reply_sha256": hashlib.sha256(
+                row["reply"].encode("utf-8")).hexdigest(),
+            "judged_text": jtext,
+            "raw_judge_output": raw,
+            "level": level,
+            "expected": expected,
+            "correct": bool(level == expected),
+            "seed": seed,
+        })
+        print(f"  [{variant} {row['id']}] level={level} expected={expected} "
+              f"correct={level == expected} {time.perf_counter()-t0:.1f}s",
+              flush=True)
+    return rows
+
+
 def paired_delta(actor: str, judge: str, band: str, k: int) -> dict:
     """DeltaAcc = acc(codebook) - acc(renderer) on matched pairs (same band,
     same sample index; seeds shared across variants by construction), with a
     seeded 95% bootstrap CI on the paired difference."""
     r_rows = load_jsonl(judged_path(actor, judge, "renderer", band))
     c_rows = load_jsonl(judged_path(actor, judge, "codebook", band))
-    r_by_id = {r["id"]: r for r in r_rows}
-    c_by_id = {r["id"]: r for r in c_rows}
-    common = sorted(set(r_by_id) & set(c_by_id))
+
+    def idx(row: dict) -> int:
+        """Sample index — ids are '{actor}-{variant}-{band}-{i:03d}'; the
+        variant sits inside the id, so pairing must use the index suffix,
+        not the full id (fixed after chain v1 produced n_pairs=0)."""
+        return int(row["id"].rsplit("-", 1)[1])
+
+    r_by_idx = {idx(r): r for r in r_rows}
+    c_by_idx = {idx(c): c for c in c_rows}
+    common = sorted(set(r_by_idx) & set(c_by_idx))
     if len(common) < 2:
         return {"band": band, "n_pairs": len(common),
                 "note": "too few paired judgments (need both variants judged)"}
-    d = [float(c_by_id[i]["correct"]) - float(r_by_id[i]["correct"])
+    d = [float(c_by_idx[i]["correct"]) - float(r_by_idx[i]["correct"])
          for i in common]
     mean, lo, hi = bootstrap_ci(d, derive_seed(SEED_KEY["boot"], 1,
                                                tuple(MODELS).index(actor),
                                                BAND_ORDER.index(band)))
-    acc_r = np.mean([r_by_id[i]["correct"] for i in common])
-    acc_c = np.mean([c_by_id[i]["correct"] for i in common])
+    acc_r = np.mean([r_by_idx[i]["correct"] for i in common])
+    acc_c = np.mean([c_by_idx[i]["correct"] for i in common])
     return {
         "band": band,
         "n_pairs": len(common),
@@ -263,8 +369,9 @@ def paired_delta(actor: str, judge: str, band: str, k: int) -> dict:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--actor", required=True, choices=tuple(MODELS))
-    ap.add_argument("--judge", choices=tuple(MODELS),
-                    help="judge model (default: cross-family per decision 3)")
+    ap.add_argument("--judge", choices=tuple(MODELS) + ("hosted",),
+                    help="judge model (default: cross-family per decision 3; "
+                         "'hosted' = zen gateway deepseek-v4-flash, decision 10)")
     ap.add_argument("--bands", default=",".join(BAND_ORDER))
     ap.add_argument("--k", type=int, default=30)
     ap.add_argument("--device", default="cuda", choices=("cuda", "cpu"))
@@ -275,20 +382,25 @@ def main() -> int:
     args = ap.parse_args()
 
     judge = args.judge or JUDGE_FOR[args.actor]
-    if judge == args.actor:
-        raise SystemExit(f"actor==judge forbidden (decision 3): {args.actor}")
-    if MODELS[judge]["family"] == MODELS[args.actor]["family"]:
-        raise SystemExit(f"judge shares the actor's family — cross-family "
-                         f"required (decision 3): {args.actor} -> {judge}")
-    if judge not in ("qwen", "gemma"):
-        raise SystemExit("judges are Qwen3-1.7B and Gemma-3-1B only "
-                         "(decision 3)")
+    if judge != "hosted":
+        if judge == args.actor:
+            raise SystemExit(f"actor==judge forbidden (decision 3): {args.actor}")
+        if MODELS[judge]["family"] == MODELS[args.actor]["family"]:
+            raise SystemExit(f"judge shares the actor's family — cross-family "
+                             f"required (decision 3): {args.actor} -> {judge}")
+        if judge not in ("qwen", "gemma"):
+            raise SystemExit("judges are Qwen3-1.7B and Gemma-3-1B only "
+                             "(decision 3)")
     bands = [b.strip() for b in args.bands.split(",") if b.strip()]
     for b in bands:
         if b not in BANDS:
             raise SystemExit(f"unknown band {b!r}; expected one of {BAND_ORDER}")
 
-    model, tok, load_s = load_judge(judge, args.device, args.dtype)
+    if judge == "hosted":
+        model = tok = None
+        load_s = 0.0
+    else:
+        model, tok, load_s = load_judge(judge, args.device, args.dtype)
     print(f"[p6-judge] actor={args.actor} judge={judge} device={args.device} "
           f"dtype={args.dtype} load={load_s:.1f}s k={args.k} bands={bands}",
           flush=True)
@@ -301,8 +413,11 @@ def main() -> int:
                 print(f"[{band}/{variant}] judged checkpoint complete "
                       f"({len(existing)} rows) — skip", flush=True)
                 continue
-            rows = judge_band(model, tok, args.actor, judge, variant, band,
-                              args.k, args.device)
+            if judge == "hosted":
+                rows = judge_band_hosted(args.actor, judge, variant, band, args.k)
+            else:
+                rows = judge_band(model, tok, args.actor, judge, variant, band,
+                                  args.k, args.device)
             write_jsonl(out_path, rows)
             print(f"[{band}/{variant}] wrote {len(rows)} rows -> "
                   f"{out_path.relative_to(SPIKE_ROOT)}", flush=True)

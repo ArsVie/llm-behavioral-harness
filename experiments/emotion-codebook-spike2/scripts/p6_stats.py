@@ -85,15 +85,22 @@ def pair_deltas(actor: str, judge: str, band: str) -> tuple[list[float], dict]:
     variants by construction)."""
     r_rows = load_jsonl(judged_path(actor, judge, "renderer", band))
     c_rows = load_jsonl(judged_path(actor, judge, "codebook", band))
-    r_by_id = {r["id"]: r for r in r_rows}
-    c_by_id = {r["id"]: r for r in c_rows}
-    common = sorted(set(r_by_id) & set(c_by_id))
+
+    def idx(row: dict) -> int:
+        """Sample index — ids are '{actor}-{variant}-{band}-{i:03d}'; the
+        variant sits inside the id, so pairing uses the index suffix, not
+        the full id (fixes n_pairs=0 from chain v1)."""
+        return int(row["id"].rsplit("-", 1)[1])
+
+    r_by_idx = {idx(r): r for r in r_rows}
+    c_by_idx = {idx(c): c for c in c_rows}
+    common = sorted(set(r_by_idx) & set(c_by_idx))
     if len(common) == 0:
         return [], {"band": band, "n_pairs": 0, "note": "no paired judgments"}
-    d = [float(c_by_id[i]["correct"]) - float(r_by_id[i]["correct"])
+    d = [float(c_by_idx[i]["correct"]) - float(r_by_idx[i]["correct"])
          for i in common]
-    acc_r = float(np.mean([r_by_id[i]["correct"] for i in common]))
-    acc_c = float(np.mean([c_by_id[i]["correct"] for i in common]))
+    acc_r = float(np.mean([r_by_idx[i]["correct"] for i in common]))
+    acc_c = float(np.mean([c_by_idx[i]["correct"] for i in common]))
     return d, {
         "band": band,
         "n_pairs": len(common),
@@ -125,7 +132,13 @@ def paired_delta(actor: str, judge: str, band: str) -> dict:
 
 
 def actor_record(actor: str) -> dict:
-    judge = JUDGE_FOR[actor]
+    # decision 10: judged files are written under the 'hosted' judge name
+    # (zen gateway deepseek-v4-flash); fall back to the decision-3 local
+    # judge name if only those files exist.
+    judge = "hosted"
+    probe = load_jsonl(judged_path(actor, judge, "codebook", BAND_ORDER[0]))
+    if not probe:
+        judge = JUDGE_FOR[actor]
     actor_idx = tuple(MODELS).index(actor)
     bands: dict[str, dict] = {}
     for band in BAND_ORDER:
