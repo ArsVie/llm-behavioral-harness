@@ -7,7 +7,6 @@ conv-3, 7 turns) and pinned below. G4: re-running the extractor on the same
 log must reproduce the signature byte-for-byte.
 """
 
-import json
 from datetime import datetime, timezone
 from pathlib import Path
 
