@@ -487,6 +487,9 @@ def test_live_companion_db_migrates_additively(tmp_path):
         )
     ]
     counts0 = {t: con0.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in tables0}
+    n_null0 = con0.execute(
+        "SELECT COUNT(*) FROM messages WHERE sent_at IS NOT NULL"
+    ).fetchone()[0]
     con0.close()
 
     store = SQLiteStore(copy)
@@ -500,11 +503,15 @@ def test_live_companion_db_migrates_additively(tmp_path):
     # every table opens, every row count intact
     for t, n in counts0.items():
         assert store.conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] == n, t
-    # legacy rows keep the new columns NULL (they predate the anchor)
+    # additivity: the migration must not change existing sent_at values
+    # (a populated live DB legitimately carries sent_at rows written by the
+    # bot since the v7 migration — assert DELTA, not pristine state)
     n_null = store.conn.execute(
         "SELECT COUNT(*) FROM messages WHERE sent_at IS NOT NULL"
     ).fetchone()[0]
-    assert n_null == 0, f"{n_null} live rows already carry sent_at"
+    assert n_null == n_null0, (
+        f"migration changed sent_at values: {n_null0} -> {n_null}"
+    )
     store.close()
 
     # the ORIGINAL is byte-identical
