@@ -40,3 +40,28 @@ heldout: {"n": 10840, "keys": ["a", "axis", "contrast_group", "d", "id", "intens
 [P3] valence: EV r=0.181 CI=[0.16201094793201698, 0.20031321962309487] layer=18 | JL r=0.490 CI=[0.4746904935180292, 0.5054236117620815] layer=17 | VERDICT FAIL
 [P3] arousal: EV r=0.201 CI=[0.14763448756483935, 0.25089240821947123] layer=14 | JL r=0.234 CI=[0.17878167090137823, 0.28392387710548267] layer=18 | VERDICT FAIL
 DONE
+[evbins] qwen valence: sample n=2000 (recorded ids)
+[evbins] qwen arousal: sample n=2000 (recorded ids)
+[evbins] qwen valence: C2 layer=18 (recorded), train_r=0.0595 (recorded), dir dim=(2048,)
+[evbins] qwen arousal: C2 layer=14 (recorded), train_r=0.2020 (recorded), dir dim=(2048,)
+[evbins] qwen: seed=1636062555 (derive_seed(MASTER_SEED, p2a))
+[evbins] qwen: loading model (bf16)...
+Loading weights:   0%|          | 0/311 [00:00<?, ?it/s]Loading weights:   9%|▉         | 29/311 [00:00<00:01, 272.52it/s]Loading weights:  19%|█▉        | 59/311 [00:00<00:00, 274.40it/s]Loading weights:  29%|██▉       | 91/311 [00:00<00:00, 290.28it/s]Loading weights:  41%|████      | 126/311 [00:00<00:00, 297.23it/s]Loading weights:  50%|█████     | 156/311 [00:00<00:00, 287.38it/s]Loading weights:  62%|██████▏   | 193/311 [00:00<00:00, 308.89it/s]Loading weights:  74%|███████▍  | 231/311 [00:00<00:00, 330.77it/s]Loading weights:  85%|████████▌ | 265/311 [00:00<00:00, 298.39it/s]Loading weights: 100%|██████████| 311/311 [00:00<00:00, 324.71it/s]
+[evbins] qwen: loaded in 3.4s, layers=28, hidden=2048, vocab=151936
+[evbins] qwen: C2 band [9,19) — recorded layers in band
+[evbins] qwen: 400/4000 stimuli, 27.3/s, ETA 2.2 min
+[evbins] qwen: 800/4000 stimuli, 27.6/s, ETA 1.9 min
+[evbins] qwen: 1200/4000 stimuli, 27.0/s, ETA 1.7 min
+[evbins] qwen: 1600/4000 stimuli, 26.8/s, ETA 1.5 min
+[evbins] qwen: 2000/4000 stimuli, 27.1/s, ETA 1.2 min
+[evbins] qwen: 2400/4000 stimuli, 27.3/s, ETA 1.0 min
+[evbins] qwen: 2800/4000 stimuli, 26.4/s, ETA 0.8 min
+[evbins] qwen: 3200/4000 stimuli, 26.4/s, ETA 0.5 min
+[evbins] qwen: 3600/4000 stimuli, 26.1/s, ETA 0.3 min
+[evbins] qwen: 4000/4000 stimuli, 26.0/s, ETA 0.0 min
+[evbins] qwen: forward pass done in 153.6s (4000 stimuli)
+[evbins] qwen valence: checkpoint ev_bins_valence.json written (n=2000, empty=[], layer=18)
+[evbins] qwen valence: final ev_bins_valence.json written
+[evbins] qwen arousal: checkpoint ev_bins_arousal.json written (n=2000, empty=[], layer=14)
+[evbins] qwen arousal: final ev_bins_arousal.json written
+[evbins] qwen: DONE

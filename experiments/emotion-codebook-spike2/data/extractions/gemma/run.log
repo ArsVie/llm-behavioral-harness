@@ -38,3 +38,28 @@ heldout: {"n": 10840, "keys": ["a", "axis", "contrast_group", "d", "id", "intens
 [P3] valence: EV r=0.456 CI=[0.44036451795361276, 0.4728507308201417] layer=13 | JL r=0.520 CI=[0.504705835272297, 0.5338892061758863] layer=13 | VERDICT FAIL
 [P3] arousal: EV r=0.532 CI=[0.4936060300821351, 0.5683112526327999] layer=17 | JL r=0.441 CI=[0.3995166066887188, 0.48176372293244585] layer=8 | VERDICT PASS
 DONE
+[evbins] gemma valence: sample n=2000 (recorded ids)
+[evbins] gemma arousal: sample n=2000 (recorded ids)
+[evbins] gemma valence: C2 layer=13 (recorded), train_r=0.5865 (recorded), dir dim=(1152,)
+[evbins] gemma arousal: C2 layer=17 (recorded), train_r=0.5651 (recorded), dir dim=(1152,)
+[evbins] gemma: seed=1636062555 (derive_seed(MASTER_SEED, p2a))
+[evbins] gemma: loading model (bf16)...
+Loading weights:   0%|          | 0/340 [00:00<?, ?it/s]Loading weights:  11%|█▏        | 39/340 [00:00<00:00, 326.65it/s]Loading weights:  23%|██▎       | 79/340 [00:00<00:00, 336.13it/s]Loading weights:  34%|███▍      | 115/340 [00:00<00:00, 329.08it/s]Loading weights:  49%|████▉     | 166/340 [00:00<00:00, 389.39it/s]Loading weights:  62%|██████▏   | 212/340 [00:00<00:00, 374.96it/s]Loading weights:  75%|███████▌  | 256/340 [00:00<00:00, 387.71it/s]Loading weights:  96%|█████████▋| 328/340 [00:00<00:00, 487.11it/s]Loading weights: 100%|██████████| 340/340 [00:00<00:00, 430.92it/s]
+[evbins] gemma: loaded in 2.3s, layers=26, hidden=1152, vocab=262144
+[evbins] gemma: C2 band [8,18) — recorded layers in band
+[evbins] gemma: 400/4000 stimuli, 24.0/s, ETA 2.5 min
+[evbins] gemma: 800/4000 stimuli, 23.9/s, ETA 2.2 min
+[evbins] gemma: 1200/4000 stimuli, 23.8/s, ETA 2.0 min
+[evbins] gemma: 1600/4000 stimuli, 23.8/s, ETA 1.7 min
+[evbins] gemma: 2000/4000 stimuli, 23.3/s, ETA 1.4 min
+[evbins] gemma: 2400/4000 stimuli, 23.7/s, ETA 1.1 min
+[evbins] gemma: 2800/4000 stimuli, 24.0/s, ETA 0.8 min
+[evbins] gemma: 3200/4000 stimuli, 24.3/s, ETA 0.5 min
+[evbins] gemma: 3600/4000 stimuli, 24.4/s, ETA 0.3 min
+[evbins] gemma: 4000/4000 stimuli, 24.6/s, ETA 0.0 min
+[evbins] gemma: forward pass done in 162.9s (4000 stimuli)
+[evbins] gemma valence: checkpoint ev_bins_valence.json written (n=2000, empty=[], layer=13)
+[evbins] gemma valence: final ev_bins_valence.json written
+[evbins] gemma arousal: checkpoint ev_bins_arousal.json written (n=2000, empty=[], layer=17)
+[evbins] gemma arousal: final ev_bins_arousal.json written
+[evbins] gemma: DONE
