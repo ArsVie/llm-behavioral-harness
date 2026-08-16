@@ -140,3 +140,23 @@ correct end-to-end (checkpointing + backward hooks + leaf graph).
 ## RUN LOG (appended after execution)
 
 (filled in after the run — see report below)
+
+## RUN LOG — Qwen P2b+P3 (2026-08-16 00:00 local, commit 7e1f59f)
+
+- P2b: 4,000 stimuli, 976.0 s, peak 5674.5 MiB, fallback=False. Bins + per-axis
+  checkpoints written before readout (crash-resilience, both crash incidents
+  recovered this way).
+- P3 (held-out, all 15,240 rows): 815.9 s.
+  - valence: EV r=0.478 CI=[0.463,0.495] layer=0 | JL r=-0.490 CI=[-0.505,-0.475] layer=17
+  - arousal: EV r=0.322 CI=[0.301,0.342] layer=0 | JL r=-0.234 CI=[-0.260,-0.210] layer=21
+  - VERDICT: H1 FAIL on Qwen (valence gate 0.60, arousal gate 0.40). CIs exclude 0
+    — axes are real and stable (EV held-out ≈ train r=0.479), but under-aligned
+    with human VAD.
+- SIGN NOTE (diagnostic, NOT a gate change): J-lens accumulation is w·∇L with
+  w = y − ȳ, and dL/dh points away from the target token (gradient descent moves
+  h toward the target). The constructed direction is therefore anti-aligned with
+  increasing y BY CONVENTION. Read |r| for magnitude (valence |0.490|, arousal
+  |0.234|); recommend polarity correction (−d or w = ȳ − y) for the rental run.
+- Crash history: #1 device mismatch (fixed .to(wu.device)), #2 .numpy() on CUDA
+  (fixed .cpu()), #3 negative SeedSequence spawn key for norm layer (fixed -1 →
+  10000, commit 5d6a566). All deterministic redo-safe; final run P2_QWEN_EXIT=0.
