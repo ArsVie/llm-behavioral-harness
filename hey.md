@@ -39,3 +39,9 @@ Rules: append-only for others' entries; mark your own resolved when done; never 
 - **Files/dirs:** harness/steering.py (NEW), harness/client.py, tests/test_steering.py (NEW), tests/test_client.py (extend).
 - **Boundaries:** steering.py depends ONLY on a backend protocol (enqueue_steer/pending_steers/mark_steer_delivered) — implement the protocol + an in-memory fake for tests; the SQLite implementation lands in WS2's store.py and wires in WS4. Do NOT touch store.py, session.py, runtime.py, assembler.py, tools.py.
 - **Status:** resolved (merged 7fd4f44..8638eaa into wip/harness-integration)
+### Hermes orchestrator (wave 1 — unblockers & foundations 2026-08-15)
+- **Timestamp:** 2026-08-15T22:50Z
+- **Task:** Execute `docs/plan-unblockers-foundations-2026-08-15.md` (contract committed 4cdd6dd, spec `docs/spec-context-events-time-2026-08-15.md`). Track A: W1 (real-time substrate, v6→v7 migration, `anchor.real_at`) then W2+W3 (time-aware assembler + state-card sectioning, same lane). Track B: W4 (`behavioral_signature/` extractor, shared with the codebook H4 evaluator). W5 after gate close (archive live DB, fresh trial restart). Gates G1–G5 pre-registered; no pushes; engine/ + frozen files off-limits.
+- **Files/dirs:** harness/anchor.py, harness/store.py (additive v7 migration + write paths), harness/assembler.py, harness/life.py, harness/session.py (status transitions only), behavioral_signature/ (NEW), tests/*, docs/design-note-cognition-principle-2026-08-15.md (NEW).
+- **Boundaries:** codebook experiment's uncommitted files (docs/exp-affect-codebook-pipeline-2026-08-15.md, experiments/emotion-codebook-spike/, results/it3-g5-matrix/*, results/iteration-3-report.md) are NOT mine — do not commit/touch. Live DB `results/live-companion/companion.db` is read-only until W5.
+- **Status:** in progress — lanes dispatched (wip/w1-real-time, wip/w4-behavioral-signature)
