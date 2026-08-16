@@ -1,0 +1,229 @@
+{
+  "bin_counts": {
+    "arousal": {
+      "heldout": {
+        "0": 3,
+        "1": 76,
+        "2": 262,
+        "3": 170,
+        "4": 42,
+        "5": 100,
+        "6": 196,
+        "7": 154,
+        "8": 90,
+        "9": 31
+      },
+      "train": {
+        "0": 22,
+        "1": 445,
+        "2": 1563,
+        "3": 951,
+        "4": 290,
+        "5": 600,
+        "6": 1149,
+        "7": 963,
+        "8": 550,
+        "9": 167
+      }
+    },
+    "valence": {
+      "heldout": {
+        "0": 85,
+        "1": 274,
+        "2": 433,
+        "3": 630,
+        "4": 1160,
+        "5": 3404,
+        "6": 2548,
+        "7": 867,
+        "8": 234,
+        "9": 81
+      },
+      "train": {
+        "0": 588,
+        "1": 1525,
+        "2": 2472,
+        "3": 3544,
+        "4": 6482,
+        "5": 19232,
+        "6": 14789,
+        "7": 4988,
+        "8": 1308,
+        "9": 424
+      }
+    }
+  },
+  "built_at": "2026-08-16T07:14:59.218554+00:00",
+  "master_seed": 20260815,
+  "params": {
+    "arousal_sources": [
+      "nrc-vad",
+      "warriner",
+      "emobank"
+    ],
+    "bin_width": 0.1,
+    "cell_width": 0.2,
+    "min_pair_sep": 0.3,
+    "pairs_per_group": 8,
+    "round": 4,
+    "split_train_frac": 0.85
+  },
+  "per_axis_per_split": {
+    "arousal": {
+      "heldout": {
+        "groups": 117,
+        "max_intensity": 0.98,
+        "mean_group_sep": 0.4077,
+        "min_intensity": 0.071,
+        "nonempty_bins": 10,
+        "rows": 1124
+      },
+      "train": {
+        "groups": 492,
+        "max_intensity": 0.99,
+        "mean_group_sep": 0.4122,
+        "min_intensity": 0.046,
+        "nonempty_bins": 10,
+        "rows": 6700
+      }
+    },
+    "valence": {
+      "heldout": {
+        "groups": 671,
+        "max_intensity": 1.0,
+        "mean_group_sep": 0.1782,
+        "min_intensity": 0.016,
+        "nonempty_bins": 10,
+        "rows": 9716
+      },
+      "train": {
+        "groups": 3530,
+        "max_intensity": 1.0,
+        "mean_group_sep": 0.1787,
+        "min_intensity": 0.0,
+        "nonempty_bins": 10,
+        "rows": 55352
+      }
+    }
+  },
+  "per_axis_per_split_per_source": {
+    "arousal": {
+      "heldout": {
+        "emobank": {
+          "dropped_low_sep": 1444,
+          "dropped_unmatched": 7,
+          "groups": 6,
+          "low_sep_pairs": 722,
+          "matched_items": 26,
+          "sep_max": 0.405,
+          "sep_mean": 0.3438,
+          "sep_min": 0.3
+        },
+        "nrc-vad": {
+          "dropped_low_sep": 2182,
+          "dropped_unmatched": 11,
+          "groups": 76,
+          "low_sep_pairs": 1091,
+          "matched_items": 780,
+          "sep_max": 0.841,
+          "sep_mean": 0.4454,
+          "sep_min": 0.3
+        },
+        "warriner": {
+          "dropped_low_sep": 1742,
+          "dropped_unmatched": 5,
+          "groups": 35,
+          "low_sep_pairs": 871,
+          "matched_items": 318,
+          "sep_max": 0.665,
+          "sep_mean": 0.3813,
+          "sep_min": 0.3012
+        }
+      },
+      "train": {
+        "emobank": {
+          "dropped_low_sep": 8178,
+          "dropped_unmatched": 5,
+          "groups": 25,
+          "low_sep_pairs": 4089,
+          "matched_items": 220,
+          "sep_max": 0.6325,
+          "sep_mean": 0.3509,
+          "sep_min": 0.3
+        },
+        "nrc-vad": {
+          "dropped_low_sep": 12254,
+          "dropped_unmatched": 8,
+          "groups": 328,
+          "low_sep_pairs": 6127,
+          "matched_items": 4678,
+          "sep_max": 0.859,
+          "sep_mean": 0.4392,
+          "sep_min": 0.3
+        },
+        "warriner": {
+          "dropped_low_sep": 9996,
+          "dropped_unmatched": 4,
+          "groups": 139,
+          "low_sep_pairs": 4998,
+          "matched_items": 1802,
+          "sep_max": 0.7125,
+          "sep_mean": 0.3911,
+          "sep_min": 0.3
+        }
+      }
+    }
+  },
+  "phase": "P1",
+  "seeds": {
+    "split": {
+      "emobank": 1584707868,
+      "nrc-vad": 4151082425,
+      "warriner": 135302266
+    }
+  },
+  "sources": {
+    "emobank": {
+      "dup_text": 156,
+      "empty_text": 0,
+      "loaded": 9906,
+      "rows_raw": 10062
+    },
+    "nrc-vad": {
+      "bad_lines": 0,
+      "dup_words": 0,
+      "loaded": 19974,
+      "rows_raw": 19974
+    },
+    "warriner": {
+      "dup_words": 0,
+      "loaded": 13915,
+      "rows_raw": 13915,
+      "skipped_nan": 0
+    }
+  },
+  "spike": "emotion-codebook-spike2",
+  "split_counts": {
+    "emobank": {
+      "heldout": 1486,
+      "train": 8420
+    },
+    "nrc-vad": {
+      "heldout": 2996,
+      "train": 16978
+    },
+    "warriner": {
+      "heldout": 2087,
+      "train": 11828
+    }
+  },
+  "valence_copied_from_spike1": {
+    "heldout_rows": 9716,
+    "note": "verbatim lines (axis==valence) from committed spike 1 files; not rebuilt",
+    "spike1_heldout_file_lines": 15240,
+    "spike1_heldout_sha256": "50dcbf7a24723d3221104ed1ed3d3f7f081bf4145851deecf7451b3b5afba75f",
+    "spike1_train_file_lines": 87278,
+    "spike1_train_sha256": "7b578a522ac885a6a7776dcab2699f321bc137694e70b459288ee06d2cc724bf",
+    "train_rows": 55352
+  }
+}

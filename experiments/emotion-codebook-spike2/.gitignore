@@ -1,0 +1,9 @@
+# P1 spike 2: never commit venv / big data / caches / symlinked siblings
+# NOTE: .venv, datasets, harness, models are SYMLINKS to the spike 1 tree —
+# trailing-slash dir patterns do not match symlinks, so no trailing slash here.
+.venv
+__pycache__/
+*.pyc
+datasets
+harness
+models
