@@ -1,0 +1,566 @@
+{
+  "qwen/valence": {
+    "n_nodes": 101,
+    "g_smooth": {
+      "max_adj_js": 0.02114552028071838,
+      "pass_js": true,
+      "spaced_js_0_2": [
+        0.04455813968961937,
+        0.597615363138274,
+        0.04773110703798826,
+        0.33072013132590616,
+        0.13429294025735966
+      ],
+      "rho_monotone": 0.8944464020026335,
+      "pass_monotone": false,
+      "rho_hard_lexicon": NaN,
+      "pos_family": [
+        " (",
+        " -",
+        " But",
+        " I",
+        " It",
+        " So",
+        " The",
+        " What",
+        " and",
+        " for",
+        " in",
+        " to",
+        ",",
+        ".",
+        ":"
+      ],
+      "neg_family": [
+        "'s",
+        ",",
+        ".",
+        ":",
+        "=",
+        "?",
+        "I",
+        "STRACT",
+        "__",
+        "ally",
+        "as",
+        "heat",
+        "yz",
+        "’s",
+        "車"
+      ]
+    },
+    "g_degen": {
+      "descriptors": {
+        "0.2": {
+          "tokens": [
+            ":",
+            "車",
+            "STRACT"
+          ],
+          "descriptor": ":車STRACT"
+        },
+        "0.5": {
+          "tokens": [
+            " =",
+            ",",
+            " of"
+          ],
+          "descriptor": "=, of"
+        },
+        "0.8": {
+          "tokens": [
+            " I",
+            ",",
+            "."
+          ],
+          "descriptor": "I,."
+        }
+      },
+      "jaccard": {
+        "0.2/0.5": 0.0,
+        "0.2/0.8": 0.0,
+        "0.5/0.8": 0.2
+      },
+      "pass_distinct": true
+    },
+    "g_mask": {
+      "engine_hits": [],
+      "pass": true
+    },
+    "verdict": {
+      "G-SMOOTH": "FAIL",
+      "G-DEGEN": "PASS",
+      "G-MASK": "PASS"
+    }
+  },
+  "qwen/arousal": {
+    "n_nodes": 101,
+    "g_smooth": {
+      "max_adj_js": 0.03746525127438756,
+      "pass_js": true,
+      "spaced_js_0_2": [
+        0.0581126994155605,
+        0.06752927087560252,
+        0.5836837737903434,
+        0.1429300126451811,
+        0.3554842536209375
+      ],
+      "rho_monotone": 0.8392336611382734,
+      "pass_monotone": false,
+      "rho_hard_lexicon": NaN,
+      "pos_family": [
+        " -",
+        " =",
+        " But",
+        " He",
+        " I",
+        " It",
+        " The",
+        " This",
+        " We",
+        " What",
+        " and",
+        " in",
+        " is",
+        " of",
+        ","
+      ],
+      "neg_family": [
+        "'s",
+        ",",
+        "-",
+        ".",
+        ":",
+        "=",
+        "?",
+        "STRACT",
+        "__",
+        "ally",
+        "as",
+        "heat",
+        "yz",
+        "’s",
+        "車"
+      ]
+    },
+    "g_degen": {
+      "descriptors": {
+        "0.2": {
+          "tokens": [
+            ":",
+            "車",
+            "STRACT"
+          ],
+          "descriptor": ":車STRACT"
+        },
+        "0.5": {
+          "tokens": [
+            " =",
+            ",",
+            " is"
+          ],
+          "descriptor": "=, is"
+        },
+        "0.8": {
+          "tokens": [
+            " =",
+            ",",
+            " is"
+          ],
+          "descriptor": "=, is"
+        }
+      },
+      "jaccard": {
+        "0.2/0.5": 0.0,
+        "0.2/0.8": 0.0,
+        "0.5/0.8": 1.0
+      },
+      "pass_distinct": false
+    },
+    "g_mask": {
+      "engine_hits": [],
+      "pass": true
+    },
+    "verdict": {
+      "G-SMOOTH": "FAIL",
+      "G-DEGEN": "FAIL",
+      "G-MASK": "PASS"
+    }
+  },
+  "gemma/valence": {
+    "n_nodes": 101,
+    "g_smooth": {
+      "max_adj_js": 0.019793946892109223,
+      "pass_js": true,
+      "spaced_js_0_2": [
+        0.10953643900054286,
+        0.07136977454006627,
+        0.07011057736449575,
+        0.23555046088250722,
+        0.30138032567406725
+      ],
+      "rho_monotone": 0.9804338393572128,
+      "pass_monotone": true,
+      "rho_hard_lexicon": NaN,
+      "pos_family": [
+        " I",
+        " and",
+        " for",
+        " it",
+        " main",
+        " place",
+        " sir",
+        " the",
+        " this",
+        " to",
+        "!",
+        ",",
+        ".",
+        "ed",
+        "ing"
+      ],
+      "neg_family": [
+        " (",
+        " and",
+        " by",
+        " in",
+        " infection",
+        " is",
+        " of",
+        " personality",
+        ",",
+        "-",
+        ".",
+        "/",
+        ":",
+        "_",
+        "s"
+      ]
+    },
+    "g_degen": {
+      "descriptors": {
+        "0.2": {
+          "tokens": [
+            ",",
+            ".",
+            "_"
+          ],
+          "descriptor": ",._"
+        },
+        "0.5": {
+          "tokens": [
+            ".",
+            ",",
+            " I"
+          ],
+          "descriptor": "., I"
+        },
+        "0.8": {
+          "tokens": [
+            " for",
+            " I",
+            ","
+          ],
+          "descriptor": "for I,"
+        }
+      },
+      "jaccard": {
+        "0.2/0.5": 0.5,
+        "0.2/0.8": 0.2,
+        "0.5/0.8": 0.5
+      },
+      "pass_distinct": true
+    },
+    "g_mask": {
+      "engine_hits": [],
+      "pass": true
+    },
+    "verdict": {
+      "G-SMOOTH": "PASS",
+      "G-DEGEN": "PASS",
+      "G-MASK": "PASS"
+    }
+  },
+  "gemma/arousal": {
+    "n_nodes": 101,
+    "g_smooth": {
+      "max_adj_js": 0.02192962256513939,
+      "pass_js": true,
+      "spaced_js_0_2": [
+        0.3051628664137549,
+        0.09087598178733142,
+        0.027874414615515784,
+        0.11354153246778,
+        0.3634519310785925
+      ],
+      "rho_monotone": 0.9643592439156903,
+      "pass_monotone": true,
+      "rho_hard_lexicon": NaN,
+      "pos_family": [
+        " He",
+        " I",
+        " The",
+        " and",
+        " in",
+        " off",
+        " the",
+        " you",
+        "!",
+        ",",
+        "-",
+        ".",
+        "_",
+        "in",
+        "ly"
+      ],
+      "neg_family": [
+        " (",
+        " =",
+        " all",
+        " location",
+        " ©",
+        "-",
+        ".",
+        "/",
+        "1",
+        "2",
+        ":",
+        ";",
+        "_",
+        "ado",
+        "cart"
+      ]
+    },
+    "g_degen": {
+      "descriptors": {
+        "0.2": {
+          "tokens": [
+            ".",
+            "/",
+            "_"
+          ],
+          "descriptor": "./_"
+        },
+        "0.5": {
+          "tokens": [
+            ".",
+            ",",
+            "_"
+          ],
+          "descriptor": ".,_"
+        },
+        "0.8": {
+          "tokens": [
+            ",",
+            ".",
+            " I"
+          ],
+          "descriptor": ",. I"
+        }
+      },
+      "jaccard": {
+        "0.2/0.5": 0.5,
+        "0.2/0.8": 0.2,
+        "0.5/0.8": 0.5
+      },
+      "pass_distinct": true
+    },
+    "g_mask": {
+      "engine_hits": [],
+      "pass": true
+    },
+    "verdict": {
+      "G-SMOOTH": "PASS",
+      "G-DEGEN": "PASS",
+      "G-MASK": "PASS"
+    }
+  },
+  "qwen8b/valence": {
+    "n_nodes": 101,
+    "g_smooth": {
+      "max_adj_js": 0.02207439652822081,
+      "pass_js": true,
+      "spaced_js_0_2": [
+        0.1949353326359032,
+        0.21523538511296225,
+        0.2577185595703277,
+        0.30523716202835266,
+        0.40385801032172763
+      ],
+      "rho_monotone": 0.9204220163755286,
+      "pass_monotone": true,
+      "rho_hard_lexicon": 0.8676202231412622,
+      "pos_family": [
+        " !",
+        " I",
+        " So",
+        " Thank",
+        " That",
+        " What",
+        " for",
+        "!",
+        ".",
+        "birthday",
+        "fresh",
+        "friend",
+        "great",
+        "sweet",
+        "的"
+      ],
+      "neg_family": [
+        " and",
+        " in",
+        " is",
+        ":",
+        "?",
+        "?\n\n",
+        "Dis",
+        "ab",
+        "destroy",
+        "ly",
+        "masked",
+        "y",
+        "是",
+        "是什么",
+        "的"
+      ]
+    },
+    "g_degen": {
+      "descriptors": {
+        "0.2": {
+          "tokens": [
+            "的",
+            "?",
+            " is"
+          ],
+          "descriptor": "的? is"
+        },
+        "0.5": {
+          "tokens": [
+            " I",
+            ".",
+            " The"
+          ],
+          "descriptor": "I. The"
+        },
+        "0.8": {
+          "tokens": [
+            " I",
+            "birthday",
+            "fresh"
+          ],
+          "descriptor": "Ibirthdayfresh"
+        }
+      },
+      "jaccard": {
+        "0.2/0.5": 0.0,
+        "0.2/0.8": 0.0,
+        "0.5/0.8": 0.2
+      },
+      "pass_distinct": true
+    },
+    "g_mask": {
+      "engine_hits": [],
+      "pass": true
+    },
+    "verdict": {
+      "G-SMOOTH": "PASS",
+      "G-DEGEN": "PASS",
+      "G-MASK": "PASS"
+    }
+  },
+  "qwen8b/arousal": {
+    "n_nodes": 101,
+    "g_smooth": {
+      "max_adj_js": 0.05765065880011132,
+      "pass_js": false,
+      "spaced_js_0_2": [
+        0.1853483386776369,
+        0.49549129783348567,
+        0.5418240920944515,
+        0.1849108257316835,
+        0.23913599003724617
+      ],
+      "rho_monotone": 0.9704396343653097,
+      "pass_monotone": true,
+      "rho_hard_lexicon": NaN,
+      "pos_family": [
+        " -",
+        " and",
+        " is",
+        "!",
+        "'s",
+        ",",
+        ":",
+        "?",
+        "bomb",
+        "exc",
+        "fight",
+        "rag",
+        "thr",
+        "是",
+        "的"
+      ],
+      "neg_family": [
+        " and",
+        "'t",
+        ",",
+        ".",
+        "/",
+        "0",
+        "1",
+        "2",
+        "9",
+        ":",
+        "“",
+        "、",
+        "和",
+        "的",
+        "，"
+      ]
+    },
+    "g_degen": {
+      "descriptors": {
+        "0.2": {
+          "tokens": [
+            "，",
+            ".",
+            "的"
+          ],
+          "descriptor": "，.的"
+        },
+        "0.5": {
+          "tokens": [
+            "的",
+            "foundation",
+            "numer"
+          ],
+          "descriptor": "的foundationnumer"
+        },
+        "0.8": {
+          "tokens": [
+            "的",
+            " is",
+            "?"
+          ],
+          "descriptor": "的 is?"
+        }
+      },
+      "jaccard": {
+        "0.2/0.5": 0.2,
+        "0.2/0.8": 0.2,
+        "0.5/0.8": 0.2
+      },
+      "pass_distinct": true
+    },
+    "g_mask": {
+      "engine_hits": [],
+      "pass": true
+    },
+    "verdict": {
+      "G-SMOOTH": "FAIL",
+      "G-DEGEN": "PASS",
+      "G-MASK": "PASS"
+    }
+  }
+}
