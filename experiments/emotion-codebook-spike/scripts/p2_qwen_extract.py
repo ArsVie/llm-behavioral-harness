@@ -507,8 +507,17 @@ def stage_p2b(h: QwenHarness, train_sample: dict[str, list[dict]], seed: int) ->
             bins_out[b]["fallback"] = f"copied from bin {near} (n={int(bin_n[near])})"
             bins_out[b]["top_tokens"] = bins_out[near]["top_tokens"]
             bins_out[b]["mean_y"] = bins_out[near]["mean_y"]
+        (EXTRACT / f"jlens_{axis}.json").write_text(json.dumps(
+            {"model": MODEL_ID, "revision": MODEL_REVISION, "seed": seed, "axis": axis,
+             "fallback": out.get("fallback"), "n_train": len(rows),
+             "binning": {"bin_width": BIN_WIDTH, "n_bins": N_BINS, "p_min": pmin, "p_max": pmax,
+                         "map": "minmax(train projection on d_norm) -> [0,1]",
+                         "direction_layer": final_key,
+                         "direction_train_r": layer_out[final_key]["train_r"]},
+             "empty_bins": empty, "bins": bins_out, "jlens_direction_tokens": []}, indent=2) + "\n")
+        print(f"[P2b] bins checkpoint jlens_{axis}.json written", flush=True)
         wu = h.model.lm_head.weight.detach().float()
-        scores = torch.softmax(wu @ torch.from_numpy(dirs["norm"].astype(np.float32)).to(wu.device), dim=-1).numpy()
+        scores = torch.softmax(wu @ torch.from_numpy(dirs["norm"].astype(np.float32)).to(wu.device), dim=-1).cpu().numpy()
         dir_tokens = []
         for t in np.argsort(scores)[::-1]:
             s = toks.decode([int(t)], skip_special_tokens=True)
