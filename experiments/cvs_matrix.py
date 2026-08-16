@@ -23,7 +23,8 @@ Uso:
                                      [--out results/it3-g5-matrix]
                                      [--max-retries 3] [--retry-base-s 120]
 
-Requiere OPENCODE_GO_API_KEY en el entorno (ver companion_vertical_slice).
+Requiere la lane research (JUDGE_GENERATOR_TOKEN del .env de la raíz del
+repo; ver companion_vertical_slice).
 
 Convención del repo: docstrings en español, identificadores en inglés.
 """
@@ -32,47 +33,30 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 import time
 from pathlib import Path
 
 from experiments.cvs_common import DEFAULT_CHECKPOINT_DAYS, run_cell
 from experiments.cvs_manifest import MATRIX_CONDITIONS, SEEDS
+from harness.credentials import load_env_file, resolve_credentials
 
 STATUS_FILE = "status.json"
 
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
 
 def _load_env() -> None:
-    """Carga ~/.hermes/.env + mapeo OPENCODE_GO_* -> LLM_* (mismo patrón
-    que companion_vertical_slice: client.py lee LLM_API_KEY/LLM_BASE_URL,
-    el archivo de Hermes guarda OPENCODE_GO_*. Nunca pisa valores ya
-    presentes; nunca imprime secretos)."""
-    env_file = Path.home() / ".hermes/.env"
-    if not env_file.exists():
-        return
-    for line in env_file.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        if key and key not in os.environ:
-            os.environ[key] = value
-    if "LLM_API_KEY" not in os.environ and os.environ.get("OPENCODE_GO_API_KEY"):
-        os.environ["LLM_API_KEY"] = os.environ["OPENCODE_GO_API_KEY"]
-    if "LLM_BASE_URL" not in os.environ and os.environ.get("OPENCODE_GO_BASE_URL"):
-        os.environ["LLM_BASE_URL"] = os.environ["OPENCODE_GO_BASE_URL"]
+    """Carga el .env de la raíz del repo (lane tokens; valores nunca impresos)."""
+    load_env_file(REPO_ROOT / ".env")
 
 
 def _require_key() -> None:
     _load_env()
-    if not (os.environ.get("OPENCODE_GO_API_KEY") or os.environ.get("LLM_API_KEY")):
-        raise SystemExit(
-            "OPENCODE_GO_API_KEY is not set — the harness never stores "
-            "credentials. Export it before running the matrix."
-        )
+    try:
+        resolve_credentials("research")
+    except RuntimeError as exc:
+        raise SystemExit(str(exc)) from exc
 
 
 def _cell_out(root: Path, condition: str, seed: int) -> Path:

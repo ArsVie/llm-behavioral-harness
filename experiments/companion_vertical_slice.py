@@ -18,7 +18,8 @@ harness de preregistro de la Iteración 2:
                atención con transcript corrupto, agregación Bradley-Terry/Elo;
                v1 absoluto 1-9 con --v1), con >=2 familias (§17.4)
     matrix     célula de la matriz real (Gate 4/6 — el runner carga
-               OPENCODE_GO_API_KEY desde ~/.hermes/.env, NUNCA la imprime)
+               JUDGE_GENERATOR_TOKEN desde el .env de la raíz del repo,
+               NUNCA la imprime)
     report     regenera el reporte OKF de un run
     validate   valida un directorio de run con experiments.validation.validate_okf
 
@@ -37,6 +38,7 @@ from pathlib import Path
 import numpy as np
 
 from harness.client import OpenAICompatibleClient
+from harness.credentials import load_env_file, resolve_credentials
 from harness.store import SQLiteStore
 
 from experiments import cvs_common
@@ -64,7 +66,6 @@ from experiments.cvs_manifest import (
 from experiments.validation.validate_okf import check_run_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-ENV_FILE = Path.home() / ".hermes" / ".env"
 
 #: Título del reporte con la semilla fija (convención del repo).
 def _vertical_title(seed: int, days: int) -> str:
@@ -80,26 +81,8 @@ def _vertical_title(seed: int, days: int) -> str:
 
 
 def _load_env() -> None:
-    """Carga ~/.hermes/.env al entorno (best-effort, sin imprimir secretos)."""
-    if not ENV_FILE.exists():
-        return
-    for line in ENV_FILE.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        if key and key not in os.environ:
-            os.environ[key] = value
-    # Mapeo OPENCODE_GO_* -> LLM_*: client.py lee LLM_API_KEY/LLM_BASE_URL,
-    # pero el archivo de Hermes guarda la clave como OPENCODE_GO_API_KEY
-    # (probe G6: runtime moría en el primer call con bearer vacío y todos
-    # los feeds se omitían en silencio). Nunca pisa valores ya presentes.
-    if "LLM_API_KEY" not in os.environ and os.environ.get("OPENCODE_GO_API_KEY"):
-        os.environ["LLM_API_KEY"] = os.environ["OPENCODE_GO_API_KEY"]
-    if "LLM_BASE_URL" not in os.environ and os.environ.get("OPENCODE_GO_BASE_URL"):
-        os.environ["LLM_BASE_URL"] = os.environ["OPENCODE_GO_BASE_URL"]
+    """Carga el .env de la raíz del repo (lane tokens; valores nunca impresos)."""
+    load_env_file(REPO_ROOT / ".env")
 
 
 def _require_key(env_key: str) -> None:
@@ -108,7 +91,7 @@ def _require_key(env_key: str) -> None:
     if not os.environ.get(env_key):
         raise RuntimeError(
             f"missing API key for judge family: env var {env_key} is empty "
-            f"(source it from ~/.hermes/.env — the key itself is never printed)"
+            f"(source it from the repo-root .env — the key itself is never printed)"
         )
 
 
@@ -471,10 +454,10 @@ def cmd_vertical(args) -> int:
         else DEFAULT_CHECKPOINT_DAYS
     )
     if not fake:
-        # Carga ~/.hermes/.env y mapea OPENCODE_GO_* -> LLM_* (probe G6:
-        # sin esto el cliente veía bearer vacío, el runtime moría en el
-        # primer chat y la celda "completaba" hueca con 0 mensajes).
-        _require_key("OPENCODE_GO_API_KEY")
+        # Lane research: jueces + replies generadas por experimentos usan
+        # JUDGE_GENERATOR_TOKEN del .env de la raíz del repo (WS-C). El
+        # resolver falla alto si falta; nunca imprime el valor.
+        resolve_credentials("research")
 
     # 1. Preregistro ANTES de generar (Gate 4).
     manifest = write_manifest(out_dir / "manifest.json", repo_root=REPO_ROOT)
@@ -746,7 +729,7 @@ def _judge_client(family_id: str, fake: bool):
         raise ValueError(f"unknown judge family: {family_id}")
     _require_key(family["env_key"])
     return OpenAICompatibleClient(
-        base_url=family["base_url"], model=family["model"]
+        base_url=family["base_url"], model=family["model"], lane="research"
     )
 
 
@@ -908,16 +891,17 @@ def cmd_judge(args) -> int:
 def cmd_matrix(args) -> int:
     """Una célula de la matriz real (7 condiciones x 5 semillas).
 
-    Sin ``--fake`` exige OPENCODE_GO_API_KEY (cargada desde ~/.hermes/.env por
-    el runner; la clave NUNCA se imprime). Este comando es el paso Gate 4/6
-    del orquestador — el harness CI usa --fake.
+    Sin ``--fake`` exige la lane research (JUDGE_GENERATOR_TOKEN, cargada
+    desde el .env de la raíz del repo por el runner; la clave NUNCA se
+    imprime). Este comando es el paso Gate 4/6 del orquestador — el
+    harness CI usa --fake.
     """
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
     seed = int(args.seed)
     fake = bool(args.fake)
     if not fake:
-        _require_key("OPENCODE_GO_API_KEY")
+        resolve_credentials("research")
     records = run_cell(args.condition, seed, out_dir, days=30,
                        checkpoints=(), fake=fake, perturb=False)
     store = SQLiteStore(records["db"])

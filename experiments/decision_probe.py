@@ -19,10 +19,11 @@ Design (WS2):
 - Uses the real DecisionRunner (harness.tools) and SQLiteStore: every
   verdict is dual-persisted (raw reply + parsed verdict), parse failures
   are LOUD (state event + requeue), replay would read the recorded verdict.
-- Real mode: env LLM_BASE_URL / LLM_API_KEY / LLM_MODEL (the small
-  _load_env pattern from experiments/cvs_matrix.py: loads ~/.hermes/.env
-  and maps OPENCODE_GO_* -> LLM_*). --fake mode: scripted model, full
-  end-to-end, no network (used by tests/test_decision_probe.py).
+- Real mode: env LLM_BASE_URL / LLM_MODEL + the research-lane token
+  (JUDGE_GENERATOR_TOKEN via harness.credentials; the small _load_env
+  pattern from experiments/cvs_matrix.py loads the repo-root .env).
+  --fake mode: scripted model, full end-to-end, no network (used by
+  tests/test_decision_probe.py).
 - Outputs: results/decision-probe-2026-08-14/ with report.md (OKF
   frontmatter + per-evaluation table + plain-language verbatim answers),
   probe.json (raw records) and decision_probe.db (the store).
@@ -50,6 +51,8 @@ import httpx
 
 import engine.rng as rng_mod  # read-only: stream helpers (never modified)
 from harness.assembler import assemble_snapshot
+from harness.client import DEFAULT_BASE_URL
+from harness.credentials import load_env_file, resolve_credentials
 from harness.domain import (
     AgendaItem,
     BehaviorBrief,
@@ -334,25 +337,9 @@ SAMPLES: list[dict] = [
 
 
 def _load_env() -> None:
-    """Load ~/.hermes/.env + map OPENCODE_GO_* -> LLM_* (client.py reads
-    LLM_API_KEY/LLM_BASE_URL; Hermes stores OPENCODE_GO_*). Never overrides
-    values already present; never prints secrets."""
-    env_file = Path.home() / ".hermes/.env"
-    if not env_file.exists():
-        return
-    for line in env_file.read_text(encoding="utf-8").splitlines():
-        line = line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, _, value = line.partition("=")
-        key = key.strip()
-        value = value.strip().strip('"').strip("'")
-        if key and key not in os.environ:
-            os.environ[key] = value
-    if "LLM_API_KEY" not in os.environ and os.environ.get("OPENCODE_GO_API_KEY"):
-        os.environ["LLM_API_KEY"] = os.environ["OPENCODE_GO_API_KEY"]
-    if "LLM_BASE_URL" not in os.environ and os.environ.get("OPENCODE_GO_BASE_URL"):
-        os.environ["LLM_BASE_URL"] = os.environ["OPENCODE_GO_BASE_URL"]
+    """Load the repo-root .env (lane tokens; values never printed)."""
+    repo_root = Path(__file__).resolve().parents[1]
+    load_env_file(repo_root / ".env")
 
 
 # --------------------------------------------------------------------------- #
@@ -372,10 +359,14 @@ class _CallContext:
 def make_real_callable() -> tuple:
     """Build the injected model callable for REAL mode (httpx, OpenAI-compatible
     /chat/completions). Returns (callable, ctx). The probe speaks the current
-    client protocol directly (WS3 wires the real client into the runtime)."""
-    base_url = (os.environ.get("LLM_BASE_URL") or
-                "https://opencode.ai/zen/go/v1/").rstrip("/")
-    api_key = os.environ.get("LLM_API_KEY", "")
+    client protocol directly (WS3 wires the real client into the runtime).
+
+    RESEARCH lane (WS-C): the token resolves from JUDGE_GENERATOR_TOKEN via
+    harness.credentials and fails loudly if missing; the value is never
+    logged or printed.
+    """
+    api_key, cred_base_url = resolve_credentials("research")
+    base_url = (cred_base_url or DEFAULT_BASE_URL).rstrip("/")
     model = os.environ.get("LLM_MODEL", MODEL)
     ctx = _CallContext()
 
@@ -814,15 +805,12 @@ def run_probe(
         reasoning_ctx = None
     else:
         _load_env()
-        if not (os.environ.get("LLM_API_KEY")
-                or os.environ.get("OPENCODE_GO_API_KEY")):
+        try:
+            call, reasoning_ctx = make_real_callable()
+        except RuntimeError as exc:
             store.close()
-            raise SystemExit(
-                "LLM_API_KEY is not set — the harness never stores "
-                "credentials. Export it or run with --fake."
-            )
+            raise SystemExit(str(exc)) from exc
         model_name = os.environ.get("LLM_MODEL", MODEL)
-        call, reasoning_ctx = make_real_callable()
 
     rows: list[dict] = []
     for sample in samples:

@@ -16,7 +16,8 @@ Evaluator is SEPARATE from the feedback judge (advisor review 2026-08-08):
       differ; harness-off replies should not show month-dependent tone
     - optional --evaluate: independent LLM evaluator rubric
 
-Live mode (default) requires LLM_API_KEY. --fake runs deterministically with
+Live mode (default) requires the research-lane token (JUDGE_GENERATOR_TOKEN,
+sourced from the repo-root .env). --fake runs deterministically with
 scripted replies and a month-scripted judge (CI-safe).
 """
 
@@ -328,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         model = "fake"
         mode = "fake"
     else:
-        client_factory = lambda month: OpenAICompatibleClient(model=args.model)
+        client_factory = lambda month: OpenAICompatibleClient(model=args.model, lane="research")
         judge_factory = lambda month: judge_day
         model = args.model or "env-LLM_MODEL"
         mode = "live"

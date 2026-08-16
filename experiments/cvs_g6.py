@@ -53,10 +53,13 @@ def _family_route_ok(family: dict, timeout_s: float = 30.0) -> bool:
     import httpx
 
     from experiments.cvs_matrix import _load_env
+    from harness.credentials import resolve_credentials
 
     _load_env()
-    key = (os.environ.get("LLM_API_KEY")
-           or os.environ.get(family.get("env_key", "")))
+    try:
+        key = resolve_credentials("research")[0]
+    except RuntimeError:
+        return False
     if not key:
         return False
     try:
@@ -82,13 +85,13 @@ def build_client(family: dict, *, dry_run: bool, seed: int):
         return PairwiseFakeJudge(seed, family=family["id"], model=family["model"])
     from experiments.cvs_matrix import _load_env
 
-    _load_env()  # ~/.hermes/.env + OPENCODE_GO_* -> LLM_* (mismo patrón)
+    _load_env()  # .env de la raíz del repo — lane research (WS-C)
     from harness.client import OpenAICompatibleClient
 
     return OpenAICompatibleClient(
         base_url=family["base_url"],
-        api_key=None,  # env: family["env_key"] (mapeado por _load_env)
         model=family["model"],
+        lane="research",  # resolver: JUDGE_GENERATOR_TOKEN
         # Judge calls on reasoning models are SLOW (20-47s for ~13K-char
         # pairwise prompts; verified 2026-08-13) — the 60s default read
         # timeout tripped mid-run. 120s headroom for full 2-transcript

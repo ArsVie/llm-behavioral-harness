@@ -24,6 +24,12 @@ next ablation run before enabling feedback.
 
 Scores are clipped to [-1, 1]; the rubric output is parsed leniently
 (JSON object with `score` and `justification`).
+
+LANE (WS-C, 2026-08-16): the judge itself never constructs clients — it
+receives one. Every runner that builds a client for a judge must construct
+it on the RESEARCH lane (``OpenAICompatibleClient(lane="research")``, token
+JUDGE_GENERATOR_TOKEN) so judge spend is attributed to research, never to
+the product lane.
 """
 
 from __future__ import annotations

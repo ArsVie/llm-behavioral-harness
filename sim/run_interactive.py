@@ -16,7 +16,8 @@ Commands:
     /help        list commands
     /quit        finalize the current day and exit
 
-Live mode requires LLM_API_KEY (+ optional LLM_BASE_URL / LLM_MODEL).
+Live mode requires the product-lane token (LILY_TOKEN, sourced from the
+repo-root .env) plus optional LLM_BASE_URL / LLM_MODEL.
 `--fake` runs offline with a scripted client (no credentials needed).
 Judge runs in shadow mode unless --feedback is given.
 """
@@ -136,7 +137,7 @@ def main(argv: list[str] | None = None) -> int:
         client = FakeClient(echo=True)
         synthetic = True
     else:
-        client = OpenAICompatibleClient(model=args.model)
+        client = OpenAICompatibleClient(model=args.model, lane="product")
         synthetic = args.synthetic
     persona = PersonaParams()
     timing = TimingParams()
