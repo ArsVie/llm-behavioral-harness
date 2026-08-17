@@ -22,7 +22,7 @@ def test_parse_bubbles_basic():
 def test_parse_bubbles_stray_doubled():
     bubbles, stray = parse_bubbles("a <split> <split> b", "<split>")
     assert bubbles == ["a", "b"]
-    assert stray == 1  # the doubled delimiter separates two empties -> 2 empties
+    assert stray == 0  # a doubled delimiter is ONE separator run, not a stray
 
 
 def test_parse_bubbles_stray_trailing():
@@ -76,6 +76,15 @@ def test_newline_delimiter():
     m = analyze_output("First part.\nSecond part.", DELIMITERS["newline"], "First part. Second part.")
     assert m["followed"] is True
     assert m["k"] == 2
+
+
+def test_newline_delimiter_blank_line_run():
+    # the model emits \\n\\n (blank lines) under the \\n instruction; a run of
+    # newlines is ONE separator -> followed, no stray
+    m = analyze_output("First part.\n\nSecond part.", DELIMITERS["newline"], "First part. Second part.")
+    assert m["followed"] is True
+    assert m["k"] == 2
+    assert m["stray"] == 0
 
 
 def test_blank_delimiter_requires_double_newline():

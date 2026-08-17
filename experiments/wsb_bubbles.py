@@ -347,10 +347,13 @@ DELIMITERS: dict[str, dict] = {
 
 
 def parse_bubbles(text: str, delim: str) -> tuple[list[str], int]:
-    """Split on the delimiter; return (non-empty bubbles, stray delimiter
-    occurrences). Stray = delimiter occurrences that do NOT separate two
-    non-empty bubbles (leading/trailing/doubled)."""
-    raw = text.split(delim)
+    """Split on delimiter RUNS (repeats, optional whitespace between); a run
+    counts as ONE separator. Return (non-empty bubbles, stray separator
+    occurrences). Stray = runs that do NOT separate two non-empty bubbles
+    (leading/trailing). A doubled delimiter (`\\n\\n` under the `\\n`
+    instruction, `<split> <split>`) is one boundary, not a stray — the
+    model's natural blank-line style counts."""
+    raw = re.split(r"(?:" + re.escape(delim) + r"\s*)+", text)
     bubbles = [p.strip() for p in raw]
     empties = sum(1 for p in bubbles if not p)
     non_empty = [p for p in bubbles if p]
@@ -371,8 +374,8 @@ def analyze_output(
     bubbles, stray = parse_bubbles(text, sep) if has_delim else ([text], 0)
     k = len(bubbles)
     violations = boundary_violations(bubbles) if k > 1 else []
-    # content preservation: delimiter-stripped vs original
-    stripped = re.sub(re.escape(sep), " ", text)
+    # content preservation: delimiter-stripped vs original (runs -> one space)
+    stripped = re.sub(r"(?:" + re.escape(sep) + r"\s*)+", " ", text)
     ratio = difflib.SequenceMatcher(None, _norm(stripped), _norm(original)).ratio()
     return {
         "has_delim": has_delim,
