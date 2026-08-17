@@ -178,7 +178,7 @@ def test_v6_to_v7_migration_is_additive_and_preserves_data(tmp_path):
 
     store = SQLiteStore(db)
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
 
     # additive only: exactly the seven v7 columns, nullable REAL, nothing else
     for table, col in sorted(_V7_ADDITIONS):
@@ -237,7 +237,7 @@ def test_v6_to_v7_migration_is_additive_and_preserves_data(tmp_path):
 def test_fresh_db_reaches_v7_with_all_tables(tmp_path):
     store = SQLiteStore(tmp_path / "fresh.db")
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
     for table, col in sorted(_V7_ADDITIONS):
         assert col in _table_columns(store.conn, table), f"{table}.{col} missing"
     store.close()
@@ -494,7 +494,7 @@ def test_live_companion_db_migrates_additively(tmp_path):
 
     store = SQLiteStore(copy)
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
     assert version0 <= SCHEMA_VERSION, (
         f"live DB expected at or below v{SCHEMA_VERSION}, found v{version0}"
     )

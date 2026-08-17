@@ -12,7 +12,7 @@ The pre-slice schema is version 1 and is frozen verbatim in ``_SCHEMA``; it is
 executed with ``CREATE TABLE IF NOT EXISTS`` on every open (legacy behavior,
 idempotent). ``schema_meta(version)`` creates the ``schema_meta`` bookkeeping
 table; the migration framework (``_migrate``) reads the recorded version and
-applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 7).
+applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 8).
 Migrations never drop or alter existing columns; all ``ALTER TABLE`` steps are
 guarded by ``PRAGMA table_info``. On a fresh database the effective version is
 1 (only the v1 base tables exist), so the migration chain runs and the
@@ -68,7 +68,10 @@ Tables (slice scope of the plan's data model):
   - messages(id PK, role, content, t_h, day, proactive, meta, session_id)
   - judgements(day PK, score, justification, model, shadow)
   - state_events(id PK, day, t_h, event, detail)
-  - llm_calls(id PK, day, t_h, role, model, prompt_hash, response, meta)
+  - llm_calls(id PK, day, t_h, role, model, prompt_hash, response, meta) —
+    v8 (WS-D) adds the spend ledger: prompt_tokens, completion_tokens,
+    total_tokens, cached_tokens, cache_miss_tokens, lane, raw_cost (all
+    nullable; legacy rows NULL)
   - schedule_events(id PK, seed, t_h, day, reason, status, fired_t_h)
   - persona(id=1 singleton, name, core, routines_json)   -- routines as JSON
   - interests(name PK, bucket, salience)                 -- portfolio bucket
@@ -154,7 +157,7 @@ from harness.domain import (
     UserModelCategory,
 )
 
-SCHEMA_VERSION = 7
+SCHEMA_VERSION = 8
 
 # --------------------------------------------------------------------------- #
 # v1 base schema — FROZEN verbatim from the pre-slice store (do not edit).
@@ -623,6 +626,36 @@ def _migrate_v7(conn: sqlite3.Connection) -> None:
         _ensure_column(conn, table, column, decl)
 
 
+# --------------------------------------------------------------------------- #
+# Migration v7 -> v8 (WS-D spend accounting, additive only): usage on llm_calls
+# --------------------------------------------------------------------------- #
+# v8 adds the token-usage ledger columns to ``llm_calls`` so every logged
+# generation call carries its spend: prompt/completion/total tokens, the
+# cache split (cached vs miss — whichever cache-field variant the gateway
+# returned, or the all-miss default when no split surfaced), the calling
+# lane ("product" | "research", WS-C attribution) and the gateway-reported
+# cost in USD (raw_cost, discovery 2026-08-16 — cross-check for G-cost).
+# ``model`` already exists on llm_calls since v1. All columns nullable with
+# no defaults and no backfill: legacy rows stay NULL and the replay path is
+# byte-identical (usage capture is an ADDITION, not a change to prompt/
+# reply handling).
+_V8_COLUMNS = (
+    ("llm_calls", "prompt_tokens", "INTEGER"),
+    ("llm_calls", "completion_tokens", "INTEGER"),
+    ("llm_calls", "total_tokens", "INTEGER"),
+    ("llm_calls", "cached_tokens", "INTEGER"),
+    ("llm_calls", "cache_miss_tokens", "INTEGER"),
+    ("llm_calls", "lane", "TEXT"),
+    ("llm_calls", "raw_cost", "REAL"),
+)
+
+
+def _migrate_v8(conn: sqlite3.Connection) -> None:
+    """v7 -> v8: additive llm_calls usage/lane/raw_cost columns (WS-D)."""
+    for table, column, decl in _V8_COLUMNS:
+        _ensure_column(conn, table, column, decl)
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Bring the schema up to SCHEMA_VERSION with additive migrations only.
 
@@ -645,12 +678,36 @@ def _migrate(conn: sqlite3.Connection) -> None:
         _migrate_v6(conn)
     if version < 7:
         _migrate_v7(conn)
+    if version < 8:
+        _migrate_v8(conn)
     if version < SCHEMA_VERSION:
         conn.execute("DELETE FROM schema_meta")
         conn.execute(
             "INSERT INTO schema_meta (version) VALUES (?)", (SCHEMA_VERSION,)
         )
     conn.commit()
+
+
+def _usage_columns(usage) -> tuple:
+    """Normalize a parsed usage object into the five llm_calls token columns.
+
+    Accepts a ``harness.client.Usage`` (attribute access) or a plain dict
+    with the same keys; anything else (or None) yields all-NULLs. Never
+    raises on malformed shapes — usage capture is best-effort.
+    """
+    if usage is None:
+        return (None, None, None, None, None)
+    if isinstance(usage, dict):
+        get = lambda k: usage.get(k)  # noqa: E731
+    else:
+        get = lambda k: getattr(usage, k, None)  # noqa: E731
+    return (
+        get("prompt_tokens"),
+        get("completion_tokens"),
+        get("total_tokens"),
+        get("cached_tokens"),
+        get("cache_miss_tokens"),
+    )
 
 
 def _hash(prompt: str) -> str:
@@ -1091,6 +1148,9 @@ class SQLiteStore:
         meta: dict | None = None,
         *,
         repro: dict | None = None,
+        usage: object | None = None,
+        lane: str | None = None,
+        raw_cost: float | None = None,
     ) -> int:
         """Record one generation call; returns the call id.
 
@@ -1101,13 +1161,23 @@ class SQLiteStore:
         reference ids, timestamp, response), the exact payload is persisted as
         JSON so the call can be reproduced from the run manifest (invariant
         19). In production privacy mode the payload is dropped.
+
+        WS-D spend accounting (additive): ``usage`` (a ``harness.client.Usage``
+        or plain dict) persists the token ledger columns (prompt/completion/
+        total/cached/cache-miss); ``lane`` carries the WS-C attribution
+        ("product" | "research"); ``raw_cost`` persists the gateway-reported
+        cost (G-cost cross-check). All optional — callers that predate usage
+        capture are unchanged and the new columns stay NULL (replay parity).
         """
         repro_json = None
         if self.audit_mode and repro is not None:
             repro_json = json.dumps(repro, sort_keys=True)
+        (pt, ct, tt, cached, miss) = _usage_columns(usage)
         cur = self.conn.execute(
             "INSERT INTO llm_calls (day, t_h, role, model, prompt_hash, "
-            "response, meta, repro_json) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            "response, meta, repro_json, prompt_tokens, completion_tokens, "
+            "total_tokens, cached_tokens, cache_miss_tokens, lane, raw_cost) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 day,
                 t_h,
@@ -1117,6 +1187,9 @@ class SQLiteStore:
                 response,
                 json.dumps(meta) if meta else None,
                 repro_json,
+                pt, ct, tt, cached, miss,
+                lane,
+                raw_cost,
             ),
         )
         self.conn.commit()

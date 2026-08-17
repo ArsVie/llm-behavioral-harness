@@ -119,7 +119,7 @@ def _scripted_feed(session, clock, n_closed, *, gap_h=0.05, start_h=8.1667):
 def test_store_v4_fresh_db_tables_and_backward_compatible_add_message(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
     tables = {
         r["name"]
         for r in store.conn.execute(
@@ -166,7 +166,7 @@ def test_store_v2_db_migrates_to_v4_additive(tmp_path):
 
     store = SQLiteStore(db)
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 7
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
     tables = {
         r["name"]
         for r in store.conn.execute(
