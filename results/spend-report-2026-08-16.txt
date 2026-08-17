@@ -1,0 +1,36 @@
+==============================================================================
+LLM SPEND REPORT (WS-D)
+window: all time
+PRICING PENDING — rates in harness/pricing.py are placeholders;
+dollar figures below are placeholder math until the user fills
+real $/1M rates and sets PRICING_PENDING = False.
+==============================================================================
+
+-- TOTAL --
+group                              calls        in       out   cached     miss    hit%        cost       saved
+total                                  3         0         0        0        0       -     $0.0000     $0.0000
+
+-- BY LANE --
+group                              calls        in       out   cached     miss    hit%        cost       saved
+unknown                                3         0         0        0        0       -     $0.0000     $0.0000
+
+-- BY MODEL --
+group                              calls        in       out   cached     miss    hit%        cost       saved
+deepseek-v4-flash                      3         0         0        0        0       -     $0.0000     $0.0000
+
+-- BY DAY --
+group                              calls        in       out   cached     miss    hit%        cost       saved
+day 0                                  3         0         0        0        0       -     $0.0000     $0.0000
+
+------------------------------------------------------------------------------
+Summary
+  calls logged        : 3  (priced 3, unpriced 0)
+  input tokens        : 0  (cached 0 / miss 0)
+  completion tokens   : 0
+  total tokens        : 0
+  cache-hit rate      : -
+  tiered cost         : $0.0000  (placeholder)
+  uncached cost       : $0.0000  (placeholder)
+  cache savings       : $0.0000  (placeholder)
+------------------------------------------------------------------------------
+USER ACTION: fill real $/1M rates in harness/pricing.py (input / cached input / output per model) and set PRICING_PENDING = False.
