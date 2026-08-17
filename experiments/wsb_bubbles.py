@@ -121,7 +121,7 @@ from experiments.cvs_common import (
 SEED = 5001
 DEFAULT_OUT = Path(__file__).resolve().parent.parent / "results" / "wsb-delimiter"
 MODEL = "deepseek-v4-flash"
-MAX_TOKENS = 512  # deepseek reasoning starvation guard (>= 512, verified)
+MAX_TOKENS = 768  # deepseek reasoning starvation guard (>= 512; headroom for intermittent reasoning-heavy windows)
 GEN_TEMP = 0.4
 JUDGE_TEMP = 0.0
 N_EXCHANGES = 30
