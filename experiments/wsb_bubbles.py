@@ -642,6 +642,15 @@ def render_split(ex: Exchange, bubbles: list[str], rng: random.Random) -> str:
     return "\n".join(parts)
 
 
+def reliability_gate(follow: float | None, stray_pct: float | None) -> str:
+    """Pre-committed reliability gate: follow >= 90% AND stray < 5%.
+    None = no data -> that leg fails; 0.0 is a valid value (best possible),
+    never treated as missing (falsy-zero regression, 2026-08-17)."""
+    ok_follow = (follow if follow is not None else -1.0) >= 90.0
+    ok_stray = (stray_pct if stray_pct is not None else 100.0) < 5.0
+    return "PASS" if (ok_follow and ok_stray) else "FAIL"
+
+
 def _parse_judge_score(raw: str) -> float | None:
     text = raw.strip()
     try:
@@ -1098,9 +1107,7 @@ def main() -> int:
         j = summary["judge"][chosen]
         g = gen[chosen]
         primary = j["verdict_primary"]
-        rel_follow = (g["follow"] or 0) >= 90.0
-        rel_stray = (g["stray_pct"] or 100) < 5.0
-        reliability = "PASS" if (rel_follow and rel_stray) else "FAIL"
+        reliability = reliability_gate(g["follow"], g["stray_pct"])
         print(f"  chosen={chosen} PRIMARY={primary} (Δ={j['mean_diff']}, CI_low={j['ci_low']})")
         print(f"  RELIABILITY={reliability} (follow={g['follow']}%>=90, stray={g['stray_pct']}%<5)")
         summary["gates"] = {

@@ -137,6 +137,17 @@ def test_regex_split_no_infinite():
     assert out == [ORIG]
 
 
+def test_reliability_gate_zero_stray_passes():
+    # falsy-zero regression: stray_pct=0.0 must not be treated as missing
+    from experiments.wsb_bubbles import reliability_gate
+    assert reliability_gate(100.0, 0.0) == "PASS"
+    assert reliability_gate(90.0, 4.9) == "PASS"
+    assert reliability_gate(89.9, 0.0) == "FAIL"
+    assert reliability_gate(100.0, 5.0) == "FAIL"
+    assert reliability_gate(None, 0.0) == "FAIL"    # no data -> fail
+    assert reliability_gate(100.0, None) == "FAIL"
+
+
 def test_judge_assembly_counts_identical_and_complete():
     # regression: n_identical crashed on the assembled pairs list (no
     # 'identical' key there) — must count from pair_info; identical pairs
