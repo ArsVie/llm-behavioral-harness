@@ -135,3 +135,35 @@ def test_regex_split_no_infinite():
     # plain parse must handle a text with no blank lines
     out = DELIMITERS["plain"]["parse"](ORIG)
     assert out == [ORIG]
+
+
+def test_judge_assembly_counts_identical_and_complete():
+    # regression: n_identical crashed on the assembled pairs list (no
+    # 'identical' key there) — must count from pair_info; identical pairs
+    # contribute diff 0.0 to n_pairs/mean
+    from experiments.wsb_bubbles import _assemble_judge_results, sha1
+
+    class _FakeCache:
+        def __init__(self, data):
+            self.data = data
+        def get(self, key):
+            return self.data.get(key)
+
+    k_split = sha1("judge|split|newline|r1")
+    k_unsplit = sha1("judge|unsplit|newline|r1")
+    pair_info = {
+        "newline": [
+            {"ref": "r1", "dname": "newline", "k": 3, "identical": False,
+             "calls": [("split", "x", k_split), ("unsplit", "y", k_unsplit)]},
+            {"ref": "r2", "dname": "newline", "k": 1, "identical": True, "calls": []},
+        ]
+    }
+    cache = _FakeCache({k_split: {"score": 8.0}, k_unsplit: {"score": 6.0}})
+    res = _assemble_judge_results(pair_info, cache, ["newline"])
+    r = res["newline"]
+    assert r["n_identical"] == 1
+    assert r["n_pairs"] == 2  # identical pair contributes diff 0.0 -> complete
+    assert r["mean_diff"] == 1.0  # (8-6 + 0) / 2
+    assert r["n_split_only"] == 1
+    assert r["mean_diff_split_only"] == 2.0
+    assert r["verdict_primary"] == "FAIL"  # n=2 -> no CI -> not passable

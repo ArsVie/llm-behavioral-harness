@@ -765,6 +765,16 @@ def run_judge_leg(
                 print(f"  judge: {done}/{len(pending)} ...", flush=True)
 
     # Assemble results
+    results = _assemble_judge_results(pair_info, cache, judge_delims)
+    return {"status": "OK" if not failures else "PARTIAL", "failures": failures, "results": results}
+
+
+def _assemble_judge_results(
+    pair_info: dict, cache, judge_delims: list[str]
+) -> dict:
+    """Per-delimiter pair verdicts from the judge cache. Pure function over
+    (pair_info, cache) so the assembly is unit-testable. Identical pairs
+    (model did not split -> renderings byte-identical) contribute diff 0.0."""
     results: dict[str, dict] = {}
     for dname in judge_delims:
         pairs = []
@@ -792,7 +802,7 @@ def run_judge_leg(
         )
         results[dname] = {
             "n_pairs": len(complete),
-            "n_identical": sum(1 for p in pairs if p["identical"]),
+            "n_identical": sum(1 for p in pair_info[dname] if p["identical"]),
             "mean_diff": mean_diff,
             "ci_low": float(ci_lo) if ci_lo is not None else None,
             "ci_high": float(ci_hi) if ci_hi is not None else None,
@@ -803,7 +813,7 @@ def run_judge_leg(
                 "PASS" if (mean_diff is not None and mean_diff >= 0.0 and ci_lo is not None and ci_lo >= -0.05) else "FAIL"
             ),
         }
-    return {"status": "OK" if not failures else "PARTIAL", "failures": failures, "results": results}
+    return results
 
 
 def run_calibration(out_dir: Path, workers: int) -> dict:
