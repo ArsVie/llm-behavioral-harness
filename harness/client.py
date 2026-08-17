@@ -30,6 +30,15 @@ WS3 additions (runtime redesign): `ChatResult` carries content, extracted
 reasoning, tool calls, finish_reason and the raw response; `chat_with_meta`
 exposes tools/tool_choice/reasoning_effort; `chat()` remains a thin wrapper
 returning plain content so every pre-existing call site is untouched.
+
+WS-D additions (spend accounting, 2026-08-16): every response's
+OpenAI-compatible `usage` object is parsed into `ChatResult.usage`
+(prompt/completion/total + the cached/miss split across the DeepSeek,
+OpenAI-`prompt_tokens_details.cached_tokens` and Anthropic variants — the
+opencode gateway uses the OpenAI variant, surfacing `cached_tokens` only
+when a prompt prefix is actually cached); the gateway's top-level `cost`
+is captured as `ChatResult.raw_cost`. `FakeClient` scripts both. Absent
+usage degrades to `None` — nothing new is required of any caller.
 """
 
 from __future__ import annotations
@@ -63,6 +72,32 @@ _logger = logging.getLogger(__name__)
 
 
 @dataclass
+class Usage:
+    """Token usage of one chat completion (WS-D spend accounting).
+
+    ``cached_tokens`` / ``cache_miss_tokens`` are the split of the input
+    (prompt) tokens between cache-served and fresh reads, derived from
+    whichever cache-field variant the gateway returns:
+
+    - DeepSeek: ``usage.prompt_cache_hit_tokens`` / ``usage.prompt_cache_miss_tokens``
+    - OpenAI-compatible: ``usage.prompt_tokens_details.cached_tokens``
+    - Anthropic (proxied): ``usage.cache_read_input_tokens`` (served from
+      cache) / ``usage.cache_creation_input_tokens`` (fresh writes — full
+      price, folded into the miss bucket)
+
+    Every field is optional: a gateway that reports no ``usage`` object —
+    or no cache split — leaves the missing fields ``None`` and the totals
+    are still captured when present. Never raises on malformed shapes.
+    """
+
+    prompt_tokens: int | None = None
+    completion_tokens: int | None = None
+    total_tokens: int | None = None
+    cached_tokens: int | None = None
+    cache_miss_tokens: int | None = None
+
+
+@dataclass
 class ChatResult:
     """Structured result of one chat completion (WS3).
 
@@ -76,6 +111,12 @@ class ChatResult:
       semantic parsing belongs to the runner (WS2), which fails loudly on
       invalid JSON.
     - ``finish_reason``: the provider's stop reason (``None`` when absent).
+    - ``usage``: parsed token usage (WS-D) — ``None`` when the response
+      carried no usable ``usage`` object (graceful degradation).
+    - ``raw_cost``: the gateway-reported cost in USD (a top-level ``cost``
+      field the opencode gateway returns alongside ``usage``; discovery
+      2026-08-16) — ``None`` when absent. Kept separately from
+      :attr:`Usage` because it is gateway-side, not part of ``usage``.
     - ``raw``: the full parsed response body (audit/replay fidelity).
     """
 
@@ -83,6 +124,8 @@ class ChatResult:
     reasoning: str | None = None
     tool_calls: list[dict] = field(default_factory=list)
     finish_reason: str | None = None
+    usage: Usage | None = None
+    raw_cost: float | None = None
     raw: dict = field(default_factory=dict)
 
 
@@ -165,6 +208,78 @@ def _extract_reasoning(msg: dict) -> str | None:
         if isinstance(value, str) and value.strip():
             return value
     return None
+
+
+def _int_or_none(value: object) -> int | None:
+    """Coerce a token count to int, tolerating bools/strs/None (never raises)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return int(value)
+
+
+def _cost_or_none(value: object) -> float | None:
+    """Coerce a gateway-reported cost to float, tolerating junk (never raises)."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value)
+
+
+def _parse_usage(raw: object) -> Usage | None:
+    """Parse the OpenAI-compatible ``usage`` object (WS-D), or ``None``.
+
+    Tolerates every documented cache-field variant and any missing field —
+    only what the gateway actually returns is captured, and a bare usage
+    dict without cache details (observed on the real gateway, 2026-08-16)
+    still yields the three totals. ``None`` only when the response carries
+    no usable usage object at all (every field absent → graceful
+    degradation: callers persist nothing).
+    """
+    if not isinstance(raw, dict):
+        return None
+    prompt = _int_or_none(raw.get("prompt_tokens"))
+    completion = _int_or_none(raw.get("completion_tokens"))
+    total = _int_or_none(raw.get("total_tokens"))
+    if total is None and prompt is not None and completion is not None:
+        total = prompt + completion
+    # DeepSeek variant: explicit hit/miss split on the usage object.
+    cached = _int_or_none(raw.get("prompt_cache_hit_tokens"))
+    miss = _int_or_none(raw.get("prompt_cache_miss_tokens"))
+    if cached is None and miss is None:
+        # OpenAI variant: prompt_tokens_details.cached_tokens (may be an
+        # empty dict — observed on the real gateway).
+        details = raw.get("prompt_tokens_details")
+        if isinstance(details, dict):
+            cached = _int_or_none(details.get("cached_tokens"))
+        # Anthropic variant (OpenAI-compatible proxies): cache reads are
+        # served-from-cache; cache CREATION writes are fresh full-price
+        # input, folded into the miss (uncached) bucket.
+        read = _int_or_none(raw.get("cache_read_input_tokens"))
+        if cached is None:
+            cached = read
+        creation = _int_or_none(raw.get("cache_creation_input_tokens"))
+        if creation is not None:
+            miss = creation if miss is None else miss + creation
+    # A cached figure without an explicit miss: the freshest consistent
+    # estimate is the residual prompt (never negative, never over prompt).
+    if cached is not None and miss is None and prompt is not None:
+        miss = max(prompt - cached, 0)
+    # No cache split at all: the observed gateway surfaces cache fields
+    # ONLY when a prefix is actually cached (probe 2026-08-16), so an
+    # absent split means everything was a fresh (uncached) read — all-miss.
+    if cached is None and miss is None and prompt is not None:
+        miss = prompt
+    if (
+        prompt is None and completion is None and total is None
+        and cached is None and miss is None
+    ):
+        return None
+    return Usage(
+        prompt_tokens=prompt,
+        completion_tokens=completion,
+        total_tokens=total,
+        cached_tokens=cached,
+        cache_miss_tokens=miss,
+    )
 
 
 class OpenAICompatibleClient:
@@ -380,6 +495,8 @@ class OpenAICompatibleClient:
                 reasoning=reasoning,
                 tool_calls=tool_calls,
                 finish_reason=finish_reason,
+                usage=_parse_usage(data.get("usage")),
+                raw_cost=_cost_or_none(data.get("cost")),
                 raw=data,
             )
         raise RuntimeError(f"LLM call failed after {self.max_retries + 1} attempts")
@@ -391,7 +508,10 @@ class FakeClient:
     `responses` is a queue consumed in order; once exhausted, a default reply
     is returned (no cycling). Entries are either plain strings (reply text)
     or dicts scripting a full response: ``{"content", "reasoning",
-    "tool_calls", "finish_reason"}``. `echo` mode returns the last user
+    "tool_calls", "finish_reason", "usage", "cost"}`` — ``usage`` scripts
+    the RAW usage object (parsed through the same ``_parse_usage`` as the
+    real client, so every cache-field variant is exercisable) and ``cost``
+    scripts the gateway-reported cost. `echo` mode returns the last user
     message wrapped. Records every call (including tools/tool_choice/
     reasoning_effort) for assertions. Faithful to the LLMClient protocol:
     system-only payload on empty transcripts, `supports_json`,
@@ -465,6 +585,8 @@ class FakeClient:
                 reasoning=scripted.get("reasoning"),
                 tool_calls=list(scripted.get("tool_calls") or []),
                 finish_reason=scripted.get("finish_reason"),
+                usage=_parse_usage(scripted.get("usage")),
+                raw_cost=_cost_or_none(scripted.get("cost")),
             )
         if scripted is not None:
             return ChatResult(content=scripted)
