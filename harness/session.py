@@ -387,6 +387,12 @@ class Session:
         # itself drops it unless audit_mode=True — production privacy
         # default). Legacy store stubs without the kwarg stay untouched.
         self._accepts_repro = "repro" in _llm_params
+        # WS-D spend accounting: only stores whose log_llm_call accepts the
+        # usage/lane/raw_cost kwargs receive them (legacy store stubs stay
+        # untouched and the new llm_calls columns stay NULL for them).
+        self._accepts_usage = all(
+            k in _llm_params for k in ("usage", "lane", "raw_cost")
+        )
 
         self.cycle_state: CycleState = cycle.init_state(persona, rng_mod.init_rng(seed))
         self.mood_state = MoodState()
@@ -1556,6 +1562,8 @@ class Session:
             None if self._thinking_effort is not None else controls.max_tokens
         )
         reasoning: str | None = None
+        usage = None
+        raw_cost = None
         chat_with_meta = getattr(self.client, "chat_with_meta", None)
         if chat_with_meta is None:
             reply = self.client.chat(messages, system=system, max_tokens=max_tokens)
@@ -1566,6 +1574,11 @@ class Session:
             )
             reply = result.content
             reasoning = result.reasoning
+            # WS-D spend accounting: the parsed usage + gateway-reported
+            # cost ride on the ChatResult; they are persisted (when the
+            # store accepts them) alongside the lane attribution.
+            usage = getattr(result, "usage", None)
+            raw_cost = getattr(result, "raw_cost", None)
         if not reply.strip():
             # Generation integrity (it3 B1): an empty/whitespace reply is
             # NEVER persisted. The client retries empties with bounded
@@ -1614,6 +1627,15 @@ class Session:
         # WS4: reasoning persists in the call's meta (audit.py renders it
         # under #Thinking; non-reasoning runs store nothing).
         meta = {"reasoning": reasoning} if reasoning else None
+        usage_kwargs: dict = {}
+        if self._accepts_usage:
+            # WS-D spend accounting: parsed usage + WS-C lane attribution
+            # + gateway-reported cost (G-cost cross-check). The lane is
+            # stamped at client construction; un-laned clients persist
+            # lane=NULL (no attribution, row still counted).
+            usage_kwargs["usage"] = usage
+            usage_kwargs["lane"] = getattr(self.client, "lane", None)
+            usage_kwargs["raw_cost"] = raw_cost
         self.store.log_llm_call(
             day,
             t_h,
@@ -1623,6 +1645,7 @@ class Session:
             getattr(self.client, "model", None),
             meta,
             **repro_kwargs,
+            **usage_kwargs,
         )
         self.store.log_event(day, t_h, "assistant_reply", f"len={len(reply)}")
         self._turn_drained = []
