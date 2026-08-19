@@ -1,5 +1,20 @@
 # Iteration-3 — perceptual validity: confirmatory report
 
+> **CORRECTION ADDENDUM — 2026-08-13 (probe artifact):** "the flash route
+> died (episode 2026-08-10)" (headline below and §17.4) was a MEASUREMENT
+> ARTIFACT from 2026-08-11 onward. The route probe in
+> `experiments/cvs_g6.py::_family_route_ok` capped `max_tokens` at 10;
+> deepseek-v4-flash is a REASONING model whose reasoning consumes the token
+> budget before content is emitted, so the probe always saw HTTP 200 with
+> empty content and declared the route dead. Verified 2026-08-13: judge-
+> shaped calls (no cap) on flash return valid pairwise JSON; luna works
+> under identical concurrency; zero 429/5xx anywhere (not rate limits).
+> The probe is fixed (no `max_tokens`) and the judge client timeout raised
+> to 120s; re-running G6 with the flash family (true second family, closing
+> the §17.4 INCONCLUSIVE leg) is queued as kanban backlog. The original
+> 08-10 G3 empties may still have been real (actuated caps 290-669 can be
+> exhausted by reasoning); the "dead since then" status was the artifact.
+
 Assembled: (timestamp) — numbers from experiments/cvs_report.py and the G6 driver; interpretation by orchestrator review.
 
 ## 0. Headline
@@ -163,3 +178,95 @@ e449616 g6: per-family route probe before judging — skip dead routes (flash ep
 32c92ab report: it3 skeleton (DoD §11 sections, gate ledger, artifacts)
 5d4890f report: DoD computation module — blank invariant, conversation turns, timing claim on real summaries, g6 probes, chains
 ```
+
+## Appendix — User directives (Iteration 3)
+
+Verbatim user directives extracted from the Claude Code session transcript for this
+iteration (42 user messages). [PROPIO] = passage dictated by the user; [PEGADO] = text the
+user pasted into a message (reviewer/agent output or attached quote). Line indices (L..)
+refer to the source JSONL transcript. Source: /tmp/arnes-user-messages.txt (copy on the
+user's Desktop: `C:\Users\vruizes\Desktop\arnes-user-messages.txt`).
+
+### A. PROMPT-CONSTRUCTION / CONTEXT-FILLING / DISTRIBUTION
+
+- [PROPIO] **L5** — original spec (ES): the day's schedule is generated from the system prompt and INJECTED into context; the motive of each message comes from what was injected:
+
+  > Cronograma. Basado en el system prompt y la configuración anterior, se generara un cronograma de actividades a realizar durante el dia, inyectado en el contexto de la conversacion al inicio de este. Este cronograma no necesariamente tiene que ser seguido al pie de la letra y tampoco impide al acompañante responder al usuario.
+  >
+  > Iniciativa de conversación. Al inicio de cada conversación, ya sea iniciado por el acompañante o el usuario, tanto el cronograma como los gustos deben de ser inyectados en contexto para que el acompañante elija el motivo de su mensaje (porque se comunica con el usuario) o sus actividades cuando el usuario se comunica.
+
+- [PEGADO en L5] — reviewer text the user attached to audit the code against it (assembler / minimal projection / prompt as ONE actuator among several / personality distributions):
+
+  > The LLM doesn't need all raw state. The assembler decides the minimal projection necessary for the current call.
+  > ...
+  > Then the prompt becomes one actuator among several, rather than the entire system.
+  > I would, however, make those ratios distribution targets rather than an immutable law. For example, different generated personalities might draw p i ∼ Dirichlet(α) around a population mean near 40/40/20... That preserves the product rule while preventing companions from having suspiciously identical psychological construction.
+
+- [PROPIO] **L334** — message-count distribution must depend on mood:
+
+  > Also do any of the fixes needed to make her mood affect how many messages she sends you take another run?
+
+- [PROPIO] **L369** — wants to see the EXACT EXTRACT of what the model sees before its replies (system prompt → context injection → tools → thinking → reply) before believing state moves nothing; suspects the system prompt is stale or absent:
+
+  > I want to see the exact extract of what the model is seeing before its replies before deciding if state doens't do anything. Do we have full logs from the models? from initial system prompt to context injection to tools to thinking to reply? Also, we might need to tweak the system prompt, I have yet to read it but I'll assume it's stale or theres none
+
+- [PROPIO] **L369** — pop-up decision structure to register in logs; injections act as immediate steering (as soon as the agent is free — idle, finished tool call or reply):
+
+  > The pop up should end up registered in the logs as something like
+  > System: {Event: gym, State: start, Time: {time}}
+  > {Initiate:{yes, no} , Reason: " " }
+  > {name}: {thinking} tool_decide_event: {yes, "too tired"}
+  > Not verbatism, but the idea is there. Also, I should not mention it, but injections like these should function like steering, they go inmediately as soon as the agent is free e.g. if idle, finished tool call or reply
+
+- [PROPIO] **L393** — the {state} card: system prompt must NOT contain the state; it should be about HOW WE HANDLE the {state} card; personality injected at the start of the day; {state} at every conversation start:
+
+  > Is this sytem prompt or injection? If it's system prompt that's bad, system prompt should be about how we handle the {state} card and how to comply with personality and state, personality should go second and injected at the start of the day, {state} should be along every conversation start. or something like this.
+
+- [PROPIO] **L393** — do NOT send everything in one block of text; arrange the extract like a harness, with headers collapsing each part by type (#System prompt / #User / #Tool / #Thinking / #Reply):
+
+  > Are all conversations like this? Extract a couple of full conversation in a md. Use headers to properly collapse parts of the reply by type
+  > #System prompt . . . #User #Tool ##{Tool related stuff} #Thinking #Reply
+  > Something like that
+
+- [PROPIO] **L420** — detailed flow of how the system prompt is populated; every feature with its own flow converging into the system prompt (base of the assembler diagram); html artifact, pastel, editable, hover pop-ups per variable, appendix:
+
+  > I want a detailed flow of how system prompt is populated, every feature it's own flow that converges into the system prompt same for generators. A text based version and a big mermaid version one. ... add an apendix (hidden from main view) with every variable you mention explained and linked to the code, variables should have a small pop up that explains them once hovered. This should be an html, make it aesthetic (clear pastel), easy to read and mainly to modify...
+
+- [PROPIO] **L682** — correction on which graphics to review:
+
+  > Not the diagrams, the distributions
+
+### B. AVAILABILITY WINDOWS
+
+- [PROPIO] **L5** — daily activity schedule (base of the availability system); does not block replying to the user (cronograma quote above, section A).
+
+- [PROPIO] **L356** — events firing mid-conversation: depends on conversation state; flags to record whether the agent engaged with the activity; server-side resolution (not LLM-induced); reply in context ("I'm in class, what do you want") or not reply (with a server-side notice); option to terminate the event:
+
+  > ...if the user messages it mid event it should know and reply in context, e.g. "I'm in class, what do you want" if mood bad-neutral or directly not replying (though served should notify the user that the agent decided to not reply), maybe even the option to terminate the event and follow through with user intent if context requires it.
+
+- [PROPIO] **L361** — {Event, State} {Initiate, Reason} pop-up; configurable verbose flag (server tells the user she saw the message but chose not to reply, optionally with the reason); punishment budget 0..inf (budget off); test set {past turns}{state}{event}:
+
+  > This should basically be a pop up for the agent, something like {Event: gym, State: start} {Initiate:{yes, no} , Reason: " " }
+  > We can have a setting for the harness that is basically a verbose flag and with it off, server sends user, "{name} saw your message but choose not to reply yet}" or something like that and with it on it says "{name} not replying, reason: {Reason}"
+  > This can be a setting, user can set how much punishement they can handle, from 0 to inf {budget off}
+  > Agree, but we can test how it behaves based on what we already have, we can set make a test set with {past turns} {state} {event} or something like that and see what it replies in 15 or so attempts.
+
+- [PROPIO] **L365** — decision NOT server-side: the model decides from feelings, "we're not making a calculator" (but test both); budget = how many times she may not respond; AVAILABILITY WINDOWS ARE A LATER ITERATION — per-activity-type windows (gym 3–5 min for sets, class 0.5–1h, work set by the model at day start per personality from full to none granularly, home full, transport none/full depending on driving); for now full availability during activities is fine as long as the model knows it should have started and decided:
+
+  > I don't want the decision to be server side tuning, I want the model to decide based on its feelings, we're not making a calculator. But testing does't cost anything, we should test both.
+  > For the budget I meant buget of "how many times can she not respond a message", ... a later iteration could add "availability windows" during activities depending on the type, e.g. Gym has 3-5 minutes windows for sets, class/school is either 0.5 or 1 hour windows, work is set by the model at the start of the day depending on its personality, from full to none, granularly (maybe even a stocastic window for some) , relaxing at home is full availability and transportation is either none or full depending of driving or not, things like that, for now I think full availability during activities is fine as long as the model knows it should have started and decided.
+
+- [PEGADO en L361] — attached review text the user responded to ("Is it really a defect?", "Agree..."); frames availability as a state machine with persistence, budget, and reason recorded as state:
+
+  > Don't let the model decide availability. Draw it, pass the verdict in.
+  > Tune the scarcity. A companion who's constantly unavailable is worse than one who's always there. This needs a budget, not just a rule.
+
+- [PROPIO] **L710** — slider/math/visualization demands tied to the availability/behavior artifact: sliders for every variable that affects her, latex + common math notation, epsilon instead of "a small random nudge", hover pop-ups per variable, appendix in both artifacts:
+
+  > Also, add sliders for every variable that affects her, I want you to use latex and common math notation, what do you mean "a small random nudge" use epsilon, for both artifacts, an appendix, and it should have popups above the variable inside the main tabs that show when you hover the term or variable. That was the original idea for the original artifact, use the variable names but add a pop up that explains what that variable outputs and its meaning
+
+### C. Archive note
+
+Full verbatim extraction of all 42 user messages (1,473 lines, with JSONL line indices and
+[PROPIO]/[PEGADO] curation) archived at `/tmp/arnes-user-messages.txt`; copy saved to the
+user's Desktop as `llm-harness-user-messages-2026-08-11.md`.
