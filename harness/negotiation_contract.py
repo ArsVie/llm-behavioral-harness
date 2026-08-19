@@ -38,8 +38,9 @@ Floor (never steered away):
   * No re-announcement: pending-event pressure is internal state, surfaced
     only on resolution (or if the model itself raises it again).
   * Converging pull-to-go: each delay raises the weight toward go.
-  * SHORT_AFK_H (Decide trigger / time bomb) != USER_LEFT_THRESHOLD_H (12h
-    conversation close). Both measured from _last_user_turn_t_h.
+  * SHORT_AFK_H (Decide trigger / time bomb) != USER_LEFT_THRESHOLD_H (the
+    user-away threshold). Both measured from _last_user_turn_t_h; distinct by
+    design.
   * No new tool: tool_decide_event.action in {follow, abandon, defer}
     already IS go/skip/delay; defer gains an N payload; the runtime loops.
   * Conversation lifecycle, decision_records, AgendaItem start/end_t_h
@@ -84,9 +85,11 @@ SHORT_AFK_H = SHORT_AFK_MIN / 60.0
 #: Default N when the model says "a bit longer" (steerable; small).
 DEFAULT_DEFER_TURNS = 2
 
-#: The user-close threshold stays as-is (harness.session, 12h). The two
-#: thresholds are distinct BY DESIGN and must never be collapsed.
-USER_LEFT_THRESHOLD_H_REF = 12.0
+#: The user-away threshold is defined ONCE in harness.tunables; imported here
+#: (not re-hardcoded) so this contract can never drift from it — the previous
+#: hardcoded 12.0 copy went stale when the value changed. Distinct from
+#: SHORT_AFK by design; never collapse the two.
+from harness.tunables import USER_LEFT_THRESHOLD_H as USER_LEFT_THRESHOLD_H_REF  # noqa: E402
 
 #: Converging pull schedule: per-delay weight added toward go (steerable;
 #: linear default). The server presents this as rising pressure in the

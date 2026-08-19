@@ -161,29 +161,20 @@ _STEER_SUPPRESS = "suppress"    #: no-reply verdict — suppress the reply
 #: exactly where it left off (no re-draws).
 CONVERSATION_STREAM = 6
 
-#: ``close_reason == "user_left"`` threshold: virtual hours of user silence
-#: (measured from the conversation's last USER turn — or its opening when
-#: the companion opened and the user never replied) after which the
-#: conversation is closed.
-USER_LEFT_THRESHOLD_H = 12.0
+# Conversation-lifecycle tunables live in ONE place (harness/tunables.py) so
+# code and tests read the same source — no drift. Re-exported here so existing
+# ``from harness.session import USER_LEFT_THRESHOLD_H`` / ``MAX_TURNS`` callers
+# and tests keep working.
+from harness.tunables import (  # noqa: E402
+    CLOSING_TENDENCY_ENABLED,
+    MAX_TURNS,
+    USER_LEFT_THRESHOLD_H,
+    WIND_DOWN_GRACE_H,
+)
 
-#: Two-phase close (seam S1, flag ``two_phase_close``): wind-down guidance
-#: rendered through the assembler's EXISTING ``closing_guidance`` channel
-#: into the state card of the next companion turn once the closing draw has
-#: fired. The conversation then closes deterministically with reason
-#: ``closing_tendency`` after the user's next reply.
+#: Two-phase close wind-down guidance rendered through the assembler's
+#: ``closing_guidance`` channel into the next companion turn's state card.
 WIND_DOWN_GUIDANCE = "You're wrapping up, say a natural goodbye."
-
-#: Two-phase close grace: virtual hours after the persisted
-#: ``closing_pending_t_h`` at which an UNANSWERED wind-down closes with
-#: reason ``closing_tendency`` (a candidate in ``next_conversation_close_t_h``
-#: plus one branch in ``check_conversation_lifecycle``). Always shorter than
-#: ``USER_LEFT_THRESHOLD_H`` (12 h), which remains the outer backstop.
-WIND_DOWN_GRACE_H = 1.0
-
-#: Hard cap on conversation length in total turns (user + companion): no
-#: conversation runs forever (``close_reason == "max_turns"``).
-MAX_TURNS = 12
 
 #: Namespace base for per-conversation MEMORY SESSION ids. The MemoryAgent
 #: seam (harness/memory.py — must-not-touch) parses session ids with
@@ -1123,17 +1114,24 @@ class Session:
             return
         if last_turn.turn_index == first_companion.turn_index:
             return  # first companion turn: the no-taper floor
-        conv_seq = int(conv.id.split("-", 1)[1])
-        rng = stream_rng(
-            self.seed, CONVERSATION_STREAM, conv_seq, last_turn.turn_index
-        )
-        if rng.uniform() < float(closing_tendency):
-            if self.two_phase_close:
-                self._begin_wind_down(conv, t_h)
-            else:
-                self._close_conversation(conv, t_h, "closing_tendency")
-            return
-        if len(conv.turns) >= MAX_TURNS:
+        # closing_tendency draw is feature-flagged OFF (harness/tunables.py).
+        # The stream RNG is keyed (not sequential), so skipping the draw stays
+        # replay-safe — no consumption to desync. Re-enable via the tunable when
+        # the closing model is redefined (flat vs fatigue curve; see BACKLOG).
+        if CLOSING_TENDENCY_ENABLED:
+            conv_seq = int(conv.id.split("-", 1)[1])
+            rng = stream_rng(
+                self.seed, CONVERSATION_STREAM, conv_seq, last_turn.turn_index
+            )
+            if rng.uniform() < float(closing_tendency):
+                if self.two_phase_close:
+                    self._begin_wind_down(conv, t_h)
+                else:
+                    self._close_conversation(conv, t_h, "closing_tendency")
+                return
+        # MAX_TURNS cap is OFF (None): conversations are not capped by turn
+        # count — "running out of room" is a compaction concern (see BACKLOG).
+        if MAX_TURNS is not None and len(conv.turns) >= MAX_TURNS:
             self._close_conversation(conv, t_h, "max_turns")
 
     def _begin_wind_down(self, conv: Conversation, t_h: float) -> None:
