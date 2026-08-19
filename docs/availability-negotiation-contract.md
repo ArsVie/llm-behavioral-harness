@@ -64,7 +64,8 @@ BACKSTOP  AgendaItem.end_t_h passes -> forced skip ("missed it entirely"),
    of deferring at constant probability. Server presents the rising pressure
    in the decide request; model still chooses.
 5. **Two thresholds on one silence signal, kept distinct**: SHORT_AFK
-   (~10 min — the Decide trigger / time bomb) vs USER_LEFT_THRESHOLD_H = 12h
+   (~10 min — the Decide trigger / time bomb) vs USER_LEFT_THRESHOLD_H (the
+   away/user_left threshold in `harness/tunables.py`)
    (conversation close). Both measured from `_last_user_turn_t_h`. Do NOT
    collapse them.
 6. **Reuse existing seams, add no new tool**: `tool_decide_event.action`
@@ -167,7 +168,8 @@ produces delay; going quiet lets the AFK bomb resolve to go.
 - go / skip / delay-count reach memory via episodes and are retrievable in
   a later conversation.
 - Deterministic replay holds; runtime tool schema otherwise unchanged;
-  SHORT_AFK != 12h user_left.
+  SHORT_AFK != USER_LEFT_THRESHOLD_H (the away/user_left threshold in
+  `harness/tunables.py`).
 - Q1 replan work absent; scripted-user only (no judged run).
 
 ## Explicitly deferred

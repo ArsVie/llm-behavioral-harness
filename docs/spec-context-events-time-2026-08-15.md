@@ -90,13 +90,20 @@ current time, so she anchors on the earliest salient item and believes it is 7 A
 
 ## S3 — Conversation lifecycle and the proactive-into-open-conversation rule
 
+> **SUPERSEDED (2026-08-17):** resolved as away≠close — 15-min silence marks the
+> user *away* (dormant, presence signal), NOT a close; conversations close only
+> at a checkpoint. See ../plans/plan-lifecycle-away-checkpoint-2026-08-17.md and
+> ../BACKLOG.md.
+
 **Problem.** conv-3 opened 13.544 and never closed through the 1.9 h idle gap, so
 the movies proactive appended to it (turn #4). Two issues: the idle threshold is
 far too long, and a proactive should arguably start a *new* conversation rather
 than append to a stale-open one.
 
 **Root cause.** `USER_LEFT_THRESHOLD_H = 12.0` (`session.py:168`) — 12 virtual
-hours of silence before `check_conversation_lifecycle` closes a conversation.
+hours of silence before `check_conversation_lifecycle` closes a conversation
+(now: away≠close; see superseded note — `USER_LEFT_THRESHOLD_H` lives in
+`harness/tunables.py` and is `0.25` vh).
 `_ensure_conversation` (`session.py:996`) reuses any open conversation for both
 reply and proactive turns.
 

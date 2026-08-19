@@ -143,4 +143,4 @@ Artifacts: judge_pass{1,2}_opencode-{flash,luna}.json + judge_order{1,2}.json + 
 7. results/it2-g6-matrix/judge_pass*.json + judge_order*.json — judge passes.
 8. results/it2-g6-matrix/traces.md + experiments/cvs_traces.py — causal traces.
 9. This report.
-10. docs/handoff-2026-08-09-iteration2.md + skill llm-behavioral-harness — ops record.
+10. plans/handoff-2026-08-09-iteration2.md + skill llm-behavioral-harness — ops record.
