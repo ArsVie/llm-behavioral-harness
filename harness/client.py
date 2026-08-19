@@ -102,6 +102,9 @@ class ChatResult:
     """Structured result of one chat completion (WS3).
 
     - ``content``: the reply text (``""`` for a tool-call-only reply).
+      Always a string — a reasoning-only reply (v4-flash quirk: the model
+      answers entirely in ``reasoning_content`` and returns ``content: null``)
+      round-trips as ``""``, never ``None`` (WS-E serializer hardening).
     - ``reasoning``: the model's reasoning, extracted from the response
       message when the provider emits it (e.g. DeepSeek-compatible endpoints
       put it in ``message.reasoning_content``; some others in
@@ -208,6 +211,29 @@ def _extract_reasoning(msg: dict) -> str | None:
         if isinstance(value, str) and value.strip():
             return value
     return None
+
+
+def _normalize_messages(messages: list[dict]) -> list[dict]:
+    """WS-E serializer guard: never put ``content: null`` on the wire.
+
+    DeepSeek-compatible v4-flash can answer ENTIRELY in the reasoning
+    channel: ``message.reasoning_content`` is populated while ``content``
+    comes back null/empty. If such a turn is serialized verbatim into the
+    next request (``{"role": "assistant", "content": null, ...}``) the
+    gateway 400s the request — the null-content brick (alpha finding
+    2026-08-16). A null or absent ``content`` normalizes to ``""``, the
+    safe DeepSeek-compatible form; ``""`` stays ``""``; non-None content
+    (including multimodal part lists) passes through untouched. Returns
+    NEW dicts only where a normalization applies — caller-owned message
+    objects are never mutated, so repro/audit records keep the original
+    list while the wire carries the hardened shape.
+    """
+    out: list[dict] = []
+    for msg in messages:
+        if isinstance(msg, dict) and msg.get("content") is None:
+            msg = {**msg, "content": ""}
+        out.append(msg)
+    return out
 
 
 def _int_or_none(value: object) -> int | None:
@@ -405,13 +431,19 @@ class OpenAICompatibleClient:
             )
         if system is not None:
             if messages:
-                payload_messages = [{"role": "system", "content": system}, *messages]
+                # WS-E: every message is run through the serializer guard —
+                # a reasoning-only turn (content None) must reach the wire
+                # as content:"" , never content:null (the gateway 400s it).
+                payload_messages = [
+                    {"role": "system", "content": system},
+                    *_normalize_messages(messages),
+                ]
             else:
                 # Proactive opener on a fresh transcript: a system-only request
                 # is the honest context (no user turns exist yet).
                 payload_messages = [{"role": "system", "content": system}]
         else:
-            payload_messages = messages
+            payload_messages = _normalize_messages(messages)
         payload: dict = {
             "model": self.model,
             "messages": payload_messages,
@@ -450,10 +482,14 @@ class OpenAICompatibleClient:
                     resp = self._post(payload)
                     continue
                 raise RuntimeError(f"malformed LLM response: {exc}") from exc
-            if content is None and not tool_calls:
+            if content is None and not tool_calls and reasoning is None:
                 # Null content with no tool calls is a broken reply; a
                 # tool-call-only response (content=None + tool_calls) is
-                # legitimate and must NOT be retried.
+                # legitimate and must NOT be retried; a reasoning-only
+                # response (content=None + reasoning_content populated, no
+                # tool_calls — the v4-flash quirk, WS-E) is ALSO legitimate
+                # and must NOT be retried: it round-trips as
+                # ChatResult(content="", reasoning=...).
                 if attempt < self.max_retries:
                     _logger.warning(
                         "LLM response had null content (attempt %d/%d) — retrying",
@@ -464,10 +500,12 @@ class OpenAICompatibleClient:
                     continue
                 raise RuntimeError("LLM response had null content")
             text = "" if content is None else str(content)
-            if not text.strip() and not tool_calls:
+            if not text.strip() and not tool_calls and reasoning is None:
                 # 200-with-empty-body / empty completion: retry with the
                 # same bounded backoff as transport failures (it2 F1: blanks
                 # were persisted because empties were returned silently).
+                # A reasoning-only reply (content "" + reasoning populated)
+                # is exempt — the model DID answer, in the reasoning channel.
                 if attempt < self.max_retries:
                     _logger.warning(
                         "LLM returned empty content (attempt %d/%d) — retrying",
@@ -564,6 +602,9 @@ class FakeClient:
         # transcript is empty) so fakes are faithful protocol stand-ins.
         if system is not None and not messages:
             messages = [{"role": "system", "content": system}]
+        # WS-E: mirror the serializer guard — the recorded request carries
+        # the WIRE shape (reasoning-only turns record content "", never null).
+        messages = _normalize_messages(messages)
         self.calls.append(
             {
                 "messages": messages,

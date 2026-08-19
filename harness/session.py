@@ -1467,8 +1467,11 @@ class Session:
                 conv, "user", user_text, t_h, message_id=mid
             )
         else:
+            # WS-E: never pass None content into the client — a stored
+            # reasoning-only turn (content NULL) would serialize as
+            # content:null and 400 the request; "" is the safe form.
             messages = [
-                {"role": m["role"], "content": m["content"]}
+                {"role": m["role"], "content": m["content"] or ""}
                 for m in recent
             ]
 
@@ -1914,8 +1917,10 @@ class Session:
         repo pitfall 3af0a5a).
         """
         recent = self.store.recent_messages()
+        # WS-E: never pass None content into the client (a stored
+        # reasoning-only turn must serialize as "", never null).
         messages = [
-            {"role": m["role"], "content": m["content"]} for m in recent
+            {"role": m["role"], "content": m["content"] or ""} for m in recent
         ]
         messages.append(
             {"role": "user", "content": wrap_steer_marker(request.popup)}
