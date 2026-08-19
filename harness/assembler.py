@@ -15,8 +15,10 @@ Context construction v2 (WS1, design plans/harness-runtime-design-2026-08-14.md
   1. STABLE system core — ``prompts.SYSTEM_CORE_WITH_TOOLS``: how to read
      the {state} card, compliance, tool protocol, show-don't-announce,
      never-name-the-state. Constant, contains NO state.
-  2. DAY-START block — personality + today's agenda, rendered once per day
-     (``render_day_block``; WS4 wires it into ``ensure_day``).
+  2. DAY-START block — the PERSONA block, rendered once per day
+     (``render_day_block``; WS4 wires it into ``ensure_day``). WS-D: the
+     pre-WS-D day-plan agenda part moved to the STATE CARD (tier 3) so this
+     tier is fully stable (byte-identical every turn day after day).
   3. STATE CARD — at every conversation start and refreshable mid-
      conversation: mood brief (the 'Current bearing' prose from
      ``BehaviorDirective.prompt_brief`` — the SINGLE source; the divergent
@@ -45,6 +47,21 @@ conversation (``MEMORY_EVIDENCE_HEADER``) so user-authored text retrieved
 as memory can never silently gain system-level instruction authority. The
 assembler never receives engine state: the snapshot carries only domain
 objects, and no section renders cycle/phase/hormone internals.
+
+WS-D (structural prompt cache, reduced 2026-08-19): the assembled request is
+split into a STABLE prefix and a VOLATILE tail. The stable prefix — the
+``SYSTEM_CORE_WITH_TOOLS`` core + the day-start PERSONA block (rendered
+persona only; the agenda is day-plan state and moved to the tail) — is
+byte-identical every turn and across conversations for a fixed profile, so
+request N+1 is a byte-identical extension of request N (DeepSeek-read
+finding: caching is 100% structural, zero ``cache_control``). The volatile
+tail — the state card (temporal frame / affective / behavioral bearing /
+current intent, activity, arcs, memories, about-you, proactive, closing,
+pop-up + the agenda plan) — rides as the TRAILING user message via the
+``build_context_messages`` seam. ``assemble_snapshot`` keeps the legacy
+full 3-tier system string byte-identical (aux/experiment callers); the
+session mainline wires ``build_context_messages`` so the state card leaves
+the system message.
 
 Leakage invariant (frozen): this module never receives engine state — the
 snapshot carries only domain objects. The rendered behavioral prose and all
@@ -180,6 +197,7 @@ _BEHAVIOR_PERSISTENCE_LOW = "Your participation tends to wind down quickly."
 # and the pinned sections (current intent slot, decision/steering payload —
 # current activity and the event/pop-up block — are NEVER dropped).
 # --------------------------------------------------------------------------- #
+_PRIO_AGENDA = 0
 _PRIO_TEMPORAL = 1
 _PRIO_AFFECTIVE = 2
 _PRIO_BEHAVIORAL = 3
@@ -442,25 +460,36 @@ def render_temporal_section(snapshot: CompanionSnapshot, t_h: float, anchor) -> 
     return TEMPORAL_HEADER + "\n" + "\n".join(parts)
 
 
+def _agenda_plan_lines(snapshot: CompanionSnapshot) -> list[str]:
+    """Today's agenda PLAN lines (planned/shifted items only, capped at
+    ``AGENDA_ITEMS_MAX``) — the day-plan view. Skipped/past items are not
+    happening at their slot (NOW semantics). Shared by the day block and the
+    volatile state-card AGENDA section so both render the identical text.
+    """
+    agenda = [
+        it for it in snapshot.agenda if it.status in ("planned", "shifted")
+    ][:AGENDA_ITEMS_MAX]
+    return _agenda_lines(agenda)
+
+
 def render_day_block(snapshot: CompanionSnapshot) -> str:
-    """Tier-2 DAY-START block: personality + today's agenda.
+    """Tier-2 DAY-START block: the PERSONA ONLY (WS-D reduced scope).
 
     Rendered ONCE per day (WS4 wires this into ``ensure_day`` so the block
     stays stable within the day; ``assemble_snapshot`` falls back to
     rendering it per call when no cached block is passed via ``day_block``).
-    The agenda part carries only planned/shifted items (skipped items are
-    not happening at their slot — NOW semantics) capped at
-    ``AGENDA_ITEMS_MAX``. Contains no per-moment state: the mood brief,
-    activity and the rest live in the state card.
+
+    WS-D (structural prompt cache): this block is part of the STABLE prefix —
+    it must be byte-identical every turn and across conversations for a
+    fixed profile. The pre-WS-D day-plan agenda part is day-level state
+    (it changes when items complete / windows pass) and therefore MOVED to
+    the volatile tail: the state card's AGENDA section
+    (``render_state_card``) renders the identical plan lines, and the
+    TEMPORAL FRAME section renders the per-moment partition. Contains no
+    per-moment state and no agenda — those live in the state card.
     """
     core = (snapshot.persona.core or DEFAULT_PERSONA_CORE).strip()
-    agenda = [
-        it for it in snapshot.agenda if it.status in ("planned", "shifted")
-    ][:AGENDA_ITEMS_MAX]
-    parts = [core]
-    if agenda:
-        parts.append(AGENDA_HEADER + "\n" + "\n".join(_agenda_lines(agenda)))
-    return "\n\n".join(parts)
+    return core
 
 
 def assemble_snapshot(
@@ -489,10 +518,11 @@ def assemble_snapshot(
          contains no state.
       2. DAY-START block — ``day_block`` when a pre-rendered (cached) block
          is passed (WS4 wires ``render_day_block`` into ``ensure_day``),
-         else rendered from the snapshot: personality + today's agenda.
-      3. STATE CARD — the named W3 sections in fixed order (TEMPORAL FRAME
-         when anchored; AFFECTIVE BEARING — the mood brief
-         (``prompt_brief``: the 'Current bearing' prose from
+         else rendered from the snapshot: the PERSONA block (WS-D: the
+         day-plan agenda moved to the state card, tier 3).
+      3. STATE CARD — the named W3 sections in fixed order (the day-plan
+         AGENDA section; TEMPORAL FRAME when anchored; AFFECTIVE BEARING —
+         the mood brief (``prompt_brief``: the 'Current bearing' prose from
          ``BehaviorDirective.prompt_brief``, the SINGLE source — the
          assembler never re-renders it) plus the availability line, both
          VERBATIM from the pre-wave renderer; BEHAVIORAL BEARING — the
@@ -508,10 +538,57 @@ def assemble_snapshot(
     in the user/assistant message payload, so every turn appears exactly
     once. If the joined prompt exceeds ``MAX_PROMPT_CHARS``, whole sections
     are dropped deterministically from lowest priority upward (text is never
-    mangled) — EXCEPT the pinned sections (current intent slot, current
-    activity, pop-up block), which are never dropped.
+    mangled) — EXCEPT the pinned sections (day-plan agenda, current intent
+    slot, current activity, pop-up block), which are never dropped.
+
+    WS-D cache order: this whole string is the LEGACY/aux full 3-tier system
+    prompt (byte-identical to the pre-WS-D layout — the agenda block merely
+    relocated from the day block into the state card). The session mainline
+    uses ``build_context_messages`` instead: the stable prefix (tiers 1+2)
+    stays the system message, and ``render_state_card`` (tier 3) rides as
+    the TRAILING user message.
+    """
+    sections = _state_card_sections(
+        snapshot, controls=controls, prompt_brief=prompt_brief,
+        popup=popup, t_h=t_h, anchor=anchor,
+    )
+    # Tier 1 + tier 2 first (stable core + day-start block), then the state
+    # card under deterministic budget enforcement: keep sections from highest
+    # priority down while the running total fits; drop whole sections, never
+    # mangle. Pinned sections are always kept.
+    parts = [SYSTEM_CORE_WITH_TOOLS]
+    parts.append(day_block if day_block is not None else render_day_block(snapshot))
+    return _join_stable_plus_sections(parts, sections)
+
+
+def _state_card_sections(
+    snapshot: CompanionSnapshot,
+    *,
+    controls: GenerationControls | None,
+    prompt_brief: str | None,
+    popup: str | None,
+    t_h: float | None,
+    anchor,
+) -> list[tuple[int, bool, str]]:
+    """The VOLATILE state-card sections (never the stable core/day block).
+
+    WS-D: this block is the volatile TAIL of the assembled request — it
+    changes every turn (time line, mood brief, activity, retrieved memory,
+    agenda transitions) and must never enter the stable prefix. Includes the
+    day-plan AGENDA section (priority 0, pinned): pre-WS-D it lived in the
+    day-start block; it is day-level state (items complete / windows pass),
+    so it moved here with the agenda plan text byte-identical
+    (``_agenda_plan_lines``).
     """
     sections: list[tuple[int, bool, str]] = []
+
+    agenda_lines = _agenda_plan_lines(snapshot)
+    if agenda_lines:
+        # PINNED: pre-WS-D the day-plan agenda lived in the non-droppable
+        # day-start block; pinning preserves that it is never budget-evicted.
+        sections.append(
+            (_PRIO_AGENDA, _PINNED, AGENDA_HEADER + "\n" + "\n".join(agenda_lines))
+        )
 
     temporal = (
         render_temporal_section(snapshot, t_h, anchor)
@@ -592,20 +669,106 @@ def assemble_snapshot(
         # PINNED: the arriving-event/steering payload — never dropped.
         sections.append((_PRIO_POPUP, _PINNED, popup))
 
-    # Tier 1 + tier 2 first (stable core + day-start block), then the state
-    # card under deterministic budget enforcement: keep sections from highest
-    # priority down while the running total fits; drop whole sections, never
-    # mangle. Pinned sections are always kept.
-    parts = [SYSTEM_CORE_WITH_TOOLS]
-    parts.append(day_block if day_block is not None else render_day_block(snapshot))
+    return sections
 
+
+def _join_stable_plus_sections(
+    stable_parts: list[str],
+    sections: list[tuple[int, bool, str]],
+) -> str:
+    """Join stable parts + budget-enforced state-card sections.
+
+    Deterministic whole-section budget enforcement: keep sections from
+    highest priority down while the running total fits; drop whole sections,
+    never mangle. Pinned sections are always kept.
+    """
     ordered = sorted(sections, key=lambda item: item[0])
-    total = sum(len(p) + 2 for p in parts)
+    total = sum(len(p) + 2 for p in stable_parts)
     kept: list[str] = []
     for _, pinned, text in ordered:
         cost = len(text) + 2  # +2 for the blank line separator
         if pinned or total + cost <= MAX_PROMPT_CHARS:
             kept.append(text)
             total += cost
-    parts.extend(kept)
-    return "\n\n".join(parts)
+    return "\n\n".join(stable_parts + kept)
+
+
+def render_state_card(
+    snapshot: CompanionSnapshot,
+    *,
+    controls: GenerationControls | None = None,
+    prompt_brief: str | None = None,
+    popup: str | None = None,
+    t_h: float | None = None,
+    anchor=None,
+) -> str:
+    """The VOLATILE state-card block, standalone (the trailing user message).
+
+    WS-D: this is the structural tail of the assembled request — the state
+    card (incl. the day-plan AGENDA section) is appended as the LAST user
+    message so the stable prefix (system core + persona) stays byte-identical
+    every turn and request N+1 is a byte-identical extension of request N.
+    Budget: the same whole-section trim as the legacy full prompt, applied
+    to the tail on its own (the system message carries no state, so
+    ``MAX_PROMPT_CHARS`` bounds the JOINED prompt; the tail alone is far
+    smaller). Returns "" when no section survives (empty snapshot).
+    """
+    sections = _state_card_sections(
+        snapshot, controls=controls, prompt_brief=prompt_brief,
+        popup=popup, t_h=t_h, anchor=anchor,
+    )
+    return _join_stable_plus_sections([], sections)
+
+
+def build_context_messages(
+    snapshot: CompanionSnapshot,
+    recent_turns: list[dict],
+    user_request: str | None = None,
+    *,
+    controls: GenerationControls | None = None,
+    prompt_brief: str | None = None,
+    popup: str | None = None,
+    t_h: float | None = None,
+    anchor=None,
+    day_block: str | None = None,
+    limit: int = RECENT_TURNS,
+) -> tuple[str, list[dict]]:
+    """(stable system, messages) — the WS-D cache-ordered request pair.
+
+    STABLE system: ``SYSTEM_CORE_WITH_TOOLS`` + the day-start PERSONA block
+    (byte-identical every turn and across conversations for a fixed profile;
+    ``day_block`` is the session-cached persona block, else rendered here).
+
+    Messages: transcript tail (oldest→newest, tail-limited), then the user
+    request when given, then the VOLATILE state card as the TRAILING user
+    message (``render_state_card``: temporal frame / affective / behavioral
+    bearing, agenda plan, activity, arcs, memories, about-you, proactive,
+    closing, pop-up). The trailing-tail placement makes request N+1 a
+    byte-identical extension of request N up to the tail — the DeepSeek-read
+    structural-cache contract (no ``cache_control`` needed).
+
+    WS-D session wiring: ``_chat`` calls this for the mainline model call and
+    keeps ``assemble_snapshot`` (the full 3-tier string) for
+    ``_last_system_prompt`` so pop-up aux calls replay the mainline prefix.
+    """
+    system = "\n\n".join(
+        [
+            SYSTEM_CORE_WITH_TOOLS,
+            day_block if day_block is not None else render_day_block(snapshot),
+        ]
+    )
+    if user_request is not None:
+        messages = build_messages(recent_turns, user_request, limit=limit)
+    else:
+        messages = [
+            {"role": turn["role"], "content": turn["content"]}
+            for turn in recent_turns[-limit:]
+        ]
+    tail = render_state_card(
+        snapshot,
+        controls=controls, prompt_brief=prompt_brief, popup=popup,
+        t_h=t_h, anchor=anchor,
+    )
+    if tail:
+        messages.append({"role": "user", "content": tail})
+    return system, messages
