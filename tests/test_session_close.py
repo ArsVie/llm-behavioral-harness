@@ -81,13 +81,18 @@ def _session(tmp_path, *, two_phase: bool, closing_tendency: float = 1.0):
 
 @pytest.fixture
 def forced_close(monkeypatch):
-    """Force a fixed closing_tendency (1.0) for every directive."""
+    """Force a fixed closing_tendency (1.0) for every directive.
+
+    Also enables the lifecycle closing draw so the draw actually fires.
+    """
 
     def _apply(closing_tendency: float = 1.0):
         monkeypatch.setattr(
             "harness.session.controls_from_directive",
             _forced_controls(closing_tendency),
         )
+        monkeypatch.setattr("harness.tunables.CLOSING_TENDENCY_ENABLED", True)
+        monkeypatch.setattr("harness.session.CLOSING_TENDENCY_ENABLED", True)
 
     return _apply
 
@@ -162,7 +167,7 @@ def test_user_silent_expiry_via_virtual_clock(tmp_path, forced_close):
     """A user who never replies: the conversation stays open through the
     grace window, the grace deadline is the next close instant, and the
     wind-down EXPIRES with reason ``closing_tendency`` (not ``user_left``,
-    the 12 h outer backstop)."""
+    the 6 h outer backstop)."""
     forced_close(1.0)
     store, clock, client, session = _session(tmp_path, two_phase=True)
     clock.advance_hours(8.5)
@@ -170,13 +175,13 @@ def test_user_silent_expiry_via_virtual_clock(tmp_path, forced_close):
     _drive_exchange(session, clock, "so, about today...")
     pending = store.conversation_closing_pending("conv-0")
     assert pending is not None
-    # inside the grace window: still open, close NOT due
-    assert session.check_conversation_lifecycle(pending + 0.5) is None
+    # inside the grace window: still open, close NOT due (grace is 0.0833h = 5 min)
+    assert session.check_conversation_lifecycle(pending + 0.02) is None
     # the runtime parks at the grace deadline (next_conversation_close_t_h)
-    nxt = session.next_conversation_close_t_h(pending + 0.5)
+    nxt = session.next_conversation_close_t_h(pending + 0.02)
     assert nxt is not None
     assert abs(nxt - (pending + WIND_DOWN_GRACE_H)) < 1e-9, nxt
-    assert nxt < pending + 12.0, "grace must precede the user_left deadline"
+    assert nxt < pending + 6.0, "grace must precede the user_left deadline (6h backstop)"
     # past the grace deadline: expired wind-down closes with the SAME
     # taxonomy reason the draw would have used
     reason = session.check_conversation_lifecycle(pending + WIND_DOWN_GRACE_H + 0.01)
@@ -207,7 +212,7 @@ def test_wind_down_pending_survives_restart(tmp_path, forced_close):
     store2 = SQLiteStore(tmp_path / "s.db")
     clock2 = VirtualClock()
     clock2.advance_to_day(0)
-    clock2.advance_hours(8.7)
+    clock2.advance_hours(8.63)
     client2 = FakeClient(responses=["ok!"])
     session2 = Session(
         store2,

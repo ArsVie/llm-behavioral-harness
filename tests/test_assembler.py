@@ -332,18 +332,30 @@ def test_availability_rendered_from_brief_channels():
 
 
 def test_render_day_block_personality_and_agenda_only():
-    """The day-start block carries personality + today's agenda and NO
+    """The day-start block carries personality ONLY (WS-D: agenda moved to
+    the state card volatile tail for structural cache stability) and NO
     per-moment state (that lives in the state card)."""
     block = render_day_block(_snapshot())
     assert block.startswith("CORE TEXT.")
-    assert AGENDA_HEADER in block
-    assert "agenda item 0" in block
+    # WS-D: agenda lives in the volatile state card, not the stable day block
+    assert AGENDA_HEADER not in block
+    assert "agenda item 0" not in block
     assert ACTIVITY_HEADER not in block
     assert MOOD_BRIEF_HEADER not in block
     assert MEMORIES_HEADER not in block
+    # Agenda is still in the assembled snapshot (via the state card)
+    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prompt_brief())
+    assert AGENDA_HEADER in prompt
+    assert "agenda item 0" in prompt
+    # Agenda is still in the assembled snapshot (via the state card)
+    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prompt_brief())
+    assert AGENDA_HEADER in prompt
+    assert "agenda item 0" in prompt
 
 
 def test_render_day_block_skips_skipped_and_past_items():
+    # WS-D: render_day_block is persona-only; agenda filtering is verified
+    # via the assembled snapshot where the agenda lives (state card).
     items = (
         AgendaItem("ag_0", 25.5, 26.5, "morning coffee", "routine", "r1",
                    0.9, "skipped"),
@@ -353,11 +365,15 @@ def test_render_day_block_skips_skipped_and_past_items():
                    0.8, "completed"),
     )
     block = render_day_block(_snapshot(agenda=items))
+    # Day block is persona-only after WS-D — no agenda in it at all
     assert "morning coffee" not in block
     assert "finished thing" not in block
-    assert "evening walk" in block
-
-
+    assert "evening walk" not in block
+    # But the filtering still works in the full snapshot (agenda in state card)
+    prompt = assemble_snapshot(_snapshot(agenda=items), prompt_brief=_prompt_brief())
+    assert "morning coffee" not in prompt
+    assert "finished thing" not in prompt
+    assert "evening walk" in prompt
 def test_day_block_param_used_verbatim():
     """WS4 can pass a pre-rendered (cached) day block; it is used verbatim
     instead of re-rendering from the snapshot."""
@@ -366,9 +382,12 @@ def test_day_block_param_used_verbatim():
                                day_block=cached)
     assert cached in prompt
     assert "CORE TEXT." not in prompt
-    assert AGENDA_HEADER not in prompt
-
-
+    # WS-D: the agenda lives in the volatile state card, not the day block,
+    # so even with a cached day block the agenda header is still present
+    # (from the state card). The day block itself is verbatim, but the
+    # assembled prompt still carries the state-card agenda.
+    assert AGENDA_HEADER in prompt
+    assert "agenda item 0" in prompt
 def test_snapshot_assembly_is_bounded():
     # Oversized memory context + long conversation: still under the budget.
     memory = dataclasses.replace(

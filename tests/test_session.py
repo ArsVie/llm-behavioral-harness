@@ -399,6 +399,8 @@ def test_memory_session_boundary_closes_and_promotes(tmp_path, monkeypatch):
         )
 
     monkeypatch.setattr("harness.session.controls_from_directive", forced_controls)
+    monkeypatch.setattr("harness.tunables.CLOSING_TENDENCY_ENABLED", True)
+    monkeypatch.setattr("harness.session.CLOSING_TENDENCY_ENABLED", True)
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=19.0)
     client = FakeClient(responses=["lovely", "of course"])
