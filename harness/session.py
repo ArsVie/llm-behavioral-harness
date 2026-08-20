@@ -168,6 +168,7 @@ CONVERSATION_STREAM = 6
 from harness.tunables import (  # noqa: E402
     CLOSING_TENDENCY_ENABLED,
     MAX_TURNS,
+    USER_AWAY_THRESHOLD_H,
     USER_LEFT_THRESHOLD_H,
     WIND_DOWN_GRACE_H,
 )
@@ -962,6 +963,26 @@ class Session:
             if t.speaker == "user":
                 return t.t_h
         return None
+
+    def is_user_away(self, t_h: float) -> bool:
+        """Whether the user is currently 'away' (presence signal, WS-A).
+
+        Derived from ``_last_user_turn_t_h`` + current clock — no new RNG,
+        replay-safe by construction. True when silence since the last user
+        turn (or the conversation's opening when the companion opened and
+        the user never replied) has reached ``USER_AWAY_THRESHOLD_H`` (15 min)
+        but the conversation has NOT yet hit the long ``USER_LEFT_THRESHOLD_H``
+        backstop (6 h) that actually closes it. Returns False when no
+        conversation is open.
+        """
+        conv = self._conversation
+        if conv is None:
+            return False
+        anchor = self._last_user_turn_t_h(conv)
+        if anchor is None:
+            anchor = conv.opened_t_h
+        elapsed = t_h - anchor
+        return USER_AWAY_THRESHOLD_H <= elapsed < USER_LEFT_THRESHOLD_H
 
     @staticmethod
     def _quiet_start_at_or_before(t_h: float, quiet_hours) -> float:
