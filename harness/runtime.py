@@ -535,7 +535,10 @@ class AsyncRuntime:
         outputs first — ``proactive_out`` (initiate verdicts) as proactive
         messages, ``notices`` (no-reply verdicts) as plain messages — then
         the ordinary reply, when there is one (a suppressed reply is
-        ``""`` and sends nothing).
+        ``""`` and sends nothing). When bubbling is on the reply is fanned
+        out as a paced multi-send (blank line = one boundary, both \\n and
+        \\n\\n count), with a short gap between bubbles; the persisted
+        reply stays the single joined text.
         """
         for out_reason, text in getattr(result, "proactive_out", ()):
             await self.channel.send(
@@ -543,6 +546,17 @@ class AsyncRuntime:
             )
         for notice in getattr(result, "notices", ()):
             await self.channel.send(OutboundMessage(text=notice, proactive=False))
+        bubbles = getattr(result, "bubbles", None)
+        if bubbles:
+            for i, part in enumerate(bubbles):
+                if i > 0:
+                    gap = 1.0 + 0.5 * len(part) / 80.0
+                    gap = max(0.6, min(gap, 2.5))
+                    await self.sleeper(gap)
+                await self.channel.send(
+                    OutboundMessage(text=part, proactive=proactive, reason=reason)
+                )
+            return
         if (result.reply or "").strip():
             await self.channel.send(
                 OutboundMessage(

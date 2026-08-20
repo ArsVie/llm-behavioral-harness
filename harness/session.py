@@ -266,6 +266,10 @@ class TurnResult:
     - ``proactive_out`` — ``(reason, text)`` pairs for ``initiate`` verdicts
       (``tool_decide_event``): messages the companion sends through the
       channel as proactive outbound.
+    - ``bubbles`` — when HARNESS_BUBBLES is on and the model emitted blank
+      lines, the split bubble texts (\\n or \\n\\n count — a run of newlines
+      is one separator, WS-B ruling). The runtime sends them as a paced
+      multi-send. When the flag is off or no split exists, None (parity).
     """
 
     reply: str
@@ -275,6 +279,7 @@ class TurnResult:
     controls: GenerationControls | None = None
     notices: tuple[str, ...] = ()
     proactive_out: tuple[tuple[str, str], ...] = ()
+    bubbles: tuple[str, ...] | None = None
 
 
 class _NoopMemory:
@@ -1469,6 +1474,16 @@ class Session:
             # runs (replay) omit it entirely (G2: never render raw t_h).
             t_h=t_h, anchor=self._real_time_anchor(),
         )
+        # Bubbles (model-driven, flag-gated HARNESS_BUBBLES): when on, tell
+        # the model it may split into bubbles on blank lines (\n or \n\n both
+        # count — a run of newlines is one separator, WS-B ruling).
+        try:
+            from harness.bubbles import BUBBLE_INSTRUCTION, bubbles_enabled
+
+            if bubbles_enabled():
+                system = system + "\n\n" + BUBBLE_INSTRUCTION
+        except Exception:
+            pass
         if user_text is None and intent is None:
             # Legacy ungrounded proactive call (pre-slice callers/tests):
             # generic opening without any invented source claim.
@@ -1671,6 +1686,18 @@ class Session:
         )
         self.store.log_event(day, t_h, "assistant_reply", f"len={len(reply)}")
         self._turn_drained = []
+        # Bubbles (model-driven, flag-gated HARNESS_BUBBLES): parse the reply
+        # on blank-line runs — both \n and \n\n count as one boundary.
+        bubbles: tuple[str, ...] | None = None
+        try:
+            from harness.bubbles import bubbles_enabled, parse_bubbles
+
+            if bubbles_enabled():
+                parts = parse_bubbles(reply)
+                if len(parts) >= 2:
+                    bubbles = tuple(parts)
+        except Exception:
+            pass
         return TurnResult(
             reply=reply,
             directive=directive,
@@ -1679,6 +1706,7 @@ class Session:
             controls=controls,
             notices=tuple(notices),
             proactive_out=tuple(proactive_out),
+            bubbles=bubbles,
         )
 
     # ------------------------------------------------------------------ #
