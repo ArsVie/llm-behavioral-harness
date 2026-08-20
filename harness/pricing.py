@@ -25,16 +25,17 @@ report time via ``harness/spend.py --pricing-json <file>``.
 from __future__ import annotations
 
 #: False once the user has confirmed real rates (edit me).
-PRICING_PENDING: bool = True
+PRICING_PENDING: bool = False
 
-#: \$ per 1M tokens, keyed by model name. **PENDING-USER placeholders.**
+#: \$ per 1M tokens, keyed by model name. Verified 2026-08-20 via
+#: openrouter.ai/api/v1/models id deepseek/deepseek-v4-flash.
 MODELS: dict[str, dict[str, float]] = {
-    # DeepSeek V4 Flash — placeholder: fresh in ~$0.27, cached in ~$0.027
-    # (10x), out ~$1.10. User must replace with the billed gateway rates.
+    # DeepSeek V4 Flash — OpenRouter deepseek/deepseek-v4-flash
+    # prompt $0.0784 / cached $0.01568 / completion $0.1568 per 1M
     "deepseek-v4-flash": {
-        "input_per_mtok": 0.27,
-        "cached_input_per_mtok": 0.027,
-        "output_per_mtok": 1.10,
+        "input_per_mtok": 0.0784,
+        "cached_input_per_mtok": 0.01568,
+        "output_per_mtok": 0.1568,
     },
 }
 

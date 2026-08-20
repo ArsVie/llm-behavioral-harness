@@ -406,9 +406,10 @@ def test_render_report_contains_math_and_pending_banner(capsys):
 
 
 def test_price_for_behavior():
-    assert PRICING_PENDING is True  # until the user fills real rates
+    # PRICING_PENDING is now False (real OpenRouter rates filled 2026-08-20)
     rates = price_for("deepseek-v4-flash")
-    assert rates["cached_input_per_mtok"] == pytest.approx(rates["input_per_mtok"] / 10)
+    assert rates is not None
+    assert rates["cached_input_per_mtok"] == pytest.approx(rates["input_per_mtok"] / 5)
     # unknown-but-named model falls back to the default tier
     assert price_for("some-other-model")["input_per_mtok"] > 0
     # absent/blank model is unpriced
