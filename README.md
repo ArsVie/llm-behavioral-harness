@@ -1,11 +1,3 @@
----
-type: overview
-title: LLM Behavioral Harness — POC
-description: "OpenAI-compatible wrapper that injects initiative and behavioral variability (mood memory, simulated hormonal cycle, circadian energy, subtle cadence changes) into any LLM."
-tags: [llm-behavioral-harness, poc, harness]
-timestamp: 2026-08-08
----
-
 # LLM Behavioral Harness — POC
 
 An OpenAI-compatible **harness** (wrapper) that wraps any LLM and injects
