@@ -5,13 +5,32 @@ behavioral variability** — mood with memory, a simulated ~28-day cycle, circad
 energy, and shifts in cadence, length, and warmth. The engine never modifies the
 base model; it operates entirely in the orchestration layer. The model is swappable.
 
+![One 30-day run of the engine](results/one-month-showcase.png)
+
+*One 30-day run (seed 5001): sampled mood vs its 7-day expectation over cycle
+phases with a 5-seed ensemble band; proactive messages per day colored by phase;
+every proactive decision plotted at its fire hour against that day's mood, with
+its actual hook text ("Agenda: practice lifting…", "Finished: morning coffee");
+and when conversation happens across the month. Data: real engine runs from
+`results/it3-backfill-2026-08-09`. Reproduce with
+`python -m experiments.month_showcase`.*
+
+<details>
+<summary>More views</summary>
+
 ![One simulated week of the engine](results/one-week-showcase.png)
 
-*One simulated week, seed 3001: sampled mood vs its latent expected value with a
-30-seed ensemble band; circadian energy by phase; the behavior directives those
-states render into (natural-language briefs — the model never sees numbers); and
-the resulting proactive contacts from Weibull-hazard timing with quiet hours.
-Reproduce with `python -m experiments.week_showcase`.*
+*One week at engine granularity: circadian energy by time-of-day × phase, and
+the behavior directives those states render into (natural-language briefs — the
+model never sees numbers). Reproduce with `python -m experiments.week_showcase`.*
+
+![35-cell ablation matrix](docs/ablation-matrix-summary.png)
+
+*35-cell ablation matrix (7 conditions × 5 seeds). Removing the timing-feedback
+channel measurably changes proactive behavior; removing internal state does not
+— a clean negative result, reported with controls.*
+
+</details>
 
 <details>
 <summary>Ablation evidence</summary>

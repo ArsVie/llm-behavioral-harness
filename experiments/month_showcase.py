@@ -5,10 +5,9 @@ Four panels, one representative FULL simulation (seed 5001) pooled with the
   P1  mood trajectory vs smoothed expectation + 5-seed ensemble band,
       cycle-phase colored background
   P2  proactive messages per day (bars colored by phase)
-  P3  decision reason (agenda / life event / memory hook) plotted at fire
-      hour vs the mood of that day — "why it reached out"
-  P4  hour-of-day x weekday heatmap of ALL messages — "when does contact
-      happen" (the circadian signature)
+  P3  decision reason (agenda / life event hook) plotted at fire hour vs the
+      mood of that day — "why it reached out"
+  P4  heatmap hour x week of ALL messages — "when does conversation happen"
 
 All data from real engine runs stored in results/it3-backfill-2026-08-09/dbs/FULL.
 """
@@ -17,7 +16,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 import matplotlib
@@ -68,9 +67,8 @@ def main() -> None:
     state = rep["state"]
     days30 = np.arange(len(state))
     M = np.array([float(s[1]) for s in state])
-    phase = [s[2] for s in state]
+    phase = [s[2] for s in state]  # s[2]=phase_label (s[3] is score)
 
-    # smoothed expectation (7-day centred moving average)
     kernel = np.ones(7) / 7.0
     expected = np.convolve(np.pad(M, (3, 3), mode="edge"), kernel, mode="valid")
 
@@ -80,15 +78,21 @@ def main() -> None:
     pro_msgs = [(day, t_h) for day, t_h, role, pro in rep["msgs"] if pro == 1]
     per_day = Counter(int(day) for day, _ in pro_msgs)
 
-    fig, axes = plt.subplots(2, 2, figsize=(13.5, 9))
+    fig = plt.figure(figsize=(13.5, 9))
+    gs = fig.add_gridspec(2, 2, hspace=0.38, wspace=0.25)
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, 0])
+    ax4 = fig.add_subplot(gs[1, 1])
+
     fig.suptitle(
         f"One 30-day run of the behavioral engine (seed {REPRESENTATIVE}, "
         f"{len(SEEDS)}-seed ensemble band, {len(pro_msgs)} proactive messages)",
         fontsize=13,
     )
 
-    # ---- P1: mood -------------------------------------------------------
-    ax = axes[0][0]
+    # ---- P1: mood --------------------------------------------------------
+    ax = ax1
     for i, ph in enumerate(phase):
         ax.axvspan(i - 0.5, i + 0.5, color=PHASE_COLORS.get(ph, "#eee"), alpha=0.55, zorder=0)
     ax.fill_between(days30, q10[: len(days30)], q90[: len(days30)],
@@ -103,8 +107,8 @@ def main() -> None:
     ax.legend(fontsize=8, loc="lower right")
     ax.spines[["top", "right"]].set_visible(False)
 
-    # ---- P2: proactive per day ------------------------------------------
-    ax = axes[0][1]
+    # ---- P2: proactive per day -------------------------------------------
+    ax = ax2
     counts = np.array([per_day.get(int(d), 0) for d in days30])
     ax.bar(days30, counts,
            color=[PHASE_COLORS.get(p_, "#ccc") for p_ in phase],
@@ -117,10 +121,11 @@ def main() -> None:
     ax.set_xticklabels([str(d + 1) for d in days30[::4]], fontsize=8)
     ax.spines[["top", "right"]].set_visible(False)
 
-    # ---- P3: decision reason × fire-hour × mood --------------------------
-    ax = axes[1][0]
+    # ---- P3: decision reason x fire-hour x mood --------------------------
+    ax = ax3
     mood_at = {int(s[0]): float(s[1]) for s in state}
     seen = set()
+    annotated = 0
     for reason, hook, t_h, status in rep["intents"]:
         kind = classify(reason)
         iday = int(t_h // 24)
@@ -132,12 +137,19 @@ def main() -> None:
                    alpha=0.85, edgecolor="white", lw=0.6,
                    label=label if kind not in seen else None)
         seen.add(kind)
-    # quiet hours (23-24 and 0-8)
+        if annotated < 7:
+            txt = (hook[:30] + "…") if len(hook) > 32 else hook
+            dy = -12 - (annotated % 3) * 9   # stagger to avoid collisions
+            ax.annotate(txt, (ihour, m), textcoords="offset points",
+                        xytext=(6 + (annotated % 2) * 14, dy),
+                        fontsize=6.2, color="#555",
+                        arrowprops=dict(arrowstyle="-", lw=0.4, color="#999"))
+            annotated += 1
     ax.axvspan(-0.5, 8, color="#555", alpha=0.12, zorder=0)
     ax.axvspan(23, 24.5, color="#555", alpha=0.12, zorder=0)
     ax.set_xlim(-0.5, 24.5)
     ax.set_xticks(range(0, 25, 2))
-    ax.set_ylim(-0.6, 10.6)
+    ax.set_ylim(-0.6, 12.2)
     ax.set_yticks(range(0, 11, 2))
     ax.set_xlabel("hour of day at fire time (gray = quiet hours)")
     ax.set_ylabel("mood that day (0–10)")
@@ -147,29 +159,40 @@ def main() -> None:
     ax.legend(fontsize=8, loc="upper left")
     ax.spines[["top", "right"]].set_visible(False)
 
-    # ---- P4: heatmap hour × day-of-sim-week ------------------------------
-    ax = axes[1][1]
-    grid = np.zeros((5, 24))  # 5 "weeks" of the 30-day run
+    # ---- P4: heatmap hour x week ------------------------------------------
+    ax = ax4
+    grid = np.zeros((5, 24))
     for day, t_h, role, pro in rep["msgs"]:
         week = int(day // 7)
         hour = int(t_h % 24)
         if week < 5:
             grid[week][hour] += 1
-    im = ax.imshow(grid, aspect="auto", cmap="viridis", origin="upper")
-    ax.set_yticks(range(5))
-    ax.set_yticklabels([f"week {i+1}" for i in range(5)], fontsize=8)
+    im = ax.imshow(grid, aspect="auto", cmap="viridis", origin="upper",
+                   extent=[0, 24, 5, -0.5])
+    ax.set_yticks(np.arange(5) + 0.5)
+    ax.set_yticklabels([f"week {i+1}" for i in range(5)], fontsize=9)
     ax.set_xticks(range(0, 25, 2))
     ax.set_xlabel("hour of day")
-    ax.set_title("When does conversation happen — all messages per week × hour",
+    ax.set_title("When does conversation happen — messages per week × hour",
                  fontsize=10.5, loc="left")
     cbar = fig.colorbar(im, ax=ax, shrink=0.85)
     cbar.set_label("messages", fontsize=8)
-    ax.spines[["top", "right"]].set_visible(False)
 
-    fig.tight_layout(rect=[0, 0, 1, 0.96])
+    fig.tight_layout(rect=[0, 0, 1, 0.95])
     out = Path("results/one-month-showcase.png")
     fig.savefig(out, dpi=150)
     print("saved", out.resolve())
+
+    summary = {
+        "representative_seed": REPRESENTATIVE,
+        "ensemble_seeds": SEEDS,
+        "n_proactive_rep": len(pro_msgs),
+        "mood_sampled": M.tolist(),
+        "phases": phase,
+        "fired_intents_rep": len(rep["intents"]),
+    }
+    Path("results/one-month-showcase.json").write_text(json.dumps(summary, indent=1))
+    print("saved results/one-month-showcase.json")
 
 
 if __name__ == "__main__":
