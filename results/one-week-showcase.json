@@ -1,0 +1,48 @@
+{
+ "seed": 3001,
+ "ensemble_seeds": 30,
+ "days": 7,
+ "mood_sampled": [
+  7,
+  5,
+  6,
+  4,
+  3,
+  7,
+  8
+ ],
+ "mood_expected": [
+  4.951,
+  6.027,
+  7.013,
+  5.245,
+  6.093,
+  6.561,
+  7.383
+ ],
+ "phases": [
+  "menstrual",
+  "menstrual",
+  "menstrual",
+  "menstrual",
+  "menstrual",
+  "follicular",
+  "follicular"
+ ],
+ "proactive_events_hour_of_week": [
+  17.2,
+  36.28,
+  57.41,
+  70.15,
+  105.64,
+  116.73,
+  134.07,
+  152.89
+ ],
+ "n_proactive": 8,
+ "directives_day6_20h": {
+  "warmth": 0.733,
+  "expressiveness": 0.591,
+  "initiative": 0.473
+ }
+}

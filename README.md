@@ -5,7 +5,25 @@ behavioral variability** — mood with memory, a simulated ~28-day cycle, circad
 energy, and shifts in cadence, length, and warmth. The engine never modifies the
 base model; it operates entirely in the orchestration layer. The model is swappable.
 
+![One simulated week of the engine](results/one-week-showcase.png)
+
+*One simulated week, seed 3001: sampled mood vs its latent expected value with a
+30-seed ensemble band; circadian energy by phase; the behavior directives those
+states render into (natural-language briefs — the model never sees numbers); and
+the resulting proactive contacts from Weibull-hazard timing with quiet hours.
+Reproduce with `python -m experiments.week_showcase`.*
+
+<details>
+<summary>Ablation evidence</summary>
+
 ![35-cell ablation matrix](docs/ablation-matrix-summary.png)
+
+*Proactive contact and conversation volume across the 35-cell ablation matrix
+(7 conditions × 5 seeds). Removing the timing-feedback channel measurably changes
+proactive behavior; removing internal state does not — a clean negative result,
+reported with controls. Chart: `docs/ablation-matrix-summary.png`.*
+
+</details>
 
 *Proactive contact and conversation volume across the 35-cell ablation matrix
 (7 conditions × 5 seeds). Removing the timing-feedback channel measurably changes
