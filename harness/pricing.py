@@ -37,6 +37,15 @@ MODELS: dict[str, dict[str, float]] = {
         "cached_input_per_mtok": 0.01568,
         "output_per_mtok": 0.1568,
     },
+    # ox-alpha — OpenRouter stealth route (stealth/ox-alpha)
+    # FREE: pricing {prompt: "0", completion: "0"} verified live via
+    # openrouter.ai/api/v1/models on 2026-08-22. The route exposes no
+    # cached tier; cached input is billed at the same $0 rate.
+    "stealth/ox-alpha": {
+        "input_per_mtok": 0.0,
+        "cached_input_per_mtok": 0.0,
+        "output_per_mtok": 0.0,
+    },
 }
 
 #: Fallback tier for models not listed in ``MODELS`` (still placeholder).
