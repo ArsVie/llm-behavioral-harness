@@ -1,0 +1,41 @@
+{
+ "db": "results/live-two-weeks/companion.db",
+ "days_finalized": 14,
+ "messages_total": 71,
+ "proactive_messages": 20,
+ "conversations": 23,
+ "intents_fired": 20,
+ "intents_suppressed": 18,
+ "mood_sampled": [
+  4.0,
+  5.0,
+  1.0,
+  3.0,
+  2.0,
+  5.0,
+  4.0,
+  8.0,
+  7.0,
+  4.0,
+  6.0,
+  9.0,
+  10.0,
+  7.0
+ ],
+ "phases": [
+  "menstrual",
+  "menstrual",
+  "menstrual",
+  "menstrual",
+  "menstrual",
+  "menstrual",
+  "follicular",
+  "follicular",
+  "follicular",
+  "follicular",
+  "follicular",
+  "follicular",
+  "follicular",
+  "ovulatory"
+ ]
+}
