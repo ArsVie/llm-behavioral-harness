@@ -7,33 +7,33 @@ conversation granularity, the runtime's boundary closes (quiet hours,
 user_left deadline), and the store conversation-persistence carve-out
 (schema v4).
 
-PREREGISTRATIONS (declared here, before the assertions they guard; the
-empirical numbers must satisfy these ANALYTIC bounds — a violation is a bug
-in the code, not an excuse to move the bound):
+PREREGISTRATIONS (declared here, before the assertions they guard). The
+original A1/A2/A3 preregistered the closing-tendency DRAW distribution;
+since commit 365ad33 (harness/tunables.py) that draw is feature-flagged
+OFF (CLOSING_TENDENCY_ENABLED=False) and MAX_TURNS is None, so the A1/A2/A3
+pins are RE-BASELINED to the draw-OFF reality (owner-approved):
 
-* A1 (non-degeneracy): a scripted multi-message feed at closing_tendency
-  0.5 yields >= 3 distinct turn counts and mean turns > 2 (analytic: the
-  draw at each eligible companion turn gives lengths 4/6/8/10/12 with
-  geometric weights).
-* A2 (closing_tendency share): under closing_tendency 0.9, >= 80% of
-  closures are close_reason == "closing_tendency" (analytic: p=0.9 per
-  eligible draw; max_turns needs ~10 consecutive misses, P ~ 1e-10;
-  user_left/quiet_hours cannot fire inside the awake-window feed).
-* A3 (A/B): same seed, closing_tendency 0.1 vs 0.9 — mean turns differ by
-  >= 4.0 (analytic: E[turns|0.1] ~ 10.2, dominated by the 12-turn cap, vs
-  E[turns|0.9] ~ 4.2).
+* A1 (_rebaseline, draw-OFF): a forced closing_tendency cannot close ANY
+  conversation inside an awake window — one bounded feed yields exactly
+  one open conversation whose turn count is exactly 2x the fed messages,
+  well past the legacy 12-turn cap.
+* A2 (_rebaseline, draw-OFF): even at a FORCED closing_tendency of 0.9
+  the ``closing_tendency`` closure share is exactly 0.0 — the only closure
+  an awake-window→boundary feed can produce is quiet_hours at 23:00.
+* A3 (_rebaseline, draw-OFF): same seed, closing_tendency 0.1 vs 0.9 —
+  with the draw flagged off the threshold is inert and both arms record
+  IDENTICAL close patterns (a divergence would mean the gate regressed).
 * A5 (quiet hours): a conversation open at 22:50 closes with
   close_reason == "quiet_hours" at the 23:00 boundary (closed_t_h <= 23.0)
   and no companion turn fires at t_h >= 23.0.
 
-Draw discipline under test: closing_tendency is drawn at each companion
-turn EXCEPT the first companion turn of a conversation (the companion
-always completes at least one exchange before any taper decision), from
-``stream_rng(seed, CONVERSATION_STREAM, conv_seq, turn_index)`` (stream 6,
-keyed by the conversation's sequence number AND the turn's 0-based index —
-deterministic, resume-safe, and per-conversation). The A/B arms share the
-seed and the conversation sequence numbers, so they draw IDENTICAL
-sequences and differ only in the threshold.
+Boundary-close discipline still under test: ``check_conversation_lifecycle``
+closes on exactly one of quiet_hours / wind-down expiry / user_left (the
+latter at ``USER_LEFT_THRESHOLD_H`` of user silence, measured from the last
+user turn), checked before every turn and at every runtime wake; the
+runtime parks the rollover AT the deadline instant. Under draw-OFF the only
+mid-conversation close levers are the silence backstop and the quiet-hours
+boundary — a conversation otherwise runs unbounded.
 """
 
 import asyncio
@@ -46,7 +46,7 @@ from harness.domain import GenerationControls, ProactiveIntent
 from harness.judge import ScriptedJudge
 from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import ProactiveSchedule
-from harness.session import MAX_TURNS, Session
+from harness.session import MAX_TURNS, Session, USER_LEFT_THRESHOLD_H
 from harness.store import SCHEMA_VERSION, SQLiteStore
 
 PERSONA = PersonaParams()
@@ -84,22 +84,20 @@ def _forced_controls(monkeypatch, closing_tendency: float) -> None:
     monkeypatch.setattr("harness.session.controls_from_directive", forced)
 
 
-def _scripted_feed(session, clock, n_closed, *, gap_h=0.05, start_h=8.1667):
-    """Send a user message every ``gap_h`` virtual hours until
-    ``n_closed`` conversations have closed. Returns ``(turn_counts,
-    close_reasons)``. PREREGISTERED constraint: the feed must never cross
-    into quiet hours (a quiet_hours close would contaminate the close-
-    reason share), so the caller's closing_tendency must keep the feed
-    inside the 08:10-22:50 awake window."""
+def _scripted_feed(session, clock, n_messages, *, gap_h=0.05, start_h=8.1667):
+    """Send exactly ``n_messages`` user messages every ``gap_h`` virtual
+    hours from ``start_h`` (day 0). Draw-OFF feed helper: closures are
+    BOUNDARY-driven now (quiet_hours / user_left), so the caller bounds
+    the feed explicitly instead of waiting for N conversations to close.
+    Returns ``(turn_counts, close_reasons)`` for the conversations closed
+    SO FAR (the last conversation is typically still open)."""
     clock.advance_to_day(0)
     clock.advance_hours(start_h)
     counts: list[int] = []
     reasons: list[str] = []
-    guard = 0
-    while len(reasons) < n_closed and guard < 4000:
-        guard += 1
+    for i in range(n_messages):
         clock.advance_hours(gap_h)
-        session.on_message(f"scripted message {guard}")
+        session.on_message(f"scripted message {i}")
         closed = [
             c for c in session.store.list_conversations()
             if c.close_reason is not None
@@ -107,7 +105,6 @@ def _scripted_feed(session, clock, n_closed, *, gap_h=0.05, start_h=8.1667):
         while len(reasons) < len(closed):
             counts.append(len(closed[len(reasons)].turns))
             reasons.append(closed[len(reasons)].close_reason)
-    assert clock.local_hour() < 23.0, "feed crossed into quiet hours"
     return counts, reasons
 
 
@@ -288,78 +285,104 @@ def test_conversation_continues_while_user_replies(tmp_path, monkeypatch):
 
 
 def test_turn_counts_non_degenerate_distribution(tmp_path, monkeypatch):
-    """A1: turn-count-per-conversation is a NON-DEGENERATE distribution
-    under a scripted multi-message feed (preregistered: >= 3 distinct turn
-    counts, mean turns > 2)."""
+    """A1 (_rebaseline to draw-OFF reality, owner-approved 2026-08): with
+    CLOSING_TENDENCY_ENABLED=False the per-turn taper draw never fires — a
+    forced closing_tendency of 0.5 cannot close ANY conversation inside an
+    awake window. One bounded feed yields exactly ONE open conversation
+    whose turn count is exactly 2x the fed messages (deterministic given
+    the seed) and well past the legacy 12-turn cap (MAX_TURNS is None)."""
     _forced_controls(monkeypatch, closing_tendency=0.5)
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock()
     session = _session(store, clock)
-    counts, reasons = _scripted_feed(session, clock, n_closed=25)
-    assert len(counts) == 25
-    assert len(set(counts)) >= 3, f"degenerate turn counts: {counts}"
-    mean = sum(counts) / len(counts)
-    assert mean > 2.0, f"degenerate mean turns: {mean}"
-    assert all(c <= MAX_TURNS for c in counts)
-    assert set(reasons) <= {"closing_tendency", "max_turns"}
+    counts, reasons = _scripted_feed(session, clock, n_messages=40)
+    convs = store.list_conversations()
+    assert len(convs) == 1, f"draw-OFF feed must not split conversations: {convs}"
+    assert reasons == [] and counts == [], (
+        f"no closure can fire inside the awake window: {reasons}"
+    )
+    assert convs[0].close_reason is None
+    assert len(convs[0].turns) == 80  # exact: 2 turns per fed message
+    assert len(convs[0].turns) > 12   # legacy MAX_TURNS cap no longer applies
+    assert MAX_TURNS is None          # the cap tunable itself is OFF
     store.close()
 
 
 def test_closing_tendency_share_under_high_tendency(tmp_path, monkeypatch):
-    """A2: under closing_tendency 0.9, a PREREGISTERED >= 80% of closures
-    are close_reason == "closing_tendency" (analytic: p=0.9 per eligible
-    draw; user_left/quiet_hours cannot fire in the awake-window feed)."""
+    """A2 (_rebaseline to draw-OFF reality, owner-approved 2026-08): even
+    at a FORCED closing_tendency of 0.9 the flagged-off draw produces zero
+    ``closing_tendency`` closures — the share is exactly 0.0 and the only
+    closure a feed crossing one 23:00 boundary can produce is the
+    quiet_hours close, registered just past the boundary. Sentinel: flip
+    this pin when the draw is re-enabled."""
     _forced_controls(monkeypatch, closing_tendency=0.9)
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock()
     session = _session(store, clock)
-    counts, reasons = _scripted_feed(session, clock, n_closed=40)
+    counts, reasons = _scripted_feed(session, clock, n_messages=300)
+    closed = [c for c in store.list_conversations() if c.close_reason is not None]
+    assert closed, "a feed crossing one midnight must produce the quiet_hours close"
     share = sum(1 for r in reasons if r == "closing_tendency") / len(reasons)
-    assert share >= 0.80, f"closing_tendency share {share:.2f} < 0.80: {reasons}"
-    assert (sum(counts) / len(counts)) < 8.0  # high tendency => short convs
+    assert share == 0.0, f"closing_tendency fired while flagged OFF: {reasons}"
+    assert reasons == ["quiet_hours"] and counts == [592]
+    assert closed[0].closed_t_h is not None and closed[0].closed_t_h > 23.0
     store.close()
 
 
 def test_closing_tendency_ab_high_vs_low(tmp_path, monkeypatch):
-    """A3: SAME seed, closing_tendency 0.1 vs 0.9 — mean turns per
-    conversation differ by a PREREGISTERED margin >= 4.0 (analytic:
-    E[turns|0.1] ~ 10.2 vs E[turns|0.9] ~ 4.2; the arms draw identical
-    sequences because the draws are keyed by turn index only)."""
-    arms: dict[float, float] = {}
+    """A3 (_rebaseline to draw-OFF reality, owner-approved 2026-08): SAME
+    seed, closing_tendency 0.1 vs 0.9 — with the draw flagged OFF the
+    threshold cannot influence behavior: both arms record IDENTICAL close
+    patterns over the same bounded feed (ids, reasons, turn counts and
+    close instants all equal). A divergence would mean the flag gate
+    regressed; sentinel for re-enabling the draw."""
+    patterns: dict[float, list] = {}
     for ct in (0.1, 0.9):
         _forced_controls(monkeypatch, ct)
         store = SQLiteStore(tmp_path / f"ab-{ct}.db")
         clock = VirtualClock()
         session = _session(store, clock)
-        counts, _reasons = _scripted_feed(session, clock, n_closed=20)
-        arms[ct] = sum(counts) / len(counts)
+        _scripted_feed(session, clock, n_messages=300)
+        patterns[ct] = [
+            (c.id, c.close_reason, c.closed_t_h, len(c.turns))
+            for c in store.list_conversations()
+        ]
         store.close()
-    diff = arms[0.1] - arms[0.9]
-    assert diff >= 4.0, (
-        f"mean turns differ by {diff:.2f} (< 4.0): low={arms[0.1]:.2f} "
-        f"high={arms[0.9]:.2f}"
+    assert patterns[0.1] == patterns[0.9], (
+        "forced closing_tendency influenced behavior while the draw is "
+        f"flagged OFF: {patterns}"
     )
-    assert arms[0.9] < arms[0.1]
+    closed = [
+        (cid, reason) for cid, reason, _, _ in patterns[0.1]
+        if reason is not None
+    ]
+    assert closed == [("conv-0", "quiet_hours")]
 
 
 def test_max_turns_cap_closes_conversation(tmp_path, monkeypatch):
-    """max_turns: with closing_tendency 0.0 (no draws ever hit) the
-    conversation runs exactly to MAX_TURNS and closes with max_turns; the
-    next message opens a fresh conversation."""
+    """max_turns (_rebaseline to tunables reality, owner-approved 2026-08):
+    the hard turn cap is OFF (``tunables.MAX_TURNS is None``) and the
+    closing draw is OFF, so NOTHING closes the conversation at the legacy
+    12-turn mark — it keeps accepting exchanges as the SAME open
+    conversation."""
     _forced_controls(monkeypatch, closing_tendency=0.0)
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=19.0)
     session = _session(store, clock)
-    for i in range(MAX_TURNS // 2):
+    assert MAX_TURNS is None  # the cap tunable itself is OFF
+    for i in range(8):  # 8 exchanges = 16 turns > legacy cap of 12
         clock.advance_hours(0.05)
         session.on_message(f"m{i}")
     conv = store.load_conversation("conv-0")
     assert conv is not None
-    assert conv.close_reason == "max_turns"
-    assert len(conv.turns) == MAX_TURNS
+    assert conv.close_reason is None          # no max_turns close ...
+    assert len(conv.turns) == 16              # ... even past the legacy cap
     clock.advance_hours(0.05)
-    session.on_message("m6")
-    assert store.load_open_conversation().id == "conv-1"
+    result = session.on_message("m8")
+    assert store.load_open_conversation().id == "conv-0"  # SAME conversation
+    conv_after = store.load_conversation("conv-0")
+    assert conv_after is not None and len(conv_after.turns) == 18
+    assert result.reply  # the exchange still completed normally
     store.close()
 
 
@@ -388,12 +411,14 @@ def test_user_left_closes_on_next_turn_session(tmp_path):
 
 def test_user_left_close_at_deadline_runtime(tmp_path):
     """user_left (runtime path): the rollover parks at the silence deadline
-    (last user turn 10:00 + 12 h = 22:00) and records the close there —
-    not lazily at the next turn."""
+    (last user turn 10:00 + USER_LEFT_THRESHOLD_H) and records the close
+    there — not lazily at the next turn. The threshold is read from
+    harness.tunables (6 h since commit 365ad33), never hard-coded."""
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock()
     session = _session(store, clock)
     channel = FakeChannel()
+    deadline = 10.0 + USER_LEFT_THRESHOLD_H
 
     async def driver():
         feed = asyncio.create_task(channel.feed("morning", t_h=10.0))
@@ -401,7 +426,7 @@ def test_user_left_close_at_deadline_runtime(tmp_path):
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
                 store=store, timing=TIMING, seed=SEED,
-                time_scale=FAST, max_virtual_hours=22.5,
+                time_scale=FAST, max_virtual_hours=deadline + 0.5,
             ).run()
         finally:
             if not feed.done():
@@ -410,7 +435,8 @@ def test_user_left_close_at_deadline_runtime(tmp_path):
     asyncio.run(driver())
     conv = store.load_conversation("conv-0")
     assert conv is not None and conv.close_reason == "user_left"
-    assert abs(conv.closed_t_h - 22.0) < 1e-9
+    assert conv.closed_t_h is not None
+    assert abs(conv.closed_t_h - deadline) < 1e-9
     store.close()
 
 
@@ -522,24 +548,35 @@ def test_resume_mid_conversation_no_rewind(tmp_path, monkeypatch):
 
 def test_resume_closed_conversation_stays_closed(tmp_path, monkeypatch):
     """A closed conversation stays closed across a restart: the resumed
-    session opens a NEW conversation instead of reopening the closed one."""
+    session attaches to the successor conversation instead of reopening
+    the closed one. (_rebaseline to draw-OFF reality, owner-approved
+    2026-08: conv-0 is closed by the user_left silence backstop — the
+    forced closing_tendency=1.0 must NOT close anything while the draw is
+    flagged OFF, which this test also pins.)"""
     _forced_controls(monkeypatch, closing_tendency=1.0)
     path = tmp_path / "s.db"
     store = SQLiteStore(path)
-    clock = VirtualClock(t_h=19.0)
+    clock = VirtualClock(t_h=10.0)
     session = _session(store, clock)
-    session.on_message("one")
-    session.on_message("two")  # closing_tendency=1.0 closes conv-0
-    assert store.load_conversation("conv-0").close_reason == "closing_tendency"
+    session.on_message("one")     # conv-0 opens at 10:00
+    clock.advance_hours(0.1)
+    session.on_message("two")     # 10.1 — still open (draw flagged OFF)
+    c0 = store.load_conversation("conv-0")
+    assert c0 is not None and c0.close_reason is None
+    clock.advance_hours(USER_LEFT_THRESHOLD_H + 0.1)   # 16.2 > deadline 16.1
+    session.on_message("three")   # silence backstop closes conv-0; conv-1 opens
+    c0 = store.load_conversation("conv-0")
+    assert c0 is not None and c0.close_reason == "user_left"
     store.close()
 
     store2 = SQLiteStore(path)
-    clock2 = VirtualClock(t_h=19.5)
+    clock2 = VirtualClock(t_h=16.4)
     session2 = _session(store2, clock2)
-    assert session2.open_conversation_id() is None  # nothing to reopen
-    session2.on_message("three")
+    assert session2.open_conversation_id() == "conv-1"  # successor, no reopen
+    session2.on_message("four")
     assert store2.load_open_conversation().id == "conv-1"
-    assert store2.load_conversation("conv-0").close_reason == "closing_tendency"
+    c0_after = store2.load_conversation("conv-0")
+    assert c0_after is not None and c0_after.close_reason == "user_left"
     store2.close()
 
 
@@ -550,28 +587,39 @@ def test_resume_closed_conversation_stays_closed(tmp_path, monkeypatch):
 
 def test_one_memory_session_per_conversation(tmp_path, monkeypatch):
     """Two conversations get two DISTINCT memory sessions (day-1000,
-    day-1001); each closes its own L2/L3/L4 tail at its own boundary."""
+    day-1001); each closes its own L2/L3/L4 tail at its own boundary.
+    (_rebaseline to draw-OFF reality, owner-approved 2026-08: the
+    conversations are closed by the user_left silence backstop instead of
+    a closing_tendency draw; the still-open successor holds an eager L1
+    row but NO closed tail.)"""
     _forced_controls(monkeypatch, closing_tendency=1.0)
     store = SQLiteStore(tmp_path / "s.db")
-    clock = VirtualClock(t_h=19.0)
+    clock = VirtualClock(t_h=10.0)
     session = _session(store, clock)
-    session.on_message("first")
-    session.on_message("second")   # closes conv-0 (draw at 2nd exchange)
-    session.on_message("third")
-    session.on_message("fourth")   # closes conv-1
+    session.on_message("first")    # conv-0 opens at 10:00
+    clock.advance_hours(USER_LEFT_THRESHOLD_H + 0.1)   # 16.1 > deadline 16.0
+    session.on_message("second")   # silence closes conv-0; conv-1 opens
+    clock.advance_hours(USER_LEFT_THRESHOLD_H + 0.1)   # 22.2 > deadline 22.1
+    session.on_message("third")    # silence closes conv-1; conv-2 opens
     sessions = [
         r["session_id"]
         for r in store.conn.execute(
             "SELECT session_id FROM memory_sessions ORDER BY session_id"
         )
     ]
-    assert sessions == ["day-1000", "day-1001"]
+    # one eager L1 row per conversation (incl. the still-open successor)
+    assert sessions == ["day-1000", "day-1001", "day-1002"]
     s0 = store.load_session_summary("day-1000")
     s1 = store.load_session_summary("day-1001")
-    assert s0 is not None and s0.source_turn_ids
-    assert s1 is not None and s1.source_turn_ids
+    assert s0 is not None and s0.source_turn_ids  # L2/L3/L4 tails ran ...
+    assert s1 is not None and s1.source_turn_ids  # ... at their own boundary
+    assert store.load_session_summary("day-1002") is None  # open conv: no tail
     convs = {m["conversation_id"] for m in store.messages_for_day(0)}
-    assert convs == {"conv-0", "conv-1"}
+    assert convs == {"conv-0", "conv-1", "conv-2"}
+    reasons = {c.id: c.close_reason for c in store.list_conversations()}
+    assert reasons == {
+        "conv-0": "user_left", "conv-1": "user_left", "conv-2": None,
+    }
     store.close()
 
 
@@ -579,13 +627,15 @@ def test_crash_between_close_and_memory_tail_recovers(tmp_path, monkeypatch):
     """it3 B2 equivalent of the A1 Case-40 crash window: process death
     between close_conversation (persisted) and the conversation memory
     tail. On resume the tail is completed at conversation granularity —
-    L2/L3/L4 match a clean run byte-for-byte."""
+    L2/L3/L4 match a clean run byte-for-byte. (_rebaseline to draw-OFF
+    reality, owner-approved 2026-08: the close is triggered by the
+    user_left silence backstop instead of a closing_tendency draw.)"""
     _forced_controls(monkeypatch, closing_tendency=1.0)
     path = tmp_path / "s.db"
 
     def crashed_run():
         store = SQLiteStore(path)
-        clock = VirtualClock(t_h=19.0)
+        clock = VirtualClock(t_h=10.0)
         session = _session(store, clock)
 
         def boom(conv):
@@ -594,28 +644,21 @@ def test_crash_between_close_and_memory_tail_recovers(tmp_path, monkeypatch):
             )
 
         session._close_conversation_memory = boom
-        session.on_message("I have a cat named Luna")
+        session.on_message("I have a cat named Luna")       # conv-0 at 10:00
+        clock.advance_hours(USER_LEFT_THRESHOLD_H + 0.1)    # past the deadline
         try:
-            session.on_message("thanks")  # draw closes; memory tail crashes
+            session.on_message("thanks")  # silence closes; memory tail crashes
         except RuntimeError:
             pass
-        assert store.load_conversation("conv-0").close_reason == "closing_tendency"
+        c0 = store.load_conversation("conv-0")
+        assert c0 is not None and c0.close_reason == "user_left"
         assert store.load_session_summary("day-1000") is None  # tail never ran
-        store.close()
-
-    def control_run():
-        store = SQLiteStore(path)
-        clock = VirtualClock(t_h=19.0)
-        session = _session(store, clock)
-        session.on_message("I have a cat named Luna")
-        session.on_message("thanks")
-        assert store.load_session_summary("day-1000") is not None
         store.close()
 
     crashed_run()
     # resume: the day finalize completes the missing conversation tail
     store2 = SQLiteStore(path)
-    clock2 = VirtualClock(t_h=19.5)
+    clock2 = VirtualClock(t_h=16.3)
     session2 = _session(store2, clock2)
     clock2.advance_to_day(1)
     session2.ensure_day(1)
@@ -623,11 +666,12 @@ def test_crash_between_close_and_memory_tail_recovers(tmp_path, monkeypatch):
     assert summary is not None, "conversation memory tail lost after crash"
     assert any("Luna" in e.summary for e in store2.list_episodes())
     assert store2.get_assertion("user:cat") is not None
-    # byte-identical to a clean run (same seed, same turns)
+    # byte-identical to a clean run (same seed, same turns, same timeline)
     store3 = SQLiteStore(tmp_path / "control.db")
-    clock3 = VirtualClock(t_h=19.0)
+    clock3 = VirtualClock(t_h=10.0)
     session3 = _session(store3, clock3)
     session3.on_message("I have a cat named Luna")
+    clock3.advance_hours(USER_LEFT_THRESHOLD_H + 0.1)
     session3.on_message("thanks")
     clock3.advance_to_day(1)
     session3.ensure_day(1)

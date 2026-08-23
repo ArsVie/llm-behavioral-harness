@@ -1,43 +1,48 @@
-"""W-close: FLAG-OFF BYTE-PARITY (merge blocker) + flag-on turn-count
-re-baseline (B3-style).
+"""W-close: FLAG-OFF BYTE-PARITY (merge blocker) + flag-on vestigial pin.
 
 BYTE PARITY (merge blocker)
 ---------------------------
-Two-phase close must be STRICTLY OFF by default: the closing draw (stream
-6, keys ``(conv_seq, turn_index)``) and every artifact it produces are
-byte-identical to the pre-W-close behavior. The pin below is a sha256 over
-the canonical persisted trace (conversations + turns + messages +
-state_events) of a seeded scripted feed with the flag off. It was generated
-from the CURRENT implementation at commit 79c9b30 + W-close (2026-08-15)
-and is frozen HERE — any change to the flag-off path (draw keying, RNG
-consumption order, close timing, event strings, message flow) breaks it.
-Regenerating the pin is an orchestrator decision, never a silent test edit.
+The closing draw is FEATURE-FLAGGED OFF (harness/tunables.py:
+CLOSING_TENDENCY_ENABLED=False, MAX_TURNS=None, since commit 365ad33), and
+the flag-off path itself changed shape with it: no per-turn taper draw
+fires, no turn cap exists, and the ONLY closures are the boundary closes
+(``quiet_hours`` at 23:00, ``user_left`` at ``USER_LEFT_THRESHOLD_H`` of
+user silence). The pin below is a sha256 over the canonical persisted
+trace (conversations + turns + messages + state_events) of a seeded,
+bounded scripted feed with two_phase_close OFF. It was REGENERATED from
+the current implementation after commit 365ad33 — an OWNER-APPROVED
+_rebaseline to the draw-OFF reality (2026-08) — and is frozen HERE: any
+change to the flag-off path (close timing, event strings, message flow,
+RNG consumption) breaks it. Regenerating the pin stays an orchestrator
+decision, never a silent test edit.
 
 The test also recomputes the expected close pattern INDEPENDENTLY from the
-draw discipline (``stream_rng(seed, CONVERSATION_STREAM, seq, idx)`` at
-each eligible companion turn) and asserts the recorded pattern matches, so
-a changed draw key or consumption order fails even before the hash check.
+boundary discipline (the first fed message whose local hour reaches the
+quiet-hours start closes the open conversation with ``quiet_hours`` just
+past the boundary) and asserts the recorded pattern matches, so a changed
+close timing or reason fails even before the hash check.
 
-RE-BASELINE (flag on, B3-style)
--------------------------------
-With the flag ON the same seed/feed re-baselines: a fired draw now starts
-the wind-down instead of closing, so a ``closing_tendency`` conversation
-closes exactly TWO turns later (the user's reply + the companion's goodbye
-turn — the draw keys are unchanged, so the draws themselves are identical
-across arms). B3's mean-turns >= 4 bound holds in BOTH arms (the shift is
-strictly upward; ``max_turns`` conversations are capped at 12 in both).
+FLAG-ON VESTIGIAL PIN (_rebaseline)
+-----------------------------------
+With the draw flagged OFF the wind-down machinery is UNREACHABLE: the
+flag-on arm must be byte-identical to the flag-off arm, and NEITHER arm
+may produce wind-down artifacts. Sentinel: any ``wind_down_started`` event
+while the draw is flagged off means the gating regressed. When the draw is
+re-enabled, re-base this test back to the B3-style contract (a fired draw
+closes exactly TWO turns later under two-phase close; draws identical
+across arms because the keys are unchanged).
 """
 
 import hashlib
 
-from engine.rng import stream_rng
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.client import FakeClient
 from harness.clock import VirtualClock
 from harness.domain import GenerationControls
 from harness.judge import ScriptedJudge
-from harness.session import CONVERSATION_STREAM, MAX_TURNS, Session
+from harness.session import Session
 from harness.store import SQLiteStore
+from harness.tunables import CLOSING_TENDENCY_ENABLED
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -45,15 +50,18 @@ VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
 
 #: Frozen byte-parity pin: sha256 of the canonical trace of the seeded
-#: feed below with two_phase_close OFF. Generated 2026-08-15 from commit
-#: 79c9b30 + W-close; see module docstring (MERGE BLOCKER).
-PARITY_PIN = "c6903a927d039bab3a769fa11806945a0e2d8c1f24aefc8a2f619b998525d947"
+#: feed below with two_phase_close OFF. REGENERATED 2026-08 (owner-approved
+#: _rebaseline) from the post-365ad33 draw-OFF implementation; see module
+#: docstring (MERGE BLOCKER).
+PARITY_PIN = "be27e97cc366ae6307e63f8b828bf775e905eb21014a6ddd92f7bb61ff87f78e"
 
-#: Feed parameters (identical across arms).
+#: Feed parameters (identical across arms). The feed crosses EXACTLY ONE
+#: quiet-hours boundary: messages land at START_H + m*GAP_H, so message
+#: m=297 is the first at/after 23:00 local.
 START_H = 8.1667
 GAP_H = 0.05
-N_CLOSED = 8
-THRESHOLD = 0.5
+N_MESSAGES = 300
+THRESHOLD = 0.5  # forced closing_tendency — inert while the draw is OFF
 
 
 def _forced_controls(directive):
@@ -64,9 +72,12 @@ def _forced_controls(directive):
 
 
 def _run_feed(tmp_path, *, two_phase: bool) -> tuple[SQLiteStore, list]:
-    """Scripted feed: a user message every ``GAP_H`` virtual hours until
-    ``N_CLOSED`` conversations have closed. Returns the store and the
-    ``(id, close_reason, turn_count)`` close pattern."""
+    """Bounded scripted feed: exactly ``N_MESSAGES`` user messages every
+    ``GAP_H`` virtual hours from ``START_H`` on day 0 (draw-OFF helper —
+    closures are boundary-driven, so the feed is bounded by message count,
+    not by waiting for N closes). Returns the store and the
+    ``(id, close_reason, turn_count)`` pattern of conversations closed SO
+    FAR (the successor conversation stays open)."""
     tmp_path.mkdir(parents=True, exist_ok=True)
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock()
@@ -84,14 +95,11 @@ def _run_feed(tmp_path, *, two_phase: bool) -> tuple[SQLiteStore, list]:
     )
     clock.advance_to_day(0)
     clock.advance_hours(START_H)
-    guard = 0
-    while len([c for c in store.list_conversations() if c.close_reason is not None]) < N_CLOSED and guard < 4000:
-        guard += 1
+    for i in range(N_MESSAGES):
         clock.advance_hours(GAP_H)
-        session.on_message(f"scripted message {guard}")
+        session.on_message(f"scripted message {i}")
     closed = [c for c in store.list_conversations() if c.close_reason is not None]
-    assert clock.local_hour() < 23.0, "feed crossed into quiet hours"
-    pattern = [(c.id, c.close_reason, len(c.turns)) for c in closed[:N_CLOSED]]
+    pattern = [(c.id, c.close_reason, len(c.turns)) for c in closed]
     return store, pattern
 
 
@@ -118,21 +126,30 @@ def _canonical_trace(store: SQLiteStore) -> str:
     return hashlib.sha256(repr((convs, msgs, events)).encode()).hexdigest()
 
 
-def _expected_close_turn(conv_seq: int, turn_count: int) -> int | None:
-    """Independently recompute the draw discipline: walk companion turns
-    from index 3 (first eligible) and return the turn INDEX at which the
-    draw fires (None = no draw fired before MAX_TURNS)."""
-    for idx in range(3, MAX_TURNS, 2):
-        if stream_rng(SEED, CONVERSATION_STREAM, conv_seq, idx).uniform() < THRESHOLD:
-            return idx
-    return None
+def _expected_boundary_close() -> tuple[int, float]:
+    """Independently recompute the draw-OFF close discipline: the first fed
+    message whose local hour reaches the quiet-hours start closes the open
+    conversation with reason ``quiet_hours``, recorded AT that message's
+    t_h (lazy close-before-turn ordering). Returns ``(message_index_1based,
+    expected_closed_t_h)``."""
+    quiet_start = TIMING.quiet_hours[0]
+    m = next(
+        m for m in range(1, N_MESSAGES + 1)
+        if (START_H + m * GAP_H) % 24.0 >= quiet_start
+    )
+    return m, START_H + m * GAP_H
 
 
 def test_flag_off_byte_parity_is_pinned(tmp_path, monkeypatch):
-    """MERGE BLOCKER. Flag off: (a) two fresh runs are byte-identical,
-    (b) the frozen pin matches, (c) the recorded close pattern matches the
-    independently recomputed draw discipline, (d) zero wind-down artifacts
-    reach the store or the prompts."""
+    """MERGE BLOCKER (_rebaseline to draw-OFF reality, owner-approved
+    2026-08). Flag off: (a) two fresh runs are byte-identical, (b) the
+    frozen pin matches, (c) the recorded close pattern matches the
+    independently recomputed boundary discipline, (d) zero wind-down
+    artifacts reach the store."""
+    assert CLOSING_TENDENCY_ENABLED is False, (
+        "this battery encodes the DRAW-OFF reality; regenerate PARITY_PIN "
+        "and re-base the pins when the draw is re-enabled"
+    )
     monkeypatch.setattr("harness.session.controls_from_directive", _forced_controls)
 
     store_a, pattern_a = _run_feed(tmp_path / "a", two_phase=False)
@@ -147,15 +164,23 @@ def test_flag_off_byte_parity_is_pinned(tmp_path, monkeypatch):
     assert _canonical_trace(store_b) == trace_a, "flag-off runs are non-deterministic"
     assert pattern_a == pattern_b
 
-    # (c) draw discipline recomputed independently: same close turns
-    for (cid, reason, turns), conv_seq in zip(pattern_a, range(len(pattern_a))):
-        assert reason == "closing_tendency"
-        expected_idx = _expected_close_turn(conv_seq, turns)
-        assert expected_idx is not None
-        assert turns == expected_idx + 1, (
-            f"conversation {cid}: closed at {turns} turns but the draw at "
-            f"(seq={conv_seq}, idx={expected_idx}) is the first firing turn"
-        )
+    # (c) boundary close discipline recomputed independently: one close,
+    # quiet_hours, at the first message past 23:00, with every exchange
+    # BEFORE the boundary still inside the closed conversation
+    exp_m, exp_t = _expected_boundary_close()
+    assert len(pattern_a) == 1, f"exactly one boundary close expected: {pattern_a}"
+    cid, reason, turns = pattern_a[0]
+    assert (cid, reason) == ("conv-0", "quiet_hours")
+    assert turns == 2 * (exp_m - 1), (
+        f"conversation {cid}: closed at {turns} turns but the first message "
+        f"past the quiet boundary is #{exp_m} ({2 * (exp_m - 1)} turns)"
+    )
+    conv0 = store_a.load_conversation("conv-0")
+    assert conv0 is not None and conv0.closed_t_h is not None
+    assert abs(conv0.closed_t_h - exp_t) < 1e-9
+    successor = store_a.load_open_conversation()
+    assert successor is not None and successor.id == "conv-1"
+    assert successor.close_reason is None
 
     # (d) no wind-down artifacts anywhere
     kv_rows = store_a.conn.execute("SELECT COUNT(*) FROM kv_store").fetchone()[0]
@@ -171,48 +196,39 @@ def test_flag_off_byte_parity_is_pinned(tmp_path, monkeypatch):
 
 
 def test_flag_on_turn_count_rebaseline(tmp_path, monkeypatch):
-    """RE-BASELINE (B3-style, explicitly documented): same seed + feed with
-    the flag ON closes every ``closing_tendency`` conversation exactly TWO
-    turns later (user reply + goodbye turn) than the flag-off arm — the
-    draws are identical (keys unchanged); ``max_turns`` stays capped at 12.
-    B3's mean-turns >= 4 bound holds in both arms."""
+    """RE-BASELINE (draw-OFF reality, owner-approved 2026-08): with the
+    closing draw flagged OFF the wind-down machinery is UNREACHABLE —
+    two_phase_close is VESTIGIAL and the flag-on arm is byte-identical to
+    the flag-off arm over the same feed. Sentinel: any wind-down artifact
+    in either arm means the flag gate regressed. When the draw is
+    re-enabled, re-base this test back to the B3-style contract (flag-on
+    closes every drawn conversation exactly TWO turns later than flag-off;
+    mean-turns >= 4 bound in both arms)."""
     monkeypatch.setattr("harness.session.controls_from_directive", _forced_controls)
 
     off_store, off_pattern = _run_feed(tmp_path / "off", two_phase=False)
     on_store, on_pattern = _run_feed(tmp_path / "on", two_phase=True)
 
-    assert len(off_pattern) == len(on_pattern) == N_CLOSED
-    off_turns = [turns for _, _, turns in off_pattern]
-    on_turns = [turns for _, _, turns in on_pattern]
+    assert off_pattern == on_pattern, (
+        f"two-phase flag changed the recorded closes while the draw is OFF: "
+        f"{off_pattern} vs {on_pattern}"
+    )
+    assert _canonical_trace(off_store) == _canonical_trace(on_store), (
+        "two_phase_close diverged from the flag-off path while the draw is "
+        "flagged OFF (the wind-down branch must be unreachable)"
+    )
 
-    for (cid_off, reason_off, turns_off), (cid_on, reason_on, turns_on) in zip(
-        off_pattern, on_pattern
-    ):
-        assert cid_off == cid_on, "conversation ids must line up (same feed)"
-        assert reason_on in ("closing_tendency", "max_turns"), (
-            "flag-on close reasons stay inside the frozen taxonomy"
-        )
-        if reason_off == "closing_tendency":
-            # the wind-down adds exactly one full exchange (user reply +
-            # companion goodbye) before the deterministic close
-            assert reason_on == "closing_tendency"
-            assert turns_on == turns_off + 2, (
-                f"{cid_off}: flag-on closed at {turns_on} turns, expected "
-                f"{turns_off} + 2 (the flag-off draw turn {turns_off - 1} "
-                f"starts the wind-down instead)"
-            )
-        else:
-            assert turns_on == turns_off == MAX_TURNS
+    # sentinel: zero wind-down artifacts in EITHER arm while the draw is OFF
+    for store in (off_store, on_store):
+        events = [
+            r["event"]
+            for r in store.conn.execute("SELECT event FROM state_events")
+        ]
+        assert "wind_down_started" not in events
+        pend = store.conn.execute(
+            "SELECT COUNT(*) FROM conversations WHERE closing_pending_t_h IS NOT NULL"
+        ).fetchone()[0]
+        assert pend == 0
 
-    # B3 bound holds in BOTH arms (flag-on shifts strictly upward)
-    off_mean = sum(off_turns) / len(off_turns)
-    on_mean = sum(on_turns) / len(on_turns)
-    assert off_mean >= 4.0, f"flag-off mean turns {off_mean} < 4 (B3 violated)"
-    assert on_mean >= 4.0, f"flag-on mean turns {on_mean} < 4 (B3 violated)"
-    assert on_mean >= off_mean, "two-phase close must not shorten conversations"
-
-    # the flag-on arm used the wind-down machinery (sanity)
-    events = [r["event"] for r in on_store.conn.execute("SELECT event FROM state_events")]
-    assert "wind_down_started" in events
     off_store.close()
     on_store.close()
