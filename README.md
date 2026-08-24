@@ -15,6 +15,32 @@ and when conversation happens across the month. Data: real engine runs from
 `results/it3-backfill-2026-08-09`. Reproduce with
 `python -m experiments.month_showcase`.*
 
+## Live: a real two-week run
+
+![Two-week live run overview](results/live-two-weeks/figures/overview.png)
+
+*The same four panels from a REAL accelerated two-week run (seed 6001,
+`stealth/ox-alpha` via OpenRouter): sampled mood vs its 7-day expectation with
+cycle phases shaded (menstrual trough → follicular climb → ovulatory entry);
+proactive messages per day colored by phase; every fired decision hook placed
+at its fire hour against that day's mood; and the conversation clock.
+71 messages, 20 of them proactive; day 8 is pure-proactive — the scripted user
+went silent and the companion still reached out 3×.*
+
+<details>
+<summary>Week view & proactive pipeline</summary>
+
+![Two-week live run week view](results/live-two-weeks/figures/week-view.png)
+
+*Week 1 vs week 2 side-by-side message timing, plus the proactive pipeline per
+day: fired vs suppressed intents (~50% suppression — quiet-hours deferral and
+salience gating reject more than half of all hooks). Data:
+`results/live-two-weeks/companion.db`. Reproduce with
+`python -m experiments.live_two_weeks_figures`; full report in
+[`results/two-week-live-run-report.md`](results/two-week-live-run-report.md).*
+
+</details>
+
 <details>
 <summary>More views</summary>
 

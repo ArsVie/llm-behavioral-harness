@@ -119,7 +119,28 @@ decide-phase prose fallback ("if prose contains no verdict, treat as no-reply +
 requeue without logging a failure"), but that would weaken the audit trail by
 design intent — documented here instead of fixed.
 
-## 8. Verdict
+## 8. Figures
+
+Rendered from `results/live-two-weeks/companion.db` by
+`experiments/live_two_weeks_figures.py` (`figures-summary.json` carries the
+extracted numbers); both PNGs vision-QA'd against the DB tables.
+
+![Overview — two-week live run](live-two-weeks/figures/overview.png)
+
+**`figures/overview.png`** — four panels: sampled mood M vs the 7-day
+expectation curve with cycle phases shaded (menstrual trough → follicular
+climb → ovulatory entry, matching §3); proactive messages per day colored by
+phase (the pure-proactive day 8 stands out); every fired decision hook placed
+in time against that day's mood; and the conversation clock — messages per
+day × hour.
+
+![Week view](live-two-weeks/figures/week-view.png)
+
+**`figures/week-view.png`** — week 1 vs week 2 side-by-side message timing,
+plus the proactive pipeline per day: fired vs suppressed intents (the ~50%
+suppression rate from §2, visible as the gray band).
+
+## 9. Verdict
 
 Run is healthy end-to-end: real model, real proactivity, honest accounting,
 $0 spend. The one systemic observation (prose-first decide answers from
