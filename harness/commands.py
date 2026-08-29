@@ -62,18 +62,6 @@ from harness.channels.telegram import ControlCommand
 if TYPE_CHECKING:  # typing-only: the anchor is a pure value, never touched
     from harness.anchor import RealTimeAnchor
 
-#: Commands that are always routed (dispatch table keys).
-_COMMAND_NAMES = (
-    "help",
-    "ping",
-    "setup",
-    "tz",
-    "status",
-    "state",
-    "mute",
-    "version",
-)
-
 
 @dataclass
 class CommandContext:

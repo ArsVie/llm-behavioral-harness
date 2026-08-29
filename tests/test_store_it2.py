@@ -231,7 +231,9 @@ def test_log_llm_call_eval_mode_persists_repro(tmp_path):
 
 def test_schema_version_is_current(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
-    assert SCHEMA_VERSION == 8
+    # The contract is "one schema_meta row at the CURRENT SCHEMA_VERSION"
+    # — not a hardcoded literal, which would break on the next legit
+    # migration (the migration-chain tests own the version history).
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
     assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
     store.close()

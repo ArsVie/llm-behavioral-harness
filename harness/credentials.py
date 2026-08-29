@@ -117,9 +117,8 @@ def probe_lane(lane: str, *, timeout_s: float = 15.0, env: Mapping[str, str] | N
 
     from harness.client import DEFAULT_BASE_URL  # lazy: avoid import cycle
 
-    _, base_url = resolve_credentials(lane, env=env)
+    token, base_url = resolve_credentials(lane, env=env)
     base = (base_url or DEFAULT_BASE_URL).rstrip("/")
-    token, _ = resolve_credentials(lane, env=env)
     try:
         resp = httpx.get(
             f"{base}/models",

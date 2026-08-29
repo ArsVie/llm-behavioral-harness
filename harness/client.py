@@ -88,6 +88,12 @@ class Usage:
     Every field is optional: a gateway that reports no ``usage`` object —
     or no cache split — leaves the missing fields ``None`` and the totals
     are still captured when present. Never raises on malformed shapes.
+
+    ``reasoning_tokens`` is the provider-reported completion-side reasoning
+    spend (OpenAI ``completion_tokens_details.reasoning_tokens``; the
+    commandcode provider surfaces it there, 2026-08-28). It stays separate
+    from ``completion_tokens`` because pricing differs for reasoning output
+    on some providers; ``None`` when the gateway doesn't report it.
     """
 
     prompt_tokens: int | None = None
@@ -95,6 +101,7 @@ class Usage:
     total_tokens: int | None = None
     cached_tokens: int | None = None
     cache_miss_tokens: int | None = None
+    reasoning_tokens: int | None = None
 
 
 @dataclass
@@ -267,6 +274,12 @@ def _parse_usage(raw: object) -> Usage | None:
     total = _int_or_none(raw.get("total_tokens"))
     if total is None and prompt is not None and completion is not None:
         total = prompt + completion
+    # Reasoning spend (OpenAI completion_tokens_details.reasoning_tokens —
+    # commandcode surfaces it there; absent on most other providers).
+    reasoning: int | None = None
+    ctd = raw.get("completion_tokens_details")
+    if isinstance(ctd, dict):
+        reasoning = _int_or_none(ctd.get("reasoning_tokens"))
     # DeepSeek variant: explicit hit/miss split on the usage object.
     cached = _int_or_none(raw.get("prompt_cache_hit_tokens"))
     miss = _int_or_none(raw.get("prompt_cache_miss_tokens"))
@@ -296,7 +309,7 @@ def _parse_usage(raw: object) -> Usage | None:
         miss = prompt
     if (
         prompt is None and completion is None and total is None
-        and cached is None and miss is None
+        and cached is None and miss is None and reasoning is None
     ):
         return None
     return Usage(
@@ -305,6 +318,7 @@ def _parse_usage(raw: object) -> Usage | None:
         total_tokens=total,
         cached_tokens=cached,
         cache_miss_tokens=miss,
+        reasoning_tokens=reasoning,
     )
 
 

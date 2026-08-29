@@ -134,7 +134,7 @@ def run_g6(
             if not dry_run and not _family_route_ok(family):
                 raise RuntimeError(
                     "probe: model route dead (empty/whitespace completions — "
-                    "e.g. opencode-go deepseek-v4-flash, episode 2026-08-10)"
+                    "e.g. commandcode deepseek/deepseek-v4-flash, episode 2026-08-10)"
                 )
             for pass_id in range(1, passes + 1):
                 print(f"[g6] family={family['id']} pass={pass_id} "

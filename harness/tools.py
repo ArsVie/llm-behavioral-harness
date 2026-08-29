@@ -95,6 +95,7 @@ from harness.negotiation_contract import (
     DEFER_N_PATTERNS,
     DEFER_TURNS_KEY,
 )
+from harness.negotiation_state import map_defer_n
 
 # --------------------------------------------------------------------------- #
 # Tool schemas (Hermes-style {name, description, parameters})
@@ -629,33 +630,12 @@ def parse_native_reply(
 # Defer turns (G0 contract): the SERVER fills N, the model never emits it
 # --------------------------------------------------------------------------- #
 
-def map_defer_turns(reason: str) -> int:
-    """Map a defer reason phrase to a concrete N (deterministic).
-
-    Uses ``negotiation_contract.DEFER_N_PATTERNS`` with FIRST-match-wins
-    in the frozen row order, exactly like the runtime's re-arm arithmetic
-    (A1 ``negotiation_state.map_defer_n``), so the recorded ``defer_turns``
-    always equals the N the runtime re-arms with. Mapping table:
-
-    =========================================  =============================
-    Reason phrase                              N
-    =========================================  =============================
-    "just a sec" / "a moment" / "a minute"     1
-    "a bit longer"                             DEFAULT_DEFER_TURNS (2)
-    "a few more"                               3
-    "N more turns/messages/replies"            N, clamped to 1..4
-    anything else                              DEFAULT_DEFER_TURNS (2)
-    =========================================  =============================
-    """
-    text = (reason or "").strip()
-    for pattern, n in DEFER_N_PATTERNS:
-        m = re.search(pattern, text, re.IGNORECASE)
-        if m is None:
-            continue
-        if n == 0:  # explicit "N more turns/messages": extract + clamp
-            return min(max(int(m.group(1)), DEFER_N_MIN), DEFER_N_MAX)
-        return n
-    return DEFAULT_DEFER_TURNS
+#: Canonical implementation lives in negotiation_state.map_defer_n (the
+#: frozen A1 arithmetic); tools.py re-exports it so the pop-up/tool path
+#: and the runtime's re-arm path share ONE mapping and can never drift.
+#: (Historical note: map_defer_turns was a line-for-line copy that drifted;
+#: deleted 2026-08-28.)
+map_defer_turns = map_defer_n
 
 
 def fill_defer_turns(verdict: dict) -> dict:

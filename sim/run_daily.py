@@ -40,19 +40,7 @@ import yaml
 from engine import cycle, mood, rng as rng_mod
 from engine.types import MoodState, MoodVariant, PersonaParams, DayRecord, SimResult
 from sim.metrics import autocorr_lag1, mean_sd
-
-#: sd del ruido del score sintético (congelado en el plan de Fase 1).
-SCORE_NOISE_SD = 0.2
-
-
-def synthetic_score(
-    M: int, N: int, rng: np.random.Generator, override: float | None = None
-) -> float:
-    """Score sintético del día; con `override` devuelve ese valor clipped."""
-    if override is not None:
-        return float(np.clip(override, -1.0, 1.0))
-    raw = 2.0 * (M / N - 0.5) + rng.normal(0.0, SCORE_NOISE_SD)
-    return float(np.clip(raw, -1.0, 1.0))
+from harness.score import SCORE_NOISE_SD, synthetic_score  # noqa: F401  (canonical product-layer source; re-exported for backward compat)
 
 
 def run(

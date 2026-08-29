@@ -108,7 +108,7 @@ def build_it3_manifest(*, repo_root: Path | None = None) -> dict:
             "cells": len(MATRIX_CONDITIONS) * len(SEEDS),
             "checkpoints": list(DEFAULT_CHECKPOINT_DAYS),
             "perturbation": True,
-            "real_client": "deepseek-v4-flash via opencode-go (JUDGE_GENERATOR_TOKEN, research lane)",
+            "real_client": "deepseek-v4-flash via commandcode (JUDGE_GENERATOR_TOKEN, research lane)",
             "retry_policy": (
                 "client: 7 attempts x 2/4/8/16/32/64s backoff (G3 hardening); "
                 "cell-level retry 3x with 2/4/8 min backoff (cvs_matrix)"

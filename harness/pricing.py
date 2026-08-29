@@ -2,7 +2,7 @@
 
 Every rate below is a PENDING-USER placeholder: a sane order-of-magnitude
 guess (cached input is ~10x cheaper than fresh input), NOT a real price.
-The user must fill the actual \$/1M-token rates per model before the spend
+The user must fill the actual $/1M-token rates per model before the spend
 report's dollar figures are trustworthy, then flip ``PRICING_PENDING`` to
 ``False``. Until then the report prints a "PRICING PENDING" banner and
 labels the dollar columns as placeholder math.
@@ -70,12 +70,20 @@ DEFAULT_MODEL_PRICING: dict[str, float] = {
 _RATE_KEYS = ("input_per_mtok", "cached_input_per_mtok", "output_per_mtok")
 
 
-def price_for(model: str | None) -> dict[str, float] | None:
+def price_for(
+    model: str | None,
+    pricing: dict[str, dict[str, float]] | None = None,
+) -> dict[str, float] | None:
     """Rates for ``model``: the named entry, the fallback tier for an
     unknown-but-named model, or ``None`` when the model is absent/blank
-    (unpriced row — the report counts it but shows no dollars)."""
-    if model and model in MODELS:
-        return MODELS[model]
+    (unpriced row — the report counts it but shows no dollars).
+
+    ``pricing`` overrides the module-level ``MODELS`` table for this call
+    only (no global side effect); ``None`` uses the built-in rates.
+    """
+    table = pricing if pricing is not None else MODELS
+    if model and model in table:
+        return table[model]
     if model and model.strip():
         return dict(DEFAULT_MODEL_PRICING)
     return None

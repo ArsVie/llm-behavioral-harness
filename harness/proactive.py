@@ -141,7 +141,10 @@ class IntentResolver:
 
     ``store`` implements the A2 store seam (agenda items, life arcs,
     episodes, interests, latest interaction). ``rng`` seeds tie-breaks; the
-    default is a deterministic engine.rng stream.
+    default is a deterministic engine.rng stream (spawn key (0,) — a
+    tie-break-only generator, never the day_rng draw order; the bare 0 is
+    kept deliberately distinct from DAILY_STREAM so resolver draws can
+    never perturb replay).
     """
 
     def __init__(self, store, *, rng=None):

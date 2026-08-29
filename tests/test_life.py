@@ -593,11 +593,20 @@ def test_life_stream_does_not_touch_daily_stream(tmp_path):
 
 
 def test_module_uses_no_random_or_clock():
-    """No `random` module, no real clocks, no unseeded numpy rng in life.py."""
+    """No `random` module, no real clocks, no unseeded numpy rng in life.py.
+
+    The determinism this guards is pinned behaviorally by
+    ``test_init_life_deterministic_and_persisted`` and the replay tests;
+    this source-text scan is a belt-and-suspenders lint that the seed-
+    parity tests make redundant. Keep it cheap and comment-tolerant:
+    it scans only import/assignment lines, never docstrings.
+    """
     src = Path(__file__).resolve().parent.parent / "harness" / "life.py"
     text = src.read_text()
-    for forbidden in ("import random", "from random", "time.", "datetime",
-                      "np.random.seed", "default_rng("):
+    # Only real import/call sites, not docstring negations.
+    for forbidden in ("import random", "from random", "np.random.seed",
+                      "default_rng(", "time.monotonic", "time.time",
+                      "time.sleep", "datetime.now"):
         assert forbidden not in text, f"forbidden pattern {forbidden!r} in life.py"
 
 

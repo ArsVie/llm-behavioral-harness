@@ -111,22 +111,34 @@ class GroupStats:
         self.savings_usd += uncached - actual
 
 
-def aggregate(rows: Iterable[dict]) -> GroupStats:
-    """Grand-total stats over an iterable of llm_calls rows."""
+def aggregate(rows: Iterable[dict], pricing: dict[str, dict[str, float]] | None = None) -> GroupStats:
+    """Grand-total stats over an iterable of llm_calls rows.
+
+    ``pricing`` overrides the module-level ``MODELS`` table for this call
+    only (no global side effect); ``None`` uses the built-in rates.
+    """
     out = GroupStats()
     for row in rows:
-        out.add(row, price_for(row.get("model")))
+        out.add(row, price_for(row.get("model"), pricing))
     return out
 
 
-def aggregate_by(rows: Iterable[dict], key: Callable[[dict], str]) -> dict[str, GroupStats]:
-    """Stats grouped by ``key(row)``; groups appear in first-seen order."""
+def aggregate_by(
+    rows: Iterable[dict],
+    key: Callable[[dict], str],
+    pricing: dict[str, dict[str, float]] | None = None,
+) -> dict[str, GroupStats]:
+    """Stats grouped by ``key(row)``; groups appear in first-seen order.
+
+    ``pricing`` overrides the module-level ``MODELS`` table for this call
+    only (no global side effect); ``None`` uses the built-in rates.
+    """
     groups: dict[str, GroupStats] = {}
     for row in rows:
         k = key(row)
         if k not in groups:
             groups[k] = GroupStats()
-        groups[k].add(row, price_for(row.get("model")))
+        groups[k].add(row, price_for(row.get("model"), pricing))
     return groups
 
 
@@ -256,9 +268,10 @@ def main(argv: list[str] | None = None) -> int:
                          "{model: {input_per_mtok, cached_input_per_mtok, output_per_mtok}}")
     args = ap.parse_args(argv)
 
+    pricing_override: dict[str, dict[str, float]] | None = None
     if args.pricing_json:
         payload = json.loads(Path(args.pricing_json).read_text())
-        MODELS.update(rates_from_json(payload))
+        pricing_override = {**MODELS, **rates_from_json(payload)}
 
     store = SQLiteStore(args.db)
     try:
@@ -266,10 +279,10 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         store.close()
 
-    total = aggregate(rows)
-    by_lane = aggregate_by(rows, lambda r: r.get("lane") or "unknown")
-    by_model = aggregate_by(rows, lambda r: r.get("model") or "unknown")
-    by_day = aggregate_by(rows, lambda r: f"day {r['day']}")
+    total = aggregate(rows, pricing=pricing_override)
+    by_lane = aggregate_by(rows, lambda r: r.get("lane") or "unknown", pricing=pricing_override)
+    by_model = aggregate_by(rows, lambda r: r.get("model") or "unknown", pricing=pricing_override)
+    by_day = aggregate_by(rows, lambda r: f"day {r['day']}", pricing=pricing_override)
 
     window_desc = "all time"
     if args.days is not None:

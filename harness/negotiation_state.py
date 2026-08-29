@@ -56,8 +56,8 @@ from harness.negotiation_contract import (
 )
 
 #: Decision-id prefixes (deterministic replay: literal item id + delay index).
-INFORM_DECISION_PREFIX = "neg-{item_id}-inform"
-DECIDE_DECISION_PREFIX = "neg-{item_id}-decide-{index}"
+#: The literals are inlined at the call sites in session.py (decision id
+#: strings are part of the replay contract and must stay byte-stable).
 
 
 @dataclass

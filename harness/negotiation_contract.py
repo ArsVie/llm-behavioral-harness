@@ -85,11 +85,11 @@ SHORT_AFK_H = SHORT_AFK_MIN / 60.0
 #: Default N when the model says "a bit longer" (steerable; small).
 DEFAULT_DEFER_TURNS = 2
 
-#: The user-away threshold is defined ONCE in harness.tunables; imported here
-#: (not re-hardcoded) so this contract can never drift from it — the previous
-#: hardcoded 12.0 copy went stale when the value changed. Distinct from
-#: SHORT_AFK by design; never collapse the two.
-from harness.tunables import USER_LEFT_THRESHOLD_H as USER_LEFT_THRESHOLD_H_REF  # noqa: E402
+#: The user-away threshold is defined ONCE in harness.tunables; the contract
+#: must never re-hardcode it — the previous hardcoded 12.0 copy went stale
+#: when the value changed. Distinct from SHORT_AFK by design; never collapse
+#: the two (tunables is the single source; no import here by design — the
+#: values are read at the call sites).
 
 #: Converging pull schedule: per-delay weight added toward go (steerable;
 #: linear default). The server presents this as rising pressure in the
