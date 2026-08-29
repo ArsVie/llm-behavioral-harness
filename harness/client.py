@@ -475,6 +475,8 @@ class OpenAICompatibleClient:
             payload["reasoning_effort"] = reasoning_effort
         resp = self._post(payload)
         for attempt in range(self.max_retries + 1):
+            retry_reason: str | None = None
+            terminal: RuntimeError | None = None
             try:
                 data = resp.json()
                 choice = data["choices"][0]
@@ -492,8 +494,7 @@ class OpenAICompatibleClient:
                         "malformed LLM response (%s, attempt %d/%d) — retrying",
                         exc, attempt + 1, self.max_retries + 1,
                     )
-                    time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
-                    resp = self._post(payload)
+                    resp = self._retry_post(payload, attempt)
                     continue
                 raise RuntimeError(f"malformed LLM response: {exc}") from exc
             if content is None and not tool_calls and reasoning is None:
@@ -504,35 +505,32 @@ class OpenAICompatibleClient:
                 # tool_calls — the v4-flash quirk, WS-E) is ALSO legitimate
                 # and must NOT be retried: it round-trips as
                 # ChatResult(content="", reasoning=...).
-                if attempt < self.max_retries:
-                    _logger.warning(
-                        "LLM response had null content (attempt %d/%d) — retrying",
-                        attempt + 1, self.max_retries + 1,
-                    )
-                    time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
-                    resp = self._post(payload)
-                    continue
-                raise RuntimeError("LLM response had null content")
+                retry_reason = "null content"
+                terminal = RuntimeError("LLM response had null content")
             text = "" if content is None else str(content)
-            if not text.strip() and not tool_calls and reasoning is None:
+            if retry_reason is None and not text.strip() and not tool_calls and reasoning is None:
                 # 200-with-empty-body / empty completion: retry with the
                 # same bounded backoff as transport failures (it2 F1: blanks
                 # were persisted because empties were returned silently).
                 # A reasoning-only reply (content "" + reasoning populated)
                 # is exempt — the model DID answer, in the reasoning channel.
-                if attempt < self.max_retries:
-                    _logger.warning(
-                        "LLM returned empty content (attempt %d/%d) — retrying",
-                        attempt + 1,
-                        self.max_retries + 1,
-                    )
-                    time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
-                    resp = self._post(payload)
-                    continue
-                raise RuntimeError(
+                # A null content (content None) is already handled above and
+                # must NOT be re-classified as empty — the null branch wins.
+                retry_reason = "empty content"
+                terminal = RuntimeError(
                     f"LLM returned empty/whitespace-only content after "
                     f"{self.max_retries + 1} attempts"
                 )
+            if retry_reason is not None and terminal is not None:
+                if attempt < self.max_retries:
+                    _logger.warning(
+                        "LLM returned %s (attempt %d/%d) — retrying",
+                        retry_reason, attempt + 1, self.max_retries + 1,
+                    )
+                    resp = self._retry_post(payload, attempt)
+                    continue
+                raise terminal
+            assert terminal is None  # terminal set exactly when retry_reason is
             if finish_reason == "length":
                 # Truncation is NOT an empty reply: content is persisted, the
                 # truncation is recorded as a marker log line (it2 corpus ends
@@ -552,6 +550,12 @@ class OpenAICompatibleClient:
                 raw=data,
             )
         raise RuntimeError(f"LLM call failed after {self.max_retries + 1} attempts")
+
+    def _retry_post(self, payload: dict, attempt: int) -> httpx.Response:
+        """Backoff + repost for one retryable failure (shared by the
+        malformed/null/empty retry branches)."""
+        time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
+        return self._post(payload)
 
 
 class FakeClient:
