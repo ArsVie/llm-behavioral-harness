@@ -3,10 +3,10 @@
 The harness wraps ANY endpoint exposing /chat/completions; `base_url`,
 `api_key` and `model` come from the environment (no secrets in the repo):
 
-    LLM_BASE_URL  (default https://opencode.ai/zen/go/v1/)
+    LLM_BASE_URL  (default https://api.commandcode.ai/provider/v1)
     LLM_API_KEY   (required at runtime for live calls)
-    LLM_MODEL     (default deepseek-v4-flash)
-    JUDGE_MODEL   (default deepseek-v4-flash — judges may use a cheaper model)
+    LLM_MODEL     (default deepseek/deepseek-v4-flash)
+    JUDGE_MODEL   (default deepseek/deepseek-v4-flash — judges may use a cheaper model)
 
 Two-lane credential split (WS-C, 2026-08-16): pass `lane="product"` (the
 live companion actor — token LILY_TOKEN / optional LILY_BASE_URL) or
@@ -54,8 +54,8 @@ import httpx
 
 from harness.credentials import resolve_credentials
 
-DEFAULT_BASE_URL = "https://opencode.ai/zen/go/v1/"
-DEFAULT_MODEL = "deepseek-v4-flash"
+DEFAULT_BASE_URL = "https://api.commandcode.ai/provider/v1"
+DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 
 #: Bounded retry for transient failures (review fix #3) and for
 #: empty/whitespace-only completions (iteration-3 B1: generation integrity).

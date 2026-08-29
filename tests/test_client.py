@@ -467,7 +467,7 @@ def test_lane_product_resolves_token_and_stamp(monkeypatch):
     assert client.api_key == "lily-key"
     assert client.lane == "product"
     # Lane base URL: LILY_BASE_URL absent -> LLM_BASE_URL absent -> default.
-    assert client.base_url == "https://opencode.ai/zen/go/v1"
+    assert client.base_url == "https://api.commandcode.ai/provider/v1"
 
 
 def test_lane_research_resolves_token_and_stamp(monkeypatch):
@@ -520,7 +520,7 @@ def test_lane_base_url_precedence(monkeypatch):
     # Both absent -> current gateway default; explicit arg wins over all.
     monkeypatch.delenv("LLM_BASE_URL")
     client = OpenAICompatibleClient(lane="product", model="m")
-    assert client.base_url == "https://opencode.ai/zen/go/v1"
+    assert client.base_url == "https://api.commandcode.ai/provider/v1"
     client = OpenAICompatibleClient(lane="product", base_url="https://x.test", model="m")
     assert client.base_url == "https://x.test"
 

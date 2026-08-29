@@ -79,7 +79,7 @@ DECISION_STREAM = 9
 
 DEFAULT_OUT = Path("results/decision-probe-2026-08-14")
 
-MODEL = os.environ.get("LLM_MODEL", "deepseek-v4-flash")
+MODEL = os.environ.get("LLM_MODEL", "deepseek/deepseek-v4-flash")
 
 # --------------------------------------------------------------------------- #
 # State variants (the "state" dimension of {past turns, state, event})

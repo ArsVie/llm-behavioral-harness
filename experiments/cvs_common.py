@@ -55,7 +55,7 @@ from experiments.cvs_manifest import (
 # Constantes congeladas del runner (no cambiar tras ver resultados)
 # --------------------------------------------------------------------------- #
 
-MODEL = "deepseek-v4-flash"
+MODEL = "deepseek/deepseek-v4-flash"
 TIME_SCALE_S_PER_VH = 0.0004  # 30 días acelerados ~ <1s de sueño real
 #: Usuario del Gate 2 (plan §8): bootstrap limpio con intereses exactos.
 GATE2_USER_INTERESTS = ("mathematics", "lifting", "movies", "metal")
