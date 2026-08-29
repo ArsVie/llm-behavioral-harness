@@ -1109,6 +1109,21 @@ class SQLiteStore:
         ).fetchone()
         return dict(row) if row else None
 
+    def load_judgement_score(self, day: int) -> float | None:
+        """Score of one day's judgement as a float, or ``None`` when absent
+        or non-numeric (the single canonical float-parse — consumers never
+        re-parse ``score`` themselves)."""
+        j = self.load_judgement(day)
+        if j is None:
+            return None
+        raw = j.get("score")
+        if raw is None:
+            return None
+        try:
+            return float(raw)
+        except (TypeError, ValueError):
+            return None
+
     def load_previous_judgement(self, day: int) -> float | None:
         """Score of the most recent judgement recorded before ``day``."""
         row = self.conn.execute(

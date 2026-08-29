@@ -392,17 +392,8 @@ class MemoryAgent:
 
     def _session_score(self, session_id: str) -> float | None:
         try:
-            j = self.store.load_judgement(self._day_of(session_id))
+            return self.store.load_judgement_score(self._day_of(session_id))
         except (AttributeError, ValueError):
-            return None
-        if j is None:
-            return None
-        raw = j.get("score")
-        if raw is None:
-            return None
-        try:
-            return float(raw)
-        except (TypeError, ValueError):
             return None
 
     def _affect_for_episode(
