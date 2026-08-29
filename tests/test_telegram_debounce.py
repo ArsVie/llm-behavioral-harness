@@ -21,8 +21,7 @@ from harness.channels.telegram import (
     DEFAULT_DEBOUNCE_TRAILING_S as TRAILING,
     TelegramChannel,
 )
-from test_channel_telegram import FakeApplication, StubUpdate
-from test_telegram_helpers import GateSleeper, ManualClock, drain
+from tests.helpers import FakeApplication, GateSleeper, ManualClock, StubUpdate, drain
 
 
 def make_channel(monkeypatch, *, owner="42", debounce=True):

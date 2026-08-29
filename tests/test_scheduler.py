@@ -203,7 +203,7 @@ def _daily_row(day, *, M=6, mu=0.0, eta=0.0, phase_label="phase_a"):
 
 
 def test_day_scores_use_previous_day_judgement_and_initiative():
-    from test_proactive import SeamStore
+    from tests.helpers import SeamStore
 
     def scores_for(score_prev, initiative_day):
         store = SeamStore()
@@ -227,7 +227,7 @@ def test_day_scores_use_previous_day_judgement_and_initiative():
 
 
 def test_day_scores_missing_judgement_falls_back_neutral():
-    from test_proactive import SeamStore
+    from tests.helpers import SeamStore
     store = SeamStore()
     store.save_daily_state(0, _daily_row(0))
     store.save_daily_state(1, _daily_row(1))
@@ -238,7 +238,7 @@ def test_day_scores_missing_judgement_falls_back_neutral():
 
 
 def test_day_scores_shape_covers_current_day_only():
-    from test_proactive import SeamStore
+    from tests.helpers import SeamStore
     store = SeamStore()
     store.save_daily_state(0, _daily_row(0))
     store.save_daily_state(1, _daily_row(1))
@@ -369,7 +369,7 @@ def _stateful_rows(days: int, seed: int) -> dict[int, dict]:
 
 
 def _store_with_state(days: int, seed: int):
-    from test_proactive import SeamStore
+    from tests.helpers import SeamStore
 
     store = SeamStore()
     for d, row in _stateful_rows(days, seed).items():
@@ -382,7 +382,7 @@ def _engine_store(days: int, seed: int):
     deterministic, engine.rng only: init_rng + day_rng, the reserved streams)."""
     from sim.run_daily import run
     from engine.types import MoodVariant
-    from test_proactive import SeamStore
+    from tests.helpers import SeamStore
 
     result = run(days, seed, MoodVariant.DECOUPLED_OFFSETS, PERSONA)
     store = SeamStore()

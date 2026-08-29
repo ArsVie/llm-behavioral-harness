@@ -15,7 +15,7 @@ from harness.channels.telegram import (
     ControlCommand,
     TelegramChannel,
 )
-from test_channel_telegram import FakeApplication
+from tests.helpers import FakeApplication
 
 
 def test_command_routes_to_on_command_callback() -> None:

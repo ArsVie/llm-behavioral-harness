@@ -31,7 +31,7 @@ from harness.client import FakeClient
 from harness.clock import VirtualClock
 from harness.domain import ContactOpportunity, DailyAgenda, ProactiveIntent
 from harness.judge import ScriptedJudge
-from harness.proactive import IntentResolver, compose_hook
+from harness.proactive import SOURCE_AGENDA, IntentResolver, compose_hook
 from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import (
     OPPORTUNITY_VALIDITY_H,
@@ -46,10 +46,13 @@ from harness.scheduler import (
 )
 from harness.session import Session, TurnResult
 from harness.store import SQLiteStore
-from test_proactive import (
-    SOURCE_AGENDA,
+from tests.helpers import (
     SeamStore,
-    _agenda_item,
+    agenda_item,
+    ground_agenda,
+    make_session,
+    rows,
+    suppressed_codes,
 )
 
 PERSONA = PersonaParams()
@@ -58,38 +61,32 @@ VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
 
 FAST = TimeScale(seconds_per_virtual_hour=0.02)
+
+
+def _session(*, replies=None, session_cls=None):
+    """Local 3-tuple wrapper over the shared make_session (store, clock,
+    session) — this file's call sites unpack all three and use the
+    module's PERSONA/TIMING/VARIANT/SEED constants; some pass a
+    specialized session_cls (ExactIntentSession)."""
+    store = SeamStore()
+    clock = VirtualClock()
+    session = make_session(
+        store,
+        clock=clock,
+        client=FakeClient(responses=replies or ["ok!"]),
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+        session_cls=session_cls or Session,
+    )
+    return store, clock, session
 SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 
 
 # --------------------------------------------------------------------------- #
 # helpers
 # --------------------------------------------------------------------------- #
-
-
-def _session(*, replies=None, session_cls=Session):
-    store = SeamStore()
-    clock = VirtualClock()
-    client = FakeClient(responses=replies or ["ok!"])
-    judge = ScriptedJudge(score=0.5)
-    session = session_cls(
-        store,
-        persona=PERSONA,
-        timing=TIMING,
-        variant=VARIANT,
-        seed=SEED,
-        client=client,
-        clock=clock,
-        judge=judge.judge_day,
-    )
-    return store, clock, session
-
-
-def _ground_agenda(store, start_t_h, end_t_h, *, item_id="g1", salience=0.8,
-                   activity="pottery class"):
-    item = _agenda_item(item_id=item_id, start=start_t_h, end=end_t_h,
-                        salience=salience, activity=activity)
-    store.save_agenda(0, DailyAgenda(0, (item,)))
-    return item
 
 
 def _run(store, session, schedule, channel, *, max_hours, scale=FAST,
@@ -111,18 +108,6 @@ def _run(store, session, schedule, channel, *, max_hours, scale=FAST,
     asyncio.run(runtime.run())
     runtime._delays = delays
     return runtime
-
-
-def _rows(store):
-    return {abs(r["t_h"]): r for r in store.schedule_events_for_seed(SEED)}
-
-
-def _suppressed_codes(store):
-    return {
-        e["detail"]
-        for e in store.events_since(0)
-        if e["event"] == "proactive_suppressed"
-    }
 
 
 def _stored_intent(item, intent_id, t_h, *, reason=REASON_SCHEDULE):
@@ -285,7 +270,7 @@ def test_plan_proactive_events_unchanged():
 
 def test_resolve_opportunity_carries_opportunity_id():
     store = SeamStore()
-    item = _ground_agenda(store, 9.5, 10.5)
+    item = ground_agenda(store, 9.5, 10.5)
     opp = build_opportunity(10.0, day=0, phase_label="follicular", timing=TIMING,
                             previous_score=None, initiative=0.5)
     intent = IntentResolver(store).resolve(opp)
@@ -297,7 +282,7 @@ def test_resolve_opportunity_carries_opportunity_id():
 
 def test_resolve_float_legacy_has_no_opportunity():
     store = SeamStore()
-    _ground_agenda(store, 9.5, 10.5)
+    ground_agenda(store, 9.5, 10.5)
     intent = IntentResolver(store).resolve(10.0)
     assert intent is not None
     assert intent.opportunity_id is None
@@ -305,7 +290,7 @@ def test_resolve_float_legacy_has_no_opportunity():
 
 def test_opportunity_validity_bounds_intent_validity():
     store = SeamStore()
-    _ground_agenda(store, 9.5, 10.5)
+    ground_agenda(store, 9.5, 10.5)
     opp = build_opportunity(10.0, day=0, phase_label="follicular", timing=TIMING,
                             previous_score=None, initiative=0.5)
     intent = IntentResolver(store).resolve(opp)
@@ -340,7 +325,7 @@ def test_planned_opportunities_without_grounded_source_all_suppressed():
     channel = FakeChannel()
     _run(store, _session()[2], schedule, channel, max_hours=24.5)
     assert channel.sent == []                       # nothing hallucinated
-    assert "no_grounded_reason" in _suppressed_codes(store)
+    assert "no_grounded_reason" in suppressed_codes(store)
     # all day-0 opportunities consumed, not stranded; only FUTURE day-1 rows
     # remain pending (the run ended before midnight+1)
     pending = store.pending_schedule_events(SEED)
@@ -361,10 +346,10 @@ def test_exact_intent_identity_two_same_reason_intents():
     Reason equality is never enough: #88 (stored later, same reason) is
     never used."""
     store, clock, session = _session(replies=["pottery ping!"],
-                                     session_cls=ExactIntentSession)
-    pottery = _ground_agenda(store, 9.5, 10.5, item_id="pottery",
+                                         session_cls=ExactIntentSession)
+    pottery = ground_agenda(store, 9.5, 10.5, item_id="pottery",
                              salience=0.9, activity="pottery class")
-    gym = _ground_agenda(store, 9.5, 10.5, item_id="gym",
+    gym = ground_agenda(store, 9.5, 10.5, item_id="gym",
                          salience=0.7, activity="gym session")
     # both intents stored up front, same reason "schedule"; #88 created after #87
     store.save_proactive_intent(_stored_intent(pottery, "87", t_h=9.9))
@@ -394,7 +379,7 @@ def test_exact_intent_identity_two_same_reason_intents():
     assert "88" not in {
         i.id for i in store.list_proactive_intents(status="fired")
     }
-    assert _rows(store)[10.0]["status"] == "fired"
+    assert rows(store, SEED)[10.0]["status"] == "fired"
 
 
 def test_exact_identity_not_downgraded_to_reason_when_same_reason_pending():
@@ -403,8 +388,8 @@ def test_exact_identity_not_downgraded_to_reason_when_same_reason_pending():
     runtime never does that: fire_proactive(intent_id) resolves by id only,
     and the reason-only lookup demonstrably returns the wrong sibling."""
     store, _, session = _session(session_cls=ExactIntentSession)
-    pottery = _ground_agenda(store, 9.5, 10.5, item_id="pottery", salience=0.9)
-    gym = _ground_agenda(store, 9.5, 10.5, item_id="gym", salience=0.7)
+    pottery = ground_agenda(store, 9.5, 10.5, item_id="pottery", salience=0.9)
+    gym = ground_agenda(store, 9.5, 10.5, item_id="gym", salience=0.7)
     store.save_proactive_intent(_stored_intent(pottery, "87", t_h=9.9))
     store.save_proactive_intent(_stored_intent(gym, "88", t_h=9.95))
     # the legacy reason-lookup would return #88 (most recent 'schedule') —
@@ -431,8 +416,8 @@ def test_near_midnight_events_fire_not_expire_under_accelerated_time():
     exactly 24:00) is spuriously gated 'expired'. With the discipline the
     rollover parks at 21.0 and B fires at its own time."""
     store, clock, session = _session(replies=["a!", "b!"])
-    _ground_agenda(store, 20.0, 21.0, item_id="slot_a", activity="evening a")
-    _ground_agenda(store, 21.0, 22.0, item_id="slot_b", activity="evening b")
+    ground_agenda(store, 20.0, 21.0, item_id="slot_a", activity="evening a")
+    ground_agenda(store, 21.0, 22.0, item_id="slot_b", activity="evening b")
     store.save_schedule_events(SEED, [
         {"t_h": 20.5, "day": 0, "reason": REASON_SCHEDULE},
         {"t_h": 21.0, "day": 0, "reason": REASON_SCHEDULE},
@@ -447,12 +432,12 @@ def test_near_midnight_events_fire_not_expire_under_accelerated_time():
     _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=25.0, scale=FAST, sleeper=blocking_sleeper)
 
-    rows = _rows(store)
-    assert rows[20.5]["status"] == "fired"
+    schedule_rows = rows(store, SEED)
+    assert schedule_rows[20.5]["status"] == "fired"
     # the near-midnight event FIRED at its own time — never spuriously expired
-    assert rows[21.0]["status"] == "fired"
-    assert rows[21.0]["fired_t_h"] == pytest.approx(21.0)
-    assert "expired" not in _suppressed_codes(store)
+    assert schedule_rows[21.0]["status"] == "fired"
+    assert schedule_rows[21.0]["fired_t_h"] == pytest.approx(21.0)
+    assert "expired" not in suppressed_codes(store)
     assert len([m for m in channel.sent if m.proactive]) == 2
 
 
@@ -461,7 +446,7 @@ def test_rollover_parks_at_pending_event_before_midnight():
     the firing loop gates it at its own time (fired_t_h == the event hour),
     then the rollover crosses midnight afterwards."""
     store, clock, session = _session(replies=["late evening hi"])
-    _ground_agenda(store, 21.5, 22.5, item_id="late", activity="late pottery")
+    ground_agenda(store, 21.5, 22.5, item_id="late", activity="late pottery")
     store.save_schedule_events(SEED, [
         {"t_h": 22.0, "day": 0, "reason": REASON_SCHEDULE},  # awake, 2h before midnight
     ])
@@ -469,7 +454,7 @@ def test_rollover_parks_at_pending_event_before_midnight():
     _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=25.5, scale=FAST)
     assert len(channel.sent) == 1 and channel.sent[0].proactive
-    row = _rows(store)[22.0]
+    row = rows(store, SEED)[22.0]
     assert row["status"] == "fired"
     assert row["fired_t_h"] == pytest.approx(22.0)  # gated at its own time
     assert clock.now_h() >= 24.0                    # midnight still crossed
@@ -493,7 +478,7 @@ def test_overdue_pending_event_does_not_hang_rollover():
     _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=27.5, scale=FAST)  # completes → no hang
     assert channel.sent == []
-    assert _rows(store)[23.5]["status"] in ("pending", "expired")
+    assert rows(store, SEED)[23.5]["status"] in ("pending", "expired")
 
 
 # --------------------------------------------------------------------------- #
@@ -563,7 +548,7 @@ def test_planned_opportunity_resolves_and_fires_end_to_end():
     h = float(schedule.event_hours[0])  # planner never places events in quiet hours
     opp = schedule.opportunity_for(h)
     assert opp is not None and opp.desired_t_h == h
-    _ground_agenda(store, h - 0.5, h + 0.5, item_id="slot", activity="pottery class")
+    ground_agenda(store, h - 0.5, h + 0.5, item_id="slot", activity="pottery class")
     channel = FakeChannel()
     _run(store, session, schedule, channel, max_hours=h + 2.0, scale=SLOW)
 
@@ -576,4 +561,4 @@ def test_planned_opportunity_resolves_and_fires_end_to_end():
     opp_events = [e for e in store.events_since(0)
                   if e["event"] == "contact_opportunity"]
     assert any(f"id={opp.id}" in e["detail"] for e in opp_events)
-    assert _rows(store)[h]["status"] == "fired"
+    assert rows(store, SEED)[h]["status"] == "fired"

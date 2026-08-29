@@ -29,7 +29,7 @@ import pytest
 
 telegram = pytest.importorskip("telegram")  # noqa: F401 - shared with the channel tests
 
-from tests.test_channel_telegram import FakeApplication  # noqa: E402 - shared fake, unmodified
+from tests.helpers import FakeApplication  # noqa: E402 - shared fake, unmodified
 
 from engine.types import PersonaParams, TimingParams  # noqa: E402
 from harness.channels.base import OutboundMessage  # noqa: E402

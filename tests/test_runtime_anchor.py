@@ -54,12 +54,39 @@ from harness.runtime import (
 from harness.scheduler import REASON_SCHEDULE, ProactiveSchedule
 from harness.session import Session
 from harness.store import SQLiteStore
-from test_proactive import SeamStore, _agenda_item
+from tests.helpers import (
+    AnchorManualClock,
+    SeamStore,
+    agenda_item,
+    ground_agenda,
+    make_session,
+    make_store,
+    rows,
+    suppressed_codes,
+)
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
+
+
+def _session(store=None, *, replies=None):
+    """Local 3-tuple wrapper over the shared make_session (store, clock,
+    session) — this file's call sites unpack all three and use the
+    module's PERSONA/TIMING/VARIANT/SEED constants."""
+    store = store if store is not None else SeamStore()
+    clock = VirtualClock()
+    session = make_session(
+        store,
+        clock=clock,
+        client=FakeClient(responses=replies or ["ok!"]),
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+    )
+    return store, clock, session
 
 #: 1 virtual hour = 20 ms real (same as test_runtime.FAST).
 FAST = TimeScale(seconds_per_virtual_hour=0.02)
@@ -69,22 +96,6 @@ SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 #: Arbitrary but fixed epoch the ManualClock starts at; anchors are built
 #: against it so t_h math is exact.
 T0 = 1_000_000.0
-
-
-class ManualClock:
-    """Injectable wall clock for anchor mode: a fake ``time.time()`` that the
-    sleeper advances by the requested delay. ``drift < 1.0`` simulates a
-    slow/late wake — the absolute sleep must re-sleep the residual."""
-
-    def __init__(self, t0: float = T0, drift: float = 1.0):
-        self.t = t0
-        self.drift = drift
-
-    def __call__(self) -> float:
-        return self.t
-
-    async def sleep(self, delay: float) -> None:
-        self.t += delay * self.drift
 
 
 class CommandAwareChannel(FakeChannel):
@@ -111,31 +122,6 @@ class CommandAwareChannel(FakeChannel):
             self.typing_events.append("exit")
 
 
-def _session(store=None, *, replies=None):
-    store = store if store is not None else SeamStore()
-    clock = VirtualClock()
-    client = FakeClient(responses=replies or ["ok!"])
-    judge = ScriptedJudge(score=0.5)
-    session = Session(
-        store,
-        persona=PERSONA,
-        timing=TIMING,
-        variant=VARIANT,
-        seed=SEED,
-        client=client,
-        clock=clock,
-        judge=judge.judge_day,
-    )
-    return store, clock, session
-
-
-def _ground_agenda(store, start_t_h, end_t_h, *, item_id="g1", salience=0.8):
-    item = _agenda_item(item_id=item_id, start=start_t_h, end=end_t_h,
-                        salience=salience)
-    store.save_agenda(0, DailyAgenda(0, (item,)))
-    return item
-
-
 def _anchor_runtime(store, session, channel, *, anchor, manual, max_hours,
                     sleeper=None, scale=TimeScale(), enable_commands=False):
     """Build an anchor-mode runtime over the given store/session. The sleeper
@@ -151,18 +137,6 @@ def _anchor_runtime(store, session, channel, *, anchor, manual, max_hours,
         sleeper=sleeper, anchor=anchor, now=manual,
         enable_commands=enable_commands,
     )
-
-
-def _rows(store):
-    return {abs(r["t_h"]): r for r in store.schedule_events_for_seed(SEED)}
-
-
-def _suppressed_codes(store):
-    return {
-        e["detail"]
-        for e in store.events_since(0)
-        if e["event"] == "proactive_suppressed"
-    }
 
 
 def _run_accelerated(store, session, channel, *, max_hours, scale=FAST):
@@ -194,7 +168,7 @@ def test_anchor_none_paced_sleeps_are_real_and_never_touch_wall_clock():
     """anchor=None: target sleeps stay REAL asyncio sleeps — the injectable
     sleeper is NOT called for pacing (latency traces unchanged) and the
     injectable wall clock is never consulted."""
-    store, clock, session = _session()
+    store, clock, session = _session(SeamStore())
 
     def boom():
         raise AssertionError("wall clock consulted without an anchor")
@@ -222,9 +196,9 @@ def test_anchor_none_end_to_end_parity():
     """anchor=None end-to-end: the exact scenario of
     test_quiet_hours_and_cooldown_events_suppressed produces the same sends,
     suppression codes and row consumption (the anchor path is invisible)."""
-    store, clock, session = _session()
-    _ground_agenda(store, 0.5, 3.5, item_id="night")
-    _ground_agenda(store, 9.5, 10.6, item_id="morning")
+    store, clock, session = _session(SeamStore())
+    ground_agenda(store, 0.5, 3.5, item_id="night")
+    ground_agenda(store, 9.5, 10.6, item_id="morning")
     store.save_schedule_events(SEED, [
         {"t_h": 2.0, "day": 0, "reason": REASON_SCHEDULE},    # quiet hours
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},   # awake -> fires
@@ -237,11 +211,11 @@ def test_anchor_none_end_to_end_parity():
     msg = channel.sent[0]
     assert msg.proactive is True and msg.reason == REASON_SCHEDULE
     assert store.proactive_count(0) == 1
-    assert _suppressed_codes(store) == {"quiet_hours", "cooldown"}
-    rows = _rows(store)
+    assert suppressed_codes(store) == {"quiet_hours", "cooldown"}
+    schedule_rows = rows(store, SEED)
     for t_h in (2.0, 10.0, 10.1):
-        assert rows[t_h]["status"] == "fired", f"row {t_h} not consumed"
-    assert rows[10.0]["fired_t_h"] == 10.0
+        assert schedule_rows[t_h]["status"] == "fired", f"row {t_h} not consumed"
+    assert schedule_rows[10.0]["fired_t_h"] == 10.0
 
 
 # --------------------------------------------------------------------------- #
@@ -254,9 +228,9 @@ def test_anchor_absolute_sleep_is_epoch_derived_and_self_correcting():
     the first request is the full 7200 s (NOT the 0.02-scaled relative
     delta), and a late wake (drift 0.9) re-sleeps the residual until the
     deadline is hit exactly — cumulative drift is killed."""
-    store, clock, session = _session()
+    store, clock, session = _session(SeamStore())
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=0.0, tz="UTC")
-    manual = ManualClock(t0=T0, drift=0.9)
+    manual = AnchorManualClock(t0=T0, drift=0.9)
     requested: list[float] = []
 
     async def sleeper(delay):
@@ -280,9 +254,9 @@ def test_anchor_absolute_sleep_is_epoch_derived_and_self_correcting():
 def test_anchor_absolute_sleep_no_drift_single_request():
     """A compliant sleeper (drift 1.0) needs exactly one request — the loop
     exits as soon as the deadline is reached."""
-    store, clock, session = _session()
+    store, clock, session = _session(SeamStore())
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=0.0, tz="UTC")
-    manual = ManualClock(t0=T0)
+    manual = AnchorManualClock(t0=T0)
     requested: list[float] = []
 
     async def sleeper(delay):
@@ -312,13 +286,13 @@ def test_anchor_resume_at_real_1800_pins_local_hour(tmp_path):
     (24.0 → local_hour 0, the pre-fix land-at-midnight behavior)."""
     store = SQLiteStore(tmp_path / "resume.db")
     _, _, session = _session(store)
-    _ground_agenda(store, 20.0, 30.0, item_id="g1")
+    ground_agenda(store, 20.0, 30.0, item_id="g1")
     _run_accelerated(store, session, FakeChannel(), max_hours=26.0)
     assert store.latest_daily_state()["day"] == 1  # day-1 state persisted
 
     # Restart: real 18:00 on day 1 -> anchor.t_h_at(now) = 42.0
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=42.0, tz="America/Mexico_City")
-    manual = ManualClock(t0=T0)
+    manual = AnchorManualClock(t0=T0)
     store2, clock2, session2 = _session(store)
     runtime = _anchor_runtime(
         store2, session2, FakeChannel(), anchor=anchor, manual=manual,
@@ -338,11 +312,11 @@ def test_anchor_resume_clock_skew_backwards_raises(tmp_path):
     moved backwards. The runtime must RAISE, never guess."""
     store = SQLiteStore(tmp_path / "skew.db")
     _, _, session = _session(store)
-    _ground_agenda(store, 20.0, 30.0, item_id="g1")
+    ground_agenda(store, 20.0, 30.0, item_id="g1")
     _run_accelerated(store, session, FakeChannel(), max_hours=26.0)
 
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=10.0, tz="UTC")  # now -> t_h 10
-    manual = ManualClock(t0=T0)
+    manual = AnchorManualClock(t0=T0)
     _, _, session2 = _session(store)
     runtime = _anchor_runtime(
         store, session2, FakeChannel(), anchor=anchor, manual=manual,
@@ -360,7 +334,7 @@ def test_anchor_resume_skew_detected_from_event_log(tmp_path):
     store.log_event(0, 20.5, "contact_opportunity", "id=x")
     _, _, session = _session(store)
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=10.0, tz="UTC")
-    manual = ManualClock(t0=T0)
+    manual = AnchorManualClock(t0=T0)
     runtime = _anchor_runtime(
         store, session, FakeChannel(), anchor=anchor, manual=manual,
         max_hours=42.0,
@@ -375,11 +349,11 @@ def test_anchor_resume_no_skew_when_now_maps_forward(tmp_path):
     run proceeds."""
     store = SQLiteStore(tmp_path / "forward.db")
     _, _, session = _session(store)
-    _ground_agenda(store, 20.0, 30.0, item_id="g1")
+    ground_agenda(store, 20.0, 30.0, item_id="g1")
     _run_accelerated(store, session, FakeChannel(), max_hours=26.0)
 
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=50.0, tz="UTC")  # now -> day 2 02:00
-    manual = ManualClock(t0=T0)
+    manual = AnchorManualClock(t0=T0)
     _, clock2, session2 = _session(store)
     runtime = _anchor_runtime(
         store, session2, FakeChannel(), anchor=anchor, manual=manual,
@@ -418,7 +392,7 @@ def test_command_dispatch_routes_to_handle_command(monkeypatch):
     the runtime lock with the full S3 CommandContext; the reply goes out as a
     plain non-proactive message; the session is NEVER touched (no turns, no
     closing draws, no memory writes)."""
-    store, clock, session = _session()
+    store, clock, session = _session(SeamStore())
     channel = FakeChannel()
     calls = []
     _fake_commands_module(monkeypatch, calls, channel.sent)
@@ -484,17 +458,17 @@ def test_run_wires_command_callback_only_when_enabled():
     """enable_commands=True registers on_command with the channel's S3 seam;
     the default (False) keeps today's single-callback start (commands stay
     dropped)."""
-    store, clock, session = _session()
+    store, clock, session = _session(SeamStore())
     channel = CommandAwareChannel()
     runtime = _anchor_runtime(
-        store, session, channel, anchor=None, manual=ManualClock(),
+        store, session, channel, anchor=None, manual=AnchorManualClock(),
         max_hours=1.0, scale=FAST, enable_commands=True,
     )
     asyncio.run(runtime.run())
     assert channel.command_handler == runtime._on_command
     assert channel.handler == runtime._on_inbound
 
-    store2, _, session2 = _session()
+    store2, _, session2 = _session(SeamStore())
     channel2 = CommandAwareChannel()
     runtime2 = AsyncRuntime(
         session2, ProactiveSchedule.restore(SEED, store2), channel2,
@@ -515,7 +489,7 @@ def test_typing_context_wraps_inbound_generation_and_delay():
     """The reactive path runs generation + response_delay_s inside the
     channel's typing_context(): enter/exit once per turn, and the response
     delay is waited while the context is ENTERED (not yet exited)."""
-    store, clock, session = _session(replies=["hi!"])
+    store, clock, session = _session(SeamStore(), replies=["hi!"])
     channel = CommandAwareChannel()
     observed = []
 
@@ -546,8 +520,8 @@ def test_typing_context_wraps_proactive_generation_not_send():
     """The proactive path: generation + delay inside typing_context, but the
     SEND happens AFTER the context exits (S4: indicator during composition,
     message arrives after)."""
-    store, clock, session = _session()
-    _ground_agenda(store, 9.0, 11.0, item_id="typing")  # awake hours
+    store, clock, session = _session(SeamStore())
+    ground_agenda(store, 9.0, 11.0, item_id="typing")  # awake hours
     store.save_schedule_events(SEED, [
         {"t_h": 9.5, "day": 0, "reason": REASON_SCHEDULE},
     ])
@@ -588,7 +562,7 @@ def test_request_tz_change_applied_at_next_rollover(tmp_path):
     in-memory anchor updates — the epoch->t_h mapping never jumps."""
     store = SQLiteStore(tmp_path / "tz.db")
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=23.5, tz="America/Mexico_City")
-    manual = ManualClock(t0=T0)
+    manual = AnchorManualClock(t0=T0)
     persist_anchor(store, anchor)
     _, _, session = _session(store)
     runtime = _anchor_runtime(
@@ -606,9 +580,9 @@ def test_request_tz_change_applied_at_next_rollover(tmp_path):
 
 
 def test_request_tz_change_rejects_unknown_zone():
-    store, _, session = _session()
+    store, _, session = _session(SeamStore())
     runtime = _anchor_runtime(
-        store, session, FakeChannel(), anchor=None, manual=ManualClock(),
+        store, session, FakeChannel(), anchor=None, manual=AnchorManualClock(),
         max_hours=1.0,
     )
     with pytest.raises(ValueError, match="unknown timezone"):
@@ -621,13 +595,13 @@ def test_request_mute_defers_pending_event_never_consumes():
     window is DEFERRED (never consumed as fired-without-delivery) and fires
     at the mute end — fired_t_h lands at the mute end, and the message goes
     out only after the window."""
-    store, clock, session = _session()
-    _ground_agenda(store, 10.0, 14.0, item_id="mute")
+    store, clock, session = _session(SeamStore())
+    ground_agenda(store, 10.0, 14.0, item_id="mute")
     store.save_schedule_events(SEED, [
         {"t_h": 10.5, "day": 0, "reason": REASON_SCHEDULE},
     ])
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=10.0, tz="UTC")  # now = 10:00
-    manual = ManualClock(t0=T0)
+    manual = AnchorManualClock(t0=T0)
     channel = FakeChannel()
     sent_at: list[float] = []
     orig_send = channel.send
@@ -648,9 +622,9 @@ def test_request_mute_defers_pending_event_never_consumes():
     runtime._request_mute(2.0)  # mute until t_h 12.0
     asyncio.run(runtime.run())
 
-    rows = _rows(store)
-    assert rows[10.5]["status"] == "fired"
-    assert rows[10.5]["fired_t_h"] == pytest.approx(12.0)  # deferred to mute end
+    schedule_rows = rows(store, SEED)
+    assert schedule_rows[10.5]["status"] == "fired"
+    assert schedule_rows[10.5]["fired_t_h"] == pytest.approx(12.0)  # deferred to mute end
     assert len(channel.sent) == 1
     assert channel.sent[0].proactive is True
     assert sent_at[0] >= anchor.epoch_of(12.0)  # nothing sent inside the window

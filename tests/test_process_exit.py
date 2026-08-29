@@ -70,7 +70,7 @@ from harness.proactive import IntentResolver
 from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import REASON_SCHEDULE, ProactiveSchedule
 from harness.session import Session
-from test_proactive import SeamStore, _agenda_item
+from tests.helpers import SeamStore, agenda_item
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -95,7 +95,7 @@ def run_runtime_test() -> None:
     )
     store.save_agenda(
         0,
-        DailyAgenda(0, (_agenda_item(item_id="g1", start=9.5, end=10.6, salience=0.8),)),
+        DailyAgenda(0, (agenda_item(item_id="g1", start=9.5, end=10.6, salience=0.8),)),
     )
     store.save_schedule_events(
         SEED, [{"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE}]

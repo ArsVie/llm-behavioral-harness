@@ -13,7 +13,7 @@ from harness.domain import AgendaItem, DailyAgenda
 from harness.gates import GateDecision, content_gate, context_gate
 from harness.proactive import IntentResolver, compose_hook
 from harness.scheduler import REASON_SCHEDULE, REASON_VALIDITY_H
-from test_proactive import SeamStore, _agenda_item, _episode
+from tests.helpers import SeamStore, agenda_item
 
 TIMING = TimingParams()
 
@@ -24,6 +24,8 @@ def _store():
     return SeamStore()
 
 
+
+
 def _seed_proactives(store, day: int, n: int) -> None:
     for i in range(n):
         store.add_message("assistant", f"p{i}", t_h=float(i), day=day, proactive=True)
@@ -32,7 +34,7 @@ def _seed_proactives(store, day: int, n: int) -> None:
 def _grounded_intent(store, *, now_h=None, item=None):
     """A real intent from the resolver over a seeded agenda item."""
     now_h = AGENDA_HOUR if now_h is None else now_h
-    item = item if item is not None else _agenda_item(start=now_h, end=now_h + 1.0)
+    item = item if item is not None else agenda_item(start=now_h, end=now_h + 1.0)
     store.save_agenda(0, DailyAgenda(0, (item,)))
     intent = IntentResolver(store).resolve(now_h + 0.1)
     assert intent is not None
@@ -98,7 +100,7 @@ def test_content_gate_no_source_when_source_type_unknown():
     assert decision.code == "no_source"
 
 
-def test_content_gate_source_superseded_skipped_agenda_item():
+def test_content_gate_source_superseded_skippedagenda_item():
     store = _store()
     intent = _grounded_intent(store)
     store.update_agenda_item_status(intent.source_id, "skipped")
@@ -142,7 +144,7 @@ def test_content_gate_hook_mismatch():
 
 def test_content_gate_hook_rederives_from_source():
     store = _store()
-    item = _agenda_item(start=AGENDA_HOUR, end=AGENDA_HOUR + 1.0)
+    item = agenda_item(start=AGENDA_HOUR, end=AGENDA_HOUR + 1.0)
     intent = _grounded_intent(store, item=item)
     assert compose_hook(item, REASON_SCHEDULE) == intent.hook
     # The gate's re-derivation is exactly the resolver's composition.
@@ -152,7 +154,15 @@ def test_content_gate_hook_rederives_from_source():
 
 def test_content_gate_episode_sources_pass_status_checks():
     store = _store()
-    ep = _episode(category=__import__("harness.domain", fromlist=["MemoryKind"]).MemoryKind.CALLBACK)
+    from harness.domain import EpisodicMemory, MemoryKind
+
+    ep = EpisodicMemory(
+        id="ep_g", summary="shared moment", category=MemoryKind.CALLBACK,
+        occurred_at_t_h=0.0, created_at_t_h=0.0, importance=0.6,
+        access_count=0, last_accessed_t_h=None, affect=None,
+        source_session_id="s1", source_turn_ids=(1,),
+        verbatim_anchors=("exact source text",), tags=("t",),
+    )
     store.insert_episode(ep)
     intent = IntentResolver(store).resolve(AGENDA_HOUR)
     assert intent is not None

@@ -11,8 +11,7 @@ import asyncio
 
 from harness.channels.base import FakeChannel
 from harness.channels.telegram import TelegramChannel
-from test_channel_telegram import FakeApplication
-from test_telegram_helpers import GateSleeper, ManualClock, drain
+from tests.helpers import FakeApplication, GateSleeper, ManualClock, drain
 
 TYPING_ACTION = {"chat_id": "42", "action": "typing"}
 

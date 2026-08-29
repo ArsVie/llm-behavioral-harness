@@ -34,12 +34,30 @@ from harness.scheduler import (
     day_scores,
 )
 from harness.session import Session
-from test_proactive import SeamStore, _agenda_item
+from tests.helpers import SeamStore, agenda_item, ground_agenda, make_session, rows, suppressed_codes
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
+
+
+def _session(*, replies=None):
+    """Local 3-tuple wrapper over the shared make_session (store, clock,
+    session) — this file's call sites unpack all three and use the
+    module's PERSONA/TIMING/VARIANT/SEED constants."""
+    store = SeamStore()
+    clock = VirtualClock()
+    session = make_session(
+        store,
+        clock=clock,
+        client=FakeClient(responses=replies or ["ok!"]),
+        persona=PERSONA,
+        timing=TIMING,
+        variant=VARIANT,
+        seed=SEED,
+    )
+    return store, clock, session
 
 #: 1 virtual hour = 20 ms real → a day rolls over in 480 ms; poll sleeps are
 #: ~1 ms. Small enough for sub-second days, large enough that per-event
@@ -54,33 +72,6 @@ FAST = TimeScale(seconds_per_virtual_hour=0.02)
 #: time). At 0.5 s/vh the gap is 50 ms and the rollover wake is ~1 s after
 #: the last event, so the gate decision happens at the planned time.
 SLOW = TimeScale(seconds_per_virtual_hour=0.5)
-
-
-def _session(*, replies=None):
-    store = SeamStore()
-    clock = VirtualClock()
-    client = FakeClient(responses=replies or ["ok!"])
-    judge = ScriptedJudge(score=0.5)
-    session = Session(
-        store,
-        persona=PERSONA,
-        timing=TIMING,
-        variant=VARIANT,
-        seed=SEED,
-        client=client,
-        clock=clock,
-        judge=judge.judge_day,
-    )
-    return store, clock, session
-
-
-def _ground_agenda(store, start_t_h, end_t_h, *, item_id="g1", salience=0.8):
-    """Seed an agenda item covering [start, end) so the real IntentResolver
-    finds a grounded candidate at those hours."""
-    item = _agenda_item(item_id=item_id, start=start_t_h, end=end_t_h,
-                        salience=salience)
-    store.save_agenda(0, DailyAgenda(0, (item,)))
-    return item
 
 
 def _run(store, session, schedule, channel, *, max_hours, scale=FAST,
@@ -102,18 +93,6 @@ def _run(store, session, schedule, channel, *, max_hours, scale=FAST,
     asyncio.run(runtime.run())
     runtime._delays = delays  # recorded response_delay_s values
     return runtime
-
-
-def _rows(store):
-    return {abs(r["t_h"]): r for r in store.schedule_events_for_seed(SEED)}
-
-
-def _suppressed_codes(store):
-    return {
-        e["detail"]
-        for e in store.events_since(0)
-        if e["event"] == "proactive_suppressed"
-    }
 
 
 class TraceChannel(FakeChannel):
@@ -138,8 +117,8 @@ def test_quiet_hours_and_cooldown_events_suppressed():
     suppressed + logged, and only the passing event produces a proactive
     OutboundMessage with its reason."""
     store, clock, session = _session()
-    _ground_agenda(store, 0.5, 3.5, item_id="night")      # covers 02:00
-    _ground_agenda(store, 9.5, 10.6, item_id="morning")   # covers 10:00/10:06
+    ground_agenda(store, 0.5, 3.5, item_id="night")      # covers 02:00
+    ground_agenda(store, 9.5, 10.6, item_id="morning")   # covers 10:00/10:06
     store.save_schedule_events(SEED, [
         {"t_h": 2.0, "day": 0, "reason": REASON_SCHEDULE},    # 02:00 → quiet hours
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},   # awake → fires
@@ -156,13 +135,13 @@ def test_quiet_hours_and_cooldown_events_suppressed():
     assert store.proactive_count(0) == 1
 
     # both suppressions logged with their gate codes
-    assert _suppressed_codes(store) == {"quiet_hours", "cooldown"}
+    assert suppressed_codes(store) == {"quiet_hours", "cooldown"}
 
     # all three slots consumed (no pending rows left for them)
-    rows = _rows(store)
+    schedule_rows = rows(store, SEED)
     for t_h in (2.0, 10.0, 10.1):
-        assert rows[t_h]["status"] == "fired", f"row {t_h} not consumed"
-    assert rows[10.0]["fired_t_h"] == 10.0
+        assert schedule_rows[t_h]["status"] == "fired", f"row {t_h} not consumed"
+    assert schedule_rows[10.0]["fired_t_h"] == 10.0
     # intent statuses recorded for both the fired and suppressed intents
     assert {i.id for i in store.list_proactive_intents(status="fired")}
     assert {i.id for i in store.list_proactive_intents(status="suppressed")}
@@ -172,7 +151,7 @@ def test_restart_does_not_refire():
     """(c) ProactiveSchedule.restore from the same store must not re-fire an
     event that already fired in a previous runtime instance."""
     store, clock, session = _session()
-    _ground_agenda(store, 0.0, 24.0, item_id="allday")
+    ground_agenda(store, 0.0, 24.0, item_id="allday")
     ProactiveSchedule.plan_and_persist(1, SEED, PERSONA, TIMING, store)
     schedule = ProactiveSchedule.restore(SEED, store)
 
@@ -253,7 +232,7 @@ def test_expired_event_marked_expired():
     event whose OPPORTUNITY validity window has elapsed is consumed as
     'expired' (no message sent for it)."""
     store, clock, session = _session(replies=["hi back"])
-    _ground_agenda(store, 9.5, 10.5, item_id="slot")
+    ground_agenda(store, 9.5, 10.5, item_id="slot")
     ProactiveSchedule.plan_and_persist(3, SEED, PERSONA, TIMING, store)
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
@@ -283,7 +262,7 @@ def test_expired_event_marked_expired():
     # the day-0 event elapsed its validity window → expired + logged
     rows = store.schedule_events_for_seed(SEED)
     assert any(r["status"] == "expired" for r in rows)
-    assert "expired" in _suppressed_codes(store)
+    assert "expired" in suppressed_codes(store)
     store.close()
 
 
@@ -294,7 +273,7 @@ def test_expired_event_marked_expired():
 
 def test_restart_exactly_at_event_fires():
     store, clock, session = _session(replies=["proactive!"])
-    _ground_agenda(store, 9.5, 10.5)
+    ground_agenda(store, 9.5, 10.5)
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
@@ -303,12 +282,12 @@ def test_restart_exactly_at_event_fires():
     _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=10.5)
     assert len(channel.sent) == 1 and channel.sent[0].proactive
-    assert _rows(store)[10.0]["status"] == "fired"
+    assert rows(store, SEED)[10.0]["status"] == "fired"
 
 
 def test_restart_ten_minutes_after_fires():
     store, clock, session = _session(replies=["proactive!"])
-    _ground_agenda(store, 9.5, 10.5)
+    ground_agenda(store, 9.5, 10.5)
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
@@ -317,12 +296,12 @@ def test_restart_ten_minutes_after_fires():
     _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=10.5)
     assert len(channel.sent) == 1 and channel.sent[0].proactive
-    assert _rows(store)[10.0]["status"] == "fired"
+    assert rows(store, SEED)[10.0]["status"] == "fired"
 
 
 def test_restart_within_validity_window_fires():
     store, clock, session = _session(replies=["proactive!"])
-    _ground_agenda(store, 9.5, 10.5)
+    ground_agenda(store, 9.5, 10.5)
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
@@ -331,12 +310,12 @@ def test_restart_within_validity_window_fires():
     _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=12.5)
     assert len(channel.sent) == 1 and channel.sent[0].proactive
-    assert _rows(store)[10.0]["status"] == "fired"
+    assert rows(store, SEED)[10.0]["status"] == "fired"
 
 
 def test_restart_beyond_validity_window_expires():
     store, clock, session = _session(replies=["proactive!"])
-    _ground_agenda(store, 9.5, 10.5)
+    ground_agenda(store, 9.5, 10.5)
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
@@ -345,16 +324,16 @@ def test_restart_beyond_validity_window_expires():
     _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=14.0)
     assert channel.sent == []  # expired, NOT fired
-    assert _rows(store)[10.0]["status"] == "expired"
-    assert "expired" in _suppressed_codes(store)
+    assert rows(store, SEED)[10.0]["status"] == "expired"
+    assert "expired" in suppressed_codes(store)
 
 
 def test_restart_multiple_overdue_all_evaluated():
     """Several overdue events are surfaced in order and none is stranded:
     the first fires, the second is consumed by the cooldown gate."""
     store, clock, session = _session(replies=["proactive!", "second!"])
-    _ground_agenda(store, 9.5, 10.5, item_id="slot_a")
-    _ground_agenda(store, 10.6, 11.4, item_id="slot_b")
+    ground_agenda(store, 9.5, 10.5, item_id="slot_a")
+    ground_agenda(store, 10.6, 11.4, item_id="slot_b")
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
         {"t_h": 11.0, "day": 0, "reason": REASON_SCHEDULE},
@@ -366,11 +345,11 @@ def test_restart_multiple_overdue_all_evaluated():
     # first overdue event fires; the second is delivered at the same now →
     # inside the cooldown gap → suppressed (consumed, not stranded)
     assert len(channel.sent) == 1
-    rows = _rows(store)
-    assert rows[10.0]["status"] == "fired"
-    assert rows[11.0]["status"] == "fired"
+    schedule_rows = rows(store, SEED)
+    assert schedule_rows[10.0]["status"] == "fired"
+    assert schedule_rows[11.0]["status"] == "fired"
     assert store.pending_schedule_events(SEED) == []
-    assert "cooldown" in _suppressed_codes(store)
+    assert "cooldown" in suppressed_codes(store)
 
 
 # --------------------------------------------------------------------------- #
@@ -389,8 +368,8 @@ def test_no_grounded_reason_suppresses():
     _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=11.0)
     assert channel.sent == []
-    assert "no_grounded_reason" in _suppressed_codes(store)
-    assert _rows(store)[10.0]["status"] == "fired"  # consumed
+    assert "no_grounded_reason" in suppressed_codes(store)
+    assert rows(store, SEED)[10.0]["status"] == "fired"  # consumed
     assert store.list_proactive_intents() == []     # never persisted
 
 
@@ -407,7 +386,7 @@ class DeleteAfterResolveResolver(IntentResolver):
 
 def test_grounding_attack_deleted_source_suppressed():
     store, clock, session = _session(replies=["proactive!"])
-    _ground_agenda(store, 9.5, 10.5)
+    ground_agenda(store, 9.5, 10.5)
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
@@ -416,8 +395,8 @@ def test_grounding_attack_deleted_source_suppressed():
     _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=11.0, resolver=resolver)
     assert channel.sent == []  # suppressed, not hallucinated
-    assert "no_source" in _suppressed_codes(store)
-    assert _rows(store)[10.0]["status"] == "fired"
+    assert "no_source" in suppressed_codes(store)
+    assert rows(store, SEED)[10.0]["status"] == "fired"
 
 
 # --------------------------------------------------------------------------- #
@@ -433,7 +412,7 @@ def _expected_delay(session, hour):
 
 def test_proactive_latency_sleeps_before_send():
     store, clock, session = _session(replies=["proactive hi"])
-    _ground_agenda(store, 9.5, 10.5)
+    ground_agenda(store, 9.5, 10.5)
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
@@ -486,7 +465,7 @@ def test_suite_runs_without_real_waits():
     a recorder, so the suite must never wait real seconds. The recorded
     delays are the directive's wall-clock seconds (NOT scaled by TimeScale)."""
     store, clock, session = _session(replies=["proactive hi"])
-    _ground_agenda(store, 9.5, 10.5)
+    ground_agenda(store, 9.5, 10.5)
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
