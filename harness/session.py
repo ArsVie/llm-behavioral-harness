@@ -329,6 +329,7 @@ class Session:
         memory: MemoryAgent | None = None,
         decision_config: DecisionConfig | None = None,
         two_phase_close: bool = False,
+        judge_client: LLMClient | None = None,
     ):
         self.store = store
         self.persona = persona
@@ -341,6 +342,13 @@ class Session:
         self.feedback = feedback
         self.persona_core = persona_core
         self.judge_model = judge_model
+        #: Judge-lane client (WS-C two-lane seam). The judge is a RESEARCH
+        #: consumer: its spend must attribute to the research lane and it must
+        #: never use the product token. Defaults to the product client for
+        #: backward compatibility (offline/fake runs, tests); live runs that
+        #: enable feedback MUST pass a research-lane judge client so the
+        #: lane split stays honest.
+        self.judge_client = judge_client if judge_client is not None else client
         # synthetic_score=True replicates sim.run_daily's score source
         # (clip(2(M/N-0.5)+Normal(0,0.2))) INCLUDING its RNG draw, so the
         # session's mood sequence is byte-identical to run_daily for the same
@@ -666,7 +674,7 @@ class Session:
             # The judge is a noisy sensor — a failed call must not kill the
             # day (review fix #3): degrade to a logged neutral score.
             try:
-                result = self.judge(transcript, self.client, model=self.judge_model)
+                result = self.judge(transcript, self.judge_client, model=self.judge_model)
             except Exception as exc:  # noqa: BLE001 - sensor degradation
                 self.store.log_event(
                     day, self.clock.now_h(), "judge_failed", str(exc)[:200]

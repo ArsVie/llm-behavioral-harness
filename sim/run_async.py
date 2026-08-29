@@ -363,6 +363,14 @@ def main(argv: list[str] | None = None) -> int:
         client = OpenAICompatibleClient(model=args.model, lane="product")
         synthetic = args.synthetic
 
+    # Judge-lane client (WS-C two-lane seam): judging is a RESEARCH
+    # consumer — its spend attributes to the research lane and it never
+    # uses the product token. Build it explicitly for live runs; the
+    # session defaults to the product client only in offline/fake runs.
+    judge_client = None
+    if not args.fake:
+        judge_client = OpenAICompatibleClient(model=args.model, lane="research")
+
     session = Session(
         store,
         persona=persona,
@@ -375,6 +383,7 @@ def main(argv: list[str] | None = None) -> int:
         feedback=args.feedback,
         persona_core=args.persona_core or DEFAULT_PERSONA_CORE,
         synthetic_score=synthetic,
+        judge_client=judge_client,
     )
 
     try:

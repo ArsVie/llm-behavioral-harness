@@ -572,9 +572,16 @@ def _memory_for(condition: str, store, *, memory_policy=None) -> object:
 
 def make_session(condition: str, seed: int, store: SQLiteStore, clock: VirtualClock,
                  client, judge, persona: PersonaParams, timing: TimingParams,
-                 variant: MoodVariant, *, memory_policy=None) -> RecordingSession:
+                 variant: MoodVariant, *, memory_policy=None,
+                 judge_client=None) -> RecordingSession:
     """Construye la sesión de la condición (la persona sale del STORE — el
-    bootstrap limpio es la fuente de verdad del perfil, no un argumento)."""
+    bootstrap limpio es la fuente de verdad del perfil, no un argumento).
+
+    ``judge_client`` is the WS-C judge-lane client (research). Defaults to
+    the product client (session's own backward-compat default); live runs
+    that enable feedback MUST pass a research-lane client so the judge
+    spend attributes to the research lane.
+    """
     session_cls: type[RecordingSession] = RecordingSession
     if condition == "NO_LIFE":
         session_cls = NoLifeSession
@@ -590,6 +597,7 @@ def make_session(condition: str, seed: int, store: SQLiteStore, clock: VirtualCl
         feedback=True,
         synthetic_score=False,
         memory=_memory_for(condition, store, memory_policy=memory_policy),
+        judge_client=judge_client,
     )
 
 

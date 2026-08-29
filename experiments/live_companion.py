@@ -113,19 +113,26 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
                   max_virtual_hours: float | None = None,
                   client=None, judge=None,
                   time_scale_s_per_vh: float = LIVE_TIME_SCALE_S_PER_VH,
-                  anchor=None, clock=None) -> AsyncRuntime:
+                  anchor=None, clock=None,
+                  judge_client=None) -> AsyncRuntime:
     from experiments.cvs_common import stream_rng, rng_mod
 
     if client is None:
         client = OpenAICompatibleClient(lane="product")
     if judge is None:
         judge = DeterministicJudge(seed, block_start=BLOCK_START_D, block_end=BLOCK_END_D)
+    # Judge-lane client (WS-C two-lane seam): judging is a RESEARCH
+    # consumer. When an LLM judge is injected, pass a research-lane client
+    # so judge spend attributes to the research lane; the session defaults
+    # to the product client only for offline/deterministic judging.
+    if judge_client is None and not isinstance(judge, DeterministicJudge):
+        judge_client = OpenAICompatibleClient(lane="research")
     persona = persona or PersonaParams()
     timing = timing or TimingParams()
     variant = MoodVariant.DECOUPLED_OFFSETS
     clock = clock or VirtualClock(0.0)
     session = make_session(condition, seed, store, clock, client, judge,
-                           persona, timing, variant)
+                           persona, timing, variant, judge_client=judge_client)
     # Día 0 up-front (misma razón que run_cell): el primer replan del
     # runtime ocurre en la medianoche del día 1 y planificaría el día 0
     # retroactivamente. El plan nace con ESTADO real: si el store aún no
