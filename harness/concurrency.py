@@ -83,9 +83,7 @@ __all__ = [
 ]
 
 
-# --------------------------------------------------------------------------- #
 # Sleeper — injectable wait primitive
-# --------------------------------------------------------------------------- #
 
 
 @runtime_checkable
@@ -126,9 +124,7 @@ def default_sleeper() -> Sleeper:
     return AsyncSleeper()
 
 
-# --------------------------------------------------------------------------- #
-# ExecutorOwner — explicit executor lifecycle
-# --------------------------------------------------------------------------- #
+# ExecutorOwner — explicit executor lifecycle, double-shutdown safe
 
 
 class ExecutorOwner:
@@ -221,9 +217,7 @@ def shutdown_executor(executor: ThreadPoolExecutor | None, *, wait: bool = True)
     executor.shutdown(wait=wait)
 
 
-# --------------------------------------------------------------------------- #
 # Resource ownership — owned vs injected, close exactly once
-# --------------------------------------------------------------------------- #
 
 
 class CloseGuard:
@@ -310,9 +304,7 @@ class ResourceRegistry:
             ) from errors[0]
 
 
-# --------------------------------------------------------------------------- #
 # SQLite thread safety
-# --------------------------------------------------------------------------- #
 
 SQLITE_THREAD_OWNERSHIP = """
 SQLite thread/connection ownership contract (Iteration 2, A6):

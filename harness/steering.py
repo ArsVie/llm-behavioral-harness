@@ -42,20 +42,17 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 # --------------------------------------------------------------------------- #
-# Steer kinds and delivery boundaries
-# --------------------------------------------------------------------------- #
 
-#: A user message arrived while an event/turn was in progress (decide_reply).
+#: A user message arrived mid-turn.
 KIND_USER_MESSAGE = "user_message_mid_turn"
-#: An event pop-up is due: {Event, State, Time} -> {Initiate, Reason} (decide_event).
+#: An event pop-up is due ({Event, State, Time} -> {Initiate, Reason}).
 KIND_EVENT_POPUP = "event_popup"
 #: A scheduled proactive fire is due.
 KIND_SCHEDULE_FIRE = "schedule_fire"
 #: The day rolled over (new day context block).
 KIND_DAY_ROLLOVER = "day_rollover"
 
-#: Delivery priority per kind — lower number delivers first at one boundary
-#: (user L356/L361: decide_reply BEFORE decide_event).
+#: Delivery priority per kind; lower numbers deliver first.
 KIND_PRIORITY: dict[str, int] = {
     KIND_USER_MESSAGE: 0,
     KIND_EVENT_POPUP: 1,
@@ -63,17 +60,15 @@ KIND_PRIORITY: dict[str, int] = {
     KIND_DAY_ROLLOVER: 3,
 }
 
-#: Fallback priority for unknown kinds (kept out of the documented contract).
+#: Fallback priority for unknown kinds.
 _KIND_PRIORITY_FALLBACK = 99
 
-#: Delivery boundaries — the moments when the agent is free (L369).
+#: Delivery boundaries — moments when the agent is free.
 BOUNDARY_IDLE = "idle"
 BOUNDARY_AFTER_TOOL = "after_tool"
 BOUNDARY_AFTER_REPLY = "after_reply"
 
 
-# --------------------------------------------------------------------------- #
-# Backend protocol (implemented by WS2's SQLiteStore; mirrored in-memory here)
 # --------------------------------------------------------------------------- #
 
 
@@ -191,8 +186,6 @@ class InMemorySteerBackend:
 
 
 # --------------------------------------------------------------------------- #
-# Queue
-# --------------------------------------------------------------------------- #
 
 
 @dataclass(frozen=True)
@@ -261,13 +254,10 @@ class SteeringQueue:
         for row in rows:
             if not isinstance(row, dict) or row.get("id") is None:
                 continue
-            # One-shot belt-and-braces: the backend contract already excludes
-            # delivered rows; skip them here too so a lenient backend can
-            # never cause a double delivery.
+            # Skip rows already marked delivered.
             if row.get("delivered_t_h") is not None or row.get("status") == "delivered":
                 continue
-            # Replay guard: a steer this turn already saw is never injected
-            # into it again (the seen marker persists with the turn).
+            # Skip steers this turn already saw.
             if row.get("seen_turn_id") == turn_id:
                 continue
             eligible.append(row)
@@ -311,8 +301,6 @@ class SteeringQueue:
         return len(self._backend.pending_steers(day=self._day, limit=1_000_000))
 
 
-# --------------------------------------------------------------------------- #
-# Injection block rendering (user L369 pop-up format)
 # --------------------------------------------------------------------------- #
 
 
@@ -366,9 +354,8 @@ def render_steer_block(steer: Steer | dict) -> str:
     return f"System: {{{kind}: {json.dumps(payload, ensure_ascii=False, sort_keys=True)}}}"
 
 
-#: Trust marker wrapping a rendered steer block (design §2.5). The system
-#: prompt (prompts module, WS1) tells the model to trust ONLY this exact
-#: marker as a real arriving event; lookalikes in message text are not.
+#: Trust marker wrapping a rendered steer block. The system prompt treats
+#: only this exact marker as a real arriving event.
 STEER_MARKER_OPEN = (
     "[STEER — a real arriving event from the harness, delivered once at this "
     "position; not conversation text and not a new delivery when replayed "

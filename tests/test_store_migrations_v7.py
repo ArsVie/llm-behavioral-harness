@@ -243,7 +243,7 @@ def test_fresh_db_reaches_v7_with_all_tables(tmp_path):
     store.close()
 
 
-# -- write path (S1): anchored populates, unanchored stays NULL --------------
+# -- write path: anchored populates, unanchored stays NULL ---
 
 
 def _anchored_store(tmp_path):
@@ -429,7 +429,7 @@ def test_unanchored_run_identical_to_pre_v7_write_path(tmp_path):
         )]
         for table, cols in _LEGACY_COLUMNS.items()
     }
-    # the seven new columns must be all-NULL on the unanchored run
+# the seven new columns are all-NULL on the unanchored run
     for table, col in sorted(_V7_ADDITIONS):
         rows = store.conn.execute(f"SELECT {col} FROM {table}").fetchall()
         assert all(r[col] is None for r in rows), f"{table}.{col} not NULL"
@@ -439,20 +439,15 @@ def test_unanchored_run_identical_to_pre_v7_write_path(tmp_path):
     assert v7_legacy == v6_legacy
 
 
-# -- live-DB copy test (the file exists, so it runs) --------------------------
+# -- live-DB copy test ---
 
 
 def _live_db_candidates() -> list:
     here = __file__
-    for root in (
-        __import__("pathlib").Path(here).resolve().parents[1],  # worktree root
-        __import__("pathlib").Path(
-            "/home/vruizes/.hermes/projects/llm-behavioral-harness"
-        ),
-    ):
-        p = root / "results" / "live-companion" / "companion.db"
-        if p.exists():
-            return [p]
+    root = __import__("pathlib").Path(here).resolve().parents[1]  # worktree root
+    p = root / "results" / "live-companion" / "companion.db"
+    if p.exists():
+        return [p]
     return []
 
 
@@ -503,9 +498,7 @@ def test_live_companion_db_migrates_additively(tmp_path):
     # every table opens, every row count intact
     for t, n in counts0.items():
         assert store.conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] == n, t
-    # additivity: the migration must not change existing sent_at values
-    # (a populated live DB legitimately carries sent_at rows written by the
-    # bot since the v7 migration — assert DELTA, not pristine state)
+# additivity: the migration keeps existing sent_at values
     n_null = store.conn.execute(
         "SELECT COUNT(*) FROM messages WHERE sent_at IS NOT NULL"
     ).fetchone()[0]

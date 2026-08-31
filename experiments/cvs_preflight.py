@@ -56,32 +56,14 @@ from experiments.validation.hard_invariants import (
     failure_messages,
 )
 
-#: Días del pre-flight (G2: el horizonte CONFIRMATORIO de la matriz, 30
-#: días — los mecanismos ablacionados necesitan horizonte para actuar; el
-#: smoke estructural rápido sigue siendo 3 días vía ``smoke=True``).
+# Pre-flight days: 30 (matrix horizon); structural smoke uses 3 via smoke=True.
 DEFAULT_DAYS = 30
 
-#: Umbral de la COMPUERTA (pre-flight): el canal no está inactivo —
-#: detector de nulidad, una barra baja a propósito. Está SEPARADO del
-#: umbral de hipótesis (COUNT_DIVERGENCE_MIN = 0.15, scheduler.py), que
-#: es un tamaño de efecto preregistrado y se prueba en la matriz REAL
-#: (G5). La compuerta responde "¿está dormido el canal?"; el manifiesto
-#: responde "¿el efecto alcanza el margen comprometido?". Nada depende
-#: del valor exacto de esta constante, así que es inmune al ajuste
-#: post-hoc.
+# Gate threshold: low nullity-detector bar; the 0.15 hypothesis threshold
+# (scheduler.py) is tested on the real matrix.
 GATE_MIN_DIVERGENCE = 0.05
 
-# --------------------------------------------------------------------------- #
-# REGISTRO DE CLAIMS — sección ÚNICA (it3 B8 / G2)
-#
-# Mecanismo: lista plana de AblationClaim (contrato congelado). Aditivo: el
-# orquestador appendea sin reestructurar. En G2 los placeholders de canal
-# B4/B5 se sustituyeron por las claims preregistradas (B4: NO_ACTUATORS
-# plano vs FULL no degenerado con margen 3.0x en delay; B5:
-# structured_no_state_claim de harness/scheduler) y las claims de memoria
-# pasaron a ser conductuales (evidencia recuperada no nula + conjunto
-# recuperado distinto del de FULL).
-# --------------------------------------------------------------------------- #
+# Claim registry: flat list of AblationClaim entries.
 
 
 def _pct_div(cell_v: float, full_v: float) -> float:
@@ -270,11 +252,9 @@ CLAIMS: list[AblationClaim] = [
             "progress each day), while FULL persists arc ids across days"
         ),
         check=_no_life_goldfish_check,
-        min_days=2,  # la discontinuidad de identidad necesita >= 2 días
+        min_days=2,  # identity discontinuity needs >= 2 days
     ),
-    # COMPUERTA del canal de timing (no-hypótesis): el umbral de efecto
-    # preregistrado (COUNT_DIVERGENCE_MIN = 0.15) vive en scheduler.py y
-    # se prueba en la matriz REAL (G5); aquí solo se detecta nulidad.
+    # Timing-channel check: only nullity is detected here.
     AblationClaim(
         condition="STRUCTURED_NO_STATE",
         channel="timing",
@@ -286,7 +266,7 @@ CLAIMS: list[AblationClaim] = [
         ),
         check=_timing_channel_gate_check,
         measure=_timing_measure,
-        min_days=4,  # el feedback de puntuación no puede aterrizar antes del día 2-3
+        min_days=4,  # score feedback cannot land before day 2-3
     ),
     AblationClaim(
         condition="NO_ACTUATORS",
@@ -314,7 +294,7 @@ CLAIMS: list[AblationClaim] = [
         ),
         check=_timing_channel_gate_check,
         measure=_timing_measure,
-        min_days=4,  # el feedback de puntuación no puede aterrizar antes del día 2-3
+        min_days=4,  # score feedback cannot land before day 2-3
     ),
     AblationClaim(
         condition="RAW_HISTORY",
@@ -339,13 +319,11 @@ CLAIMS: list[AblationClaim] = [
             "actually retrieved — not lane identity)"
         ),
         check=_memory_behavioral_check,
-        min_days=10,  # el store cruza la superficie de recuperación (limit=8) entre el día 5 y el 10
+        min_days=10,  # the store crosses the retrieval surface (limit=8) between days 5 and 10
     ),
 ]
 
-# --------------------------------------------------------------------------- #
-# Agregación y evaluación
-# --------------------------------------------------------------------------- #
+# Aggregation and evaluation
 
 
 def _merge_controls_stats(summaries: Sequence[dict]) -> dict:
@@ -410,9 +388,7 @@ def _aggregate(summaries: Sequence[dict]) -> dict:
             (s["memory_lane"] for s in summaries if s["memory_lane"]), None
         ),
         "controls_stats": _merge_controls_stats(summaries),
-        # Identity trace (NO_LIFE goldfish claim): per-day union of the
-        # seeds' arc id sets — NO_LIFE shows disjoint consecutive days,
-        # FULL shows persistent ids (visible in the report JSON).
+        # Identity trace: per-day union of the seeds' arc id sets.
         "life_arc_ids_by_day": {
             d: sorted(ids)
             for d, ids in _union_arc_ids_by_day(summaries).items()
@@ -454,10 +430,7 @@ def _aggregate(summaries: Sequence[dict]) -> dict:
         agg["n_conversations"] = None
         agg["mean_turns_per_conversation"] = None
         agg["conversations_available"] = False
-    # Piernas de G2 (claims preregistradas B4/B5 + conductuales de memoria):
-    # horas proactivas pooled (pata de gaps de B5) y evidencia de
-    # recuperación fusionada (set de ids unión, turnos de contexto sumados,
-    # coberturas máximas).
+    # Pooled proactive times and merged retrieval evidence.
     agg["proactive_times"] = sorted(
         t for s in summaries for t in (s.get("proactive_times") or ())
     )
@@ -588,9 +561,7 @@ def evaluate_claims(
     return verdicts
 
 
-# --------------------------------------------------------------------------- #
 # Driver
-# --------------------------------------------------------------------------- #
 
 
 def run_preflight(
@@ -633,8 +604,7 @@ def run_preflight(
     claims = list(CLAIMS if claims is None else claims)
     conditions = list(conditions)
     if smoke:
-        # Leg estructural rápida: 3 días, sin claims — solo construcción,
-        # invariantes, determinismo y ceros. No es la compuerta.
+        # Fast structural leg: 3 days, no claims.
         days = 3
         claims = []
     out_dir = Path(out_dir) if out_dir else Path(
@@ -670,11 +640,7 @@ def run_preflight(
     deterministic = True
     determinism_failures: list[str] = []
     if determinism_check:
-        # La referencia (FULL) Y el control positivo (NO_TIMING_FEEDBACK)
-        # deben ser reproducibles: la carrera de feeds de ``_run_segment``
-        # puede golpear a UNA condición sin tocar FULL — un control positivo
-        # no reproducible invalida el veredicto de la compuerta igual que
-        # una referencia no reproducible.
+        # FULL and the NO_TIMING_FEEDBACK positive control must both be reproducible.
         for cond in ("FULL", "NO_TIMING_FEEDBACK"):
             if cond not in run_conditions:
                 continue
@@ -690,16 +656,13 @@ def run_preflight(
     verdicts: list[dict] = []
     for condition in run_conditions:
         cell = per_condition[condition]
-        # FULL se compara contra sí mismo; el resto contra FULL. Toda claim
-        # del registro se evalúa (mecanismo aditivo general).
+        # FULL compares against itself; the rest against FULL.
         reference = full if condition != "FULL" else cell
         verdicts.extend(evaluate_claims(
             condition, cell, reference, claims, days=days,
         ))
 
-    # ``passed is False`` estricto: las claims NOT EVALUABLE (passed=None,
-    # por debajo de min_days) NUNCA marcan la condición como ablación nula
-    # — son un artefacto de horizonte, no un hallazgo.
+    # Only passed is False marks a null ablation; not-evaluable claims do not.
     null_ablations = sorted({
         v["condition"] for v in verdicts if v["passed"] is False and "error" not in v
     })
@@ -751,9 +714,7 @@ def _validator_failures(validator_report: dict) -> list[str]:
     return failures
 
 
-# --------------------------------------------------------------------------- #
 # CLI
-# --------------------------------------------------------------------------- #
 
 
 def _fmt_num(value) -> str:

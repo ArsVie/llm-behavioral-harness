@@ -28,9 +28,7 @@ import numpy as np
 # ---------------------------------------------------------------------------
 # Alias de tipos
 
-#: Modulador multiplicativo del hazard: recibe tiempo absoluto en horas
-#: (t_h, ver convención arriba) y devuelve un factor >= 0. Los drivers de la
-#: Ola 2 componen aquí envolvente circadiana × multiplicador de fase × adj.
+#: Modulador multiplicativo del hazard: factor >= 0 según t_h.
 Modulator = Callable[[float], float]
 
 
@@ -70,11 +68,8 @@ PHASE_OVULATORY = "ovulatory"
 PHASE_LUTEAL_EARLY = "luteal_early"
 PHASE_LUTEAL_LATE = "luteal_late"
 
-#: Decisión W0.1 — fronteras de fase como FRACCIONES de la longitud del ciclo
-#: L, para que escalen con el redraw de L por ciclo. Con L=28 los rangos en
-#: días (semiabiertos [ini, fin)) son: menstrual [0,5), follicular [5,12),
-#: ovulatory [12,16), luteal_early [16,23), luteal_late [23,28).
-#: (label, frac_inicio, frac_fin); la última fase cierra en 1.0.
+#: Fronteras de fase como fracciones de L (label, ini, fin); la última
+#: fase cierra en 1.0.
 PHASE_FRACTIONS: tuple[tuple[str, float, float], ...] = (
     (PHASE_MENSTRUAL, 0.0, 5.0 / 28.0),
     (PHASE_FOLLICULAR, 5.0 / 28.0, 12.0 / 28.0),
@@ -83,10 +78,8 @@ PHASE_FRACTIONS: tuple[tuple[str, float, float], ...] = (
     (PHASE_LUTEAL_LATE, 23.0 / 28.0, 1.0),
 )
 
-#: Decisión W0.1 — multiplicadores de tasa de mensajes por fase, dentro del
-#: rango 0.6–1.4 de DESIGN, ordenados según las anclas de valencia de
-#: research/02 (menstrual −0.3 · folicular +0.1 · ovulatoria +0.4 ·
-#: luteal-temprana +0.1 · luteal-tardía −0.2).
+#: Multiplicadores de tasa de mensajes por fase, ordenados por ancla
+#: de valencia (menstrual → luteal-tardía).
 DEFAULT_PHASE_MULTIPLIERS: dict[str, float] = {
     PHASE_MENSTRUAL: 0.7,
     PHASE_FOLLICULAR: 1.1,
@@ -95,9 +88,8 @@ DEFAULT_PHASE_MULTIPLIERS: dict[str, float] = {
     PHASE_LUTEAL_LATE: 0.8,
 }
 
-#: Decisión W0.1 — desplazamiento del canal de energía por fase (aditivo
-#: sobre la base 0.6 ± diurnal_amp del coseno circadiano; ver
-#: engine/circadian.py). Valores sutiles: la energía vive en [0, 1].
+#: Desplazamiento del canal de energía por fase (aditivo, energía en
+#: [0, 1]).
 ENERGY_PHASE_OFFSETS: dict[str, float] = {
     PHASE_MENSTRUAL: -0.15,
     PHASE_FOLLICULAR: +0.05,
@@ -134,9 +126,7 @@ class PersonaParams:
     lam: float = 0.60  # λ — temperamento base (media sigmoide sin ciclo)
     nu: float = math.inf  # ν — volatilidad beta-binomial; inf ⇒ binomial pura
     k: float = 0.18  # aprendizaje de μ desde el score del juez;
-    #   afinado post-Fase 1 (era 0.15) — junto con rho=0.85 sube el techo del
-    #   trato a μ∞=k/(1−ρ)=±1.2: un mes perfecto vive en ~7–10 y uno horrible
-    #   en ~0–4 (engine_simulation/15_mes_perfecto_horrible.png)
+    #   afinado post-Fase 1 (era 0.15)
     rho: float = 0.85  # ρ — decaimiento diario de μ (half-life ~4.3 d);
     #   afinado post-Fase 1 (era 0.70): memoria a escala de mes — los días
     #   sueltos pesan poco, las rachas sostenidas se acumulan
@@ -145,9 +135,7 @@ class PersonaParams:
     sigma_e: float = 0.45  # σ_e — sd de la innovación de η;
     #   afinado en Fase 1 (era 0.2) — ver results/fase-1-informe.md
     B: float = 0.5  # amplitud del desplazamiento de media del ciclo m(t);
-    #   afinado post-Fase 1 (era 0.15) — barrido promediado de 30 semillas
-    #   (engine_simulation/12_barrido_B_30seeds.png): mínimo para que el ritmo
-    #   mensual sea legible en el comportamiento observable
+    #   afinado post-Fase 1 (era 0.15), barrido de 30 semillas
     A: float = 0.25  # amplitud de la ganancia de reactividad del ciclo g(t)
     sigma_eps: float = 0.03  # σ_ε — ruido diario de g(t)
     L_mean: float = 28.0  # media de la longitud del ciclo (días)

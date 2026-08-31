@@ -72,14 +72,12 @@ from harness.domain import (
 )
 from harness.prompts import render_popup_block
 
-#: G3 anchor fixture: 2026-08-15T13:30:00Z at t_h 7.5 in America/Chihuahua
+#: Anchor fixture: 2026-08-15T13:30:00Z at t_h 7.5 in America/Chihuahua
 #: (UTC-6 in August) → t_h 27.0 is 03:00 local, Sunday, virtual day 1.
 G3_EPOCH0_S = datetime(2026, 8, 15, 13, 30, 0, tzinfo=timezone.utc).timestamp()
 
-#: Pinned sha256 of the PRE-reorder assembled prompts on this exact fixture
-#: (captured by /tmp/wsd_probe.py at e2b830d, before the WS-D reorder; the
-#: post-reorder run reproduced them byte-for-byte). Any future section
-#: reorder that changes the assembled bytes trips these pins.
+#: Pinned sha256 of the pre-reorder assembled prompts on this fixture,
+#: reproduced byte-for-byte by the post-reorder run.
 PINNED_PRE_ANCHORED_FULL = "5cfa689a6e93185ece52c433a924bedb3c5644b644e05855f3d404fd6de1d87c"
 PINNED_PRE_UNANCHORED_FULL = "c5cf7cb0edb0f1822389d7ff60b41578d1022f5446bd946ad0ef282aabfd4e3e"
 PINNED_PRE_BARE_FULL = "7f6411963780cfaf849a85081105aea2ec6c5a72db6ddc2a5751081f19dca5a2"
@@ -174,9 +172,7 @@ def _recent_turns(n: int = 4) -> list[dict]:
     ]
 
 
-# --------------------------------------------------------------------------- #
-# (a) stable-prefix byte identity across turns and across conversations
-# --------------------------------------------------------------------------- #
+# --- (a) stable-prefix byte identity across turns and across conversations ---
 
 
 def test_stable_system_byte_identical_across_turns():
@@ -192,8 +188,7 @@ def test_stable_system_byte_identical_across_turns():
         snapshot=snap, recent_turns=recent, user_request="hi",
         controls=controls, prompt_brief=brief, t_h=27.0, anchor=_anchor(),
     )
-    # Turn 2: same config, later time (volatile state changes) and the
-    # transcript gained turn 1's persisted pair (user request + reply).
+# Turn 2: same config, later time; the transcript gained turn 1's persisted (request, reply) pair.
     system2, messages2 = build_context_messages(
         snapshot=snap, user_request="hi again",
         recent_turns=recent
@@ -201,15 +196,12 @@ def test_stable_system_byte_identical_across_turns():
            {"role": "assistant", "content": "hello"}],
         controls=controls, prompt_brief=brief, t_h=28.0, anchor=_anchor(),
     )
-    # The STABLE system is byte-identical across turns.
+# The STABLE system is byte-identical across turns.
     assert system1 == system2
-    # The message prefix up to the volatile tail is byte-identical: turn 2's
-    # history is turn 1's history + the persisted (request, reply) pair.
-    # messages2[:-3] == messages1[:-1] — request N+1 is an extension of N
-    # up to the tail.
+# The prefix up to the volatile tail is byte-identical; turn 2's history
+# is turn 1's history plus the persisted (request, reply) pair.
     assert messages1[:-1] == messages2[:-3]
-    # Byte-identity claim: request N+1 is an extension of request N up to the
-    # tail — everything the provider already cached is literally the same.
+# Request N+1 is an extension of request N up to the tail.
     tail1 = messages1[-1]["content"]
     tail2 = messages2[-1]["content"]
     assert tail1 != tail2  # volatile tail differs between turns
@@ -233,7 +225,7 @@ def test_stable_system_byte_identical_across_conversations():
     assert system_a == system_b == "\n\n".join(
         [SYSTEM_CORE_WITH_TOOLS, render_day_block(snap)]
     )
-    # Different conversation + different turn → different volatile tail.
+# Different conversation + different turn → different volatile tail.
     assert messages_a[-1]["content"] != messages_b[-1]["content"]
 
 
@@ -252,9 +244,7 @@ def test_constant_state_yields_byte_identical_whole_request():
     assert m1 == m2
 
 
-# --------------------------------------------------------------------------- #
-# (b) volatile state differs between turns and appears at the TAIL
-# --------------------------------------------------------------------------- #
+# --- (b) volatile state differs between turns and appears at the TAIL ---
 
 
 def test_volatile_state_is_the_last_user_message():
@@ -268,18 +258,17 @@ def test_volatile_state_is_the_last_user_message():
     )
     tail = messages[-1]
     assert tail["role"] == "user"
-    # The temporal/state-card content sits at the END of the wire layout.
+# The temporal/state-card content sits at the END of the wire layout.
     assert TEMPORAL_HEADER in tail["content"]
     assert AGENDA_HEADER in tail["content"]
     assert tail["content"].startswith(AGENDA_HEADER)  # agenda opens the card
-    # Volatile markers NEVER enter the stable prefix (system message).
+# Volatile markers stay out of the stable prefix (system message).
     for volatile_marker in (
         TEMPORAL_HEADER, AFFECTIVE_HEADER, BEHAVIORAL_HEADER,
         CURRENT_INTENT_HEADER, AGENDA_HEADER, MEMORIES_HEADER,
     ):
         assert volatile_marker not in system, volatile_marker
-    # The time line differs from turn to turn (volatile) and the last message
-    # differs while the stable prefix does not.
+# The time line and the last message differ between turns; the stable prefix does not.
     system2, messages2 = build_context_messages(
         snapshot=snap, recent_turns=_recent_turns(3), user_request="hi",
         controls=_controls(), prompt_brief=_prompt_brief(),
@@ -298,15 +287,13 @@ def test_unanchored_replay_tail_still_carries_agenda():
         controls=_controls(), prompt_brief=_prompt_brief(),
     )
     tail = messages[-1]["content"]
-    assert TEMPORAL_HEADER not in tail  # unanchored: never raw t_h (G2)
+    assert TEMPORAL_HEADER not in tail  # unanchored: not raw t_h
     assert AGENDA_HEADER in tail  # the moved day-plan view survives
     assert "agenda item 0" in tail
     assert TEMPORAL_HEADER not in system and AGENDA_HEADER not in system
 
 
-# --------------------------------------------------------------------------- #
-# (c) replay parity / byte identity vs the pre-reorder layout
-# --------------------------------------------------------------------------- #
+# --- (c) replay parity: byte identity vs the pre-reorder layout ---
 
 
 def _sha256(text: str) -> str:
@@ -352,12 +339,12 @@ def test_new_layout_is_exact_decomposition_of_legacy_prompt():
         t_h=27.0, anchor=_anchor(),
     )
     tail = messages[-1]["content"]
-    # Exact decomposition: stable prefix + one separator + volatile tail.
+# Exact decomposition: stable prefix + one separator + volatile tail.
     assert legacy == system + "\n\n" + tail
-    # The stable system is the byte-identical prefix of the legacy prompt.
+# The stable system is the byte-identical prefix of the legacy prompt.
     assert legacy.startswith(system)
     assert legacy[: len(system)] == system
-    # The volatile tail is the byte-identical suffix (after the separator).
+# The volatile tail is the byte-identical suffix (after the separator).
     assert legacy.endswith(tail)
     assert legacy[len(system) + 2:] == tail
 
@@ -372,8 +359,7 @@ def test_render_day_block_is_persona_only():
     tail = render_state_card(snap)
     assert AGENDA_HEADER in tail
     assert "agenda item 0" in tail
-    # The plan-view filtering semantics moved intact: skipped/past items are
-    # not planned (NOW semantics), same as the pre-WS-D day block.
+# Skipped and past items are not planned (NOW semantics), as before.
     skipped = dataclasses.replace(
         _snapshot(rich=True),
         agenda=(
@@ -401,7 +387,7 @@ def test_seam_deterministic_replay_parity():
     s2, m2 = build_context_messages(**kwargs)
     assert s1 == s2
     assert m1 == m2
-    # Legacy helpers stay untouched (byte-compat with pre-WS-D callers).
+# Legacy helpers stay untouched, byte-compatible with older callers.
     assert build_messages(
         [{"role": "user", "content": "a"}, {"role": "assistant", "content": "b"}], "c"
     ) == [

@@ -104,10 +104,8 @@ def test_openai_client_requires_key(monkeypatch):
         client.chat([{"role": "user", "content": "q"}])
 
 
-# -- iteration-3 B1: generation integrity ---------------------------------- #
-# Empty/whitespace completions are retried with bounded backoff; a persistent
-# empty raises; truncation (finish_reason=length) is recorded, not treated as
-# an empty reply (it2 F1: 579/2090 blank assistant turns were persisted).
+# Generation integrity: empty/whitespace completions retry with bounded
+# backoff; persistent empty raises; truncation is recorded, not blank.
 
 
 def _empty_then_real_client(empties: int = 2, max_retries: int = 2):
@@ -454,11 +452,8 @@ def test_fake_client_chat_with_meta_records_defaults():
     assert call["json_mode"] is False
 
 
-# -- WS-C: two-lane credential split ---------------------------------------- #
-# The client resolves api_key/base_url through harness.credentials by lane:
-# product -> LILY_TOKEN/LILY_BASE_URL, research -> JUDGE_GENERATOR_TOKEN/
-# JUDGE_GENERATOR_BASE_URL. Explicit args always win; lane=None keeps the
-# legacy LLM_* env behavior. Values are never logged — only the env var NAME.
+# WS-C two-lane credentials: api_key/base_url resolve by lane
+# (product vs research); explicit args win; values never logged.
 
 
 def test_lane_product_resolves_token_and_stamp(monkeypatch):

@@ -81,7 +81,7 @@ class TestRecordsSummary:
                     "n_blank_assistant_turns", "n_conversations",
                     "mean_turns_per_conversation"):
             assert key in summary, f"missing contract key {key}"
-        # Cuentas verificadas contra el store (no contra el records dict).
+        # Counts are verified against the store.
         msgs = store.conn.execute("SELECT * FROM messages").fetchall()
         n_assistant = sum(1 for m in msgs if m["role"] == "assistant")
         n_pro = sum(1 for m in msgs if m["proactive"])
@@ -91,8 +91,7 @@ class TestRecordsSummary:
         assert summary["n_assistant_turns"] == (
             summary["n_reactive"] + summary["n_proactive"]
         )
-        # B2 ha aterrizado: la v4 crea las tablas siempre — disponible, no
-        # silencioso, con ceros contables en lugar de None.
+        # v4 creates the tables always: available, with countable zeros.
         assert summary["conversations_available"] is True
         assert summary["n_conversations"] is not None
         assert summary["mean_turns_per_conversation"] is not None
@@ -110,8 +109,7 @@ class TestRecordsSummary:
         _seed_conversation_tables(store)
         summary = records_summary(store, records)
         assert summary["conversations_available"] is True
-        # La célula (con el feed de it3) ya forma conversaciones reales, más
-        # la sembrada: lo que se verifica es que el seam CUENTA, no un total.
+        # The cell plus the seeded conversation are counted by the seam.
         assert summary["n_conversations"] >= 1
         assert summary["mean_turns_per_conversation"] is not None
         store.close()
@@ -149,7 +147,7 @@ class TestControlsStats:
         assert mt["mean"] is not None
         assert mt["min"] <= mt["mean"] <= mt["max"]
         assert mt["varied"] is True
-        # closing_guidance es textual: sin min/max/mean, varied sí se reporta
+        # closing_guidance is textual: no min/max/mean, varied is reported.
         assert cs["closing_guidance"]["min"] is None
         assert isinstance(cs["closing_guidance"]["varied"], bool)
 
@@ -175,7 +173,7 @@ class TestControlsStats:
             )
             if st["min"] is not None:
                 assert st["min"] == st["max"] == st["mean"]
-        # lane de mensajes intacta: mensajes reales y longitudes que varían
+        # Message lane is intact: real messages with varying lengths.
         assert summary["n_messages"] > 0
         assert summary["std_reply_len"] > 0
 
@@ -202,7 +200,7 @@ class TestControlsStats:
             report["per_condition"]["NO_ACTUATORS"]["controls_stats"]
             ["max_tokens"]["varied"] is False
         )
-        # serializable (el reporte se escribe a JSON en el driver)
+        # The report is JSON-serializable.
         import json
         json.dumps(report)
 
@@ -286,7 +284,7 @@ class TestPreflightGate:
         ]
         assert verdicts and all(v["passed"] for v in verdicts)
         assert "NO_TIMING_FEEDBACK" not in report["null_ablations"]
-        # La pata que disparó queda registrada con su margen medido.
+        # The fired leg is recorded with its measured margin.
         m = verdicts[0]["measured"]
         assert m["fired_div"] >= GATE_MIN_DIVERGENCE
         assert m["count_div"] is not None
@@ -395,10 +393,10 @@ class TestNoLifeGoldfish:
             cells[cond] = _aggregate([records_summary(store, records)])
             store.close()
         no_life, full = cells["NO_LIFE"], cells["FULL"]
-        # goldfish cell -> claim passes
+        # Goldfish cell: claim passes.
         verdicts = evaluate_claims("NO_LIFE", no_life, full, CLAIMS, days=3)
         assert verdicts and all(v["passed"] for v in verdicts), verdicts
-        # FULL cell -> the SAME claim fails (the check discriminates)
+        # FULL cell: the same claim fails.
         verdicts_full = evaluate_claims("NO_LIFE", full, full, CLAIMS, days=3)
         assert verdicts_full and not any(v["passed"] for v in verdicts_full)
 
@@ -448,10 +446,10 @@ class TestClaimsRegistry:
         by_assertion = {v["assertion"]: v for v in report["verdicts"]}
         assert by_assertion[extra_pass.assertion]["passed"] is True
         assert by_assertion[extra_fail.assertion]["passed"] is False
-        # La claim añadida que falla bloquea la matriz (mecanismo intacto).
+        # The failing appended claim blocks the matrix.
         assert "FULL" in report["null_ablations"]
         assert not report["ok"]
-        # Las claims existentes siguen evaluándose (NO_LIFE pasa — goldfish).
+        # Existing claims are still evaluated (NO_LIFE passes).
         assert "NO_LIFE" not in report["null_ablations"]
 
     def test_claim_check_error_is_loud(self, tmp_path):
@@ -507,7 +505,7 @@ class TestDeterminismCheck:
         diffs = _summary_diff(a, b)
         assert any("n_fired_schedule" in d for d in diffs)
         assert any("mean_reply_len" in d for d in diffs)
-        assert not any("memory_lane" in d for d in diffs)  # identidad: excluida
+        assert not any("memory_lane" in d for d in diffs)  # identity excluded
 
     def test_preflight_reports_deterministic_on_idle_run(self, tmp_path):
         """En un run sin carga, el chequeo de determinismo pasa y el reporte
@@ -529,8 +527,7 @@ class TestDeterminismCheck:
             determinism_check=False,
         )
         assert "deterministic" in report
-        # NO_LIFE ya no es ablación nula (goldfish desde it3 G2): con solo
-        # FULL+NO_LIFE en el run set, ninguna claim falla -> la compuerta abre.
+        # With only FULL+NO_LIFE in the run set, no claim fails.
         assert report["ok"] is True
 
 
@@ -617,11 +614,10 @@ class TestPreregisteredClaimsG2:
         full = self._summary(controls=self._full_controls_stats())
         verdicts = self._verdict("NO_ACTUATORS", cell, full)
         assert verdicts and all(v["passed"] for v in verdicts)
-        # Sin tautología: FULL vs FULL falla.
+        # FULL vs FULL fails.
         verdicts_full = self._verdict("NO_ACTUATORS", full, full)
         assert verdicts_full and all(not v["passed"] for v in verdicts_full)
-        # Margen de amplitud vinculante: FULL con delay max < 3.0x el plano
-        # (5.0 s) no sustenta la claim aunque la célula sea plana.
+        # FULL with delay max under 3.0x the flat delay does not pass.
         full_weak = self._summary(controls={
             **self._full_controls_stats(),
             "response_delay_s": {"n": 30, "min": 4.0, "max": 12.0,
@@ -644,16 +640,14 @@ class TestPreregisteredClaimsG2:
         cell = {"n_proactive": 12, "proactive_times": [10.0, 30.0, 50.0, 70.0]}
         full = {"n_proactive": 8, "proactive_times": [10.0, 20.0, 30.0, 40.0]}
         assert claim.check(cell, full)
-        # Sin tautología: idénticos falla.
+        # Identical inputs fail.
         same = {"n_proactive": 8, "proactive_times": [10.0, 20.0, 30.0, 40.0]}
         assert not claim.check(same, full)
-        # Pata de gaps vinculante: conteo diverge >= 15% (8 vs 6) pero los
-        # gaps medios difieren < 10% -> la claim falla (ambas patas son
-        # preregistradas).
+        # Counts diverge >= 15% but mean gaps differ < 10%: claim fails.
         close_gaps = {"n_proactive": 8, "proactive_times": [10.0, 22.0, 34.0, 46.0]}
         gap_full = {"n_proactive": 6, "proactive_times": [10.0, 21.0, 32.0, 43.0]}
         assert not claim.check(close_gaps, gap_full)
-        # Pocas horas (sin la pata de gaps): el conteo decide solo.
+        # Few hours: only the count leg applies.
         sparse = {"n_proactive": 6, "proactive_times": [10.0, 30.0, 50.0]}
         sparse_full = {"n_proactive": 4, "proactive_times": [10.0, 20.0, 30.0]}
         assert claim.check(sparse, sparse_full)
@@ -674,12 +668,11 @@ class TestPreregisteredClaimsG2:
         full = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
         verdicts = self._verdict("SIMPLE_RAG", cell, full)
         assert verdicts and all(v["passed"] for v in verdicts)
-        # Conjunto idéntico al de FULL (artefacto de horizonte con store
-        # pequeño): la claim falla — la comparación es de conjuntos.
+        # Identical set to FULL: the claim fails (set comparison).
         same = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
         verdicts_same = self._verdict("SIMPLE_RAG", same, full)
         assert verdicts_same and all(not v["passed"] for v in verdicts_same)
-        # Sin tautología: FULL vs FULL falla.
+        # FULL vs FULL fails.
         verdicts_full = self._verdict("SIMPLE_RAG", full, full)
         assert verdicts_full and all(not v["passed"] for v in verdicts_full)
 
@@ -693,13 +686,13 @@ class TestPreregisteredClaimsG2:
         full = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
         verdicts = self._verdict("RAW_HISTORY", cell, full)
         assert verdicts and all(v["passed"] for v in verdicts)
-        # Ventana vacía (lane que no entrega diálogo): falla.
+        # Empty window: fails.
         dead = self._summary(
             evidence=self._memory_evidence([], lane="raw_history", ctx=0)
         )
         verdicts_dead = self._verdict("RAW_HISTORY", dead, full)
         assert verdicts_dead and all(not v["passed"] for v in verdicts_dead)
-        # Sin tautología: FULL vs FULL falla.
+        # FULL vs FULL fails.
         verdicts_full = self._verdict("RAW_HISTORY", full, full)
         assert verdicts_full and all(not v["passed"] for v in verdicts_full)
 

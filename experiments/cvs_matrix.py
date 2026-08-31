@@ -118,8 +118,7 @@ def run_matrix(
     for condition, seed in cells:
         key = f"{condition}/seed{seed}"
         if status["cells"].get(key, {}).get("state") == "ok":
-            # Resume: la celda ya está hecha — el shape del reporte exige
-            # condition/seed (el cell_state por sí solo no los lleva).
+            # Resume: the cell is done; the report shape needs condition/seed.
             results.append(
                 {"condition": condition, "seed": seed,
                  **status["cells"][key]}

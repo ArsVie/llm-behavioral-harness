@@ -46,11 +46,10 @@ from harness.behavior import derive_behavior
 from sim.metrics import autocorr_lag1
 from sim.run_daily import run
 
-# ---------------------------------------------------------------------------
-# Constantes del experimento
+# Experiment constants
 
 DAYS = 120
-SEEDS: tuple[int, ...] = tuple(range(4001, 4031))  # 30 semillas fijas
+SEEDS: tuple[int, ...] = tuple(range(4001, 4031))  # 30 fixed seeds
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
 OUT_DIR = Path(__file__).resolve().parents[1] / "results" / "w36-phase-contrast"
 
@@ -66,8 +65,8 @@ PHASE_ORDER: tuple[str, ...] = (
 
 EVENING_HOUR = 19.0
 PEAK_HOUR = _TIMING.peak_hour  # 14.0
-DAY_HOURS = (14.0, 19.0)  # horas de referencia diurnas
-NIGHT_HOURS = (23.0, 0.0, 1.0, 2.0)  # ventana nocturna 23:00-02:00
+DAY_HOURS = (14.0, 19.0)  # daytime reference hours
+NIGHT_HOURS = (23.0, 0.0, 1.0, 2.0)  # night window 23:00-02:00
 CHANNELS: tuple[str, ...] = (
     "valence",
     "energy",
@@ -77,22 +76,21 @@ CHANNELS: tuple[str, ...] = (
     "reflectiveness",
 )
 
-# Umbrales numéricos de los veredictos (documentados en el reporte).
-V1_MARGIN_MEAN = 0.5  # menstrual < ovulatory - 0.5 pasos de M
+# Numeric verdict thresholds (documented in the report).
+V1_MARGIN_MEAN = 0.5  # menstrual < ovulatory - 0.5 M steps
 V1_MARGIN_SD = 0.1  # menstrual sd > ovulatory sd + 0.1
 V1_MARGIN_G = 0.2  # menstrual mean g > ovulatory mean g + 0.2
 V2_MARGIN_MEAN = 0.5
 V2_MARGIN_SD = 0.1
 V2_MARGIN_WARMTH = 0.01
 V3_RATIO_ENERGETIC = 0.85  # energy(19)/peak >= 0.85 => "energetic"
-V3_RATIO_MODERATE = 0.70  # >= 0.70 => "moderate"; < 0.70 => "weak"
+V3_RATIO_MODERATE = 0.70  # >= 0.70 "moderate", < 0.70 "weak"
 V4_MARGIN_ENERGY = 0.10  # night < day - 0.10
 V4_MARGIN_PLAY = 0.05  # night < day - 0.05
 V4_MARGIN_REFL = 0.05  # night > day + 0.05
 
 
-# ---------------------------------------------------------------------------
-# Estadísticas por fase
+# Per-phase statistics
 
 
 @dataclass
@@ -101,16 +99,16 @@ class PhaseStats:
 
     n_days: int = 0
     mean_M: float = float("nan")
-    sd_M: float = float("nan")  # media entre semillas de la sd intra-fase de M
-    sem_M: float = float("nan")  # sem de la media de M entre semillas
-    ac1: float = float("nan")  # autocorr lag-1 medio dentro de rachas de fase
+    sd_M: float = float("nan")  # mean across seeds of the intra-phase sd of M
+    sem_M: float = float("nan")  # SEM of the mean M across seeds
+    ac1: float = float("nan")  # mean lag-1 autocorr within phase runs
     mean_g: float = float("nan")
     mean_m: float = float("nan")
     mean_score: float = float("nan")
-    sat_frac: float = float("nan")  # fracción de días con M en {0, N}
-    beh19: dict[str, float] = field(default_factory=dict)  # canales a las 19:00
-    beh_day: dict[str, float] = field(default_factory=dict)  # canales 14:00/19:00
-    beh_night: dict[str, float] = field(default_factory=dict)  # canales 23:00-02:00
+    sat_frac: float = float("nan")  # fraction of days with M in {0, N}
+    beh19: dict[str, float] = field(default_factory=dict)  # channels at 19:00
+    beh_day: dict[str, float] = field(default_factory=dict)  # channels 14:00/19:00
+    beh_night: dict[str, float] = field(default_factory=dict)  # channels 23:00-02:00
 
 
 def _mean_or_nan(values: list[float]) -> float:
@@ -128,7 +126,7 @@ def collect_phase_stats(results: list) -> dict[str, PhaseStats]:
     """Agrega por fase: medias/sd por semilla, luego promedio entre semillas."""
     n_seeds = len(results)
 
-    # Acumuladores por semilla (listas de valores por fase)
+    # Per-seed accumulators (lists of values per phase)
     seed_means: dict[str, list[float]] = {ph: [] for ph in PHASE_ORDER}
     seed_sds: dict[str, list[float]] = {ph: [] for ph in PHASE_ORDER}
     seed_g: dict[str, list[float]] = {ph: [] for ph in PHASE_ORDER}
@@ -154,7 +152,7 @@ def collect_phase_stats(results: list) -> dict[str, PhaseStats]:
         phase_m: dict[str, list[float]] = {ph: [] for ph in PHASE_ORDER}
         phase_score: dict[str, list[float]] = {ph: [] for ph in PHASE_ORDER}
 
-        # rachas continuas de fase para la autocorr intra-fase de M
+        # Continuous phase runs for intra-phase autocorr of M
         run_phase: str | None = None
         run_M: list[float] = []
 
@@ -168,7 +166,7 @@ def collect_phase_stats(results: list) -> dict[str, PhaseStats]:
             if rec.M in (0, _PERSONA.N):
                 sat_counts[ph] += 1
 
-            # rachas
+            # runs
             if ph == run_phase:
                 run_M.append(float(rec.M))
             else:
@@ -223,8 +221,7 @@ def collect_phase_stats(results: list) -> dict[str, PhaseStats]:
     return stats
 
 
-# ---------------------------------------------------------------------------
-# Figuras (títulos en inglés; semillas escritas en el título)
+# Figures (English titles; seeds in the title)
 
 
 def _phase_colors() -> dict[str, str]:
@@ -297,7 +294,7 @@ def plot_p2_cycle_overlay(results: list) -> Path:
     mean_M = np.asarray([np.mean(cd_vals[cd]) for cd in cds])
     sd_M = np.asarray([np.std(cd_vals[cd], ddof=1) for cd in cds])
 
-    # franjas de fase: (inicio, fin) en días de ciclo para L=28
+    # Phase spans (start, end) in cycle days for L=28
     phase_spans = [
         ("menstrual", 0, 5),
         ("follicular", 5, 12),
@@ -420,7 +417,7 @@ def plot_p5_hourly_low_vs_high(first_result) -> Path:
     M_arr = first_result.M
     low_idx = int(np.argmin(M_arr))
     high_idx = int(np.argmax(M_arr))
-    if high_idx == low_idx:  # no ocurre con N=10 y 120 días, pero por robustez
+    if high_idx == low_idx:  # does not happen with N=10 and 120 days; kept for robustness
         high_idx = int(np.argsort(M_arr)[-2])
 
     hours = np.arange(24)
@@ -472,8 +469,7 @@ def plot_p5_hourly_low_vs_high(first_result) -> Path:
     return png
 
 
-# ---------------------------------------------------------------------------
-# Reporte (inglés, frontmatter OKF type: experiment-report)
+# Report (English, OKF frontmatter type: experiment-report)
 
 
 def _energy_table() -> dict[str, dict[str, float]]:
@@ -561,7 +557,7 @@ def write_report(stats: dict[str, PhaseStats], energy_tab: dict,
     lines.append("![p5](p5_behavior_hourly_low_vs_high.png)")
     lines.append("")
 
-    # --- Tabla de estadísticas por fase ---
+    # --- Per-phase stats table ---
     lines.append("## Per-phase stats (per-seed within-phase aggregates, averaged over seeds)")
     lines.append("")
     lines.append("| phase | n days | mean M | sd M (day-to-day) | autocorr lag-1 (within runs) | mean g | mean m | mean score | sat frac (M∈{0,N}) |")
@@ -575,7 +571,7 @@ def write_report(stats: dict[str, PhaseStats], energy_tab: dict,
         )
     lines.append("")
 
-    # --- Canales de comportamiento a las 19:00 ---
+    # --- Behavior channels at 19:00 ---
     lines.append("## Behavior channels at 19:00 (evening), per phase")
     lines.append("")
     lines.append("| phase | valence | energy | reactivity | warmth | playfulness | reflectiveness |")
@@ -589,7 +585,7 @@ def write_report(stats: dict[str, PhaseStats], energy_tab: dict,
         )
     lines.append("")
 
-    # --- Energía por hora ---
+    # --- Energy by hour ---
     lines.append("## Circadian energy by hour (deterministic per phase)")
     lines.append("")
     lines.append("| phase | energy 14:00 (peak) | energy 19:00 | energy 22:00 | daily peak | ratio 19:00/peak |")
@@ -602,7 +598,7 @@ def write_report(stats: dict[str, PhaseStats], energy_tab: dict,
         )
     lines.append("")
 
-    # --- Noche vs día ---
+    # --- Night vs day ---
     lines.append("## Night (23:00-02:00) vs day (14:00, 19:00) behavior channels")
     lines.append("")
     lines.append("| phase | day energy | night energy | day play. | night play. | day refl. | night refl. |")
@@ -616,7 +612,7 @@ def write_report(stats: dict[str, PhaseStats], energy_tab: dict,
         )
     lines.append("")
 
-    # --- Veredictos ---
+    # --- Verdicts ---
     lines.append("## Verdicts (numeric thresholds in parentheses)")
     lines.append("")
     for key, v in verdicts.items():
@@ -678,8 +674,7 @@ def write_report(stats: dict[str, PhaseStats], energy_tab: dict,
     return report_path
 
 
-# ---------------------------------------------------------------------------
-# Orquestación
+# Orchestration
 
 
 def compute_verdicts(stats: dict[str, PhaseStats], energy_tab: dict) -> dict:
@@ -794,7 +789,7 @@ def main() -> int:
     report = write_report(stats, energy_tab, verdicts, results[0])
     print(f"written: {report}")
 
-    # --- Resumen numérico a stdout ---
+    # --- Numeric stdout summary ---
     print()
     print(f"{'phase':12s} {'n':>6s} {'meanM':>7s} {'sdM':>6s} {'ac1':>6s} "
           f"{'meanG':>7s} {'meanM_off':>9s} {'score':>6s} {'sat':>6s}")

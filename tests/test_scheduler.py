@@ -79,15 +79,13 @@ def test_schedule_bookkeeping():
     assert schedule.next_pending(6.0) == 10.0
     schedule.mark_fired(10.0)
     assert schedule.due_at(30.0) == [20.0]
-    # A7: an overdue PENDING event is visible, not skipped.
+# An overdue PENDING event is visible, not skipped.
     assert schedule.next_pending(30.0) == 20.0
     schedule.mark_fired(20.0)
     assert schedule.next_pending(30.0) is None
 
 
-# --------------------------------------------------------------------------- #
-# A7 restart regression: next_pending must surface overdue pending events
-# --------------------------------------------------------------------------- #
+# --- restart regression: next_pending surfaces overdue pending events ---
 
 
 def _schedule(*hours):
@@ -95,34 +93,34 @@ def _schedule(*hours):
 
 
 def test_next_pending_visible_at_exact_event_time():
-    # Restart exactly AT the event: now == event_time ⇒ it MUST be visible.
+# Restart exactly at the event: now == event_time → visible.
     schedule = _schedule(10.0)
     assert schedule.next_pending(10.0) == 10.0
 
 
 def test_next_pending_visible_ten_minutes_after():
-    # Restart 10 min after the event: overdue, must still be returned.
+# Restart 10 min after the event: overdue, still returned.
     schedule = _schedule(10.0)
     assert schedule.next_pending(10.0 + 10.0 / 60.0) == 10.0
 
 
 def test_next_pending_overdue_within_validity_window():
-    # An overdue event inside its validity window is returned (and the
-    # runtime fires it); the next future event is NOT preferred over it.
+# An overdue event inside its validity window is returned and the
+# runtime fires it; the next future event is not preferred over it.
     schedule = _schedule(10.0, 14.0)
     assert schedule.next_pending(12.0) == 10.0
 
 
 def test_next_pending_overdue_beyond_validity_window():
-    # Even far beyond the validity window the row is surfaced (the runtime
-    # decides fire-vs-expire from the validity window, not next_pending).
+# Beyond the validity window the row is still surfaced; the runtime
+# decides fire-vs-expire from the validity window, not next_pending.
     schedule = _schedule(10.0, 30.0)
     assert schedule.next_pending(48.0) == 10.0
 
 
 def test_next_pending_multiple_overdue_earliest_first():
-    # Several overdue pending events → earliest is returned first, then the
-    # next, and a future event only after all overdue ones are consumed.
+# Several overdue pending events: earliest returned first, then the
+# next; a future event only after all overdue ones are consumed.
     schedule = _schedule(10.0, 11.0, 20.0)
     assert schedule.next_pending(15.0) == 10.0
     schedule.mark_fired(10.0)
@@ -140,8 +138,8 @@ def test_next_pending_fired_rows_never_returned():
 
 
 def test_restore_keeps_overdue_rows_pending(tmp_path):
-    # restore() seeds _fired only from non-pending rows — overdue pending
-    # rows survive a restart and are surfaced by next_pending (the bug).
+# restore() seeds _fired only from non-pending rows, so overdue pending
+# rows survive a restart and are surfaced by next_pending.
     store = SQLiteStore(tmp_path / "s.db")
     try:
         store.save_schedule_events(SEED, [
@@ -154,13 +152,11 @@ def test_restore_keeps_overdue_rows_pending(tmp_path):
         store.close()
 
 
-# --------------------------------------------------------------------------- #
-# A7 timing feedback: A(score_{d-1}) · I(t) enters the hazard
-# --------------------------------------------------------------------------- #
+# --- timing feedback: A(score_{d-1}) · I(t) enters the hazard ---
 
 
 def test_a_mapping_is_monotone_and_bounded():
-    # A(s) = adj_from_score: worse score ⇒ lower adjustment, better ⇒ higher.
+# A(s) = adj_from_score: worse score ⇒ lower adjustment, better ⇒ higher.
     assert adj_from_score(-1.0, TIMING) < adj_from_score(0.0, TIMING) < adj_from_score(1.0, TIMING)
     for s in (-2.0, -1.0, 0.0, 1.0, 2.0):
         assert TIMING.adj_bounds[0] <= adj_from_score(s, TIMING) <= TIMING.adj_bounds[1]
@@ -175,8 +171,8 @@ def test_initiative_factor_neutral_monotone_bounded():
 
 
 def test_worse_previous_day_score_lowers_hazard():
-    # The full A7 formula: plan the same days with effective scores built
-    # from a bad vs a good previous-day judgement — fewer accepted events.
+# Plan the same days with effective scores built from a bad vs a good
+# previous-day judgement — fewer accepted events.
     days = 150
     lo = np.full(days, (adj_from_score(-0.9, TIMING) - 1.0) / ADJ_SLOPE)
     hi = np.full(days, (adj_from_score(0.9, TIMING) - 1.0) / ADJ_SLOPE)
@@ -211,10 +207,8 @@ def test_day_scores_use_previous_day_judgement_and_initiative():
         store.save_daily_state(1, _daily_row(1))
         if score_prev is not None:
             store.save_judgement(0, score_prev, "j", None, shadow=True)
-        # day_initiative reads the stored directive; override by writing the
-        # derived directive's initiative back into a fixed M via derive.
-        # Simpler: drive initiative through the day-1 record's mood (M) and
-        # previous record (momentum) — higher M ⇒ higher initiative.
+# Drive initiative through the day-1 record's mood (M) and the previous
+# record (momentum) — higher M ⇒ higher initiative.
         return day_scores(store, 1, TIMING)[0]
 
     low = scores_for(-0.9, None)
@@ -222,7 +216,7 @@ def test_day_scores_use_previous_day_judgement_and_initiative():
     assert low < high  # better previous day ⇒ larger effective score
 
     neutral = scores_for(0.0, None)
-    # Monotone in the judgement across the whole range.
+# Monotone in the judgement across the whole range.
     assert low < neutral < high
 
 
@@ -233,7 +227,7 @@ def test_day_scores_missing_judgement_falls_back_neutral():
     store.save_daily_state(1, _daily_row(1))
     scores = day_scores(store, 1, TIMING)
     assert len(scores) == 2
-    # No judgement: A ≡ 1.0; day 1 initiative ≈ neutral-ish ⇒ effective ≈ 0.
+# No judgement: A ≡ 1.0; day 1 initiative ≈ neutral ⇒ effective ≈ 0.
     assert scores[0] == pytest.approx(0.0, abs=0.35)
 
 
@@ -247,7 +241,7 @@ def test_day_scores_shape_covers_current_day_only():
     store.save_judgement(1, -0.2, "j", None, shadow=True)
     scores = day_scores(store, 2, TIMING)
     assert scores.shape == (3,)
-    # entries for judged days are real; the current day is a placeholder
+# entries for judged days are real; the current day is a placeholder
     assert scores[0] != 0.0 and scores[1] != 0.0
     assert scores[2] == 0.0
 
@@ -272,7 +266,7 @@ def test_fire_proactive_creates_proactive_message(tmp_path):
     assert len(msgs) == 1
     assert msgs[0]["role"] == "assistant"
     assert msgs[0]["proactive"] == 1
-    # fresh transcript → system-only payload; no trailing user request
+# fresh transcript → system-only payload; no trailing user request
     last_call = client.calls[-1]
     assert last_call["messages"][-1]["role"] == "system"
     assert "reaching out first" in last_call["system"]
@@ -328,20 +322,14 @@ def test_session_with_schedule_end_to_end(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# B5 — latent state → timing coupling (iteration-3, closes F4)
-# --------------------------------------------------------------------------- #
-# The day's state vector (E, S, R, A) is derived from the day's
-# BehaviorDirective via the PATCHABLE harness.session seam; the preregistered
-# weights STATE_WEIGHTS turn it into a per-day multiplicative factor
-# exp(w·(x − x₀)) that rides the run_events modulator. Under STRUCTURED_NO_STATE's
-# neutral-directive patch the vector collapses to STATE_NEUTRAL and the term
-# to exactly 1.0 — the ablation finally reaches the timing channel.
+# --- latent state → timing coupling ---
+
+# The day's state vector (E, S, R, A) derives from the day's
+# BehaviorDirective via the harness.session seam; STRUCTURED_NO_STATE's neutral patch collapses it to STATE_NEUTRAL (factor 1.0).
 
 B5_SEEDS = (5001, 5002, 5003, 5004, 5005)
-#: 90 days ≈ three full 28-day cycles — enough to sample the mood/cycle
-#: extremes the coupling operates on (the 30-day matrix cells are a subset;
-#: the mechanism is identical, the estimates are stabler).
+#: 90 days ≈ three 28-day cycles, enough to sample the mood/cycle
+#: extremes the coupling operates on.
 B5_DAYS = 90
 B5_PHASES = ("menstrual", "follicular", "ovulatory", "luteal_early", "luteal_late")
 
@@ -426,7 +414,7 @@ def test_state_vector_maps_directive_channels():
         "energy": v[0], "initiative": v[1], "valence": v[2], "reactivity": v[3],
     }
     assert len(STATE_WEIGHTS) == len(STATE_NEUTRAL) == len(v) == 4
-    # All channels are directive channels in [0,1] except valence ∈ [-1,1].
+# All channels are directive channels in [0,1] except valence ∈ [-1,1].
     assert 0.0 <= v[0] <= 1.0 and 0.0 <= v[1] <= 1.0
     assert -1.0 <= v[2] <= 1.0 and 0.0 <= v[3] <= 1.0
 
@@ -453,7 +441,7 @@ def test_state_factor_low_vs_high_state_day():
     assert lo < 1.0 < hi
     assert STATE_FACTOR_BOUNDS[0] <= lo <= STATE_FACTOR_BOUNDS[1]
     assert STATE_FACTOR_BOUNDS[0] <= hi <= STATE_FACTOR_BOUNDS[1]
-    # The mapping is deterministic.
+# The mapping is deterministic.
     assert state_factor(store, lows[0], TIMING) == state_factor(store, lows[0], TIMING)
 
 
@@ -487,7 +475,7 @@ def test_day_scores_fold_neutral_under_no_state_patch():
         scores = day_scores(store, 2, TIMING)
     finally:
         session_mod.derive_behavior = original
-    # No judgements ⇒ A ≡ 1; neutral directive ⇒ I ≡ 1; effective score ≡ 0.
+# No judgements ⇒ A ≡ 1; neutral directive ⇒ I ≡ 1; effective score ≡ 0.
     assert scores[0] == pytest.approx(0.0, abs=1e-9)
     assert scores[1] == pytest.approx(0.0, abs=1e-9)
 
@@ -588,11 +576,11 @@ def test_structured_no_state_claim_check_logic():
     assert claim.check(cell, full) is True
     assert claim.check(full, full) is False
 
-    # Too few gaps on both sides ⇒ the count leg alone decides.
+# Too few gaps on both sides ⇒ the count leg alone decides.
     small_full = {"n_proactive": 4, "proactive_times": [10.0, 30.0, 50.0]}
     small_cell = {"n_proactive": 3, "proactive_times": [12.0, 34.0, 56.0]}
     assert claim.check(small_cell, small_full) is True
     assert claim.check(small_full, small_full) is False
 
-    # The check function itself is importable and stateless.
+# The check function itself is importable and stateless.
     assert structured_no_state_timing_check(cell, full) is True

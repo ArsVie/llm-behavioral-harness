@@ -34,7 +34,7 @@ class TestInitState:
         assert isinstance(state, CycleState)
         assert state.L_current >= 1.0
         assert 0 <= state.cycle_day < state.L_current
-        # Con phi=0 (default), cycle_day debe ser ~0
+        # With phi=0, cycle_day is near 0.
         assert abs(state.cycle_day) < 1e-10
 
     def test_init_state_respects_phi(self, persona: PersonaParams):
@@ -43,7 +43,7 @@ class TestInitState:
         params = replace(persona, phi=10.0)
         state = init_state(params, rng)
 
-        # L_0 se dibujan del RNG, así que cycle_day = 10.0 % L_0
+        # L_0 is drawn from the RNG, so cycle_day = 10.0 % L_0.
         assert 0 <= state.cycle_day < state.L_current
         expected = 10.0 % state.L_current
         assert abs(state.cycle_day - expected) < 1e-10
@@ -82,7 +82,7 @@ class TestPhaseOf:
 
     def test_phase_scales_with_L(self):
         """Fases escalan con L_current (fracciones de PHASE_FRACTIONS)."""
-        # Con L=14 (mitad de 28), menstrual debería ser [0, 2.5)
+        # With L=14, menstrual spans [0, 2.5).
         L = 14.0
         assert phase_of(0.0, L) == PHASE_MENSTRUAL
         assert phase_of(2.4, L) == PHASE_MENSTRUAL
@@ -98,17 +98,17 @@ class TestStepNoMutation:
         rng = np.random.default_rng(42)
         state1 = init_state(persona, rng)
 
-        # Guarda snapshot
+        # Save a snapshot.
         original_cycle_day = state1.cycle_day
         original_L = state1.L_current
 
-        # Llama step (consume RNG)
+        # Call step (consumes RNG).
         m, g, phase, state2 = step(state1, persona, rng)
 
-        # Verifica que state1 no cambió
+        # state1 is unchanged.
         assert state1.cycle_day == original_cycle_day
         assert state1.L_current == original_L
-        # state2 debe ser diferente
+        # state2 differs.
         assert not (state2.cycle_day == state1.cycle_day and state2.L_current == state1.L_current)
 
 
@@ -117,12 +117,12 @@ class TestStepDeterminism:
 
     def test_step_deterministic(self, persona: PersonaParams):
         """Dos secuencias con la misma semilla dan los mismos (m, g, phase, next_state)."""
-        # Primera run
+        # First run.
         rng1 = np.random.default_rng(999)
         state1 = init_state(persona, rng1)
         m1, g1, phase1, next1 = step(state1, persona, rng1)
 
-        # Segunda run
+        # Second run.
         rng2 = np.random.default_rng(999)
         state2 = init_state(persona, rng2)
         m2, g2, phase2, next2 = step(state2, persona, rng2)
@@ -139,14 +139,14 @@ class TestMeanAndAmplitude:
 
     def test_m_mean_and_amplitude_fixed_L(self, persona: PersonaParams):
         """m(d) = B·sin(2π·d/L) sobre ciclo completo con L fija tiene media ~0, amplitude ~B."""
-        # Aísla el ruido de g usando sigma_eps=0
+        # Isolate g's noise with sigma_eps=0.
         params = replace(persona, sigma_eps=0.0)
 
         rng = np.random.default_rng(7777)
         state = init_state(params, rng)
         L = state.L_current
 
-        # Simula un ciclo completo (L pasos)
+        # Simulate one full cycle (L steps).
         m_values = []
         d = state.cycle_day
         for _ in range(int(np.ceil(L))):
@@ -154,7 +154,7 @@ class TestMeanAndAmplitude:
             m, g, phase, next_state = step(state_temp, params, rng)
             m_values.append(m)
             d = next_state.cycle_day
-            if d < 0.1:  # Wraparound completado (cycle_day vuelve cerca de 0)
+            if d < 0.1:  # Wraparound: cycle_day returns near 0.
                 break
 
         m_values = np.array(m_values)
@@ -163,21 +163,21 @@ class TestMeanAndAmplitude:
         min_m = np.min(m_values)
         amplitude_m = (max_m - min_m) / 2
 
-        # Media debe estar cerca de 0
+        # Mean is near 0.
         assert abs(mean_m) < 0.05, f"m media {mean_m} fuera de [-0.05, 0.05]"
-        # Amplitud debe estar cerca de B
+        # Amplitude is near B.
         assert abs(amplitude_m - params.B) < 0.05, f"m amplitud {amplitude_m} != B={params.B}"
 
     def test_g_mean_and_amplitude_fixed_L(self, persona: PersonaParams):
         """g(d) = 1 + A·sin(2π·d/L) + ε sobre ciclo con epsilon ~ N(0, σ_ε)."""
-        # Con sigma_eps pequeño, la media debe estar ~1 y amplitud ~A
+        # With small sigma_eps, mean is near 1 and amplitude near A.
         params = replace(persona, sigma_eps=0.0)
 
         rng = np.random.default_rng(8888)
         state = init_state(params, rng)
         L = state.L_current
 
-        # Simula un ciclo
+        # Simulate one cycle.
         g_values = []
         d = state.cycle_day
         for _ in range(int(np.ceil(L))):
@@ -194,9 +194,9 @@ class TestMeanAndAmplitude:
         min_g = np.min(g_values)
         amplitude_g = (max_g - min_g) / 2
 
-        # Media debe estar ~1
+        # Mean is near 1.
         assert abs(mean_g - 1.0) < 0.05, f"g media {mean_g} no está cerca de 1.0"
-        # Amplitud debe estar ~A
+        # Amplitude is near A.
         assert abs(amplitude_g - params.A) < 0.05, f"g amplitud {amplitude_g} != A={params.A}"
 
 
@@ -211,11 +211,11 @@ class TestLRedraw:
         L_values = []
         cycle_count = 0
 
-        # Simula hasta ≥200 ciclos completos
+        # Simulate up to 200 full cycles.
         d = state.cycle_day
         L = state.L_current
         steps = 0
-        max_steps = 30000  # Guard para no iterar infinito
+        max_steps = 30000  # Guard against infinite iteration.
 
         while cycle_count < 200 and steps < max_steps:
             state_temp = CycleState(cycle_day=d, L_current=L)
@@ -224,7 +224,7 @@ class TestLRedraw:
             d = next_state.cycle_day
             L_new = next_state.L_current
 
-            # Si L cambió, completamos un ciclo
+            # A cycle completes when L changes.
             if L_new != L:
                 L_values.append(L)
                 cycle_count += 1
@@ -237,7 +237,7 @@ class TestLRedraw:
         mean_L = np.mean(L_values)
         sd_L = np.std(L_values, ddof=1)
 
-        # Media ≈ L_mean (tolerancia ±10%)
+        # Mean is within 10% of L_mean.
         lower_mean = persona.L_mean * 0.9
         upper_mean = persona.L_mean * 1.1
         assert lower_mean <= mean_L <= upper_mean, (
@@ -245,7 +245,7 @@ class TestLRedraw:
             f"(rango [{lower_mean}, {upper_mean}])"
         )
 
-        # sd ≈ L_sd (tolerancia ±10%)
+        # sd is within 10% of L_sd.
         lower_sd = persona.L_sd * 0.9
         upper_sd = persona.L_sd * 1.1
         assert lower_sd <= sd_L <= upper_sd, (
@@ -259,7 +259,7 @@ class TestPeriodicityAutocorrelation:
 
     def test_m_autocorrelation(self, persona: PersonaParams):
         """m(t) es periódica: autocorrelación en lag ≈ L_mean es > 0.8."""
-        # Aísla m usando sigma_eps=0
+        # Isolate m with sigma_eps=0.
         params = replace(persona, sigma_eps=0.0)
 
         rng = np.random.default_rng(5555)
@@ -270,7 +270,7 @@ class TestPeriodicityAutocorrelation:
         L = state.L_current
         cycle_count = 0
 
-        # Simula ~10 ciclos (10 * ~28 ≈ 280 días)
+        # Simulate about 10 cycles (~280 days).
         while cycle_count < 10:
             state_temp = CycleState(cycle_day=d, L_current=L)
             m, g, phase, next_state = step(state_temp, params, rng)
@@ -285,14 +285,13 @@ class TestPeriodicityAutocorrelation:
 
         m_series = np.array(m_series)
 
-        # Calcula autocorrelación en lag ≈ L_mean usando scipy.signal.correlate
-        # Normalización: correlación al cuadrado / varianza (correlación normalizada)
+        # Autocorrelation at lag ≈ L_mean via scipy.signal.correlate, normalized.
         lag = int(np.round(params.L_mean))
         acf = np.correlate(m_series - np.mean(m_series), m_series - np.mean(m_series), mode='full')
-        acf_normalized = acf / acf[len(acf) // 2]  # Normaliza por la autocovarianza en lag 0
+        acf_normalized = acf / acf[len(acf) // 2]  # Normalized by the lag-0 autocovariance.
         acf_at_lag = acf_normalized[len(acf) // 2 + lag]
 
-        # Con sigma_eps=0, la autocorrelación en lag=L_mean debe ser alta (>0.8)
+        # With sigma_eps=0, lag-L_mean autocorrelation is high (>0.8).
         assert acf_at_lag > 0.8, (
             f"Autocorrelación en lag {lag} es {acf_at_lag}, "
             f"esperada > 0.8 (con sigma_eps=0)"
@@ -304,14 +303,12 @@ class TestRNGOrder:
 
     def test_rng_consumption_order(self, persona: PersonaParams):
         """step consume RNG en orden: (1) ε, (2) redraw de L (solo si toca)."""
-        # Esto se verifica indirectamente con el test de determinismo y las
-        # comparaciones de estado. Aquí hacemos un test explícito sobre el
-        # consumo de RNG en una transición que dispara redraw.
+        # Explicit test of RNG consumption on a redraw transition.
 
         rng = np.random.default_rng(4444)
         state = init_state(persona, rng)
 
-        # Avanza hasta el último día del ciclo (cycle_day ≈ L - 0.5)
+        # Advance to the last day of the cycle.
         d = state.cycle_day
         L = state.L_current
         while d < L - 1.0:
@@ -321,11 +318,10 @@ class TestRNGOrder:
             if next_state.L_current != L:
                 L = next_state.L_current
 
-        # Ahora estamos cerca del fin del ciclo
-        # Siguiente step debe consumir (1) epsilon y (2) redraw
+        # Near cycle end; next step consumes epsilon and redraw.
         state_near_end = CycleState(cycle_day=d, L_current=L)
         rng_copy = np.random.default_rng(4444)
-        # Replicate hasta el mismo punto
+        # Replicate to the same point.
         state_rep = init_state(persona, rng_copy)
         d_rep = state_rep.cycle_day
         L_rep = state_rep.L_current
@@ -336,8 +332,7 @@ class TestRNGOrder:
             if next_state.L_current != L_rep:
                 L_rep = next_state.L_current
 
-        # Ahora ambos RNG están en el mismo punto
-        # Un step con el primero vs. el segundo debe dar los mismos resultados
+        # Both RNGs are at the same point; one step on each gives the same results.
         state_test = CycleState(cycle_day=d, L_current=L)
         m1, g1, phase1, next1 = step(state_test, persona, rng)
         m2, g2, phase2, next2 = step(state_test, persona, rng_copy)

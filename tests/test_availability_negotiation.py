@@ -86,8 +86,7 @@ def test_retain_repeated_delay_then_go(tmp_path):
         )
         assert "gym" in mention
 
-        # The three delays: server-filled defer_turns, rising delay_count,
-        # rising pull-to-go, all after the boundary (she stays past start).
+        # The three delays: server-filled defer_turns, rising delay_count and pull-to-go
         delays = decides[:-1]
         for i, d in enumerate(delays):
             assert d["verdict"]["action"] == "defer"
@@ -152,8 +151,7 @@ def test_window_close_forced_skip_recorded(tmp_path):
     try:
         assert result.agenda_status == "skipped"
         recs = result.decision_records
-        # inform + one decide leg + the backstop record (no phase inputs:
-        # the forced record is written directly by the store seam)
+        # inform + one decide leg + the backstop record (store seam)
         assert recs[0]["inputs"]["phase"] == "inform"
         assert recs[1]["inputs"]["phase"] == "decide"
         assert recs[2]["source"] == "backstop"
@@ -167,7 +165,7 @@ def test_window_close_forced_skip_recorded(tmp_path):
         forced = recs[-1]
         assert forced["source"] == "backstop"
         assert forced["transport"] == "server_draw"
-        assert forced["raw_reply"] is None          # the backstop never calls
+        assert forced["raw_reply"] is None          # the backstop makes no call
         assert forced["verdict"]["forced_skip"] is True
         assert "missed it entirely" in forced["verdict"]["reason"]
         assert forced["verdict"]["action"] == "abandon"
@@ -229,15 +227,13 @@ def test_no_nag_inform_exactly_once_across_delays(tmp_path):
         assert len(informs) == 1
         assert informs[0]["replay_id"] == "neg-no-nag-gym-inform"
 
-        # channel messages containing the mention: exactly one (the go close
-        # and the companion replies never re-announce it)
+        # exactly one channel message contains the mention
         mention_hits = [t for _, t, _ in result.channel_out if "gym" in t]
         assert len(mention_hits) == 1
         assert len(result.channel_out) == 2  # mention + the natural close
 
-        # the 3 delays carried rising delay_count and server-filled N; then
-        # the go at the 4th decide leg (19.33) — her natural close replaces
-        # the ordinary reply and closes the conversation
+        # 3 delays with rising delay_count, then the go at the 4th decide leg
+        # (19.33) — the natural close replaces the reply and closes
         delays = [r for r in decides if r["verdict"].get("action") == "defer"]
         assert len(delays) == 3
         assert [d["inputs"]["delay_count"] for d in delays] == [0, 1, 2]
@@ -263,8 +259,7 @@ def test_termination_always_delay_resolves_by_end(tmp_path):
     try:
         assert result.agenda_status == "skipped"
         decides = _decide_records(result)
-        # bounded: every decide leg fired while the model kept delaying,
-        # then the backstop — the loop did not run forever
+        # bounded: decide legs ran while the model delayed, then the backstop
         assert len(decides) == 4  # 4 delay legs
         assert all(r["verdict"]["action"] == "defer" for r in decides)
         assert all(r["verdict"]["defer_turns"] == 1 for r in decides)
@@ -281,8 +276,7 @@ def test_termination_always_delay_resolves_by_end(tmp_path):
         assert forced["raw_reply"] is None
         assert forced["replay_id"] == "neg-term-gym-decide-4"
 
-        # the model was consulted exactly once per decide leg, never at/after
-        # end_t_h (every decide record above sits strictly before end_t_h)
+        # the model was consulted once per decide leg, all before end_t_h
         assert len(result.model_calls) == 5  # inform + 4 decide legs
         resolved = [e for e in result.audit_events
                     if e["event"] == "negotiation_resolved"]
@@ -318,8 +312,7 @@ def test_termination_delay_rearm_past_end_resolves_immediately(tmp_path):
         assert forced["verdict"]["forced_skip"] is True
         assert forced["verdict"]["action"] == "abandon"
         assert forced["raw_reply"] is None
-        # the clamp resolves under the CURRENT delay index (never incremented
-        # by the refused re-arm) — the forced row shares the delay leg's id
+        # the clamp resolves under the current delay index; the forced row shares its id
         assert forced["replay_id"] == "neg-clamp-gym-decide-0"
 
         # no decide at/after end_t_h; exactly inform + the single decide leg

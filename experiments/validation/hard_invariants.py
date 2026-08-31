@@ -31,16 +31,14 @@ from __future__ import annotations
 
 import json
 
-#: Techo preregistrado de tasa de blancos a nivel de run (< 1%, plan §11).
+# Run-level blank-rate ceiling (< 1%).
 BLANK_RATE_CEILING = 0.01
-#: Umbral declarado de la heurística de réplica final corta (caracteres
-#: no-blancos). "Nova: Hey" (corpus it2) = 3 -> sospechoso.
+# Char threshold for the short-final-reply heuristic; "Nova: Hey" (3 chars) is suspicious.
 SHORT_FINAL_MAX_CHARS = 4
-#: Mínimo de turnos assistant para aplicar la heurística de réplica final
-#: corta (una célula miniatura de 1 turno no es un corpus truncado).
+# Minimum assistant turns before the short-final heuristic applies.
 MIN_ASSISTANT_TURNS_FOR_SHORT_FINAL = 5
 
-#: Claves del resumen de invariantes (contrato del pre-flight y del hook).
+# Invariant summary keys used by the pre-flight and the hook.
 INVARIANT_KEYS = (
     "empty_assistant_turns",
     "blank_rate",

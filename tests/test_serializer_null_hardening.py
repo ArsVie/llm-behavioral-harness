@@ -39,7 +39,7 @@ def _assert_no_content_null(payload: dict) -> None:
         )
 
 
-# -- request side: payload construction ------------------------------------- #
+# --- request side: payload construction ---
 
 
 def test_reasoning_only_turn_serializes_as_empty_content():
@@ -56,7 +56,7 @@ def test_reasoning_only_turn_serializes_as_empty_content():
     client.chat(
         [
             {"role": "user", "content": "deep question"},
-            # v4-flash quirk: answered entirely in the reasoning channel.
+# v4-flash quirk: answered entirely in the reasoning channel.
             {"role": "assistant", "content": None, "reasoning_content": "hidden"},
         ],
         system="SYS",
@@ -93,9 +93,8 @@ def test_chatresult_content_none_fixture_serializes_cleanly_via_fake():
     serialize without emitting content:null — FakeClient records mirror the
     wire shape (WS-E mirror guard)."""
     for fixture_content in (None, ""):
-        # The fixture intentionally violates ChatResult's str typing: a
-        # caller holding a None content (e.g. from a pre-WS-E stored turn)
-        # is exactly the leak this guard serializes defensively.
+# The fixture violates ChatResult's str typing: a caller holding a None
+# content is the leak this guard serializes defensively.
         result = ChatResult(
             content=fixture_content,  # type: ignore[arg-type]
             reasoning="thoughts only",
@@ -116,7 +115,7 @@ def test_chatresult_content_none_fixture_serializes_cleanly_via_fake():
         assert recorded[-1]["reasoning_content"] == "thoughts only"
 
 
-# -- response side: ChatResult round-trip ------------------------------------ #
+# --- response side: ChatResult round-trip ---
 
 
 def test_reasoning_only_response_round_trips_without_retry(monkeypatch):
@@ -148,7 +147,7 @@ def test_reasoning_only_response_round_trips_without_retry(monkeypatch):
     result = client.chat_with_meta([{"role": "user", "content": "q"}])
 
     assert calls["n"] == 1  # accepted on the first attempt
-    assert sleeps == []  # never burned backoff on a legitimate reply
+    assert sleeps == []  # no backoff burned on a legitimate reply
     assert result.content == ""
     assert result.reasoning == "the whole answer lives here"
     assert result.finish_reason == "stop"
@@ -185,7 +184,7 @@ def test_reasoning_only_turn_serializes_cleanly_on_next_request():
     def handler(request: httpx.Request) -> httpx.Response:
         payload = json.loads(request.content.decode())
         payloads.append(payload)
-        # First call: reasoning-only reply. Second call: a normal reply.
+# First call: reasoning-only reply. Second call: a normal reply.
         if len(payloads) == 1:
             return httpx.Response(
                 200,
@@ -209,8 +208,7 @@ def test_reasoning_only_turn_serializes_cleanly_on_next_request():
     first = client.chat_with_meta([{"role": "user", "content": "q"}])
     assert first.content == "" and first.reasoning == "deep reasoning"
 
-    # The reasoning-only turn is fed back as the assistant turn of the
-    # next request — it must serialize as "".
+# The reasoning-only turn feeds back as the assistant turn of the next request; it serializes as "".
     client.chat(
         [
             {"role": "user", "content": "q"},
@@ -256,7 +254,7 @@ def test_reasoning_never_contaminates_content():
     assert "hidden thinking" not in result.content
 
 
-# -- the narrowed exemptions stay narrow ------------------------------------- #
+# --- the narrowed exemptions stay narrow ---
 
 
 def test_null_content_without_reasoning_still_retried(monkeypatch):
@@ -278,7 +276,7 @@ def test_null_content_without_reasoning_still_retried(monkeypatch):
         raise AssertionError("expected RuntimeError for null content")
     except RuntimeError as exc:
         assert "null content" in str(exc)
-    assert calls["n"] == 2  # capped retry budget, never a hang
+    assert calls["n"] == 2  # capped retry budget, no hang
 
 
 def test_empty_content_without_reasoning_still_retried(monkeypatch):

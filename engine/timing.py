@@ -28,18 +28,15 @@ import numpy as np
 
 from engine.types import Modulator, TimingParams
 
-#: Ancho de ventana (horas) para la cota mayorante del thinning. El baseline
-#: hazard es monótono creciente en τ (para k_w >= 1), así que su valor en el
-#: EXTREMO DERECHO de la ventana (mayor τ) acota el resto de la ventana.
+#: Ancho de ventana (horas) para la cota mayorante del thinning; el
+#: baseline es monótono creciente, así que el extremo derecho acota.
 _WINDOW_H = 1.0
 
 
 def _baseline_hazard(tau_h: float, params: TimingParams) -> float:
     """(k_w/θ)·(τ/θ)^(k_w−1), sin el factor `modulator`. τ_h >= 0."""
     if tau_h <= 0.0:
-        # k_w > 1 ⇒ 0 en τ=0 (potencia positiva de 0); k_w == 1 ⇒ k/θ (finito,
-        # el límite continuo del exponencial). k_w < 1 no es un caso soportado
-        # (queda fuera de alcance de esta tarea, ver docstring de next_event).
+        # k_w > 1 ⇒ 0 en τ=0; k_w == 1 ⇒ k/θ; k_w < 1 no es soportado.
         if params.k_w == 1.0:
             return params.k_w / params.theta_h
         return 0.0
@@ -94,9 +91,8 @@ def next_event(
             continue
         w = rng.exponential(1.0 / lam_star)
         if w > window_end_h - u:
-            # El candidato cae más allá de esta ventana: se salta sin
-            # muestrear aceptación (el mayorante de esta ventana ya no
-            # aplica); se recalcula la cota en la ventana siguiente.
+            # El candidato cae fuera de la ventana: se recalcula la cota en la
+            # ventana siguiente sin muestrear aceptación.
             u = window_end_h
             continue
         cand = u + w

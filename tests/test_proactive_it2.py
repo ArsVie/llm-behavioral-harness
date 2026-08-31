@@ -84,9 +84,7 @@ def _session(*, replies=None, session_cls=None):
 SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 
 
-# --------------------------------------------------------------------------- #
 # helpers
-# --------------------------------------------------------------------------- #
 
 
 def _run(store, session, schedule, channel, *, max_hours, scale=FAST,
@@ -161,8 +159,8 @@ class ExactIntentSession(Session):
             result = self._chat(None, proactive=True, intent=intent)
         finally:
             self._firing_id = None
-        # A5's session passes intent_id to add_message; the legacy _chat does
-        # not — attach exact provenance to the stored message row.
+        # The session passes intent_id to add_message; the legacy _chat does
+        # not, so exact provenance is attached to the stored row.
         self.store.update_message_intent_id(
             self.store.recent_messages()[-1]["id"], intent_id
         )
@@ -175,9 +173,7 @@ class ExactIntentSession(Session):
         return super()._resolve_intent(reason)
 
 
-# --------------------------------------------------------------------------- #
-# T1 — the scheduler creates ContactOpportunities (no semantic reason)
-# --------------------------------------------------------------------------- #
+# the scheduler creates contact opportunities with no semantic reason
 
 
 def test_opportunity_has_no_semantic_reason():
@@ -186,7 +182,7 @@ def test_opportunity_has_no_semantic_reason():
         previous_score=None, initiative=0.5,
     )
     assert isinstance(opp, ContactOpportunity)
-    assert not hasattr(opp, "reason")          # invariant 3: no invented reason
+    assert not hasattr(opp, "reason")          # no invented reason
     assert "reason" not in opp.hazard_components
 
 
@@ -263,9 +259,7 @@ def test_plan_proactive_events_unchanged():
     assert np.array_equal(a, b)
 
 
-# --------------------------------------------------------------------------- #
-# T2 — IntentResolver resolves AT opportunity time, linking opportunity_id
-# --------------------------------------------------------------------------- #
+# IntentResolver resolves at opportunity time, linking opportunity_id
 
 
 def test_resolve_opportunity_carries_opportunity_id():
@@ -295,8 +289,8 @@ def test_opportunity_validity_bounds_intent_validity():
                             previous_score=None, initiative=0.5)
     intent = IntentResolver(store).resolve(opp)
     assert intent is not None
-    # opportunity window (3h) is SHORTER than the schedule reason window (3h):
-    # equal here — use a tighter check with a manually-shortened opportunity.
+    # The opportunity window is 3h, equal to the schedule reason window;
+    # a manually-shortened opportunity gives a tighter check.
     assert intent.valid_until_t_h == pytest.approx(
         min(10.0 + REASON_VALIDITY_H[REASON_SCHEDULE], opp.valid_until_t_h)
     )
@@ -313,9 +307,7 @@ def test_resolve_opportunity_none_still_means_suppress():
     assert IntentResolver(store).resolve(opp) is None  # SUPPRESS: no_grounded_reason
 
 
-# --------------------------------------------------------------------------- #
-# T3 — SUPPRESS no_grounded_reason is NORMAL (opportunity path)
-# --------------------------------------------------------------------------- #
+# SUPPRESS no_grounded_reason is normal on the opportunity path
 
 
 def test_planned_opportunities_without_grounded_source_all_suppressed():
@@ -326,16 +318,14 @@ def test_planned_opportunities_without_grounded_source_all_suppressed():
     _run(store, _session()[2], schedule, channel, max_hours=24.5)
     assert channel.sent == []                       # nothing hallucinated
     assert "no_grounded_reason" in suppressed_codes(store)
-    # all day-0 opportunities consumed, not stranded; only FUTURE day-1 rows
-    # remain pending (the run ended before midnight+1)
+    # All day-0 opportunities consumed, not stranded; only future
+    # day-1 rows remain pending (the run ended before midnight+1)
     pending = store.pending_schedule_events(SEED)
     assert pending and all(r["day"] >= 1 for r in pending)
-    assert store.list_proactive_intents() == []     # never persisted
+    assert store.list_proactive_intents() == []     # no intents persisted
 
 
-# --------------------------------------------------------------------------- #
-# T4 — EXACT intent identity end-to-end (invariants 6/7)
-# --------------------------------------------------------------------------- #
+# exact intent identity end-to-end
 
 
 def test_exact_intent_identity_two_same_reason_intents():
@@ -363,13 +353,13 @@ def test_exact_intent_identity_two_same_reason_intents():
          resolver=FixedIdResolver(store, "87", rng=rng_mod.stream_rng(SEED)))
 
     assert len(channel.sent) == 1 and channel.sent[0].proactive
-    # the runtime passed the EXACT validated id, never a reason
+    # the runtime passed the exact validated id, not a reason
     assert session.fire_calls == ["87"]
     # the persisted message carries exact intent provenance
     last = store.recent_messages()[-1]
     assert last["intent_id"] == "87"
-    # the snapshot/prompt renders #87's intent hook, never #88's (the agenda
-    # lane legitimately lists both items; the INTENT hook is what must be #87)
+    # The snapshot renders #87's intent hook, not #88's (the agenda
+    # lane lists both items; the intent hook is #87's)
     system = session.client.calls[-1]["system"]
     assert "reaching out first" in system
     assert "Agenda: pottery class" in system
@@ -392,8 +382,8 @@ def test_exact_identity_not_downgraded_to_reason_when_same_reason_pending():
     gym = ground_agenda(store, 9.5, 10.5, item_id="gym", salience=0.7)
     store.save_proactive_intent(_stored_intent(pottery, "87", t_h=9.9))
     store.save_proactive_intent(_stored_intent(gym, "88", t_h=9.95))
-    # the legacy reason-lookup would return #88 (most recent 'schedule') —
-    # exactly why identity must never be downgraded to a reason
+    # The legacy reason-lookup returns #88 (most recent 'schedule'),
+    # which is why identity is not downgraded to a reason
     assert session._resolve_intent(REASON_SCHEDULE).id == "88"
     session.fire_calls = []
     result = session.fire_proactive("87")
@@ -402,9 +392,7 @@ def test_exact_identity_not_downgraded_to_reason_when_same_reason_pending():
     assert store.recent_messages()[-1]["intent_id"] == "87"
 
 
-# --------------------------------------------------------------------------- #
-# Rollover clock discipline (E0): events near midnight fire, never expire
-# --------------------------------------------------------------------------- #
+# rollover clock: events near midnight fire, not expire
 
 
 def test_near_midnight_events_fire_not_expire_under_accelerated_time():
@@ -434,7 +422,7 @@ def test_near_midnight_events_fire_not_expire_under_accelerated_time():
 
     schedule_rows = rows(store, SEED)
     assert schedule_rows[20.5]["status"] == "fired"
-    # the near-midnight event FIRED at its own time — never spuriously expired
+    # The near-midnight event fired at its own time, not expired early
     assert schedule_rows[21.0]["status"] == "fired"
     assert schedule_rows[21.0]["fired_t_h"] == pytest.approx(21.0)
     assert "expired" not in suppressed_codes(store)
@@ -481,9 +469,7 @@ def test_overdue_pending_event_does_not_hang_rollover():
     assert rows(store, SEED)[23.5]["status"] in ("pending", "expired")
 
 
-# --------------------------------------------------------------------------- #
-# T5 — A6 concurrency integration
-# --------------------------------------------------------------------------- #
+# concurrency integration
 
 
 def test_runtime_shuts_down_owned_executor():
@@ -533,9 +519,7 @@ def test_runtime_leaves_sqlite_store_usable_after_run(tmp_path):
         store.close()
 
 
-# --------------------------------------------------------------------------- #
-# T1+T2 end-to-end: a planned ContactOpportunity flows through the runtime
-# --------------------------------------------------------------------------- #
+# end-to-end: a planned contact opportunity flows through the runtime
 
 
 def test_planned_opportunity_resolves_and_fires_end_to_end():
@@ -545,7 +529,7 @@ def test_planned_opportunity_resolves_and_fires_end_to_end():
     and the opportunity is logged to the audit trail."""
     store, clock, session = _session(replies=["pottery time!"])
     schedule = ProactiveSchedule.plan_and_persist(1, SEED, PERSONA, TIMING, store)
-    h = float(schedule.event_hours[0])  # planner never places events in quiet hours
+    h = float(schedule.event_hours[0])  # the planner does not place events in quiet hours
     opp = schedule.opportunity_for(h)
     assert opp is not None and opp.desired_t_h == h
     ground_agenda(store, h - 0.5, h + 0.5, item_id="slot", activity="pottery class")
@@ -555,7 +539,7 @@ def test_planned_opportunity_resolves_and_fires_end_to_end():
     assert len(channel.sent) == 1 and channel.sent[0].proactive
     fired = store.list_proactive_intents(status="fired")
     assert len(fired) == 1
-    # the fired intent carries its opportunity's exact id (T2 linkage)
+    # The fired intent carries its opportunity's exact id
     assert fired[0].opportunity_id == opp.id
     # the opportunity itself was logged to the audit trail
     opp_events = [e for e in store.events_since(0)

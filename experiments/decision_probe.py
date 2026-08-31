@@ -49,7 +49,7 @@ from pathlib import Path
 
 import httpx
 
-import engine.rng as rng_mod  # read-only: stream helpers (never modified)
+import engine.rng as rng_mod
 from harness.assembler import assemble_snapshot
 from harness.client import DEFAULT_BASE_URL
 from harness.credentials import load_env_file, resolve_credentials
@@ -70,20 +70,16 @@ from harness.tools import (
     TOOL_SCHEMAS,
 )
 
-#: Master seed for the whole probe (draws, fake replies).
+# Master seed for the whole probe (draws, fake replies).
 MASTER_SEED = 20260814
-#: Dedicated RNG stream for the server draws — NOT any engine.rng stream id
-#: (0-3 are the engine's; the decision layer owns its own stream key and the
-#: runner only ever consumes an injected Generator, never day_rng order).
+# Dedicated RNG stream for the server draws, separate from the engine streams.
 DECISION_STREAM = 9
 
 DEFAULT_OUT = Path("results/decision-probe-2026-08-14")
 
 MODEL = os.environ.get("LLM_MODEL", "deepseek/deepseek-v4-flash")
 
-# --------------------------------------------------------------------------- #
-# State variants (the "state" dimension of {past turns, state, event})
-# --------------------------------------------------------------------------- #
+# State variants (the "state" dimension of {past turns, state, event}).
 
 STATES = {
     "good": (
@@ -103,12 +99,7 @@ STATES = {
     ),
 }
 
-# --------------------------------------------------------------------------- #
-# The #22 test set: {past turns, state, event} x 15
-# --------------------------------------------------------------------------- #
-
-#: Each sample: id, name, one-line description, popup_kind, and the pop-up
-#: inputs per the tool schemas. past_turns render into conversation_context.
+# The #22 test set: {past turns, state, event} x 15.
 SAMPLES: list[dict] = [
     {
         "sample_id": "s01",
@@ -331,9 +322,7 @@ SAMPLES: list[dict] = [
     },
 ]
 
-# --------------------------------------------------------------------------- #
-# env loading (same small pattern as experiments/cvs_matrix.py)
-# --------------------------------------------------------------------------- #
+# env loading
 
 
 def _load_env() -> None:
@@ -342,9 +331,7 @@ def _load_env() -> None:
     load_env_file(repo_root / ".env")
 
 
-# --------------------------------------------------------------------------- #
 # model callables
-# --------------------------------------------------------------------------- #
 
 
 @dataclass
@@ -401,8 +388,7 @@ def make_real_callable() -> tuple:
         ctx.reasoning_present = bool(message.get("reasoning_content"))
         tool_calls = message.get("tool_calls")
         content = message.get("content")
-        # record the raw answer so requeued rows stay loud (the fake model
-        # keeps last_raw; the real callable must too)
+        # Raw answer for requeued rows.
         _call.last_raw = (  # type: ignore[attr-defined]  # functions are objects
             json.dumps(tool_calls, ensure_ascii=False) if tool_calls
             else (content or "")
@@ -438,7 +424,7 @@ class FakeModel:
             no_reply = sample_id in ("s03", "s04", "s14")
             reply = not no_reply
             if sample_id == "s09" and not request.native:
-                # LOUD parse-failure exercise: unparseable textual reply
+                # Unparseable textual reply, exercises the parse-failure path.
                 return RawReply(text="I guess I should reply? maybe?")
             verdict = {
                 "reply": reply,
@@ -520,9 +506,7 @@ def _system_for(request) -> str:
     return assemble_snapshot(snapshot, prompt_brief=STATES[state])
 
 
-# --------------------------------------------------------------------------- #
 # runner plumbing
-# --------------------------------------------------------------------------- #
 
 
 def _evaluate(
@@ -676,9 +660,7 @@ def _summary(rows: list[dict]) -> dict:
     }
 
 
-# --------------------------------------------------------------------------- #
 # report rendering
-# --------------------------------------------------------------------------- #
 
 _FRONTMATTER = """---
 type: decision-probe-report
@@ -780,9 +762,7 @@ def _render_report(rows: list[dict], meta: dict) -> str:
     return "\n".join(lines)
 
 
-# --------------------------------------------------------------------------- #
 # main
-# --------------------------------------------------------------------------- #
 
 
 def run_probe(

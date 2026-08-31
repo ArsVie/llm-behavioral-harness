@@ -16,8 +16,7 @@ from engine.types import PersonaParams, TimingParams
 from sim import run_events
 
 
-# ---------------------------------------------------------------------------
-# 1. Sanity: corre, array ordenado, rango horario válido, tasa diaria sana.
+# --- 1. Sanity: runs, sorted array, valid hour range, healthy daily rate ---
 
 
 def test_run_smoke_sorted_in_range_sane_rate():
@@ -26,9 +25,9 @@ def test_run_smoke_sorted_in_range_sane_rate():
 
     assert isinstance(events, np.ndarray)
     assert events.ndim == 1
-    # Ordenado (no decreciente; de hecho estrictamente creciente por min_gap).
+# Sorted (non-decreasing; strictly increasing due to min_gap).
     assert np.all(np.diff(events) >= 0.0)
-    # Rango horario absoluto válido.
+# Valid absolute hour range.
     assert np.all(events >= 0.0)
     assert np.all(events < days * 24.0)
 
@@ -36,8 +35,7 @@ def test_run_smoke_sorted_in_range_sane_rate():
     assert 0.3 <= daily_rate <= 3.0
 
 
-# ---------------------------------------------------------------------------
-# 2. Determinismo.
+# --- 2. Determinism ---
 
 
 def test_run_deterministic_same_seed():
@@ -58,8 +56,7 @@ def test_run_deterministic_with_scores_and_differs_from_no_scores():
     assert not np.array_equal(with_scores_a, without_scores)
 
 
-# ---------------------------------------------------------------------------
-# 3. Guards, verificados sobre dos semillas.
+# --- 3. Guards, checked on two seeds ---
 
 
 @pytest.mark.parametrize("seed", [123, 456])
@@ -71,26 +68,24 @@ def test_guards_on_default_run(seed: int):
 
     min_gap_h = timing.min_gap_min / 60.0
 
-    # Gap mínimo entre eventos consecutivos (aceptados, que es todo `events`).
+# Minimum gap between consecutive accepted events.
     gaps = np.diff(events)
     assert np.all(gaps >= min_gap_h - 1e-9)
 
-    # Tope diario.
+# Daily cap.
     days_of_events = (events // 24.0).astype(int)
     _, counts = np.unique(days_of_events, return_counts=True)
     assert np.all(counts <= timing.daily_cap)
 
-    # Cero eventos en quiet hours: envolvente >= 1e-9 en todo evento aceptado.
+# No events in quiet hours: envelope >= 1e-9 on every accepted event.
     for t_h in events:
         assert circadian.envelope(float(t_h) % 24.0, timing) >= 1e-9
 
-    # Silencio máximo entre aceptados consecutivos (con margen para el
-    # desplazamiento del forzado hasta una ventana despierta).
+# Maximum silence between consecutive accepted events, with margin for the forced shift into an awake window.
     assert np.all(gaps <= timing.max_gap_h + 12.0)
 
 
-# ---------------------------------------------------------------------------
-# 4. daily_cap se ejercita de verdad con tasa alta.
+# --- 4. daily_cap exercised with a high rate ---
 
 
 def test_daily_cap_is_exercised_with_high_rate():
@@ -105,8 +100,7 @@ def test_daily_cap_is_exercised_with_high_rate():
     assert np.all(counts <= timing.daily_cap)
 
 
-# ---------------------------------------------------------------------------
-# 5. max_gap se ejercita con tasa bajísima.
+# --- 5. max_gap exercised with a very low rate ---
 
 
 def test_max_gap_is_exercised_with_low_rate():
@@ -116,14 +110,12 @@ def test_max_gap_is_exercised_with_low_rate():
 
     assert len(events) > 0, "el guard max_gap debe forzar al menos un contacto"
 
-    # Gap desde el inicio de la simulación (t_last=0) hasta el primer evento,
-    # y entre eventos consecutivos: todos acotados por max_gap_h + margen.
+# Gaps from simulation start (t_last=0) to the first event and between consecutive events are bounded by max_gap_h + margin.
     gaps = np.diff(np.concatenate(([0.0], events)))
     assert np.all(gaps <= timing.max_gap_h + 12.0)
 
 
-# ---------------------------------------------------------------------------
-# 6. adj_from_score: valores ancla.
+# --- 6. adj_from_score: anchor values ---
 
 
 def test_adj_from_score_anchors_default_bounds():
@@ -139,8 +131,7 @@ def test_adj_from_score_respects_custom_bounds():
     assert run_events.adj_from_score(1.0, timing) == pytest.approx(1.1)
 
 
-# ---------------------------------------------------------------------------
-# 7. Efecto de fase medible en el stream (no solo en la fórmula del modulador).
+# --- 7. Measurable phase effect in the stream (not only in the modulator formula) ---
 
 
 def test_phase_multipliers_affect_the_stream():
@@ -157,8 +148,7 @@ def test_phase_multipliers_affect_the_stream():
     assert not np.array_equal(events_default, events_flat)
 
 
-# ---------------------------------------------------------------------------
-# 8. main(): smoke CLI.
+# --- 8. main(): CLI smoke ---
 
 
 def test_main_smoke(capsys):
@@ -170,9 +160,7 @@ def test_main_smoke(capsys):
     assert "tasa" in captured.out
 
 
-# ---------------------------------------------------------------------------
-# Extras: cobertura directa de los helpers de composición (no exigidos por el
-# enunciado pero baratos y útiles para aislar fallos).
+# --- Extras: direct coverage of the composition helpers ---
 
 
 def test_run_accepts_explicit_persona_and_timing_defaults():
@@ -185,8 +173,7 @@ def test_run_accepts_explicit_persona_and_timing_defaults():
 
 
 def test_run_with_theta_replace_matches_dataclasses_replace_pattern():
-    # El enunciado sugiere dataclasses.replace(timing, theta_h=2.0); confirma
-    # que run() acepta ese patrón sin errores y sigue siendo determinista.
+# run() accepts dataclasses.replace(timing, theta_h=2.0) and stays deterministic.
     base_timing = TimingParams()
     high_rate_timing = dataclasses.replace(base_timing, theta_h=2.0)
 

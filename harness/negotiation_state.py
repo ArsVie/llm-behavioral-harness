@@ -55,9 +55,8 @@ from harness.negotiation_contract import (
     NegotiationPhase,
 )
 
-#: Decision-id prefixes (deterministic replay: literal item id + delay index).
-#: The literals are inlined at the call sites in session.py (decision id
-#: strings are part of the replay contract and must stay byte-stable).
+#: Decision-id prefixes (deterministic replay: literal item id + delay index);
+#: the literals are inlined at the call sites in session.py.
 
 
 @dataclass
@@ -78,18 +77,15 @@ class NegotiationState:
     salience: float
     phase: str = NegotiationPhase.INFORM.value
     #: Responded-bool Inform marker: True once the model produced the
-    #: natural mention. Checked as a VALUE, never key presence.
+    #: natural mention; checked as a value, not key presence.
     informed: bool = False
-    #: Companion turns that must still pass before the decide fires.
-    #: 0 means "the next companion turn decides". Re-armed to N-1 on a
-    #: delay(N) (the decide leg that produced the delay is turn 0), to 0
-    #: right after Inform (the next turn decides).
+    #: Companion turns remaining before the decide fires; 0 means the
+    #: next companion turn decides.
     turns_to_decide: int = 0
     #: AFK bomb: last user turn + SHORT_AFK_H (None = not yet armed).
     afk_deadline_t_h: float | None = None
     #: Virtual instant of the last executed decide leg (or the inform
-    #: turn). Guards the decide to fire at most once per virtual instant
-    #: per item, so a runtime poll loop can never hammer the model.
+    #: turn); the decide fires at most once per virtual instant per item.
     last_decide_at_t_h: float | None = None
     delay_count: int = 0
     resolved_action: str | None = None   # "follow" | "abandon" | "forced"
@@ -107,9 +103,7 @@ class NegotiationState:
         return self.delay_count
 
 
-# --------------------------------------------------------------------------- #
 # decide trigger / backstop
-# --------------------------------------------------------------------------- #
 
 
 def decide_status_at(
@@ -131,11 +125,8 @@ def decide_status_at(
     """
     if state.resolved:
         return "inactive"
-    # BACKSTOP first, phase-independent: once the window closes, an
-    # unresolved negotiation is forced-skipped no matter which phase it
-    # is in. Guarantees termination even when Inform never landed (e.g.
-    # the model answered in prose that could not be re-delivered) — the
-    # contract's termination floor holds for every path.
+    # Backstop check runs before the phase check; a closed window forces
+    # a skip regardless of phase.
     if now >= state.end_t_h - 1e-12:
         return "forced"
     if state.phase != NegotiationPhase.DECIDE.value:
@@ -176,9 +167,7 @@ def next_trigger_t_h(state: NegotiationState, now: float) -> float | None:
     return min(candidates) if candidates else None
 
 
-# --------------------------------------------------------------------------- #
 # defer(N): deterministic server-side mapping + re-arm arithmetic
-# --------------------------------------------------------------------------- #
 
 
 def map_defer_n(reason: str) -> int:
@@ -231,9 +220,7 @@ def rearm_after_delay(
     return True
 
 
-# --------------------------------------------------------------------------- #
-# converging pull-to-go (presented to the model as context, never a verdict)
-# --------------------------------------------------------------------------- #
+# converging pull-to-go (presented to the model as context, not a verdict)
 
 
 def pull_toward_go(state: NegotiationState) -> float:
@@ -251,9 +238,7 @@ def window_ending_at(state: NegotiationState, now: float) -> bool:
     return (state.end_t_h - now) <= SHORT_AFK_H + 1e-12
 
 
-# --------------------------------------------------------------------------- #
 # persistence (full-snapshot JSON state events, rebuilt on session init)
-# --------------------------------------------------------------------------- #
 
 _STATE_KEYS = (
     "item_id", "activity", "source_type", "start_t_h", "end_t_h",
@@ -280,9 +265,8 @@ def state_from_dict(data: dict) -> NegotiationState | None:
             end_t_h=float(data["end_t_h"]),
             salience=float(data.get("salience", 0.0)),
             phase=str(data.get("phase", NegotiationPhase.INFORM.value)),
-            # Responded-bool restore: ``informed`` is a real bool VALUE
-            # (never key presence) both in memory and on disk — a snapshot
-            # without the key restores False, never True.
+            # Responded-bool restore: ``informed`` is stored as a bool
+            # value; a snapshot without the key restores False.
             informed=bool(data.get("informed")),
             turns_to_decide=int(data.get("turns_to_decide", 0)),
             afk_deadline_t_h=(

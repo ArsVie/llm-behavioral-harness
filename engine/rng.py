@@ -14,15 +14,7 @@ EVENTS_STREAM = 1  # temporización: stream continuo de eventos
 EXPERIMENT_STREAM = 2  # usos auxiliares de experimentos (scores guionados, etc.)
 INIT_STREAM = 3  # inicialización de estado (L_0 del ciclo, φ sorteada, ...)
 
-#: Streams reservados por el harness (fuera del engine congelado; registro
-#: completo de claves 0-7 — no añadir una nueva sin reservar aquí y en
-#: engine/rng.py; la siguiente clave libre es 8).
-#:   4 = LIFE        (harness/life.py)
-#:   5 = PERSONA     (harness/persona.py)
-#:   6 = CONVERSATION (harness/session.py)
-#:   7 = DECISION    (harness/session.py)
-#:   next free: 8 — reclamada por el diseño AFK (INACTIVITY_STREAM).
-#: PROACTIVE_TIEBREAK_STREAM no es un stream real (ver nota en proactive.py).
+#: Harness stream keys (outside the frozen engine). Next free: 8.
 
 
 def init_rng(master_seed: int) -> np.random.Generator:

@@ -32,9 +32,7 @@ from harness.tools import (
     render_popup,
 )
 
-# --------------------------------------------------------------------------- #
 # helpers
-# --------------------------------------------------------------------------- #
 
 
 def _store(tmp_path):
@@ -79,9 +77,7 @@ EVENT_INPUTS = {
     "time": "19.0",
 }
 
-# --------------------------------------------------------------------------- #
 # parsing
-# --------------------------------------------------------------------------- #
 
 
 def test_parse_native_reply_event():
@@ -144,7 +140,7 @@ def test_parse_textual_json_with_prose_around():
 
 
 def test_parse_textual_shorthand_sketch():
-    # L369 sketch form: {name}: {thinking} tool_decide_event: {yes, "too tired"}
+# Form: {name}: {thinking} tool_decide_event: {yes, "too tired"}
     verdict = parse_textual_reply(
         "tool_decide_event", 'Lily: *sighs* tool_decide_event: {yes, "too tired"}'
     )
@@ -184,9 +180,7 @@ def test_parse_textual_garbage_payload_raises():
         parse_textual_reply("tool_decide_reply", "tool_decide_reply: {maybe}")
 
 
-# --------------------------------------------------------------------------- #
-# popup rendering (user L369 sketch)
-# --------------------------------------------------------------------------- #
+# popup rendering
 
 
 def test_render_popup_event_matches_sketch():
@@ -205,10 +199,7 @@ def test_render_popup_reply_matches_sketch():
 
 
 def test_tool_schemas_shape():
-    # The tool IS the answer form: required params are the VERDICT fields,
-    # never the pop-up inputs (the inputs live in the pop-up block; a schema
-    # requiring them makes the model echo them and skip the verdict — caught
-    # by the real-probe run, deepseek-v4-flash).
+# The tool is the answer form: required params are the verdict fields, not the pop-up inputs.
     assert [t["name"] for t in TOOL_SCHEMAS] == [
         "tool_decide_event", "tool_decide_reply",
     ]
@@ -228,9 +219,7 @@ def test_tool_schemas_shape():
     }
 
 
-# --------------------------------------------------------------------------- #
 # runner: transport selection + execution
-# --------------------------------------------------------------------------- #
 
 
 def test_transport_selection_auto_by_capability(tmp_path):
@@ -323,9 +312,7 @@ def test_execute_textual_persists_raw_text(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # loud parse failures
-# --------------------------------------------------------------------------- #
 
 
 def test_parse_failure_loud_and_requeue(tmp_path):
@@ -384,9 +371,7 @@ def test_parse_failure_server_draw_fallback(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # budget (per-day window; 0 = always reply; unset = off)
-# --------------------------------------------------------------------------- #
 
 
 def _no_reply_call(text='tool_decide_reply: {no, "busy"}'):
@@ -470,9 +455,7 @@ def test_budget_counts_only_accepted_no_replies(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# server_draw (decision_source=server_draw, #22 comparison)
-# --------------------------------------------------------------------------- #
+# server_draw (decision_source=server_draw)
 
 
 def test_server_draw_deterministic_per_seed(tmp_path):
@@ -537,9 +520,7 @@ def test_server_draw_event_verdict(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# replay reads the recorded verdict, never re-rolls
-# --------------------------------------------------------------------------- #
+# replay reads the recorded verdict, without re-rolling
 
 
 def test_replay_reads_recorded_verdict(tmp_path):
@@ -589,9 +570,7 @@ def test_replay_never_rerolls_event_decisions(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # notice builder (verbose flag)
-# --------------------------------------------------------------------------- #
 
 
 def test_build_notice_verbose_off():
@@ -636,9 +615,7 @@ def test_runner_notice_flag(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # env config loader
-# --------------------------------------------------------------------------- #
 
 
 def test_load_decision_config_defaults(monkeypatch):

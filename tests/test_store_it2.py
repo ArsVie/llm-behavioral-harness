@@ -5,9 +5,7 @@ from harness.domain import UserModelAssertion, UserModelCategory
 from harness.store import SCHEMA_VERSION, SQLiteStore
 
 
-# --------------------------------------------------------------------------- #
 # M1 — messages.intent_id (proactive provenance)
-# --------------------------------------------------------------------------- #
 
 def test_add_message_intent_id_roundtrip(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
@@ -49,9 +47,7 @@ def test_add_message_legacy_call_shape_still_works(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # M2 — canonical L4 categories stored directly
-# --------------------------------------------------------------------------- #
 
 def test_upsert_assertion_explicit_canonical_category(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
@@ -77,7 +73,7 @@ def test_upsert_assertion_accepts_canonical_string_value(tmp_path):
         category="stable_preference",
     )
     assert store.get_assertion_category("k1") is UserModelCategory.STABLE_PREFERENCE
-    # non-canonical strings are rejected, never silently mapped
+    # Non-canonical strings are rejected.
     try:
         store.upsert_assertion(
             UserModelAssertion("k2", "v", 0.5, 1.0, (), "current"),
@@ -171,9 +167,7 @@ def test_supersede_keeps_canonical_category_provenance(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # M3 — call reproducibility audit (eval mode)
-# --------------------------------------------------------------------------- #
 
 def test_log_llm_call_privacy_default_drops_repro(tmp_path):
     """Production privacy default: only the hash is kept, the exact request
@@ -231,9 +225,7 @@ def test_log_llm_call_eval_mode_persists_repro(tmp_path):
 
 def test_schema_version_is_current(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
-    # The contract is "one schema_meta row at the CURRENT SCHEMA_VERSION"
-    # — not a hardcoded literal, which would break on the next legit
-    # migration (the migration-chain tests own the version history).
+    # One schema_meta row at the CURRENT SCHEMA_VERSION.
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
     assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
     store.close()

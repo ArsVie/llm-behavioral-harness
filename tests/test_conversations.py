@@ -108,9 +108,7 @@ def _scripted_feed(session, clock, n_messages, *, gap_h=0.05, start_h=8.1667):
     return counts, reasons
 
 
-# --------------------------------------------------------------------------- #
 # store carve-out: schema v4 + conversation persistence seam
-# --------------------------------------------------------------------------- #
 
 
 def test_store_v4_fresh_db_tables_and_backward_compatible_add_message(tmp_path):
@@ -219,9 +217,7 @@ def test_store_messages_for_session_seam_read(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # lifecycle: open / continue / close reasons
-# --------------------------------------------------------------------------- #
 
 
 def test_conversation_opens_on_first_user_message(tmp_path):
@@ -386,9 +382,7 @@ def test_max_turns_cap_closes_conversation(tmp_path, monkeypatch):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # boundary closes: user_left + quiet_hours
-# --------------------------------------------------------------------------- #
 
 
 def test_user_left_closes_on_next_turn_session(tmp_path):
@@ -509,9 +503,7 @@ def test_conversation_opened_inside_quiet_hours_keeps_running(tmp_path, monkeypa
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # resume at conversation granularity (no rewind)
-# --------------------------------------------------------------------------- #
 
 
 def test_resume_mid_conversation_no_rewind(tmp_path, monkeypatch):
@@ -580,9 +572,7 @@ def test_resume_closed_conversation_stays_closed(tmp_path, monkeypatch):
     store2.close()
 
 
-# --------------------------------------------------------------------------- #
 # per-conversation memory sessions + crash-window recovery
-# --------------------------------------------------------------------------- #
 
 
 def test_one_memory_session_per_conversation(tmp_path, monkeypatch):
@@ -666,7 +656,7 @@ def test_crash_between_close_and_memory_tail_recovers(tmp_path, monkeypatch):
     assert summary is not None, "conversation memory tail lost after crash"
     assert any("Luna" in e.summary for e in store2.list_episodes())
     assert store2.get_assertion("user:cat") is not None
-    # byte-identical to a clean run (same seed, same turns, same timeline)
+    # Byte-identical to a clean run (same seed, same turns, same timeline).
     store3 = SQLiteStore(tmp_path / "control.db")
     clock3 = VirtualClock(t_h=10.0)
     session3 = _session(store3, clock3)

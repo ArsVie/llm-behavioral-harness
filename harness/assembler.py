@@ -100,8 +100,7 @@ from harness.prompts import (
     SYSTEM_CORE_WITH_TOOLS,
 )
 
-#: Default persona core used when the caller provides none. Configurable at
-#: runtime via --persona-core / config; this is a neutral starting voice.
+#: Default persona core used when the caller provides none.
 DEFAULT_PERSONA_CORE = (
     "You are Nova, a warm and attentive companion. You have your own days, "
     "your own rhythms, and a genuine interest in the person you talk to. You "
@@ -112,10 +111,6 @@ DEFAULT_PERSONA_CORE = (
 #: How many recent transcript turns to carry into the prompt.
 RECENT_TURNS = 12
 
-# --------------------------------------------------------------------------- #
-# Wave 2 hard budgets (frozen by A1): the assembled prompt is bounded by
-# construction — each section is capped before joining, and a deterministic
-# section-level trim guarantees the overall character budget.
 # --------------------------------------------------------------------------- #
 AGENDA_ITEMS_MAX = 4
 """Cap on today's agenda items rendered into the prompt."""
@@ -136,8 +131,7 @@ USER_MODEL_ASSERTIONS_MAX = 6
 MAX_PROMPT_CHARS = 12000
 """Overall character budget of the assembled system prompt."""
 
-#: Proactive opening template. The hook is the GROUNDED, concrete detail from
-#: the ProactiveIntent — never a reason label.
+#: Proactive opening template.
 PROACTIVE_OPENING = (
     "You are reaching out first. {hook}\n"
     "State what you are reaching out about naturally in your FIRST sentence, "
@@ -145,33 +139,22 @@ PROACTIVE_OPENING = (
     "or imply the user owes you contact."
 )
 
-#: Fallback hook for LEGACY direct calls to ``Session.fire_proactive`` with no
-#: grounded intent in the store (pre-slice callers / tests). It claims no
-#: specific source — it is an opening instruction, not a fabricated reason.
+#: Fallback hook used when no grounded proactive intent is available.
 DEFAULT_PROACTIVE_HOOK = (
     "Something from your own day is worth sharing — a small moment, a "
     "finished task, or a thought that surfaced."
 )
 
 # --------------------------------------------------------------------------- #
-# W2+W3: named state-card sections (fixed order) + time-aware agenda.
-# The state card is sectioned TEMPORAL FRAME / AFFECTIVE BEARING /
-# BEHAVIORAL BEARING / CURRENT INTENT (in that order, first four physical
-# sections of the card); the remaining card sections (activity, arcs,
-# memories, about-you, proactive, closing, pop-up) follow unchanged.
-# --------------------------------------------------------------------------- #
 TEMPORAL_HEADER = "TEMPORAL FRAME:"
 AFFECTIVE_HEADER = "AFFECTIVE BEARING:"
 BEHAVIORAL_HEADER = "BEHAVIORAL BEARING:"
 CURRENT_INTENT_HEADER = "CURRENT INTENT:"
 
-#: Reserved-slot placeholder (W3): CURRENT INTENT stays empty until S5
-#: fills it. Fixed wording, masking-clean, no numbers.
+#: Placeholder text for the CURRENT INTENT slot.
 CURRENT_INTENT_PLACEHOLDER = "No active intent."
 
-#: Behavioral-channel prose templates (W3). Band selection only — raw
-#: channels never render (G2). Wording deliberately avoids the masking
-#: battery's forbidden substrings ("mu", "eta", ...).
+#: Behavioral band prose templates.
 _BEHAVIOR_INITIATIVE_HIGH = (
     "You tend to reach out first and carry the conversation forward."
 )
@@ -193,10 +176,6 @@ _BEHAVIOR_PERSISTENCE_MID = (
 _BEHAVIOR_PERSISTENCE_LOW = "Your participation tends to wind down quickly."
 
 # --------------------------------------------------------------------------- #
-# v2 + W3: section priorities (lowest dropped first under budget pressure)
-# and the pinned sections (current intent slot, decision/steering payload —
-# current activity and the event/pop-up block — are NEVER dropped).
-# --------------------------------------------------------------------------- #
 _PRIO_AGENDA = 0
 _PRIO_TEMPORAL = 1
 _PRIO_AFFECTIVE = 2
@@ -210,11 +189,7 @@ _PRIO_PROACTIVE = 9
 _PRIO_CLOSING = 10
 _PRIO_POPUP = 11
 
-#: Pinned sections (reviewer requirement): the decision/steering payload —
-#: state-card essentials (current activity, event/pop-up block) — is NEVER
-#: dropped by the budget trim; other sections are evicted first. Pinned
-#: sections are bounded by construction (one activity line; a small pop-up
-#: block), so the cap still holds for every realistic snapshot.
+#: Pinned sections are exempt from budget eviction.
 _PINNED = True
 
 
@@ -264,8 +239,6 @@ def build_messages(
     return messages
 
 
-# --------------------------------------------------------------------------- #
-# Wave 2 + v2: CompanionSnapshot assembly
 # --------------------------------------------------------------------------- #
 
 
@@ -552,10 +525,7 @@ def assemble_snapshot(
         snapshot, controls=controls, prompt_brief=prompt_brief,
         popup=popup, t_h=t_h, anchor=anchor,
     )
-    # Tier 1 + tier 2 first (stable core + day-start block), then the state
-    # card under deterministic budget enforcement: keep sections from highest
-    # priority down while the running total fits; drop whole sections, never
-    # mangle. Pinned sections are always kept.
+    # Stable parts first, then the budget-trimmed state card.
     parts = [SYSTEM_CORE_WITH_TOOLS]
     parts.append(day_block if day_block is not None else render_day_block(snapshot))
     return _join_stable_plus_sections(parts, sections)
@@ -584,8 +554,7 @@ def _state_card_sections(
 
     agenda_lines = _agenda_plan_lines(snapshot)
     if agenda_lines:
-        # PINNED: pre-WS-D the day-plan agenda lived in the non-droppable
-        # day-start block; pinning preserves that it is never budget-evicted.
+        # Agenda section is exempt from budget eviction.
         sections.append(
             (_PRIO_AGENDA, _PINNED, AGENDA_HEADER + "\n" + "\n".join(agenda_lines))
         )
@@ -598,9 +567,7 @@ def _state_card_sections(
     if temporal:
         sections.append((_PRIO_TEMPORAL, False, temporal))
 
-    # AFFECTIVE BEARING (W3): the pre-wave renderer's output verbatim —
-    # the mood brief line (MOOD_BRIEF_HEADER + prompt_brief, byte-identical
-    # wording) and the availability line; only their position/header changed.
+    # AFFECTIVE BEARING: mood brief line plus availability line.
     affective: list[str] = []
     if prompt_brief:
         affective.append(f"{MOOD_BRIEF_HEADER} {prompt_brief.strip()}")
@@ -614,10 +581,7 @@ def _state_card_sections(
     if snapshot.current_behavior is not None:
         sections.append((_PRIO_BEHAVIORAL, False, _behavioral_bearing(snapshot.current_behavior)))
 
-    # CURRENT INTENT: EMPTY RESERVED SLOT until S5 — the fixed placeholder
-    # keeps the slot visibly reserved. PINNED: it survives budget pressure
-    # (it is tiny; S5 fills it later). Never carries the proactive hook —
-    # that stays in its own section (proactive_block), unchanged.
+    # CURRENT INTENT: reserved placeholder slot, exempt from budget eviction.
     sections.append(
         (
             _PRIO_CURRENT_INTENT,
@@ -627,7 +591,7 @@ def _state_card_sections(
     )
 
     if snapshot.current_activity is not None:
-        # PINNED: decision-payload essential — never dropped by the trim.
+        # Current activity is exempt from budget eviction.
         sections.append(
             (_PRIO_ACTIVITY, _PINNED, f"{ACTIVITY_HEADER} {snapshot.current_activity.description}")
         )
@@ -666,7 +630,7 @@ def _state_card_sections(
         )
 
     if popup:
-        # PINNED: the arriving-event/steering payload — never dropped.
+        # The pop-up block is exempt from budget eviction.
         sections.append((_PRIO_POPUP, _PINNED, popup))
 
     return sections

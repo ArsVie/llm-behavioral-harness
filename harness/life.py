@@ -70,50 +70,40 @@ from harness.domain import (
     PersonaProfile,
 )
 
-#: Reserved RNG stream key for the LIFE stream (plan §15: 4 = LIFE, 5 = PERSONA).
+#: Reserved RNG stream key for the LIFE stream.
 LIFE_STREAM = 4
 
-#: Day length in hours and the awake window agenda items must live inside.
+#: Day length in hours and the awake window bounds for agenda items.
 DAY_HOURS = 24.0
 AWAKE_START_H = 8.0
 AWAKE_END_H = 23.0
 
 #: Probability that an active arc's next_intention lands on a given day's agenda.
 _ARC_ITEM_PROB = 0.8
-#: Daily probability that an active arc is abandoned (modest deviation).
+#: Daily probability that an active arc is abandoned.
 _ABANDON_PROB = 0.005
 #: Daily progress gain of an active arc: ``0.01 + rng.random() * 0.04``.
 _PROGRESS_MIN = 0.01
 _PROGRESS_SPAN = 0.04
 
-#: Replenishment policy (plan §5-A2 T3, orchestrator invariant 9): the life
-#: system must never permanently reach ``active_arcs = 0``. While
-#: ``N_active < N_MIN_ACTIVE`` the policy rolls a spawn with probability > 0;
-#: with no active arc at all the spawn is certain (``_SPAWN_PROB_EMPTY``), so
-#: an empty life always revives on the next step. ``_SPAWN_PROB < 1`` means
-#: NOT every completed arc creates another.
+#: Spawn policy while ``N_active < N_MIN_ACTIVE``: probability ``_SPAWN_PROB``,
+#: certain (``_SPAWN_PROB_EMPTY``) when no arc is active.
 _N_MIN_ACTIVE = 2
 _SPAWN_PROB = 0.5
 _SPAWN_PROB_EMPTY = 1.0
-#: Spawn-probability boost when a meaningful recent companion event exists
-#: (see ``_recent_good_days``): a good recent day is an inspiration to start
-#: something new.
+#: Spawn-probability boost when ``_recent_good_days`` reports recent good days.
 _SPAWN_EVENT_BOOST = 0.25
-#: A ``day_finalized`` audit event counts as meaningful when its score is at
-#: or above this threshold.
+#: Score threshold for a ``day_finalized`` audit event to count as meaningful.
 _GOOD_DAY_SCORE = 0.7
 #: Look-back window (days) for meaningful recent companion events.
 _EVENT_WINDOW_DAYS = 7
-#: Replacement arcs start already underway — a descendant of a completed arc
-#: inherits momentum from the finished thread (``learn X`` -> ``practice X``);
-#: a fresh arc represents ongoing dabbling, not a brand-new zero.
+#: Replacement arcs start with progress already underway; descendants inherit momentum.
 _DESCENDANT_PROGRESS_MIN = 0.45
 _DESCENDANT_PROGRESS_SPAN = 0.20
 _FRESH_PROGRESS_MIN = 0.40
 _FRESH_PROGRESS_SPAN = 0.20
 
-#: Name templates for replacement arcs; one draw per spawn. Descendants use
-#: continuation phrasing, fresh arcs use exploration phrasing.
+#: Name templates for replacement arcs; one draw per spawn.
 _SPAWN_DESCENDANT_TEMPLATES = (
     "practicing {interest}",
     "leveling up {interest}",
@@ -138,7 +128,7 @@ _ARC_NAME_TEMPLATES = (
     "deep dive into {interest}",
 )
 
-#: Next-intention pool; one draw per arc (generic enough for any interest).
+#: Next-intention pool; one draw per arc.
 _NEXT_INTENTIONS = (
     "practice the fundamentals",
     "try a new variation",
@@ -436,8 +426,7 @@ def step_life(
     updated_agenda = DailyAgenda(day=agenda.day, items=tuple(updated_items))
 
     if t_h is not None:
-        # NOW semantics (invariant 8): only something actually in progress at
-        # t_h can be current; future plans stay in the DailyAgenda.
+        # Only an item actually in progress at t_h is the current activity.
         current = current_activity_now(updated_agenda, t_h)
     else:
         completed = [it for it in updated_items if it.status == "completed"]

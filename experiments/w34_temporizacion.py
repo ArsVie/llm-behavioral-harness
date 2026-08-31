@@ -45,26 +45,25 @@ from sim import plots
 from sim.metrics import daily_rate, envelope_violations, gap_stats
 from sim.run_events import _precompute_phase_labels, run
 
-# ---------------------------------------------------------------------------
-# Configuración congelada del experimento
+# Frozen experiment configuration
 
 DAYS = 90
 SEEDS = [1001, 1002, 1003, 1004, 1005]
-PERSONA = PersonaParams()  # defaults
-TIMING_DEFAULT = TimingParams()  # k_w=2.0, theta_h=13.5, defaults
+PERSONA = PersonaParams()  # default params
+TIMING_DEFAULT = TimingParams()  # k_w=2.0, theta_h=13.5 defaults
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = REPO_ROOT / "results" / "w34-temporizacion"
 
-# Umbrales del criterio (7)
+# Criterion (7) thresholds
 DAILY_RATE_LO, DAILY_RATE_HI = 1.0, 3.0
-MIN_SEEDS_RATE_PASS = 4  # de 5
-MODE_GAP_MIN_H = 1.0  # umbral del sub-experimento 1 (moda > 1.0 h)
-DAILY_CAP_RISK_FRAC = 0.20  # si >20% de los días tocan el cap, se anota como riesgo
+MIN_SEEDS_RATE_PASS = 4  # out of 5
+MODE_GAP_MIN_H = 1.0  # sub-experiment-1 mode threshold (h)
+DAILY_CAP_RISK_FRAC = 0.20  # risk flag above 20% cap-hit days
 SPEARMAN_MIN = 0.7
 
 K_W_SWEEP = [1.0, 1.5, 2.0, 3.0]
-THETA_H_FIXED = TIMING_DEFAULT.theta_h  # 13.5, fijo en el barrido
+THETA_H_FIXED = TIMING_DEFAULT.theta_h  # 13.5 fixed in the sweep
 
 PHASE_ORDER = ["menstrual", "follicular", "ovulatory", "luteal_early", "luteal_late"]
 
@@ -101,8 +100,7 @@ def _gap_dist_stats(gaps_h: np.ndarray, bin_width_h: float = 1.0) -> dict[str, f
     }
 
 
-# ---------------------------------------------------------------------------
-# Sub-experimento 1: baseline (k_w=2, defaults)
+# Sub-experiment 1: baseline (k_w=2, defaults)
 
 
 def cap_days_fraction(times_h: np.ndarray, daily_cap: int, days: int) -> float:
@@ -158,8 +156,7 @@ def make_baseline_hourly_figure(baseline: dict, out_dir: Path) -> Path:
     )
 
 
-# ---------------------------------------------------------------------------
-# Sub-experimento 2: barrido k_w in {1.0, 1.5, 2.0, 3.0}, theta_h fijo
+# Sub-experiment 2: k_w sweep in {1.0, 1.5, 2.0, 3.0}, theta_h fixed
 
 
 def run_kw_sweep() -> dict:
@@ -234,8 +231,7 @@ def make_kw_grid_figure(sweep: dict, out_dir: Path) -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# Sub-experimento 3: efecto de fase
+# Sub-experiment 3: phase effect
 
 
 def run_phase_effect(baseline: dict) -> dict:
@@ -248,7 +244,7 @@ def run_phase_effect(baseline: dict) -> dict:
     for seed, times in zip(SEEDS, baseline["all_times"]):
         phase_labels = _precompute_phase_labels(DAYS, seed, PERSONA)
         day_idx = (np.asarray(times) // 24.0).astype(int)
-        # Cuenta eventos por día-índice de esta semilla.
+        # Counts events by day index for this seed.
         event_counts_by_day = np.bincount(day_idx, minlength=DAYS)
 
         for day, phase in enumerate(phase_labels):
@@ -313,8 +309,7 @@ def make_phase_figure(phase_effect: dict, out_dir: Path) -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# Reporte
+# Report
 
 
 def build_report(
@@ -333,7 +328,7 @@ def build_report(
     )
     lines.append("")
 
-    # -- Sub-experimento 1: baseline -------------------------------------
+    # -- Sub-experiment 1: baseline --------------------------------
     lines.append("## 1. Baseline (k_w=2, defaults)")
     lines.append("")
     lines.append(
@@ -394,7 +389,7 @@ def build_report(
     lines.append(f"![hourly baseline agregado]({figure_paths[0].name})")
     lines.append("")
 
-    # -- Sub-experimento 2: barrido k_w -----------------------------------
+    # -- Sub-experiment 2: k_w sweep -------------------------------
     lines.append("## 2. Barrido k_w ∈ {1.0, 1.5, 2.0, 3.0} (theta_h=13.5 fijo)")
     lines.append("")
     lines.append(
@@ -460,7 +455,7 @@ def build_report(
     lines.append(f"![grid gaps por k_w]({figure_paths[1].name})")
     lines.append("")
 
-    # -- Sub-experimento 3: efecto de fase --------------------------------
+    # -- Sub-experiment 3: phase effect ----------------------------
     lines.append("## 3. Efecto de fase (baseline agrupado por fase del ciclo)")
     lines.append("")
     lines.append(
@@ -499,7 +494,7 @@ def build_report(
     lines.append(f"![tasa por fase vs multiplicador]({figure_paths[2].name})")
     lines.append("")
 
-    # -- Veredicto global (7) ---------------------------------------------
+    # -- Global verdict (7) ----------------------------------------
     lines.append("## Veredicto global — criterio (7)")
     lines.append("")
     phase_effect_ok = ordering_ok and spearman_ok
@@ -522,7 +517,7 @@ def build_report(
     lines.append(f"**Veredicto (7): {'PASS' if global_pass else 'FAIL'}**")
     lines.append("")
 
-    # -- Lectura -----------------------------------------------------------
+    # -- Reading ----------------------------------------------------
     lines.append("## Lectura")
     lines.append("")
     lines.append(
@@ -571,7 +566,6 @@ def build_report(
     return report_path
 
 
-# ---------------------------------------------------------------------------
 # Main
 
 
@@ -595,7 +589,7 @@ def main() -> int:
     print("Escribiendo reporte.md ...")
     report_path = build_report(baseline, sweep, phase_effect, figure_paths, OUT_DIR)
 
-    # -- Resumen a stdout ---------------------------------------------------
+    # -- stdout summary ----------------------------------------------
     print(f"W3.4 temporización: {DAYS} días, semillas {SEEDS}")
     print(f"Salidas escritas en: {OUT_DIR}")
     for p in figure_paths:

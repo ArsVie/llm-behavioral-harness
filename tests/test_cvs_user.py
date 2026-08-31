@@ -58,9 +58,7 @@ DAYS = 7
 SEED = 5001
 
 
-# --------------------------------------------------------------------------- #
-# Harness: célula conversacional de 7 días que consume el FEED CONTRACT
-# --------------------------------------------------------------------------- #
+# Harness: 7-day conversational cell consuming the feed stream
 
 
 def _run_conversational_cell(tmp_path, seed: int, condition: str,
@@ -152,9 +150,7 @@ def _conversations(store: SQLiteStore) -> list[list[dict]]:
     return [by_day[d] for d in sorted(by_day)]
 
 
-# --------------------------------------------------------------------------- #
-# Stream conversacional (FEED CONTRACT)
-# --------------------------------------------------------------------------- #
+# Conversational stream
 
 
 def test_stream_deterministic_per_seed():
@@ -171,17 +167,17 @@ def test_stream_repertoire_complete():
     s = build_user_stream(SEED, 30, perturb=True)
     days = event_days(s)
     texts = user_turn_texts(s)
-    # Preguntas de seguimiento, pushback y ambigüedad aparecen.
+    # Follow-ups, pushback, and ambiguity appear.
     assert any(t in texts for t in _PUSHBACK_POOL)
     assert any(t in texts for t in _AMBIGUOUS_POOL)
-    # Ruptura y reparación: toda ruptura tiene su reparación al día siguiente.
+    # Every rupture has a repair the next day.
     rups = {d for d, ev in zip(days, s) if ev["text"] in _RUPTURE_POOL}
     repairs = {d for d, ev in zip(days, s) if ev["text"] in _REPAIR_POOL}
     assert rups, "no rupture day in stream"
     assert all((d + 1) in repairs for d in rups), "rupture without next-day repair"
-    # Abandono de tema a mitad de conversación.
+    # Topic abandonment mid-conversation appears.
     assert any(t in texts for t in _ABANDON_POOL)
-    # El repertorio se distribuye a lo largo del mes (no solo en un día).
+    # The repertoire spreads across the month.
     assert len({d for d, ev in zip(days, s)
                 if ev["text"] in _FOLLOWUP_QUESTION_POOL}) >= 10
 
@@ -211,8 +207,7 @@ def test_perturbation_adds_exactly_four_embedded_turns():
     assert neg_days == [10, 11, 12, 13]
     for ev, d in zip(s_on, event_days(s_on)):
         if ev["text"] in neg:
-            # Programado dentro de la ventana de la conversación (tras la
-            # apertura de las 19:00) y ANTES de los seguimientos.
+            # Scheduled inside the conversation window, before follow-ups.
             assert ev["kind"] == "at_t_h"
             assert 19.0 < ev["t_h"] % 24.0 < 19.4
     rest_on = [ev["text"] for ev in s_on if ev["text"] not in neg]
@@ -229,16 +224,14 @@ def test_after_reply_delay_draw_bounded_and_deterministic():
     d2 = [draw_after_reply_delay(ev, rng2) for _ in range(50)]
     assert d1 == d2
     assert all(0.05 <= d <= 0.35 for d in d1)
-    # Los seguimientos nunca cruzan la medianoche del día de su réplica.
+    # Follow-ups stay within their reply day.
     s = build_user_stream(SEED, 30, perturb=True)
     for d, ev in zip(event_days(s), s):
         if ev["kind"] == "after_reply":
             assert ev["max_delay_h"] < 5.0
 
 
-# --------------------------------------------------------------------------- #
-# Proyección legacy (user_script) — invariantes de la it2
-# --------------------------------------------------------------------------- #
+# Legacy projection (user_script)
 
 
 def test_user_script_legacy_projection_invariants():
@@ -249,26 +242,21 @@ def test_user_script_legacy_projection_invariants():
     assert s1 != s3
     assert len(s1) == len(s3) + 4
     assert all(a[0] <= b[0] for a, b in zip(s1, s1[1:]))
-    # Apertura diaria a las 19:00 exactas en todos los días.
+    # Daily opening at exactly 19:00.
     bases = {int(t // 24.0): txt for t, txt in s1 if abs(t % 24.0 - 19.0) < 1e-6}
     assert set(bases) == set(range(16))
-    # Contenidos idénticos a los eventos at_t_h del stream (mismo orden);
-    # los after_reply son exclusivos del contrato (el runner legacy no puede
-    # entregarlos al time_scale congelado). Horizonte respetado.
+    # Contents match the stream's at_t_h events; the horizon is respected.
     stream = build_user_stream(SEED, 16, perturb=True)
     assert [t for _t, t in s1] == [
         ev["text"] for ev in stream if ev["kind"] == "at_t_h"]
     assert all(t < 16 * 24.0 for t, _x in s1)
-    # Presupuesto de la it2: 30 días = 30 aperturas + 8 sondas + 9 eventos
-    # de cadena + 4 negativos = 51 mensajes.
+    # 30-day budget: 30 openings + 8 probes + 9 chain events + 4 negatives.
     s30 = user_script(SEED, 30, perturb=True)
     assert len(s30) == 30 + len(RECALL_PROBES) + sum(
         len(c["events"]) for c in EVENT_CHAINS) + 4
 
 
-# --------------------------------------------------------------------------- #
-# Aceptaciones mecánicas (célula fake de 7 días vía FEED CONTRACT)
-# --------------------------------------------------------------------------- #
+# Mechanical acceptances (7-day fake cell)
 
 
 def test_mean_turns_per_conversation_ge_4(tmp_path):

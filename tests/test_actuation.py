@@ -56,7 +56,7 @@ def test_low_directive_smaller_budget_than_high_directive() -> None:
     low_controls = actuation.controls_from_directive(low)
     high_controls = actuation.controls_from_directive(high)
 
-    # Deterministic: 600 * scale, rounded.
+    # max_tokens is 600 * scale, rounded.
     assert low_controls.max_tokens == 408
     assert high_controls.max_tokens == 708
     assert low_controls.max_tokens < high_controls.max_tokens
@@ -133,7 +133,7 @@ def test_initiative_factor_bounds_and_monotonicity() -> None:
     assert all(0.2 <= factor <= 5.0 for factor in factors)
     assert factors == sorted(factors)
     assert factors[0] < 1.0 < factors[-1]
-    # exp(beta * (I - 0.5)) at beta=2.0, I=1.0 -> e^1 ~ 2.718.
+    # The factor is exp(beta * (I - 0.5)) with beta=2.0 and I=1.0.
     assert factors[-1] == pytest.approx(2.718281828, abs=1e-6)
 
 
@@ -153,8 +153,6 @@ def test_module_never_blocks_on_latency() -> None:
     assert "asyncio.sleep" not in source
 
 
-# --------------------------------------------------------------------------- #
-# B4 (F4): widened amplitude — A/B at fixed extreme states, 30-day coverage
 # --------------------------------------------------------------------------- #
 
 

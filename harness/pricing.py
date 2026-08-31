@@ -27,14 +27,8 @@ from __future__ import annotations
 #: False once the user has confirmed real rates (edit me).
 PRICING_PENDING: bool = False
 
-#: \\$ per 1M tokens, keyed by model name. Verified 2026-08-20 via
-#: openrouter.ai/api/v1/models id deepseek/deepseek-v4-flash (pre-commandcode)
-#: and 2026-08-28 via the commandcode provider models list.
-#: NOTE: the wire model id on the commandcode provider is org-qualified
-#: ``deepseek/deepseek-v4-flash`` (the bare ``deepseek-v4-flash`` 400s with
-#: ``unsupported_model``). The pricing table keys both ids to the SAME rates —
-#: the org-qualified id is what the ledger records; the bare id is kept so
-#: legacy/other-provider rows still price out.
+#: \$ per 1M tokens, keyed by model name. The wire id on the
+#: commandcode provider is org-qualified; both ids key to the same rates.
 MODELS: dict[str, dict[str, float]] = {
     # DeepSeek V4 Flash — OpenRouter deepseek/deepseek-v4-flash
     # prompt $0.0784 / cached $0.01568 / completion $0.1568 per 1M
@@ -49,10 +43,8 @@ MODELS: dict[str, dict[str, float]] = {
         "cached_input_per_mtok": 0.01568,
         "output_per_mtok": 0.1568,
     },
-    # ox-alpha — OpenRouter stealth route (stealth/ox-alpha)
-    # FREE: pricing {prompt: "0", completion: "0"} verified live via
-    # openrouter.ai/api/v1/models on 2026-08-22. The route exposes no
-    # cached tier; cached input is billed at the same $0 rate.
+    # ox-alpha — OpenRouter stealth route; FREE (prompt and completion
+    # priced at 0, verified live); no cached tier.
     "stealth/ox-alpha": {
         "input_per_mtok": 0.0,
         "cached_input_per_mtok": 0.0,

@@ -56,9 +56,7 @@ def _poison_call(store: SQLiteStore) -> int:
     )
 
 
-# --------------------------------------------------------------------------- #
-# Acceptance 1 — the leak scan runs against PERSISTED prompts in eval mode
-# --------------------------------------------------------------------------- #
+# Acceptance 1 — leak scan against persisted prompts in eval mode
 
 
 def test_leak_scan_catches_forbidden_token_in_persisted_prompt(tmp_path):
@@ -92,9 +90,7 @@ def test_leak_scan_reports_hash_only_rows_as_not_verifiable(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# Acceptance 2 — repro_json alone reconstructs the call (byte-compare)
-# --------------------------------------------------------------------------- #
+# Acceptance 2 — repro_json alone reconstructs the call
 
 
 def test_repro_json_alone_reconstructs_call_byte_exact(tmp_path):
@@ -143,13 +139,11 @@ def test_rebuild_call_refuses_hash_only_row(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # Acceptance 3 — privacy default preserved, eval rows carry full payload
-# --------------------------------------------------------------------------- #
 
 
 def test_eval_mode_rows_carry_full_payload_default_rows_hash_only(tmp_path):
-    # Non-eval (default): hash always kept, exact payload NEVER persisted.
+    # Non-eval (default): hash kept, exact payload not persisted.
     plain = SQLiteStore(tmp_path / "plain.db")
     cid = _poison_call(plain)
     row = plain.get_llm_call(cid)

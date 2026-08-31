@@ -180,13 +180,10 @@ def test_fresh_db_reaches_v6_with_all_tables(tmp_path):
 
 def _live_db_candidates() -> list:
     here = __file__
-    for root in (
-        __import__("pathlib").Path(here).resolve().parents[1],  # worktree root
-        __import__("pathlib").Path("/home/vruizes/.hermes/projects/llm-behavioral-harness"),
-    ):
-        p = root / "results" / "live-companion" / "companion.db"
-        if p.exists():
-            return [p]
+    root = __import__("pathlib").Path(here).resolve().parents[1]  # worktree root
+    p = root / "results" / "live-companion" / "companion.db"
+    if p.exists():
+        return [p]
     return []
 
 

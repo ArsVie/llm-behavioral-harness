@@ -74,9 +74,7 @@ FULL_SEEDS = (5001, 5002, 5003, 5004, 5005)
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
-# --------------------------------------------------------------------------- #
 # Timing construction
-# --------------------------------------------------------------------------- #
 
 def _isolated_timing(guards: bool) -> TimingParams:
     """TimingParams with phase/adj pinned to 1.0 (isolates S_d).
@@ -152,9 +150,7 @@ def sweep(seeds: list[int], days: int, guards: bool) -> dict:
     }
 
 
-# --------------------------------------------------------------------------- #
 # Exp-3: real S_d distribution
-# --------------------------------------------------------------------------- #
 
 def _factor_from_directive(directive) -> float:
     """clip(exp(w.(x - x0)), 0.5, 2) from a BehaviorDirective (same formula
@@ -245,9 +241,7 @@ def exp3_stored(tmpdir: Path) -> dict:
     }
 
 
-# --------------------------------------------------------------------------- #
-# Envelope (analytic, per brief — NOT simulated)
-# --------------------------------------------------------------------------- #
+# Envelope (analytic, per brief — not simulated)
 
 def analytic_envelope(days: int = 30) -> dict:
     """Envelope floor/ceiling reasoned from the queue guards:
@@ -263,9 +257,7 @@ def analytic_envelope(days: int = 30) -> dict:
     }
 
 
-# --------------------------------------------------------------------------- #
 # Main
-# --------------------------------------------------------------------------- #
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description=__doc__)

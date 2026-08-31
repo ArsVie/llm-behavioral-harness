@@ -67,7 +67,6 @@ from experiments.validation.validate_okf import check_run_dir
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-#: Título del reporte con la semilla fija (convención del repo).
 def _vertical_title(seed: int, days: int) -> str:
     return (
         f"Iteration-2 vertical slice — mock validation "
@@ -75,9 +74,7 @@ def _vertical_title(seed: int, days: int) -> str:
     )
 
 
-# --------------------------------------------------------------------------- #
-# Env (clave real NUNCA impresa)
-# --------------------------------------------------------------------------- #
+# Env
 
 
 def _load_env() -> None:
@@ -95,9 +92,7 @@ def _require_key(env_key: str) -> None:
         )
 
 
-# --------------------------------------------------------------------------- #
 # Reporte OKF
-# --------------------------------------------------------------------------- #
 
 
 def _frontmatter(title: str, description: str, tags: list[str],
@@ -333,7 +328,7 @@ def write_track_report(out_dir: Path, track: str, summary: dict) -> Path:
         lines.append("")
         lines.append("CompleteChain requires ALL causally/temporally necessary "
                      "events retrieved — one relevant fact is not continuity.")
-    else:  # state
+    else:
         rows = []
         for cond in STATE_CONDITIONS:
             m = summary["conditions"][cond]
@@ -358,9 +353,7 @@ def write_track_report(out_dir: Path, track: str, summary: dict) -> Path:
     return report
 
 
-# --------------------------------------------------------------------------- #
 # trace.json
-# --------------------------------------------------------------------------- #
 
 
 def build_trace(out_dir: Path, seed: int) -> list[dict]:
@@ -414,9 +407,7 @@ def build_trace(out_dir: Path, seed: int) -> list[dict]:
     return entries
 
 
-# --------------------------------------------------------------------------- #
 # Comandos
-# --------------------------------------------------------------------------- #
 
 
 def cmd_manifest(args) -> int:
@@ -454,33 +445,22 @@ def cmd_vertical(args) -> int:
         else DEFAULT_CHECKPOINT_DAYS
     )
     if not fake:
-        # Lane research: jueces + replies generadas por experimentos usan
-        # JUDGE_GENERATOR_TOKEN del .env de la raíz del repo (WS-C). El
-        # resolver falla alto si falta; nunca imprime el valor.
         resolve_credentials("research")
 
-    # 1. Preregistro ANTES de generar (Gate 4).
     manifest = write_manifest(out_dir / "manifest.json", repo_root=REPO_ROOT)
 
-    # 2. Célula vertical (clean start -> bootstrap -> días -> 5 restarts).
     records = run_cell(
         "FULL", seed, out_dir, days=days,
         checkpoints=checkpoints, fake=fake, perturb=True,
     )
 
-    # 3. Auditoría mecánica + métricas + cadenas + perturbación + estado.
     store = SQLiteStore(records["db"])
-    # B3 (it3): el run consume el stream conversacional COMPLETO de
-    # cvs_user (at_t_h + after_reply). El fixture de la auditoría debe ser
-    # ese MISMO stream — la proyección plana legacy (user_script) excluye
-    # los after_reply y rompe el conteo de mensajes user (counts_consistent).
     try:
         from experiments.cvs_user import build_user_stream
 
         stream = build_user_stream(seed, days, perturb=True)
         script = [(ev.get("t_h") or 0.0, ev["text"]) for ev in stream]
     except ImportError:
-        # Pre-B3 (main viejo): plan legacy plano.
         script = user_script(seed, days, perturb=True)
     pool = None
     if fake:
@@ -501,7 +481,6 @@ def cmd_vertical(args) -> int:
     state = cvs_common.compute_state_metrics(store, records, days)
     store.close()
 
-    # 4. Artefactos.
     (out_dir / "audit_seed5001.json" if seed == 5001 else
      out_dir / f"audit_seed{seed}.json").write_text(
         json.dumps(audit, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -531,7 +510,6 @@ def cmd_vertical(args) -> int:
     store.close()
     (transcripts / f"FULL_seed{seed}.txt").write_text(txt, encoding="utf-8")
 
-    # 5. Summary + reporte OKF + validación.
     invariants = _invariants_from(audit, records)
     validated = audit["all_hard_zero"] and all(v == 0 for v in invariants.values())
     summary = {
@@ -689,9 +667,7 @@ def cmd_replay(args) -> int:
     return 0 if audit["replay_exact"] else 1
 
 
-# --------------------------------------------------------------------------- #
-# Judge: pasadas ciegas/barajadas, 4 dimensiones, >=2 familias (§17.1/§17.4)
-# --------------------------------------------------------------------------- #
+# Judge
 
 
 JUDGE_RUBRIC = (
@@ -779,7 +755,6 @@ def _judge_report(out_dir: Path) -> dict:
     by_family: dict[str, dict[str, dict]] = {}
     for pf in pass_files:
         family = pf.stem.split("_")[-1]
-        # stem: judge_pass<id>_<family> -> pass id en [1]
         pass_key = pf.stem.split("_")[1].removeprefix("pass")
         data = json.loads(pf.read_text(encoding="utf-8"))
         by_family.setdefault(family, {})[pass_key] = data
@@ -797,12 +772,10 @@ def _judge_report(out_dir: Path) -> dict:
                 "n": len(vals),
             }
 
-    # Acuerdo inter-familia: Pearson r por dimensión sobre transcript ids.
     agreement: dict[str, float | None] = {}
     families = list(by_family)
     if len(families) >= 2:
         f0, f1 = families[0], families[1]
-        # primera pasada que AMBAS familias tienen (nunca hardcodear "1").
         common = sorted(set(by_family[f0]) & set(by_family[f1]))
         pk = common[0] if common else None
         for dim in dims:
@@ -832,8 +805,6 @@ def _judge_report(out_dir: Path) -> dict:
             "An effect seen by only one judge family is NOT established "
             "companion behavior (§17.4); disagreement is reported per dimension."
         ),
-        # B9 (it3): severity is modelled explicitly (β_j per family per
-        # dimension), never averaged away — pairwise v2 is the primary path.
         "severity_model": cvs_judge.severity_model(by_family, dims),
     }
     (out_dir / "judge_report.json").write_text(
@@ -857,8 +828,6 @@ def cmd_judge(args) -> int:
         print(json.dumps({k: v for k, v in results.items()}, indent=2,
                          ensure_ascii=False))
         return 0
-    # v2 pairwise (default): fake -> PairwiseFakeJudge (mode see|blind);
-    # real -> OpenAICompatibleClient with the family's key (never printed).
     if args.fake:
         seed = sum(ord(c) for c in args.family)
         client = cvs_judge.PairwiseFakeJudge(seed, family=args.family,
@@ -883,9 +852,7 @@ def cmd_judge(args) -> int:
     return 0
 
 
-# --------------------------------------------------------------------------- #
-# Matriz real (Gate 4/6 — orquestador)
-# --------------------------------------------------------------------------- #
+# Matriz real
 
 
 def cmd_matrix(args) -> int:
@@ -945,9 +912,7 @@ def cmd_validate(args) -> int:
     return 0
 
 
-# --------------------------------------------------------------------------- #
 # CLI
-# --------------------------------------------------------------------------- #
 
 
 def main(argv: list[str] | None = None) -> int:

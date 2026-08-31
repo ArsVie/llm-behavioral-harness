@@ -21,8 +21,7 @@ from harness.proactive import IntentResolver
 from harness.store import SQLiteStore
 
 SEED = 4242
-#: 12:00 local — outside the check-in windows (8-11, 19-22), so agenda /
-#: callback / shared-interest candidates win the rank cleanly.
+#: 12:00 local — outside the check-in windows (8-11, 19-22).
 NOW_H = 300.0
 
 
@@ -50,14 +49,11 @@ def _agenda_item(item_id: str, start: float, end: float, activity: str = "potter
                       "arc1" if source_type == "arc" else "drawing", 0.7, status)
 
 
-#: items below cover NOW_H (300.0 = day 12 12:00) so the resolver's 2h margin
-#: always admits them (dist == 0).
+#: Items below cover NOW_H (300.0 = day 12 12:00).
 def _near_item(item_id: str, activity: str = "pottery class") -> AgendaItem:
     return _agenda_item(item_id, 299.0, 301.0, activity)
 
 
-# --------------------------------------------------------------------------- #
-# G-1: source deleted / expired before firing
 # --------------------------------------------------------------------------- #
 
 
@@ -76,7 +72,7 @@ def test_g1_agenda_item_skipped_before_firing_suppressed(tmp_path):
     decision = content_gate(intent, store, now_h=NOW_H)
     assert not decision.allowed
     assert decision.code == "source_superseded"
-    # the runtime marks the intent suppressed and never falls back to schedule
+    # The runtime marks the intent suppressed.
     store.save_proactive_intent(intent)
     store.update_proactive_intent_status(intent.id, "suppressed")
     row = store.conn.execute(
@@ -105,8 +101,6 @@ def test_g1b_agenda_item_row_deleted_suppressed(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# G-2: shared-interest reason with no shared-interest record
-# --------------------------------------------------------------------------- #
 
 
 def test_g2_shared_interest_without_record_no_grounded_reason(tmp_path):
@@ -120,7 +114,7 @@ def test_g2_shared_interest_without_record_no_grounded_reason(tmp_path):
         summary="quiet evening, he mentioned his plants",
     ))
     intent = _resolver(store).resolve(NOW_H)
-    assert intent is None  # no shared-interest record ⇒ no_grounded_reason
+    assert intent is None  # no shared-interest record exists
     store.close()
 
 
@@ -131,8 +125,6 @@ def test_g2b_shared_interest_without_record_empty_store(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# G-3: hook not attached to the source
 # --------------------------------------------------------------------------- #
 
 
@@ -156,8 +148,6 @@ def test_g3_hook_not_traceable_to_source_rejected(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# G-4: source superseded at L4 (stale truth must not fire)
-# --------------------------------------------------------------------------- #
 
 
 def test_g4_superseded_l4_assertion_grounds_nothing(tmp_path):
@@ -173,7 +163,7 @@ def test_g4_superseded_l4_assertion_grounds_nothing(tmp_path):
         "ep_luna", MemoryKind.SHARED_EPISODE, 280.0, tags=("music",),
         summary="we talked about my cat Luna",
     ))
-    # L4: the cat assertion was superseded (M-1b flow result)
+    # The cat assertion is superseded at L4.
     store.upsert_assertion(UserModelAssertion(
         "user:cat", "user has a cat named Luna", 0.6, 60.0,
         ("ep_luna",), "superseded",
@@ -193,8 +183,6 @@ def test_g4_superseded_l4_assertion_grounds_nothing(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# G-5: 'just finished X' with completion not persisted
-# --------------------------------------------------------------------------- #
 
 
 def test_g5_completion_claim_without_persisted_completion(tmp_path):
@@ -210,7 +198,7 @@ def test_g5_completion_claim_without_persisted_completion(tmp_path):
         "pi_finished", "event", "life_event", "pottery_5",
         "Finished: pottery class", 296.0, 300.0, 0.6, "life_event:pottery_5",
     )
-    # the item is still 'planned' — the completion write was lost
+    # The item is still 'planned'; the completion write was lost.
     assert store.resolve_intent_source(stale).status == "planned"
     decision = content_gate(stale, store, now_h=NOW_H)
     assert not decision.allowed, (
@@ -219,8 +207,6 @@ def test_g5_completion_claim_without_persisted_completion(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# G-6: timeliness boundary at valid_until
 # --------------------------------------------------------------------------- #
 
 
@@ -244,8 +230,6 @@ def test_g6_valid_until_boundary_inclusive(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# G-7: no re-fire / no re-creation of intents after restart
-# --------------------------------------------------------------------------- #
 
 
 def test_g7_fired_intent_never_refired_and_expired_not_resurrected(tmp_path):
@@ -263,7 +247,7 @@ def test_g7_fired_intent_never_refired_and_expired_not_resurrected(tmp_path):
     store.save_proactive_intent(intent)
     store.update_proactive_intent_status(intent.id, "fired")
 
-    # 'restart': a fresh resolver over the same store, same opportunity
+    # Restart with a fresh resolver over the same store and opportunity.
     resolver2 = _resolver(store)
     again = resolver2.resolve(NOW_H)
     assert again is not None
@@ -272,21 +256,19 @@ def test_g7_fired_intent_never_refired_and_expired_not_resurrected(tmp_path):
         "SELECT status FROM proactive_intents WHERE id = ?", (again.id,)
     ).fetchone()
     assert row["status"] == "fired", "fired intent resurrected by a later resolve"
-    # expired intents stay expired
+    # Expired intents stay expired.
     store.update_proactive_intent_status(intent.id, "expired")
     store.save_proactive_intent(intent)
     row = store.conn.execute(
         "SELECT status FROM proactive_intents WHERE id = ?", (intent.id,)
     ).fetchone()
     assert row["status"] == "expired"
-    # every fired message's intent_id resolves to a real source
+    # Every fired message's intent_id resolves to a real source.
     for i in store.list_proactive_intents():
         assert store.resolve_intent_source(i) is not None
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# G-8: callback memory deleted / provenance broken
 # --------------------------------------------------------------------------- #
 
 
@@ -317,7 +299,7 @@ def test_g8b_callback_provenance_session_gone_suppressed(tmp_path):
         "ep_cb2", MemoryKind.CALLBACK, 290.0, tags=("callback",),
         summary="promised to send the playlist", session="day-99",
     ))
-    # the source session was never registered / was deleted
+    # The source session was not registered.
     assert store.conn.execute(
         "SELECT COUNT(*) AS n FROM memory_sessions WHERE session_id='day-99'"
     ).fetchone()["n"] == 0
@@ -330,12 +312,8 @@ def test_g8b_callback_provenance_session_gone_suppressed(tmp_path):
     store.close()
 
 
+# Provenance completeness at the gate
 # --------------------------------------------------------------------------- #
-# V-1: gate-level provenance completeness (plan §5-A9 V1, invariant 4) —
-# content_gate allows an intent ONLY when its source is live; every source
-# family flips to a suppression code the moment its record dies.
-# --------------------------------------------------------------------------- #
-
 
 def test_v1a_gate_allows_only_intents_with_live_sources(tmp_path):
     """For agenda and episodic (callback/shared-interest) sources: an intent
@@ -343,7 +321,7 @@ def test_v1a_gate_allows_only_intents_with_live_sources(tmp_path):
     the source passes; deleting the record → no_source; flipping the item to
     skipped → source_superseded. A proactive message can never be grounded
     on a dead record (g8b semantics keep passing)."""
-    # agenda source: planned → ok; skipped → source_superseded; deleted → no_source
+    # Agenda source: planned→ok, skipped→source_superseded, deleted→no_source.
     store = _store(tmp_path, "v1a.db")
     store.save_agenda(0, DailyAgenda(0, (_agenda_item("g1", 299.0, 301.0),)))
     intent = _resolver(store).resolve(NOW_H)
@@ -355,8 +333,8 @@ def test_v1a_gate_allows_only_intents_with_live_sources(tmp_path):
     store.conn.commit()
     assert content_gate(intent, store, now_h=NOW_H).code == "no_source"
 
-    # callback source: live → ok; deleted → no_source (G-8)
-    # (g8b: the episode's source session must exist — register it)
+    # Callback source: live→ok, deleted→no_source.
+    # The episode's source session exists, so it is registered here.
     store.open_session("day-12", 288.0)
     store.close_session("day-12", 312.0)
     store.insert_episode(_episode(
@@ -370,7 +348,7 @@ def test_v1a_gate_allows_only_intents_with_live_sources(tmp_path):
     store.conn.commit()
     assert content_gate(intent2, store, now_h=NOW_H).code == "no_source"
 
-    # shared-interest source: live → ok; deleted → no_source
+    # Shared-interest source: live→ok, deleted→no_source.
     store.insert_episode(_episode(
         "ep_si", MemoryKind.SHARED_EPISODE, 290.0, tags=("pottery",),
         importance=0.9, summary="user talked about pottery class",
@@ -408,9 +386,7 @@ def test_v1b_suppressed_intents_never_carry_a_message_row(tmp_path):
     timing = TimingParams()
     store.save_schedule_events(SEED, [{"t_h": NOW_H, "day": 12, "reason": "schedule"}])
     store.save_agenda(0, DailyAgenda(0, (_agenda_item("g1", 299.0, 301.0),)))
-    # kill the source before the run: the event is grounded at resolve time
-    # against the agenda — resolve happens AT fire time, so deleting the item
-    # before the run means the resolver finds nothing → no_grounded_reason
+    # The source is deleted before the run, so the resolver finds nothing.
     store.conn.execute("DELETE FROM agenda_items WHERE id = 'g1'")
     store.conn.commit()
     session = Session(

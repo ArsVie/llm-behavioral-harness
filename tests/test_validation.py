@@ -47,10 +47,7 @@ class TestPersonaParamsBasic:
         mediante isinstance(N, int) and not isinstance(N, bool) pero el
         test es conceptual (la verificación está en el código).
         """
-        # En Python, bool es subclase de int, pero el contrato requiere
-        # isinstance(N, int) y NO isinstance(N, bool).
-        # La validación está implementada, pero PersonaParams congelado
-        # impide construir una instancia de prueba.
+# In Python, bool is a subclass of int; the check requires isinstance(N, int), not isinstance(N, bool).
         pass
 
     def test_lam_valid_range(self):
@@ -111,7 +108,7 @@ class TestPersonaParamsBasic:
         """rho in [0, 1) válido."""
         persona = replace(PersonaParams(), rho=0.0)
         errors = check(persona, TimingParams())
-        # rho=0 puede violar la cota de estabilidad; chequeamos solo rho
+# rho=0 can violate the stability bound; only rho is checked.
         assert all("rho" not in e or "stability" in e for e in errors)
 
     def test_rho_one(self):
@@ -211,14 +208,11 @@ class TestStabilityBound:
     def test_stability_default_passes(self):
         """Con defaults: rho=0.85, A=0.25, sigma_eps=0.03."""
         persona = PersonaParams()
-        # g_max = 1 + 0.25 + 3*0.03 = 1 + 0.25 + 0.09 = 1.34
-        # cota = 2*(1 - 0.85) / 1.34 = 2*0.15 / 1.34 ≈ 0.22388
-        # k_default = 0.18, que es < 0.22388
+# g_max = 1 + 0.25 + 3*0.03 = 1.34; bound = 2*(1 - 0.85)/1.34 ≈ 0.22388; k_default = 0.18 < 0.22388.
         errors = check(persona, TimingParams())
         assert all("stability" not in e for e in errors)
 
-    # Los tests de frontera fijan rho=0.7 explícitamente (cota ≈ 0.44776)
-    # para no depender de futuros afinados de los defaults.
+# Boundary tests set rho=0.7 explicitly (bound ≈ 0.44776).
 
     def test_stability_just_below_bound(self):
         """k = 0.447 justo debajo de la cota (rho=0.7), debe pasar."""
@@ -234,7 +228,7 @@ class TestStabilityBound:
 
     def test_stability_exact_bound_violates(self):
         """k == cota exacta debe violar (desigualdad estricta)."""
-        # Cota exacta: 2 * (1 - 0.7) / (1 + 0.25 + 3*0.03)
+# Exact bound: 2 * (1 - 0.7) / (1 + 0.25 + 3*0.03)
         cota = 2 * (1 - 0.7) / (1 + 0.25 + 3 * 0.03)
         persona = replace(PersonaParams(), rho=0.7, k=cota)
         errors = check(persona, TimingParams())
@@ -242,12 +236,12 @@ class TestStabilityBound:
 
     def test_stability_message_contains_values(self):
         """El mensaje de estabilidad contiene los valores evaluados."""
-        persona = replace(PersonaParams(), k=0.5)  # Seguro que viola
+        persona = replace(PersonaParams(), k=0.5)  # Definitely violates
         errors = check(persona, TimingParams())
         stability_errors = [e for e in errors if "stability" in e]
         assert len(stability_errors) > 0
         msg = stability_errors[0]
-        # El mensaje debe contener "k:" y los valores
+# The message contains "k:" and the values
         assert "k:" in msg
 
 
@@ -483,7 +477,7 @@ class TestMultipleViolations:
         """Tres violaciones en PersonaParams producen tres errores."""
         persona = replace(PersonaParams(), lam=0.0, rho=1.0, L_mean=0.0)
         errors = check(persona, TimingParams())
-        # Esperamos al menos 3 errores (lam, rho, L_mean)
+# Expect at least 3 errors (lam, rho, L_mean)
         assert len(errors) >= 3
 
     def test_multiple_timing_violations(self):
@@ -494,7 +488,7 @@ class TestMultipleViolations:
             quiet_hours=(8.0, 8.0),
         )
         errors = check(PersonaParams(), timing)
-        # Esperamos al menos 2 errores (k_w, quiet_hours)
+# Expect at least 2 errors (k_w, quiet_hours)
         assert len(errors) >= 2
 
     def test_multiple_both_params_violations(self):
@@ -502,15 +496,11 @@ class TestMultipleViolations:
         persona = replace(PersonaParams(), lam=0.0, rho=1.0)
         timing = replace(TimingParams(), k_w=0.0)
         errors = check(persona, timing)
-        # Esperamos al menos 3 errores
+# Expect at least 3 errors
         assert len(errors) >= 3
 
 
-# --------------------------------------------------------------------------- #
-# Invariantes duras del validador (Iteración 3, B8) — experiments/validation/
-# hard_invariants.py. Una célula que falla debe fallar FUERTE y con el conteo
-# en el mensaje (cierra F1: la auditoría mecánica no tenía dientes).
-# --------------------------------------------------------------------------- #
+# Validator hard invariants (experiments/validation/hard_invariants.py): a failing cell fails hard, count included in the message.
 
 from harness.store import SQLiteStore  # noqa: E402
 
@@ -570,7 +560,7 @@ class TestHardInvariants:
         """Aceptación B8 #1: una célula con 40% de blancos FALLA FUERTE y el
         mensaje de fallo lleva el conteo."""
         store = _store(tmp_path)
-        # 5 turnos assistant, 2 en blanco -> 40% de tasa de blancos.
+# 5 assistant turns, 2 blank -> 40% blank rate.
         for i in range(3):
             store.add_message("user", f"u{i}", float(i), 0)
             store.add_message("assistant", f"reply {i}", float(i) + 0.1, 0)
@@ -733,10 +723,7 @@ class TestHardInvariants:
         store.conn.execute(
             "UPDATE messages SET conversation_id='c1' WHERE role='user'"
         )
-        # Con la v4 la tabla conversation_turns SIEMPRE existe (la crea la
-        # migración): el fallback documentado (columna messages.conversation_id)
-        # solo es alcanzable si la tabla de turnos no está — forzarlo a
-        # propósito para ejercitar la rama de respaldo.
+# With v4 the conversation_turns table always exists; the fallback (messages.conversation_id) is reachable only when the table is missing.
         store.conn.execute("DROP TABLE IF EXISTS conversation_turns")
         store.conn.commit()
         violations, available = conversation_coherence(store)

@@ -49,9 +49,7 @@ from typing import Sequence, Union
 
 from .log import LogRecord, LogTurn, time_kind, _TIME_KIND_DATETIME, _TIME_KIND_T_H
 
-# --------------------------------------------------------------------------- #
 # frozen lexical constants (contract)
-# --------------------------------------------------------------------------- #
 
 WARM_TOKENS = frozenset(
     {
@@ -104,9 +102,7 @@ def _diff_hours(a, b, kind: str) -> float:
     return float(a) - float(b)
 
 
-# --------------------------------------------------------------------------- #
 # the eight metrics
-# --------------------------------------------------------------------------- #
 
 
 def contact_frequency(record: LogRecord) -> float:
@@ -228,9 +224,7 @@ def reactivity(record: LogRecord) -> float:
     return n_answered / n_user
 
 
-# --------------------------------------------------------------------------- #
 # signature assembly
-# --------------------------------------------------------------------------- #
 
 METRIC_NAMES = (
     "contact_frequency",

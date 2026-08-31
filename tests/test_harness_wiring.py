@@ -62,9 +62,7 @@ def _store(tmp_path, name: str = "w.db") -> SQLiteStore:
     return SQLiteStore(tmp_path / name)
 
 
-# --------------------------------------------------------------------------- #
 # event pop-ups (decide_event)
-# --------------------------------------------------------------------------- #
 
 
 def test_event_popup_initiate_fires_proactive_out(tmp_path):
@@ -162,9 +160,7 @@ def test_event_popup_end_abandon_marks_item_skipped(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# decide_reply + the single reply-path invariant
-# --------------------------------------------------------------------------- #
+# decide_reply and the single reply path
 
 
 def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
@@ -201,9 +197,7 @@ def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
     assert result.reply == ""
     assert result.notices == ("Lily saw your message but chose not to reply yet",)
     assert result.proactive_out == ()
-    # 2 calls in the morning turn (start pop-up + main reply) + 1 pop-up call
-    # for the decide_reply turn — the main call never happens for this turn
-    assert len(client.calls) == 3  # morning pop-up + morning main + reply pop-up
+    assert len(client.calls) == 3  # three calls total: pop-ups + main reply
     msgs = store.messages_for_day(0)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user"]
     records = store.decisions_for_day(0)
@@ -267,9 +261,7 @@ def test_decide_reply_verbose_notice_carries_reason(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # re-queue semantics
-# --------------------------------------------------------------------------- #
 
 
 def test_parse_failure_requeues_steer_for_next_boundary(tmp_path):
@@ -321,7 +313,7 @@ def test_interrupted_turn_requeues_delivered_steers(tmp_path):
         def chat_with_meta(self, messages, **kwargs):
             raise RuntimeError("boom")
 
-    session.client = BoomClient()  # the pop-up call now explodes
+    session.client = BoomClient()  # the pop-up call raises
     session.enqueue_user_message_steer("are you coming?", 10.0)
     clock.advance_hours(0.5)
     try:
@@ -336,9 +328,7 @@ def test_interrupted_turn_requeues_delivered_steers(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # thinking passthrough + persistence
-# --------------------------------------------------------------------------- #
 
 
 def test_thinking_effort_passthrough_and_reasoning_persistence(
@@ -392,9 +382,7 @@ def test_defaults_inert_no_thinking_no_steering(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # three-tier context: cached day-start block
-# --------------------------------------------------------------------------- #
 
 
 def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
@@ -410,9 +398,8 @@ def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
     session = _session(store, client=client, clock=clock)
 
     def _agenda_segment(system: str) -> str:
-        # Tier-2 day-start block ends with the agenda section ("Today's
-        # agenda:"); pull just that segment so the cached-block comparison
-        # is independent of section ordering inside the state card.
+        # Pull the day-start block's agenda segment so the cached-block
+        # comparison is independent of state-card section ordering.
         _, sep, rest = system.partition("\n\nToday's agenda:")
         if not sep:
             return ""

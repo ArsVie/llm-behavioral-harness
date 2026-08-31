@@ -31,12 +31,8 @@ from __future__ import annotations
 #: Maximum number of edges that still counts as "adjacent" to an exact interest.
 MAX_ADJACENCY_HOPS = 3
 
-#: Cluster hubs (exact-interest candidates) -> their cluster members.
-#: Every member is directly connected to its hub (strength 0.6).
-#: NOTE (Iteration-2 A1b): the plan's Gate-2 user includes interests outside
-#: this catalog (lifting, movies) — out-of-graph user interests are still
-#: valid EXACT candidates for the user-relative sampler (the companion shares
-#: them); their adjacency region is just themselves.
+#: Cluster hubs (exact-interest candidates) -> their members; each
+#: member connects to its hub (strength 0.6).
 CLUSTERS: dict[str, tuple[str, ...]] = {
     "mathematics": ("physics", "statistics", "puzzles", "programming"),
     "metal": ("rock", "live music", "guitar", "alternative music"),
@@ -46,10 +42,8 @@ CLUSTERS: dict[str, tuple[str, ...]] = {
     "art": ("drawing", "photography", "pottery"),
 }
 
-#: Sparse leaf-to-leaf cross edges (from, to, strength). Never hub-to-hub and
-#: never more than one cross edge per leaf, so a non-cross leaf of a non-exact
-#: cluster stays >= 4 hops away from every foreign exact hub (i.e. it remains
-#: an independent candidate whenever its own hub is not among the exacts).
+#: Sparse leaf-to-leaf cross edges (from, to, strength); never hub-to-hub
+#: and at most one per leaf.
 CROSS_EDGES: tuple[tuple[str, str, float], ...] = (
     ("programming", "guitar", 0.20),  # mathematics x metal
     ("puzzles", "poetry", 0.15),  # mathematics x literature

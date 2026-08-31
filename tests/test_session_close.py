@@ -45,9 +45,7 @@ TIMING = TimingParams()
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
 
-#: With the threshold at 1.0 the draw at the first eligible companion turn
-#: always fires (first companion turn = turn index 1, exempt; first
-#: eligible = turn index 3).
+#: With threshold 1.0, the draw fires at the first eligible companion turn.
 FIRST_ELIGIBLE_TURN = 3
 
 
@@ -126,8 +124,7 @@ def test_seeded_three_turn_goodbye_path(tmp_path, forced_close):
     assert pending is not None and pending > 8.5, pending
     events = [r["event"] for r in store.conn.execute("SELECT event FROM state_events")]
     assert "wind_down_started" in events
-    # exchange 3: the wind-down guidance is rendered into the state card of
-    # the next companion turn via the existing closing_guidance channel
+    # exchange 3: wind-down guidance appears in the next companion turn
     _drive_exchange(session, clock, "ok, bye!")
     last_system = client.calls[-1]["system"]
     assert WIND_DOWN_GUIDANCE in last_system
@@ -182,16 +179,14 @@ def test_user_silent_expiry_via_virtual_clock(tmp_path, forced_close):
     assert nxt is not None
     assert abs(nxt - (pending + WIND_DOWN_GRACE_H)) < 1e-9, nxt
     assert nxt < pending + 6.0, "grace must precede the user_left deadline (6h backstop)"
-    # past the grace deadline: expired wind-down closes with the SAME
-    # taxonomy reason the draw would have used
+    # Past the grace deadline, the wind-down closes with the draw's reason.
     reason = session.check_conversation_lifecycle(pending + WIND_DOWN_GRACE_H + 0.01)
     assert reason == "closing_tendency"
     convs = store.list_conversations()
     assert len(convs) == 1
     assert convs[0].close_reason == "closing_tendency"
     assert store.conversation_closing_pending("conv-0") is None
-    # user_left remains the outer backstop: the expiry recorded the
-    # wind-down close, not user_left
+    # The expiry recorded the wind-down close, not user_left.
     assert abs(convs[0].closed_t_h - (pending + WIND_DOWN_GRACE_H)) < 0.02
     store.close()
 
@@ -226,8 +221,7 @@ def test_wind_down_pending_survives_restart(tmp_path, forced_close):
         two_phase_close=True,
     )
     assert session2._closing_pending_t_h == pytest.approx(pending)
-    # the reopened conversation continues (no rewind) and the next user
-    # reply lands in the SAME conversation -> goodbye closes it
+    # The reopened conversation continues; the next reply closes it.
     session2.on_message("back again")
     convs = store2.list_conversations()
     assert len(convs) == 1

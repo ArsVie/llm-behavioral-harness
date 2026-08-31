@@ -29,8 +29,6 @@ def _all_pairs(nodes: list[str]) -> list[tuple[str, str]]:
 
 
 # --------------------------------------------------------------------------- #
-# B2-a: distance symmetry + consistency with path_exists
-# --------------------------------------------------------------------------- #
 
 
 def test_b2_distance_symmetric_and_consistent_with_path_exists():
@@ -82,8 +80,7 @@ def test_b2_adjacency_boundary_not_gameable_via_duplicate_edges():
         for b in graph.nodes()
         if a != b
     }
-    # hammer the graph with duplicate edges (same pair, same strength, many
-    # times) and duplicate hub markings
+    # Duplicate edges and duplicate hub markings are added repeatedly.
     for a in graph.nodes():
         for b in graph.neighbors(a):
             for _ in range(5):
@@ -99,9 +96,8 @@ def test_b2_adjacency_boundary_not_gameable_via_duplicate_edges():
     }
     assert before == after, "duplicate edges changed graph distances"
     assert len(graph.hubs()) == len(set(graph.hubs())), "duplicate hubs in the pool"
-    # a 4-hop pair stays OUTSIDE the 3-hop adjacency boundary no matter how
-    # many times its path edges are duplicated
-    assert graph.distance("rock", "mathematics") == 4  # metal->guitar->programming
+    # A 4-hop pair stays outside the 3-hop adjacency boundary.
+    assert graph.distance("rock", "mathematics") == 4  # path: metal->guitar->programming
     assert not graph.path_exists("rock", "mathematics", MAX_ADJACENCY_HOPS)
     for _ in range(5):
         graph.add_relation("guitar", "programming", 0.2)
@@ -117,7 +113,7 @@ def test_b2_duplicate_user_interests_cannot_game_exact():
     exact bucket never exceeds the dedup'd user set."""
     graph = build_catalog()
     rng = np.random.default_rng(SEED)
-    # "pottery" repeated 20 times + one real graph-adjacent neighbour
+    # "pottery" is repeated 20 times, plus two real graph-adjacent neighbors.
     inflated = tuple(["pottery"] * 20 + ["art", "hiking"])
     profile = build_persona(
         SEED, graph=graph, user_interests=inflated,
@@ -127,14 +123,12 @@ def test_b2_duplicate_user_interests_cannot_game_exact():
     names = [i.name for i in profile.interests]
     assert len(names) == len(set(names)), "portfolio contains duplicate interest names"
     exacts = [i.name for i in profile.interests if i.bucket == "exact"]
-    # the dedup'd user set is {pottery, art, hiking} — exact can never exceed it
+    # The dedup'd user set is {pottery, art, hiking}; exact cannot exceed it.
     assert set(exacts) <= {"pottery", "art", "hiking"}
     assert len(exacts) == len(set(exacts)) == 3, (
         "duplicate user interests inflated the exact bucket"
     )
-    # adjacency region of the dedup'd set is unaffected by the duplicates:
-    # 'rock' is 4 hops from pottery/art/hiking — still independent, never
-    # promoted to adjacent by repetition
+    # The adjacency region of the dedup'd set is unaffected by duplicates.
     independent = {i.name for i in profile.interests if i.bucket == "independent"}
     reachable = set()
     for u in ("pottery", "art", "hiking"):

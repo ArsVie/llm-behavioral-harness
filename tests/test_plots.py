@@ -21,9 +21,7 @@ from sim.plots import (
 )
 
 
-# ============================================================================
 # Fixtures
-# ============================================================================
 
 
 @pytest.fixture
@@ -38,22 +36,22 @@ def synthetic_result_decoupled_offsets() -> SimResult:
 
     records = []
     for t in range(days):
-        # M aleatorio dentro [0, N]
+        # M random within [0, N]
         M = int(rng.uniform(0, N + 1))
 
-        # m(t) y g(t) senoidales
+        # m(t) and g(t) sinusoidal
         m = 0.2 * np.sin(2 * np.pi * t / 28.0)
         g = 1.0 + 0.25 * np.cos(2 * np.pi * t / 28.0)
 
-        # arg y p calculados
+        # arg and p computed
         arg = np.log(0.6 / (1 - 0.6)) + m + g * 0.15
         p = 1.0 / (1.0 + np.exp(-arg))
 
-        # mu y eta simulados
+        # mu and eta simulated
         mu = 0.1 * np.sin(2 * np.pi * t / 28.0 + 1.0)
         eta = 0.05 * np.cos(2 * np.pi * t / 28.0 + 2.0)
 
-        # phase_label alternante
+        # phase_label alternates
         phase_label = "follicular" if t % 2 == 0 else "luteal_early"
 
         record = DayRecord(
@@ -167,9 +165,7 @@ def synthetic_result_decoupled() -> SimResult:
     )
 
 
-# ============================================================================
-# Tests: Humo y nombres deterministas
-# ============================================================================
+# Tests: smoke and deterministic names
 
 
 class TestPlotMoodSeries:
@@ -185,7 +181,7 @@ class TestPlotMoodSeries:
     def test_deterministic_filename(self, tmp_path, synthetic_result_decoupled_offsets):
         """Mismo input = misma ruta."""
         path1 = plot_mood_series(synthetic_result_decoupled_offsets, tmp_path)
-        # Recrear para segundo llamado (limpiamos fig pero path debe ser igual)
+        # Second call: figure cleared but the path stays the same
         path2 = plot_mood_series(synthetic_result_decoupled_offsets, tmp_path)
         assert path1 == path2
 
@@ -406,9 +402,7 @@ class TestPlotVariantComparison:
         assert len(plt.get_fignums()) == 0
 
 
-# ============================================================================
-# Tests: Creación de out_dir
-# ============================================================================
+# Tests: out_dir creation
 
 
 class TestOutDirCreation:

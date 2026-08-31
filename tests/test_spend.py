@@ -59,9 +59,7 @@ CACHED_R = RATES["cached_input_per_mtok"]
 OUT_R = RATES["output_per_mtok"]
 
 
-# --------------------------------------------------------------------------- #
 # Client battery: usage parsing across cache-field variants
-# --------------------------------------------------------------------------- #
 
 
 def test_client_deepseek_flat_cache_variant():
@@ -145,9 +143,7 @@ def test_client_lane_stamp_carried():
     assert FakeClient().lane is None
 
 
-# --------------------------------------------------------------------------- #
 # Store battery: usage/lane/model/raw_cost persistence
-# --------------------------------------------------------------------------- #
 
 
 def test_log_llm_call_persists_usage_lane_model_raw_cost(tmp_path):
@@ -192,9 +188,7 @@ def test_log_llm_call_without_usage_leaves_columns_null(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# Migration battery: v7 -> v8 (additive, legacy NULL, one version row)
-# --------------------------------------------------------------------------- #
+# Migration battery: v7 -> v8
 
 
 def _build_v7_db(path) -> None:
@@ -281,9 +275,7 @@ def test_v7_db_migrates_additively_legacy_rows_null(tmp_path):
     store2.close()
 
 
-# --------------------------------------------------------------------------- #
 # Session end-to-end: usage + lane ride into the llm_calls row
-# --------------------------------------------------------------------------- #
 
 
 def test_session_turn_persists_usage_and_lane(tmp_path):
@@ -316,15 +308,9 @@ def test_session_turn_persists_usage_and_lane(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # Pricing/report battery: hand-computed table == script output
-# --------------------------------------------------------------------------- #
 
-# Hand-built rows (deepseek-v4-flash placeholder rates):
-#   r1 product  day0  in 1000 (cached 600 / miss 400)  out 500  raw_cost 0.0012
-#   r2 product  day0  in  800 (cached 0   / miss 800)  out 300
-#   r3 research day1  in 2000 (cached 1500/ miss 500)  out 1000
-#   r4 model NULL (unpriced) in 10 out 5
+# Hand-built rows (deepseek-v4-flash placeholder rates)
 _R1 = {"model": "deepseek-v4-flash", "prompt_tokens": 1000, "completion_tokens": 500,
        "total_tokens": 1500, "cached_tokens": 600, "cache_miss_tokens": 400,
        "lane": "product", "day": 0, "raw_cost": 0.0012}

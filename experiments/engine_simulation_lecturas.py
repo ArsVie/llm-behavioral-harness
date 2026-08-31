@@ -41,8 +41,7 @@ import numpy as np
 from engine.types import MoodVariant, PersonaParams, SimResult
 from sim.run_daily import run
 
-# ---------------------------------------------------------------------------
-# Constantes del experimento (identicas a engine_simulation.py)
+# Experiment constants
 
 DAYS = 30
 SEED = 3001
@@ -51,17 +50,16 @@ OUT_DIR = Path(__file__).resolve().parent.parent / "engine_simulation"
 
 _BASE_PERSONA = PersonaParams()
 
-#: Ventana de la racha negativa (dias, inclusive) para el escenario 04,
-#: identica a engine_simulation.py.
-STREAK_DAYS = range(10, 15)  # 10..14
+# Negative streak window (days, inclusive) for scenario 04: 10..14.
+STREAK_DAYS = range(10, 15)
 STREAK_SCORE = -1.0
 SHOCKS_STREAK: dict[int, float] = {t: STREAK_SCORE for t in STREAK_DAYS}
 
-#: Sensibilidad teorica local N*p*(1-p) en p=lam=0.6, N=10 -> ~2.4 pasos/logit.
-_SENSITIVITY = _BASE_PERSONA.N * 0.6 * (1 - 0.6)  # ~2.4
+# Local theoretical sensitivity N*p*(1-p) at p=lam=0.6, N=10: ~2.4 steps/logit.
+_SENSITIVITY = _BASE_PERSONA.N * 0.6 * (1 - 0.6)
 
-#: Sd binomial de referencia en p=lam=0.6, N=10 -> ~1.55 pasos.
-_NOISE_SD = np.sqrt(_BASE_PERSONA.N * 0.6 * (1 - 0.6))  # ~1.549
+# Reference binomial sd at p=lam=0.6, N=10: ~1.55 steps.
+_NOISE_SD = np.sqrt(_BASE_PERSONA.N * 0.6 * (1 - 0.6))
 
 MA_WINDOW = 7
 
@@ -86,8 +84,7 @@ def moving_average_backward(values: np.ndarray, window: int) -> np.ndarray:
     return ma
 
 
-# ---------------------------------------------------------------------------
-# Figura A — 10_barrido_B.png
+# Figure A — 10_barrido_B.png
 
 
 B_SWEEP = (0.15, 0.30, 0.50, 0.65)
@@ -147,8 +144,7 @@ def plot_barrido_b() -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# Figura B — 11_lectura_suavizada.png (galeria releida)
+# Figure B — 11_lectura_suavizada.png (gallery re-read)
 
 ScenarioSpec = tuple[str, str, dict[str, float], dict[int, float] | None]
 
@@ -217,8 +213,7 @@ def plot_lectura_suavizada() -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# README.md — anade seccion "Lecturas adicionales" al final (sin borrar nada)
+# README.md: append a "Lecturas adicionales" section at the end
 
 
 def append_readme_section() -> Path:
@@ -276,8 +271,7 @@ def append_readme_section() -> Path:
     return readme_path
 
 
-# ---------------------------------------------------------------------------
-# Orquestacion
+# Orchestration
 
 
 def main() -> int:

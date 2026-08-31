@@ -75,7 +75,7 @@ def check_run_dir(run_dir: Path) -> list[str]:
     run_dir = Path(run_dir)
     violations: list[str] = []
 
-    # --- manifest.json ------------------------------------------------------ #
+    # manifest.json
     manifest_path = run_dir / "manifest.json"
     if not manifest_path.exists():
         violations.append("missing manifest.json (preregistration)")
@@ -102,7 +102,7 @@ def check_run_dir(run_dir: Path) -> list[str]:
         if not protocol.get("weibull_frozen"):
             violations.append("manifest protocol.weibull_frozen missing (§17.5)")
 
-    # --- report.md (OKF) ---------------------------------------------------- #
+    # report.md (OKF)
     report_path = run_dir / "report.md"
     if not report_path.exists():
         violations.append("missing report.md (OKF experiment-report)")
@@ -119,7 +119,7 @@ def check_run_dir(run_dir: Path) -> list[str]:
             if f"# {section}" not in text and f"## {section}" not in text:
                 violations.append(f"report.md missing section: {section}")
 
-    # --- trace.json --------------------------------------------------------- #
+    # trace.json
     trace_path = run_dir / "trace.json"
     if not trace_path.exists():
         violations.append("missing trace.json")
@@ -139,7 +139,7 @@ def check_run_dir(run_dir: Path) -> list[str]:
                     if key not in entry:
                         violations.append(f"trace.json entry[{i}] missing key: {key}")
 
-    # --- metrics + summary -------------------------------------------------- #
+    # metrics + summary
     metrics_paths = sorted(run_dir.glob("metrics_*.json"))
     if not metrics_paths:
         violations.append("missing metrics_*.json")

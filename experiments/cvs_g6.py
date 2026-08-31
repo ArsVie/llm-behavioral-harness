@@ -85,17 +85,15 @@ def build_client(family: dict, *, dry_run: bool, seed: int):
         return PairwiseFakeJudge(seed, family=family["id"], model=family["model"])
     from experiments.cvs_matrix import _load_env
 
-    _load_env()  # .env de la raíz del repo — lane research (WS-C)
+    _load_env()  # repo-root .env, research lane
     from harness.client import OpenAICompatibleClient
 
     return OpenAICompatibleClient(
         base_url=family["base_url"],
         model=family["model"],
-        lane="research",  # resolver: JUDGE_GENERATOR_TOKEN
-        # Judge calls on reasoning models are SLOW (20-47s for ~13K-char
-        # pairwise prompts; verified 2026-08-13) — the 60s default read
-        # timeout tripped mid-run. 120s headroom for full 2-transcript
-        # prompts.
+        lane="research",  # resolves JUDGE_GENERATOR_TOKEN
+        # Judge calls on reasoning models take 20-47s for ~13K-char pairwise
+        # prompts; 120s covers full 2-transcript prompts.
         timeout_s=120,
     )
 
@@ -116,9 +114,7 @@ def run_g6(
     if not transcripts:
         raise SystemExit(f"no transcripts found under {matrix_out}")
     print(f"[g6] transcripts: {len(transcripts)}")
-    # run_pairwise_pass lee out_dir/transcripts — escenificar los
-    # transcripts de la matriz en el dir del juez (sin contaminar la
-    # matriz con pares).
+    # Stage the matrix transcripts into the judge dir.
     staged = judge_out / "transcripts"
     staged.mkdir(parents=True, exist_ok=True)
     src = Path(matrix_out) / "transcripts"
@@ -144,7 +140,7 @@ def run_g6(
                     max_pairs=max_pairs,
                 )
                 all_outcomes.extend(rec.get("outcomes", []))
-        except Exception as exc:  # noqa: BLE001 — familia degradada (p.ej. ruta flash caída)
+        except Exception as exc:  # noqa: BLE001 — degraded family (e.g. flash route down)
             family_errors[family["id"]] = f"{type(exc).__name__}: {exc}"
             print(f"[g6] family={family['id']} FAILED: {exc}", flush=True)
         finally:
@@ -153,7 +149,7 @@ def run_g6(
             except Exception:
                 pass
 
-    # Sondas de atención: los control pairs (degradados) deben resolverse.
+    # Attention probes: the degraded control pairs must be resolved.
     controls = [o for o in all_outcomes if o.get("control")]
     resolved = [o for o in controls if o.get("winner") is not None]
     probe_ok = len(resolved) == len(controls) and len(controls) > 0
@@ -161,8 +157,7 @@ def run_g6(
           f"-> {'OK' if probe_ok else 'FAIL'}")
 
     report = pairwise_report(judge_out)
-    # Agregación BT por familia Y dimensión (BT es por-dimensión por
-    # contrato: winner_condition/loser_condition por par).
+    # BT aggregation per family and dimension (winner/loser per pair).
     stems = [Path(t).stem for t in transcripts]
     conditions = sorted({s.split("_")[0] for s in stems})
     per_family: dict[str, dict] = {}
@@ -185,8 +180,7 @@ def run_g6(
         "per_family": per_family,
         "dry_run": dry_run,
     }
-    # Exit no-cero solo si NINGUNA familia pudo juzgar o las sondas no se
-    # resolvieron en las familias que SÍ juzgaron.
+    # Non-zero exit only if no family judged or the probes went unresolved.
     families_that_judged = [f["id"] for f in JUDGE_FAMILIES
                             if f["id"] not in family_errors]
     ok = probe_ok and len(families_that_judged) > 0

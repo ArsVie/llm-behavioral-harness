@@ -62,8 +62,7 @@ def test_fresh_start_various_times_of_day():
 
 def test_fresh_start_dst_spring_forward():
     # America/New_York 2026-03-08: 02:00 -> 03:00 (23-hour day).
-    # At 03:30 EDT only 2.5 h have elapsed since midnight — a naive
-    # wall-clock read would wrongly give 3.5.
+    # At 03:30 EDT only 2.5 h have elapsed since midnight.
     now = _epoch(2026, 3, 8, 3, 30, tz="America/New_York")
     a = anchor_for_fresh_start(now, "America/New_York")
     assert a.t_h0 == pytest.approx(2.5)
@@ -71,8 +70,7 @@ def test_fresh_start_dst_spring_forward():
 
 def test_fresh_start_dst_fall_back():
     # America/New_York 2026-11-01: 02:00 -> 01:00 (25-hour day).
-    # At the repeated 01:30 EST (fold=1) 2.5 h have elapsed since
-    # midnight — a naive wall-clock read would wrongly give 1.5.
+    # At the repeated 01:30 EST (fold=1) 2.5 h have elapsed since midnight.
     now = _epoch(2026, 11, 1, 1, 30, tz="America/New_York", fold=1)
     a = anchor_for_fresh_start(now, "America/New_York")
     assert a.t_h0 == pytest.approx(2.5)
@@ -86,9 +84,8 @@ def test_fresh_start_dst_fall_back_first_occurrence():
 
 
 def test_fresh_start_dst_historical_mexico_city():
-    # Mexico abolished DST after 2022, but tzdata keeps the history:
-    # 2022-04-03 02:00 -> 03:00 in America/Mexico_City. At 03:30 CDT only
-    # 2.5 h have elapsed since midnight (naive wall clock: 3.5).
+    # tzdata keeps Mexico's pre-2023 DST history: 2022-04-03 02:00 -> 03:00
+    # in America/Mexico_City; at 03:30 CDT only 2.5 h have elapsed.
     now = _epoch(2022, 4, 3, 3, 30, tz="America/Mexico_City")
     a = anchor_for_fresh_start(now, "America/Mexico_City")
     assert a.t_h0 == pytest.approx(2.5)
@@ -107,11 +104,8 @@ def test_real_at_round_trip():
 
 
 def test_real_at_timezone_correctness():
-    # Anchors built at LOCAL midnight (t_h0=0) of 2026-08-15 in two zones
-    # that differ in offset that day (America/Chihuahua: UTC-6, no DST;
-    # America/New_York: EDT, UTC-4). The same virtual hour 15.4 must render
-    # as 15:24 local in BOTH zones, and the two UTC instants must differ by
-    # exactly the offset difference (2 h) — the correct offset is applied.
+    # Anchors built at local midnight (t_h0=0) of 2026-08-15 in Chihuahua (UTC-6)
+    # and New York (EDT, UTC-4); virtual hour 15.4 renders as 15:24 in both.
     a_chih = RealTimeAnchor(epoch0_s=_epoch(2026, 8, 15, 0, 0, tz="America/Chihuahua"),
                             t_h0=0.0, tz="America/Chihuahua")
     a_nyc = RealTimeAnchor(epoch0_s=_epoch(2026, 8, 15, 0, 0, tz="America/New_York"),
@@ -131,10 +125,8 @@ def test_real_at_timezone_correctness():
 
 
 def test_real_at_dst_spring_forward_instant_arithmetic():
-    # America/New_York 2026-03-08: 02:00 -> 03:00 (23-hour day). real_at is
-    # pure epoch math, so the round-trip holds across the gap, and the local
-    # rendering reflects the skipped hour: 3.5 h after midnight (EST) is
-    # 04:30 EDT, not the naive 03:30.
+    # America/New_York 2026-03-08 DST gap: real_at is pure epoch math, so the
+    # round-trip holds; 3.5 h after midnight (EST) renders 04:30 EDT.
     a = RealTimeAnchor(epoch0_s=_epoch(2026, 3, 8, 0, 0, tz="America/New_York"),
                        t_h0=0.0, tz="America/New_York")
     for t_h in (1.5, 2.0, 2.5, 3.0, 3.5, 15.4):

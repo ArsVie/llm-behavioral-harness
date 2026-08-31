@@ -45,7 +45,7 @@ from harness.scheduler import (
     REASON_VALIDITY_H,
 )
 
-#: source_type values stored on ProactiveIntent (A2 resolve_intent_source keys).
+#: source_type values stored on ProactiveIntent.
 SOURCE_AGENDA = "agenda_item"
 SOURCE_LIFE_EVENT = "life_event"
 SOURCE_CALLBACK = "callback"
@@ -151,9 +151,7 @@ class IntentResolver:
         self.store = store
         self._rng = rng if rng is not None else rng_mod.stream_rng(0)
 
-    # ------------------------------------------------------------------ #
     # public API
-    # ------------------------------------------------------------------ #
 
     def resolve(
         self, opportunity: ContactOpportunity | float
@@ -179,9 +177,7 @@ class IntentResolver:
         best = self._rank(candidates)
         return self._build_intent(best, t_h, opportunity=opp)
 
-    # ------------------------------------------------------------------ #
-    # candidate collection (store-backed only)
-    # ------------------------------------------------------------------ #
+    # candidate collection
 
     def _candidates(self, now_h: float) -> list[_Candidate]:
         out: list[_Candidate] = []
@@ -270,15 +266,13 @@ class IntentResolver:
             return None
         episodes = self.store.list_episodes()
         if not episodes:
-            return None  # blank slate: no shared history to ground a check-in
+            return None  # no episodes to ground a check-in on
         anchor = max(episodes, key=lambda e: (e.occurred_at_t_h, e.created_at_t_h))
         recency = float(np.clip(gap / CHECK_IN_RECENCY_NORM_H, 0.2, 1.0))
         return _Candidate(REASON_CHECK_IN, anchor, CHECK_IN_SALIENCE, recency,
                           _validity_factor(REASON_CHECK_IN))
 
-    # ------------------------------------------------------------------ #
-    # ranking + intent construction
-    # ------------------------------------------------------------------ #
+    # ranking and intent construction
 
     def _rank(self, candidates: list[_Candidate]) -> _Candidate:
         ordered = sorted(candidates, key=lambda c: -c.score())
@@ -315,10 +309,8 @@ class IntentResolver:
             extra = f"local={now_h % 24.0:.2f}h last_interaction={last} gap_h={gap}"
         else:
             extra = ""
-        # The intent is valid while BOTH the reason is fresh AND the
-        # opportunity that made this a plausible moment is still plausible
-        # (the opportunity's window is the scheduler's claim; the reason's
-        # window is the source's claim — the intent expires at the earlier).
+        # The intent expires at the earlier of the reason validity and the
+        # opportunity window.
         valid_until = now_h + REASON_VALIDITY_H[reason]
         if opportunity is not None:
             valid_until = min(valid_until, opportunity.valid_until_t_h)

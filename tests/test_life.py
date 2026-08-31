@@ -41,15 +41,11 @@ from harness.life import (
     transition_past_windows,
 )
 
-#: Fixed seed for the 30-day core simulation (deterministic, documented).
-#: Chosen so the trajectory exhibits every arc transition — completion,
-#: abandonment and surviving active arcs — plus day-to-day variety.
+#: Fixed seed for the 30-day core simulation.
 CORE_SEED = 14
 
 
-# ---------------------------------------------------------------------------
 # Seam-faithful fake store (JSON-persisted so reopen reproduces state)
-# ---------------------------------------------------------------------------
 
 class FakeLifeStore:
     """§15 store-seam subset for life.py, flushed to a JSON file per write.
@@ -140,9 +136,7 @@ class FakeLifeStore:
         self._flush()
 
 
-# ---------------------------------------------------------------------------
 # Fixtures
-# ---------------------------------------------------------------------------
 
 def _persona() -> domain.PersonaProfile:
     interests = (
@@ -191,13 +185,11 @@ def _day_start(day: int) -> float:
     return day * DAY_HOURS
 
 
-#: NOW-semantics resolver under test (alias keeps the T2 tests readable).
+#: Alias for current_activity_now under test.
 life_now = current_activity_now
 
 
-# ---------------------------------------------------------------------------
 # init_life
-# ---------------------------------------------------------------------------
 
 def test_init_life_deterministic_and_persisted(tmp_path):
     persona = _persona()
@@ -231,9 +223,7 @@ def test_init_life_variation_across_seeds(tmp_path):
     assert len(signatures) >= 2  # different seeds create variation
 
 
-# ---------------------------------------------------------------------------
 # generate_agenda
-# ---------------------------------------------------------------------------
 
 def test_generate_agenda_shape_sources_and_persistence(tmp_path):
     persona = _persona()
@@ -316,17 +306,14 @@ def test_routine_cadence_boundaries(tmp_path):
         assert "never" not in names
 
 
-# ---------------------------------------------------------------------------
 # step_life
-# ---------------------------------------------------------------------------
 
 def test_step_life_statuses_and_persistence(tmp_path):
     persona = _persona()
     store = _store(tmp_path)
     arcs = init_life(CORE_SEED, persona, store)
     # Day 8: every arc has started (max started_day = 8 for this seed), so the
-    # per-day draw sequence is the canonical one; earlier days skip draws for
-    # not-yet-started arcs (start-time respect) and may legitimately deviate.
+    # per-day draw sequence is the canonical one.
     day = 8
     agenda = generate_agenda(day, persona, arcs, store,
                              stream_rng(CORE_SEED, LIFE_STREAM, day))
@@ -395,9 +382,7 @@ def test_step_life_arcs_can_complete_or_abandon(tmp_path):
     assert any(a.status == "completed" for a in arcs)  # the oldest arc completes
 
 
-# ---------------------------------------------------------------------------
 # Core 30-day simulation
-# ---------------------------------------------------------------------------
 
 def test_30_day_simulation_core(tmp_path):
     """Core test: 30 days, fixed seed, real persistence semantics.
@@ -490,7 +475,7 @@ def test_reload_reproduces_persistent_state(tmp_path):
     arcs, agendas, results = _simulate(CORE_SEED, persona, store1, days=30)
     store1.close()
 
-    # --- restart: new store instance over the same file ---
+    # restart: new store instance over the same file
     store2 = FakeLifeStore(path)
     reloaded_arcs = store2.list_life_arcs()
     assert reloaded_arcs == arcs  # same persistent state
@@ -499,7 +484,7 @@ def test_reload_reproduces_persistent_state(tmp_path):
         stored_items = {it.id: it for it in store2.list_agenda_items(day=day)}
         assert stored_items == {it.id: it for it in agendas[day].items}
 
-    # --- continuation determinism: day 31 from reloaded state == fresh run ---
+    # continuation: day 31 from reloaded state matches a fresh run
     rng_reloaded = stream_rng(CORE_SEED, LIFE_STREAM, 31)
     agenda31_reloaded = generate_agenda(31, persona, reloaded_arcs, store2, rng_reloaded)
     step31_reloaded = step_life(31, persona, reloaded_arcs, agenda31_reloaded, store2,
@@ -535,9 +520,8 @@ def test_reload_reproduces_persistent_state_real_store(tmp_path):
 
     # --- restart: new store instance over the same file ---
     store2 = SQLiteStore(path)
-    # No ORDER BY contract in the store seam: compare state as id-keyed maps and
-    # normalize by id before continuation runs (persistence preserves STATE, not
-    # list order).
+    # Compare state as id-keyed maps and sort by id; persistence
+    # preserves state, not list order.
     reloaded_arcs = sorted(store2.list_life_arcs(), key=lambda a: a.id)
     arcs_sorted = sorted(arcs, key=lambda a: a.id)
     assert {a.id: a for a in reloaded_arcs} == {a.id: a for a in arcs_sorted}
@@ -568,9 +552,7 @@ def test_reload_reproduces_persistent_state_real_store(tmp_path):
     assert step31_reloaded.current_activity == step31_fresh.current_activity
 
 
-# ---------------------------------------------------------------------------
-# RNG stream isolation (CRITICAL replay rule)
-# ---------------------------------------------------------------------------
+# RNG stream isolation
 
 def test_life_stream_does_not_touch_daily_stream(tmp_path):
     """life.py must never draw from day_rng(seed, t); the daily stream is the
@@ -610,9 +592,7 @@ def test_module_uses_no_random_or_clock():
         assert forbidden not in text, f"forbidden pattern {forbidden!r} in life.py"
 
 
-# ---------------------------------------------------------------------------
-# Iteration 2 (A2): arc start-time respect (plan §5-A2 T1)
-# ---------------------------------------------------------------------------
+# arc start-time respect
 
 def _late_arc() -> domain.LifeArc:
     """An arc that does not start until day 15 (used by the T1 tests)."""
@@ -649,8 +629,8 @@ def test_arc_start_time_respected_agenda(tmp_path):
             f"{[it.activity for it in late_items]}"
         )
 
-    # from its start day onward the arc can contribute (0.8 per-day chance;
-    # over a window it must land at least once for this seed)
+    # From its start day the arc can contribute (0.8 per-day chance);
+    # over a window it lands at least once for this seed.
     seen = False
     for day in range(15, 23):
         agenda = generate_agenda(day, persona, [early, late], store,
@@ -703,9 +683,7 @@ def test_arc_start_time_survives_reload(tmp_path):
     assert not [it for it in agenda.items if it.source_id == "arc_late"]
 
 
-# ---------------------------------------------------------------------------
-# Iteration 2 (A2): CurrentActivity = active NOW (plan §5-A2 T2, invariant 8)
-# ---------------------------------------------------------------------------
+# CurrentActivity resolves the active item at the current time
 
 def test_current_activity_now_future_plan_is_not_current():
     """A 7 PM plan is NOT what she is doing at 10 AM: nothing active -> None,
@@ -723,7 +701,7 @@ def test_current_activity_now_future_plan_is_not_current():
     # 10:00-11:00: the morning item is current while actually in progress
     assert life_now(agenda, base + 10.0).item.id == "ag_1"
     assert life_now(agenda, base + 10.75).item.id == "ag_1"
-    # 10 AM "now" is never the 7 PM plan
+    # 10 AM now is not the 7 PM plan
     assert life_now(agenda, base + 10.0).item.id != "ag_2"
     # gap at 15:00: nothing active -> None
     assert life_now(agenda, base + 15.0) is None
@@ -789,9 +767,7 @@ def test_step_life_current_activity_with_t_h(tmp_path):
     assert late.current_activity is None
 
 
-# ---------------------------------------------------------------------------
-# W2 (S2): transition_past_windows — planned -> completed as windows pass
-# ---------------------------------------------------------------------------
+# transition_past_windows: planned items become completed as windows pass
 
 def _transition_fixture(day: int = 0):
     base = _day_start(day)
@@ -827,8 +803,8 @@ def test_transition_past_windows_planned_to_completed():
     assert changed[0].status == "completed"
     assert changed[0].activity == "morning coffee"
 
-    # pottery is IN progress (15:00-16:00 at 15.4): stays planned
-    # (the transition only fires once a window has fully passed)
+    # Pottery is in progress (15:00-16:00 at 15.4): stays planned;
+    # the transition fires only after a window has fully passed.
     assert not any(it.id == "ag_pottery" for it in changed)
 
     # after everything (22:00): all planned windows passed
@@ -867,9 +843,9 @@ def test_transition_past_windows_scoped_to_day():
                               "a", 0.5, "planned"),
         ),
     )
-    # a day-0 turn at t_h 25.5 must not touch the day-1 item
+    # A day-0 turn at t_h 25.5 does not touch the day-1 item
     assert transition_past_windows(other_day, t_h=25.5, day=0) == []
-    # the day-1 turn itself does (window 25.0-26.0 fully passed at 26.5)
+    # The day-1 turn itself does (window 25.0-26.0 fully passed at 26.5)
     changed = transition_past_windows(other_day, t_h=26.5, day=1)
     assert [it.id for it in changed] == ["ag_other"]
 
@@ -893,9 +869,7 @@ def test_transition_persists_through_store_seam(tmp_path):
     assert again == []
 
 
-# ---------------------------------------------------------------------------
-# Iteration 2 (A2): arc replenishment (plan §5-A2 T3, invariant 9)
-# ---------------------------------------------------------------------------
+# arc replenishment
 
 def _run_days(seed: int, persona, store, days: int):
     """Session-faithful daily loop (fresh per-day rng per call); returns the
@@ -976,7 +950,7 @@ def test_replenishment_candidates_descendant_and_fresh(tmp_path):
     spawned = [a for a in all_arcs if a.id.endswith("_s0")]
     assert spawned
     for s in spawned:
-        assert s.interest in persona_interests  # never off-persona
+        assert s.interest in persona_interests  # interests stay on-persona
         assert s.status in {"active", "completed", "abandoned"}
         assert s.next_intention and s.started_day <= 60
     completed_interests = {a.interest for a in all_arcs if a.status == "completed"}
@@ -1023,7 +997,7 @@ def test_recent_good_days_counts_meaningful_events(tmp_path):
     assert _recent_good_days(store, 22) == 2
     assert _recent_good_days(store, 23) == 1  # day 15 fell out of the window
     store.close()
-    # a seam-less store (no audit log) contributes 0, keeping the policy alive
+    # A seam-less store (no audit log) contributes 0
     assert _recent_good_days(_store(tmp_path / "fake"), 20) == 0
 
 

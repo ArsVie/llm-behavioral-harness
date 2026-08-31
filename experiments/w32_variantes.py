@@ -43,7 +43,7 @@ from sim.plots import plot_variant_comparison
 from sim.run_daily import run
 
 # ---------------------------------------------------------------------------
-# Configuración congelada del experimento
+# Frozen experiment configuration
 
 SEEDS: tuple[int, ...] = (111, 222, 333, 444, 555)
 DAYS = 90
@@ -53,16 +53,14 @@ VARIANTS: tuple[MoodVariant, ...] = (
     MoodVariant.DECOUPLED_OFFSETS,
 )
 SEED_FOR_COMPARISON_PLOT = 111
-MA_WINDOW = 7  # ventana (días) de la media móvil para la métrica de offset (3)
-QUARTILE_Q = 0.25  # cuartiles superior/inferior de g para Δmedia
+MA_WINDOW = 7  # moving-average window (days) for the offset metric (3)
+QUARTILE_Q = 0.25  # upper/lower g quartiles for Δmedia
 
 OUT_DIR = Path(__file__).resolve().parents[1] / "results" / "w32-variantes"
 
 
 # ---------------------------------------------------------------------------
-# Métricas propias del experimento (no viven en sim/metrics.py: son
-# específicas de esta comparativa, permitido como helper privado del script
-# por CONVENTIONS.md §3).
+# Experiment-specific metrics (private helpers)
 
 
 def delta_media_by_gain(M: np.ndarray, g: np.ndarray, q: float = QUARTILE_Q) -> float:
@@ -117,7 +115,7 @@ def offset_corr_ma(M: np.ndarray, m: np.ndarray, window: int = MA_WINDOW) -> flo
 
 
 # ---------------------------------------------------------------------------
-# Corrida principal
+# Main run
 
 
 def run_all() -> dict[MoodVariant, dict[int, "SimResultLike"]]:  # noqa: F821
@@ -185,7 +183,7 @@ def aggregate_across_seeds(
 
 
 # ---------------------------------------------------------------------------
-# Figuras
+# Figures
 
 
 def plot_M_series_by_variant(
@@ -278,7 +276,7 @@ def plot_metrics_barplot(
 
 
 # ---------------------------------------------------------------------------
-# Reporte
+# Report
 
 
 def _fmt(mean: float, sd: float) -> str:
@@ -293,15 +291,10 @@ def write_report(
     """Escribe reporte.md con tabla, veredicto (8a) y recomendación."""
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- Veredictos individuales por criterio, derivados de los números ---
+    # --- Per-criterion verdicts from the measured numbers ---
 
-    # (1) Acoplamiento media-ganancia: |Δmedia| de ORIGINAL debe ser
-    # notablemente mayor que en DECOUPLED (B=0 en DECOUPLED corta el aporte
-    # de m(t), pero DECOUPLED aún puede mostrar algo de Δmedia vía g
-    # multiplicando (mu+eta) si mu/eta tienen sesgo no nulo en la ventana;
-    # el punto estructural es que ORIGINAL amplifica ADEMÁS logit(lam), que
-    # es una constante grande y sistemática, mientras DECOUPLED solo
-    # amplifica mu+eta que fluctúa alrededor de 0).
+    # (1) Mean-gain coupling: ORIGINAL also amplifies the constant logit(lam);
+    # DECOUPLED only amplifies mu+eta, which fluctuates around 0.
     delta_original = agg[MoodVariant.ORIGINAL]["delta_media"][0]
     delta_decoupled = agg[MoodVariant.DECOUPLED]["delta_media"][0]
     corr_g_M_original = agg[MoodVariant.ORIGINAL]["corr_g_M"][0]
@@ -311,16 +304,14 @@ def write_report(
         corr_g_M_original
     ) > abs(corr_g_M_decoupled)
 
-    # (2) Autocorrelación: DECOUPLED* > ORIGINAL
+    # (2) Autocorrelation: DECOUPLED* > ORIGINAL
     ac_original = agg[MoodVariant.ORIGINAL]["autocorr_lag1"][0]
     ac_decoupled = agg[MoodVariant.DECOUPLED]["autocorr_lag1"][0]
     ac_decoupled_offsets = agg[MoodVariant.DECOUPLED_OFFSETS]["autocorr_lag1"][0]
 
     criterio2_pass = ac_decoupled > ac_original and ac_decoupled_offsets > ac_original
 
-    # (3) Efecto de B: offset_corr_ma de DECOUPLED_OFFSETS > DECOUPLED (en
-    # valor absoluto, porque el signo depende de la fase phi/relación
-    # senoidal, lo estructural es la MAGNITUD de la correlación con m(t)).
+    # (3) B effect: |offset_corr_ma| of DECOUPLED_OFFSETS > DECOUPLED.
     offset_decoupled = agg[MoodVariant.DECOUPLED]["offset_corr_ma"][0]
     offset_decoupled_offsets = agg[MoodVariant.DECOUPLED_OFFSETS]["offset_corr_ma"][0]
 
@@ -342,7 +333,7 @@ def write_report(
     )
     lines.append("")
 
-    # --- Tabla métrica x variante ---
+    # --- Metric x variant table ---
     lines.append("## Tabla: métrica × variante (media ± sd entre semillas)")
     lines.append("")
     lines.append("| Métrica | ORIGINAL | DECOUPLED | DECOUPLED_OFFSETS |")
@@ -363,7 +354,7 @@ def write_report(
 
     lines.append("")
 
-    # --- Detalle por criterio ---
+    # --- Detail per criterion ---
     lines.append("## Criterio (8a) — diferencias documentadas cuantitativamente")
     lines.append("")
 
@@ -449,17 +440,15 @@ def write_report(
     )
     lines.append("")
 
-    # --- Recomendación ---
+    # --- Recommendation ---
     lines.append("## 4. Recomendación de variante para el POC")
     lines.append("")
 
-    # La recomendación se redacta a mano abajo condicionada a los resultados
-    # reales (ver bloque final de main() para la lógica de selección
-    # explícita registrada también en stdout).
+    # Recommendation text is written below, conditioned on the measured results.
     lines.append(RECOMENDACION_PLACEHOLDER)
     lines.append("")
 
-    # --- Figuras ---
+    # --- Figures ---
     lines.append("## Figuras")
     lines.append("")
     for name, path in figure_paths.items():
@@ -471,9 +460,7 @@ def write_report(
     return report_path
 
 
-#: Placeholder sustituido en main() tras calcular los números reales, para
-#: mantener write_report() como función pura de sus argumentos (sin decidir
-#: texto de recomendación con lógica adicional oculta). Ver main().
+# Placeholder replaced in main() after the real numbers are computed.
 RECOMENDACION_PLACEHOLDER = "__RECOMENDACION__"
 
 
@@ -555,7 +542,7 @@ def main() -> int:
     print("Generando figuras...")
     figure_paths: dict[str, Path] = {}
 
-    # (a) plot_variant_comparison de sim/plots.py, semilla fija 111
+    # (a) sim.plots.plot_variant_comparison, fixed seed 111
     comparison_inputs = {
         variant.value: results[variant][SEED_FOR_COMPARISON_PLOT] for variant in VARIANTS
     }
@@ -565,12 +552,12 @@ def main() -> int:
         )
     )
 
-    # (b) series M(t) por variante, todas las semillas
+    # (b) M(t) series per variant, all seeds
     figure_paths["M(t) por variante, 5 semillas superpuestas + media"] = (
         plot_M_series_by_variant(results, OUT_DIR)
     )
 
-    # (c) barplot propio de métricas
+    # (c) custom metrics barplot
     figure_paths["barplot de métricas (Δmedia, corr(g,M), autocorr_lag1) con error bars"] = (
         plot_metrics_barplot(agg, OUT_DIR)
     )
@@ -578,16 +565,13 @@ def main() -> int:
     print("Escribiendo reporte...")
     report_path = write_report(agg, figure_paths, OUT_DIR)
 
-    # Sustituir el placeholder de recomendación con el texto condicionado a
-    # los números reales (mantiene write_report legible y testeable en
-    # aislamiento si hiciera falta, sin acoplar la decisión de texto dentro
-    # de la construcción de la tabla).
+    # Replace the recommendation placeholder with the conditioned text.
     recomendacion_text = build_recomendacion(agg)
     report_text = report_path.read_text(encoding="utf-8")
     report_text = report_text.replace(RECOMENDACION_PLACEHOLDER, recomendacion_text)
     report_path.write_text(report_text, encoding="utf-8")
 
-    # --- resumen a stdout ---
+    # --- stdout summary ---
     print()
     print("=== Resumen (media ± sd entre semillas) ===")
     for variant in VARIANTS:

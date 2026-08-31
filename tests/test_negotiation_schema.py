@@ -38,9 +38,7 @@ from harness.tools import (
     render_popup,
 )
 
-# --------------------------------------------------------------------------- #
 # helpers
-# --------------------------------------------------------------------------- #
 
 
 def _store(tmp_path):
@@ -76,9 +74,7 @@ EVENT_INPUTS = {
     "time": "19.0",
 }
 
-# --------------------------------------------------------------------------- #
-# defer N mapping (server-filled, from the reason text)
-# --------------------------------------------------------------------------- #
+# defer N mapping (server-filled from the reason text)
 
 
 def test_map_defer_explicit_number():
@@ -116,9 +112,7 @@ def test_map_defer_fallback():
 
 
 def test_map_defer_tuple_order_first_match_wins():
-    # Precedence follows DEFER_N_PATTERNS row order (matches the runtime's
-    # re-arm arithmetic in harness/negotiation_state.map_defer_n), so the
-    # recorded defer_turns always equals the N the runtime re-arms with.
+    # Precedence follows DEFER_N_PATTERNS row order (same as runtime re-arm).
     assert map_defer_turns("just a sec, I need 3 more turns") == 1
 
 
@@ -143,8 +137,7 @@ def test_fill_defer_turns_adds_server_n():
 
 
 def test_fill_defer_turns_overrides_model_emitted_n():
-    # The MODEL never emits N. If one slips into the raw call, the server
-    # mapping overrides it (deterministically from the reason).
+    # Server mapping overrides any model-emitted N.
     verdict = fill_defer_turns({"initiate": False,
                                 "reason": "a bit longer",
                                 "action": "defer", "defer_turns": 99})
@@ -152,9 +145,7 @@ def test_fill_defer_turns_overrides_model_emitted_n():
     assert verdict["reason"] == "a bit longer"
 
 
-# --------------------------------------------------------------------------- #
-# backward compatibility: legacy decide verdicts parse exactly as before
-# --------------------------------------------------------------------------- #
+# backward compatibility: legacy verdicts parse exactly as before
 
 
 def test_legacy_native_verdict_parses_exactly():
@@ -196,9 +187,7 @@ def test_legacy_shorthand_parses_exactly():
 
 
 def test_message_only_payload_has_no_inform_semantics_in_decide_phase():
-    # A {message: ...} payload is NOT a decide verdict: decide-phase
-    # parsing (default, legacy) drops the unknown key and applies the
-    # legacy defaults — it never surfaces an inform "message" verdict.
+    # A {message: ...} payload is not a decide verdict; decide parsing drops it.
     verdict = parse_textual_reply(
         "tool_decide_event", 'tool_decide_event: {"message": "gym soon"}'
     )
@@ -206,9 +195,7 @@ def test_message_only_payload_has_no_inform_semantics_in_decide_phase():
     assert "message" not in verdict
 
 
-# --------------------------------------------------------------------------- #
 # inform-phase verdict: {message: str}, no go/skip/delay action
-# --------------------------------------------------------------------------- #
 
 
 def test_inform_native_verdict():
@@ -232,9 +219,7 @@ def test_inform_textual_verdict():
 
 
 def test_inform_legacy_shape_normalized_to_message():
-    # Native models see the pinned decide-phase schema (initiate + reason
-    # required) even on inform legs; the mention lives in reason, which is
-    # preserved alongside the canonical message.
+    # Native models see the pinned decide schema on inform legs too; the mention lives in reason.
     verdict = parse_native_reply(
         "tool_decide_event",
         [{"function": {"name": "tool_decide_event",
@@ -283,8 +268,7 @@ def test_inform_empty_message_is_invalid():
 
 
 def test_inform_verdict_not_parsed_without_phase():
-    # Without phase (legacy caller) decide parsing applies: the message key
-    # is dropped with legacy defaults — no inform verdict is produced.
+    # Without phase, decide parsing drops the message key.
     verdict = parse_textual_reply(
         "tool_decide_event", 'tool_decide_event: {"message": "gym soon"}'
     )
@@ -315,7 +299,7 @@ def test_inform_plain_prose_is_the_mention():
         phase="inform",
     )
     assert verdict["message"].startswith("haha wait")
-    # Decide phase stays strict: prose without a marker is still a failure.
+    # Decide phase is strict: prose without a marker fails.
     from harness.tools import DecisionParseError
 
     with pytest.raises(DecisionParseError):
@@ -328,9 +312,7 @@ def test_inform_plain_prose_is_the_mention():
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # popup rendering: negotiation context lines, legacy byte-identical
-# --------------------------------------------------------------------------- #
 
 
 def test_render_popup_legacy_inputs_byte_identical():
@@ -380,8 +362,7 @@ def test_inform_schema_is_mention_only():
 
 
 def test_decide_schema_stays_pinned():
-    # The runtime verdict schema is unchanged: only the description text
-    # gained the phase/skippable guidance (test_tools.py pins the shape).
+    # The runtime verdict schema is unchanged; only the description text gained phase guidance.
     event = TOOL_SCHEMAS[0]
     assert set(event["parameters"]["required"]) == {"initiate", "reason"}
     assert set(event["parameters"]["properties"]) == {
@@ -389,9 +370,7 @@ def test_decide_schema_stays_pinned():
     }
 
 
-# --------------------------------------------------------------------------- #
 # runner plumbing: phase-aware request, defer_turns on the recorded verdict
-# --------------------------------------------------------------------------- #
 
 
 def test_execute_inform_leg_records_message_and_uses_inform_schema(tmp_path):
@@ -458,7 +437,6 @@ def test_execute_defer_records_server_filled_defer_turns(tmp_path):
     )
     assert res.verdict["action"] == "defer"
     assert res.verdict[DEFER_TURNS_KEY] == 1
-    # The recorded decision verdict carries the final defer_turns.
     row = store.decision_for_replay("neg-gym-decide-0")
     recorded = json.loads(row["verdict_json"])
     assert recorded["action"] == "defer"
@@ -478,8 +456,7 @@ def test_execute_defer_model_emitted_n_is_overridden(tmp_path):
         Capabilities(has_native_tools=True),
         call,
     )
-    # Model-supplied N is ignored; the server mapping wins (a bit longer
-    # -> DEFAULT_DEFER_TURNS).
+    # Model-supplied N is ignored; the server mapping wins.
     assert res.verdict[DEFER_TURNS_KEY] == DEFAULT_DEFER_TURNS
     row = store.decision_for_replay("neg-gym-decide-1")
     recorded = json.loads(row["verdict_json"])

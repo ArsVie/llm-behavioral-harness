@@ -21,9 +21,7 @@ import pytest
 from harness import domain
 
 
-# ---------------------------------------------------------------------------
-# Happy-path factories (one per type)
-# ---------------------------------------------------------------------------
+# ---- Happy-path factories ----
 
 def _interest() -> domain.Interest:
     return domain.Interest(name="photography", bucket="exact", salience=0.8)
@@ -235,7 +233,7 @@ def _snapshot() -> domain.CompanionSnapshot:
     )
 
 
-# One happy-path instance per dataclass type (MemoryKind is an Enum, tested separately).
+# One happy-path instance per dataclass type.
 ALL_INSTANCES: dict[type, object] = {
     domain.Interest: _interest(),
     domain.InterestRelation: _relation(),
@@ -262,9 +260,7 @@ ALL_INSTANCES: dict[type, object] = {
 }
 
 
-# ---------------------------------------------------------------------------
-# Tests
-# ---------------------------------------------------------------------------
+# ---- Tests ----
 
 def test_every_type_instantiable() -> None:
     for cls, obj in ALL_INSTANCES.items():
@@ -296,7 +292,7 @@ def test_proactive_intent_has_no_none_source_fields() -> None:
         value = getattr(intent, field_name)
         assert value is not None
         assert isinstance(value, str) and value != ""
-    # Source fields are required: omitting evidence must fail at construction.
+    # Omitting evidence fails at construction.
     with pytest.raises(TypeError):
         domain.ProactiveIntent(
             id="intent:4",
@@ -316,12 +312,12 @@ def test_memory_context_holds_all_tiers() -> None:
     episode = _episode()
     model = _user_model()
     ctx = _memory_context()
-    assert ctx.recent_turns == (turn,)  # L1
-    assert ctx.session_context == (summary,)  # L2
-    assert ctx.episodes == (episode,)  # L3
-    assert ctx.user_model == model  # L4
+    assert ctx.recent_turns == (turn,)  # tier 1
+    assert ctx.session_context == (summary,)  # tier 2
+    assert ctx.episodes == (episode,)  # tier 3
+    assert ctx.user_model == model  # tier 4
     assert ctx.evidence_anchors == ("My dog's name is Bruno.",)
-    # L4 projection may legitimately be absent before any consolidation exists.
+    # The user model may be absent before consolidation.
     empty = domain.MemoryContext(
         recent_turns=(), session_context=(), episodes=(), user_model=None, evidence_anchors=()
     )
@@ -331,12 +327,12 @@ def test_memory_context_holds_all_tiers() -> None:
 def test_user_affect_observation_distinct_from_companion_behavior_state() -> None:
     uao = _user_affect()
     cbs = _behavior_state()
-    # Different classes, neither is an instance of the other.
+    # The two types are not instances of each other.
     assert type(uao) is domain.UserAffectObservation
     assert type(cbs) is domain.CompanionBehaviorState
     assert not isinstance(uao, domain.CompanionBehaviorState)
     assert not isinstance(cbs, domain.UserAffectObservation)
-    # No shared field names -> no accidental coercion between the two.
+    # No shared field names between the two types.
     uao_fields = {f.name for f in dataclasses.fields(domain.UserAffectObservation)}
     cbs_fields = {f.name for f in dataclasses.fields(domain.CompanionBehaviorState)}
     assert uao_fields.isdisjoint(cbs_fields)
@@ -352,7 +348,7 @@ def test_companion_snapshot_happy_path() -> None:
     assert len(snap.memory_context.recent_turns) == 1
     assert len(snap.recent_conversation) == 1
     assert snap.proactive_intent is not None
-    # Optional slots may be None, but a present intent stays fully grounded.
+    # Optional slots may be None; a present intent stays grounded.
     bare = domain.CompanionSnapshot(
         persona=_persona(),
         current_behavior=None,
@@ -369,9 +365,7 @@ def test_companion_snapshot_happy_path() -> None:
     assert bare.proactive_intent is None
 
 
-# ---------------------------------------------------------------------------
-# Iteration-2 Gate-0 contracts (ContactOpportunity, L4 taxonomy, MemoryPolicy)
-# ---------------------------------------------------------------------------
+# ---- Iteration-2 contracts (ContactOpportunity, L4 taxonomy, MemoryPolicy) ----
 
 def test_contact_opportunity_shape_and_no_semantic_reason() -> None:
     """ContactOpportunity is a timing signal only — never a semantic reason."""
@@ -386,11 +380,11 @@ def test_contact_opportunity_shape_and_no_semantic_reason() -> None:
         "initiative_multiplier",
         "previous_score_multiplier",
     }
-    # No semantic-reason vocabulary anywhere in the shape.
+    # No semantic-reason vocabulary in the shape.
     assert "reason" not in fields
     assert "semantic" not in fields
     assert "schedule" not in fields
-    # Hazard components are exactly the stochastic sources, with float values.
+    # Hazard components are the stochastic sources, with float values.
     assert opp.hazard_components == {
         "base": 0.041,
         "circadian": 1.32,
@@ -420,8 +414,7 @@ def test_proactive_intent_opportunity_id_defaults_none_and_links_opportunity() -
         opportunity_id="opportunity:313",
     )
     assert linked.opportunity_id == "opportunity:313"
-    # opportunity_id is the ONLY defaulted field: every source field stays
-    # required, and the source invariant still holds.
+    # opportunity_id is the only defaulted field.
     defaulted = [
         f.name for f in dataclasses.fields(domain.ProactiveIntent) if f.default is not dataclasses.MISSING
     ]
@@ -442,7 +435,7 @@ def test_l4_taxonomy_canonical_eight_categories() -> None:
         "RELATIONSHIP_PATTERN",
         "IMPORTANT_ENTITY",
     }
-    # Lowercase-string values per repo style (like MemoryKind).
+    # Lowercase-string values.
     for member in domain.UserModelCategory:
         assert isinstance(member.value, str)
         assert member.value == member.name.lower()
@@ -487,7 +480,7 @@ def test_memory_policy_members_and_experimental_distinction() -> None:
     for member in domain.MemoryPolicy:
         assert isinstance(member.value, str)
         assert member.value == member.name.lower()
-    # Faithful condition is not experimental; the named variant is.
+    # The faithful condition is not experimental; the variant is.
     assert not domain.MemoryPolicy.STRUCTURED_MEMORY.is_experimental
     assert domain.MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT.is_experimental
     assert not domain.MemoryPolicy.RAW_CONTEXT.is_experimental
@@ -496,9 +489,7 @@ def test_memory_policy_members_and_experimental_distinction() -> None:
     assert domain.MemoryPolicy.STRUCTURED_MEMORY != domain.MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT
 
 
-# --------------------------------------------------------------------------- #
-# Iteration-3 Gate 0: conversation seam + ablation-effectiveness assertion
-# --------------------------------------------------------------------------- #
+# ---- Iteration-3: conversation seam + ablation-effectiveness assertion ----
 
 
 def _conv_turn(**overrides) -> domain.ConversationTurn:
@@ -597,9 +588,9 @@ def test_ablation_claim_shape_and_channel_literals() -> None:
     )
     assert claim.condition == "STRUCTURED_NO_STATE"
     assert callable(claim.check)
-    assert claim.min_days == 1  # default: evaluable at any horizon
-    assert claim.measure is None  # default: no measured-margins reporter
-    # The claim is evaluable against the documented records shape.
+    assert claim.min_days == 1  # default: any horizon
+    assert claim.measure is None  # default: no margin reporter
+    # The claim is evaluable against the records shape.
     assert claim.check({"n_proactive": 5}, {"n_proactive": 20}) is True
     assert claim.check({"n_proactive": 20}, {"n_proactive": 20}) is False
     assert dataclasses.is_dataclass(domain.AblationClaim)
@@ -611,6 +602,6 @@ def test_conversation_turns_belong_to_their_conversation() -> None:
     (module invariant 8: the conversation is the unit of dialogue)."""
     conv = _conversation()
     assert all(t.conversation_id == conv.id for t in conv.turns)
-    # Immutability: a conversation cannot gain turns after construction.
+    # A conversation cannot gain turns after construction.
     with pytest.raises(Exception):
         conv.turns += (_conv_turn(turn_index=2),)  # type: ignore[operator]

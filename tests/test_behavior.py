@@ -95,9 +95,7 @@ def test_prompt_brief_shows_state_without_exposing_numbers_or_hormones() -> None
     assert "show it through" in brief
 
 
-# --------------------------------------------------------------------------- #
 # B4 (F4): widened actuator amplitude — extreme days are visibly different
-# --------------------------------------------------------------------------- #
 
 
 def _extreme_records() -> tuple[tuple[DayRecord, DayRecord], tuple[DayRecord, DayRecord]]:

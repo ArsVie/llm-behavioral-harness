@@ -159,9 +159,7 @@ from harness.domain import (
 
 SCHEMA_VERSION = 8
 
-# --------------------------------------------------------------------------- #
-# v1 base schema — FROZEN verbatim from the pre-slice store (do not edit).
-# --------------------------------------------------------------------------- #
+# --- v1 base schema ---
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS daily_state (
     day INTEGER PRIMARY KEY,
@@ -226,9 +224,7 @@ CREATE INDEX IF NOT EXISTS idx_schedule_events_seed_status
     ON schedule_events(seed, status);
 """
 
-# --------------------------------------------------------------------------- #
-# schema_meta bookkeeping
-# --------------------------------------------------------------------------- #
+# --- schema_meta bookkeeping ---
 _SCHEMA_META = """
 CREATE TABLE IF NOT EXISTS schema_meta (
     version INTEGER NOT NULL,
@@ -251,9 +247,7 @@ def schema_meta(version: int) -> str:
     return _SCHEMA_META
 
 
-# --------------------------------------------------------------------------- #
-# Migration v1 -> v2 (additive only)
-# --------------------------------------------------------------------------- #
+# --- Migration v1 -> v2 (additive only) ---
 _V2_TABLES = """
 CREATE TABLE IF NOT EXISTS persona (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -364,8 +358,7 @@ CREATE TABLE IF NOT EXISTS memory_embeddings (
 );
 """
 
-# L1 turns live in `messages` (see module docstring); memory_turns is the
-# session-scoped read shape over them.
+# memory_turns is the session-scoped read view over L1 turns in messages.
 _V2_VIEWS = """
 CREATE VIEW IF NOT EXISTS memory_turns AS
 SELECT id, session_id, role, content, t_h, day, proactive, meta
@@ -402,13 +395,7 @@ def _migrate_v2(conn: sqlite3.Connection) -> None:
     conn.executescript(_V2_VIEWS)
 
 
-# --------------------------------------------------------------------------- #
-# Migration v2 -> v3 (A7, additive only)
-# --------------------------------------------------------------------------- #
-# v3 adds the A7 persistence columns: messages.intent_id (proactive
-# provenance), user_model_assertions.category (canonical L4 storage), and
-# llm_calls.repro_json (call-reproducibility audit). The memory_turns view is
-# recreated to expose intent_id (SQLite views are not updated by ALTER TABLE).
+# Migration v2 -> v3 (additive): intent_id, category, repro_json.
 _V3_VIEWS = """
 CREATE VIEW memory_turns AS
 SELECT id, session_id, intent_id, role, content, t_h, day, proactive, meta
@@ -416,10 +403,8 @@ FROM messages
 WHERE session_id IS NOT NULL;
 """
 
-# Documented legacy assertion-key prefixes (the store's group-name convention
-# AND harness.memory's subject convention), used ONLY to derive the canonical
-# category for rows written before v3 and for callers that do not pass the
-# enum explicitly. The stored column is always the canonical value.
+# Legacy assertion-key prefixes mapping to canonical categories for pre-v3
+# rows and callers that do not pass the enum explicitly.
 _LEGACY_PREFIX_CATEGORIES = (
     ("stable_preferences", UserModelCategory.STABLE_PREFERENCE),
     ("current_preferences", UserModelCategory.CURRENT_PREFERENCE),
@@ -460,9 +445,8 @@ def _migrate_v3(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "messages", "intent_id", "TEXT")
     _ensure_column(conn, "user_model_assertions", "category", "TEXT")
     _ensure_column(conn, "llm_calls", "repro_json", "TEXT")
-    # Backfill the canonical category for every existing assertion row
-    # (legacy rows have NULL; new rows always carry a value). Non-destructive:
-    # only the new column is written.
+    # Backfill the canonical category for rows with NULL; only the new column
+    # is written.
     rows = conn.execute(
         "SELECT seq, key FROM user_model_assertions WHERE category IS NULL"
     ).fetchall()
@@ -479,13 +463,7 @@ def _migrate_v3(conn: sqlite3.Connection) -> None:
     conn.executescript(_V3_VIEWS)
 
 
-# --------------------------------------------------------------------------- #
-# Migration v3 -> v4 (it3 B2, additive only): conversation persistence
-# --------------------------------------------------------------------------- #
-# v4 adds the conversation seam (module invariant 8): ``conversations`` +
-# ``conversation_turns`` are the dialogue unit that memory sessions, judge
-# sampling and relational metrics key off, and ``messages`` gains the
-# additive ``conversation_id`` linkage column (NULL for pre-v4 rows).
+# Migration v3 -> v4 (additive): conversation tables + conversation_id.
 _V4_TABLES = """
 CREATE TABLE IF NOT EXISTS conversations (
     id TEXT PRIMARY KEY,
@@ -516,16 +494,7 @@ def _migrate_v4(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "messages", "conversation_id", "TEXT")
 
 
-# --------------------------------------------------------------------------- #
-# Migration v4 -> v5 (runtime redesign WS2, additive only): decisions +
-# steering queue
-# --------------------------------------------------------------------------- #
-# v5 adds the decision layer persistence: ``decision_records`` (one row per
-# pop-up decision — drawn inputs, raw reply, parsed verdict, source,
-# transport, budget, replay natural key) and ``steering_queue`` (pending
-# arriving events awaiting delivery at the next safe boundary; the WS3
-# steering backend contract). Both are pure additive tables; no existing
-# table or column is touched.
+# Migration v4 -> v5 (additive): decision_records + steering_queue.
 _V5_TABLES = """
 CREATE TABLE IF NOT EXISTS decision_records (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -573,17 +542,7 @@ def _migrate_v5(conn: sqlite3.Connection) -> None:
     conn.executescript(_V5_TABLES)
 
 
-# --------------------------------------------------------------------------- #
-# Migration v5 -> v6 (W-close, additive only): kv_store + wind-down column
-# --------------------------------------------------------------------------- #
-# v6 adds the two-phase-close persistence (seam S1): ``kv_store`` — a generic
-# key/value table (INSERT OR REPLACE semantics; the Wave-2 real-time anchor
-# persists under keys ``anchor.epoch0_s``/``anchor.t_h0``/``anchor.tz``) —
-# and the nullable ``conversations.closing_pending_t_h`` column (NULL = no
-# wind-down pending; a real value = the closing draw fired and the
-# conversation is in its wind-down grace window). Purely additive: a new
-# table plus one guarded nullable column; no existing table or column is
-# touched, so the migration is safe on a populated live database.
+# Migration v5 -> v6 (additive): kv_store + closing_pending_t_h.
 _V6_TABLES = """
 CREATE TABLE IF NOT EXISTS kv_store (
     key TEXT PRIMARY KEY,
@@ -598,17 +557,7 @@ def _migrate_v6(conn: sqlite3.Connection) -> None:
     _ensure_column(conn, "conversations", "closing_pending_t_h", "REAL")
 
 
-# --------------------------------------------------------------------------- #
-# Migration v6 -> v7 (S1 real time, additive only): nullable real timestamps
-# --------------------------------------------------------------------------- #
-# v7 adds nullable REAL columns holding the UTC epoch instant resolved via
-# the RealTimeAnchor at row-creation time, alongside each virtual-hour
-# column: conversations.opened_at/closed_at, agenda_items.start_at/end_at,
-# proactive_intents.created_at/valid_until_at, messages.sent_at. NULL = no
-# anchor present (pre-anchor / replay rows) — replay parity is preserved.
-# No backfill, no NOT NULL, no defaults, no new indexes: purely additive,
-# safe on the populated live database. The tz name already lives in the
-# anchor (kv_store ``anchor.tz``), so the columns store the instant only.
+# Migration v6 -> v7 (additive): nullable REAL timestamp columns.
 _V7_COLUMNS = (
     ("conversations", "opened_at", "REAL"),
     ("conversations", "closed_at", "REAL"),
@@ -626,19 +575,7 @@ def _migrate_v7(conn: sqlite3.Connection) -> None:
         _ensure_column(conn, table, column, decl)
 
 
-# --------------------------------------------------------------------------- #
-# Migration v7 -> v8 (WS-D spend accounting, additive only): usage on llm_calls
-# --------------------------------------------------------------------------- #
-# v8 adds the token-usage ledger columns to ``llm_calls`` so every logged
-# generation call carries its spend: prompt/completion/total tokens, the
-# cache split (cached vs miss — whichever cache-field variant the gateway
-# returned, or the all-miss default when no split surfaced), the calling
-# lane ("product" | "research", WS-C attribution) and the gateway-reported
-# cost in USD (raw_cost, discovery 2026-08-16 — cross-check for G-cost).
-# ``model`` already exists on llm_calls since v1. All columns nullable with
-# no defaults and no backfill: legacy rows stay NULL and the replay path is
-# byte-identical (usage capture is an ADDITION, not a change to prompt/
-# reply handling).
+# Migration v7 -> v8 (additive): usage, lane and raw_cost columns.
 _V8_COLUMNS = (
     ("llm_calls", "prompt_tokens", "INTEGER"),
     ("llm_calls", "completion_tokens", "INTEGER"),
@@ -740,8 +677,7 @@ _USER_MODEL_GROUPS = (
     "important_entities",
 )
 
-# Canonical UserModelCategory -> UserModel group field (invariant 10: the
-# taxonomy is defined once in domain.py; the store only projects it).
+# Maps each canonical UserModelCategory to its UserModel group field.
 _CATEGORY_TO_GROUP = {
     UserModelCategory.STABLE_PREFERENCE: "stable_preferences",
     UserModelCategory.CURRENT_PREFERENCE: "current_preferences",
@@ -787,7 +723,7 @@ class SQLiteStore:
     def __exit__(self, *exc) -> None:
         self.close()
 
-    # -- real-time anchor (S1) ----------------------------------------------
+    # -- real-time anchor ----------------------------------------------------
 
     def attach_anchor(self, anchor) -> None:
         """Attach the RealTimeAnchor used to resolve real timestamps (S1).
@@ -813,8 +749,8 @@ class SQLiteStore:
     # -- canonical state ----------------------------------------------------
 
     def save_daily_state(self, day: int, record: dict) -> None:
-        # SQLite column names are case-insensitive: "m" collides with "M",
-        # so the offset column is stored as m_level and mapped at this boundary.
+        # "m" collides with "M" (case-insensitive), so the offset is stored
+        # as m_level and mapped here.
         required = {"day", "M", "m", "g", "p", "arg", "mu", "eta", "cycle_day",
                     "phase_label", "seed"}
         missing = required - set(record)
@@ -925,7 +861,7 @@ class SQLiteStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    # -- conversations (it3 B2, module invariant 8) -------------------------
+    # -- conversations -------------------------------------------------------
 
     def open_conversation(
         self, conversation_id: str, opened_t_h: float, opened_by: str
@@ -1038,7 +974,7 @@ class SQLiteStore:
             for r in rows
         ]
 
-    # -- kv_store (seam S1, v6) -------------------------------------------
+    # -- kv_store -----------------------------------------------------------
 
     def get_kv(self, key: str) -> str | None:
         """Value stored under ``key`` (seam S1), or None when absent."""
@@ -1320,7 +1256,7 @@ class SQLiteStore:
         ).fetchone()
         return float(row["m"]) if row["m"] is not None else None
 
-    # -- persona + interests (A6) -------------------------------------------
+    # -- persona + interests ------------------------------------------------
 
     def save_persona(self, profile: PersonaProfile) -> None:
         """Upsert the singleton persona row (routines as JSON) and replace the
@@ -1375,7 +1311,7 @@ class SQLiteStore:
             for r in rows
         ]
 
-    # -- life arcs (A4) ------------------------------------------------------
+    # -- life arcs -----------------------------------------------------------
 
     def upsert_life_arc(self, arc: LifeArc) -> None:
         self.conn.execute(
@@ -1442,7 +1378,7 @@ class SQLiteStore:
         self.conn.execute("DELETE FROM life_arcs")
         self.conn.commit()
 
-    # -- agenda (A4) ---------------------------------------------------------
+    # -- agenda --------------------------------------------------------------
 
     def _row_to_agenda_item(self, row: dict) -> AgendaItem:
         return AgendaItem(
@@ -1503,7 +1439,7 @@ class SQLiteStore:
         ).fetchall()
         return [self._row_to_agenda_item(r) for r in rows]
 
-    # -- memory tiers: L1 sessions + turns (A5) ------------------------------
+    # -- memory tiers: L1 sessions + turns -----------------------------------
 
     def open_session(self, session_id: str, started_at_t_h: float) -> None:
         """Register a session (no-op if already known)."""
@@ -1540,7 +1476,7 @@ class SQLiteStore:
         ).fetchone()
         return row is not None
 
-    # -- memory tiers: L2 session summaries (A5) -----------------------------
+    # -- memory tiers: L2 session summaries ----------------------------------
 
     def save_session_summary(self, summary: SessionSummary) -> None:
         self.conn.execute(
@@ -1613,7 +1549,7 @@ class SQLiteStore:
             source_turn_ids=tuple(int(x) for x in _unjson(row["source_turn_ids_json"], [])),
         )
 
-    # -- memory tiers: L3 episodes (A5) --------------------------------------
+    # -- memory tiers: L3 episodes -------------------------------------------
 
     def _row_to_episode(self, row: dict) -> EpisodicMemory:
         return EpisodicMemory(
@@ -1741,7 +1677,7 @@ class SQLiteStore:
         ).fetchall()
         return [r["episode_id"] for r in rows]
 
-    # -- memory tiers: local BLOB embeddings (A5) ----------------------------
+    # -- memory tiers: local BLOB embeddings ---------------------------------
 
     def save_embedding(self, episode_id: str, vector: Sequence[float]) -> None:
         """Store/overwrite the float vector of an episode as a BLOB."""
@@ -1766,7 +1702,7 @@ class SQLiteStore:
             out.append((r["episode_id"], list(vec)))
         return out
 
-    # -- memory tiers: L4 user model assertions (A5) -------------------------
+    # -- memory tiers: L4 user model assertions ------------------------------
 
     def _row_to_assertion(self, row: dict) -> UserModelAssertion:
         return UserModelAssertion(
@@ -1944,7 +1880,7 @@ class SQLiteStore:
             important_entities=tuple(groups["important_entities"]),
         )
 
-    # -- proactive intents (A7) ----------------------------------------------
+    # -- proactive intents ---------------------------------------------------
 
     def save_proactive_intent(self, intent: ProactiveIntent) -> None:
         """Upsert an intent; an existing row keeps its lifecycle status."""
@@ -2044,7 +1980,7 @@ class SQLiteStore:
             return self.get_episode(intent.source_id)
         return None
 
-    # -- steering_queue (WS3 backend contract) ------------------------------
+    # -- steering_queue ------------------------------------------------------
 
     def enqueue_steer(
         self, day: int, t_h: float, kind: str, payload: dict | list | str
@@ -2121,7 +2057,7 @@ class SQLiteStore:
         )
         self.conn.commit()
 
-    # -- decision_records (pop-up decision layer, WS2) ----------------------
+    # -- decision_records ----------------------------------------------------
 
     def record_decision(
         self,

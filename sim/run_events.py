@@ -213,8 +213,6 @@ def run(
         )
 
         # MAX-GAP: silencio > max_gap_h implicado por el candidato (o inf).
-        # (cand - t_last es +inf cuando cand es inf, así que la comparación
-        # basta sin distinguir el caso explícitamente.)
         if (cand - t_last) > timing.max_gap_h:
             forced = _find_forced_time(
                 t_last, horizon_h, modulator, timing, day_counts

@@ -53,7 +53,7 @@ from typing import Any
 from harness.channels.base import InboundMessage, OutboundMessage
 from harness.concurrency import Sleeper, default_sleeper
 
-try:  # optional dependency — see module docstring
+try:  # optional dependency
     import telegram  # noqa: F401  (capability probe)
     from telegram.ext import Application
 
@@ -61,25 +61,17 @@ try:  # optional dependency — see module docstring
 except ImportError:  # pragma: no cover - depends on install
     _PTB_AVAILABLE = False
 
-#: Default trailing-edge debounce window (HARNESS_DEBOUNCE): flush this long
-#: after the LAST buffered message arrived. Default 4.5 s — a human
-#: follow-up window so she waits for a normal-paced continuation (the
-#: wave-2 default was 2.0 s). Env-configurable via HARNESS_DEBOUNCE_TRAILING_S
-#: (float seconds; invalid values fail loudly at channel construction).
+#: Trailing-edge debounce window: flush this many seconds after the last
+#: buffered message arrives. Configurable via HARNESS_DEBOUNCE_TRAILING_S.
 DEFAULT_DEBOUNCE_TRAILING_S = 4.5
-#: Default debounce hard cap (HARNESS_DEBOUNCE): flush at most this long
-#: after the FIRST buffered message, even if messages keep arriving.
-#: Default 12.0 s (the wave-2 default was 8.0 s). Env-configurable via
-#: HARNESS_DEBOUNCE_MAX_WAIT_S.
+#: Debounce hard cap: flush at most this long after the first buffered
+#: message. Configurable via HARNESS_DEBOUNCE_MAX_WAIT_S.
 DEFAULT_DEBOUNCE_MAX_WAIT_S = 12.0
-#: Typing refresh cadence (HARNESS_TYPING): the Telegram typing indicator
-#: expires after ~5 s, so 4.5 s keeps it alive.
+#: Typing refresh cadence; the typing indicator expires after ~5 s.
 _TYPING_INTERVAL_S = 4.5
 
-#: User-facing command menu registered via Telegram ``setMyCommands`` when
-#: commands are enabled (seam S3). ``/state`` is deliberately ABSENT: mood
-#: internals in the user's view contaminate the perceptual read (standing
-#: decision) — the handler stays dispatchable but is never user-visible.
+#: User-facing command menu registered via setMyCommands when commands
+#: are enabled; /state is not included.
 USER_COMMANDS: tuple[tuple[str, str], ...] = (
     ("help", "list of commands and usage"),
     ("ping", "alive check"),
@@ -169,25 +161,22 @@ class TelegramChannel:
         monotonic: Callable[[], float] | None = None,
     ):
         self.application = application  # real Application (from_env) or fake (tests)
-        # Normalize to str: the owner filter compares str(chat_id); an int
-        # owner id would silently drop ALL inbound while send() works.
+        # Normalize owner_chat_id to str for the owner filter comparison.
         self.owner_chat_id = str(owner_chat_id) if owner_chat_id is not None else None
         self._handler = None
         self._command_callback = None
         self._stopped = False
-        #: Injectable wait/clock (runtime's Sleeper pattern): production uses
-        #: real sleep + time.monotonic; tests inject recorders/fake clocks so
-        #: debounce and typing never wait real seconds.
+        #: Injectable sleep and clock: production uses real sleep and
+        #: time.monotonic; tests inject fakes.
         self._sleeper: Sleeper = sleeper if sleeper is not None else default_sleeper()
         self._monotonic: Callable[[], float] = (
             monotonic if monotonic is not None else time.monotonic
         )
-        #: Flag-gated Wave-1 behavior (both OFF by default).
+        #: Flag-controlled behavior, both off by default.
         self.debounce_enabled: bool = _env_bool("HARNESS_DEBOUNCE")
         self.typing_enabled: bool = _env_bool("HARNESS_TYPING")
-        #: Debounce windows (env-configurable; defaults trailing 4.5 s /
-        #: cap 12 s). Resolved at construction — an invalid
-        #: HARNESS_DEBOUNCE_* value fails loudly here.
+        #: Debounce windows, env-configurable; defaults are trailing 4.5 s
+        #: and cap 12 s, resolved at construction.
         self.debounce_trailing_s: float = _debounce_window(
             "HARNESS_DEBOUNCE_TRAILING_S", DEFAULT_DEBOUNCE_TRAILING_S
         )
@@ -214,8 +203,7 @@ class TelegramChannel:
                 "TELEGRAM_BOT_TOKEN is not set — the harness never stores "
                 "credentials. Export it before running live."
             )
-        # El gate robado: Hermes guarda el chat del dueño como
-        # TELEGRAM_HOME_CHANNEL; aceptar ambos nombres.
+        # Hermes stores the owner chat as TELEGRAM_HOME_CHANNEL; accept both names.
         owner_chat_id = (os.environ.get("TELEGRAM_CHAT_ID")
                          or os.environ.get("TELEGRAM_HOME_CHANNEL"))
         application = cls._build_application(token)
@@ -242,9 +230,7 @@ class TelegramChannel:
                 data = resp.json()
                 ok = bool(data.get("ok"))
                 if ok and self.owner_chat_id is None and self.application is not None:
-                    # Sin chat del dueño configurado, el bot no puede
-                    # entregar proactivos: el check lo reporta (no falla —
-                    # el inbound filtering es lo que lo necesita).
+                    # No owner chat set: warn that owner-only inbound filtering is off.
                     print(
                         "[telegram] WARNING: TELEGRAM_CHAT_ID not set — "
                         "outbound works, owner-only inbound filtering is off",
@@ -292,12 +278,8 @@ class TelegramChannel:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, self._on_update)
             )
             if on_command is not None:
-                # Seam S3: wildcard command route — every slash-command goes
-                # to _on_command_update and the callback decides what to do
-                # with unknown names. (Deviation from the seam's literal
-                # "CommandHandler": ptb's CommandHandler needs a fixed name
-                # list that W-commands owns; filters.COMMAND is the generic
-                # equivalent and routes unknown commands too.)
+                # Route every slash-command to _on_command_update;
+                # filters.COMMAND also handles unknown command names.
                 app.add_handler(
                     MessageHandler(filters.COMMAND, self._on_command_update)
                 )
@@ -310,8 +292,7 @@ class TelegramChannel:
             if on_command is not None:
                 app.add_handler(self._on_command_update)
         if on_command is not None:
-            # setMyCommands (WS-A): the user-facing command menu registers
-            # ONLY when commands are enabled; /state is never registered.
+            # Register the user-facing command menu when commands are enabled.
             await self._register_commands()
 
     async def send(self, message: OutboundMessage) -> None:
@@ -392,10 +373,7 @@ class TelegramChannel:
         self._stopped = True
         if self._flush_task is not None:
             self._flush_task.cancel()
-            # Suppress everything: CancelledError (BaseException, not
-            # Exception) from the cancel, plus a stale exception a flush
-            # task that died earlier (handler error) would re-raise —
-            # stop() stays deterministic and never aborts cleanup.
+            # Suppress the cancel's CancelledError and any stale flush-task exception.
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await self._flush_task
             self._flush_task = None
@@ -404,9 +382,8 @@ class TelegramChannel:
         self._last_arrival_at = None
         app = self.application
         if _PTB_AVAILABLE and isinstance(app, Application):
-            # Application.stop() does NOT stop the updater; shutdown() tears
-            # down bot (aiohttp session) + updater + processors, and raises
-            # if the app is still running — hence stop() first.
+            # stop() first, then shutdown(): shutdown tears down the bot,
+            # updater, and processors, and raises if the app is running.
             await app.stop()
             await app.shutdown()
 
@@ -431,7 +408,7 @@ class TelegramChannel:
         if message is None:
             return
         if message.text.startswith("/"):
-            return  # commands are routed via _on_command_update, never here
+            return  # commands route via _on_command_update, not here
         if self.debounce_enabled:
             self._buffer_text(message.text, message.sender_id)
             return
@@ -466,9 +443,7 @@ class TelegramChannel:
                 ControlCommand(name=name, args=args.strip(), sender_id=int(chat_id))
             )
 
-    # ------------------------------------------------------------------ #
-    # setMyCommands (WS-A): user-facing command menu (seam S3)
-    # ------------------------------------------------------------------ #
+    # --- User-facing command menu (setMyCommands) ---
 
     def _bot_commands(self) -> list:
         """The user-facing command list as ptb ``BotCommand`` values.
@@ -499,7 +474,7 @@ class TelegramChannel:
         bot = getattr(self.application, "bot", None)
         setter = getattr(bot, "set_my_commands", None)
         if setter is None:
-            return  # seam-less stub: nothing to register on
+            return  # stub without a setter: nothing to register
         try:
             await setter(self._bot_commands())
         except Exception as exc:  # noqa: BLE001 - cosmetic; dispatch unaffected
@@ -540,9 +515,7 @@ class TelegramChannel:
             return getattr(chat, "id", None)
         return None
 
-    # ------------------------------------------------------------------ #
-    # Debounce machinery (HARNESS_DEBOUNCE, default OFF)                  #
-    # ------------------------------------------------------------------ #
+    # --- Debounce machinery (HARNESS_DEBOUNCE, default off) ---
 
     def _buffer_text(self, text: str, sender_id: str | None) -> None:
         """Buffer one owner text message. Creates the single flush task on
@@ -566,9 +539,7 @@ class TelegramChannel:
         <= max-wait remaining, so the cap deadline is a wake point.
         """
         while self._buffer:
-            # Invariant: a non-empty buffer always has both timestamps set
-            # (_buffer_text sets them before appending; _flush/stop clear
-            # them together with the buffer).
+            # A non-empty buffer always has both timestamps set.
             assert self._buffer_first_at is not None
             assert self._last_arrival_at is not None
             now = self._monotonic()
@@ -582,8 +553,7 @@ class TelegramChannel:
                 await self._sleeper(wait)
                 continue
             await self._flush()
-        # self._flush_task is intentionally NOT cleared here: _buffer_text
-        # checks task.done() and would race a stale None assignment.
+        # _flush_task is not cleared here; _buffer_text checks task.done().
 
     async def _flush(self) -> None:
         """Deliver the buffered texts as ONE InboundMessage joined with \\n."""

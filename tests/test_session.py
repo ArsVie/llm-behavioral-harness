@@ -232,7 +232,7 @@ def test_resume_from_finalized_latest_day(tmp_path):
     assert session2.current_day == 0
     assert math.isclose(session2.mood_state.mu, mu_after, abs_tol=1e-12)
     assert math.isclose(session2.mood_state.eta, eta_after, abs_tol=1e-12)
-    # Continuing: rollover to day 1 must use the re-applied state.
+    # Continuing: rollover to day 1 uses the re-applied state.
     session2.on_message("next day")
     state1 = store2.load_daily_state(1)
     assert state1 is not None
@@ -285,9 +285,7 @@ def test_directive_tracks_phase_and_hour(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# Wave 2 (A1 central integration): CompanionSnapshot pipelines
-# --------------------------------------------------------------------------- #
+# CompanionSnapshot pipelines
 
 
 def test_reactive_turn_persists_snapshot_and_controls(tmp_path):
@@ -303,9 +301,7 @@ def test_reactive_turn_persists_snapshot_and_controls(tmp_path):
     assert call["max_tokens"] == result.controls.max_tokens
     system = call["system"]
     assert "Current behavioral guidance:" in system
-    # Iteration-2 A5 T1 (invariant 14): recent dialogue is never duplicated
-    # into the system prompt — each turn appears exactly ONCE, in the
-    # message payload.
+    # Recent dialogue appears once, in the message payload.
     assert "Recent conversation:" not in system
     assert "user: hello there" not in system
     payload = call["messages"]
@@ -314,8 +310,7 @@ def test_reactive_turn_persists_snapshot_and_controls(tmp_path):
     assert payload[-1] == {"role": "user", "content": "how are you"}
     msgs = store.messages_for_day(0)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
-    # it3 B2: messages are conversation-scoped (memory session id derived
-    # from the conversation id; see CONVERSATION_SESSION_OFFSET).
+    # Messages are scoped to the conversation's memory session.
     assert all(m["session_id"] == "day-1000" for m in msgs)
     assert all(m["conversation_id"] == "conv-0" for m in msgs)
     store.close()
@@ -359,8 +354,7 @@ def test_proactive_grounded_intent_carries_hook(tmp_path):
     assert "Contact reason" not in system
     msgs = store.messages_for_day(0)
     assert len(msgs) == 1 and msgs[0]["role"] == "assistant" and msgs[0]["proactive"] == 1
-    # Iteration-2 A5 T4 (invariant 6): the outgoing message persists the
-    # exact validated intent id (legacy reason path resolves to the intent).
+    # The outgoing message persists the exact validated intent id.
     assert msgs[0]["intent_id"] == "pi_test"
     store.close()
 
@@ -416,8 +410,7 @@ def test_memory_session_boundary_closes_and_promotes(tmp_path, monkeypatch):
     )
     session.on_message("My dog's name is Bruno.")
     session.on_message("thank you")
-    # closing_tendency=1.0 closed the conversation at the second companion
-    # turn — the memory tail ran at the conversation boundary.
+    # The conversation closed at the second companion turn.
     conv = store.load_conversation("conv-0")
     assert conv is not None and conv.close_reason == "closing_tendency"
     summary = store.load_session_summary("day-1000")
@@ -504,9 +497,7 @@ def test_restart_continuity_with_life_lanes(tmp_path):
     store2.close()
 
 
-# --------------------------------------------------------------------------- #
-# Iteration-2 A5: exact proactive intent seam (T3/T4) + resume-no-rewind (T6)
-# --------------------------------------------------------------------------- #
+# Exact proactive intent seam and resume behavior
 
 
 def test_fire_proactive_exact_intent_never_reason_substitute(tmp_path):
@@ -542,8 +533,7 @@ def test_fire_proactive_exact_intent_never_reason_substitute(tmp_path):
         source_id="ag_gym", hook=hook_88, created_t_h=9.5,
         valid_until_t_h=13.0, salience=0.5, evidence="agenda_item:ag_gym",
     )
-    # #88 is saved AFTER #87: a reason-type lookup would pick #88 (most
-    # recent for "schedule") — the exact-id seam must still pick #87.
+    # #88 is saved after #87; the exact-id lookup still picks #87.
     store.save_proactive_intent(intent_88)
     store.save_proactive_intent(intent_87)
 
@@ -619,8 +609,7 @@ def test_resume_with_day_zero_clock_does_not_rewind(tmp_path):
     eta_before = session.mood_state.eta
     store.close()
 
-    # Restart: driver clock starts at day 0 08:00 (sim/run_async restart
-    # pattern) while the store is at day 2 — BEHIND the progressed day.
+    # Restart: the driver clock starts behind the store's day.
     store2 = SQLiteStore(path)
     clock2 = VirtualClock(t_h=8.0)
     client2 = FakeClient(responses=["resumed proactive", "still here reply"])
@@ -634,8 +623,7 @@ def test_resume_with_day_zero_clock_does_not_rewind(tmp_path):
     assert math.isclose(session2.mood_state.eta, eta_before, abs_tol=1e-12)
     assert clock2.day() == 2  # clock initialized at the store's day
 
-    # A day-0 grounded intent firing on resume must NOT rewind-crash; the
-    # message lands on the resumed day and carries the exact intent id.
+    # A day-0 grounded intent fires on resume without a rewind crash.
     intent = ProactiveIntent(
         id="pi_resume", reason="schedule", source_type="agenda_item",
         source_id="ag_resume", hook="You just finished the pottery class.",
@@ -662,11 +650,7 @@ def test_resume_with_day_zero_clock_does_not_rewind(tmp_path):
     store2.close()
 
 
-# -- iteration-3 B1: generation integrity ---------------------------------- #
-# An empty/whitespace completion must never become a persisted assistant row:
-# the client retries empties with bounded backoff; the session refuses to
-# persist an empty reply whatever the client returned (it2 F1: 579/2090
-# blank assistant turns persisted).
+# Generation integrity: empty completions are retried and not persisted.
 
 
 def _session_with_http_client(tmp_path, handler, max_retries=2):
@@ -749,9 +733,7 @@ def test_persistent_empty_raises_and_persists_no_assistant_row(
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# WS1 context v2: current-activity NOW semantics (plan §1/§2.1 fix)
-# --------------------------------------------------------------------------- #
+# Current-activity NOW semantics
 
 
 def _agenda_session(tmp_path):

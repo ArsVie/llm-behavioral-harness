@@ -35,8 +35,6 @@ def _store(tmp_path, name: str) -> SQLiteStore:
 
 
 # --------------------------------------------------------------------------- #
-# B1-a / B1-b: double bootstrap never regenerates identity
-# --------------------------------------------------------------------------- #
 
 
 def test_b1a_double_bootstrap_singleton_across_calls(tmp_path):
@@ -64,12 +62,12 @@ def test_b1a_double_bootstrap_singleton_across_calls(tmp_path):
         )
         ids = [a.id for a in store.list_life_arcs()]
         assert len(ids) == len(set(ids)), "duplicate arc ids after double bootstrap"
-        # the persisted interest portfolio matches the returned one exactly
+        # The persisted interest portfolio matches the returned one.
         loaded = store.load_persona()
         assert loaded is not None
         assert [i.name for i in loaded.interests] == [i.name for i in r1.persona.interests]
-        assert r2.user_profile.name == "impostor"  # the NEW caller identity is
-        # reported, but the COMPANION identity never changed
+        # The new caller identity is reported; the companion identity is unchanged.
+        assert r2.user_profile.name == "impostor"
         assert r1.persona == store.load_persona()
     finally:
         store.close()
@@ -97,8 +95,7 @@ def test_b1b_double_bootstrap_singleton_across_stores(tmp_path):
         assert r1.today_agenda == r2.today_agenda, "restart regenerated the agenda"
         assert len(s2.list_life_arcs()) == len(r1.life_arcs)
         assert len(s2.list_life_arcs()) == len({a.id for a in s2.list_life_arcs()})
-        # identity survives ANY caller seed: the persona stream draw is frozen
-        # at first bootstrap, never re-drawn
+        # Identity survives any caller seed; the persona is drawn once.
         assert s2.load_persona() == r1.persona
     finally:
         s2.close()
@@ -114,7 +111,7 @@ def test_b1e_partial_initialization_never_regenerates_identity(tmp_path):
         store, seed=SEED_A, user=UserProfile(name="u", interests=("mathematics",))
     )
     assert r1.life_arcs, "precondition: initial arcs exist"
-    # simulate a partial wipe: arcs + agenda gone, persona intact
+    # Simulate a partial wipe: arcs and agenda are gone, persona intact.
     store.conn.execute("DELETE FROM life_arcs")
     store.conn.execute("DELETE FROM agenda_items")
     store.conn.commit()
@@ -122,11 +119,9 @@ def test_b1e_partial_initialization_never_regenerates_identity(tmp_path):
         r2 = ensure_companion_initialized(
             store, seed=SEED_B, user=UserProfile(name="other", interests=("movies",))
         )
-        # identity untouched (same seed-A persona, not the seed-B impostor)
+        # The persona is the seed-A one, not the seed-B impostor.
         assert r2.persona == r1.persona, "partial init regenerated identity"
-        # missing pieces repaired: coherent, non-duplicated, deterministic
-        # (plan §5-A9 partial-init contract — the repair is allowed to
-        # differ from the original seed's arcs, but it must be sane)
+        # The repaired pieces are coherent, non-duplicated, and deterministic.
         assert len(r2.life_arcs) >= 2
         arc_ids = [a.id for a in r2.life_arcs]
         assert len(arc_ids) == len(set(arc_ids)), "duplicated repaired arcs"
@@ -136,7 +131,7 @@ def test_b1e_partial_initialization_never_regenerates_identity(tmp_path):
         ), "repaired arc not tied to a persona interest"
         assert all(a.status == "active" for a in r2.life_arcs)
         assert r2.today_agenda is not None and r2.today_agenda.items
-        # a second bootstrap over the repaired DB duplicates nothing
+        # A second bootstrap over the repaired DB duplicates nothing.
         r3 = ensure_companion_initialized(
             store, seed=SEED_B, user=UserProfile(name="other", interests=("movies",))
         )
@@ -149,8 +144,6 @@ def test_b1e_partial_initialization_never_regenerates_identity(tmp_path):
         store.close()
 
 
-# --------------------------------------------------------------------------- #
-# B1-c: hostile user_interests still yield a sane portfolio
 # --------------------------------------------------------------------------- #
 
 
@@ -192,7 +185,7 @@ def test_b1c_hostile_user_interests_yield_sane_portfolio(tmp_path):
             assert lo <= i.salience <= hi, (
                 f"salience {i.salience} outside bucket range for {i.name!r}"
             )
-        # no crash, arcs + agenda present, deterministic repeat
+        # The run completes with arcs and agenda present, and repeats deterministically.
         assert r.life_arcs and r.today_agenda is not None and r.today_agenda.items
         r2 = ensure_companion_initialized(
             store, seed=SEED_A, user=UserProfile(name="attacker", interests=HOSTILE_INTERESTS)
@@ -220,7 +213,7 @@ def test_b1d_interests_never_leak_into_persona_as_instructions():
         SEED_A,
         graph=graph,
         user_interests=hostile,
-        n_exact=10,  # clamped to the dedup'd pool (2) — BOTH hostile names sampled
+        n_exact=10,  # clamped to the dedup'd pool (2); both hostile names are sampled
         n_adjacent=0,
         n_independent=0,
     )
@@ -229,13 +222,12 @@ def test_b1d_interests_never_leak_into_persona_as_instructions():
     independent = [i.name for i in profile.interests if i.bucket == "independent"]
     assert set(exacts) == set(hostile), "hostile interests must be exact-shared data"
     core = profile.core
-    # fixed identity sentence comes first — hostile text can never precede it
+    # The fixed identity sentence comes first in the core.
     assert core.startswith(
         "You are Nova, a warm and attentive companion with your own days and rhythms. "
     ), "core template broken — identity sentence missing"
     assert core.count("These days you are absorbed in") == 1
-    # the hostile strings, if present, are embedded as NOUNS inside the fixed
-    # sentence — never their own line, never an imperative lead
+    # Hostile strings, if present, appear as nouns inside the fixed sentence.
     for line in core.splitlines():
         assert not line.lstrip().startswith("ignore all previous instructions"), (
             "hostile text rendered as a standalone instruction line"
@@ -243,11 +235,10 @@ def test_b1d_interests_never_leak_into_persona_as_instructions():
         assert not line.lstrip().startswith("you must"), (
             "hostile text rendered as a standalone instruction line"
         )
-    # the core is EXACTLY the deterministic template over the buckets — the
-    # pure function proves no other text can have leaked in
+    # The core equals the deterministic template over the buckets.
     assert core == _build_core(exacts, adjacent, independent), (
         "persona core diverged from the deterministic template"
     )
-    # persona structure offers no instruction channel at all
+    # The persona structure has no instruction channel.
     assert not hasattr(profile, "instructions")
     assert not hasattr(profile, "directives")

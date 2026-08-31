@@ -63,7 +63,7 @@ from harness.store import SQLiteStore
 PERSONA = PersonaParams()
 TIMING = TimingParams()
 
-#: G3 anchor fixture: 2026-08-15T13:30:00Z at t_h 7.5 in America/Chihuahua
+#: Anchor fixture: 2026-08-15T13:30:00Z at t_h 7.5 in America/Chihuahua
 #: (UTC-6 in August) → t_h 15.4 is 15:24 local, Saturday, virtual day 0.
 G3_EPOCH0_S = datetime(2026, 8, 15, 13, 30, 0, tzinfo=timezone.utc).timestamp()
 
@@ -136,9 +136,7 @@ def _prose() -> str:
                          warmth=0.8, playfulness=0.5, reflectiveness=0.4)
 
 
-# --------------------------------------------------------------------------- #
-# G3 — time correctness (current-time line + agenda partition)
-# --------------------------------------------------------------------------- #
+# Time correctness (current-time line + agenda partition)
 
 
 def test_g3_temporal_line_and_partition_at_15_4():
@@ -149,7 +147,7 @@ def test_g3_temporal_line_and_partition_at_15_4():
                                t_h=15.4, anchor=_g3_anchor())
     assert TEMPORAL_HEADER in prompt
     assert "It is 15:24, Saturday afternoon — day 0." in prompt
-    # partition groups in order, past items kept and labeled (decision 3)
+# partition groups in order, past items kept and labeled
     assert "Done earlier:\n- morning coffee (06:58–07:46)" in prompt
     assert "Happening now:\n- pottery (15:00–16:00)" in prompt
     assert "Later today:\n- evening walk (20:00–21:00)" in prompt
@@ -195,9 +193,7 @@ def test_g3_partition_honors_status_buckets():
     assert "Later today:\n- evening walk (20:00–21:00)" in prompt
 
 
-# --------------------------------------------------------------------------- #
-# G2 — unanchored runs omit the temporal section entirely
-# --------------------------------------------------------------------------- #
+# Unanchored runs omit the temporal section entirely
 
 
 def test_unanchored_omits_temporal_section():
@@ -216,9 +212,7 @@ def test_unanchored_omits_temporal_section():
     assert TEMPORAL_HEADER not in p2
 
 
-# --------------------------------------------------------------------------- #
-# Section ordering (W3)
-# --------------------------------------------------------------------------- #
+# Section ordering
 
 
 def test_state_card_sections_in_fixed_order():
@@ -247,9 +241,7 @@ def test_current_intent_reserved_slot():
     assert not re.search(r"\d", CURRENT_INTENT_PLACEHOLDER)
 
 
-# --------------------------------------------------------------------------- #
-# G5 — AFFECTIVE BEARING verbatim (pre-wave renderer output)
-# --------------------------------------------------------------------------- #
+# AFFECTIVE BEARING verbatim
 
 
 def test_g5_affective_bearing_verbatim_across_bands():
@@ -270,7 +262,7 @@ def test_g5_affective_bearing_verbatim_across_bands():
                               reflectiveness=0.4)
         prompt = assemble_snapshot(_snapshot(brief=brief), prompt_brief=prose)
         mood_line = f"{MOOD_BRIEF_HEADER} {prose}"
-        # the pre-wave lines are contiguous inside the section, verbatim
+# the lines are contiguous inside the section, verbatim
         assert mood_line in prompt
         assert availability in prompt
         assert f"{AFFECTIVE_HEADER}\n{mood_line}\n{availability}" in prompt
@@ -288,9 +280,7 @@ def test_g5_affective_wording_frozen_across_anchoring():
     assert a == u
 
 
-# --------------------------------------------------------------------------- #
-# BEHAVIORAL BEARING (W3)
-# --------------------------------------------------------------------------- #
+# BEHAVIORAL BEARING
 
 
 def test_behavioral_bearing_prose_bands():
@@ -325,9 +315,7 @@ def test_behavioral_bearing_absent_without_brief():
     assert BEHAVIORAL_HEADER not in prompt
 
 
-# --------------------------------------------------------------------------- #
-# G2 — numeric-content scan on real assembled prompts
-# --------------------------------------------------------------------------- #
+# Numeric-content scan on real assembled prompts
 
 CLOCK_TIME_RE = re.compile(r"\d{1,2}:\d{2}")
 DAY_INDEX_RE = re.compile(r"day \d+")
@@ -351,9 +339,7 @@ def test_anchored_prompt_numeric_content_is_only_clock_and_day():
     assert _numeric_leak(prompt) == [], f"unexpected numeric content: {_numeric_leak(prompt)}"
 
 
-# --------------------------------------------------------------------------- #
 # Replay determinism
-# --------------------------------------------------------------------------- #
 
 
 def test_replay_determinism_same_snapshot_same_bytes():
@@ -370,9 +356,7 @@ def test_replay_determinism_same_snapshot_same_bytes():
     assert len(a1) <= MAX_PROMPT_CHARS and len(u1) <= MAX_PROMPT_CHARS
 
 
-# --------------------------------------------------------------------------- #
 # Session integration: transitions persist and the render agrees
-# --------------------------------------------------------------------------- #
 
 
 def _session(store, clock, responses=("ok", "ok", "ok")):

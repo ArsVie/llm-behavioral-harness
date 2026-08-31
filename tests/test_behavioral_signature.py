@@ -70,13 +70,11 @@ def _utc(iso):
     return datetime.fromisoformat(iso).astimezone(timezone.utc)
 
 
-# --------------------------------------------------------------------------- #
-# contract & import
-# --------------------------------------------------------------------------- #
+# imports
 
 
 def test_real_import_and_contract_keys():
-    # real import must resolve via pythonpath=["."] — no conftest tricks
+    # real import resolves via pythonpath=["."], no conftest tricks
     sig = compute_signature(log_from_json(FIXTURE_TEXT))
     assert tuple(sig.keys()) == METRIC_NAMES
     assert METRIC_NAMES == (
@@ -91,9 +89,7 @@ def test_real_import_and_contract_keys():
     )
 
 
-# --------------------------------------------------------------------------- #
 # determinism (G4)
-# --------------------------------------------------------------------------- #
 
 
 def test_determinism_two_runs_byte_identical():
@@ -113,9 +109,7 @@ def test_log_codec_roundtrip_byte_identical():
     assert log_to_json(log_from_json(log_to_json(record))) == FIXTURE_TEXT
 
 
-# --------------------------------------------------------------------------- #
 # golden conv-3 reproduction (G4)
-# --------------------------------------------------------------------------- #
 
 
 def test_golden_conv3_signature():
@@ -127,7 +121,7 @@ def test_golden_conv3_signature():
 def test_golden_conv3_fixture_shape():
     record = log_from_json(FIXTURE_TEXT)
     assert record.conversation_id == "conv-3"
-    assert len(record.turns) == 7  # exactly what conv-3 was — no padding
+    assert len(record.turns) == 7  # matches conv-3, no padding
     speakers = [t.speaker for t in record.turns]
     assert speakers == [
         "user", "companion", "user", "companion", "companion", "user", "companion",
@@ -141,9 +135,7 @@ def test_golden_conv3_fixture_shape():
     assert time_kind(record) == "t_h"
 
 
-# --------------------------------------------------------------------------- #
 # per-metric signal behavior on crafted minimal logs
-# --------------------------------------------------------------------------- #
 
 
 def test_contact_frequency_responds_to_turn_rate():
@@ -251,9 +243,7 @@ def test_reactivity_responds_to_answered_user_turns():
     assert compute_signature(answered)["reactivity"] > compute_signature(unanswered)["reactivity"]
 
 
-# --------------------------------------------------------------------------- #
 # edge cases
-# --------------------------------------------------------------------------- #
 
 
 def test_empty_log_signature_is_all_zero():

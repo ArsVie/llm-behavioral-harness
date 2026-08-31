@@ -131,9 +131,7 @@ def _st(**overrides) -> NegotiationState:
     return NegotiationState(**base)
 
 
-# --------------------------------------------------------------------------- #
 # pure machine: defer(N) mapping
-# --------------------------------------------------------------------------- #
 
 
 def test_map_defer_n_patterns_and_clamp():
@@ -146,13 +144,11 @@ def test_map_defer_n_patterns_and_clamp():
     assert map_defer_n("3 more turns") == 3
     assert map_defer_n("three more messages") == 2  # no digit: default
     assert map_defer_n("9 more turns") == 4          # clamped to DEFER_N_MAX
-    assert map_defer_n("stay with me") == 2          # default
-    assert map_defer_n("") == 2                      # default
+    assert map_defer_n("stay with me") == 2
+    assert map_defer_n("") == 2
 
 
-# --------------------------------------------------------------------------- #
 # pure machine: decide triggers + backstop
-# --------------------------------------------------------------------------- #
 
 
 def test_decide_status_forced_at_window_close():
@@ -168,7 +164,7 @@ def test_decide_status_forced_in_inform_phase_at_window_close():
     termination holds on every path (the contract's termination floor)."""
     st = _st(end_t_h=10.0, phase=NegotiationPhase.INFORM.value)
     assert decide_status_at(st, now=10.0, companion_turn=False) == "forced"
-    # before the window close the inform phase still never fires a decide
+    # before the window close the inform phase fires no decide
     assert decide_status_at(st, now=9.0, companion_turn=True) == "inactive"
 
 
@@ -177,7 +173,7 @@ def test_decide_status_turn_trigger_and_decrement():
     # one turn passes without a decide: the counter decrements
     assert decide_status_at(st, now=9.5, companion_turn=True) == "waiting"
     assert st.turns_to_decide == 0
-    # the next companion turn (a fresh instant) fires
+    # the next companion turn fires
     assert decide_status_at(st, now=9.6, companion_turn=True) == "due"
 
 
@@ -185,7 +181,7 @@ def test_decide_status_afk_bomb_and_at_most_once_per_instant():
     st = _st(turns_to_decide=5, afk_deadline_t_h=9.5)
     assert decide_status_at(st, now=9.6, companion_turn=True) == "due"
     st.last_decide_at_t_h = 9.6
-    # the SAME instant never fires again (poll-loop guard)
+    # the same instant does not fire again (poll-loop guard)
     assert decide_status_at(st, now=9.6, companion_turn=True) == "waiting"
     # a later instant fires again while the bomb stays fired
     assert decide_status_at(st, now=9.7, companion_turn=False) == "due"
@@ -218,9 +214,7 @@ def test_rearm_after_delay_refuses_past_window_close():
     assert st.turns_to_decide == 0
 
 
-# --------------------------------------------------------------------------- #
 # pure machine: converging pull + window-close flag
-# --------------------------------------------------------------------------- #
 
 
 def test_pull_toward_go_rises_with_delays():
@@ -238,9 +232,7 @@ def test_window_ending_flag():
     assert window_ending_at(st, now=10.9) is True    # ~0.1h left
 
 
-# --------------------------------------------------------------------------- #
 # pure machine: persisted state + responded-bool marker
-# --------------------------------------------------------------------------- #
 
 
 def test_state_roundtrip_and_responded_bool_marker():
@@ -256,13 +248,12 @@ def test_state_roundtrip_and_responded_bool_marker():
     assert st2.afk_deadline_t_h == 10.5
     assert st2.phase == NegotiationPhase.RESOLVED_GO.value
     assert st2.resolved_action == "follow"
-    # a snapshot WITHOUT the informed key restores False — key absence
-    # must never read as informed (the responded-bool discipline)
+    # A snapshot without the informed key restores False; key absence is not informed.
     bare = state_to_dict(_st(informed=False))
     del bare["informed"]
     st3 = state_from_dict(bare)
     assert st3 is not None and st3.informed is False
-    # corrupt snapshots are skipped, never fatal
+    # corrupt snapshots are skipped, not fatal
     assert state_from_dict({"garbage": 1}) is None
 
 
@@ -280,9 +271,7 @@ def test_next_trigger_t_h_park():
     assert next_trigger_t_h(st4, 9.5) is None
 
 
-# --------------------------------------------------------------------------- #
 # session: Inform once -> Decide loop (retain path)
-# --------------------------------------------------------------------------- #
 
 
 def test_inform_once_then_decide_loop_delay_then_go(tmp_path):
@@ -306,7 +295,7 @@ def test_inform_once_then_decide_loop_delay_then_go(tmp_path):
     assert st.informed is True
     assert st.phase == NegotiationPhase.DECIDE.value
     assert st.turns_to_decide == 0                # NEXT turn decides
-    # the inform turn itself never decides
+    # the inform turn itself does not decide
     assert [c["decision_id"] for c in runner.calls] == [
         "neg-ag1-inform"
     ]
@@ -340,7 +329,7 @@ def test_inform_once_then_decide_loop_delay_then_go(tmp_path):
     st = session._negotiations["ag1"]
     assert st.phase == NegotiationPhase.RESOLVED_GO.value
     assert st.resolved_action == "follow"
-    # the graceful close carries the distinct close_reason
+    # the graceful close carries a distinct close_reason
     closes = [e for e in store.events_since(0)
               if e["event"] == "conversation_closed"]
     assert closes and "reason=followed_event" in closes[-1]["detail"]
@@ -369,9 +358,7 @@ def test_skip_keeps_conversation_open(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # session: AFK-bomb release path (runtime wake, no turn)
-# --------------------------------------------------------------------------- #
 
 
 def test_release_afk_bomb_fires_decide_go(tmp_path):
@@ -394,16 +381,14 @@ def test_release_afk_bomb_fires_decide_go(tmp_path):
     assert session.open_conversation_id() is None
     assert [it.status for it in store.list_agenda_items(0)] == ["completed"]
     assert runner.calls[-1]["decision_id"] == "neg-ag1-decide-0"
-    # a second wake at the same instant is a no-op (at-most-once)
+    # a second wake at the same instant is a no-op
     outs2 = session.check_negotiation(clock.now_h())
     assert outs2 == ()
     assert len(runner.calls) == 2
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # session: window-close backstop
-# --------------------------------------------------------------------------- #
 
 
 def test_backstop_forced_skip_no_model_call(tmp_path):
@@ -455,9 +440,7 @@ def test_delay_rearm_past_window_close_resolves_forced(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # session: skippable vs unskippable (routine = heads-up, unskippable)
-# --------------------------------------------------------------------------- #
 
 
 def test_routine_item_unskippable_flag_on_both_phases(tmp_path):
@@ -484,9 +467,7 @@ def test_routine_item_unskippable_flag_on_both_phases(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # session: no open conversation at the boundary -> plain start popup
-# --------------------------------------------------------------------------- #
 
 
 def test_no_conversation_at_boundary_plain_start_popup(tmp_path):
@@ -496,17 +477,14 @@ def test_no_conversation_at_boundary_plain_start_popup(tmp_path):
         {"initiate": True, "reason": "ready to go"},                   # plain
     ])
     r = session.on_message("hello")           # conversation opens NOW
-    # the negotiation did not activate (the conversation opened AFTER the
-    # boundary) — the existing tool_decide_event semantics run unchanged
+    # The negotiation did not activate: the conversation opened after the boundary.
     assert "ag1" not in session._negotiations
     assert r.proactive_out == (("event_popup", "ready to go"),)
     assert runner.calls[0]["decision_id"].startswith("steer-")
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # session: restart resume + no-nag re-delivery
-# --------------------------------------------------------------------------- #
 
 
 def test_restart_resumes_negotiation_and_never_re_informs(tmp_path):
@@ -548,7 +526,7 @@ def test_restart_resumes_negotiation_and_never_re_informs(tmp_path):
 
     r = session2.on_message("ok go")          # decide leg 1 -> go
     assert r.reply == "" and r.proactive_out == (("event_popup", "going now"),)
-    # ONLY the decide-1 leg: the restart never re-ran inform or decide-0
+    # Only the decide-1 leg ran; the restart did not re-run inform or decide-0
     assert [c["decision_id"] for c in runner2.calls] == [
         "neg-ag1-decide-1"
     ]
@@ -571,8 +549,7 @@ def test_redelivered_start_popup_consumed_no_second_inform(tmp_path):
     session.on_message("morning")             # inform (1 call)
     assert len(runner.calls) == 1
 
-    # simulate an interrupted-turn requeue: the START pop-up is pending
-    # again and drains at the next boundary
+    # Simulated interrupted-turn requeue: the START pop-up drains at the next boundary.
     session._steering.enqueue(
         KIND_EVENT_POPUP,
         {"event_id": "ag1", "event": "gym", "state": "start",
@@ -589,9 +566,7 @@ def test_redelivered_start_popup_consumed_no_second_inform(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # session: park accessor + state events
-# --------------------------------------------------------------------------- #
 
 
 def test_real_runner_pipeline_inform_message_and_defer_turns(tmp_path):
@@ -654,7 +629,7 @@ def test_park_accessor_and_persisted_state_events(tmp_path):
     assert session.next_negotiation_trigger_t_h(
         clock.now_h()
     ) == pytest.approx(9.5 + SHORT_AFK_H)
-    # the state snapshots are persisted as state events (restart recovery)
+    # State snapshots are persisted as state events.
     snaps = [e for e in store.events_since(0)
              if e["event"] == "negotiation_state"]
     assert len(snaps) >= 1

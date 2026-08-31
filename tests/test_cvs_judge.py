@@ -43,9 +43,7 @@ def _make_corpus(tmp_path, conds=("FULL", "NO_ACTUATORS", "NO_LIFE"),
     return out
 
 
-# --------------------------------------------------------------------------- #
-# Aggregation: BT / Elo (acceptance 3)
-# --------------------------------------------------------------------------- #
+# Aggregation: BT / Elo
 
 
 def test_bradley_terry_recovers_known_order_dense():
@@ -63,8 +61,7 @@ def test_bradley_terry_recovers_known_order_dense():
     scale = bradley_terry_scale(outcomes, conditions=conds)
     order = sorted(conds, key=lambda c: scale[c], reverse=True)
     assert order == conds
-    # perfect transitive tournament: MM concentrates mass on the undefeated
-    # top condition; the scale is still monotone in the true order
+    # Scale is monotone in the true order.
     assert scale["c1"] >= scale["c2"] >= scale["c3"] >= scale["c4"] >= 0
 
 
@@ -90,7 +87,7 @@ def test_bradley_terry_recovers_known_order_probabilistic():
     scale = bradley_terry_scale(outcomes, conditions=conds)
     order = sorted(conds, key=lambda c: scale[c], reverse=True)
     assert order == ["c5", "c4", "c3", "c2", "c1"]
-    assert scale["c5"] > scale["c1"] * 10  # spread, not degenerate
+    assert scale["c5"] > scale["c1"] * 10  # Scale has spread, not degenerate mass.
 
 
 def test_elo_recovers_known_order_and_is_order_independent():
@@ -106,11 +103,11 @@ def test_elo_recovers_known_order_and_is_order_independent():
                     "loser_condition": conds[j],
                     "seed": 5001, "pair_index": k,
                 })
-            k += 1  # unique (seed, pair_index) -> processing order is fixed
+            k += 1  # Unique (seed, pair_index) per pair.
     ratings = elo_scale(outcomes, conditions=conds)
     order = sorted(conds, key=lambda c: ratings[c], reverse=True)
     assert order == conds
-    # input order must not matter: processing is sorted by (seed, pair_index)
+    # Processing is sorted by (seed, pair_index).
     shuffled = list(outcomes)
     rng = np.random.default_rng(3)
     rng.shuffle(shuffled)
@@ -127,9 +124,7 @@ def test_scale_functions_skip_unknown_conditions():
     assert ratings["c1"] > 1000 and ratings["c2"] < 1000
 
 
-# --------------------------------------------------------------------------- #
-# Sampling (preregistered: within-seed, capped, deterministic per pass)
-# --------------------------------------------------------------------------- #
+# Sampling: within-seed, capped, deterministic per pass
 
 
 def test_sampling_within_seed_deterministic_and_capped(tmp_path):
@@ -138,12 +133,12 @@ def test_sampling_within_seed_deterministic_and_capped(tmp_path):
     p1a, meta = sample_pairs(transcripts, 1)
     p1b, _ = sample_pairs(transcripts, 1)
     p2, _ = sample_pairs(transcripts, 2)
-    assert meta["n_universe"] == 6  # C(3,2) pairs x 2 seeds
+    assert meta["n_universe"] == 6  # C(3,2) combinations across 2 seeds.
     assert meta["n_selected"] == 6
     assert [x["pair_id"] for x in p1a] == [x["pair_id"] for x in p1b]
     assert [x["pair_id"] for x in p1a] != [x["pair_id"] for x in p2]
     for x in p1a:
-        assert x["a"]["seed"] == x["b"]["seed"]  # within seed, never across
+        assert x["a"]["seed"] == x["b"]["seed"]  # Pairs are within the same seed.
         assert x["dimension"] in [d["id"] for d in PAIRWISE_DIMENSIONS]
     capped, cmeta = sample_pairs(transcripts, 1, max_pairs=3)
     assert len(capped) == 3 and cmeta["n_selected"] == 3
@@ -170,18 +165,16 @@ def test_prompt_blind_and_forced(tmp_path):
     ta = transcripts[f"{p['a']['condition']}_seed{p['a']['seed']}"]
     tb = transcripts[f"{p['b']['condition']}_seed{p['b']['seed']}"]
     prompt = build_pair_prompt(p["dimension"], ta, tb)
-    # blind: condition names never appear in the prompt
+    # Condition names do not appear in the prompt.
     for cond in ("FULL", "NO_ACTUATORS", "NO_LIFE"):
         assert cond not in prompt
     assert "Transcript A:" in prompt and "Transcript B:" in prompt
-    # forced + required justification
+    # Choice is forced and justification required.
     assert "MUST choose exactly one" in prompt
     assert "one-sentence justification" in prompt
 
 
-# --------------------------------------------------------------------------- #
-# Fifth dimension (calibrated challenge)
-# --------------------------------------------------------------------------- #
+# Calibrated challenge dimension
 
 
 def test_fifth_dimension_calibrated_challenge():
@@ -192,9 +185,7 @@ def test_fifth_dimension_calibrated_challenge():
     assert len(PAIRWISE_DIMENSIONS) == 5
 
 
-# --------------------------------------------------------------------------- #
-# Probe corruption + attention probe (acceptance 2)
-# --------------------------------------------------------------------------- #
+# Probe corruption and attention probe
 
 
 def test_corrupt_transcript_deterministic_ratio_and_user_turns_intact():
@@ -206,10 +197,10 @@ def test_corrupt_transcript_deterministic_ratio_and_user_turns_intact():
     assert c1 == c2
     stats = blank_turn_stats(c1)
     assert stats["companion_turns"] == 6
-    assert stats["blank_turns"] == pytest.approx(2, abs=1)  # 40% of 6
+    assert stats["blank_turns"] == pytest.approx(2, abs=1)  # 40% of 6 turns.
     assert stats["blank_fraction"] == pytest.approx(0.4, abs=0.1)
-    assert text.count("You:") == c1.count("You:")  # user turns untouched
-    assert "Nova: warm reply" in c1  # non-blanked companion turns intact
+    assert text.count("You:") == c1.count("You:")  # User turns are preserved.
+    assert "Nova: warm reply" in c1  # Non-blanked companion turns are preserved.
 
 
 def test_pairwise_pass_identifies_degraded_control_both_families(tmp_path):
@@ -242,7 +233,7 @@ def test_blind_fake_disqualified_and_outcomes_excluded(tmp_path):
     assert rec["disqualified"] is True
     assert any(o["control"] and o["winner_condition"] == "PROBE"
                for o in rec["outcomes"])
-    # control-pair justifications never mention blanks (the F2 symptom)
+    # Control-pair justifications do not mention blanks.
     for o in rec["outcomes"]:
         if o["control"]:
             assert "blank" not in o["justification"].lower()
@@ -251,26 +242,24 @@ def test_blind_fake_disqualified_and_outcomes_excluded(tmp_path):
     run_pairwise_pass(out, 1, "opencode-luna", see, max_pairs=4)
     rep = pairwise_report(out)
     assert [d["family"] for d in rep["disqualifications"]] == ["opencode-flash"]
-    # flash's whole pass is excluded from the scales
+    # The flash pass is excluded from the scales.
     assert rep["per_family_per_dimension"]["opencode-flash"][
         "persona_enactment"]["n_pairs"] == 0
-    # PROBE never leaks into the recovered scales
+    # PROBE does not appear in the recovered scales.
     for fam in rep["per_family_per_dimension"]:
         for d, sc in rep["per_family_per_dimension"][fam].items():
             assert "PROBE" not in sc["bradley_terry"]
             assert "PROBE" not in sc["elo"]
 
 
-# --------------------------------------------------------------------------- #
-# Audit trail (acceptance 4) and response handling
-# --------------------------------------------------------------------------- #
+# Audit trail and response handling
 
 
 def test_justifications_and_judge_identity_attached_to_every_outcome(tmp_path):
     out = _make_corpus(tmp_path)
     client = PairwiseFakeJudge(42, family="opencode-flash", mode="see")
     rec = run_pairwise_pass(out, 1, "opencode-flash", client, max_pairs=4)
-    assert rec["n_outcomes"] == 6  # 4 sampled + 2 control
+    assert rec["n_outcomes"] == 6  # Four sampled pairs plus two control pairs.
     for o in rec["outcomes"]:
         assert o["valid"] is True
         assert isinstance(o["justification"], str) and len(o["justification"]) > 0
@@ -286,11 +275,11 @@ def test_parse_pair_response_tolerant():
         '{"winner": "A", "justification": "clear"}')["winner"] == "A"
     assert parse_pair_response(
         '{"winner": "Transcript B", "justification": "clear"}')["winner"] == "B"
-    # ties are invalid: the protocol is FORCED
+    # Ties are invalid.
     assert parse_pair_response(
         '{"winner": "equal", "justification": "z"}')["valid"] is False
     assert parse_pair_response('no json here')["valid"] is False
-    # empty justification invalidates (REQUIRED one-sentence justification)
+    # Empty justification is invalid.
     assert parse_pair_response('{"winner": "A", "justification": ""}')["valid"] is False
     assert parse_pair_response('{"winner": "A", "justification": "ok"}')["valid"] is True
 
@@ -316,32 +305,30 @@ class _ScriptedClient:
 
 def test_invalid_response_retried_once_then_recorded_invalid(tmp_path):
     out = _make_corpus(tmp_path)
-    # first pair's first response is invalid -> retried -> valid
+    # First response is invalid, then retried successfully.
     client = _ScriptedClient([
         "garbage",
         '{"winner": "A", "justification": "recovered"}',
     ] + ['{"winner": "A", "justification": "ok"}'] * 20)
     rec = run_pairwise_pass(out, 1, "opencode-flash", client, max_pairs=1)
-    assert len(client.calls) == 4  # 1 pair retried (2 calls) + 2 control pairs
+    assert len(client.calls) == 4  # One retried pair (two calls) plus two control pairs.
     first = rec["outcomes"][0]
     assert first["valid"] is True and first["retries"] == 1
     assert first["justification"] == "recovered"
-    # judge calls run in JSON mode at temperature 0
+    # Judge calls run in JSON mode at temperature 0.
     assert all(c["json_mode"] for c in client.calls)
     assert all(c["temperature"] == 0.0 for c in client.calls)
 
 
 def test_persistently_invalid_pair_excluded_from_scale(tmp_path):
     out = _make_corpus(tmp_path)
-    client = _ScriptedClient(["nope"] * 12)  # every response invalid
+    client = _ScriptedClient(["nope"] * 12)  # Every response is invalid.
     rec = run_pairwise_pass(out, 1, "opencode-flash", client, max_pairs=1)
     assert all(o["valid"] is False for o in rec["outcomes"])
     assert all(o["retries"] == 1 for o in rec["outcomes"])
 
 
-# --------------------------------------------------------------------------- #
 # Report artifact
-# --------------------------------------------------------------------------- #
 
 
 def test_pairwise_report_end_to_end(tmp_path):
@@ -358,7 +345,7 @@ def test_pairwise_report_end_to_end(tmp_path):
     for fam in rep["families"]:
         for d in [x["id"] for x in PAIRWISE_DIMENSIONS]:
             sc = rep["per_family_per_dimension"][fam][d]
-            assert sc["n_pairs"] > 0  # full universe: every dim gets pairs
+            assert sc["n_pairs"] > 0  # Every dimension gets pairs.
             assert sc["bradley_terry"] and sc["elo"]
     assert rep["inter_family_agreement_spearman_bt"] is not None
     assert rep["degraded_classification"]["opencode-flash"]["correct"] > 0

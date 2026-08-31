@@ -81,9 +81,7 @@ async def _started(channel, on_command, on_message=None):
     return received
 
 
-# --------------------------------------------------------------------------- #
 # happy paths through the FakeApplication
-# --------------------------------------------------------------------------- #
 
 
 @pytest.mark.parametrize(
@@ -219,9 +217,7 @@ def test_state_is_gated_even_end_to_end(tmp_path) -> None:
     assert "disabled" in app.bot.calls[-1]["text"]
 
 
-# --------------------------------------------------------------------------- #
 # command-flag-off parity (on_command=None -> commands dropped, matching today)
-# --------------------------------------------------------------------------- #
 
 
 def test_flag_off_parity_commands_are_dropped(tmp_path) -> None:
@@ -265,9 +261,7 @@ def test_flag_off_parity_plain_text_still_flows(tmp_path) -> None:
     assert received[0].text == "hello"
 
 
-# --------------------------------------------------------------------------- #
 # CommandBridgeChannel — launcher wiring for Channel.start
-# --------------------------------------------------------------------------- #
 
 
 def test_bridge_injects_the_launcher_callback_into_start(tmp_path) -> None:
@@ -351,9 +345,7 @@ def test_bridge_skips_channels_without_the_command_seam(tmp_path) -> None:
     assert calls == ["start", "stop"]
 
 
-# --------------------------------------------------------------------------- #
 # launcher flag resolution
-# --------------------------------------------------------------------------- #
 
 
 def test_resolve_tz_defaults_to_no_anchor() -> None:
@@ -387,15 +379,11 @@ def test_resolve_tz_anchor_maps_wall_clock_to_virtual_hours() -> None:
     assert abs(anchor.t_h_at(anchor.epoch_of(now)) - now) < 1e-6
 
 
-# --------------------------------------------------------------------------- #
 # CLI-level --defer-bootstrap behavior (real subprocess runs, accelerated)
-# --------------------------------------------------------------------------- #
 
 
 def _run_async_cli(tmp_path, db, *extra_args, timeout=120):
-    venv_python = Path(
-        "/home/vruizes/.hermes/projects/llm-behavioral-harness/.venv/bin/python"
-    )
+    venv_python = Path(sys.executable)
     repo = Path(__file__).resolve().parents[1]
     proc = subprocess.run(
         [

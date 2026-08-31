@@ -77,10 +77,10 @@ from harness.credentials import load_env_file
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-#: 1 hora virtual = 1 hora real (modo en vivo; la matriz usa 0.0004).
+# One virtual hour equals one real hour (live mode; the matrix cells use 0.0004).
 LIVE_TIME_SCALE_S_PER_VH = 3600.0
 
-#: Constante de persona (misma que las células de la matriz).
+# Persona constant (same as the matrix cells).
 DEFAULT_PERSONA = "Ana"
 
 
@@ -121,10 +121,8 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
         client = OpenAICompatibleClient(lane="product")
     if judge is None:
         judge = DeterministicJudge(seed, block_start=BLOCK_START_D, block_end=BLOCK_END_D)
-    # Judge-lane client (WS-C two-lane seam): judging is a RESEARCH
-    # consumer. When an LLM judge is injected, pass a research-lane client
-    # so judge spend attributes to the research lane; the session defaults
-    # to the product client only for offline/deterministic judging.
+    # Judge lane: LLM judges get a research-lane client so judge spend
+    # attributes to the research lane; offline judging keeps the product client.
     if judge_client is None and not isinstance(judge, DeterministicJudge):
         judge_client = OpenAICompatibleClient(lane="research")
     persona = persona or PersonaParams()
@@ -133,15 +131,8 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
     clock = clock or VirtualClock(0.0)
     session = make_session(condition, seed, store, clock, client, judge,
                            persona, timing, variant, judge_client=judge_client)
-    # Día 0 up-front (misma razón que run_cell): el primer replan del
-    # runtime ocurre en la medianoche del día 1 y planificaría el día 0
-    # retroactivamente. El plan nace con ESTADO real: si el store aún no
-    # tiene la fila daily_state del día 0 (arranque limpio), se dibuja el
-    # mood con ensure_day(0) ANTES de planificar (el mismo paso del
-    # rollover de medianoche) y se pasa day_scores reales — nunca
-    # scores=None (espejo del _replan de producción). En resume la fila ya
-    # existe y el plan es un no-op (INSERT OR IGNORE nunca toca filas
-    # fired/expired).
+    # Day 0 up-front: ensure_day(0) runs before planning, so day 0 is
+    # planned with real state. On resume the row exists and planning is a no-op.
     if store.load_daily_state(0) is None:
         session.ensure_day(0)
     ProactiveSchedule.plan_and_persist(
@@ -156,7 +147,7 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
         timing=timing,
         seed=seed,
         time_scale=TimeScale(time_scale_s_per_vh),
-        max_virtual_hours=max_virtual_hours,  # en vivo: None (Ctrl-C para salir)
+        max_virtual_hours=max_virtual_hours,  # live: None (Ctrl-C to exit)
         resolver=IntentResolver(store, rng=stream_rng(seed, rng_mod.EXPERIMENT_STREAM)),
         sleeper=None,
         anchor=anchor,
@@ -182,11 +173,8 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
 
     store = build_store(db_path)
     bootstrap(store, seed)
-    # Real-time anchor (S2): a persisted anchor (resume) wins; otherwise a
-    # fresh anchor is drawn from --tz/HARNESS_TZ and persisted. anchor=None
-    # keeps the pre-anchor behavior. AsyncRuntime uses it for absolute sleeps
-    # and resume repositioning — restart no longer lands at virtual midnight
-    # (quiet hours) regardless of the real launch time.
+    # Real-time anchor: a persisted (resume) anchor wins; otherwise a fresh
+    # one is drawn from --tz/HARNESS_TZ and persisted.
     anchor = load_anchor(store)
     if anchor is None and tz:
         try:
@@ -196,9 +184,8 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
             store.close()
             return 2
         persist_anchor(store, anchor)
-    # S1 write path: the store resolves real timestamps (opened_at etc.)
-    # from the anchor at row creation; without an anchor all *_at columns
-    # stay NULL (pre-anchor behavior, replay parity).
+    # Store write path: real timestamps resolve from the anchor at row
+    # creation; without an anchor the *_at columns stay NULL.
     if anchor is not None:
         store.attach_anchor(anchor)
     channel = select_channel(channel_name)
@@ -211,10 +198,8 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
                 flush=True,
             )
         else:
-            # Mismo patrón que sim/run_async (superficie de referencia):
-            # CommandBridgeChannel inyecta el callback del launcher en
-            # Channel.start; un on_command propio del runtime (su dispatch
-            # _on_command bloqueado) gana sobre el bridge cuando se pasa.
+            # Same pattern as sim/run_async: CommandBridgeChannel wraps the
+            # launcher callback; the runtime's own on_command wins when passed.
             channel = CommandBridgeChannel(
                 channel,
                 build_command_callback(
@@ -270,10 +255,8 @@ def main(argv: list[str] | None = None) -> int:
              "client command menu.",
     )
     args = parser.parse_args(argv)
-    # WS-C env bootstrap (owned by the tokens lane): source the repo-root
-    # .env so the product-lane token (LILY_TOKEN) is available even when the
-    # launcher did not export it. Values are never printed. The launcher
-    # recipe remains the canonical path: set -a; . "$REPO/.env"; set +a.
+    # WS-C env bootstrap: sources the repo-root .env so the product-lane
+    # token (LILY_TOKEN) is available.
     load_env_file(REPO_ROOT / ".env")
     tz = args.tz or os.environ.get("HARNESS_TZ") or None
     try:

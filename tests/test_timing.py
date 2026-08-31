@@ -52,8 +52,7 @@ def _sample_gaps(
         )
         assert math.isfinite(t_next)
         gaps[i] = t_next - t_now
-        # Encadenar: el evento aceptado se convierte en la última interacción
-        # y el siguiente candidato se busca desde ahí (tau reinicia en 0).
+# Chaining: the accepted event becomes the last interaction; the next candidate is searched from there (tau restarts at 0).
         t_now = t_next
         t_last = t_next
     return gaps
@@ -74,7 +73,7 @@ def test_gaps_follow_weibull_k2():
 
 
 # ---------------------------------------------------------------------------
-# 2. k_w == 1 -> exponencial (KS) + memoryless (dos tau0 distintos, misma dist)
+# 2. k_w == 1 -> exponential (KS) + memoryless (two different tau0, same distribution)
 
 
 def test_gaps_follow_exponential_k1():
@@ -102,7 +101,7 @@ def test_exponential_is_memoryless():
             for _ in range(N_SAMPLES)
         ]
     )
-    # tau_0 = 20h: t_last muy anterior a t_now (memoryless => misma dist).
+# tau_0 = 20h: t_last much earlier than t_now (memoryless => same distribution).
     gaps_tau20 = np.array(
         [
             next_event(20.0, 0.0, modulator, params, rng_b, mod_ub=1.0) - 20.0
@@ -115,7 +114,7 @@ def test_exponential_is_memoryless():
 
 
 # ---------------------------------------------------------------------------
-# 3. k_w == 2 -> hazard creciente: moda del histograma > 0, media ~ theta*Gamma(1.5)
+# 3. k_w == 2 -> increasing hazard: histogram mode > 0, mean ~ theta*Gamma(1.5)
 
 
 def test_increasing_hazard_mode_and_mean():
@@ -124,7 +123,7 @@ def test_increasing_hazard_mode_and_mean():
     rng = np.random.default_rng(3)
     gaps = _sample_gaps(N_SAMPLES, params, rng, mod_ub=1.0)
 
-    # Histograma con bins de 1h; el bin [0,1) no debe ser el mas poblado.
+# Histogram with 1h bins; bin [0,1) is not the most populated.
     max_gap = gaps.max()
     n_bins = max(1, int(math.ceil(max_gap)))
     counts, edges = np.histogram(gaps, bins=n_bins, range=(0.0, float(n_bins)))
@@ -143,7 +142,7 @@ def test_increasing_hazard_mode_and_mean():
 
 
 # ---------------------------------------------------------------------------
-# 4. Modulador escalon (horario 8-20): ningun evento fuera de la ventana
+# 4. Step modulator (8-20 schedule): no events outside the window
 
 
 def test_step_modulator_confines_events_to_window():
@@ -155,7 +154,7 @@ def test_step_modulator_confines_events_to_window():
         local_hour = t_h % 24.0
         return 1.0 if 8.0 <= local_hour < 20.0 else 0.0
 
-    horizon_h = 60 * 24.0  # ~60 dias
+    horizon_h = 60 * 24.0  # ~60 days
     t_now = 0.0
     t_last = 0.0
     n_events = 0
@@ -182,7 +181,7 @@ def test_step_modulator_confines_events_to_window():
 
 
 # ---------------------------------------------------------------------------
-# 5. Escala de tasa: k_w=1, modulator==c=2.0, mod_ub=2.0 -> media de gaps ~ theta/c
+# 5. Rate scaling: k_w=1, modulator==c=2.0, mod_ub=2.0 -> mean gap ~ theta/c
 
 
 def test_rate_scaling_with_constant_modulator():
@@ -203,7 +202,7 @@ def test_rate_scaling_with_constant_modulator():
 
 
 # ---------------------------------------------------------------------------
-# 6. Determinismo (misma semilla => misma secuencia) y max_horizon (modulator==0)
+# 6. Determinism (same seed => same sequence) and max_horizon (modulator==0)
 
 
 def test_determinism_same_seed_same_sequence():
@@ -240,7 +239,7 @@ def test_max_horizon_returns_inf_with_zero_modulator():
 
 
 # ---------------------------------------------------------------------------
-# Tests directos de hazard() (forma cerrada, sin RNG)
+# Direct tests of hazard() (closed form, no RNG)
 
 
 def test_hazard_matches_closed_form():
@@ -266,14 +265,7 @@ def test_hazard_finite_at_tau_zero_when_k_w_eq_1():
     assert hazard(0.0, 0.0, _mod_const(1.0), params) == pytest.approx(expected)
 
 
-# --------------------------------------------------------------------------- #
-# B5 — the latent-state term rides ONLY the modulator slot (Weibull base frozen)
-# --------------------------------------------------------------------------- #
-# iteration-3 non-goals: no Weibull family/parameter changes. The B5 coupling
-# exp(w·(x−x₀)) is composed by the scheduler and enters as a multiplicative
-# factor of the modulator; engine/timing.py itself is untouched. These tests
-# pin that contract: the base hazard h0(τ) and the multiplicative modulator
-# scaling are the ONLY degrees of freedom.
+# The latent-state term rides only the modulator slot.
 
 
 def test_state_factor_enters_hazard_multiplicatively():

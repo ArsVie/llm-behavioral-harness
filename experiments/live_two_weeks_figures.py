@@ -85,7 +85,7 @@ def main() -> None:
     fired = [i for i in data["intents"] if i[3] == "fired"]
     suppressed = [i for i in data["intents"] if i[3] == "suppressed"]
 
-    # ================= overview.png (README-hero equivalent) =================
+    # overview.png (README-hero equivalent)
     fig = plt.figure(figsize=(13.5, 9))
     gs = fig.add_gridspec(2, 2, hspace=0.38, wspace=0.25)
     ax1 = fig.add_subplot(gs[0, 0])
@@ -99,7 +99,7 @@ def main() -> None:
         fontsize=13,
     )
 
-    # ---- P1: mood --------------------------------------------------------
+    # P1: mood
     ax = ax1
     for i, ph in enumerate(phase):
         ax.axvspan(i - 0.5, i + 0.5, color=PHASE_COLORS.get(ph, "#eee"), alpha=0.55, zorder=0)
@@ -113,7 +113,7 @@ def main() -> None:
     ax.legend(fontsize=8, loc="lower right")
     ax.spines[["top", "right"]].set_visible(False)
 
-    # ---- P2: proactive per day -------------------------------------------
+    # P2: proactive per day
     ax = ax2
     counts = np.array([per_day_pro.get(int(d), 0) for d in days])
     ax.bar(days, counts,
@@ -127,7 +127,7 @@ def main() -> None:
     ax.set_xticklabels([str(d + 1) for d in days], fontsize=8)
     ax.spines[["top", "right"]].set_visible(False)
 
-    # ---- P3: decision reason x fire-hour x mood --------------------------
+    # P3: decision reason x fire-hour x mood
     ax = ax3
     mood_at = {int(s[0]): float(s[1]) for s in state}
     seen = set()
@@ -165,7 +165,7 @@ def main() -> None:
     ax.legend(fontsize=8, loc="upper left")
     ax.spines[["top", "right"]].set_visible(False)
 
-    # ---- P4: contact heatmap day x hour ----------------------------------
+    # P4: contact heatmap day x hour
     ax = ax4
     grid = np.zeros((N_DAYS, 24))
     for day, t_h, _role, _pro in data["msgs"]:
@@ -190,7 +190,7 @@ def main() -> None:
     fig.savefig(out1, dpi=150)
     print("saved", out1)
 
-    # ================= week-view.png =================
+    # week-view.png
     fig, axes = plt.subplots(1, 3, figsize=(15.5, 4.6))
     fig.suptitle(
         "Two-week LIVE run — week view & proactive pipeline "

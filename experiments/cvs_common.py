@@ -51,25 +51,23 @@ from experiments.cvs_manifest import (
     RECALL_PROBES,
 )
 
-# --------------------------------------------------------------------------- #
-# Constantes congeladas del runner (no cambiar tras ver resultados)
-# --------------------------------------------------------------------------- #
+# Constants
 
 MODEL = "deepseek/deepseek-v4-flash"
-TIME_SCALE_S_PER_VH = 0.0004  # 30 días acelerados ~ <1s de sueño real
-#: Usuario del Gate 2 (plan §8): bootstrap limpio con intereses exactos.
+TIME_SCALE_S_PER_VH = 0.0004  # 30 virtual days ~ <1s of real sleep
+# Bootstrap user interests.
 GATE2_USER_INTERESTS = ("mathematics", "lifting", "movies", "metal")
 
 
-#: Días 1-indexados de checkpoint (fin de día virtual) — plan §5-A8.
+# Checkpoint days (1-indexed, end of virtual day).
 DEFAULT_CHECKPOINT_DAYS = (7, 14, 21, 26, 29)
 
-#: Bloques de perturbación en días 0-indexados (derivados de PERTURBATION).
+# Perturbation block days, 0-indexed (derived from PERTURBATION).
 BLOCK_START_D = PERTURBATION["negative_block_days"][0] - 1
 BLOCK_END_D = PERTURBATION["negative_block_days"][1] - 1  # inclusive
 NEGATIVE_MESSAGES = tuple(PERTURBATION["negative_user_messages"])
 
-#: Vocabulario crudo de ciclo/estado — escaneo de fugas (invariante 16).
+# Raw cycle/state vocabulary for leak scanning.
 LEAK_RE = re.compile(
     r"menstrual|follicular|ovulatory|luteal(?:_\w+)?"
     r"|\bphase_label\b|\bcycle_day\b|\bmu\b|\beta\b|hormon\w*|cycle day",
@@ -106,9 +104,7 @@ def recall_embedder(text: str, *, dim: int = 1024, seed: int = 0) -> list[float]
     return [v / norm for v in vec]
 
 
-# --------------------------------------------------------------------------- #
-# Clientes
-# --------------------------------------------------------------------------- #
+# Clients
 
 
 class DeterministicClient:
@@ -143,9 +139,7 @@ class DeterministicClient:
 
     def chat(self, messages, *, system=None, temperature=0.8, json_mode=False,
              max_tokens=None) -> str:
-        # it3 B7: the full received payload is recorded (messages + system)
-        # so the byte-compare replay test can verify repro_json against the
-        # independent ground truth of what the client actually received.
+        # Records the full received payload (messages + system) for byte-compare replay.
         self.calls.append(
             {"max_tokens": max_tokens, "system_len": len(system or ""),
              "json": json_mode, "temperature": temperature,
@@ -210,9 +204,7 @@ class RecordingSleeper:
         self.delays.append(float(delay))
 
 
-# --------------------------------------------------------------------------- #
-# Juez determinista (feedback) — consciente de perturbación
-# --------------------------------------------------------------------------- #
+# Deterministic judge (feedback), perturbation-aware
 
 
 def score_schedule(seed: int, day: int) -> float:
@@ -256,9 +248,7 @@ class DeterministicJudge:
         return JudgeResult(score=score, justification="scripted (A8 mock)")
 
 
-# --------------------------------------------------------------------------- #
-# Parches de condición (lanes de ablación — experimento-local, sin tocar prod)
-# --------------------------------------------------------------------------- #
+# Condition patches (ablation lanes, experiment-local)
 
 
 def _neutral_directive() -> BehaviorDirective:
@@ -312,11 +302,11 @@ def _flat_controls(directive, *, base_max_tokens: int = 600, min_tokens: int = 9
     )
 
 
-#: Condiciones que aplanan los controles de generación (sin actuación mecánica).
+# Conditions that flatten generation controls.
 _FLAT_CONTROLS_CONDITIONS = frozenset(
     {"NO_ACTUATORS", "PROMPT_ONLY_STATE", "NO_STATE", "STRUCTURED_NO_STATE"}
 )
-#: Condiciones que neutralizan la directiva de comportamiento.
+# Conditions that neutralize the behavior directive.
 _NEUTRAL_DIRECTIVE_CONDITIONS = frozenset({"NO_STATE", "STRUCTURED_NO_STATE"})
 
 
@@ -348,9 +338,7 @@ def restore_patches(applied: list[tuple[object, str, object]]) -> None:
         setattr(module, attr, original)
 
 
-# --------------------------------------------------------------------------- #
-# Sesiones por condición
-# --------------------------------------------------------------------------- #
+# Sessions per condition
 
 
 class EmptyMemory:
@@ -493,7 +481,7 @@ class RecordingSession(Session):
         if self.store.load_judgement(self.current_day) is not None:
             return
         if not self.store.messages_for_day(self.current_day):
-            return  # día frontera sin mensajes aún: se finaliza en su medianoche
+            return  # boundary day has no messages yet; finalized at its midnight
         super().finalize_current()
 
 
@@ -564,7 +552,7 @@ def _memory_for(condition: str, store, *, memory_policy=None) -> object:
         return RawHistoryMemory(store)
     if condition == "SIMPLE_RAG":
         return SimpleRagMemory(store)
-    # None -> STRUCTURED_MEMORY (default del MemoryAgent); no pasar None.
+    # None -> STRUCTURED_MEMORY (MemoryAgent default).
     if memory_policy is None:
         return MemoryAgent(store, embedder=recall_embedder)
     return MemoryAgent(store, embedder=recall_embedder, memory_policy=memory_policy)
@@ -620,41 +608,19 @@ def make_runtime(condition: str, session: Session, store: SQLiteStore, seed: int
     )
 
 
-# --------------------------------------------------------------------------- #
-# Runner de segmentos y celdas
-# --------------------------------------------------------------------------- #
+# Runner of segments and cells
 
 
-#: Clave de stream del driver para los retardos ``after_reply`` (it3 B3).
-#: El consumidor canónico del FEED CONTRACT (harness de B3) dibuja con
-#: ``stream_rng(seed, EXPERIMENT_STREAM, 202)`` — la misma clave aquí para
-#: que las secuencias de turnos sean byte-idénticas entre consumidores.
-#: Nunca reutilizar claves reservadas (1, DAILY/EVENTS/EXPERIMENT/INIT, 100,
-#: 101).
+# Driver stream key for after_reply delays (matches the canonical B3 consumer).
 FEED_DELAY_STREAM_KEY = 202
 
-#: Fracción de la distancia virtual al próximo salto del rollover que el
-#: driver duerme antes de repollar (0.5): el driver despierta SIEMPRE antes
-#: de que el runtime pueda avanzar el reloj más allá de un objetivo de feed
-#: (el rollover duerme la distancia COMPLETA; el driver, la mitad). El
-#: margen resultante es ``20µs + distancia`` (el poll del rollover es
-#: POLL_INTERVAL_H * time_scale), así la creación de la tarea de feed
-#: precede al timer de salto del rollover y la cola FIFO del lock la
-#: entrega antes de que el reloj pase el objetivo.
+# Fraction of the virtual distance to the next rollover jump that the driver sleeps
+# before re-polling (0.5), so it wakes before the runtime clock can pass a feed target.
 FEED_PACE_FRACTION = 0.5
-#: Piso del sueño del driver (evita busy-loop cuando el reloj está
-#: congelado en un evento de agenda en pleno disparo).
+# Driver sleep floor (avoids busy-loop when the clock is frozen on a firing agenda event).
 FEED_POLL_FLOOR_S = 1e-5
-#: Ventana (horas virtuales) tras la medianoche del día objetivo durante
-#: la cual el driver trata un lock del runtime tomado como "replan de
-#: medianoche en curso" y NO lanza feeds del día aún. El guard original
-#: exigía now <= medianoche + 1e-6 (el reloj clavado EXACTO en la frontera);
-#: si el rollover aterriza en 48.5 por un avance con lectura obsoleta, el
-#: guard se evade y el driver lanza feeds del día D mientras las filas del
-#: plan del día D aún no existen (drenajes vacíos) — el feed salta el reloj
-#: por encima de una oportunidad pendiente que luego expira (la carrera
-#: fired/expired del día 2). La ventana cubre ese excedente (0.5h
-#: observado) con margen, incluso si el runtime reintroduce el overshoot.
+# Window (virtual hours) after the target day's midnight during which a held runtime
+# lock is treated as an in-progress midnight replan and feeds are held back.
 REPLAN_GUARD_WINDOW_H = 1.0
 
 
@@ -766,10 +732,8 @@ class _ConversationalFeedPlan(_FeedPlan):
         while self._cursor < len(self._events):
             ev = self._events[self._cursor]
             if ev["kind"] == "at_t_h":
-                break  # ya presemeados; no dibujan nada
-            # after_reply: UN dibujo por evento, en orden de stream; el
-            # cursor permanece aquí hasta que ESTE evento se entrega (su
-            # pop avanza el cursor y encadena el siguiente dibujo).
+                break  # already pre-seeded; draws nothing
+            # after_reply: one draw per event, in stream order.
             delay = self._draw_delay(ev, self._rng)
             base = self._last_t_h if self._last_t_h is not None else 0.0
             heapq.heappush(self._heap, (base + delay, str(ev["text"])))
@@ -827,7 +791,7 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
 
     assert isinstance(runtime.channel, FakeChannel), "cell channel must be FakeChannel"
     task = asyncio.create_task(runtime.run())
-    await asyncio.sleep(0.001)  # deja arrancar el canal (handler registrado)
+    await asyncio.sleep(0.001)  # lets the channel start (handler registered)
     scale = runtime.time_scale.seconds_per_virtual_hour
     skipped: list[tuple[float, str]] = []
     launched: list[tuple[float, str, asyncio.Task]] = []
@@ -837,13 +801,11 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
             break
         t_h, text = feed
         target_day = int(t_h // 24.0)
-        # Espera de día + drenaje + replan de medianoche, ritmada a medio
-        # paso de la distancia virtual al próximo salto del rollover.
+        # Waits for day, drain, and midnight replan, paced at half the distance to the next rollover jump.
         while True:
             if task.done():
                 _raise_if_failed(task)
-                # El runtime terminó: NINGÚN feed restante de este segmento
-                # se entregará; registrarlos TODOS para la auditoría.
+                # Runtime ended: remaining segment feeds are recorded for audit.
                 skipped.extend(plan.remaining())
                 for _t_h, _text, tsk in launched:
                     tsk.cancel()
@@ -857,31 +819,17 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
                     float(r["t_h"]) for r in store.pending_schedule_events(seed)
                     if float(r["t_h"]) < t_h - 1e-6
                 ]
-                # Replan de medianoche en curso: el bloque midnight del
-                # rollover (ensure_day + replan) sostiene el lock del runtime
-                # con el reloj en la frontera del día. El guard usa una
-                # VENTANA (REPLAN_GUARD_WINDOW_H) y no un épsilon: un avance
-                # del rollover con lectura obsoleta puede aterrizar el reloj
-                # un poco DESPUÉS de la medianoche (p.ej. 48.5), y con el
-                # épsilon el lock tomado pasaría desapercibido — el driver
-                # lanzaría feeds del día objetivo antes de que existan sus
-                # filas de plan (drenajes vacíos) y el feed saltaría el reloj
-                # por encima de una oportunidad pendiente (expira en vez de
-                # dispararse).
+                # Midnight replan in progress: the rollover's midnight block holds the
+                # runtime lock with the clock at the day boundary.
                 at_boundary = now <= target_day * 24.0 + REPLAN_GUARD_WINDOW_H
                 replan_done = not (at_boundary and runtime._lock.locked())
                 if now >= t_h - 1e-6:
-                    # The feed's OWN time arrived: deliver even if the runtime
-                    # is still behind on earlier events (it recovers them as
-                    # overdue AFTER this message, in order — the old it2
-                    # semantics). The drain below only ORDERs early delivery;
-                    # it must never starve the feed past its target.
+                    # The feed's own time arrived: deliver even if the runtime is behind
+                    # on earlier events (they are recovered as overdue after it).
                     break
                 if not pending_before and replan_done:
-                    break  # drenaje claro → lanzar el feed
-            # Próximo salto del rollover: min(evento pendiente futuro,
-            # medianoche, fin de segmento) — el driver duerme la fracción
-            # FEED_PACE_FRACTION de esa distancia y siempre gana la carrera.
+                    break  # drain clear -> launch the feed
+            # Next rollover jump: min(future pending event, midnight, segment end).
             nxt = None
             for r in store.pending_schedule_events(seed):
                 if float(r["t_h"]) > now + 1e-6:
@@ -893,20 +841,13 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
             dist = max(0.0, jump_target - now) * scale
             await asyncio.sleep(max(FEED_POLL_FLOOR_S,
                                     FEED_PACE_FRACTION * dist))
-        # Lanzar SIN esperar la réplica: la tarea se encola en el lock del
-        # runtime ANTES de que el timer del rollover pueda saltar el
-        # objetivo (creada a <= 0.5*distancia del último disparo, el salto
-        # mínimo del rollover es 20µs + distancia) y _on_inbound avanza el
-        # reloj EXACTAMENTE a t_h. El orden FIFO del lock serializa los
-        # feeds por t_h.
+        # Launch without waiting: the task queues on the runtime lock and _on_inbound
+        # advances the clock exactly to t_h; FIFO order serializes feeds by t_h.
         launched.append((t_h, text,
                          asyncio.create_task(runtime.channel.feed(text, t_h=t_h))))
         plan.pop()
-    # Tail: drain launched feeds — but only while the runtime is alive. The
-    # runtime can enter its finalize/shutdown window right after the last
-    # launch (its end_h park expires while a feed task is still queued on the
-    # lock): a feed that loses that race is UNDELIVERABLE (the executor is
-    # closed) and is counted as an honest skip — audited, never a cell crash.
+    # Drain launched feeds while the runtime is alive; a feed losing the shutdown race
+    # is counted as an honest skip.
     for t_h, text, tsk in launched:
         if task.done():
             _raise_if_failed(task)
@@ -1055,10 +996,7 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
                                    block_end=BLOCK_END_D)
 
         store = SQLiteStore(db_path, audit_mode=True)
-        # Bootstrap limpio (Gate 2): persona + arcos + agenda del día 0 en un
-        # DB vacío — el perfil vive en el STORE, no en argumentos de la
-        # sesión (resume-safe). ``generate_agenda`` usa el mismo LIFE stream
-        # que ``session._generate_agenda``, así las filas son byte-idénticas.
+        # Clean bootstrap: persona, arcs, and day-0 agenda in an empty DB, resume-safe.
         from harness.bootstrap import ensure_companion_initialized
         from harness.domain import UserProfile
 
@@ -1071,14 +1009,7 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
         session = make_session(condition, seed, store, clock, client, judge,
                                persona, timing, variant, memory_policy=memory_policy)
         sleeper = RecordingSleeper()
-        # Plan inicial del día 0: el primer replan del runtime ocurre en la
-        # medianoche del día 1 y planificaría el día 0 retroactivamente —
-        # cada evento del día 0 nacería vencido y expiraría espuriamente.
-        # El plan debe existir ANTES del firing loop, pero con ESTADO real:
-        # se dibuja el mood del día 0 primero (ensure_day — el mismo paso
-        # del rollover de medianoche; la fila daily_state alimenta
-        # state_factors_for_plan) y se planifica con day_scores reales,
-        # como el _replan de producción (nunca scores=None en vivo).
+        # Day-0 plan: drawn before the firing loop so day-0 events do not expire.
         session.ensure_day(0)
         scores = day_scores(store, 0, timing)
         ProactiveSchedule.plan_and_persist(
@@ -1097,14 +1028,11 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
                 draw_after_reply_delay,
             )
         except ImportError:
-            # B3 no mergeado (main pre-B3): el plan legacy de la it2.
+            # Pre-B3 main: legacy it2 plan.
             build_user_stream = None  # type: ignore[assignment]
             draw_after_reply_delay = None  # type: ignore[assignment]
         if build_user_stream is not None:
-            # FEED CONTRACT de B3 (it3): stream conversacional completo. El
-            # rng de retardos es UNA vez por run (clave 202 — el consumidor
-            # canónico de B3), compartido por los planes de todos los
-            # segmentos para que los draws queden en orden de stream.
+            # Full conversational stream; one delay rng per run, shared across segments.
             stream_events = build_user_stream(seed, days, perturb=perturb)
             delay_rng = stream_rng(seed, rng_mod.EXPERIMENT_STREAM,
                                    FEED_DELAY_STREAM_KEY)
@@ -1133,9 +1061,7 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
             skipped = asyncio.run(_run_segment(session, runtime, plan, start_h,
                                                seg_end, store, seed))
             skipped_feeds.extend(skipped)
-            # Evento pendiente con hora estrictamente anterior a seg_end que
-            # perdió la carrera final del timer: expira honestamente (su
-            # ventana de validez transcurrió) — I4 nunca ve filas vencidas.
+            # Pending event before seg_end that lost the final timer race: expired.
             for r in store.pending_schedule_events(seed):
                 if float(r["t_h"]) < seg_end - 1e-6:
                     store.mark_schedule_expired(seed, float(r["t_h"]))
@@ -1155,10 +1081,7 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
                 fp_post = _persist_fingerprint(store, seed)
                 diffs = _fingerprint_diff(fp_pre, fp_post)
                 restart_loss.append({"checkpoint_h": seg_end, "diffs": diffs})
-                # Procedimiento de reanudación: rodar al día del checkpoint
-                # (finalize está guardado por juicio -> no-op) y replicar el
-                # replan de medianoche para que el día posterior conserve su
-                # plan proactivo (filas idénticas a un run sin reinicio).
+                # Resume procedure: roll to the checkpoint day and repeat the midnight replan.
                 session.ensure_day(int(seg_end // 24))
                 day = session.clock.day()
                 scores = day_scores(store, day, timing)
@@ -1166,10 +1089,7 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
                     day + 1, seed, persona, timing, store,
                     reason=REASON_SCHEDULE, scores=scores,
                 )
-        # Barrido final honesto (mismo criterio que los checkpoints): un
-        # evento pendiente con hora estrictamente anterior al fin del run
-        # perdió la carrera final del timer y su ventana de validez ya
-        # transcurrió — expira; las filas barridas quedan registradas.
+        # Final sweep: pending events before run end expire; swept rows are recorded.
         end_h = days * 24.0
         end_sweep = [
             float(r["t_h"])
@@ -1477,9 +1397,7 @@ def _enrich_repro_rows(store: SQLiteStore, client, seed: int, condition: str,
     store.conn.commit()
 
 
-# --------------------------------------------------------------------------- #
-# Auditoría mecánica (invariantes duras del Track vertical)
-# --------------------------------------------------------------------------- #
+# Mechanical audit
 
 
 def _episode_text(ep) -> str:
@@ -1518,13 +1436,8 @@ def _source_superseded_at(store: SQLiteStore | None, src, intent: ProactiveInten
     if isinstance(src, AgendaItem):
         if src.status != "skipped":
             return False
-        # El skip se escribe en el cierre del día — ((day+1)*24.0, day
-        # 0-indexado = floor(t/24)). Un intent creado ANTES de ese cierre
-        # referenció un item aún `planned` (evidencia del resolver:
-        # pi_agenda_item_ag_16_r_00_406.117 / pi_agenda_item_ag_29_r_02_716.563
-        # muestran status=planned en created; el skip llegó al cierre).
-        # El predicado naíf `end_t_h >= created_t_h` marcaba disparos
-        # IN-SLOT como superseded — falso positivo TOCTOU (Gate 2, 4/5 seeds).
+        # Day-close skips are written after the slot ends; an intent created before
+        # that close referenced a still-planned item.
         return intent.created_t_h >= (int(src.start_t_h // 24.0) + 1) * 24.0
     if isinstance(src, LifeArc):
         if src.status != "abandoned":
@@ -1622,9 +1535,7 @@ def _cycle_leak_hits(store: SQLiteStore) -> dict:
             "SELECT role, model, response, meta, repro_json FROM llm_calls"
         ).fetchall()
     except Exception:  # noqa: BLE001
-        # Auditoría en silencio = invariante muerto (revisión 2026-08-09):
-        # el esquema real de llm_calls NO tiene system/reply — el scan del
-        # lado prompt nunca se ejecutó; ahora el fallo es ruidoso.
+        # The prompt-side scan fails loudly if the llm_calls schema is wrong.
         raise RuntimeError(
             "leak scan: llm_calls schema changed — audit cannot run silently"
         ) from None
@@ -1738,10 +1649,8 @@ def mechanical_audit(store: SQLiteStore, seed: int, end_h: float, days: int,
     dupes = _duplicate_turns(store)
     dead_days, dead_trailing = _life_dead_days(store, days)
 
-    # No fixture inserts: todo mensaje user coincide con el guion POR
-    # CONTENIDO (un feed tardío puede desplazar t_h al borde del segmento —
-    # comportamiento documentado del runner; el contenido nunca se inventa);
-    # todo assistant pertenece al pool determinista; los conteos cuadran.
+    # No fixture inserts: user messages match the script by content; assistant
+    # messages belong to the deterministic pool.
     script_map = {txt: True for _t, txt in script}
     user_ok = True
     user_bad: list[dict] = []
@@ -1761,19 +1670,8 @@ def mechanical_audit(store: SQLiteStore, seed: int, end_h: float, days: int,
                 assistant_bad.append({"id": int(m["id"]),
                                       "content": str(m["content"])[:80]})
 
-    # Conteos — aritmética documentada (evidencia: seed 5001 --fake 30d):
-    #   guion = 51 feeds; entregados = 42 (37 exactos + 5 desplazados al
-    #   borde del segmento, comportamiento documentado del runner);
-    #   omitidos REALES = 9, pero la contabilidad registraba solo 1
-    #   skipped_feed: las rutas de 'runtime terminó' / 'reloj pasó' de
-    #   _run_segment descartaban el resto en silencio (subestimación de
-    #   n_skipped -> la resta contra el guion sobrestimaba en 8).
-    # Cada feed entregado produce EXACTAMENTE un mensaje user y una
-    # réplica assistant; cada intent fired produce exactamente un mensaje
-    # assistant proactivo. Invariantes de conteo:
-    #   n_user_msgs   == len(script) - n_skipped   (guion vs feeds)
-    #   n_assistant   == n_user_msgs + n_fired     (réplicas + proactivos)
-    #   n_pro         == n_fired                   (1 mensaje por intent)
+    # Counting invariants: n_user_msgs == len(script) - n_skipped,
+    # n_assistant == n_user_msgs + n_fired, n_pro == n_fired.
     n_user_msgs = sum(1 for m in msgs if m["role"] == "user")
     n_assistant_msgs = sum(1 for m in msgs if m["role"] == "assistant")
     n_fired = sum(1 for i in store.list_proactive_intents()
@@ -1784,8 +1682,7 @@ def mechanical_audit(store: SQLiteStore, seed: int, end_h: float, days: int,
         and n_assistant_msgs == n_user_msgs + n_fired
     )
 
-    # Solo eventos VENCIDOS cuentan como stranded: el replan de la frontera
-    # final planifica legítimamente el día recién abierto (eventos futuros).
+    # Only overdue events count as stranded; the final boundary replan plans future events.
     stranded = [
         {"t_h": float(r["t_h"]), "status": r["status"]}
         for r in store.pending_schedule_events(seed)
@@ -1812,7 +1709,7 @@ def mechanical_audit(store: SQLiteStore, seed: int, end_h: float, days: int,
         "wrong_intent": sum(
             1 for e in grounding if "hook mismatch" in " ".join(e["failures"])
         ),
-        "restart_state_loss": 0,  # se rellena desde records en el driver
+        "restart_state_loss": 0,  # filled from records in the driver
         "stranded_opportunities": len(stranded) + len(pending_overdue),
         "stranded_detail": {"pending_schedule": stranded,
                             "pending_intents": pending_overdue},
@@ -1846,9 +1743,7 @@ def mechanical_audit(store: SQLiteStore, seed: int, end_h: float, days: int,
     return audit
 
 
-# --------------------------------------------------------------------------- #
-# Cadenas de eventos (§17.2) — AnyEvidence / LatestEvidence / CompleteChain
-# --------------------------------------------------------------------------- #
+# Event chains (section 17.2)
 
 
 def _chain_event_tokens(chain: dict) -> tuple[str, str, str]:
@@ -1890,12 +1785,9 @@ def classify_chain(retrieved: Sequence, chain: dict) -> dict:
     return _chain_classification(chain, _tokens_covered(tokens, texts))
 
 
-# --------------------------------------------------------------------------- #
-# Sonda justa RAW_HISTORY (B6/F5) — definición preregistrada
-# --------------------------------------------------------------------------- #
+# Fair RAW_HISTORY probe
 
-#: Ventana de contexto crudo de la lane RAW_HISTORY: el mismo slice L1 que
-#: ``harness.memory.raw_history`` (limit=12) entrega al ensamblador.
+# Raw context window of the RAW_HISTORY lane (same L1 slice as raw_history, limit=12).
 RAW_HISTORY_WINDOW_LIMIT = 12
 
 RAW_HISTORY_FAIR_PROBE = """\
@@ -2027,7 +1919,7 @@ def _recall_probe_metrics_raw_history(store: SQLiteStore) -> dict:
         })
     return {
         "M3_recall": round(recall_hits / len(RECALL_PROBES), 4),
-        "M4_false_recall": 0.0,  # la lane cruda no hace retrieval rankeado (B6)
+        "M4_false_recall": 0.0,  # the raw lane does no ranked retrieval
         "detail": detail,
     }
 
@@ -2063,9 +1955,7 @@ def recall_probe_metrics(store: SQLiteStore, *, condition: str = "FULL",
     }
 
 
-# --------------------------------------------------------------------------- #
-# Métricas
-# --------------------------------------------------------------------------- #
+# Metrics
 
 
 def _spearman(x: Sequence[float], y: Sequence[float]) -> float:
@@ -2100,7 +1990,7 @@ def compute_structural_metrics(store: SQLiteStore, records: dict, condition: str
     proactives = [m for m in msgs if m["proactive"]]
     n_pro = len(proactives)
 
-    # --- M1 / M2: unión de cada mensaje proactivo con SU intent fired -------
+    # M1 / M2: join each proactive message with its fired intent.
     n_grounded = 0
     n_invalid = 0
     grounding_detail = []
@@ -2113,10 +2003,8 @@ def compute_structural_metrics(store: SQLiteStore, records: dict, condition: str
                 if intent.valid_until_t_h >= float(m["t_h"]) - 1e-9:
                     src = store.resolve_intent_source(intent)
                     if src is not None:
-                        # Clamp TOCTOU (mismo que la auditoría, 453dfcb): el
-                        # estado FINAL del run es anacrónico — un skip escrito
-                        # en el cierre del día DESPUÉS del disparo no invalida
-                        # la fuente al momento del mensaje.
+                        # TOCTOU clamp: a day-close skip written after the firing does not
+                        # invalidate the source at message time.
                         superseded = _source_superseded_at(store, src, intent)
                         if not superseded and compose_hook(src, intent.reason) == intent.hook:
                             ok = True
@@ -2131,12 +2019,12 @@ def compute_structural_metrics(store: SQLiteStore, records: dict, condition: str
     m1 = n_grounded / n_pro if n_pro else 0.0
     m2 = n_invalid / n_pro if n_pro else 0.0
 
-    # --- M3 / M4: recuerdo de sondas (lane de la condición, B6/F5) -----------
+    # M3 / M4: probe recall (condition lane).
     recall = recall_probe_metrics(store, condition=condition)
     m3 = recall["M3_recall"]
     m4 = recall["M4_false_recall"]
 
-    # --- M5: continuidad de arcos de vida -----------------------------------
+    # M5: life-arc continuity.
     arc_seq: dict[str, list[tuple[int, float, str]]] = {}
     for day_str in records["arc_progress_by_day"]:
         day = int(day_str)
@@ -2159,7 +2047,7 @@ def compute_structural_metrics(store: SQLiteStore, records: dict, condition: str
             arcs_alive += 1
     m5 = arcs_ok / arcs_total if arcs_total else 0.0
 
-    # --- M6: diversidad / recurrencia de agenda -----------------------------
+    # M6: agenda diversity / recurrence.
     agenda_by_day: dict[int, set[str]] = {}
     for it in store.list_agenda_items():
         agenda_by_day.setdefault(int(it.start_t_h // 24.0), set()).add(it.activity)
@@ -2183,10 +2071,10 @@ def compute_structural_metrics(store: SQLiteStore, records: dict, condition: str
     m6c = float(np.mean(list(arc_contrib.values()))) if arc_contrib else 0.0
     m6c_min = min(arc_contrib.values()) if arc_contrib else 0
 
-    # --- M7: pérdida por reinicio -------------------------------------------
+    # M7: restart loss.
     m7 = sum(rl["diffs"] for rl in records["restart_loss"])
 
-    # --- M8: actuación (estado -> observable) -------------------------------
+    # M8: actuation (state -> observable).
     daily: dict[int, list[dict]] = {}
     for mid_str, c in records["controls_by_message"].items():
         mid = int(mid_str)
@@ -2220,7 +2108,7 @@ def compute_structural_metrics(store: SQLiteStore, records: dict, condition: str
     m8b = abs(float(np.mean(hi)) - float(np.mean(lo))) if hi and lo else 0.0
     m8c = _spearman(energies, delays)
 
-    # --- M9 / M10: proactividad vs feedback / iniciativa --------------------
+    # M9 / M10: proactivity vs feedback / initiative.
     counts = [sum(1 for m in msgs if m["proactive"] and m["day"] == d)
               for d in range(days)]
     scores = []
@@ -2238,7 +2126,7 @@ def compute_structural_metrics(store: SQLiteStore, records: dict, condition: str
     ]
     m10 = _spearman(init_series, counts)
 
-    # --- M11: fugas de estado -----------------------------------------------
+    # M11: state leaks.
     leaks = _cycle_leak_hits(store)
     m11 = leaks["total"]
 
@@ -2332,7 +2220,7 @@ def compute_state_metrics(store: SQLiteStore, records: dict, days: int) -> dict:
     counts = [sum(1 for m in msgs if m["proactive"] and m["day"] == d)
               for d in range(days)]
 
-    # Puntuación previa por día (M9 usa counts[1:] vs scores de días 0..n-2)
+    # Previous-day score (M9 uses counts[1:] vs scores of days 0..n-2).
     prev_scores = [
         float(series[d]["score"]) if series.get(d) and series[d].get("score") is not None else 0.0
         for d in range(days)
@@ -2486,9 +2374,7 @@ def compute_perturbation_metrics(store: SQLiteStore, records: dict,
     }
 
 
-# --------------------------------------------------------------------------- #
 # Transcript + replay
-# --------------------------------------------------------------------------- #
 
 
 def render_transcript(store: SQLiteStore, *, persona_name: str = "Nova") -> str:
@@ -2544,12 +2430,7 @@ def run_replay(seed: int, days: int, run_dir: Path, out_dir: Path) -> dict:
     orig_schedule = [dict(r) for r in orig_store.schedule_events_for_seed(seed)]
     orig_store.close()
 
-    # El replay debe re-correr la célula con los parámetros EXACTOS del run
-    # grabado: los checkpoints de reinicio cambian qué intents disparan en
-    # las fronteras de segmento, así que re-correr con los defaults
-    # rompería la igualdad byte-a-byte (confounder de replay). Se leen de
-    # records_<condition>_seed<seed>.json (invariante 19: todo reconstruible
-    # desde el manifest/registros inmutables del run).
+    # Re-run with the recorded run's exact parameters, read from its records JSON.
     rec_paths = sorted(Path(run_dir).glob(f"records_*_seed{seed}.json"))
     rec: dict | None = None
     if rec_paths:
@@ -2559,15 +2440,12 @@ def run_replay(seed: int, days: int, run_dir: Path, out_dir: Path) -> dict:
             rec = None
     condition = str(rec["condition"]) if rec and rec.get("condition") else "FULL"
     days = int(rec["days"]) if rec and rec.get("days") is not None else days
-    # records["checkpoints"] se persiste en HORAS (checkpoint_ends = d*24.0);
-    # run_cell los recibe en DÍAS — reconvertir o el replay re-corre sin
-    # reinicios (un checkpoint=48h mal leído como 48 días se descarta y el
-    # run pierde la frontera de reinicio: confounder de replay).
+    # records["checkpoints"] is stored in hours; convert back to days for run_cell.
     checkpoints = (tuple(int(c // 24.0) for c in rec["checkpoints"]) if rec
                    and rec.get("checkpoints") is not None
                    else DEFAULT_CHECKPOINT_DAYS)
     perturb = bool(rec["perturb"]) if rec and rec.get("perturb") is not None else True
-    # "structured_memory" es el marcador del default (memory_policy=None).
+    # "structured_memory" is the marker for the default (memory_policy=None).
     mp = rec.get("memory_policy") if rec else None
     memory_policy = None if mp in (None, "structured_memory") else mp
 
@@ -2616,9 +2494,7 @@ def run_replay(seed: int, days: int, run_dir: Path, out_dir: Path) -> dict:
     return audit
 
 
-# --------------------------------------------------------------------------- #
-# Utilidades de judge (ciego, barajado, 4 dimensiones)
-# --------------------------------------------------------------------------- #
+# Judge utilities (blind, shuffled, 4 dimensions)
 
 
 def shuffled_order(rng: np.random.Generator,

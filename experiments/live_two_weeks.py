@@ -45,9 +45,7 @@ from typing import Sequence
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-# ---------------------------------------------------------------------------
-# Guion del usuario — estilo Ars (derivado del análisis de chats reales)
-# ---------------------------------------------------------------------------
+# User script — Ars-style (derived from real chat analysis)
 
 #: Horas locales (reales) de apertura típicas: tarde-noche, pico 18-21h.
 OPENING_HOURS = (17.0, 21.0)
@@ -71,16 +69,16 @@ FOLLOW_UPS = [
     "Okay and? What else?",
 ]
 
-CUT_LINES = [  # corte a mitad de conversación (abandono de tema)
+CUT_LINES = [  # mid-conversation cut (topic abandonment)
     "Anyway. Gotta go, talk later!",
     "Ok I need to run, bfn!",
     "Later! Something came up.",
 ]
 
-#: Días (1-indexados) en que NO abre conversación (silencio de un día).
+# Days (1-indexed) with no conversation (a day of silence).
 SILENT_DAYS = {3, 9}
 
-#: Días (1-indexados) con doble apertura (mañana breve + noche).
+# Days (1-indexed) with two openings (brief morning + night).
 DOUBLE_DAYS = {6}
 
 
@@ -106,8 +104,7 @@ def user_plan(seed: int, days: int) -> list[dict]:
             [_opening_hour(rng)]
         )
         if day in DOUBLE_DAYS:
-            # mañana breve + apertura nocturna (como Ars: saludo de mañana,
-            # respuesta corta, y de nuevo por la noche)
+            # brief morning greeting plus an evening opening
             hours_today = [rng.uniform(8.5, 10.0), _opening_hour(rng)]
         for hour in hours_today:
             events.append({
@@ -119,9 +116,8 @@ def user_plan(seed: int, days: int) -> list[dict]:
     return sorted(events, key=lambda e: e["t_h"])
 
 
-# ---------------------------------------------------------------------------
 # Driver
-# ---------------------------------------------------------------------------
+#
 
 
 def _fmt(t_h: float) -> str:
@@ -148,7 +144,7 @@ async def amain(argv: Sequence[str] | None = None) -> int:
                         help="timeout por generación (thinking models tardan)")
     args = parser.parse_args(list(argv) if argv is not None else None)
 
-    # imports pesados después de parsear (arranque rápido)
+    # heavy imports after arg parsing (fast startup)
     from engine.types import MoodVariant, PersonaParams, TimingParams
     from harness.bootstrap import ensure_companion_initialized
     from harness.channels.base import InboundMessage
@@ -159,7 +155,7 @@ async def amain(argv: Sequence[str] | None = None) -> int:
     from harness.scheduler import ProactiveSchedule, day_scores
     from harness.session import Session
     from harness.store import SQLiteStore
-    from sim.run_async import CommandBridgeChannel  # noqa: F401 (paridad CLI)
+    from sim.run_async import CommandBridgeChannel  # noqa: F401 (CLI parity)
 
     from experiments.cvs_common import (
         BLOCK_END_D,
@@ -194,8 +190,7 @@ async def amain(argv: Sequence[str] | None = None) -> int:
     timing = TimingParams()
     variant = MoodVariant.DECOUPLED_OFFSETS
     clock = VirtualClock(0.0)
-    # ox-alpha vía OpenRouter: clave/base explícitas del entorno (los args
-    # explícitos siempre ganan sobre el resolver de lanes).
+    # ox-alpha via OpenRouter: explicit env key/base; explicit args win.
     import os as _os
     _key = _os.environ.get("OPENROUTER_API_KEY")
     if not _key:
@@ -266,8 +261,7 @@ async def amain(argv: Sequence[str] | None = None) -> int:
     plan = user_plan(seed, args.days)
     t0 = time.time()
     task = asyncio.create_task(rt.run())
-    # espera a que el runtime registre el handler (channel.start) — el
-    # executor arranca dentro de run(); alimentar antes es una carrera.
+    # Wait for the runtime to register the channel handler before feeding.
     for _ in range(200):
         if task.done():
             exc = task.exception()
@@ -286,12 +280,8 @@ async def amain(argv: Sequence[str] | None = None) -> int:
           flush=True)
     for ev in plan:
         t_h = ev["t_h"]
-        # ritmo por TIEMPO REAL proporcional (t_h * escala): el reloj virtual
-        # avanza a SALTOS dentro del runtime (duerme hasta su próximo target),
-        # nunca en línea recta — sincronizar con el reloj se queda corto y el
-        # runtime llega al final antes del primer feed. Los inbound son
-        # concurrent-safe (_session_call toma el lock del runtime); el orden
-        # de t_h lo garantiza este bucle secuencial.
+        # Feed pacing uses real proportional time (t_h * scale); the runtime
+        # clock jumps ahead, so this loop owns t_h ordering.
         target_wall = t_h * scale.seconds_per_virtual_hour
         while True:
             if task.done():
@@ -304,7 +294,7 @@ async def amain(argv: Sequence[str] | None = None) -> int:
                 break
             await asyncio.sleep(min(remaining, 5.0))
         if task.done():
-            break  # el run terminó: no alimentar un runtime apagado
+            break  # run ended: do not feed a stopped runtime
         if task.done():
             exc = task.exception()
             print(f"[live] runtime ended before feed at {time.time() - t0:.1f}s "
@@ -318,7 +308,7 @@ async def amain(argv: Sequence[str] | None = None) -> int:
                       flush=True)
                 break
             raise
-        # follow-up tras la réplica (una sola vez por apertura)
+        # one follow-up per opening, after the companion reply
         if ev["kind"] == "open" and not task.done():
             fu = random.Random(f"fu-{seed}-{ev['day']}").choice(FOLLOW_UPS)
             await asyncio.sleep(min(2.0 * scale.seconds_per_virtual_hour, 20.0))

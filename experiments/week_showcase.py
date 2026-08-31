@@ -70,7 +70,7 @@ def main() -> None:
     M = np.array([float(s[1]) for s in state])
     phase = [s[2] for s in state]
 
-    # smoothed expectation (7-day centred moving average)
+    # 7-day centred moving average (smoothed expectation)
     kernel = np.ones(7) / 7.0
     expected = np.convolve(np.pad(M, (3, 3), mode="edge"), kernel, mode="valid")
 
@@ -87,7 +87,7 @@ def main() -> None:
         fontsize=13,
     )
 
-    # ---- P1: mood -------------------------------------------------------
+    # P1: mood
     ax = axes[0][0]
     for i, ph in enumerate(phase):
         ax.axvspan(i - 0.5, i + 0.5, color=PHASE_COLORS.get(ph, "#eee"), alpha=0.55, zorder=0)
@@ -103,7 +103,7 @@ def main() -> None:
     ax.legend(fontsize=8, loc="lower right")
     ax.spines[["top", "right"]].set_visible(False)
 
-    # ---- P2: proactive per day ------------------------------------------
+    # P2: proactive per day
     ax = axes[0][1]
     counts = np.array([per_day.get(int(d), 0) for d in days30])
     ax.bar(days30, counts,
@@ -117,7 +117,7 @@ def main() -> None:
     ax.set_xticklabels([str(d + 1) for d in days30[::4]], fontsize=8)
     ax.spines[["top", "right"]].set_visible(False)
 
-    # ---- P3: decision reason × fire-hour × mood --------------------------
+    # P3: decision reason x fire-hour x mood
     ax = axes[1][0]
     mood_at = {int(s[0]): float(s[1]) for s in state}
     seen = set()
@@ -147,7 +147,7 @@ def main() -> None:
     ax.legend(fontsize=8, loc="upper left")
     ax.spines[["top", "right"]].set_visible(False)
 
-    # ---- P4: heatmap hour × day-of-sim-week ------------------------------
+    # P4: heatmap hour x day-of-sim-week
     ax = axes[1][1]
     grid = np.zeros((5, 24))  # 5 "weeks" of the 30-day run
     for day, t_h, role, pro in rep["msgs"]:

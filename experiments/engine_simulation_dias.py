@@ -38,25 +38,23 @@ from engine.mood import logit, sigmoid
 from engine.types import MoodVariant, PersonaParams, SimResult
 from sim.run_daily import run
 
-# ---------------------------------------------------------------------------
-# Constantes del experimento
+# Experiment constants
 
 DAYS = 30
 SEED_SINGLE = 3001
-SEEDS_AVG = tuple(range(4001, 4031))  # 30 semillas
+SEEDS_AVG = tuple(range(4001, 4031))  # 30 seeds.
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
 OUT_DIR = Path(__file__).resolve().parent.parent / "engine_simulation"
 
 _BASE_PERSONA = PersonaParams()
-_LAM_LOGIT = logit(_BASE_PERSONA.lam)  # logit(0.6)
+_LAM_LOGIT = logit(_BASE_PERSONA.lam)  # logit(0.6).
 
-# mu_inf teorico = k*(s - score_neutral)/(1-rho); con k=0.15, rho=0.70,
-# score_neutral=0.0, s=+-1.0 => +-0.5
+# Theoretical mu_inf = k*(s - score_neutral)/(1-rho) = +-0.5 with the defaults.
 MU_INF_BUENOS = _BASE_PERSONA.k * (1.0 - _BASE_PERSONA.score_neutral) / (1.0 - _BASE_PERSONA.rho)
 MU_INF_MALOS = _BASE_PERSONA.k * (-1.0 - _BASE_PERSONA.score_neutral) / (1.0 - _BASE_PERSONA.rho)
 
 REGIMES: tuple[tuple[str, str, float | None, str], ...] = (
-    # (key, label, shock_value_or_None, color)
+    # Tuple fields: (key, label, shock_value_or_None, color).
     ("buenos", "siempre buenos (shock=+1.0)", 1.0, "green"),
     ("baseline", "baseline (score endógeno)", None, "C0"),
     ("malos", "siempre malos (shock=-1.0)", -1.0, "red"),
@@ -81,8 +79,7 @@ def theoretical_curve(mu_inf: float, t: np.ndarray, N: int) -> np.ndarray:
     return N * p
 
 
-# ---------------------------------------------------------------------------
-# Figura 13 — una vida (semilla 3001)
+# Figure 13: one run (seed 3001).
 
 
 def plot_una_vida() -> Path:
@@ -140,8 +137,7 @@ def plot_una_vida() -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# Figura 14 — 30 semillas, un solo eje
+# Figure 14: 30 seeds, one axis.
 
 
 def collect_stats(shock_value: float | None) -> dict[str, np.ndarray]:
@@ -216,8 +212,7 @@ def plot_promedio() -> tuple[Path, dict[str, dict]]:
     return png_path, stats_by_regime
 
 
-# ---------------------------------------------------------------------------
-# README.md — anade filas a la seccion existente "## Lecturas adicionales"
+# README.md: add rows to the existing "## Lecturas adicionales" section.
 
 
 def append_readme_lines() -> Path:
@@ -265,8 +260,7 @@ def append_readme_lines() -> Path:
     return readme_path
 
 
-# ---------------------------------------------------------------------------
-# Orquestacion
+# Orchestration
 
 
 def main() -> int:

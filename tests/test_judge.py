@@ -29,8 +29,8 @@ def test_parse_garbage_returns_zero():
 
 
 def test_parse_valid_json_non_object_shapes():
-    # Review finding #2: json.loads succeeds but the payload is not a dict.
-    # Lenient semantics: extract the first number, clip it; never crash.
+    # json.loads succeeds but the payload is not a dict.
+    # The first number is extracted and clipped.
     assert _parse_score('"0.5"').score == 0.5
     assert _parse_score("[1, 2]").score == 1.0  # first number, clipped
     assert _parse_score("42").score == 1.0  # bare number, clipped to range
@@ -54,8 +54,7 @@ def test_judge_day_calls_client_json_mode():
 
 
 def test_rubric_anchors_on_user_treatment():
-    # Calibration v2 regression guard (2026-08-08 live-run finding): the
-    # score must measure the USER's behavior, never reward companion grace
+    # The score measures the user's behavior, not companion grace
     # under a cold user.
     assert "how the USER treated" in RUBRIC
     assert "does NOT raise the score" in RUBRIC
@@ -63,7 +62,7 @@ def test_rubric_anchors_on_user_treatment():
 
 
 def test_judge_day_honors_client_capability():
-    # A client that does not support json_mode must not receive the flag.
+    # A client without json_mode support does not receive the flag.
     client = FakeClient(responses=['{"score": -0.2, "justification": "meh"}'])
     client.supports_json = False
     result = judge_day("user: hi", client)
@@ -79,9 +78,7 @@ def test_scripted_judge():
     assert clipped.score == 1.0
 
 
-# --------------------------------------------------------------------------- #
-# it3 B9 — judge protocol v2: CLI plumbing + legacy severity model
-# --------------------------------------------------------------------------- #
+# judge protocol v2: CLI plumbing and legacy severity model
 
 
 def _judge_corpus(tmp_path):
@@ -146,4 +143,3 @@ def test_legacy_report_severity_model_removes_family_offset(tmp_path):
     m0 = sm["adjusted_pooled_means"]["flash"]["persona_enactment"]
     m1 = sm["adjusted_pooled_means"]["luna"]["persona_enactment"]
     assert abs(m0 - m1) < 1e-9
-

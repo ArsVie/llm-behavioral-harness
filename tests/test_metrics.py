@@ -142,7 +142,7 @@ class TestReversionDays:
         n = 20
         mu = np.zeros(n)
         for t in range(t_shock, n):
-            mu[t] = 1.0 + 0.1 * (t - t_shock)  # crece sin parar, nunca cae
+            mu[t] = 1.0 + 0.1 * (t - t_shock)  # grows without bound
 
         result = reversion_days(mu, t_shock=t_shock, baseline=0.0)
         assert math.isinf(result)
@@ -150,8 +150,7 @@ class TestReversionDays:
     def test_peak_at_shock_immediate_full_reversion(self):
         """Si el pico ocurre justo en t_shock y el siguiente valor ya cae
         bajo el umbral, t-t_peak debe ser el primer entero que cumple."""
-        # dev: [5, 5, 1] a partir de t_shock=0 -> pico en t=0 (primer max),
-        # umbral = 5/e ~= 1.839; dev[1]=5 no cumple, dev[2]=1 <= 1.839 cumple.
+        # dev: [5, 5, 1] from t_shock=0: peak at t=0, threshold 5/e ~= 1.839.
         mu = np.array([5.0, 5.0, 1.0])
         result = reversion_days(mu, t_shock=0, baseline=0.0)
         assert result == pytest.approx(2.0)
@@ -162,7 +161,7 @@ class TestDailyRate:
 
     def test_trivial_case(self):
         """10 eventos en 5 dias -> 2.0 eventos/dia."""
-        times_h = np.arange(10) * 12.0  # espaciados, contenido irrelevante
+        times_h = np.arange(10) * 12.0  # evenly spaced
         assert daily_rate(times_h, horizon_days=5.0) == pytest.approx(2.0)
 
     def test_zero_events(self):
@@ -240,7 +239,7 @@ class TestHourlyHistogram:
 
     def test_custom_bins_count(self):
         """bins=4 agrupa el dia en cuartos de 6h; shape debe respetarlo."""
-        times_h = np.array([1.0, 7.0, 13.0, 19.0])  # uno por cuarto
+        times_h = np.array([1.0, 7.0, 13.0, 19.0])  # one per quarter
         hist = hourly_histogram(times_h, bins=4)
         assert hist.shape == (4,)
         np.testing.assert_array_equal(hist, np.array([1, 1, 1, 1]))
@@ -280,10 +279,7 @@ class TestEnvelopeViolations:
         assert count == 0
 
 
-# --------------------------------------------------------------------------- #
-# B6 — lane routing + fair probes (closes F5): pure-logic units
-# (store-backed integration tests live in tests/test_cvs_common.py)
-# --------------------------------------------------------------------------- #
+# B6: lane routing + fair probes (pure-logic units)
 
 
 class TestTokensCovered:

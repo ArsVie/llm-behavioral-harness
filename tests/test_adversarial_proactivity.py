@@ -110,9 +110,7 @@ def _run(store, session, schedule, channel, *, max_hours, resolver=None):
     return runtime
 
 
-# --------------------------------------------------------------------------- #
-# P1-a: ContactOpportunity has no semantic reason (invariant 3)
-# --------------------------------------------------------------------------- #
+# ContactOpportunity has no semantic reason field
 
 
 def test_p1_contact_opportunity_has_no_semantic_reason_field():
@@ -129,15 +127,13 @@ def test_p1_contact_opportunity_has_no_semantic_reason_field():
         previous_score=None, initiative=0.5,
     )
     assert not hasattr(opp, "reason")
-    # the hazard vocabulary is timing mechanics only — never a reason label
+    # The hazard vocabulary is timing mechanics only.
     assert set(opp.hazard_components) <= {
         "base", "circadian", "phase", "initiative", "prior_score",
     }
 
 
-# --------------------------------------------------------------------------- #
-# P1-b: intent ⇒ source (invariant 4) for every reason type
-# --------------------------------------------------------------------------- #
+# Intent implies a real source for every reason type
 
 
 def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
@@ -153,7 +149,7 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
     """
     from harness.bootstrap import ensure_companion_initialized
 
-    # -- schedule: a planned agenda item around now -------------------------
+    # Schedule: a planned agenda item around now.
     s1 = _store(tmp_path, "p1b_sched.db")
     try:
         item = _ground_agenda(s1, 9.5, 10.5, item_id="slot_sched",
@@ -165,7 +161,7 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
     finally:
         s1.close()
 
-    # -- event: a completed agenda item within 48h --------------------------
+    # Event: a completed agenda item within 48h.
     s2 = _store(tmp_path, "p1b_event.db")
     try:
         done = _ground_agenda(s2, 4.0, 5.0, item_id="slot_done", salience=0.9,
@@ -178,7 +174,7 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
     finally:
         s2.close()
 
-    # -- callback: a CALLBACK episode, resolved outside check-in windows ----
+    # Callback: a CALLBACK episode, resolved outside check-in windows.
     s3 = _store(tmp_path, "p1b_cb.db")
     try:
         s3.insert_episode(EpisodicMemory(
@@ -186,13 +182,13 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
             MemoryKind.CALLBACK, 9.0, 9.1, 0.8, 0, None, None,
             "day-0", (1,), ("remind me to water the plants",), ("plants",),
         ))
-        intent = IntentResolver(s3).resolve(14.0)  # 14:00 — no check-in window
+        intent = IntentResolver(s3).resolve(14.0)  # 14:00, no check-in window
         assert intent is not None and intent.reason == REASON_CALLBACK
         assert s3.resolve_intent_source(intent) is not None
     finally:
         s3.close()
 
-    # -- shared_interest: episode tagged with a persona interest ------------
+    # Shared interest: an episode tagged with a persona interest.
     s4 = _store(tmp_path, "p1b_si.db")
     try:
         ensure_companion_initialized(
@@ -209,7 +205,7 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
     finally:
         s4.close()
 
-    # -- check_in: episodes + a >12h silence gap, inside the 08-11 window ----
+    # Check-in: episodes plus a >12h silence gap, inside the 08-11 window.
     s5 = _store(tmp_path, "p1b_ci.db")
     try:
         s5.insert_episode(EpisodicMemory(
@@ -222,14 +218,12 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
         assert intent is not None and intent.reason == REASON_CHECK_IN
         assert intent.source_type == "check_in"
         assert s5.resolve_intent_source(intent) is not None
-        assert "gap_h" in intent.evidence  # grounded in the silence gap
+        assert "gap_h" in intent.evidence  # evidence is the silence gap
     finally:
         s5.close()
 
 
-# --------------------------------------------------------------------------- #
-# P1-c / P1-d: expired/unknown intent id ⇒ ValueError, no message
-# --------------------------------------------------------------------------- #
+# Unknown and expired intent ids raise ValueError
 
 
 def test_p1c_unknown_intent_id_raises_value_error_no_message(tmp_path):
@@ -266,7 +260,7 @@ def test_p1d_expired_intent_id_raises_value_error_no_message(tmp_path):
     item = _ground_agenda(store, 9.5, 10.5, item_id="expired_slot")
     intent = _stored_intent(item, "expired-1", t_h=9.9)
     store.save_proactive_intent(intent)
-    # fire at 20:00 — 10h after creation, validity 3h → expired
+    # Fire at 20:00, 10h after creation; validity is 3h.
     session = _session(store, clock=VirtualClock(t_h=20.0))
     try:
         assert content_gate(intent, store, now_h=20.0).code == "expired"
@@ -275,15 +269,13 @@ def test_p1d_expired_intent_id_raises_value_error_no_message(tmp_path):
             session.fire_proactive("expired-1")
         assert len(store.recent_messages()) == before
         assert session.client.calls == []
-        # the intent row is untouched (never fired)
+        # The intent row is untouched.
         assert store.load_proactive_intent("expired-1") is not None
     finally:
         store.close()
 
 
-# --------------------------------------------------------------------------- #
-# P1-e: exact-id isolation — two same-reason intents are never interchangeable
-# --------------------------------------------------------------------------- #
+# Exact-id isolation between same-reason intents
 
 
 def test_p1e_exact_id_isolation_between_same_reason_siblings(tmp_path):
@@ -303,11 +295,11 @@ def test_p1e_exact_id_isolation_between_same_reason_siblings(tmp_path):
         assert store.load_proactive_intent("87") == i87
         assert store.load_proactive_intent("88") == i88
         assert i87.reason == i88.reason == REASON_SCHEDULE
-        # firing #87 updates ONLY #87
+        # Firing #87 updates only #87.
         store.update_proactive_intent_status("87", "fired")
         assert {i.id for i in store.list_proactive_intents(status="fired")} == {"87"}
         assert store.load_proactive_intent("88") == i88, "sibling row mutated"
-        # superseding/expiring #88 leaves #87's lifecycle alone
+        # Superseding #88 leaves #87's lifecycle alone.
         store.update_proactive_intent_status("88", "suppressed")
         assert {i.id for i in store.list_proactive_intents(status="fired")} == {"87"}
         assert {i.id for i in store.list_proactive_intents(status="suppressed")} == {"88"}
@@ -340,10 +332,9 @@ def test_p1g_session_fires_exact_id_not_reason_sibling(tmp_path):
             f"message carries {last['intent_id']!r}, expected the exact id '87'"
         )
         assert last["proactive"] == 1
-        # the sibling's lifecycle is untouched: still the stored intent,
-        # never fired
+        # The sibling's lifecycle is untouched.
         assert "88" not in {i.id for i in store.list_proactive_intents(status="fired")}
-        # the prompt renders #87's hook — the exact validated intent
+        # The prompt renders #87's hook.
         system = session.client.calls[-1]["system"]
         assert "Agenda: pottery class" in system
         assert "Agenda: gym session" not in system
@@ -351,9 +342,7 @@ def test_p1g_session_fires_exact_id_not_reason_sibling(tmp_path):
         store.close()
 
 
-# --------------------------------------------------------------------------- #
-# P1-f: opportunity without intent ⇒ no message (invariant 5)
-# --------------------------------------------------------------------------- #
+# An opportunity without an intent produces no message
 
 
 def test_p1f_opportunity_without_intent_no_message(tmp_path):
@@ -381,4 +370,3 @@ def test_p1f_opportunity_without_intent_no_message(tmp_path):
     assert "no_grounded_reason" in suppressed
     rows = {abs(float(r["t_h"])): r for r in store.schedule_events_for_seed(SEED)}
     assert rows[h]["status"] == "fired", "suppressed opportunity row stranded"
-    # no error escaped the run: suppression is the designed outcome

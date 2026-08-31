@@ -44,11 +44,10 @@ from engine.mood import logit, sigmoid
 from engine.types import MoodVariant, PersonaParams, SimResult
 from sim.run_daily import run
 
-# ---------------------------------------------------------------------------
-# Constantes del experimento
+# Experiment constants
 
 DAYS = 30
-SEEDS = tuple(range(4001, 4031))  # 30 semillas
+SEEDS = tuple(range(4001, 4031))  # 30 seeds.
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
 OUT_DIR = Path(__file__).resolve().parent.parent / "engine_simulation"
 
@@ -56,7 +55,7 @@ _BASE_PERSONA = PersonaParams()
 
 B_SWEEP = (0.15, 0.30, 0.50, 0.65)
 
-_LAM_LOGIT = logit(_BASE_PERSONA.lam)  # logit(0.6)
+_LAM_LOGIT = logit(_BASE_PERSONA.lam)  # logit(0.6).
 
 
 def build_persona(b_val: float) -> PersonaParams:
@@ -107,8 +106,7 @@ def collect_stats_for_b(b_val: float) -> dict[str, np.ndarray]:
     }
 
 
-# ---------------------------------------------------------------------------
-# Figura — 12_barrido_B_30seeds.png
+# Figure: 12_barrido_B_30seeds.png.
 
 
 def plot_barrido_b_30seeds() -> tuple[Path, dict[float, dict[str, float]]]:
@@ -181,8 +179,7 @@ def plot_barrido_b_30seeds() -> tuple[Path, dict[float, dict[str, float]]]:
     return png_path, summary
 
 
-# ---------------------------------------------------------------------------
-# README.md — anade una linea a la seccion existente "## Lecturas adicionales"
+# README.md: add one line to the existing "## Lecturas adicionales" section
 
 
 def append_readme_line() -> Path:
@@ -204,12 +201,10 @@ def append_readme_line() -> Path:
     )
 
     if marker in existing:
-        # Insertar la nueva fila justo despues de la ultima fila de la tabla
-        # existente (antes de la siguiente linea en blanco / seccion "###").
+        # Insert the new row after the last table row, before the next blank line.
         idx_section = existing.index(marker)
         idx_after = existing.index("### Regenerar", idx_section)
-        # Buscar el final del bloque de tabla: retroceder desde idx_after
-        # hasta la ultima linea no vacia antes de esa seccion.
+        # Find the end of the table block by stepping back from idx_after.
         before = existing[:idx_after]
         after = existing[idx_after:]
         before = before.rstrip("\n") + "\n" + new_line + "\n"
@@ -230,8 +225,7 @@ def append_readme_line() -> Path:
     return readme_path
 
 
-# ---------------------------------------------------------------------------
-# Orquestacion
+# Orchestration
 
 
 def main() -> int:

@@ -88,8 +88,6 @@ def _agenda_signature(store, day: int):
 
 
 # --------------------------------------------------------------------------- #
-# L-1 / L-2: immortal vs everything-completing
-# --------------------------------------------------------------------------- #
 
 
 def test_l1_no_immortal_unfinished_activity(tmp_path):
@@ -105,8 +103,7 @@ def test_l1_no_immortal_unfinished_activity(tmp_path):
     for a in arcs:
         assert a.next_intention, f"arc {a.id} lost its next_intention"
         assert 0.0 <= a.progress <= 1.0
-    # either something completed or something is still advancing — the run is
-    # not a frozen snapshot
+    # Either something completed or something is still advancing.
     assert any(a.status in ("completed", "abandoned") for a in arcs) or any(
         a.status == "active" for a in arcs
     )
@@ -129,7 +126,7 @@ def test_l2_completed_arcs_excluded_from_agenda(tmp_path):
         session.ensure_day(d)
         for arc in store.list_life_arcs():
             if arc.status == "completed" and arc.id not in completion_day:
-                completion_day[arc.id] = d  # visible after step of day d-1
+                completion_day[arc.id] = d  # visible after the step of day d-1
     session.clock.advance_to_day(61)
     session.ensure_day(61)
     bad = []
@@ -145,8 +142,6 @@ def test_l2_completed_arcs_excluded_from_agenda(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# L-3: identical schedules
 # --------------------------------------------------------------------------- #
 
 
@@ -181,8 +176,6 @@ def test_l3b_second_seed_different_trajectory(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# L-4: impossible overlaps
-# --------------------------------------------------------------------------- #
 
 
 def test_l4_overlapping_items_still_single_current_activity(tmp_path):
@@ -203,10 +196,10 @@ def test_l4_overlapping_items_still_single_current_activity(tmp_path):
         AgendaItem("run", 3 * 24.0 + 15.0, 3 * 24.0 + 17.0, "evening run",
                    "interest", "outdoors", 0.4, "planned"),
     )))
-    # resolution path used by the session snapshot
+    # This is the resolution path used by the session snapshot.
     ca = session._current_activity(3, t_h)
     assert isinstance(ca, CurrentActivity) and ca.item is not None
-    # the life lane's own resolution is single-valued too
+    # The life lane's own resolution is single-valued too.
     agenda3 = store.load_agenda(3)
     assert agenda3 is not None
     rng = stream_rng(SEED, 4, 3)
@@ -215,7 +208,7 @@ def test_l4_overlapping_items_still_single_current_activity(tmp_path):
     assert not (isinstance(result.current_activity, list)
                 and len(result.current_activity) > 1)
 
-    # 60-day sweep: every day's step_life yields exactly one activity
+    # In the 60-day sweep, each day's step_life yields one activity.
     store2 = _run_60(tmp_path, "l4b.db")
     profile2 = _profile(SEED)
     for d in range(0, 61):
@@ -230,8 +223,6 @@ def test_l4_overlapping_items_still_single_current_activity(tmp_path):
     store2.close()
 
 
-# --------------------------------------------------------------------------- #
-# L-5: dead arcs never cleaned
 # --------------------------------------------------------------------------- #
 
 
@@ -251,7 +242,7 @@ def test_l5_dead_arcs_stop_generating_and_never_reactivate(tmp_path):
         session.ensure_day(d)
         for arc in store.list_life_arcs():
             if arc.status == "abandoned" and arc.id not in abandon_day:
-                abandon_day[arc.id] = d  # day the arc's abandonment was stepped
+                abandon_day[arc.id] = d  # the day the arc's abandonment was stepped
     session.clock.advance_to_day(61)
     session.ensure_day(61)
 
@@ -266,7 +257,7 @@ def test_l5_dead_arcs_stop_generating_and_never_reactivate(tmp_path):
                     bad.append((d, it.id))
     assert not bad, f"abandoned arc still generating agenda: {bad[:5]}"
     abandoned = {a.id for a in store.list_life_arcs() if a.status == "abandoned"}
-    # restart: init_life must not resurrect dead arcs
+    # Restart: init_life does not resurrect dead arcs.
     store2 = _store(tmp_path, "l5.db")
     profile2 = _profile(SEED)
     s2 = _session(store2, profile2)
@@ -283,8 +274,6 @@ def test_l5_dead_arcs_stop_generating_and_never_reactivate(tmp_path):
     store2.close()
 
 
-# --------------------------------------------------------------------------- #
-# L-6: spontaneous non-persona interests
 # --------------------------------------------------------------------------- #
 
 
@@ -320,8 +309,6 @@ def test_l6_no_off_persona_drift(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-# L-7: life goldfish reset (arcs lost)
-# --------------------------------------------------------------------------- #
 
 
 def test_l7_arc_wipe_restart_no_silent_id_reuse(tmp_path):
@@ -335,12 +322,12 @@ def test_l7_arc_wipe_restart_no_silent_id_reuse(tmp_path):
     store.conn.execute("DELETE FROM life_arcs")
     store.conn.commit()
 
-    # restart (fresh store instance over the same file)
+    # Restart with a fresh store instance over the same file.
     store2 = _store(tmp_path, "l7.db")
     profile = _profile(SEED)
     s2 = _session(store2, profile)
     s2.clock.advance_to_day(31)
-    s2.ensure_day(31)  # must not crash
+    s2.ensure_day(31)  # no crash expected
     post = store2.list_life_arcs()
     post_ids = {a.id for a in post}
     assert not (post and post_ids == pre_ids), (
@@ -351,8 +338,6 @@ def test_l7_arc_wipe_restart_no_silent_id_reuse(tmp_path):
     store2.close()
 
 
-# --------------------------------------------------------------------------- #
-# L-8: 60-day continuity across restart
 # --------------------------------------------------------------------------- #
 
 
@@ -369,11 +354,11 @@ def test_l8_restart_reproduces_persistent_state_exactly(tmp_path):
     s1 = _session(restarted, profile)
     _run_days(s1, 30)
     s1.clock.advance_to_day(31)
-    s1.ensure_day(31)  # finalize day 30 before the kill
+    s1.ensure_day(31)  # finalize day 30 before the restart
     s1_snapshot = {(a.id, a.progress, a.status, a.next_intention)
                    for a in restarted.list_life_arcs()}
 
-    # restart at day 31
+    # Restart at day 31.
     store2 = _store(tmp_path, "l8_restart.db")
     s2 = _session(store2, profile)
     s2.clock.advance_to_day(31)
@@ -397,18 +382,13 @@ def test_l8_restart_reproduces_persistent_state_exactly(tmp_path):
     ids = [a.id for a in arcs]
     assert len(ids) == len(set(ids)), "arc id collision"
     assert all(a.started_day <= 60 for a in arcs)
-    # progress monotonic non-decreasing across the whole store history:
-    # re-derive by replaying step_life is not needed — every persisted update
-    # replaces progress with a >= value (asserted per arc against the final)
+    # Progress is monotonic non-decreasing across the store history.
     for a in arcs:
         assert 0.0 <= a.progress <= 1.0
     straight.close()
     store2.close()
 
 
-# --------------------------------------------------------------------------- #
-# L-9: Iteration-2 replenishment + arc-start + NOW-semantics attacks
-# (plan §5-A9 L9, orchestrator invariants 8-9)
 # --------------------------------------------------------------------------- #
 
 
@@ -435,7 +415,7 @@ def test_l9a_replenishment_never_reaches_active_zero(tmp_path):
                     "when nothing is active)"
                 )
                 assert all(0.0 <= a.progress <= 1.0 for a in arcs)
-            # persistence agrees with the in-memory trajectory
+            # Persistence agrees with the in-memory trajectory.
             stored = {a.id: a.status for a in store.list_life_arcs()}
             assert stored == {a.id: a.status for a in arcs}
             store.close()
@@ -453,7 +433,7 @@ def test_l9b_arc_start_time_respected_across_restart(tmp_path):
     assert future, "precondition: some arc starts in the future"
     target = max(future, key=lambda a: a.started_day)
 
-    # before its start day: NO progress, NO status change, NO agenda items
+    # Before its start day there is no progress, status change, or agenda item.
     for d in range(1, target.started_day):
         rng = stream_rng(SEED, life.LIFE_STREAM, d)
         agenda = life.generate_agenda(d, persona, arcs, store, rng)
@@ -468,7 +448,7 @@ def test_l9b_arc_start_time_respected_across_restart(tmp_path):
             it.source_id == target.id for it in agenda.items
         ), f"arc {target.id} generated agenda items before its start"
 
-    # RESTART: fresh store over the same file — arcs reloaded from the DB
+    # Restart with a fresh store over the same file; arcs reload from the DB.
     store2 = _store(tmp_path, "l9b.db")
     arcs2 = sorted(store2.list_life_arcs(), key=lambda a: a.id)
     assert [a.id for a in arcs2] == [a.id for a in arcs]
@@ -476,7 +456,7 @@ def test_l9b_arc_start_time_respected_across_restart(tmp_path):
         a.progress == b.progress for a, b in zip(arcs2, arcs)
     ), "restart lost persisted arc progress"
 
-    # continue both trajectories past the start day: restarted == uninterrupted
+    # Both trajectories continue past the start day.
     for d in range(target.started_day, target.started_day + 12):
         rng = stream_rng(SEED, life.LIFE_STREAM, d)
         agenda = life.generate_agenda(d, persona, arcs2, store2, rng)
@@ -545,11 +525,10 @@ def test_l9d_no_overlapping_current_activities():
         "overlapping slots must resolve to the single highest-salience item"
     )
     assert ca.t_h == 11.2
-    # deterministic: same instant, same answer, every call
+    # The same instant gives the same answer on every call.
     for _ in range(3):
         assert life.current_activity_now(agenda, 11.2) == ca
-    # a future plan at 14:00 is never 'current' at 11:20 — and outside every
-    # slot there is NO current activity (no phantom, no future)
+    # A future plan is not current, and outside every slot there is no activity.
     assert life.current_activity_now(agenda, 13.5) is None
     assert life.current_activity_now(agenda, 9.0) is None
     assert life.current_activity_now(agenda, 15.5) is None

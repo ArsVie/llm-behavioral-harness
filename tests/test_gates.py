@@ -41,9 +41,7 @@ def _grounded_intent(store, *, now_h=None, item=None):
     return intent
 
 
-# --------------------------------------------------------------------------- #
-# content_gate (groundedness)
-# --------------------------------------------------------------------------- #
+# ---- content_gate (groundedness) ----
 
 
 def test_content_gate_ok_when_fully_grounded():
@@ -82,7 +80,7 @@ def test_content_gate_ok_at_validity_boundary():
 def test_content_gate_no_source_when_item_deleted():
     store = _store()
     intent = _grounded_intent(store)
-    # A9 grounding attack: the agenda item is gone before firing.
+    # The agenda item is gone before firing.
     store._agenda_items.clear()
     decision = content_gate(intent, store, now_h=intent.created_t_h)
     assert decision.allowed is False
@@ -92,7 +90,7 @@ def test_content_gate_no_source_when_item_deleted():
 def test_content_gate_no_source_when_source_type_unknown():
     store = _store()
     intent = _grounded_intent(store)
-    # tamper with the source_type so the store cannot resolve it
+    # The store cannot resolve the altered source_type.
     from dataclasses import replace
     forged = replace(intent, source_type="hallucinated_source")
     decision = content_gate(forged, store, now_h=intent.created_t_h)
@@ -111,7 +109,7 @@ def test_content_gate_source_superseded_skippedagenda_item():
 
 def test_content_gate_source_superseded_abandoned_arc():
     store = _store()
-    # A LifeArc-sourced intent (the seam allows arcs as sources).
+    # A LifeArc-sourced intent.
     from dataclasses import replace
     from harness.domain import LifeArc
     from harness.proactive import compose_hook
@@ -147,7 +145,7 @@ def test_content_gate_hook_rederives_from_source():
     item = agenda_item(start=AGENDA_HOUR, end=AGENDA_HOUR + 1.0)
     intent = _grounded_intent(store, item=item)
     assert compose_hook(item, REASON_SCHEDULE) == intent.hook
-    # The gate's re-derivation is exactly the resolver's composition.
+    # The hook is re-derived from the source.
     source = store.resolve_intent_source(intent)
     assert compose_hook(source, intent.reason) == intent.hook
 
@@ -172,8 +170,7 @@ def test_content_gate_episode_sources_pass_status_checks():
 
 
 def test_content_gate_timeliness_is_separate_from_source():
-    # A9 attack: source alive but intent long past its window → expired,
-    # even though the source still exists and the hook matches.
+    # Intent long past its window is expired although the source exists.
     store = _store()
     intent = _grounded_intent(store)
     decision = content_gate(intent, store, now_h=intent.valid_until_t_h + 48.0)
@@ -181,9 +178,7 @@ def test_content_gate_timeliness_is_separate_from_source():
     assert decision.code == "expired"
 
 
-# --------------------------------------------------------------------------- #
-# context_gate (unchanged)
-# --------------------------------------------------------------------------- #
+# ---- context_gate ----
 
 
 def test_context_gate_ok_when_all_hold():
@@ -197,7 +192,7 @@ def test_context_gate_ok_when_all_hold():
 
 
 def test_envelope_sanity_default_timing():
-    # Quiet hours (23.0, 8.0) cross midnight: 2.0 is deep quiet, 14.0 is awake.
+    # Quiet hours cross midnight: 2.0 is quiet, 14.0 is awake.
     assert envelope(2.0, TIMING) == 0.0
     assert envelope(14.0, TIMING) > 1e-9
 
@@ -213,7 +208,7 @@ def test_context_gate_quiet_hours():
 
 
 def test_context_gate_quiet_hours_after_midnight_rollover():
-    # now_h=26.0 is day 1 at 02:00 local — still quiet.
+    # 26.0 is day 1 at 02:00 local, still quiet.
     store = _store()
     decision = context_gate(
         26.0, day=1, store=store, timing=TIMING, last_fired_t_h=None
@@ -225,14 +220,14 @@ def test_context_gate_quiet_hours_after_midnight_rollover():
 def test_context_gate_cooldown_via_last_fired():
     store = _store()
     min_gap_h = TIMING.min_gap_min / 60.0
-    # Just under the gap -> cooldown.
+    # Just under the gap: cooldown.
     blocked = context_gate(
         14.0, day=0, store=store, timing=TIMING,
         last_fired_t_h=14.0 - min_gap_h + 0.01,
     )
     assert blocked.allowed is False
     assert blocked.code == "cooldown"
-    # Exactly at the gap -> allowed.
+    # Exactly at the gap: allowed.
     ok = context_gate(
         14.0, day=0, store=store, timing=TIMING,
         last_fired_t_h=14.0 - min_gap_h,
@@ -275,7 +270,7 @@ def test_context_gate_daily_cap_under_limit():
 def test_context_gate_daily_cap_is_per_day():
     store = _store()
     _seed_proactives(store, day=0, n=TIMING.daily_cap)
-    # Day 1 has no proactive messages yet -> cap does not block.
+    # Day 1 has no proactive messages yet: cap does not block.
     decision = context_gate(
         14.0 + 24.0, day=1, store=store, timing=TIMING, last_fired_t_h=None
     )
@@ -297,13 +292,13 @@ def test_context_gate_first_failing_code_wins():
     store = _store()
     _seed_proactives(store, day=0, n=TIMING.daily_cap)
     min_gap_h = TIMING.min_gap_min / 60.0
-    # Quiet hours + cooldown + cap all failing -> quiet_hours reported first.
+    # All three failing: quiet_hours is reported first.
     quiet = context_gate(
         2.0, day=0, store=store, timing=TIMING,
         last_fired_t_h=2.0 - min_gap_h + 0.01,
     )
     assert quiet.code == "quiet_hours"
-    # Awake + cooldown + cap failing -> cooldown reported before daily_cap.
+    # Awake with cooldown + cap failing: cooldown is reported first.
     cooldown = context_gate(
         14.0, day=0, store=store, timing=TIMING,
         last_fired_t_h=14.0 - min_gap_h + 0.01,

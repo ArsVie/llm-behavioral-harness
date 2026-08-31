@@ -17,8 +17,7 @@ from engine.types import MoodState, MoodVariant, PersonaParams
 from engine import mood
 
 
-# ---------------------------------------------------------------------------
-# 1. nu = inf: M debe reproducir Binomial(N, p) exactamente (sin muestrear Beta)
+# 1. nu = inf: M reproduces Binomial(N, p) exactly (no Beta sampling)
 
 
 def test_step_nu_inf_matches_binomial_distribution(persona: PersonaParams) -> None:
@@ -32,7 +31,7 @@ def test_step_nu_inf_matches_binomial_distribution(persona: PersonaParams) -> No
     §5). N=10 (default) da 11 categorías; se agrupan colas con conteo
     esperado < 5 para que el chi-cuadrado sea válido.
     """
-    assert math.isinf(persona.nu)  # precondición estructural del caso especial
+    assert math.isinf(persona.nu)  # precondition for this case
 
     p_target = 0.35
     mu = mood.logit(p_target) - mood.logit(persona.lam)
@@ -45,7 +44,7 @@ def test_step_nu_inf_matches_binomial_distribution(persona: PersonaParams) -> No
         M, p, arg = mood.step(state, persona, m=0.0, g=1.0, variant=MoodVariant.DECOUPLED, rng=rng)
         samples[i] = M
 
-    # p y arg deben ser deterministas (no dependen del rng) e iguales en cada draw.
+    # p and arg are deterministic, identical on every draw.
     assert p == pytest.approx(p_target, abs=1e-9)
 
     N = persona.N
@@ -53,8 +52,7 @@ def test_step_nu_inf_matches_binomial_distribution(persona: PersonaParams) -> No
     expected_probs = stats.binom.pmf(np.arange(N + 1), N, p_target)
     expected_counts = expected_probs * n_samples
 
-    # Agrupar categorías con conteo esperado < 5 (regla estándar de chi-cuadrado)
-    # fusionándolas con la categoría vecina más cercana, empezando por las colas.
+    # Merge bins with expected count < 5 (chi-square rule), starting from the tails.
     obs = list(observed_counts)
     exp = list(expected_counts)
 
@@ -75,7 +73,7 @@ def test_step_nu_inf_matches_binomial_distribution(persona: PersonaParams) -> No
 
     obs_arr = np.asarray(obs)
     exp_arr = np.asarray(exp)
-    # Renormalizar exp_arr a la suma exacta de obs_arr (evita drift num. residual)
+    # Renormalize expected counts to the observed total.
     exp_arr = exp_arr * (obs_arr.sum() / exp_arr.sum())
 
     chi2, pvalue = stats.chisquare(f_obs=obs_arr, f_exp=exp_arr)
@@ -162,8 +160,7 @@ def test_step_finite_nu_does_call_beta(persona: PersonaParams) -> None:
     assert spy.beta_calls == 1
 
 
-# ---------------------------------------------------------------------------
-# 2. Recursión de mu bajo score constante converge a la forma cerrada
+# 2. Constant-score mu recursion converges to the closed form
 
 
 def test_update_converges_to_closed_form(persona: PersonaParams) -> None:
@@ -187,8 +184,8 @@ def test_update_converges_to_closed_form_negative_score(persona: PersonaParams) 
     """Mismo criterio que el test anterior pero con score negativo (mu_inf < 0),
     para no depender solo de la rama positiva de la recursión."""
     s = -0.5
-    persona = dataclasses.replace(persona, k=0.15, rho=0.70)  # ver test anterior
-    state = MoodState(mu=0.3, eta=-0.2)  # estado inicial arbitrario no nulo
+    persona = dataclasses.replace(persona, k=0.15, rho=0.70)  # same params as the previous test
+    state = MoodState(mu=0.3, eta=-0.2)  # arbitrary non-zero initial state
     for _ in range(60):
         state = mood.update(state, persona, score=s)
 
@@ -196,8 +193,7 @@ def test_update_converges_to_closed_form_negative_score(persona: PersonaParams) 
     assert state.mu == pytest.approx(mu_inf_expected, abs=1e-6)
 
 
-# ---------------------------------------------------------------------------
-# 3. sd estacionaria de eta ~ sigma_e / sqrt(1 - rho_e^2)
+# 3. Stationary sd of eta ~ sigma_e / sqrt(1 - rho_e^2)
 
 
 def test_step_endogenous_stationary_sd(persona: PersonaParams) -> None:
@@ -226,8 +222,7 @@ def test_step_endogenous_stationary_sd(persona: PersonaParams) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# 4. Las 3 variantes son idénticas cuando m=0 (B=0), eta=0, g=1
+# 4. The 3 variants are identical when m=0, eta=0, g=1
 
 
 @pytest.mark.parametrize(
@@ -275,8 +270,7 @@ def test_variants_same_M_with_same_rng_when_degenerate(persona: PersonaParams) -
     assert args_[0] == args_[1] == args_[2]
 
 
-# ---------------------------------------------------------------------------
-# 5. step no muta el estado; update/step_endogenous devuelven instancias nuevas
+# 5. step does not mutate state; update/step_endogenous return new instances
 
 
 def test_step_does_not_mutate_state(persona: PersonaParams) -> None:
@@ -296,12 +290,12 @@ def test_update_returns_new_instance_without_mutating_original(persona: PersonaP
 
     assert new_state is not state
     assert isinstance(new_state, MoodState)
-    # Original intacto.
+    # Original unchanged.
     assert state.mu == 0.1
     assert state.eta == 0.2
-    # eta se preserva sin cambios en update (solo toca mu).
+    # update leaves eta unchanged (touches only mu).
     assert new_state.eta == state.eta
-    # mu sí cambió (score != score_neutral ni mu fijo en el punto de equilibrio trivial)
+    # mu changed (score != score_neutral).
     assert new_state.mu != state.mu
 
 
@@ -312,16 +306,15 @@ def test_step_endogenous_returns_new_instance_without_mutating_original(persona:
 
     assert new_state is not state
     assert isinstance(new_state, MoodState)
-    # Original intacto.
+    # Original unchanged.
     assert state.mu == 0.3
     assert state.eta == 0.4
-    # mu se preserva sin cambios en step_endogenous (solo toca eta).
+    # step_endogenous leaves mu unchanged (touches only eta).
     assert new_state.mu == state.mu
     assert new_state.eta != state.eta
 
 
-# ---------------------------------------------------------------------------
-# 6. Determinismo: mismo Generator (misma semilla) => mismo M
+# 6. Determinism: same Generator (same seed) => same M
 
 
 def test_step_deterministic_with_same_seed(persona: PersonaParams) -> None:
@@ -367,9 +360,7 @@ def test_step_different_seeds_generally_differ(persona: PersonaParams) -> None:
     assert Ms_a != Ms_b
 
 
-# ---------------------------------------------------------------------------
-# Extras: logit/sigmoid (utilidades base) — no pedidos explícitamente en la
-# lista de aceptación pero triviales de cubrir y usados por todo lo demás.
+# Extras: logit/sigmoid base utilities.
 
 
 def test_sigmoid_logit_are_inverse() -> None:
@@ -378,7 +369,7 @@ def test_sigmoid_logit_are_inverse() -> None:
 
 
 def test_sigmoid_stable_for_large_magnitude() -> None:
-    # No debe producir overflow ni nan; debe saturar a 0/1 dentro de eps float.
+    # Must not overflow or produce nan; saturates to 0/1 within eps.
     assert mood.sigmoid(1000.0) == pytest.approx(1.0, abs=1e-12)
     assert mood.sigmoid(-1000.0) == pytest.approx(0.0, abs=1e-12)
     assert math.isfinite(mood.sigmoid(1000.0))

@@ -15,7 +15,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-REPO = Path("/home/vruizes/.hermes/projects/llm-behavioral-harness")
+REPO = Path(__file__).resolve().parents[1]
 DATA = REPO / "results/it3-report-data.json"
 REPORT = REPO / "results/iteration-3-report.md"
 

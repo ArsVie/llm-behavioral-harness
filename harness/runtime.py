@@ -103,14 +103,10 @@ from harness.scheduler import (
 from harness.session import Session
 from harness.store import SQLiteStore
 
-#: Poll cadence when no schedule event is pending, in VIRTUAL hours. The real
-#: sleep is POLL_INTERVAL_H * seconds_per_virtual_hour, so tests with a tiny
-#: TimeScale stay responsive (µs polls) while a real-time run polls rarely.
+#: Poll cadence with no pending schedule event, in virtual hours.
 POLL_INTERVAL_H = 0.05
 
-#: Seam S1 kv keys persisting the RealTimeAnchor (seam S2). W-runtime owns
-#: the keys: written on fresh start (anchor_for_fresh_start) and on a /tz
-#: change; read at startup by the launcher (run_async).
+#: Store kv keys that persist the RealTimeAnchor.
 ANCHOR_KV_KEYS = ("anchor.epoch0_s", "anchor.t_h0", "anchor.tz")
 
 
@@ -201,46 +197,31 @@ class AsyncRuntime:
         self.seed = seed
         self.time_scale = time_scale
         self.max_virtual_hours = max_virtual_hours
-        #: Real-time anchor (seam S2); None = today's paced behavior.
+        #: Real-time anchor; None = paced virtual time.
         self.anchor: RealTimeAnchor | None = anchor
-        #: Injectable wall clock (anchor mode only): the source for absolute
-        #: sleeps and the resume computation. Default time.time; tests inject
-        #: a ManualClock-style source so anchor runs never wait real seconds.
-        #: Never consulted when anchor is None (byte parity).
+        #: Injectable wall clock for absolute sleeps and resume; default time.time.
         self._now = now if now is not None else time.time
-        #: S3 command dispatch flag (default OFF): when True, run() registers
-        #: ``_on_command`` with the channel's ``start(on_message,
-        #: on_command=...)`` seam; when False (default) the channel is started
-        #: exactly as before — commands stay dropped.
+        #: When True, run() registers _on_command with channel.start().
         self.enable_commands = enable_commands
-        #: Virtual hour the anchor resume positioned the clock at (None until
-        #: an anchor-mode run starts).
+        #: Virtual hour the anchor resume set the clock to (None before start).
         self._t_h_start: float | None = None
-        #: Queued /tz change (S3 CommandContext hook): applied at the next
-        #: rollover; the epoch->t_h mapping never jumps.
+        #: Queued /tz change, applied at the next rollover.
         self._pending_tz: str | None = None
-        #: Mute window end (virtual hours) for /mute (S3 CommandContext hook):
-        #: pending events are deferred (never consumed) until this instant.
+        #: Mute window end (virtual hours); pending events defer until then.
         self._mute_until_t_h: float | None = None
-        #: Grounded-intent resolver (store-backed). Default uses a seeded
-        #: engine.rng stream distinct from the event stream so resolver
-        #: tie-breaks never perturb the planned event times.
+        #: Grounded-intent resolver, store-backed with a seeded rng stream.
         self.resolver = resolver if resolver is not None else IntentResolver(
             store, rng=rng_mod.stream_rng(seed, rng_mod.EXPERIMENT_STREAM)
         )
-        #: Injectable delay function (default concurrency.default_sleeper —
-        #: asyncio.sleep; tests inject a recorder) so tests record the
-        #: requested response_delay_s without waiting real seconds.
+        #: Injectable delay function; default concurrency.default_sleeper.
         self.sleeper: Sleeper = sleeper if sleeper is not None else default_sleeper()
-        #: A6: ONE owned executor per runtime (explicit lifecycle; shutdown in
-        #: run()'s finally) + a resource registry (owned vs injected).
+        #: Owned executor and resource registry for this runtime.
         self._executor = ExecutorOwner("runtime").start()
         self._registry = ResourceRegistry("runtime")
         self._registry.register(store, owned=False)   # injected: creator owns it
         self._registry.register(channel, owned=False)  # injected: creator owns it
         self._lock = asyncio.Lock()
-        #: Set when the firing loop exits for good (run end): the rollover
-        #: then stops parking at pending events — nothing will gate them.
+        #: Set when the firing loop exits; the rollover stops parking events.
         self._firing_done = False
         self._ensure_thread_safe_store()
 
@@ -273,9 +254,7 @@ class AsyncRuntime:
         self.store.conn = conn
         self._registry.register(conn, owned=False)
 
-    # ------------------------------------------------------------------ #
     # lifecycle
-    # ------------------------------------------------------------------ #
 
     async def run(self) -> None:
         """Start the channel, run rollover + firing until max_virtual_hours
@@ -358,9 +337,7 @@ class AsyncRuntime:
                 return
             await self.sleeper(remaining)
 
-    # ------------------------------------------------------------------ #
-    # anchor resume (S2): real-time startup, loud clock-skew failure
-    # ------------------------------------------------------------------ #
+    # anchor resume
 
     def _apply_anchor_resume(self) -> None:
         """Anchor-mode startup — the resume fix: position the virtual clock
@@ -450,9 +427,7 @@ class AsyncRuntime:
         )
         self.schedule = ProactiveSchedule.restore(self.seed, self.store)
 
-    # ------------------------------------------------------------------ #
     # reactive path
-    # ------------------------------------------------------------------ #
 
     async def _on_inbound(self, msg: InboundMessage) -> None:
         """Reactive path: advance the clock to msg.t_h if the channel
@@ -564,9 +539,7 @@ class AsyncRuntime:
                 )
             )
 
-    # ------------------------------------------------------------------ #
     # day rollover
-    # ------------------------------------------------------------------ #
 
     async def _rollover_loop(self) -> None:
         """Sleep until the next virtual midnight (paced), roll the session
@@ -595,51 +568,25 @@ class AsyncRuntime:
             else:
                 target = next_midnight
             async with self._lock:
-                # Re-read the clock under the lock: the firing loop may have
-                # advanced it (A9 deferral jumps) since the loop-top read.
+                # Re-read the clock under the lock; the firing loop may have advanced it.
                 now = self.session.clock.now_h()
-                # it3 B2: close the open conversation the instant its
-                # boundary close is due (quiet-hours boundary crossed after
-                # a restart, user silence deadline passed) — never lazily
-                # at the next turn. Idempotent + cheap at every wake.
+                # Close the open conversation when its boundary close is due.
                 await self._executor.run_in_thread(
                     self.session.check_conversation_lifecycle, now
                 )
-                # G0 A1: availability-negotiation wakes — lazy event-
-                # boundary detection plus every due decide leg (AFK bomb
-                # fired / window-close backstop). A go verdict closes the
-                # conversation inside the session and returns her natural
-                # close as a proactive outbound, sent below.
+                # Run availability-negotiation wakes: boundary detection plus due decide legs.
                 neg_outs = await self._executor.run_in_thread(
                     self.session.check_negotiation, now
                 )
                 pending = self.schedule.next_pending(now)
                 if pending is not None and pending < now - 1e-9:
-                    # STRICTLY overdue row: ask the firing loop's OWN
-                    # deferral verdict whether it will consume the row (None)
-                    # or defer it (non-None) — same pure function, same lock
-                    # discipline. (An ON-SCHEDULE row, pending ~= now, is
-                    # never deferred-without-advance: the firing loop's
-                    # R1-F1 leg advances the clock to the awake instant, so
-                    # the rollover parks for it exactly as before.)
+                    # Overdue row: park only if the firing loop will consume it (verdict None).
                     overdue_park = self._defer_verdict(pending, now) is None
                 else:
                     overdue_park = True
-                # it3 B2: park the clock at the conversation's next close
-                # instant (quiet boundary or user_left deadline) so the
-                # close is recorded AT its boundary, not at the next wake.
-                # (close_t is a SEPARATE timer from the schedule-row park
-                # below: the quiet-deferral verdict above governs schedule
-                # rows, close_t governs the conversation boundary. When both
-                # exist, the later park assignment keeps the EARLIER
-                # instant — close_t wins if it precedes the pending row.)
+                # Park at the conversation's next close instant (quiet boundary or deadline).
                 close_t = self.session.next_conversation_close_t_h(now)
-                # G0 A1: park at the next availability-negotiation wake —
-                # the AFK-bomb decide instant or the window-close backstop
-                # instant — exactly like the conversation-close park above
-                # (strictly-future instants only; a past deadline fires at
-                # the next wake of any kind). The earlier of close_t and
-                # neg_t wins via the min-style assignment below.
+                # Park at the next availability-negotiation wake (AFK bomb or backstop).
                 neg_t = self.session.next_negotiation_trigger_t_h(now)
             for out_reason, text in neg_outs:
                 await self.channel.send(
@@ -651,40 +598,16 @@ class AsyncRuntime:
                 target = neg_t
             if (
                 pending is not None
-                # Overdue rows INCLUDED (no now <= pending bound): next_pending
-                # returns overdue-first (A7), and an overdue row must route the
-                # rollover into the target <= now yield below, letting the
-                # firing loop clear it, instead of sleeping to midnight and
-                # jumping the clock PAST the next future event — which then
-                # expires instead of firing (the it2/FEED race, B8 Finding 4).
+                # Include overdue rows: next_pending returns overdue-first.
                 and pending < target
                 and not self._firing_done
-                # ... but a STRICTLY OVERDUE row (pending < now) is parked
-                # only when the firing loop will actually CONSUME it (verdict
-                # None: it fires, suppresses or expires the row — even during
-                # quiet hours, a past-validity straggler is expired by
-                # policy, so it must be parked for that recovery). When the
-                # verdict is a quiet-hours DEFERRAL (R-4b: still-valid row,
-                # never consumed as fired-without-delivery; R-10: it stays
-                # pending for a later awake run) the firing loop does NOT
-                # advance the clock — parking would freeze the clock below
-                # max_virtual_hours forever, the rollover waiting for the
-                # firing loop while it waits for the rollover to wind down
-                # (test_r4b hang, FEED regression). On-schedule rows
-                # (pending ~= now) always park: their deferral is the R1-F1
-                # leg that DOES advance the clock. Pre-feed the rollover
-                # excluded overdue rows entirely (now <= pending bound); the
-                # feed driver needs the overdue park to win the
-                # fired/expired race (B8 F4), so keep it for every row the
-                # firing loop will clear.
+                # Park strictly overdue rows only when the firing loop will consume them.
                 and (pending > now or overdue_park)
             ):
-                # Park at the earliest pending event; the firing loop gates
-                # it at its own time. Never jump past it.
+                # Park at the earliest pending event; the firing loop gates it there.
                 target = pending
             if target <= now:
-                # Parked at (or past) a pending event hour: yield to the
-                # firing loop WITHOUT advancing the clock past the event.
+                # Yield to the firing loop without advancing past the parked event hour.
                 await self._poll_wait()
                 continue
             await self._sleep_until_t_h(target, now)
@@ -692,59 +615,33 @@ class AsyncRuntime:
             if self._max_reached(now):
                 return
             async with self._lock:
-                # FRESH read inside the lock: the pre-lock read above can be
-                # stale — inbound messages that advanced the clock while we
-                # waited for the lock make ``advance_hours(target - now)``
-                # OVERSHOOT the target (e.g. the clock lands at 48.5 instead
-                # of exactly 48.0). The feed driver's midnight guard relies
-                # on the clock sitting EXACTLY at the boundary; an overshoot
-                # hides the replan-in-progress lock and lets the driver
-                # launch day-D feeds before the day-D schedule rows exist —
-                # its feed then jumps the clock past a still-pending
-                # opportunity, which the firing loop (starved behind the
-                # feed) evaluates only after validity expired (the FEED
-                # day-2 fired/expired race). Re-reading inside the lock
-                # makes the advance exact: never past the park/midnight
-                # target.
+                # Re-read the clock inside the lock so the advance cannot overshoot the target.
                 now = self.session.clock.now_h()
                 if now < target:
                     self.session.clock.advance_hours(target - now)
                 now = self.session.clock.now_h()
-                # it3 B2: the clock landed on a conversation close instant
-                # — record the close at the boundary (idempotent no-op
-                # otherwise).
+                # The clock landed on a conversation close instant; record the close.
                 await self._executor.run_in_thread(
                     self.session.check_conversation_lifecycle, now
                 )
-                # G0 A1: the clock landed on (or crossed) a negotiation
-                # park instant — run the due decide legs (AFK bomb /
-                # backstop) at the boundary and send any natural close.
+                # The clock reached a negotiation park instant; run the due decide legs.
                 neg_outs = await self._executor.run_in_thread(
                     self.session.check_negotiation, now
                 )
                 day = self.session.clock.day()
                 if target >= next_midnight:
-                    # A real rollover crossed midnight. At the run's end
-                    # boundary (target == max_virtual_hours < next_midnight)
-                    # we do NOT re-plan: that would inject a fresh plan for a
-                    # run that is about to finish.
+                    # A real rollover crossed midnight; the run-end boundary does not re-plan.
                     await self._executor.run_in_thread(self.session.ensure_day, day)
                     self._replan()
-                    # S3: a /tz change queued via request_tz_change is applied
-                    # at the next rollover — the epoch->t_h mapping never
-                    # jumps (only the anchor's tz metadata moves).
+                    # Apply a queued /tz change at the next rollover.
                     self._apply_pending_tz()
-            # G0 A1: negotiation decide-leg outputs (AFK bomb / backstop /
-            # natural close) are sent AFTER the lock releases — channel I/O
-            # never runs under the runtime lock (mirrors proactive sends).
+            # Send negotiation decide-leg outputs after the lock releases.
             for out_reason, text in neg_outs:
                 await self.channel.send(
                     OutboundMessage(text=text, proactive=True, reason=out_reason)
                 )
 
-    # ------------------------------------------------------------------ #
     # proactive firing
-    # ------------------------------------------------------------------ #
 
     @staticmethod
     def _response_delay(result) -> float:
@@ -801,45 +698,18 @@ class AsyncRuntime:
                 now = self.session.clock.now_h()
                 defer_until = self._defer_verdict(nxt, now)
                 if defer_until is not None and now - nxt < 1e-9:
-                    # R1-F1 (it2 A3): an ON-SCHEDULE deferral (event gated at
-                    # its own hour — the rollover is parked AT it, so the
-                    # clock can never move on its own) must ADVANCE the
-                    # virtual clock to the next awake instant — sleeping
-                    # wall time alone would re-defer forever and the run
-                    # would livelock (invariants 3/17). _defer_verdict
-                    # already clamps to max_virtual_hours, so the advance
-                    # never passes the run's end. Re-evaluate AT the awake
-                    # instant inside the same lock: the still-valid event
-                    # then falls through to the normal path below
-                    # (resolve/gate at the opportunity hour ``nxt``, envelope
-                    # at the awake ``now`` — pitfall 49 semantics preserved)
-                    # and fires exactly once. An OVERDUE recovery inside
-                    # quiet hours (now > nxt, e.g. a restart at 03:00) is
-                    # NOT advanced: the rollover is not parked there, so the
-                    # run winds down to max_virtual_hours on its own and the
-                    # still-valid event stays pending for a later awake run
-                    # (A9 R-10 restart semantics).
+                    # On-schedule deferrals advance the clock to the next awake instant; overdue recoveries do not.
                     if self.anchor is not None:
-                        # Anchor mode: pace the deferral in REAL time BEFORE
-                        # the advance — the virtual clock must never run
-                        # ahead of the wall clock, so a mute/quiet-deferred
-                        # event fires only once the deferral instant actually
-                        # arrives (the absolute sleep self-corrects). None
-                        # mode keeps the instant jump (byte-identical).
+                        # Anchor mode sleeps in real time before the deferral advance.
                         await self._sleep_until_t_h(defer_until, now)
                     self.session.clock.advance_hours(defer_until - now)
                     now = self.session.clock.now_h()
                     defer_until = self._defer_verdict(nxt, now)
-                # it3 B2: the clock may have jumped past a conversation
-                # close boundary (deferral to the next awake instant) —
-                # record the close at the detection instant (idempotent).
+                # Record a conversation close if the clock jumped past its boundary.
                 await self._executor.run_in_thread(
                     self.session.check_conversation_lifecycle, now
                 )
-                # G0 A1: the clock advance may also have crossed an
-                # availability-negotiation park instant (AFK bomb /
-                # backstop) — run the due decide legs here and send any
-                # natural close through the channel.
+                # Run due availability-negotiation decide legs and send any natural close.
                 neg_outs = await self._executor.run_in_thread(
                     self.session.check_negotiation, now
                 )
@@ -849,12 +719,7 @@ class AsyncRuntime:
                     )
                 if defer_until is None:
                     day = self.session.clock.day()
-                    # Contact opportunity -> contact reason: the scheduler's
-                    # ContactOpportunity (NO semantic reason) is resolved at
-                    # OPPORTUNITY time (nxt) into a grounded intent, so an
-                    # overdue event is evaluated against its own window on
-                    # recovery. None ⇒ SUPPRESS: no_grounded_reason is a
-                    # legitimate outcome, never an error.
+                    # Resolve the contact opportunity into a grounded intent; None suppresses.
                     opportunity = self.schedule.opportunity_for(nxt)
                     if opportunity is not None:
                         self.store.log_event(
@@ -938,9 +803,7 @@ class AsyncRuntime:
                 self.session.fire_proactive, intent.reason
             )
 
-    # ------------------------------------------------------------------ #
-    # quiet-hours deferral (A9 R-4b)
-    # ------------------------------------------------------------------ #
+    # quiet-hours deferral
 
     def _quiet_defer_until(self, nxt: float, now: float) -> float | None:
         """Quiet-hours deferral verdict for an overdue event recovered at
@@ -966,7 +829,7 @@ class AsyncRuntime:
             return None  # past validity: the normal path expires the row
         awake_at = self._next_awake_at(now)
         if valid_until <= awake_at:
-            return None  # expires before the window ends -> can never fire
+            return None  # expires before the window ends
         if self.max_virtual_hours is not None:
             return min(awake_at, self.max_virtual_hours)
         return awake_at
@@ -1016,14 +879,12 @@ class AsyncRuntime:
         if now > valid_until:
             return None  # past validity: the normal path expires the row
         if valid_until <= self._mute_until_t_h:
-            return None  # expires inside the mute window -> can never fire
+            return None  # expires inside the mute window
         if self.max_virtual_hours is not None:
             return min(self._mute_until_t_h, self.max_virtual_hours)
         return self._mute_until_t_h
 
-    # ------------------------------------------------------------------ #
-    # S3 command dispatch (ControlCommand -> harness.commands)
-    # ------------------------------------------------------------------ #
+    # command dispatch (ControlCommand -> harness.commands)
 
     async def _on_command(self, cmd) -> None:
         """S3 command dispatch: route a :class:`ControlCommand` (delivered by
@@ -1038,7 +899,7 @@ class AsyncRuntime:
         The handler runs on the owned executor (never blocking the event
         loop); its reply is sent as a plain non-proactive OutboundMessage.
         """
-        from harness.commands import CommandContext, handle_command  # W-commands
+        from harness.commands import CommandContext, handle_command
 
         async with self._lock:
             ctx = CommandContext(

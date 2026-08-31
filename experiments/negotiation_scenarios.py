@@ -84,17 +84,15 @@ from harness.session import Session
 from harness.store import SQLiteStore
 from harness.tools import DecisionConfig
 
-#: popup_kind for both negotiation phases.
+# popup_kind for both negotiation phases.
 POPUP_KIND = "tool_decide_event"
-#: Distinct close reason on go (the contract's "e.g. followed_event").
+# Distinct close reason on go.
 CLOSE_REASON_FOLLOWED = "followed_event"
-#: t_h comparison tolerance for virtual-clock instants.
+# t_h comparison tolerance for virtual-clock instants.
 _EPS = 1e-9
 
 
-# --------------------------------------------------------------------------- #
 # scenario vocabulary
-# --------------------------------------------------------------------------- #
 
 
 def at_t_h(t_h: float, text: str) -> dict:
@@ -115,9 +113,7 @@ def v_delay(reason: str = "just a sec") -> dict:
     return {"initiate": True, "reason": reason, "action": "defer"}
 
 
-# --------------------------------------------------------------------------- #
 # scenario definitions
-# --------------------------------------------------------------------------- #
 
 
 @dataclass(frozen=True)
@@ -127,19 +123,15 @@ class Scenario:
     id: str
     name: str
     item: AgendaItem
-    #: Scripted user turns (at_t_h events) in stream order.
+    # Scripted user turns (at_t_h events) in stream order.
     user_stream: tuple[dict, ...]
-    #: Scripted decide verdicts, consumed in order by each Decide call.
+    # Scripted decide verdicts, consumed in order by each Decide call.
     verdicts: tuple[dict, ...]
-    #: The one-shot Inform mention (the {message} verdict; the channel text
-    #: is deterministic either way — scripted or the session's fallback).
+    # One-shot Inform mention ({message} verdict; channel text is deterministic either way).
     inform_mention: str
-    #: Always delay on every Decide call, regardless of the script.
+    # Always delay on every Decide call.
     always_delay: bool = False
-    #: Master seed. Engine draws AND the conversation closing-tendency draws
-    #: (harness.session stream 6) are deterministic per seed; the seeds below
-    #: were chosen so no spontaneous conversation close fires before the
-    #: negotiation resolves (verified by tests).
+    # Master seed; engine and conversation-closing draws are deterministic per seed.
     seed: int = 20260814
 
 
@@ -159,15 +151,10 @@ def _item(
     )
 
 
-#: The six G0 scenarios (docs/availability-negotiation-contract.md §Test
-#: scenarios). Times are virtual hours of day 0. Inform fires at the first
-#: turn at/after start_t_h (19.05); Decide fires at companion turns (each
-#: ~7 min apart — active talk keeps every gap < SHORT_AFK_H so the AFK bomb
-#: never binds) and at the AFK-bomb parks once she pauses.
+# The six G0 scenarios; times are virtual hours of day 0. Inform fires at the
+# first turn at/after start_t_h; Decide fires at companion turns and AFK-bomb parks.
 SCENARIOS: dict[str, Scenario] = {
-    # 1. Retain: user keeps actively talking past the boundary -> repeated
-    # delay (decide legs at 19.12/19.19/19.26), she stays past start_t_h,
-    # then pauses -> the AFK bomb (19.26 + SHORT_AFK_H) fires Decide -> go.
+    # 1. Retain: active talk past the boundary, then a pause fires the AFK bomb -> go.
     "retain": Scenario(
         id="retain",
         name="retain",
@@ -183,8 +170,7 @@ SCENARIOS: dict[str, Scenario] = {
                   v_delay("just a sec"), v_go("ok, heading out — talk soon")),
         inform_mention="I've got gym soon — just letting you know",
     ),
-    # 2. Release: user goes quiet right after the Inform turn (19.05) ->
-    # silence > SHORT_AFK_H fires the AFK bomb at 19.2167 -> Decide -> go.
+    # 2. Release: silence after Inform fires the AFK bomb -> go.
     "release": Scenario(
         id="release",
         name="release",
@@ -196,8 +182,7 @@ SCENARIOS: dict[str, Scenario] = {
         verdicts=(v_go("ok, going to the gym now"),),
         inform_mention="I've got gym soon — just letting you know",
     ),
-    # 3. Window-close: user holds her past end_t_h (19.5) -> forced skip,
-    # recorded ("missed it entirely"), no model call at/after end_t_h.
+    # 3. Window-close: user holds past end_t_h -> forced skip, recorded.
     "window-close": Scenario(
         id="window-close",
         name="window-close",
@@ -209,9 +194,7 @@ SCENARIOS: dict[str, Scenario] = {
         verdicts=(v_delay("just a sec"),),
         inform_mention="I've got gym soon — just letting you know",
     ),
-    # 4. Unskippable: routine source_type -> Inform is a heads-up, Decide is
-    # offered with skippable=False; the scripted verdicts still go regardless
-    # of the pleading turns.
+    # 4. Unskippable: routine source_type; Decide is offered with skippable=False.
     "unskippable": Scenario(
         id="unskippable",
         name="unskippable",
@@ -225,10 +208,7 @@ SCENARIOS: dict[str, Scenario] = {
         verdicts=(v_go("right, I'm heading in now"),),
         inform_mention="I've got evening class soon — heads up",
     ),
-    # 5. No-nag: Inform emits exactly once; across 3 delays the mention is
-    # never re-announced (count channel messages containing it). The go at
-    # the 19.33 decide suppresses the ordinary reply (her natural close is
-    # the only message) and closes the conversation with followed_event.
+    # 5. No-nag: Inform emits once; the go at 19.33 closes the conversation.
     "no-nag": Scenario(
         id="no-nag",
         name="no-nag",
@@ -245,8 +225,7 @@ SCENARIOS: dict[str, Scenario] = {
                   v_delay("just a sec"), v_go("ok, going now")),
         inform_mention="I've got gym soon — just letting you know",
     ),
-    # 6. Termination: an always-delay model cannot loop forever — active
-    # talk then silence, the backstop forces at end_t_h (20.0).
+    # 6. Termination: an always-delay model resolves at end_t_h via the backstop.
     "termination": Scenario(
         id="termination",
         name="termination",
@@ -262,9 +241,7 @@ SCENARIOS: dict[str, Scenario] = {
         always_delay=True,
         inform_mention="I've got gym soon — just letting you know",
     ),
-    # 6b. Termination clamp: the delay at 19.15 re-arms the AFK bomb off the
-    # last user turn (19.15 + SHORT_AFK_H = 19.3167 >= end_t_h 19.3) ->
-    # forced skip resolves immediately at 19.15, no further model call.
+    # 6b. Termination clamp: a re-armed delay at/after end_t_h resolves immediately.
     "termination-clamp": Scenario(
         id="termination-clamp",
         name="termination-clamp",
@@ -281,9 +258,7 @@ SCENARIOS: dict[str, Scenario] = {
 }
 
 
-# --------------------------------------------------------------------------- #
 # scripted model client (FakeModel/FakeClient pattern)
-# --------------------------------------------------------------------------- #
 
 
 class ScriptedClient:
@@ -313,7 +288,7 @@ class ScriptedClient:
         if self.scenario.always_delay or not self._script:
             return v_delay("just a sec")
         verdict = dict(self._script.pop(0))
-        verdict.pop("defer_turns", None)  # the model never emits N
+        verdict.pop("defer_turns", None)  # the model does not emit N
         return verdict
 
     def chat_with_meta(
@@ -337,9 +312,7 @@ class ScriptedClient:
             }
         )
         if tools is not None:
-            # Pop-up call (native transport, the runtime's popup path).
-            # The FIRST popup call of a run is the Inform mention; the
-            # counter is read BEFORE incrementing so the inform is call 0.
+            # Pop-up call (native transport): the first popup call is the Inform mention.
             verdict = self._popup_verdict()
             self.popup_calls += 1
             return ChatResult(
@@ -375,9 +348,7 @@ class ScriptedClient:
         pass
 
 
-# --------------------------------------------------------------------------- #
 # run driver (runtime wake discipline over the real session)
-# --------------------------------------------------------------------------- #
 
 
 @dataclass
@@ -463,8 +434,7 @@ def run_scenario(
         nxt_neg = session.next_negotiation_trigger_t_h(now)
         candidates = [c for c in (nxt_event, nxt_neg) if c is not None]
         if not candidates:
-            # Stream exhausted and nothing pending: a past deadline fires at
-            # the next wake of any kind — run one final negotiation check.
+            # Stream exhausted: run one final negotiation check.
             outs = session.check_negotiation(now)
             for reason, text in outs:
                 channel_out.append((str(reason), str(text), now))
@@ -475,8 +445,7 @@ def run_scenario(
         if wake > now + _EPS:
             clock.advance_hours(wake - now)
         if nxt_event is not None and abs(nxt_event - clock.now_h()) <= 1e-6:
-            # A user turn at this wake: the turn (and any due decide leg at
-            # the companion reply) runs inside on_message.
+            # A user turn at this wake runs inside on_message.
             result = session.on_message(str(events[stream_idx]["text"]))
             for kind, text in result.proactive_out:
                 channel_out.append((str(kind), str(text), clock.now_h()))

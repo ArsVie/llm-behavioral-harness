@@ -101,35 +101,27 @@ from experiments.cvs_manifest import (
     RECALL_PROBES,
 )
 
-#: Clave de stream del simulador (EXPERIMENT_STREAM, 101) — nunca reutilizar
-#: una clave reservada (DAILY/EVENTS/EXPERIMENT/INIT) ni la 1
-#: (DeterministicClient). La 100 queda libre (la usaba la it2 para el guion
-#: plano; la proyección legacy ya no dibuja retardos).
+# Simulator stream key (101); 100 was it2's flat-script key.
 USER_SIM_STREAM_KEY = 101
 
-#: Bloques de perturbación en días 0-indexados (mismos orígenes que
-#: cvs_common.BLOCK_START_D/BLOCK_END_D — derivados del manifest congelado).
+# Perturbation block days, 0-indexed (from PERTURBATION).
 BLOCK_START_D = PERTURBATION["negative_block_days"][0] - 1
 BLOCK_END_D = PERTURBATION["negative_block_days"][1] - 1  # inclusive
 NEGATIVE_MESSAGES = tuple(PERTURBATION["negative_user_messages"])
 
-#: Ventana de retardo de los seguimientos after_reply (horas virtuales).
-#: Pequeña a propósito: el turno debe caer en el mismo día que su réplica.
+# After-reply follow-up delay window (virtual hours); small so the turn stays on the same day.
 AFTER_REPLY_MIN_DELAY_H = 0.05
 AFTER_REPLY_MAX_DELAY_H = 0.35
 
-#: Hora local de la apertura diaria (it2: 19:00) y de las inyecciones
-#: embebidas (dentro de la ventana de la conversación, tras la apertura).
+# Local hour of the daily opening (19:00) and of the embedded injections.
 BASE_HOUR = 19.0
 PROBE_HOUR = 19.1
 CHAIN_HOUR = 19.2
 NEGATIVE_HOUR = 19.3
 
-# --------------------------------------------------------------------------- #
-# Repertorio conversacional (pools por categoría)
-# --------------------------------------------------------------------------- #
+# Conversational repertoire (pools by category)
 
-#: Seguimientos / preguntas de seguimiento (estrés de persona consistency).
+# Follow-up questions (persona consistency stress).
 _FOLLOWUP_QUESTION_POOL = (
     "Wait — you mentioned you were into pottery, right? How's that going?",
     "Really? Tell me more about that.",
@@ -140,7 +132,7 @@ _FOLLOWUP_QUESTION_POOL = (
     "Hmm, and what are you going to do about it?",
 )
 
-#: Desacuerdo / pushback (calibrated challenge vs sycophancy).
+# Disagreement / pushback.
 _PUSHBACK_POOL = (
     "I don't quite see it that way — doesn't that sound a bit risky?",
     "Hmm, I think you're being too optimistic there.",
@@ -148,40 +140,40 @@ _PUSHBACK_POOL = (
     "That sounds nice, but I think you're missing something.",
 )
 
-#: Divulgación ambigua, sin resolver (holding ambiguity).
+# Ambiguous disclosure, unresolved.
 _AMBIGUOUS_POOL = (
     "There's something I've been meaning to tell you... maybe another time.",
     "It's nothing, really. I don't want to talk about it.",
     "Things at work are... complicated. I'd rather not get into it.",
 )
 
-#: Ruptura relacional (turno frío que corta la conversación).
+# Relational rupture (cold turn that cuts the conversation).
 _RUPTURE_POOL = (
     "That's not what I needed to hear right now. Can we just drop it?",
     "Honestly, that felt dismissive. I think I need a break from this.",
 )
 
-#: Reparación (al día siguiente de una ruptura).
+# Repair (day after a rupture).
 _REPAIR_POOL = (
     "Sorry about yesterday — I snapped, and that wasn't fair to you.",
     "Hey, about earlier: I shouldn't have cut you off like that. Sorry.",
 )
 
-#: Abandono de tema a mitad de conversación (¿lo nota ella?).
+# Topic abandonment mid-conversation.
 _ABANDON_POOL = (
     "Anyway, forget all that — what's your favorite movie?",
     "Never mind any of that. Have you seen the new lifting routine everyone's "
     "talking about?",
 )
 
-#: Cierre natural de conversación.
+# Natural conversation closer.
 _CLOSER_POOL = (
     "Thanks, I needed this. Talk tomorrow?",
     "Okay, I should go — talk to you later!",
     "Alright, that helped. Same time tomorrow?",
 )
 
-#: Movimiento genérico (pregunta de seguimiento / pushback / ambigüedad).
+# Generic move (follow-up / pushback / ambiguity).
 _NORMAL_POOL = _FOLLOWUP_QUESTION_POOL + _PUSHBACK_POOL + _AMBIGUOUS_POOL
 
 
@@ -216,7 +208,7 @@ def _day_moves(rng, d: int, rupture: frozenset[int],
     Días de abandono: un move a mitad de conversación cambia de tema.
     El último move suele ser un cierre natural (70%).
     """
-    n = int(rng.integers(2, 5))  # 2..4 seguimientos
+    n = int(rng.integers(2, 5))  # 2..4 follow-ups
     if d in rupture:
         moves = [_pick(rng, _RUPTURE_POOL)]
         if n >= 3:

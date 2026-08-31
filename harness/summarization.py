@@ -41,9 +41,7 @@ __all__ = [
     "deterministic_summarizer",
 ]
 
-# ---------------------------------------------------------------------------
-# Deterministic fact extraction (L2 input and L4 keys/categories)
-# ---------------------------------------------------------------------------
+# Deterministic fact extraction.
 
 
 @dataclass(frozen=True)
@@ -58,7 +56,7 @@ class _Fact:
     persisted directly on the assertion row by the store.
     """
 
-    key: str          # stable L4 assertion key, e.g. "user:dog:name"
+    key: str          # stable assertion key, e.g. "user:dog:name"
     value: str        # human-readable fact, e.g. "user's dog is named Bruno"
     kind: str         # "user_fact" | "preference" | "relationship"
     category: UserModelCategory
@@ -83,9 +81,7 @@ _NEGATION_RE = re.compile(
 )
 #: value of a negation fact, subject captured ("user no longer has luna")
 _NEGATION_VALUE_RE = re.compile(r"^user no longer has ([a-z0-9]+)$")
-# Preference RETRACTION (Iteration-2 T6): "I barely listen to metal anymore."
-# emits the SAME key as the positive like fact ("preference:like:metal") so
-# the L4 upsert supersedes the old current preference in place.
+# Retraction emits the positive fact's key ("preference:like:metal").
 _RETRACT_RE = re.compile(
     r"\bi\s+(?:barely|hardly|rarely|no longer|don'?t|do not|not really)\s+"
     r"(?:listen to|care about|enjoy|like|love|watch|read|play)\s+"
@@ -137,17 +133,14 @@ def _extract_facts(messages: list[dict]) -> list[_Fact]:
             continue
         text = str(msg.get("content", ""))
         tid = int(msg.get("id", -1))
-        # Negation FIRST: "I don't have Luna anymore" must not fall through to
-        # the positive rules (M-1b — without this, the stale positive fact
-        # survives and reaches the prompt).
+        # Negation is checked before the positive rules.
         m = _NEGATION_RE.search(text)
         if m and m.group(1).lower() not in _JUNK_NOUNS:
             subject = m.group(1).lower()
             add(f"user:{subject}", f"user no longer has {subject}",
                 "user_fact", tid, text)
             continue
-        # Preference retraction (T6): "I barely listen to metal anymore."
-        # reuses the positive fact's key so the L4 upsert supersedes it.
+        # Retraction reuses the positive fact's key.
         m = _RETRACT_RE.search(text)
         if m:
             topic = _clean(m.group(1))
@@ -170,9 +163,7 @@ def _extract_facts(messages: list[dict]) -> list[_Fact]:
             noun = m.group(1).lower()
             name_m = _NAMED_RE.search(text)
             if name_m:
-                # keep the name INSIDE the value so a later name-based
-                # negation ("I don't have Luna anymore") can supersede this
-                # key via subject-word matching
+                # The name stays in the value for subject-word matching.
                 add(f"user:{noun}",
                     f"user has a {noun} named {name_m.group(1)}",
                     "user_fact", tid, text)
@@ -208,9 +199,7 @@ def _callbacks(messages: list[dict]) -> list[Callback]:
     return out
 
 
-# ---------------------------------------------------------------------------
-# Affect observations (metadata on memories, derived deterministically)
-# ---------------------------------------------------------------------------
+# Affect observations.
 
 
 def _affect_observation(msg: dict, score: float | None) -> AffectMetadata:
@@ -254,9 +243,7 @@ def _affect_observations(messages: list[dict], score: float | None) -> tuple[Aff
     return tuple(obs)
 
 
-# ---------------------------------------------------------------------------
-# L2 — deterministic session summarizer (testing path; injectable)
-# ---------------------------------------------------------------------------
+# Deterministic session summarizer.
 
 
 @runtime_checkable
@@ -470,10 +457,10 @@ class SemanticSummaryExtractor:
         prompt = self._prompt_template.format(turns=self._render_turns(messages))
         try:
             text = self._client(prompt)
-        except Exception:  # noqa: BLE001 — a broken client must not kill the day
+        except Exception:  # noqa: BLE001
             return base
         text = (text or "").strip()
         if not text:
             return base
-        # The model may only replace the prose; provenance stays factual.
+        # The model replaces only the prose.
         return replace(base, summary=text[:2000])

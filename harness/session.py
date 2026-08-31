@@ -151,20 +151,11 @@ _STEER_INJECT = "inject"        #: render the block into the next LLM call
 _STEER_CONSUMED = "consumed"    #: handled (decision executed / consumed)
 _STEER_SUPPRESS = "suppress"    #: no-reply verdict — suppress the reply
 
-#: Closing-tendency draw stream (it3 B2): a dedicated engine.rng stream.
-#: Streams 0..5 are reserved by other lanes (0=DAILY, 1=EVENTS, 2=EXPERIMENT,
-#: 3=INIT, 4=LIFE, 5=PERSONA); 6 is this lane's. Each draw is keyed by
-#: (conversation sequence, companion turn's 0-based index within the
-#: conversation), so every conversation draws its OWN deterministic
-#: sequence — the k-th draw of conversation n is always
-#: ``stream_rng(seed, 6, n, k)``, and a resumed conversation continues
-#: exactly where it left off (no re-draws).
+#: Closing-tendency draw stream (engine.rng stream 6), keyed by
+#: (conversation sequence, companion turn index) — deterministic per draw.
 CONVERSATION_STREAM = 6
 
-# Conversation-lifecycle tunables live in ONE place (harness/tunables.py) so
-# code and tests read the same source — no drift. Re-exported here so existing
-# ``from harness.session import USER_LEFT_THRESHOLD_H`` / ``MAX_TURNS`` callers
-# and tests keep working.
+# Conversation-lifecycle tunables re-exported from harness/tunables.py.
 from harness.tunables import (  # noqa: E402
     CLOSING_TENDENCY_ENABLED,
     MAX_TURNS,
@@ -177,29 +168,16 @@ from harness.tunables import (  # noqa: E402
 #: ``closing_guidance`` channel into the next companion turn's state card.
 WIND_DOWN_GUIDANCE = "You're wrapping up, say a natural goodbye."
 
-#: Namespace base for per-conversation MEMORY SESSION ids. The MemoryAgent
-#: seam (harness/memory.py — must-not-touch) parses session ids with
-#: ``re.fullmatch(r"day-(\d+)", ...)`` (``_day_of``: judgement lookup and
-#: the eager ``started`` default in ``close_session``), so conversation-
-#: scoped session ids must stay day-shaped. They are namespaced ABOVE any
-#: real day count: conversation ``conv-<n>`` maps to memory session
-#: ``day-<OFFSET+n>``. One memory session per conversation still holds —
-#: each conversation gets a unique id; the seam itself is used as-is (the
-#: brief: "you change which ids the session passes, not the seam"). A
-#: one-line lazy-default fix in memory.py would let honest ids through —
-#: reported to the orchestrator.
+#: Memory-session ids stay day-shaped (day-<OFFSET+n> for conversation n);
+#: the MemoryAgent seam parses ids as day-<n>.
 CONVERSATION_SESSION_OFFSET = 1000
 
-#: Decision-draw stream (WS4, runtime redesign): server_draw verdicts
-#: (``HARNESS_DECISION_SOURCE=server_draw``) draw from a DEDICATED engine.rng
-#: stream — never the day_rng draw order, so the engine replay contract is
-#: untouched. Streams 0..6 are reserved (0=DAILY, 1=EVENTS, 2=EXPERIMENT,
-#: 3=INIT, 4=LIFE, 5=PERSONA, 6=CONVERSATION); 7 is this lane's.
+#: Decision-draw stream (engine.rng stream 7); server_draw verdicts draw
+#: from this stream, never the day_rng draw order.
 DECISION_STREAM = 7
 
-#: Env vars that enable the decision/steering layer (WS2/WS3/WS4). With none
-#: of them set the harness behaves exactly as before the runtime redesign:
-#: no steering queue activity, no pop-up calls, no reasoning effort.
+#: Env vars enabling the decision/steering layer. Unset, the harness runs
+#: without steering or pop-up calls.
 _DECISION_ENV_VARS = (
     "HARNESS_VERBOSE",
     "HARNESS_BUDGET",
@@ -342,22 +320,15 @@ class Session:
         self.feedback = feedback
         self.persona_core = persona_core
         self.judge_model = judge_model
-        #: Judge-lane client (WS-C two-lane seam). The judge is a RESEARCH
-        #: consumer: its spend must attribute to the research lane and it must
-        #: never use the product token. Defaults to the product client for
-        #: backward compatibility (offline/fake runs, tests); live runs that
-        #: enable feedback MUST pass a research-lane judge client so the
-        #: lane split stays honest.
+        #: Judge-lane client; judge spend attributes to the research lane.
+        #: Defaults to the product client for offline/fake runs.
         self.judge_client = judge_client if judge_client is not None else client
-        # synthetic_score=True replicates sim.run_daily's score source
-        # (clip(2(M/N-0.5)+Normal(0,0.2))) INCLUDING its RNG draw, so the
-        # session's mood sequence is byte-identical to run_daily for the same
-        # seed. The judge path consumes no RNG (score is external).
+        # synthetic_score replicates run_daily's score source and its RNG
+        # draw; the judge path consumes no RNG.
         self.synthetic_score = synthetic_score
 
-        # Wave 2 lanes: persona / life / memory are store-backed; the session
-        # only COMPOSES them into CompanionSnapshots (lane rule). MemoryAgent
-        # is injectable (tests may substitute a recording agent).
+        # Persona / life / memory are store-backed; the session composes
+        # them into snapshots. MemoryAgent is injectable.
         self._profile: PersonaProfile | None = (
             persona_profile
             if persona_profile is not None
@@ -387,14 +358,11 @@ class Session:
             _llm_params = inspect.signature(store.log_llm_call).parameters
         except (TypeError, ValueError):
             _llm_params = {}
-        # Eval-mode call reproducibility (it3 B7): only stores that accept
-        # the ``repro`` keyword receive the exact request payload (the store
-        # itself drops it unless audit_mode=True — production privacy
-        # default). Legacy store stubs without the kwarg stay untouched.
+        # Eval-mode repro: stores accepting the repro kwarg receive the
+        # exact request payload; others stay untouched.
         self._accepts_repro = "repro" in _llm_params
-        # WS-D spend accounting: only stores whose log_llm_call accepts the
-        # usage/lane/raw_cost kwargs receive them (legacy store stubs stay
-        # untouched and the new llm_calls columns stay NULL for them).
+        # Spend accounting: stores accepting usage/lane/raw_cost kwargs
+        # receive them; legacy stubs stay untouched.
         self._accepts_usage = all(
             k in _llm_params for k in ("usage", "lane", "raw_cost")
         )
@@ -411,42 +379,26 @@ class Session:
         if latest is not None:
             self._resume_from(latest)
 
-        # it3 B2: the open conversation (if any) is reopened at conversation
-        # granularity — its turns continue and turn_index keeps counting.
-        # Stores without the conversation seam (legacy fakes) start with no
-        # open conversation, exactly as before.
+        # Conversation granularity: the open conversation reopens at its
+        # turn boundary; stores without the seam start with none open.
         self._conversation: Conversation | None = None
         if hasattr(self.store, "load_open_conversation"):
             self._conversation = self.store.load_open_conversation()
 
-        # W-close (seam S1): two-phase close flag — OFF by default (env
-        # HARNESS_TWO_PHASE_CLOSE overrides). When ON, the closing draw sets
-        # a persisted ``closing_pending_t_h`` instead of closing, and the
-        # conversation closes after the user's next reply (or by the grace
-        # deadline when the user never replies). The resumed wind-down state
-        # rides along with the reopened conversation.
+        # Two-phase close: the closing draw sets closing_pending_t_h;
+        # the conversation closes on the next reply or by grace deadline.
         self.two_phase_close = two_phase_close or _two_phase_close_env_set()
         self._closing_pending_t_h: float | None = None
         self._sync_closing_pending()
 
-        # G0 A1: availability negotiations — one NegotiationState per
-        # AgendaItem that hit its start boundary while a conversation was
-        # open. Rebuilt from persisted ``negotiation_state`` snapshots, so
-        # a restart resumes the loop exactly (Inform stays fired, the
-        # decide index continues — deterministic replay by decision id).
+        # Availability negotiations: one NegotiationState per
+        # AgendaItem; rebuilt from persisted snapshots on resume.
         self._negotiations: dict[str, NegotiationState] = (
             self._restore_negotiations()
         )
 
-        # WS4 (runtime redesign): steering + decision layer.
-        #
-        # - SteeringQueue: wired whenever the store exposes the v5 backend
-        #   seam (enqueue_steer/pending_steers/mark_steer_delivered/
-        #   requeue_steer). With no steers enqueued it is inert — the
-        #   pre-redesign behavior is byte-identical.
-        # - DecisionRunner: built only when the decision layer is ENABLED —
-        #   either explicitly injected (tests) or via any HARNESS_* env var.
-        #   With defaults (no env) no pop-up call ever fires.
+        # Steering + decision layer: SteeringQueue wires on the v5
+        # backend seam; DecisionRunner builds when enabled.
         self._steering: SteeringQueue | None = None
         self._decision: DecisionRunner | None = None
         self._decision_enabled = decision_config is not None or _decision_env_set()
@@ -486,20 +438,12 @@ class Session:
                 rng=stream_rng(self.seed, DECISION_STREAM),
             )
 
-    # ------------------------------------------------------------------ #
-    # resume / replay
-    # ------------------------------------------------------------------ #
+    # -- resume / replay ----------------------------------------------- #
 
     def _resume_from(self, latest: dict) -> None:
         day = int(latest["day"])
-        # ROUTED DEFECT (A1b): restarting on an already-progressed store with
-        # a driver clock that starts at day 0 crashed with "cannot rewind
-        # session from day N to 0" the moment a day-0 event fired on resume
-        # (session.ensure_day vs a clock always starting at day 0). A session
-        # must never rewind: initialize the clock AT the store's day so the
-        # resumed conversation continues from where the store is. A clock
-        # already at/past the store's day is never moved (resume tests pin
-        # that behavior).
+        # Resume: a session never rewinds — initialize the clock at the
+        # store's day; a clock already at/past it is never moved.
         if self.clock.day() < day and hasattr(self.clock, "advance_to_day"):
             self.clock.advance_to_day(day)
         self.mood_state = MoodState(mu=float(latest["mu"]), eta=float(latest["eta"]))
@@ -511,17 +455,14 @@ class Session:
         self.current_day = day
         self.current_record = self._record_from_row(latest)
         self._records[day] = self.current_record
-        # Reconstruct the day's RNG generator at the post-rollover position:
-        # consume the same draws the original rollover consumed (cycle.step
-        # then mood.step) so the end-of-day update continues the stream.
+        # Reconstruct the day RNG at the post-rollover position by
+        # consuming the same draws the rollover consumed.
         rng_t = rng_mod.day_rng(self.seed, day)
         m, g, _phase, _next = cycle.step(self.cycle_state, self.persona, rng_t)
         mood.step(self.mood_state, self.persona, m, g, self.variant, rng_t)
         self._day_rng = rng_t
-        # Review fix #1: if the latest day was ALREADY finalized (judgement
-        # exists, no rollover beyond it — e.g. clean shutdown after
-        # finalize_current), re-apply the end-of-day update the original run
-        # performed, so resume matches a fresh run byte-for-byte.
+        # If the latest day was already finalized, re-apply its end-of-day
+        # update so resume matches a fresh run.
         judgement = self.store.load_judgement(day)
         if judgement is not None and not self.synthetic_score:
             if self.feedback:
@@ -539,10 +480,8 @@ class Session:
                 )
             self.mood_state = mood.step_endogenous(self.mood_state, self.persona, rng_t)
 
-        # Wave 2 lanes: restore life state from the store (arcs + today's
-        # agenda); lazily seed arcs when a persona exists but none persisted,
-        # and regenerate today's agenda only if the original rollover never
-        # persisted it (deterministic per (seed, day) — identical draws).
+        # Restore life state from the store; seed arcs lazily when a
+        # persona exists but none persisted.
         self._ensure_life()
         if (
             self._profile is not None
@@ -551,14 +490,8 @@ class Session:
         ):
             self._generate_agenda(day)
 
-        # A1 finding 1 (finalize crash window): the judgement was persisted
-        # but the memory/life tail of finalize_day never completed (process
-        # death between save_judgement and update_daily_score). A completed
-        # finalize always persists the day's score, so judgement + NULL
-        # score is the in-between marker — complete the missing steps
-        # exactly once. Each step is individually idempotent (persistence
-        # markers), so a CLEAN finalize followed by resume re-runs nothing
-        # and the no-double-advance guard keeps holding.
+        # Finalize crash window: judgement + NULL score marks the
+        # crashed tail; steps complete once and are idempotent.
         if judgement is not None and latest.get("score") is None:
             self._complete_pending_finalize(day, judgement)
 
@@ -579,9 +512,7 @@ class Session:
             seed=int(row["seed"]),
         )
 
-    # ------------------------------------------------------------------ #
-    # day lifecycle
-    # ------------------------------------------------------------------ #
+    # -- day lifecycle -------------------------------------------------- #
 
     def ensure_day(self, day: int) -> None:
         """Roll the session forward so `current_day == day` (no rewind)."""
@@ -638,11 +569,8 @@ class Session:
         self._day_rng = rng_t
         self._records[day] = record
 
-        # Wave 2 lanes: plan today's life agenda. All draws come from the
-        # reserved LIFE stream (never day_rng) so the engine replay order
-        # above stands byte-for-byte. (Memory sessions are no longer opened
-        # here — it3 B2: one memory session per CONVERSATION, opened at
-        # conversation open and closed at conversation close.)
+        # Plan today's life agenda; draws come from the reserved LIFE
+        # stream, never day_rng.
         self._ensure_life()
         if self._profile is not None:
             self._generate_agenda(day)
@@ -687,16 +615,8 @@ class Session:
             day, score, result.justification, self.judge_model, shadow=not self.feedback
         )
 
-        # Wave 2 lanes at the session boundary: the life step for the day
-        # just ended. Memory is NOT closed here — it3 B2: L1->L2->L3->L4
-        # formation keys off the CONVERSATION boundary (one memory session
-        # per conversation), and conversation closes happen at their own
-        # times; a conversation still open at the day boundary stays open.
-        # Conversations that closed during the day ALREADY ran their memory
-        # tail at close time; this sweep only completes stragglers (crash
-        # between close_conversation and the tail). Neither consumes day_rng
-        # (life uses the LIFE stream), so the engine replay order below is
-        # untouched.
+        # Life step for the day just ended; this sweep completes
+        # memory-tail stragglers from a crash between close and tail.
         self._step_life(day)
         self._recover_conversation_memory_tails(day)
 
@@ -728,9 +648,7 @@ class Session:
             return ""
         return "\n".join(f"{m['role']}: {m['content']}" for m in msgs)
 
-    # ------------------------------------------------------------------ #
-    # Wave 2 lanes: life + memory drivers (session COMPOSES; lanes persist)
-    # ------------------------------------------------------------------ #
+    # -- life + memory drivers (session composes; lanes persist) ------- #
 
     def _ensure_life(self) -> None:
         """Seed persistent life arcs once per life epoch (store-backed,
@@ -825,12 +743,8 @@ class Session:
         ``_resume_from`` already re-applied it (judgement present), so the
         replay contract is preserved.
         """
-        # it3 B2: memory formation is CONVERSATION-boundary driven, so the
-        # crash window's memory tail is "conversations that closed during
-        # this day but whose L2 summary never persisted" (process death
-        # between close_conversation and the memory tail). Each close is
-        # idempotent (summary-exists guard), so a clean finalize re-runs
-        # nothing.
+        # Memory formation is conversation-boundary driven; the crash
+        # tail is closed conversations missing an L2 summary.
         self._recover_conversation_memory_tails(day)
         if self._profile is not None and not self._life_step_done(day):
             self._step_life(day)
@@ -866,9 +780,7 @@ class Session:
             ):
                 self._close_conversation_memory(conv)
 
-    # ------------------------------------------------------------------ #
-    # it3 B2: conversation lifecycle (module invariant 8)
-    # ------------------------------------------------------------------ #
+    # -- conversation lifecycle ----------------------------------------- #
 
     def open_conversation_id(self) -> str | None:
         """Id of the currently open conversation, or None.
@@ -1046,11 +958,8 @@ class Session:
         if hasattr(self.store, "open_conversation"):
             self.store.open_conversation(conv_id, t_h, opened_by)
         if hasattr(self.store, "open_session"):
-            # One memory session per conversation: L1->L2->L3->L4 formation
-            # keys off the conversation boundary. The session id is derived
-            # from the conversation id (day-namespaced — see
-            # CONVERSATION_SESSION_OFFSET); the MemoryAgent seam is used
-            # as-is, only the ids the session passes changed.
+            # One memory session per conversation; the session id is
+            # derived from the conversation id (day-namespaced).
             self.store.open_session(self._memory_session_id(conv_id), t_h)
         conv = Conversation(
             id=conv_id, opened_t_h=t_h, closed_t_h=None,
@@ -1130,12 +1039,8 @@ class Session:
             return
         if not conv.turns:
             return
-        # G0 A1: while an availability negotiation is pending, the
-        # negotiation owns the conversation end — neither the
-        # closing_tendency draw nor the max_turns cap may yank her out
-        # mid-negotiation (go closes gracefully via ``followed_event``;
-        # skip / forced leave the conversation open). The checks resume
-        # once no negotiation is pending.
+        # While a negotiation is pending it owns the conversation end;
+        # the closing draw and max_turns cap resume after it resolves.
         if any(not st.resolved for st in self._negotiations.values()):
             return
         first_companion = next(
@@ -1148,10 +1053,8 @@ class Session:
             return
         if last_turn.turn_index == first_companion.turn_index:
             return  # first companion turn: the no-taper floor
-        # closing_tendency draw is feature-flagged OFF (harness/tunables.py).
-        # The stream RNG is keyed (not sequential), so skipping the draw stays
-        # replay-safe — no consumption to desync. Re-enable via the tunable when
-        # the closing model is redefined (flat vs fatigue curve; see BACKLOG).
+        # The closing_tendency draw is feature-flagged off; skipping it
+        # stays replay-safe because the stream RNG is keyed.
         if CLOSING_TENDENCY_ENABLED:
             conv_seq = int(conv.id.split("-", 1)[1])
             rng = stream_rng(
@@ -1370,9 +1273,7 @@ class Session:
             proactive_intent=intent,
         )
 
-    # ------------------------------------------------------------------ #
-    # conversation
-    # ------------------------------------------------------------------ #
+    # -- conversation --------------------------------------------------- #
 
     def _persist_message(
         self,
@@ -1431,9 +1332,8 @@ class Session:
         day = self.clock.day()
         self.ensure_day(day)
         assert self.current_record is not None
-        # it3 B2: close a stale open conversation BEFORE this turn (quiet
-        # boundary crossed / user silence past USER_LEFT_THRESHOLD_H); the
-        # current message then opens a fresh conversation.
+        # Close a stale open conversation before this turn (quiet
+        # boundary crossed or user silence); this message opens a new one.
         self.check_conversation_lifecycle(t_h)
 
         previous = self._records.get(day - 1)
@@ -1442,17 +1342,13 @@ class Session:
         )
         controls = controls_from_directive(directive)
         if self.two_phase_close and self._closing_pending_t_h is not None:
-            # Two-phase close (seam S1): a wind-down is pending — render the
-            # wind-down guidance through the assembler's EXISTING
-            # ``closing_guidance`` channel (the state card carries it into
-            # this companion turn; the turn then closes deterministically in
-            # ``_maybe_close_conversation``).
+            # Wind-down pending: render the guidance through the existing
+            # closing_guidance channel; the turn then closes.
             controls = replace(controls, closing_guidance=WIND_DOWN_GUIDANCE)
         brief = to_brief(directive)
 
-        # it3 B2: one conversation per exchange run — opened by the first
-        # message of either party; the memory session id IS the conversation
-        # id (one memory session per conversation).
+        # One conversation per exchange run; the memory session id is
+        # the conversation id.
         conv = self._ensure_conversation(
             t_h, opened_by="user" if user_text is not None else "companion"
         )
@@ -1465,26 +1361,19 @@ class Session:
             query = intent.hook
 
         snapshot = self._build_snapshot(day, t_h, brief=brief, intent=intent, query=query)
-        # v2 unified brief renderer: the state card's mood line consumes
-        # BehaviorDirective.prompt_brief VERBATIM (single source of the
-        # 'Current bearing' prose; the assembler never re-renders it).
-        # The tier-2 DAY-START block is rendered once per day and cached, so
-        # it stays stable within the day (design §2.1: personality + today's
-        # agenda at day start; the state card refreshes every turn).
+        # The mood line consumes prompt_brief verbatim; the day-start
+        # block renders once per day and is cached.
         if self._day_block is None or self._day_block_day != day:
             self._day_block = render_day_block(snapshot)
             self._day_block_day = day
         system = assemble_snapshot(
             snapshot, controls=controls, prompt_brief=directive.prompt_brief,
             day_block=self._day_block,
-            # W2: the temporal section (current-time/day line + agenda
-            # partition) renders only when the run is anchored; unanchored
-            # runs (replay) omit it entirely (G2: never render raw t_h).
+            # The temporal section renders only when the run is anchored.
             t_h=t_h, anchor=self._real_time_anchor(),
         )
-        # Bubbles (model-driven, flag-gated HARNESS_BUBBLES): when on, tell
-        # the model it may split into bubbles on blank lines (\n or \n\n both
-        # count — a run of newlines is one separator, WS-B ruling).
+        # Bubbles (flag-gated): the model may split into bubbles on
+        # blank-line runs; a run of newlines is one separator.
         try:
             from harness.bubbles import BUBBLE_INSTRUCTION, bubbles_enabled
 
@@ -1511,20 +1400,15 @@ class Session:
                 conv, "user", user_text, t_h, message_id=mid
             )
         else:
-            # WS-E: never pass None content into the client — a stored
-            # reasoning-only turn (content NULL) would serialize as
-            # content:null and 400 the request; "" is the safe form.
+            # Pass "" instead of None content; None serializes to
+            # content:null and 400s the request.
             messages = [
                 {"role": m["role"], "content": m["content"] or ""}
                 for m in recent
             ]
 
-        # -- WS4: idle-boundary steering ----------------------------------- #
-        # Detect crossed agenda boundaries (event pop-ups) and drain every
-        # pending steer into this turn. A no-reply verdict suppresses the
-        # ordinary reply; the steer block for non-decision kinds is appended
-        # to the messages below. If anything raises, the steers delivered to
-        # this turn are re-queued (interrupted turn — WS3 contract).
+        # Drain pending steers into this turn; no-reply verdicts
+        # suppress the reply, and delivered steers re-queue on error.
         notices: list[str] = []
         proactive_out: list[tuple[str, str]] = []
         suppress_reply = False
@@ -1534,9 +1418,8 @@ class Session:
         if self._steering is not None:
             if self._decision_enabled:
                 self._enqueue_event_popups(day, t_h)
-            # G0 A1: negotiations already in DECIDE BEFORE this turn are
-            # due for the companion-turn decide trigger; the Inform turn
-            # itself never decides (the loop fires from the next turn on).
+            # Negotiations already deciding fire their decide trigger
+            # this companion turn.
             active_before = {
                 iid for iid, st in self._negotiations.items()
                 if st.phase == NegotiationPhase.DECIDE.value
@@ -1558,11 +1441,8 @@ class Session:
                         )
                     else:
                         self._turn_drained.remove(steer.steer_id)
-                # G0 A1: the availability-negotiation decide loop fires at
-                # this companion turn for every negotiation that was
-                # already deciding. A go verdict suppresses the ordinary
-                # reply — her natural close (proactive_out) is the only
-                # message (single reply-path invariant).
+                # The decide loop fires for every already-deciding
+                # negotiation; a go verdict suppresses the ordinary reply.
                 if self._run_turn_decides(
                     day, t_h, proactive_out, active_before=active_before
                 ):
@@ -1573,18 +1453,13 @@ class Session:
                 self._turn_drained = []
                 raise
 
-        # W2 (S2): agenda status transitions as windows pass — keyed off the
-        # current t_h, persisted via the store, so the persisted status and
-        # the state card's temporal partition agree. Runs AFTER the steering
-        # drain: the decision layer must still see planned items whose
-        # window just ended (END pop-ups / abandon), and any steer outcome
-        # (completed/skipped) is never re-drawn by the transition.
+        # Agenda status transitions as windows pass, persisted via the
+        # store; runs after the steering drain.
         self._transition_agenda_windows(day, t_h)
 
         if suppress_reply:
-            # SINGLE REPLY-PATH invariant: a no-reply verdict means NO
-            # ordinary reply for this user message — the server notice goes
-            # out instead (the user message above is already persisted).
+            # A no-reply verdict means no ordinary reply; the server
+            # notice goes out instead.
             self._turn_drained = []
             self.store.log_event(
                 day, t_h, "decision_no_reply",
@@ -1599,10 +1474,8 @@ class Session:
         if injections:
             messages.append({"role": "user", "content": "\n".join(injections)})
 
-        # -- WS4: thinking ------------------------------------------------ #
-        # reasoning_effort passes through HARNESS_THINKING_EFFORT when set;
-        # per the repo pitfall (3af0a5a) a reasoning model never receives a
-        # capped max_tokens, so the cap is dropped when an effort is set.
+        # reasoning_effort passes through HARNESS_THINKING_EFFORT when
+        # set; the max_tokens cap is dropped then.
         max_tokens = (
             None if self._thinking_effort is not None else controls.max_tokens
         )
@@ -1619,16 +1492,13 @@ class Session:
             )
             reply = result.content
             reasoning = result.reasoning
-            # WS-D spend accounting: the parsed usage + gateway-reported
-            # cost ride on the ChatResult; they are persisted (when the
-            # store accepts them) alongside the lane attribution.
+            # Parsed usage and cost ride on the ChatResult and persist
+            # with the lane attribution when the store accepts them.
             usage = getattr(result, "usage", None)
             raw_cost = getattr(result, "raw_cost", None)
         if not reply.strip():
-            # Generation integrity (it3 B1): an empty/whitespace reply is
-            # NEVER persisted. The client retries empties with bounded
-            # backoff first; this guard is the invariant that a blank
-            # assistant row cannot enter the store, whatever the client did.
+            # An empty/whitespace reply is never persisted; the client
+            # retries empties with bounded backoff first.
             raise RuntimeError(
                 "refusing to persist empty assistant reply (client returned "
                 "empty/whitespace-only content)"
@@ -1641,18 +1511,13 @@ class Session:
         conv = self._record_turn(
             conv, "companion", reply, t_h, message_id=mid
         )
-        # it3 B2: the companion-turn close checks — the closing_tendency
-        # draw and the max_turns cap. The close (when it fires) persists
-        # close_reason and drives the per-conversation memory tail.
+        # Companion-turn close checks: the closing_tendency draw and
+        # the max_turns cap; a close persists close_reason.
         self._maybe_close_conversation(conv, t_h, controls.closing_tendency)
         repro_kwargs: dict = {}
         if self._accepts_repro:
-            # Eval-mode call reproducibility (it3 B7): persist the EXACT
-            # assembled system prompt + message payload + sampling params so
-            # repro_json alone can reconstruct this call (invariant 19).
-            # temperature/json_mode are the LLMClient protocol defaults —
-            # this call site never overrides them. The store drops the
-            # payload unless audit_mode=True (production privacy default).
+            # Persist the exact prompt/payload/params so repro_json
+            # reconstructs the call; dropped unless audit_mode=True.
             repro_kwargs["repro"] = {
                 "model": getattr(self.client, "model", None),
                 "system": system,
@@ -1674,10 +1539,8 @@ class Session:
         meta = {"reasoning": reasoning} if reasoning else None
         usage_kwargs: dict = {}
         if self._accepts_usage:
-            # WS-D spend accounting: parsed usage + WS-C lane attribution
-            # + gateway-reported cost (G-cost cross-check). The lane is
-            # stamped at client construction; un-laned clients persist
-            # lane=NULL (no attribution, row still counted).
+            # Parsed usage, lane attribution and gateway-reported cost
+            # persist; un-laned clients record lane=NULL.
             usage_kwargs["usage"] = usage
             usage_kwargs["lane"] = getattr(self.client, "lane", None)
             usage_kwargs["raw_cost"] = raw_cost
@@ -1717,9 +1580,7 @@ class Session:
             bubbles=bubbles,
         )
 
-    # ------------------------------------------------------------------ #
-    # WS4: steering + decision layer (idle boundary, pop-up execution)
-    # ------------------------------------------------------------------ #
+    # -- steering + decision layer (idle boundary, pop-up execution) --- #
 
     @staticmethod
     def _turn_id(conv: Conversation) -> str:
@@ -1874,16 +1735,12 @@ class Session:
                 if state == "start" and self._maybe_start_negotiation(
                     item_id, day, t_h, steer, proactive_out
                 ):
-                    # The availability negotiation owns the START pop-up:
-                    # Inform-once (or a re-delivery of a negotiation whose
-                    # responded-bool marker is not True) then the Decide
-                    # loop. Consumed — the plain start semantics do not run.
+                    # The negotiation owns the start pop-up: Inform-once
+                    # then the Decide loop.
                     return _STEER_CONSUMED
                 if state == "end" and item_id in self._negotiations:
-                    # The negotiation owns the item's lifecycle: the END
-                    # pop-up is consumed without a model call (the item was
-                    # resolved at its decide instants — go completes it,
-                    # skip/forced mark it skipped).
+                    # The negotiation owns the item lifecycle: the END
+                    # pop-up is consumed without a model call.
                     return _STEER_CONSUMED
             result = self._execute_decision(
                 decision_id=f"steer-{steer.steer_id}",
@@ -1982,12 +1839,8 @@ class Session:
         messages.append(
             {"role": "user", "content": wrap_steer_marker(request.popup)}
         )
-        # Native transport: the runner's schemas are Hermes-style
-        # {name, description, parameters}; OpenAI-compatible endpoints
-        # require the {"type": "function", "function": ...} wrapper (the
-        # decision-probe callable wraps its own copy the same way — this
-        # is the ONLY consumer of request.tools, so the wrap belongs
-        # here, at the transport boundary).
+        # Native transport wraps Hermes-style schemas in the OpenAI
+        # {"type": "function", "function": ...} form at the boundary.
         native_tools = None
         if request.native and request.tools:
             native_tools = [
@@ -2034,9 +1887,7 @@ class Session:
             return
         self.store.update_agenda_item_status(item_id, "skipped")
 
-    # ------------------------------------------------------------------ #
-    # G0 A1: availability negotiation (Inform-once -> Decide loop)
-    # ------------------------------------------------------------------ #
+    # -- availability negotiation (Inform-once -> Decide loop) ---------- #
 
     def _restore_negotiations(self) -> dict[str, NegotiationState]:
         """Rebuild active negotiations from persisted ``negotiation_state``
@@ -2177,9 +2028,8 @@ class Session:
         ):
             return False  # dead / not-yet / closed window: plain semantics
         if conv.opened_t_h > item.start_t_h + 1e-12:
-            # The conversation OPENED after the boundary landed — at the
-            # boundary no conversation was open, so no negotiation (the
-            # plain start pop-up IS the Decide for that case).
+            # The conversation opened after the boundary landed, so no
+            # negotiation; the start pop-up is the Decide.
             return False
         st = NegotiationState(
             item_id=item.id,
@@ -2226,9 +2076,8 @@ class Session:
             day=day, t_h=t_h,
         )
         if result is None:
-            # Parse failure (requeue policy): the steer is back in the
-            # queue; the state stays INFORM (informed not True) and the
-            # re-delivered pop-up re-runs this same decision id.
+            # Parse failure: the steer re-queues; the state stays
+            # INFORM and the pop-up re-runs the same decision id.
             return
         mention = str(
             (result.verdict or {}).get("message")
@@ -2337,19 +2186,15 @@ class Session:
         st.last_decide_at_t_h = t_h
         self._persist_negotiation(st, t_h)
         if result is None:
-            # Parse failure (requeue policy): the synthetic steer has no
-            # queue row to requeue (the SQLite backend no-ops on id -1);
-            # the state stays in DECIDE and the next decide instant retries
-            # the SAME decision id (a parse failure records no decision
-            # row, so the retry re-calls the model — no false replay).
+            # Parse failure: the synthetic steer has no queue row to
+            # requeue; the next decide instant retries the same id.
             return
         verdict = result.verdict or {}
         reason = str(verdict.get("reason") or "")
         action = verdict.get("action")
         if action not in ("follow", "abandon", "defer"):
-            # Pre-A2 L369 verdicts carry no action: initiate is the
-            # fallback (True -> go, False -> skip). A2's schema ships the
-            # action as the primary signal.
+            # Pre-A2 verdicts carry no action; initiate is the
+            # fallback (True -> go, False -> skip).
             action = (
                 "follow" if verdict.get("initiate") is True
                 else "abandon" if verdict.get("initiate") is False
@@ -2446,11 +2291,8 @@ class Session:
         + SHORT_AFK). A re-arm that would land at/after ``end_t_h``
         resolves immediately as a forced skip instead (the backstop clamp:
         defer never re-arms past the window)."""
-        # Prefer the runner's SERVER-FILLED defer_turns (A2 fills the
-        # recorded verdict deterministically from the reason); fall back to
-        # the identical mapping for runners that predate the fill — the
-        # re-armed N always equals the recorded defer_turns by
-        # construction. The model never emits N.
+        # Prefer the runner's server-filled defer_turns; fall back to
+        # the same mapping for older runners. The model never emits N.
         n = verdict.get(DEFER_TURNS_KEY)
         if not isinstance(n, int):
             n = map_defer_n(str(verdict.get("reason") or ""))
@@ -2458,9 +2300,8 @@ class Session:
         if not rearm_after_delay(
             st, now=t_h, last_user_turn_t_h=anchor, n=n
         ):
-            # The AFK bomb would land at/after the window close: the delay
-            # resolves immediately (forced skip) — never a re-arm past
-            # end_t_h (G0 floor: termination is guaranteed).
+            # The AFK bomb landing at/after window close resolves
+            # immediately (forced skip), never re-arming past end_t_h.
             self._resolve_forced(st, t_h, "window closed before the next decide")
             return
         self._persist_negotiation(st, t_h)

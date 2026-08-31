@@ -44,8 +44,7 @@ from engine.types import MoodVariant, PersonaParams, TimingParams
 from sim.metrics import mean_sd, reversion_days
 from sim.run_daily import run
 
-# ---------------------------------------------------------------------------
-# Constantes del experimento
+# Experiment constants
 
 DAYS = 120
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
@@ -55,36 +54,34 @@ OUT_DIR = Path(__file__).resolve().parents[1] / "results" / "w35-shocks"
 _TIMING_DEFAULT = TimingParams()
 _DEFAULT_PERSONA = PersonaParams()
 
-# Cota de estabilidad con defaults (informativa, recalculada explicitamente
-# para no depender de un numero magico en el reporte).
+# Default stability bound, recomputed explicitly for the report.
 _G_MAX_DEFAULT = 1 + _DEFAULT_PERSONA.A + 3 * _DEFAULT_PERSONA.sigma_eps
 _STABILITY_BOUND_DEFAULT = 2 * (1 - _DEFAULT_PERSONA.rho) / _G_MAX_DEFAULT
 
-# Sub-experimento 1: shock y reversion.
-SHOCK_DAYS = range(40, 45)  # 40..44 inclusive (5 dias)
+# Sub-experiment 1: shock and reversion.
+SHOCK_DAYS = range(40, 45)  # 40..44 inclusive (5 days)
 SHOCK_SCORE = -1.0
-T_SHOCK_RECORD = 45  # primer dia cuyo mu refleja el shock completo (ver docstring)
-BASELINE_WINDOW = range(20, 40)  # mu[20..39] para la linea base pre-shock
-DROP_WINDOW = slice(40, 51)  # mu[40..50] para el minimo tras el shock
+T_SHOCK_RECORD = 45  # first day whose mu reflects the full shock
+BASELINE_WINDOW = range(20, 40)  # mu[20..39] pre-shock baseline
+DROP_WINDOW = slice(40, 51)  # mu[40..50] post-shock minimum
 DROP_MARGIN = 0.15
 THEORETICAL_EQUILIBRIUM_SHOCK = (
     _DEFAULT_PERSONA.k * SHOCK_SCORE / (1 - _DEFAULT_PERSONA.rho)
-)  # k*(-1)/(1-rho) = -0.5 con defaults
-REVERSION_ACCEPT_RANGE = (1.0, 8.0)  # acepta el lazo endogeno M->score vivo
+)  # k*(-1)/(1-rho) = -0.5 with defaults
+REVERSION_ACCEPT_RANGE = (1.0, 8.0)  # accepts the live endogenous M->score loop
 
-# Sub-experimento 2: dosis-respuesta de rho.
+# Sub-experiment 2: rho dose-response.
 RHO_VALS = [0.5, 0.7, 0.85]
 K_FOR_RHO_SWEEP = 0.15
 
-# Sub-experimento 3: cota de estabilidad empirica.
+# Sub-experiment 3: empirical stability bound.
 RHO_FOR_K_SWEEP = 0.7
 K_VALS = [0.40, 0.47, 0.60]
-TAIL_WINDOW = 20  # ultimos N dias para metricas de mu medio / |mu| max
-SAT_TAIL_WINDOW = 40  # ultimos N dias para sd(M) y fraccion saturada
+TAIL_WINDOW = 20  # last N days for mean-mu / |mu|-max metrics
+SAT_TAIL_WINDOW = 40  # last N days for sd(M) and saturation fraction
 
 
-# ---------------------------------------------------------------------------
-# Sub-experimento 1: shock y reversion (defaults)
+# Sub-experiment 1: shock and reversion (defaults)
 
 
 def run_shock_experiment() -> dict:
@@ -186,8 +183,7 @@ def plot_shock_M(per_seed: dict, seed: int) -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# Sub-experimento 2: dosis-respuesta de rho
+# Sub-experiment 2: rho dose-response
 
 
 def run_rho_sweep() -> dict:
@@ -262,8 +258,7 @@ def plot_rho_comparison(rho_results: dict) -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# Sub-experimento 3: cota de estabilidad empirica
+# Sub-experiment 3: empirical stability bound
 
 
 def run_k_sweep() -> dict:
@@ -369,8 +364,7 @@ def plot_k_comparison(k_results: dict) -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# Reporte
+# Report section
 
 
 def _fmt_bool(b: bool) -> str:
@@ -391,7 +385,7 @@ def write_report(shock_result: dict, rho_result: dict, k_result: dict) -> Path:
         f"cota=2*(1-rho)/g_max={_STABILITY_BOUND_DEFAULT:.6f}.\n"
     )
 
-    # --- Sub-experimento 1 ---
+    # --- Sub-experiment 1 ---
     lines.append("## 1. Shock y reversion (defaults)\n")
     lines.append(
         f"Shocks: score forzado = {SHOCK_SCORE} en dias {min(SHOCK_DAYS)}-{max(SHOCK_DAYS)} "
@@ -440,7 +434,7 @@ def write_report(shock_result: dict, rho_result: dict, k_result: dict) -> Path:
         f"{list(REVERSION_ACCEPT_RANGE)} en vez de exigir ~2.8 dias exactos.\n"
     )
 
-    # --- Sub-experimento 2 ---
+    # --- Sub-experiment 2 ---
     lines.append("## 2. Dosis-respuesta de rho\n")
     lines.append(
         f"k={K_FOR_RHO_SWEEP} fijo, rho en {RHO_VALS}, mismo shock (dias "
@@ -471,7 +465,7 @@ def write_report(shock_result: dict, rho_result: dict, k_result: dict) -> Path:
         f"para rho={RHO_VALS}.\n"
     )
 
-    # --- Sub-experimento 3 ---
+    # --- Sub-experiment 3 ---
     lines.append("## 3. Cota de estabilidad empirica\n")
     lines.append(
         f"rho={RHO_FOR_K_SWEEP} (cota ~= {k_result[K_VALS[0]]['bound']:.4f}), "
@@ -573,11 +567,8 @@ def write_report(shock_result: dict, rho_result: dict, k_result: dict) -> Path:
             f"k={k_high}.\n"
         )
 
-    # El criterio (5) pide verificacion empirica de la cota: lo que realmente
-    # la confirma es el orden monotono (mas k = peor comportamiento), no el
-    # umbral absoluto de 0.6 (que asumia contencion simetrica; ver hallazgo
-    # de sesgo por lam=0.60 arriba). overall_pass se basa en monotonicidad +
-    # divergencia de k_high, documentando aparte el umbral literal FAIL.
+    # Criterion (5) verification: monotonic order (more k = worse behavior) confirms
+    # the bound; overall_pass uses monotonicity + k_high divergence.
     overall_pass = monotonic_mu and monotonic_sat and high_diverges
     lines.append(
         f"## Veredicto global (5): **{_fmt_bool(overall_pass and all_drop_pass and all_rev_pass and monotonic)}**\n"
@@ -623,7 +614,6 @@ def write_report(shock_result: dict, rho_result: dict, k_result: dict) -> Path:
     return report_path
 
 
-# ---------------------------------------------------------------------------
 # main
 
 

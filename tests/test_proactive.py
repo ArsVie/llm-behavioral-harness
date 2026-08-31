@@ -46,9 +46,7 @@ from harness.scheduler import (
     REASON_VALIDITY_H,
 )
 
-# --------------------------------------------------------------------------- #
-# SeamStore — seam-faithful in-memory store (A2 seam + existing ops)
-# --------------------------------------------------------------------------- #
+# SeamStore: seam-faithful in-memory store
 
 
 class SeamStore:
@@ -75,12 +73,12 @@ class SeamStore:
         self._opportunities: dict[str, object] = {}
         self._next_id = 1
 
-    # -- lifecycle ---------------------------------------------------------
+    # lifecycle
 
     def close(self) -> None:
         pass
 
-    # -- daily state + judgements ------------------------------------------
+    # daily state and judgements
 
     def save_daily_state(self, day: int, record: dict) -> None:
         self._daily[day] = dict(record)
@@ -111,7 +109,7 @@ class SeamStore:
         j = self._judgements.get(day - 1)
         return float(j["score"]) if j else None
 
-    # -- messages -----------------------------------------------------------
+    # messages
 
     def add_message(self, role, content, t_h, day, proactive, *,
                     session_id=None, intent_id=None) -> int:
@@ -142,7 +140,7 @@ class SeamStore:
     def proactive_count(self, day: int) -> int:
         return sum(1 for m in self._messages if m["day"] == day and m["proactive"])
 
-    # -- audit log ----------------------------------------------------------
+    # audit log
 
     def log_event(self, day, t_h, event, detail=None) -> None:
         self._events.append({
@@ -156,7 +154,7 @@ class SeamStore:
     def events_since(self, day: int) -> list[dict]:
         return [dict(e) for e in self._events if e["day"] >= day]
 
-    # -- schedule_events (same semantics as SQLiteStore) --------------------
+    # schedule_events
 
     def save_schedule_events(self, seed: int, events: list[dict]) -> None:
         for e in events:
@@ -193,7 +191,7 @@ class SeamStore:
                  if s == seed and r["status"] == "fired" and r["fired_t_h"] is not None]
         return max(fired) if fired else None
 
-    # -- persona + interests ------------------------------------------------
+    # persona and interests
 
     def save_interests(self, interests: list[Interest]) -> None:
         self._interests = list(interests)
@@ -201,7 +199,7 @@ class SeamStore:
     def list_interests(self) -> list[Interest]:
         return list(self._interests)
 
-    # -- life arcs ----------------------------------------------------------
+    # life arcs
 
     def upsert_life_arc(self, arc: LifeArc) -> None:
         self._arcs[arc.id] = arc
@@ -220,7 +218,7 @@ class SeamStore:
         if arc is not None:
             self._arcs[arc_id] = replace(arc, status=status)
 
-    # -- agenda -------------------------------------------------------------
+    # agenda
 
     def save_agenda(self, day: int, agenda: DailyAgenda) -> None:
         self._agendas[day] = agenda
@@ -252,7 +250,7 @@ class SeamStore:
                                     for i in agenda.items),
                     )
 
-    # -- memory tiers (episodes only — the resolver's seam surface) ---------
+    # memory tiers: episodes only
 
     def insert_episode(self, ep: EpisodicMemory) -> str:
         self._episodes[ep.id] = ep
@@ -270,7 +268,7 @@ class SeamStore:
             eps = [e for e in eps if e.category == category]
         return eps[-limit:]
 
-    # -- proactive intents --------------------------------------------------
+    # proactive intents
 
     def save_proactive_intent(self, intent: ProactiveIntent) -> None:
         self._intents[intent.id] = (intent, "pending")
@@ -300,7 +298,7 @@ class SeamStore:
             return self._episodes.get(intent.source_id)
         return None
 
-    # -- contact opportunities (it2 A3 optional persistence seam) -----------
+    # contact opportunities
 
     def save_contact_opportunity(self, opp) -> None:
         """Optional A7 seam for ContactOpportunity persistence (the real
@@ -310,16 +308,14 @@ class SeamStore:
     def load_contact_opportunities(self) -> list:
         return list(self._opportunities.values())
 
-    # -- interactions -------------------------------------------------------
+    # interactions
 
     def latest_interaction_t_h(self) -> float | None:
         user = [m["t_h"] for m in self._messages if m["role"] == "user"]
         return max(user) if user else None
 
 
-# --------------------------------------------------------------------------- #
 # fixtures + helpers
-# --------------------------------------------------------------------------- #
 
 AGENDA_HOUR = 14.0  # a safe awake hour (quiet hours are 23..8)
 
@@ -362,9 +358,7 @@ def resolver(store):
     return IntentResolver(store, rng=rng_mod.stream_rng(7))
 
 
-# --------------------------------------------------------------------------- #
-# no grounded candidate ⇒ None (SUPPRESS)
-# --------------------------------------------------------------------------- #
+# no grounded candidate resolves to None
 
 
 def test_resolve_none_on_empty_store(store):
@@ -377,9 +371,7 @@ def test_resolve_none_when_only_distant_agenda(store, resolver):
     assert resolver.resolve(AGENDA_HOUR) is None  # beyond the current/recent margin
 
 
-# --------------------------------------------------------------------------- #
-# agenda candidates (current/recent)
-# --------------------------------------------------------------------------- #
+# agenda candidates: current or recent
 
 
 def test_resolve_agenda_item_current(store, resolver):
@@ -417,9 +409,7 @@ def test_skipped_agenda_item_is_not_a_candidate(store, resolver):
     assert resolver.resolve(AGENDA_HOUR + 0.2) is None
 
 
-# --------------------------------------------------------------------------- #
-# completed agenda items = companion life events
-# --------------------------------------------------------------------------- #
+# completed agenda items become companion life events
 
 
 def test_resolve_completed_agenda_item_as_life_event(store, resolver):
@@ -441,9 +431,7 @@ def test_old_completed_item_not_a_life_event(store, resolver):
     assert resolver.resolve(AGENDA_HOUR) is None  # beyond LIFE_EVENT_RECENCY_H
 
 
-# --------------------------------------------------------------------------- #
 # CALLBACK memories
-# --------------------------------------------------------------------------- #
 
 
 def test_resolve_callback_memory(store, resolver):
@@ -463,9 +451,7 @@ def test_old_callback_memory_not_a_candidate(store, resolver):
     assert resolver.resolve(AGENDA_HOUR) is None
 
 
-# --------------------------------------------------------------------------- #
 # shared-interest memories
-# --------------------------------------------------------------------------- #
 
 
 def test_resolve_shared_interest_memory(store, resolver):
@@ -491,9 +477,7 @@ def test_no_interests_means_no_shared_interest_candidates(store, resolver):
     assert resolver.resolve(AGENDA_HOUR) is None
 
 
-# --------------------------------------------------------------------------- #
-# legitimate check-in context
-# --------------------------------------------------------------------------- #
+# check-in context
 
 
 def test_resolve_check_in_morning_without_recent_contact(store, resolver):
@@ -523,9 +507,7 @@ def test_check_in_needs_shared_history(store, resolver):
     assert resolver.resolve(9.0) is None  # blank slate → not grounded
 
 
-# --------------------------------------------------------------------------- #
-# ranking + determinism
-# --------------------------------------------------------------------------- #
+# ranking and determinism
 
 
 def test_high_salience_recent_beats_low_salience_stale(store, resolver):
@@ -575,13 +557,11 @@ def test_hook_is_deterministic_and_source_derived(store, resolver):
     assert i1 is not None and i2 is not None
     assert i1.hook == i2.hook
     assert i1.hook == compose_hook(item, REASON_SCHEDULE)
-    # never invented free text: the hook is a template over source fields
+    # the hook is a template over source fields, not free text
     assert item.activity in i1.hook
 
 
-# --------------------------------------------------------------------------- #
-# intent shape (domain invariant 3: no optional source fields)
-# --------------------------------------------------------------------------- #
+# intent shape
 
 
 def test_intent_is_fully_grounded(store, resolver):
@@ -595,16 +575,14 @@ def test_intent_is_fully_grounded(store, resolver):
     assert 0.0 <= intent.salience <= 1.0
 
 
-# --------------------------------------------------------------------------- #
-# SeamStore sanity (used by runtime/gates tests too)
-# --------------------------------------------------------------------------- #
+# SeamStore sanity checks
 
 
 def test_seamstore_schedule_semantics_match_sqlite():
     store = SeamStore()
     store.save_schedule_events(1, [{"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE}])
     store.mark_schedule_fired(1, 10.0, fired_t_h=10.4)
-    # INSERT OR IGNORE: re-saving must not resurrect the fired row
+    # INSERT OR IGNORE: re-saving does not resurrect the fired row
     store.save_schedule_events(1, [{"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE}])
     assert store.pending_schedule_events(1) == []
     assert store.last_proactive_t_h(1) == 10.4
@@ -634,5 +612,5 @@ def test_seamstore_proactive_intent_status_lifecycle():
     store.update_proactive_intent_status(intent.id, "fired")
     assert [i.id for i in store.list_proactive_intents(status="fired")] == [intent.id]
     assert store.list_proactive_intents(status="pending") == []
-    # gate resolves the source back
+    # resolve_intent_source returns the source
     assert store.resolve_intent_source(intent) == item

@@ -88,13 +88,12 @@ def _session(store=None, *, replies=None):
     )
     return store, clock, session
 
-#: 1 virtual hour = 20 ms real (same as test_runtime.FAST).
-FAST = TimeScale(seconds_per_virtual_hour=0.02)
+#: 1 virtual hour = 2 ms real (same as test_runtime.FAST).
+FAST = TimeScale(seconds_per_virtual_hour=0.002)
 #: Robust scale for gate races (same as test_runtime.SLOW).
 SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 
-#: Arbitrary but fixed epoch the ManualClock starts at; anchors are built
-#: against it so t_h math is exact.
+#: Fixed epoch the ManualClock starts at; anchors are built against it.
 T0 = 1_000_000.0
 
 
@@ -159,9 +158,7 @@ def _run_accelerated(store, session, channel, *, max_hours, scale=FAST):
     return delays
 
 
-# --------------------------------------------------------------------------- #
-# anchor=None parity (the accelerated path is byte-identical)
-# --------------------------------------------------------------------------- #
+# --- anchor=None parity (accelerated path byte-identical) ---
 
 
 def test_anchor_none_paced_sleeps_are_real_and_never_touch_wall_clock():
@@ -186,8 +183,7 @@ def test_anchor_none_paced_sleeps_are_real_and_never_touch_wall_clock():
     )
     asyncio.run(runtime._sleep_until_t_h(2.0, 0.5))
     runtime._executor.shutdown()
-    # The paced sleep completed in real (tiny) time without the sleeper and
-    # without the wall clock — exactly the pre-anchor contract.
+# The paced sleep completed without the sleeper and without the wall clock.
     assert recorded == []
     assert clock.t_h == 0.0  # the caller advances the clock, not the sleep
 
@@ -218,9 +214,7 @@ def test_anchor_none_end_to_end_parity():
     assert schedule_rows[10.0]["fired_t_h"] == 10.0
 
 
-# --------------------------------------------------------------------------- #
-# absolute sleeps (S2): epoch-derived, TimeScale-independent, self-correcting
-# --------------------------------------------------------------------------- #
+# --- absolute sleeps: epoch-derived, TimeScale-independent, self-correcting ---
 
 
 def test_anchor_absolute_sleep_is_epoch_derived_and_self_correcting():
@@ -274,9 +268,7 @@ def test_anchor_absolute_sleep_no_drift_single_request():
     assert manual.t == pytest.approx(anchor.epoch_of(2.0))
 
 
-# --------------------------------------------------------------------------- #
-# resume fix (S2): t_h_start = anchor.t_h_at(now), loud clock-skew failure
-# --------------------------------------------------------------------------- #
+# --- resume fix: t_h_start = anchor.t_h_at(now), loud clock-skew failure ---
 
 
 def test_anchor_resume_at_real_1800_pins_local_hour(tmp_path):
@@ -290,7 +282,7 @@ def test_anchor_resume_at_real_1800_pins_local_hour(tmp_path):
     _run_accelerated(store, session, FakeChannel(), max_hours=26.0)
     assert store.latest_daily_state()["day"] == 1  # day-1 state persisted
 
-    # Restart: real 18:00 on day 1 -> anchor.t_h_at(now) = 42.0
+# Restart: real 18:00 on day 1 -> anchor.t_h_at(now) = 42.0
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=42.0, tz="America/Mexico_City")
     manual = AnchorManualClock(t0=T0)
     store2, clock2, session2 = _session(store)
@@ -363,9 +355,7 @@ def test_anchor_resume_no_skew_when_now_maps_forward(tmp_path):
     assert clock2.t_h == pytest.approx(50.0)
 
 
-# --------------------------------------------------------------------------- #
-# S3 command dispatch (ControlCommand -> harness.commands, lazy import)
-# --------------------------------------------------------------------------- #
+# --- command dispatch (ControlCommand -> harness.commands, lazy import) ---
 
 
 def _fake_commands_module(monkeypatch, calls, sent):
@@ -421,7 +411,7 @@ def test_command_dispatch_routes_to_handle_command(monkeypatch):
     assert ctx_kw["request_mute"] == runtime._request_mute
     assert channel.sent[-1].text == "reply:status"
     assert channel.sent[-1].proactive is False
-    # session untouched: no messages, no client calls
+# session untouched: no messages, no client calls
     assert store.recent_messages(5) == []
     assert session.client.calls == []
 
@@ -480,9 +470,7 @@ def test_run_wires_command_callback_only_when_enabled():
     assert channel2.command_handler is None
 
 
-# --------------------------------------------------------------------------- #
-# S4 typing wrap (generation + response_delay_s inside typing_context)
-# --------------------------------------------------------------------------- #
+# --- typing wrap (generation + response_delay_s inside typing_context) ---
 
 
 def test_typing_context_wraps_inbound_generation_and_delay():
@@ -546,14 +534,12 @@ def test_typing_context_wraps_proactive_generation_not_send():
         sleeper=record,
     )
     asyncio.run(runtime.run())
-    # typing entered before the response delay and exited before the send
+# typing entered before the response delay and exited before the send
     assert trace == [("delay", 1), ("send", 2)]
     assert channel.sent and channel.sent[0].proactive is True
 
 
-# --------------------------------------------------------------------------- #
-# CommandContext narrow hooks: /tz at rollover, /mute defers never consumes
-# --------------------------------------------------------------------------- #
+# --- CommandContext narrow hooks: /tz at rollover, /mute defers ---
 
 
 def test_request_tz_change_applied_at_next_rollover(tmp_path):
@@ -575,7 +561,7 @@ def test_request_tz_change_applied_at_next_rollover(tmp_path):
     assert runtime.anchor.tz == "America/New_York"
     assert load_anchor(store).tz == "America/New_York"
     assert store.get_kv("anchor.tz") == "America/New_York"
-    # the mapping is untouched: t_h0/epoch0_s survive the tz change
+# the mapping is untouched: t_h0/epoch0_s survive the tz change
     assert float(store.get_kv("anchor.t_h0")) == pytest.approx(23.5)
 
 
@@ -615,9 +601,8 @@ def test_request_mute_defers_pending_event_never_consumes():
         store, session, channel, anchor=anchor, manual=manual,
         max_hours=13.0,
     )
-    # Position the clock at the anchor-resumed hour (10:00) BEFORE the mute
-    # request — in production /mute arrives mid-run, after the resume; the
-    # hook measures from the clock's current hour.
+# Position the clock at the anchor-resumed hour (10:00) before the mute
+# request; the hook measures from the clock's current hour.
     clock.advance_hours(10.0)
     runtime._request_mute(2.0)  # mute until t_h 12.0
     asyncio.run(runtime.run())
@@ -630,9 +615,7 @@ def test_request_mute_defers_pending_event_never_consumes():
     assert sent_at[0] >= anchor.epoch_of(12.0)  # nothing sent inside the window
 
 
-# --------------------------------------------------------------------------- #
-# anchor persistence (S1 kv keys)
-# --------------------------------------------------------------------------- #
+# --- anchor persistence (kv keys) ---
 
 
 def test_load_persist_anchor_kv_roundtrip(tmp_path):
@@ -640,12 +623,12 @@ def test_load_persist_anchor_kv_roundtrip(tmp_path):
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=42.5, tz="America/Mexico_City")
     persist_anchor(store, anchor)
     assert load_anchor(store) == anchor
-    # partial state -> no anchor (never raises)
+# partial state -> no anchor, no raise
     partial = SQLiteStore(tmp_path / "kv-partial.db")
     partial.set_kv(ANCHOR_KV_KEYS[0], "1.0")
     partial.set_kv(ANCHOR_KV_KEYS[1], "2.0")
     assert load_anchor(partial) is None
-    # seam-less store -> no anchor, persist is a no-op
+# seam-less store -> no anchor, persist is a no-op
     seam = SeamStore()
     assert load_anchor(seam) is None
-    persist_anchor(seam, anchor)  # must not raise
+    persist_anchor(seam, anchor)  # no raise

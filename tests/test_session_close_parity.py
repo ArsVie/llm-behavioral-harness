@@ -49,15 +49,10 @@ TIMING = TimingParams()
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
 
-#: Frozen byte-parity pin: sha256 of the canonical trace of the seeded
-#: feed below with two_phase_close OFF. REGENERATED 2026-08 (owner-approved
-#: _rebaseline) from the post-365ad33 draw-OFF implementation; see module
-#: docstring (MERGE BLOCKER).
+#: sha256 of the canonical trace of the seeded feed, two_phase_close OFF.
 PARITY_PIN = "be27e97cc366ae6307e63f8b828bf775e905eb21014a6ddd92f7bb61ff87f78e"
 
-#: Feed parameters (identical across arms). The feed crosses EXACTLY ONE
-#: quiet-hours boundary: messages land at START_H + m*GAP_H, so message
-#: m=297 is the first at/after 23:00 local.
+#: Messages land at START_H + m*GAP_H, crossing one quiet-hours boundary.
 START_H = 8.1667
 GAP_H = 0.05
 N_MESSAGES = 300
@@ -164,9 +159,7 @@ def test_flag_off_byte_parity_is_pinned(tmp_path, monkeypatch):
     assert _canonical_trace(store_b) == trace_a, "flag-off runs are non-deterministic"
     assert pattern_a == pattern_b
 
-    # (c) boundary close discipline recomputed independently: one close,
-    # quiet_hours, at the first message past 23:00, with every exchange
-    # BEFORE the boundary still inside the closed conversation
+    # (c) One quiet_hours close at the first message past 23:00.
     exp_m, exp_t = _expected_boundary_close()
     assert len(pattern_a) == 1, f"exactly one boundary close expected: {pattern_a}"
     cid, reason, turns = pattern_a[0]
@@ -218,7 +211,7 @@ def test_flag_on_turn_count_rebaseline(tmp_path, monkeypatch):
         "flagged OFF (the wind-down branch must be unreachable)"
     )
 
-    # sentinel: zero wind-down artifacts in EITHER arm while the draw is OFF
+    # Zero wind-down artifacts in either arm.
     for store in (off_store, on_store):
         events = [
             r["event"]

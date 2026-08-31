@@ -79,9 +79,7 @@ def time_kind(record: LogRecord) -> str:
     return _TIME_KIND_T_H
 
 
-# --------------------------------------------------------------------------- #
 # canonical JSON codec (deterministic formatting)
-# --------------------------------------------------------------------------- #
 
 
 def _turn_to_dict(t: LogTurn) -> dict:

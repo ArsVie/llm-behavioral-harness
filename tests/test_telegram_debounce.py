@@ -194,9 +194,7 @@ def test_stop_drops_pending_buffer_deterministically(monkeypatch) -> None:
     assert channel._buffer == []
 
 
-# --------------------------------------------------------------------------- #
-# WS-A: env-configurable windows (HARNESS_DEBOUNCE_TRAILING_S / _MAX_WAIT_S)
-# --------------------------------------------------------------------------- #
+# env-configurable windows (HARNESS_DEBOUNCE_TRAILING_S / _MAX_WAIT_S)
 
 
 def test_debounce_windows_env_configurable(monkeypatch) -> None:

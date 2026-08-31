@@ -39,10 +39,7 @@ def test_vertical_cell_mini_invariants(tmp_path):
     assert records["restart_loss"] == [{"checkpoint_h": 48.0, "diffs": 0}]
     store = SQLiteStore(records["db"])
     client = DeterministicClient(5001)
-    # it3 B3 gate fix: el run consume el stream conversacional COMPLETO de
-    # cvs_user (at_t_h + after_reply) — el fixture de la auditoría debe ser
-    # ese mismo stream, no la proyección plana legacy (que excluye los
-    # after_reply y rompía el conteo de mensajes user).
+    # The audit fixture uses the full cvs_user stream (at_t_h + after_reply).
     from experiments.cvs_user import build_user_stream
     stream = build_user_stream(5001, MINI_DAYS, perturb=True)
     fixture = [(ev.get("t_h") or 0.0, ev["text"]) for ev in stream]
@@ -65,7 +62,7 @@ def test_vertical_cell_promotes_probe_and_chain_episodes(tmp_path):
     store = SQLiteStore(records["db"])
     eps = list(store.list_episodes(limit=50))
     ids = [e.id for e in eps]
-    # Día 1 (0-based) = sonda Bruno; día 2 = evento de cadena sister_ana E1.
+    # Day 1 is the Bruno probe; day 2 is the sister_ana chain event E1.
     assert any("bruno" in (e.summary + " " + " ".join(e.verbatim_anchors)).lower()
                for e in eps), f"no Bruno episode in {ids}"
     assert any("ana" in (e.summary + " " + " ".join(e.verbatim_anchors)).lower()

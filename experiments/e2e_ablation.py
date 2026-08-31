@@ -38,9 +38,9 @@ from harness.store import SQLiteStore
 from harness.synth_user import SyntheticUser
 
 MONTHS = ("horrible", "perfect", "flat")
-#: Scripted judge score per month (fake mode) — feeds the mu loop.
+# Scripted judge score per month (fake mode).
 MONTH_JUDGE_SCORE = {"horrible": -0.7, "perfect": 0.7, "flat": 0.0}
-#: Scripted reply per month per day (fake mode) — gives tone metrics signal.
+# Scripted reply per month per day (fake mode).
 FAKE_REPLIES = {
     "horrible": ["Fine.", "Whatever you say.", "Okay.", "Hm.", "Sure."],
     "perfect": [
@@ -192,9 +192,7 @@ def run_cell(
     return records
 
 
-# --------------------------------------------------------------------------- #
 # report + evaluation
-# --------------------------------------------------------------------------- #
 
 EVALUATOR_RUBRIC = (
     "You are an independent evaluator for a behavioral-harness ablation. "

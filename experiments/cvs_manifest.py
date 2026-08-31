@@ -23,23 +23,22 @@ EXPERIMENT_NAME = "it2-companion-vertical-slice"
 SCHEMA_VERSION = "1.0"
 EVALUATOR = "A8 eval harness (Iteration 2)"
 
-#: Semillas congeladas de la matriz (plan §5-A8: 5 semillas fijas).
+# Fixed matrix seeds (5 total).
 SEEDS = (5001, 5002, 5003, 5004, 5005)
 
-#: Condiciones del eje memoria (plan §5-A8 Track A + invariante 11/12/13).
+# Memory-axis conditions.
 MEMORY_CONDITIONS = (
     "RAW_CONTEXT",
     "VERBATIM_RAG",
     "STRUCTURED_MEMORY",
 )
-#: Línea de ablación explícitamente experimental (invariante 12: variante
-#: con boost de topicalidad SIEMPRE como experimento separado).
+# Topicality-boost variant runs as a separate experiment.
 MEMORY_ABLATION_LANES = ("STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT",)
 
-#: Condiciones del eje estado (plan §5-A8 Track B).
+# State-axis conditions.
 STATE_CONDITIONS = ("NO_STATE", "PROMPT_ONLY_STATE", "MECHANICALLY_ACTUATED_STATE")
 
-#: Condiciones del eje companion (plan §5-A8 Track C).
+# Companion-axis conditions.
 COMPANION_CONDITIONS = (
     "FULL",
     "NO_LIFE",
@@ -48,7 +47,7 @@ COMPANION_CONDITIONS = (
     "NO_TIMING_FEEDBACK",
 )
 
-#: Matriz completa de ablación (plan companion-vertical-slice §10).
+# Full ablation matrix.
 MATRIX_CONDITIONS = (
     "FULL",
     "NO_ACTUATORS",
@@ -59,8 +58,7 @@ MATRIX_CONDITIONS = (
     "STRUCTURED_NO_STATE",
 )
 
-#: Las 4 dimensiones INDEPENDIENTES de calidad (§17.1) — nunca una sola
-#: puntuación colapsada. Cada dimensión lleva sus anclas de escala 1-9.
+# Four independent quality dimensions, each with 1-9 scale anchors.
 DIMENSIONS = (
     {
         "id": "persona_enactment",
@@ -88,9 +86,7 @@ DIMENSIONS = (
     },
 )
 
-#: Familias de modelo juez (§17.4: ≥2 familias independientes en el subconjunto
-#: final). La clave se lee del runner desde el .env de la raíz del repo vía la
-#: lane research (JUDGE_GENERATOR_TOKEN, WS-C) — NUNCA se imprime.
+# Judge model families; token read from the repo-root .env.
 JUDGE_FAMILIES = (
     {
         "id": "opencode-flash",
@@ -113,8 +109,7 @@ JUDGE_PASSES = 2
 JUDGE_SHUFFLE_SEED_BASE = 7000
 JUDGE_MIN_FAMILIES_FINAL_SUBSET = 2
 
-#: Umbrales congelados (nunca cambian tras ver resultados — Gate 4).
-#: ``hard: true`` = invariante estructural; debe ser exactamente 0 en todo run.
+# Thresholds; hard: true keys must be exactly 0 in every run.
 THRESHOLDS = {
     "hard_zero": {
         "ungrounded_proactive": {"value": 0, "kind": "count", "meaning": "proactive message without a valid grounded intent (invariant 5)"},
@@ -135,8 +130,7 @@ THRESHOLDS = {
     },
 }
 
-#: Declaración Weibull congelada (§17.5 — NO modificar el proceso de timing
-#: en este sprint).
+# Weibull statement: timing process unchanged this sprint.
 WEIBULL_FROZEN = (
     "The renewal/timing process (engine.timing, TimingParams — Weibull inter-"
     "contact distribution) is FROZEN for this sprint. No condition in this "
@@ -147,8 +141,7 @@ WEIBULL_FROZEN = (
     "(plan §17.5) and is out of scope here."
 )
 
-#: Hipótesis preregistradas (estructura H1-H6: IV/DV explícitas, dirección y
-#: umbral). Mapean las 3 preguntas (memoria/estado/companion) + §17.
+# Hypotheses H1-H6 with explicit IV/DV, direction and threshold.
 HYPOTHESES = (
     {
         "id": "H1",
@@ -212,7 +205,7 @@ HYPOTHESES = (
     },
 )
 
-#: Métricas estructurales (M1-M11) + estado + cadena de eventos + perturbación.
+# Structural metrics plus state, event-chain and perturbation metrics.
 METRICS = (
     {"id": "M1_grounded_rate", "name": "grounded proactive rate", "definition": "proactive messages with valid intent + live source + matching hook / proactive messages"},
     {"id": "M2_invalid_source_rate", "name": "invalid source rate", "definition": "proactive messages failing source/hook re-derivation / proactive messages"},
@@ -243,7 +236,7 @@ CONTEXT_BUDGET_CHARS = 12000
 EMBEDDING_BACKEND = "deterministic feature-hash embedder (dim 1024, SHA-256 based)"
 SUMMARIZER_BACKEND = "DeterministicSummaryExtractor (no LLM)"
 
-#: Bloques de perturbación congelados (§17.3): días 1-indexados.
+# Perturbation blocks; days are 1-indexed.
 PERTURBATION = {
     "baseline_days": (1, 10),
     "negative_block_days": (11, 14),
@@ -256,12 +249,7 @@ PERTURBATION = {
     ),
 }
 
-#: Cadenas de eventos multi-evento para §17.2 (días 1-indexados; cada evento
-#: debe promover a L3 con el extractor determinista y ser recuperable).
-#: Texto verificado contra los patrones del extractor (harness/summarization
-#: _NAME_RE/_POSSESSIVE_RE/_HAVE_RE): "my <noun> is/are ..." / "my <noun>'s
-#: name is ..." / "i have a/an <noun> ..." — cada evento de las tres cadenas
-#: promueve (los tokens distintivos por evento viajan en el texto del hecho).
+# Multi-event chains; days are 1-indexed.
 EVENT_CHAINS = (
     {
         "id": "sister_ana",
@@ -298,7 +286,7 @@ EVENT_CHAINS = (
     },
 )
 
-#: Sondas de recuerdo de hecho único (M3/M4) — días 1-indexados.
+# Single-fact recall probes (M3/M4); days are 1-indexed.
 RECALL_PROBES = (
     (2, "My dog's name is Bruno.", "what is my dog's name"),
     (6, "I have a cat named Luna.", "what is my cat's name"),
@@ -448,7 +436,7 @@ def build_manifest(*, repo_root: Path | None = None, started_at: str | None = No
     }
     if extra:
         manifest.update(extra)
-    # config_hash: hash del manifest canónico (sin campos volátiles).
+    # config_hash: hash of the manifest without volatile fields.
     stable = {k: v for k, v in manifest.items()
               if k not in ("config_hash", "started_at", "commit", "branch")}
     manifest["config_hash"] = hashlib.sha256(

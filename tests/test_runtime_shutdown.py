@@ -35,9 +35,7 @@ from harness.concurrency import (
 MODULE_SOURCE = open(conc.__file__, encoding="utf-8").read()
 
 
-# --------------------------------------------------------------------------- #
-# Sleeper — injectable wait primitive
-# --------------------------------------------------------------------------- #
+# --- Sleeper — injectable wait primitive ---
 
 
 def test_recording_sleeper_records_without_waiting():
@@ -83,9 +81,7 @@ def test_asyncio_sleep_satisfies_sleeper_protocol():
     assert isinstance(AsyncSleeper(), conc.Sleeper)
 
 
-# --------------------------------------------------------------------------- #
-# ExecutorOwner — explicit lifecycle, double-shutdown safe
-# --------------------------------------------------------------------------- #
+# --- ExecutorOwner — explicit lifecycle, double-shutdown safe ---
 
 
 def _llh_threads(name: str) -> list[str]:
@@ -106,7 +102,7 @@ def test_owner_lifecycle_start_submit_shutdown():
 
 def test_double_shutdown_is_safe_and_shutdown_before_start_is_noop():
     owner = ExecutorOwner("twice")
-    owner.shutdown()  # never started: no-op
+    owner.shutdown()  # not started: no-op
     owner.start()
     owner.shutdown()
     owner.shutdown()  # double shutdown: no-op, no raise
@@ -204,9 +200,7 @@ def test_owner_refuses_restart_after_shutdown():
         raise AssertionError("restart after shutdown must raise")
 
 
-# --------------------------------------------------------------------------- #
-# Resource ownership — owned vs injected, close exactly once
-# --------------------------------------------------------------------------- #
+# --- Resource ownership — owned vs injected, close exactly once ---
 
 
 class _CountingCloser:
@@ -321,9 +315,7 @@ def test_shutdown_executor_helper_is_idempotent():
         raise AssertionError("submit after shutdown must raise")
 
 
-# --------------------------------------------------------------------------- #
-# SQLite thread ownership
-# --------------------------------------------------------------------------- #
+# --- SQLite thread ownership ---
 
 
 def test_sqlite_thread_ownership_contract_documented():
@@ -373,9 +365,7 @@ def test_ensure_thread_safe_connection_sets_pragmas_and_row_factory(tmp_path):
         conn.close()
 
 
-# --------------------------------------------------------------------------- #
-# Module hygiene — importable, clock-free, random-free
-# --------------------------------------------------------------------------- #
+# --- Module hygiene — importable, clock-free, random-free ---
 
 
 def test_module_has_no_harness_imports():

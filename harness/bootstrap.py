@@ -170,11 +170,8 @@ def ensure_companion_initialized(
             n_independent=cfg.n_independent,
             adjacency_hops=cfg.adjacency_hops,
         )
-        # Canonical interest order (name-sorted): the store reloads interests
-        # in name order, so persisting the same order makes a loaded persona
-        # byte-identical to the freshly built one (idempotency requires exact
-        # equality across calls). No life draw depends on portfolio order —
-        # arc/agenda selection is by index or by interest name.
+        # Canonical interest order (name-sorted): the store reloads in name
+        # order, keeping a loaded persona byte-identical to a fresh one.
         persona = dataclasses.replace(
             persona, interests=tuple(sorted(persona.interests, key=lambda i: i.name))
         )

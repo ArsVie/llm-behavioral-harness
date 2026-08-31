@@ -137,10 +137,7 @@ class TestEnvelope:
     def test_envelope_ramp_values_default(self):
         """envelope ∈ (0, 1) a mitad de las rampas (sin exactitud, solo forma)."""
         params = TimingParams()
-        # quiet_hours=(23, 8), ramp_h=1.0
-        # Rampa ascendente: [8, 9]
-        # Rampa descendente: [22, 23]
-        # Mitad de rampa ascendente: h=8.5
+        # quiet_hours=(23, 8), ramp_h=1.0: ramp up [8, 9], ramp down [22, 23].
         e_ramp_up = envelope(8.5, params)
         assert 0.0 < e_ramp_up < 1.0
 
@@ -167,9 +164,7 @@ class TestEnvelope:
     def test_envelope_no_crossing_quiet_hours(self):
         """quiet_hours sin cruce: (2.0, 5.0) ⇒ quiet = [2, 5)."""
         params = replace(TimingParams(), quiet_hours=(2.0, 5.0))
-        # ENVELOPE_RAMP_H=1.0
-        # Rampa ascendente: [5, 6]
-        # Rampa descendente: [1, 2]
+        # ENVELOPE_RAMP_H=1.0: ramp up [5, 6], ramp down [1, 2].
 
         # Dentro de quiet: debe ser 0
         assert abs(envelope(2.5, params) - 0.0) < TOL_EXACT
@@ -189,9 +184,7 @@ class TestEnvelope:
     def test_envelope_symmetry_of_ramps(self):
         """Rampas ascendente y descendente son simétricas en magnitud."""
         params = TimingParams()  # quiet=(23, 8), ramp_h=1.0
-        # Rampa ascendente: [8, 9], centro en h=8.5
-        # Rampa descendente: [22, 23], centro en h=22.5
-        # Ambas a distancia 0.5 del inicio/fin de rampa: deben valer ~0.5
+        # Ramps [8, 9] and [22, 23], centers 0.5 from ramp ends.
 
         e_up_mid = envelope(8.5, params)
         e_down_mid = envelope(22.5, params)
@@ -202,9 +195,7 @@ class TestEnvelope:
         """quiet_hours con cruce personalizado: (22.0, 6.0)."""
         params = replace(TimingParams(), quiet_hours=(22.0, 6.0),
                          diurnal_amp=0.25, peak_hour=14.0)
-        # quiet = [22, 24) ∪ [0, 6), ramp_h=1.0
-        # Rampa ascendente: [6, 7]
-        # Rampa descendente: [21, 22]
+        # quiet = [22, 24) ∪ [0, 6), ramp_h=1.0: ramp up [6, 7], down [21, 22].
 
         # Dentro de quiet
         assert abs(envelope(22.5, params) - 0.0) < TOL_EXACT

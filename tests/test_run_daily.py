@@ -33,8 +33,7 @@ ALL_PHASES = {
 }
 
 
-# ---------------------------------------------------------------------------
-# 1. Forma básica del SimResult
+# --- 1. Basic SimResult shape ---
 
 
 def test_run_basic_shape() -> None:
@@ -52,8 +51,7 @@ def test_run_basic_shape() -> None:
         assert r.seed == 42
 
 
-# ---------------------------------------------------------------------------
-# 2. Determinismo
+# --- 2. Determinism ---
 
 
 def test_run_deterministic() -> None:
@@ -76,8 +74,7 @@ def test_run_deterministic() -> None:
         assert ra.seed == rb.seed
 
 
-# ---------------------------------------------------------------------------
-# 3. Shocks: score forzado y caída de mu tras el shock
+# --- 3. Shocks: forced score and mu drop after the shock ---
 
 
 def test_run_shocks_force_score_and_drop_mu() -> None:
@@ -92,8 +89,7 @@ def test_run_shocks_force_score_and_drop_mu() -> None:
     assert result.records[13].mu < result.records[10].mu
 
 
-# ---------------------------------------------------------------------------
-# 4. Records reflejan mu/eta USADOS (estado de entrada, no el actualizado)
+# --- 4. Records reflect mu/eta USED (input state, not the updated one) ---
 
 
 def test_records_reflect_mu_eta_used(persona: PersonaParams) -> None:
@@ -111,8 +107,7 @@ def test_records_reflect_mu_eta_used(persona: PersonaParams) -> None:
     assert result.records[1].mu == pytest.approx(expected_mu_1, abs=1e-12)
 
 
-# ---------------------------------------------------------------------------
-# 5. Variantes: ORIGINAL vs DECOUPLED_OFFSETS difieren en la serie arg
+# --- 5. Variants: ORIGINAL vs DECOUPLED_OFFSETS differ in the arg series ---
 
 
 def test_variants_differ_in_arg_series() -> None:
@@ -127,9 +122,7 @@ def test_variants_differ_in_arg_series() -> None:
     assert not np.array_equal(arg_original, arg_decoupled)
 
 
-# ---------------------------------------------------------------------------
-# 6. synthetic_score: override exacto sin consumir RNG; sin override, media ~
-#    2*(M/N - 0.5)
+# --- 6. synthetic_score: exact override, no RNG; mean ~ 2*(M/N - 0.5) ---
 
 
 def test_synthetic_score_override_exact_and_no_rng_consumption() -> None:
@@ -142,8 +135,7 @@ def test_synthetic_score_override_exact_and_no_rng_consumption() -> None:
     score = synthetic_score(7, 10, rng_a, override=0.42)
     assert score == pytest.approx(0.42, abs=1e-12)
 
-    # rng_a no debió avanzar: debe seguir produciendo la misma secuencia que
-    # rng_b, que nunca fue tocado.
+# rng_a did not advance: it still produces the same sequence as rng_b, untouched.
     next_a = rng_a.normal(0, 1)
     next_b = rng_b.normal(0, 1)
     assert next_a == next_b
@@ -171,8 +163,7 @@ def test_synthetic_score_no_override_mean_matches_formula() -> None:
     assert np.all(samples >= -1.0) and np.all(samples <= 1.0)
 
 
-# ---------------------------------------------------------------------------
-# 7. CLI smoke
+# --- 7. CLI smoke ---
 
 
 def test_cli_smoke_returns_zero(capsys: pytest.CaptureFixture[str]) -> None:
@@ -219,8 +210,7 @@ def test_cli_params_invalid_key_exits_2(tmp_path, capsys: pytest.CaptureFixture[
     assert captured.err != ""
 
 
-# ---------------------------------------------------------------------------
-# Extras: default persona/shocks, robustez de composición con la firma pública
+# --- Extras: default persona/shocks, composition robustness with the public signature ---
 
 
 def test_run_default_persona_and_no_shocks() -> None:
@@ -243,5 +233,5 @@ def test_run_cycle_day_and_phase_are_entry_state_not_next() -> None:
 
     result = run(5, seed=seed, variant=MoodVariant.DECOUPLED_OFFSETS, persona=persona)
 
-    # Recalculamos a mano el cycle_day de entrada para t=0 y lo comparamos.
+# The input cycle_day for t=0 is recomputed by hand and compared.
     assert result.records[0].cycle_day == pytest.approx(cycle_state.cycle_day)

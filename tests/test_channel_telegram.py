@@ -1,10 +1,8 @@
 import pytest
 
 telegram = pytest.importorskip("telegram")  # noqa: F401 - optional dep; whole module skips without it
-# Tests for the Telegram channel (Part B, seam B-4): env contract, update ->
-# InboundMessage mapping, send target, start/stop wiring. NO network, NO token:
-# a fake Application/Bot is injected through the constructor seam and the
-# polling loop is never exercised.
+# Telegram channel tests: env contract, update -> InboundMessage mapping,
+# send target, start/stop wiring; fake Bot injected, no network, no token.
 
 import asyncio
 

@@ -85,18 +85,31 @@ Verification: test_store.py + test_store_it2.py + test_store_migrations*.py
 
 ### 4c. Wave 3 follow-up — convert the remaining ~15 test files to tests/helpers
 
-Still carrying local copies: test_memory.py, test_snapshot.py,
-test_w2w3_time_aware.py, test_life.py, test_life_long_horizon.py,
-test_adversarial_life.py, test_adversarial_restart.py,
+**STATUS: DONE (2026-08-30).** Converted test_life.py, test_life_long_horizon.py,
 test_adversarial_runtime.py, test_adversarial_proactivity.py,
-test_adversarial_memory.py, test_adversarial_grounding.py,
-test_adversarial_bootstrap.py, test_channel_telegram.py, test_domain.py,
-test_negotiation_state.py.
+test_adversarial_restart.py, test_runtime.py, test_proactive_it2.py,
+test_assembler.py, test_prompts.py, test_prompt_cache_order.py,
+test_serializer_null_hardening.py, test_client.py, test_persona.py,
+test_bootstrap.py, test_tools.py, test_negotiation_schema.py,
+test_store_migrations_v6.py, test_store_migrations_v7.py,
+test_channel_telegram.py, test_snapshot.py, test_w2w3_time_aware.py,
+test_conversations.py, test_cvs_preflight.py, test_validation.py,
+test_memory.py, test_commands_channel.py, test_channels_base.py.
 
-Same recipe as the 10 done files: alias-import from tests.helpers, keep a
-local wrapper where the file's constants/tuple-shape differ, resolve the
-`rows = rows` collision by renaming the local to `schedule_rows`, never weaken
-seam-guarding tests.
+New helper modules: life.py, runtime.py, domain_builders.py, client.py,
+misc.py, tools.py, migrations.py, conversations.py, memory.py (extended),
+clocks.py (extended). ~1,400 tracked deletions vs HEAD; net across tests/
+including new helper lines ≈ −735.
+
+Kept local (deliberate): test_lifecycle_away._session (SEED=4242 ≠ helper
+12345), migration _build_v*_db builders (version-specific schemas, seam-guard
+invariants), test_conversations thin wrapper (store.py make_session has
+`clock` keyword-only + no `replies`), test_adversarial_runtime._run
+(IntentResolver default rng = stream_rng(0) ≠ helper's stream_rng(SEED)).
+
+Full suite verified green: **1371 passed, 0 failed (657s)** — including the
+make_session canonical-signature restore (store.py superset re-exported by
+runtime.py, not duplicated) and rows(store, seed) arity fix.
 
 ### 4d. runtime.py _rollover_loop decomposition (C5)
 

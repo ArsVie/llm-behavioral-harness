@@ -97,9 +97,7 @@ from harness.negotiation_contract import (
 )
 from harness.negotiation_state import map_defer_n
 
-# --------------------------------------------------------------------------- #
 # Tool schemas (Hermes-style {name, description, parameters})
-# --------------------------------------------------------------------------- #
 
 TOOL_SCHEMAS: list[dict] = [
     {
@@ -180,10 +178,7 @@ TOOL_SCHEMAS: list[dict] = [
 ]
 
 #: Inform-phase variant of ``tool_decide_event``: the verdict is the
-#: natural mention only — ``{message: str}`` — with NO go/skip/delay
-#: action. The runner offers this schema (same tool NAME, so the textual
-#: marker and native name matching are unchanged) on inform legs; the
-#: decide-phase schema above stays pinned to {initiate, reason, action}.
+#: natural mention only (``{message: str}``, no go/skip/delay action).
 TOOL_SCHEMAS_INFORM: list[dict] = [
     {
         "name": "tool_decide_event",
@@ -208,9 +203,9 @@ TOOL_SCHEMAS_INFORM: list[dict] = [
     },
 ]
 
-#: Verdict shape a ``tool_decide_event`` call must produce (decide phase).
+#: Verdict keys for a ``tool_decide_event`` call (decide phase).
 EVENT_VERDICT_KEYS = ("initiate", "reason")
-#: Verdict shape a ``tool_decide_reply`` call must produce.
+#: Verdict keys for a ``tool_decide_reply`` call.
 REPLY_VERDICT_KEYS = ("reply", "reason")
 
 #: Canonical state-event names recorded by the decision layer.
@@ -284,7 +279,7 @@ class PopupRequest:
     inputs: dict
 
 
-#: Callable contract: given the pop-up request, return the raw model reply.
+#: Callable returning the raw model reply for a pop-up request.
 ModelCall = Callable[[PopupRequest], RawReply]
 
 
@@ -310,11 +305,7 @@ class DecisionResult:
         return str(self.verdict.get("reason", ""))
 
 
-# --------------------------------------------------------------------------- #
-# Pop-up rendering (user L369 sketch: System: {Event, State, Time} ->
-# {Initiate, Reason}; the "System:" label is applied by the caller's
-# injection point, the block itself is the sketch).
-# --------------------------------------------------------------------------- #
+# Pop-up rendering
 
 def render_popup(popup_kind: str, inputs: dict) -> str:
     """Render the pop-up block exactly per the user's L369 sketch.
@@ -348,16 +339,14 @@ def render_popup(popup_kind: str, inputs: dict) -> str:
     if popup_kind == "tool_decide_event":
         lines = [
             f"{{Event: {event}, State: {state}, Time: {time}}}",
-            # Inform legs ask for the natural mention, decide legs for the
-            # verdict (L369 sketch).
+            # Inform legs ask for the mention, decide legs for the verdict.
             (
                 '{Message: ""}'
                 if inputs.get("phase") == "inform"
                 else '{Initiate:{yes,no}, Reason: ""}'
             ),
         ]
-        # Negotiation context lines: only when the caller supplies the
-        # keys, so legacy pop-ups render byte-identically.
+        # Negotiation lines render only when the caller supplies the keys.
         if "phase" in inputs:
             lines.append(f"Phase: {inputs['phase']}")
         skippable = inputs.get("skippable")
@@ -382,9 +371,7 @@ def render_popup(popup_kind: str, inputs: dict) -> str:
     raise ValueError(f"unknown popup_kind: {popup_kind!r}")
 
 
-# --------------------------------------------------------------------------- #
 # Verdict parsing (native tool_calls + textual fallback)
-# --------------------------------------------------------------------------- #
 
 def _brace_payload(text: str, start: int) -> str | None:
     """Extract the brace-balanced payload beginning at ``text[start] == '{'``.
@@ -422,7 +409,7 @@ _TEXTUAL_MARKER = re.compile(
     re.IGNORECASE,
 )
 
-#: Shorthand payload: {yes, "too tired"} / {no, "too tired"} (L369 sketch).
+#: Shorthand payload: {yes, "too tired"} / {no, "too tired"}.
 _SHORTHAND = re.compile(
     r"^\{\s*(yes|no|true|false|1|0)\s*,\s*\"((?:[^\"\\]|\\.)*)\"\s*\}$",
     re.IGNORECASE | re.DOTALL,
@@ -516,14 +503,8 @@ def _normalize_verdict(
     """Coerce raw keys to the canonical verdict shape with safe defaults."""
     if popup_kind == "tool_decide_event":
         if phase == "inform":
-            # Inform verdict: the natural mention, NO go/skip/delay action.
-            # Canonical shape {message: str}; the legacy {initiate, reason}
-            # form (pinned decide-phase schema) and the {yes/no, "reason"}
-            # shorthand normalize onto it (message := reason). An action
-            # key is deliberately dropped — inform legs never carry one.
-            # When the model supplied the legacy reason form, the reason
-            # text is PRESERVED alongside the canonical message (both
-            # transports record the mention; consumers read message).
+            # Inform verdict: the natural mention with no action; legacy
+            # forms normalize onto {message: str} (message := reason).
             message = obj.get("message")
             if not isinstance(message, str):
                 message = (
@@ -626,15 +607,9 @@ def parse_native_reply(
     )
 
 
-# --------------------------------------------------------------------------- #
-# Defer turns (G0 contract): the SERVER fills N, the model never emits it
-# --------------------------------------------------------------------------- #
+# Defer turns: the server fills N
 
-#: Canonical implementation lives in negotiation_state.map_defer_n (the
-#: frozen A1 arithmetic); tools.py re-exports it so the pop-up/tool path
-#: and the runtime's re-arm path share ONE mapping and can never drift.
-#: (Historical note: map_defer_turns was a line-for-line copy that drifted;
-#: deleted 2026-08-28.)
+#: Re-export of negotiation_state.map_defer_n so both paths share one mapping.
 map_defer_turns = map_defer_n
 
 
@@ -655,9 +630,7 @@ def fill_defer_turns(verdict: dict) -> dict:
     return out
 
 
-# --------------------------------------------------------------------------- #
-# Notice builder (user L361 verbose flag)
-# --------------------------------------------------------------------------- #
+# Notice builder
 
 def build_notice(name: str, verdict: dict, verbose: bool) -> str | None:
     """Server notice for a no-reply verdict; None when she replies.
@@ -672,9 +645,7 @@ def build_notice(name: str, verdict: dict, verbose: bool) -> str | None:
     return f"{name} saw your message but chose not to reply yet"
 
 
-# --------------------------------------------------------------------------- #
-# Config (env-only; WS4 wires these into the runtime)
-# --------------------------------------------------------------------------- #
+# Config (env-only)
 
 @dataclass
 class DecisionConfig:
@@ -752,10 +723,7 @@ def load_decision_config() -> DecisionConfig:
     )
 
 
-# --------------------------------------------------------------------------- #
-# Store protocol (implemented by harness.store.SQLiteStore; duck-typed so
-# tests and WS4 can substitute fakes)
-# --------------------------------------------------------------------------- #
+# Store protocol (duck-typed: SQLiteStore or test fakes)
 
 class DecisionStore(Protocol):
     """The store surface the runner needs (subset of SQLiteStore)."""
@@ -778,11 +746,9 @@ class DecisionStore(Protocol):
     ) -> None: ...
 
 
-# --------------------------------------------------------------------------- #
 # DecisionRunner
-# --------------------------------------------------------------------------- #
 
-#: Server-drawn verdict reason (decision_source=server_draw, #22 comparison).
+#: Server-drawn verdict reason (decision_source=server_draw).
 SERVER_DRAW_REASON = "server draw (decision_source=server_draw)"
 #: Reason attached to the forced reply at budget exhaustion.
 FORCED_REPLY_REASON = "budget exhausted — forced reply"
@@ -845,9 +811,7 @@ class DecisionRunner:
         """
         if popup_kind not in ("tool_decide_event", "tool_decide_reply"):
             raise ValueError(f"unknown popup_kind: {popup_kind!r}")
-        # Negotiation phase (G0): "inform" = mention-only verdict
-        # {message: str}; "decide" (default, legacy) = {initiate, reason,
-        # action?}. Loud on a bad value — the contract has exactly two.
+        # Phase: "inform" = mention-only verdict; "decide" = full verdict.
         phase = inputs.get("phase", "decide")
         if phase not in ("inform", "decide"):
             raise ValueError(
@@ -878,8 +842,7 @@ class DecisionRunner:
             request = PopupRequest(
                 popup_kind=popup_kind,
                 popup=render_popup(popup_kind, inputs),
-                # Inform legs get the mention-only schema (same tool name);
-                # decide legs get the pinned verdict schema.
+                # Inform legs get the mention-only schema; decide legs get the verdict schema.
                 tools=(
                     TOOL_SCHEMAS_INFORM if phase == "inform" else TOOL_SCHEMAS
                 ),
@@ -912,10 +875,8 @@ class DecisionRunner:
                         f"aborting per HARNESS_DECISION_PARSE_FAILURE=abort"
                     ) from None
 
-        # Negotiation (G0): a defer verdict carries the SERVER-FILLED N.
-        # The model never emits N — normalization drops any model-supplied
-        # defer_turns and the deterministic reason mapping replaces it, so
-        # the recorded verdict below carries the final defer_turns.
+        # Defer verdicts carry the server-filled N; model-supplied
+        # defer_turns is dropped and replaced by the reason mapping.
         if popup_kind == "tool_decide_event":
             verdict = fill_defer_turns(verdict)
 
@@ -1007,17 +968,14 @@ class DecisionRunner:
                     popup_kind, raw.tool_calls, phase=phase
                 )
             elif raw.text and raw.text.strip():
-                # Textual transport, or a native-capable model that answered
-                # in prose anyway: try the textual marker before failing.
+                # Textual reply or prose fallback: try the textual marker.
                 verdict = parse_textual_reply(popup_kind, raw.text, phase=phase)
             else:
                 raise ValueError("model returned no content at all")
         except (ValueError, json.JSONDecodeError) as exc:
             if phase == "inform" and raw.text and raw.text.strip():
-                # G0 inform: the natural mention may arrive as plain prose
-                # with no tool call / no textual marker — the inform is a
-                # MENTION, not a verdict. The model's own words are the
-                # mention (the session routes them through the channel).
+                # Inform mentions may arrive as plain prose with no marker;
+                # the model's own words are the mention.
                 return {"message": raw.text.strip()}
             raise DecisionParseError(
                 f"{popup_kind} verdict parse failed ({transport}): {exc}"
@@ -1098,9 +1056,7 @@ class DecisionRunner:
         verdict = json.loads(record["verdict_json"]) if record.get(
             "verdict_json"
         ) else {}
-        # G0: back-fill defer_turns on defer verdicts recorded before the
-        # fill existed (deterministic pure function of the recorded reason
-        # — never a re-roll), so every defer verdict carries its N.
+        # Back-fill defer_turns on old defer verdicts from the recorded reason.
         if popup_kind == "tool_decide_event":
             verdict = fill_defer_turns(verdict)
         self.store.log_event(

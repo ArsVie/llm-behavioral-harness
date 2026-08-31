@@ -40,8 +40,7 @@ from harness.life import (
     step_life,
 )
 
-#: Fixed seeds per horizon (documented; chosen so every horizon exhibits
-#: completion, abandonment, replenishment spawns and agenda variety).
+#: Fixed seeds per horizon.
 HORIZONS = ((30, 12345), (60, 999), (120, 777))
 #: Seed for the SQLite restart-trajectory check.
 RESTART_SEED = 777
@@ -155,9 +154,7 @@ def _agenda_signature(agenda: domain.DailyAgenda | None) -> tuple:
     return tuple(sorted((it.start_t_h, it.end_t_h, it.activity) for it in agenda.items))
 
 
-# ---------------------------------------------------------------------------
 # 30/60/120-day property checks
-# ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("days,seed", HORIZONS)
 def test_horizon_active_life_never_dies(days, seed):
@@ -261,9 +258,7 @@ def test_horizon_no_overlapping_current_activities(days, seed):
     assert resolved > 0, "the sweep never found an active moment"
 
 
-# ---------------------------------------------------------------------------
-# Restart preserves the seeded trajectory (invariant 18)
-# ---------------------------------------------------------------------------
+# restart preserves the seeded trajectory
 
 def _arc_state(store) -> dict:
     return {a.id: (a.progress, a.status, a.next_intention, a.started_day)
@@ -278,7 +273,7 @@ def test_restart_preserves_seeded_trajectory_120(tmp_path):
 
     persona = _persona()
 
-    # --- straight run: days 1..60 then 61..120 on the SAME store ---
+    # straight run: days 1..60 then 61..120 on the same store
     straight = SQLiteStore(tmp_path / "straight.db")
     arcs_a, counts_a, _ = _run_days(RESTART_SEED, persona, straight, RESTART_SPLIT)
     state_60 = _arc_state(straight)
@@ -289,16 +284,15 @@ def test_restart_preserves_seeded_trajectory_120(tmp_path):
     state_final = _arc_state(straight)
     straight.close()
 
-    # --- split run: days 1..60, restart, days 61..120 ---
+    # split run: days 1..60, restart, days 61..120
     split = SQLiteStore(tmp_path / "split.db")
     _, counts1, _ = _run_days(RESTART_SEED, persona, split, RESTART_SPLIT)
     split.close()
 
     split2 = SQLiteStore(tmp_path / "split.db")
     reloaded = sorted(split2.list_life_arcs(), key=lambda a: a.id)
-    # normalize order like a restarted session does (id order); the straight
-    # run's in-memory order is already id-ordered (init arcs arc_1..arc_n,
-    # then spawns arc_<day>_s0 in day order)
+    # Normalize order like a restarted session does (id order); the
+    # straight run's in-memory order is already id-ordered.
     assert _arc_state(split2) == state_60, "day-60 persisted state diverged"
     arcs2, counts2, agendas2 = _run_days(
         RESTART_SEED, persona, split2, RESTART_DAYS - RESTART_SPLIT,
@@ -313,9 +307,8 @@ def test_restart_preserves_seeded_trajectory_120(tmp_path):
     )
     for day in range(RESTART_SPLIT + 1, RESTART_DAYS + 1):
         assert agendas2[day] == agendas_b[day], f"agenda for day {day} diverged"
-    # id lineage identical as a set — list ORDER may legitimately differ for
-    # non-active arcs (reload sorts by id, the live run keeps creation order),
-    # and non-active arcs consume no draws, so the trajectory is unaffected
+    # Id lineage identical as a set; list order may differ for non-active
+    # arcs (reload sorts by id, the live run keeps creation order).
     assert {a.id for a in arcs2} == {a.id for a in arcs_b}, (
         "arc id lineage diverged after restart"
     )

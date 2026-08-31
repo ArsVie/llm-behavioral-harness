@@ -53,14 +53,14 @@ for ax, (label, pp) in zip(axes, PARAM_SETS.items()):
         M = np.array([
             run(DAYS, s, MoodVariant.DECOUPLED_OFFSETS, persona=pp, shocks=shocks).M
             for s in SEEDS
-        ])  # (30 semillas, 30 días)
+        ])  # (30 seeds, 30 days)
         mean_t = M.mean(axis=0)
         p10 = np.percentile(M, 10, axis=0)
         p90 = np.percentile(M, 90, axis=0)
         ax.plot(mean_t, color=color, lw=2, label=reg_label)
         ax.fill_between(range(DAYS), p10, p90, color=color, alpha=0.18,
                         label="p10–p90 de los días")
-        post = M[:, 10:]  # descarta el transitorio inicial
+        post = M[:, 10:]  # drop the initial transient
         print(f"{label.splitlines()[1]:<24} {reg_label:<26} {post.mean():13.2f} "
               f"{(post >= 7).mean():9.1%} {(post <= 4).mean():9.1%}")
     ax.set_title(label, fontsize=10)

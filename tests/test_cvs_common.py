@@ -57,19 +57,19 @@ def test_duplicate_turns_key_disambiguates_real_run_collisions(tmp_path):
     from experiments.cvs_common import _duplicate_turns
 
     store = SQLiteStore(str(tmp_path / "dup.db"))
-    # reactive reply + proactive fire, same tick, same content (real-run case)
+    # Reactive reply + proactive fire, same tick, same content (real-run case).
     store.add_message("user", "feed", 162.6, 6)
     store.add_message("assistant", "That's a big shift.", 162.6, 6)
     store.add_message("assistant", "That's a big shift.", 162.6, 6, proactive=True,
                       intent_id="pi_agenda_item_ag_6_a_arc_2_160.423")
     assert _duplicate_turns(store) == []
-    # true rewind: same proactive intent re-written
+    # True rewind: same proactive intent re-written.
     store.add_message("assistant", "That's a big shift.", 162.6, 6, proactive=True,
                       intent_id="pi_agenda_item_ag_6_a_arc_2_160.423")
     dupes = _duplicate_turns(store)
     assert len(dupes) == 1
     assert dupes[0]["first"] == 3 and dupes[0]["dup"] == 4
-    # reactive rewind: same (role, content, t_h, day) reactive pair
+    # Reactive rewind: same (role, content, t_h, day) reactive pair.
     store.add_message("assistant", "That's a big shift.", 162.6, 6)
     dupes = _duplicate_turns(store)
     assert len(dupes) == 2
@@ -96,13 +96,13 @@ def test_judge_report_aggregates_both_passes_and_agreement(tmp_path):
             (out / f"judge_pass{p}_{fam}.json").write_text(
                 json.dumps(data), encoding="utf-8")
     rep = _judge_report(out)
-    # both passes counted per family -> n = 6 per family per dimension
+    # Both passes counted per family -> n = 6 per family per dimension.
     assert rep["per_family_per_dimension"]["flash"]["persona_enactment"]["n"] == 6
     assert rep["per_family_per_dimension"]["luna"]["persona_enactment"]["n"] == 6
-    # pass-2-only mean would be 6.2; both-passes mean is (5.1+6.1+7.1+5.2+6.2+7.2)/6
+    # Pass-2-only mean would be 6.2; both-passes mean is (5.1+6.1+7.1+5.2+6.2+7.2)/6.
     m = rep["per_family_per_dimension"]["flash"]["persona_enactment"]["mean"]
     assert abs(m - 6.15) < 1e-9
-    # agreement is a real correlation (perfect, +1 shift), not None
+    # Agreement is a real correlation (perfect, +1 shift), not None.
     r = rep["inter_family_agreement"]["persona_enactment"]
     assert r is not None and abs(r - 1.0) < 1e-9
     assert rep["n_families"] == 2
@@ -152,9 +152,7 @@ def _episode(ep_id: str, text: str) -> EpisodicMemory:
     )
 
 
-# --------------------------------------------------------------------------- #
 # Clientes
-# --------------------------------------------------------------------------- #
 
 
 def test_deterministic_client_seeded():
@@ -192,9 +190,7 @@ def test_mock_judge_client_deterministic_per_family():
     assert all(1 <= v <= 9 for v in r1.values())
 
 
-# --------------------------------------------------------------------------- #
 # Juez determinista
-# --------------------------------------------------------------------------- #
 
 
 def test_deterministic_judge_perturbation_dip():
@@ -204,16 +200,14 @@ def test_deterministic_judge_perturbation_dip():
     base = scores[:10]
     assert float(np.mean(block)) < float(np.mean(base)) - 0.3, (
         "negative block must dip below baseline mean")
-    # Determinista: un segundo juez reproduce la secuencia exacta.
+    # Deterministic: a second judge reproduces the exact sequence.
     judge2 = DeterministicJudge(5001)
     assert [judge2("", None).score for _ in range(16)] == scores
-    # Fuera del bloque el juez NO es plano (señal real para el scheduler).
+    # Outside the block the judge is NOT flat (real signal for the scheduler).
     assert len(set(base)) > 3
 
 
-# --------------------------------------------------------------------------- #
 # Cadenas de eventos (§17.2)
-# --------------------------------------------------------------------------- #
 
 
 def test_classify_chain_levels():
@@ -254,9 +248,7 @@ def test_episode_text_includes_anchors():
     )
 
 
-# --------------------------------------------------------------------------- #
 # Guion de usuario
-# --------------------------------------------------------------------------- #
 
 
 def test_user_script_deterministic_and_consistent():
@@ -265,26 +257,24 @@ def test_user_script_deterministic_and_consistent():
     s3 = user_script(5001, 16, perturb=False)
     assert s1 == s2
     assert s1 != s3
-    # El bloque negativo está dentro del guion con perturbación.
-    negative = [t for t in s3]  # sin perturbación
+    # The negative block is inside the perturbed script.
+    negative = [t for t in s3]  # no perturbation
     with_neg = [t for t in s1]
     assert len(with_neg) == len(negative) + 4
-    # Orden temporal estricto.
+    # Strict temporal order.
     assert all(a[0] <= b[0] for a, b in zip(s1, s1[1:]))
-    # Todos los días del rango tienen su mensaje base a las 19:00.
+    # Every day in range has its base message at 19:00.
     bases = {int(t // 24.0): txt for t, txt in s1 if abs(t % 24.0 - 19.0) < 1e-6}
     assert set(bases) == set(range(16))
 
 
-# --------------------------------------------------------------------------- #
 # Métricas auxiliares
-# --------------------------------------------------------------------------- #
 
 
 def test_spearman_basic():
     assert cvs_common._spearman([1, 2, 3, 4], [1, 2, 3, 4]) == 1.0
     assert cvs_common._spearman([1, 2, 3, 4], [4, 3, 2, 1]) == -1.0
-    assert cvs_common._spearman([1, 1, 1], [1, 2, 3]) == 0.0  # degenerado
+    assert cvs_common._spearman([1, 1, 1], [1, 2, 3]) == 0.0  # degenerate
 
 
 def test_token_gap():
@@ -345,9 +335,7 @@ def test_apply_and_restore_patches():
     assert cvs_common.apply_condition_patches("FULL") == []
 
 
-# --------------------------------------------------------------------------- #
 # B6 — lane routing + sonda justa RAW_HISTORY (closes F5)
-# --------------------------------------------------------------------------- #
 
 
 def _chain(chain_id: str) -> dict:
@@ -404,9 +392,8 @@ def test_raw_history_fair_probe_verdict_from_context_not_zero(tmp_path):
     from harness.store import SQLiteStore
 
     store = SQLiteStore(str(tmp_path / "raw.db"))
-    # sister_ana: events on days 3/7/11 (1-indexed), query_day=13 -> t_q=312.
-    # The day-11 event at t_h=258.6 must be inside the last-12 window at 312;
-    # the day-3 fact (t_h=66.6, first message) falls outside it.
+    # sister_ana: day-11 event (t_h=258.6) inside the last-12 window at
+    # query t_q=312; the day-3 fact (t_h=66.6) falls outside it.
     store.add_message("user", "My sister's name is Ana.", 66.6, 2)
     for i in range(10):
         store.add_message("user", f"filler number {i}", 60.0 + i, 2)

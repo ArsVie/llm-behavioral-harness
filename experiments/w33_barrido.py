@@ -34,8 +34,7 @@ from engine.types import MoodVariant, PersonaParams, TimingParams
 from sim.metrics import autocorr_lag1, mean_sd, var_ratio_by_gain
 from sim.run_daily import run
 
-# ---------------------------------------------------------------------------
-# Constantes del experimento
+# Experiment constants
 
 DAYS = 90
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
@@ -43,7 +42,7 @@ SWEEP_SEEDS: list[int] = [11, 22, 33, 44, 55]
 VERIFY_SEEDS: list[int] = [66, 77, 88, 99, 110]
 OUT_DIR = Path(__file__).resolve().parent.parent / "results" / "w33-barrido"
 
-# Criterio (8b) — región humana.
+# Criterion (8b) — human region.
 MEAN_RANGE = (5.25, 6.75)
 SD_RANGE = (1.2, 2.8)
 AC1_RANGE = (0.2, 0.5)
@@ -52,8 +51,7 @@ SAT_MAX = 0.10
 _TIMING_DEFAULT = TimingParams()
 
 
-# ---------------------------------------------------------------------------
-# Métricas por celda (promedio entre semillas)
+# Per-cell metrics (mean across seeds)
 
 
 def cell_metrics(persona: PersonaParams, seeds: list[int]) -> dict[str, float]:
@@ -121,8 +119,7 @@ def is_human_region(metrics: dict[str, float]) -> bool:
     )
 
 
-# ---------------------------------------------------------------------------
-# Heatmap genérico
+# Generic heatmap
 
 
 def plot_heatmap(
@@ -166,7 +163,7 @@ def plot_heatmap(
                 continue
             val = grid[i, j]
             text = "nan" if not np.isfinite(val) else fmt.format(val)
-            # Contraste de texto según luminosidad de la celda.
+            # Text contrast from cell brightness.
             norm_val = im.norm(val) if np.isfinite(val) else 0.5
             text_color = "white" if norm_val < 0.6 else "black"
             ax.text(j, i, text, ha="center", va="center", color=text_color, fontsize=9)
@@ -182,8 +179,7 @@ def plot_heatmap(
     plt.close(fig)
 
 
-# ---------------------------------------------------------------------------
-# Experimento 1: 2D (rho_e x sigma_e)
+# Experiment 1: 2D (rho_e x sigma_e)
 
 
 def sweep_rho_e_sigma_e() -> dict:
@@ -231,8 +227,7 @@ def sweep_rho_e_sigma_e() -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Experimento 2: 2D (k x rho) — memoria de eventos
+# Experiment 2: 2D (k x rho) — event memory
 
 
 def sweep_k_rho() -> dict:
@@ -290,8 +285,7 @@ def sweep_k_rho() -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Experimento 3: 2D (A x B) — ciclo
+# Experiment 3: 2D (A x B) — cycle
 
 
 def sweep_A_B() -> dict:
@@ -346,8 +340,7 @@ def sweep_A_B() -> dict:
     }
 
 
-# ---------------------------------------------------------------------------
-# Experimento 4: 1D nu
+# Experiment 4: 1D nu
 
 
 def sweep_nu() -> dict:
@@ -391,8 +384,7 @@ def sweep_nu() -> dict:
     return {"nu_vals": nu_vals, "labels": labels, "rows": rows}
 
 
-# ---------------------------------------------------------------------------
-# Defaults afinados + verificación
+# Tuned defaults + verification
 
 
 def propose_tuned_defaults(rho_e_sigma_e_result: dict) -> PersonaParams:
@@ -409,13 +401,12 @@ def propose_tuned_defaults(rho_e_sigma_e_result: dict) -> PersonaParams:
         for j, sigma_e in enumerate(sigma_e_vals):
             if human_mask[i, j]:
                 m = cells[(rho_e, sigma_e)]
-                # Distancia al centro del rango objetivo de autocorr (0.35).
+                # Distance to the target autocorr center (0.35).
                 dist = abs(m["autocorr_lag1"] - 0.35)
                 candidates.append((dist, rho_e, sigma_e, m))
 
     if not candidates:
-        # Fallback: la celda con autocorr más cercana a 0.35 dentro de sd <= 2.8
-        # y sat < 0.10, relajando el rango de media si hace falta.
+        # Fallback: closest autocorr to 0.35 within sd <= 2.8 and sat < 0.10.
         for i, rho_e in enumerate(rho_e_vals):
             for j, sigma_e in enumerate(sigma_e_vals):
                 m = cells[(rho_e, sigma_e)]
@@ -452,8 +443,7 @@ def verify_defaults(persona: PersonaParams) -> dict:
     return metrics
 
 
-# ---------------------------------------------------------------------------
-# Reporte
+# Report
 
 
 def _fmt_cell(m: dict) -> str:
@@ -597,7 +587,7 @@ def write_report(
         "blanca (ruido no autocorrelacionado) por encima del binomial puro.\n"
     )
 
-    # --- Defaults propuestos ---
+    # --- Proposed defaults ---
     lines.append("## Defaults afinados propuestos\n")
     lines.append(
         f"A partir del grid 1 (única fuente de autocorrelación endógena "
@@ -657,7 +647,6 @@ def write_report(
     OUT_DIR.joinpath("reporte.md").write_text("\n".join(lines), encoding="utf-8")
 
 
-# ---------------------------------------------------------------------------
 # Main
 
 

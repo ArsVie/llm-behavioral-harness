@@ -75,56 +75,26 @@ adj_from_score = run_events.adj_from_score
 INITIATIVE_BETA = 1.2
 INITIATIVE_BOUNDS = (0.7, 1.3)
 
-#: Representative hour used to derive the day's initiative from its
-#: BehaviorDirective (initiative is hourly via circadian energy; the
-#: scheduler is per-day, so the directive is sampled at the diurnal peak).
+#: Hour at which the day's initiative is sampled from its BehaviorDirective.
 INITIATIVE_SAMPLE_HOUR = 14.0
 
 # --------------------------------------------------------------------------- #
-# B5 — preregistered latent-state → timing coupling (iteration-3, closes F4)
-# --------------------------------------------------------------------------- #
-# The day's latent state enters the hazard multiplicatively through the
-# run_events modulator seam:
-#
-#     h(τ, t) = h₀(τ) · C(t) · P(t) · A(score_{d−1}) · I(d) · exp(w·(x_d − x₀))
-#
-# with x_d = (E, S, R, A) the day's state vector (below) and x₀ the neutral
-# directive point. All four channels come from the day's BehaviorDirective,
-# resolved through the PATCHABLE harness.session seam (see
-# ``_directive_for_day``) — so the STRUCTURED_NO_STATE neutral-directive
-# patch (cvs_common.apply_condition_patches) flattens x_d to x₀ EXACTLY and
-# the exp term collapses to 1.0: the ablation finally reaches timing (F4).
-# The Weibull base h₀ and its parameters are plan-frozen and untouched.
-#
-# Weights are FROZEN for iteration 3 (B5 report §weights; G4 manifest):
-#: (E, S, R, A) — energy, social drive (initiative), mood (valence),
-#: reactivity, all in the directive's native units ([0,1] except valence).
+#: State-vector channel names (E, S, R, A) in directive-native units.
 STATE_VECTOR_NAMES: tuple[str, str, str, str] = (
     "energy", "initiative", "valence", "reactivity",
 )
-#: (w_E, w_S, w_R, w_A). Chosen from the REAL state ranges (engine records,
-#: 90 d × 5 seeds: E∈[0.70,0.83], S∈[0.375,0.615], R∈[−0.8,0.8],
-#: A∈[0.42,0.84]) so the exponent w·(x−x₀) spans ≈ [−0.5, +1.2] ⇒ per-day
-#: factor ≈ [0.6, 3.3] natural (clipped at STATE_FACTOR_BOUNDS), mean ≈ 1.6
-#: in FULL vs exactly 1.0 flat under NO_STATE. Measured acceptance effect
-#: (90 d × 5 seeds, live composition): mean |Δn|/n_FULL = 0.175 (per-seed
-#: ≥ 0.091), mean |Δgap|/gap_FULL = 0.215.
+#: Weights for the state-factor exponent w·(x−x₀).
 STATE_WEIGHTS: tuple[float, float, float, float] = (1.0, 1.6, 0.7, 0.9)
-#: x₀ — the neutral directive's channel values (energy=0.5, initiative=0.5,
-#: valence=0.0, reactivity=0.5): the point where exp(w·(x−x₀)) ≡ 1.0.
+#: Neutral state vector x₀, where the state-factor exponent is zero.
 STATE_NEUTRAL: tuple[float, float, float, float] = (0.5, 0.5, 0.0, 0.5)
-#: Safety clip on the per-day factor (bounded-factor convention, mirroring
-#: adj_bounds / INITIATIVE_BOUNDS). Keeps the thinning majorant (mod_ub)
-#: bounded and the coupling within the preregistered range.
+#: Bounds clipping the per-day state factor.
 STATE_FACTOR_BOUNDS: tuple[float, float] = (0.5, 2.0)
-#: Preregistered divergence margins for the STRUCTURED_NO_STATE timing
-#: claim (B5 report §claim; the G2 pre-flight registry uses them).
+#: Divergence margins used by the timing ablation check.
 COUNT_DIVERGENCE_MIN = 0.15
 GAP_DIVERGENCE_MIN = 0.10
 MIN_GAPS_FOR_GAP_LEG = 3
 
-#: Reason taxonomy (full DESIGN taxonomy; schedule | callback are the slice's
-#: original members, the rest are added for gates + runtime).
+#: Reason taxonomy: schedule, callback, event, shared_interest, check_in.
 REASON_SCHEDULE = "schedule"
 REASON_CALLBACK = "callback"
 REASON_EVENT = "event"
@@ -138,14 +108,10 @@ REASON_VALIDITY_H = {
     REASON_SHARED_INTEREST: 12.0, REASON_CHECK_IN: 12.0,
 }
 
-#: How long a ContactOpportunity stays plausible (hours after desired_t_h).
-#: The scheduler answers ONLY "should she consider contacting now?"; this is
-#: the window in which that answer stays yes. The later semantic resolution
-#: (IntentResolver) further bounds the intent by the reason's own validity.
+#: Hours after desired_t_h that a ContactOpportunity stays valid.
 OPPORTUNITY_VALIDITY_H = 3.0
 
-#: Idempotent opportunity id for a planned event hour (re-plans regenerate
-#: the same hours, hence the same ids — INSERT OR IGNORE stays clean).
+#: Opportunity id derived from the planned event hour.
 OPPORTUNITY_ID_FMT = "opp_{t_h:.3f}"
 
 
@@ -417,8 +383,7 @@ class ProactiveSchedule:
 
     event_hours: np.ndarray
     _fired: set[float] = None  # type: ignore[assignment]
-    #: ContactOpportunity per planned event hour (created by the scheduler at
-    #: plan time; NO semantic reason on it — resolution happens at fire time).
+    #: ContactOpportunity per planned event hour.
     opportunities: dict[float, ContactOpportunity] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
@@ -538,8 +503,6 @@ class ProactiveSchedule:
 
 
 # --------------------------------------------------------------------------- #
-# B5 — AblationClaim for STRUCTURED_NO_STATE (channel="timing")
-# --------------------------------------------------------------------------- #
 
 
 def structured_no_state_timing_check(cell_records: dict, full_records: dict) -> bool:
@@ -594,5 +557,5 @@ def structured_no_state_claim() -> AblationClaim:
             "both sides)"
         ),
         check=structured_no_state_timing_check,
-        min_days=4,  # el feedback de puntuación no puede aterrizar antes del día 2-3
+        min_days=4,  # Score feedback lands no earlier than day 2-3.
     )

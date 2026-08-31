@@ -32,20 +32,19 @@ from sim import plots
 from sim.metrics import autocorr_lag1, mean_sd, var_ratio_by_gain
 from sim.run_daily import run
 
-# ---------------------------------------------------------------------------
-# Configuración congelada del experimento
+# Frozen experiment configuration
 
 DAYS = 90
 SEEDS = [101, 202, 303, 404, 505]
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
-PERSONA = PersonaParams()  # defaults de DESIGN.md
+PERSONA = PersonaParams()  # DESIGN.md defaults
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 OUT_DIR = REPO_ROOT / "results" / "w31-baseline"
 
-FIGURE_SEED = 101  # semilla usada para las figuras individuales de sim.plots
+FIGURE_SEED = 101  # seed for the individual sim.plots figures
 
-# Umbrales (numeración del plan; ver docstring del módulo)
+# Thresholds (plan numbering; see module docstring)
 CRIT1_MEAN_LO, CRIT1_MEAN_HI = 5.25, 6.75
 CRIT1_DRIFT_MAX = 1.0
 CRIT2_AUTOCORR_LAG28_MIN = 0.5
@@ -209,7 +208,7 @@ def build_report(rows: list[dict], figure_paths: list[Path], out_dir: Path) -> P
     )
     lines.append("")
 
-    # -- Criterio 1 ----------------------------------------------------
+    # -- Criterion 1 ------------------------------------------------
     lines.append("## Criterio (1) — media de M estable")
     lines.append("")
     lines.append(
@@ -232,7 +231,7 @@ def build_report(rows: list[dict], figure_paths: list[Path], out_dir: Path) -> P
                   f"({sum(v1_all)}/{len(v1_all)} semillas en rango sin deriva).")
     lines.append("")
 
-    # -- Criterio 2 ----------------------------------------------------
+    # -- Criterion 2 ------------------------------------------------
     lines.append("## Criterio (2) — ondas limpias de m/g, periodo ~L")
     lines.append("")
     lines.append(
@@ -266,7 +265,7 @@ def build_report(rows: list[dict], figure_paths: list[Path], out_dir: Path) -> P
                   f"({sum(v2_all)}/{len(v2_all)} semillas).")
     lines.append("")
 
-    # -- Criterio 3 ----------------------------------------------------
+    # -- Criterion 3 ------------------------------------------------
     lines.append("## Criterio (3) — histograma de M sin saturación")
     lines.append("")
     lines.append(f"Umbral: fracción de días con M==0 o M==N < {CRIT3_SATURATION_MAX} por semilla.")
@@ -283,7 +282,7 @@ def build_report(rows: list[dict], figure_paths: list[Path], out_dir: Path) -> P
                   f"({sum(v3_all)}/{len(v3_all)} semillas).")
     lines.append("")
 
-    # -- Criterio 4 ----------------------------------------------------
+    # -- Criterion 4 ------------------------------------------------
     lines.append("## Criterio (4) — var(M) mayor con g alta")
     lines.append("")
     lines.append(
@@ -308,7 +307,7 @@ def build_report(rows: list[dict], figure_paths: list[Path], out_dir: Path) -> P
     )
     lines.append("")
 
-    # -- Criterio 6 ----------------------------------------------------
+    # -- Criterion 6 ------------------------------------------------
     lines.append("## Criterio (6) — autocorrelación lag-1 de M")
     lines.append("")
     lines.append(f"Umbral: autocorr lag-1 de M ∈ [{CRIT6_LO}, {CRIT6_HI}] por semilla.")
@@ -328,7 +327,7 @@ def build_report(rows: list[dict], figure_paths: list[Path], out_dir: Path) -> P
         f"**{mean_ac1:.4f}**."
     )
     if not all(v6_all):
-        # Diagnóstico honesto: proporción de varianza rápida (binomial) vs lenta (mu+eta+ciclo).
+        # Variance split: fast (binomial) vs slow (mu+eta+cycle).
         lines.append("")
         lines.append(
             "**Diagnóstico (FAIL honesto, no se ajustan parámetros — trabajo de W3.3):** "
@@ -348,14 +347,14 @@ def build_report(rows: list[dict], figure_paths: list[Path], out_dir: Path) -> P
         )
     lines.append("")
 
-    # -- Figuras ---------------------------------------------------------
+    # -- Figures ------------------------------------------------------
     lines.append("## Figuras")
     lines.append("")
     for p in figure_paths:
         lines.append(f"- `{p.name}`")
     lines.append("")
 
-    # -- Lectura -----------------------------------------------------
+    # -- Reading ----------------------------------------------------
     lines.append("## Lectura")
     lines.append("")
     n_pass_total = sum([all(v1_all), all(v2_all), all(v3_all), n_pass_4 >= CRIT4_MIN_SEEDS_PASS, all(v6_all)])
@@ -391,7 +390,7 @@ def main() -> int:
         all_results.append(result)
         rows.append(evaluate_seed(result, PERSONA))
 
-    # Figuras estándar de sim.plots para la semilla FIGURE_SEED.
+    # Standard sim.plots figures for FIGURE_SEED.
     figure_result = next(r for r in all_results if r.seed == FIGURE_SEED)
     figure_paths = [
         plots.plot_mood_series(figure_result, OUT_DIR),
@@ -400,12 +399,12 @@ def main() -> int:
         plots.plot_mu_eta(figure_result, OUT_DIR),
     ]
 
-    # Figura propia: M medio por día entre semillas.
+    # Custom figure: mean M per day across seeds.
     figure_paths.append(make_mean_M_figure(all_results, OUT_DIR))
 
     report_path = build_report(rows, figure_paths, OUT_DIR)
 
-    # -- Resumen a stdout ---------------------------------------------------
+    # -- stdout summary ----------------------------------------------
     print(f"W3.1 baseline: {DAYS} días, variante {VARIANT.value}, semillas {SEEDS}")
     print(f"Salidas escritas en: {OUT_DIR}")
     for p in figure_paths:

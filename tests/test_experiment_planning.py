@@ -62,8 +62,7 @@ from harness.store import SQLiteStore
 SEED = 5001
 PERSONA = PersonaParams()
 TIMING = TimingParams()
-#: Non-neutral prior-day adjustment for the integrity re-plans: a real
-#: (non-zero) score array that would revise rows if the store allowed it.
+#: Non-neutral prior-day adjustment scores for the integrity re-plans.
 DIFF_SCORES = np.array([0.35, 0.0, 0.0])
 
 
@@ -106,9 +105,7 @@ def _neutral_day0_plan() -> list[float]:
     ))
 
 
-# --------------------------------------------------------------------------- #
-# 1. state-aware day-0 plan through both entry points
-# --------------------------------------------------------------------------- #
+# ---- 1. State-aware day-0 plan through both entry points ----
 
 
 def test_matrix_entry_day0_plan_is_state_aware(tmp_path):
@@ -190,9 +187,7 @@ def test_day0_plan_preexists_firing_loop(tmp_path):
         store.close()
 
 
-# --------------------------------------------------------------------------- #
-# 3. fired-event integrity under re-plan with different scores
-# --------------------------------------------------------------------------- #
+# ---- 3. Fired-event integrity under re-plan with different scores ----
 
 
 def _assert_fired_rows_intact(store: SQLiteStore, fired_t: list[float]) -> None:
@@ -219,7 +214,7 @@ def test_fired_rows_survive_replan_with_different_scores(tmp_path, entry):
         records = run_cell("FULL", SEED, tmp_path / "cell", days=2,
                            fake=True, perturb=True)
         store = SQLiteStore(records["db"], audit_mode=True)
-        # rows fired by the run itself (day 0 and day 1)
+        # Rows fired by the run itself (day 0 and day 1).
         fired_t = sorted(
             float(r["t_h"]) for r in store.schedule_events_for_seed(SEED)
             if r["status"] == "fired"

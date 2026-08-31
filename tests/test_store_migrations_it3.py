@@ -15,10 +15,7 @@ import sqlite3
 
 from harness.store import SCHEMA_VERSION, SQLiteStore
 
-# Current (v4) repo schema, VERBATIM from harness/store.py at 3af0a5a
-# (v1 frozen base + v2 tables + memory_turns views + v3 columns + v4
-# conversation tables; the v3/v4 additive columns applied as guarded ALTERs
-# exactly like _migrate_v3/_migrate_v4 do).
+# v4 schema: v1 base, v2 tables, memory_turns views, v3/v4 columns.
 _V4_SCHEMA = """
 CREATE TABLE IF NOT EXISTS daily_state (
     day INTEGER PRIMARY KEY,
@@ -371,7 +368,7 @@ def test_v4_to_v5_migration_preserves_everything(tmp_path):
     assert len(rows) == 1
     assert rows[0]["version"] == SCHEMA_VERSION
 
-    # M1: decision_records exists with the exact WS2 column set
+# decision_records exists with the exact column set
     dr_cols = {
         r["name"] for r in store.conn.execute(
             "PRAGMA table_info(decision_records)"
@@ -384,7 +381,7 @@ def test_v4_to_v5_migration_preserves_everything(tmp_path):
         "replay_id",
     }
 
-    # M2: steering_queue exists with the exact WS3 contract columns
+# steering_queue exists with the exact column set
     sq_cols = {
         r["name"] for r in store.conn.execute(
             "PRAGMA table_info(steering_queue)"
@@ -464,7 +461,7 @@ def test_v5_migration_runs_twice_without_error(tmp_path):
     )
     store1.close()
 
-    # re-open: migration must be a no-op, not an error, no duplicate rows
+# re-open: migration is a no-op, no duplicate rows
     store2 = SQLiteStore(db, audit_mode=True)
     rows = store2.conn.execute("SELECT version FROM schema_meta").fetchall()
     assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
@@ -486,7 +483,7 @@ def test_fresh_db_reaches_v5_with_tables_and_new_apis(tmp_path):
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
     assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
 
-    # --- steering_queue contract (WS3) ------------------------------------
+# --- steering_queue ---
     s1 = store.enqueue_steer(0, 19.0, "popup",
                              {"kind": "tool_decide_event", "event": "gym"})
     s2 = store.enqueue_steer(0, 19.5, "user_message",
@@ -508,7 +505,7 @@ def test_fresh_db_reaches_v5_with_tables_and_new_apis(tmp_path):
     # limit
     assert len(store.pending_steers(limit=2)) == 2
 
-    # delivery records actual time/boundary/seen turn (summary #23)
+# delivery records actual time, boundary, and seen turn
     store.mark_steer_delivered(s1, 19.05, "after_tool", "turn-7")
     row = store.conn.execute(
         "SELECT * FROM steering_queue WHERE id = ?", (s1,)
@@ -529,7 +526,7 @@ def test_fresh_db_reaches_v5_with_tables_and_new_apis(tmp_path):
     assert row["boundary"] is None
     assert row["seen_turn_id"] is None
 
-    # --- decision_records API (WS2) ---------------------------------------
+# --- decision_records API ---
     rid = store.record_decision(
         0, 19.0, "tool_decide_event", "evt-1", "gym", "start", "19.0",
         '{"event_id": "evt-1"}', 'tool_decide_event: {yes, "go"}',

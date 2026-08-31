@@ -115,10 +115,7 @@ def test_control_command_is_frozen_with_slashless_name() -> None:
         setattr(cmd, "name", "muted")
 
 
-# --------------------------------------------------------------------------- #
-# setMyCommands (WS-A): the user-facing command menu registers only when
-# commands are enabled; /state is never registered.
-# --------------------------------------------------------------------------- #
+# setMyCommands: the command menu registers only when commands are enabled.
 
 
 def test_set_my_commands_registered_when_commands_enabled() -> None:
@@ -150,8 +147,8 @@ def test_set_my_commands_never_registers_state() -> None:
     asyncio.run(scenario())
     registered = [c.command for c in app.bot.registered_commands]
     assert "state" not in registered
-    # ... while the dispatch table still handles it (debug-gated handler).
-    from harness.commands import _COMMANDS  # noqa: PLC2701 - contract check
+    # the dispatch table still handles it (debug-only handler).
+    from harness.commands import _COMMANDS  # noqa: PLC2701
 
     assert "state" in _COMMANDS
 

@@ -58,10 +58,7 @@ def anchor_for_fresh_start(now_epoch_s: float, tz: str = "America/Mexico_City") 
     zone = ZoneInfo(tz)
     now_local = datetime.fromtimestamp(now_epoch_s, tz=zone)
     midnight = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    # Elapsed time since local midnight, computed on UTC instants (epochs):
-    # subtracting aware datetimes that share one ZoneInfo object yields the
-    # naive wall-clock difference (offset adjustment skipped), which is wrong
-    # across DST transitions. timestamp() resolves midnight's instant via the
-    # zone's utcoffset — local midnight never falls in a fold or gap.
+    # Elapsed time since local midnight, computed on UTC instants so DST
+    # transitions do not skew the difference.
     t_h0 = (now_epoch_s - midnight.timestamp()) / SECONDS_PER_HOUR
     return RealTimeAnchor(epoch0_s=now_epoch_s, t_h0=t_h0, tz=tz)

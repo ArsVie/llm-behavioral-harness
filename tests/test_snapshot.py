@@ -46,11 +46,7 @@ FORBIDDEN_SUBSTRINGS = (
 )
 FORBIDDEN_G_RE = re.compile(r"\bg\b")
 
-#: G2 (W2+W3): raw engine numbers never reach the assembled prompt — no
-#: bare t_h floats, no channel floats (unformatted ``digits.digits``).
-#: The ONLY numeric content allowed is clock-shaped times (HH:MM — the
-#: temporal line's 15:24, the agenda's 06:58) and the temporal line's
-#: virtual day index ("day N").
+#: Allowed numeric content: clock-shaped times and the temporal day index.
 FORBIDDEN_FLOAT_RE = re.compile(r"\d+\.\d+")
 CLOCK_TIME_RE = re.compile(r"\d{1,2}:\d{2}")
 DAY_INDEX_RE = re.compile(r"day \d+")
@@ -63,8 +59,7 @@ def numeric_leak(prompt: str) -> list[str]:
     masked = DAY_INDEX_RE.sub("day N", masked)
     return re.findall(r"\d+", masked)
 
-#: Vocabulary used by the battery is deliberately free of the tokens
-#: ("music", "must", "much", "beta", ... would trip the substring check).
+#: Battery messages avoid words containing the forbidden tokens.
 BATTERY_MESSAGES = (
     "hello there",
     "My dog's name is Bruno.",
@@ -150,9 +145,7 @@ def _check_prompt(prompt: str, *, seed: int, day: int) -> None:
     assert not FORBIDDEN_G_RE.search(low), (
         f"standalone 'g' leaked (seed={seed} day={day}): {prompt[:600]}"
     )
-    # G2 (W2+W3): raw engine numbers never reach the prompt — no bare
-    # t_h/channel floats; clock times and the temporal day index are the
-    # only numeric content allowed.
+    # Only clock times and the temporal day index are numeric content.
     assert not FORBIDDEN_FLOAT_RE.search(prompt), (
         f"raw engine float leaked (seed={seed} day={day}): {prompt[:600]}"
     )
@@ -186,8 +179,7 @@ def test_forbidden_tokens_never_reach_assembled_prompt(tmp_path):
             prompts_checked += 1
         store.close()
     assert prompts_checked == 30
-    # Sanity: the battery actually spans multiple engine phases (if this
-    # ever fails, the seeds no longer cover the phase space — adjust).
+    # The battery spans multiple engine phases.
     assert len(phases_seen) >= 2, f"battery collapsed onto one phase: {phases_seen}"
 
 
@@ -228,8 +220,7 @@ def test_time_aware_anchored_battery_clean(tmp_path):
         # partition labels present (life agenda spans the day)
         assert "Done earlier:" in prompt or "Happening now:" in prompt
         assert "Later today:" in prompt
-        # the extended G2 scan (floats + numeric leak) holds on the
-        # anchored prompts too
+        # The numeric scan holds on the anchored prompts too.
         _check_prompt(prompt, seed=44, day=day)
         store.close()
         assert TEMPORAL_LINE_RE.search(prompt)
@@ -261,7 +252,7 @@ def test_forbidden_tokens_absent_after_finalize_and_resume(tmp_path):
     _check_prompt(client.calls[-1]["system"], seed=7, day=2)
     store.close()
 
-    # Reopen: resume must keep the assembled prompt clean.
+    # Reopen: the assembled prompt stays clean.
     store2 = SQLiteStore(tmp_path / "s.db")
     client2 = FakeClient(responses=["reply d"])
     session2 = Session(

@@ -57,14 +57,8 @@ from harness.credentials import resolve_credentials
 DEFAULT_BASE_URL = "https://api.commandcode.ai/provider/v1"
 DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 
-#: Bounded retry for transient failures (review fix #3) and for
-#: empty/whitespace-only completions (iteration-3 B1: generation integrity).
-#: G3 evidence (2026-08-10): opencode-go intermittently returns empty
-#: completions in multi-minute windows (3 consecutive G3 smokes died with
-#: 4-consecutive empties while direct probes between windows succeeded).
-#: 7 attempts × 2/4/8/16/32/64s backoff (~2 min worst case) rides through
-#: short windows; the budget is still bounded and still raises loudly.
-#: Robustness hardening, not threshold tuning — blanks are never accepted.
+#: Retry budget: 7 attempts with exponential backoff for transient
+#: failures and empty completions; raises when the budget is exhausted.
 _MAX_RETRIES = 6
 _RETRY_BASE_DELAY_S = 2.0
 
@@ -274,8 +268,7 @@ def _parse_usage(raw: object) -> Usage | None:
     total = _int_or_none(raw.get("total_tokens"))
     if total is None and prompt is not None and completion is not None:
         total = prompt + completion
-    # Reasoning spend (OpenAI completion_tokens_details.reasoning_tokens —
-    # commandcode surfaces it there; absent on most other providers).
+    # Reasoning tokens, read from completion_tokens_details when present.
     reasoning: int | None = None
     ctd = raw.get("completion_tokens_details")
     if isinstance(ctd, dict):
@@ -284,27 +277,22 @@ def _parse_usage(raw: object) -> Usage | None:
     cached = _int_or_none(raw.get("prompt_cache_hit_tokens"))
     miss = _int_or_none(raw.get("prompt_cache_miss_tokens"))
     if cached is None and miss is None:
-        # OpenAI variant: prompt_tokens_details.cached_tokens (may be an
-        # empty dict — observed on the real gateway).
+        # OpenAI variant: cached_tokens from prompt_tokens_details.
         details = raw.get("prompt_tokens_details")
         if isinstance(details, dict):
             cached = _int_or_none(details.get("cached_tokens"))
-        # Anthropic variant (OpenAI-compatible proxies): cache reads are
-        # served-from-cache; cache CREATION writes are fresh full-price
-        # input, folded into the miss (uncached) bucket.
+        # Anthropic variant: cache reads count as hits; cache creation
+        # writes are fresh input, folded into the miss bucket.
         read = _int_or_none(raw.get("cache_read_input_tokens"))
         if cached is None:
             cached = read
         creation = _int_or_none(raw.get("cache_creation_input_tokens"))
         if creation is not None:
             miss = creation if miss is None else miss + creation
-    # A cached figure without an explicit miss: the freshest consistent
-    # estimate is the residual prompt (never negative, never over prompt).
+    # Miss count absent: estimate it as prompt minus cached, minimum 0.
     if cached is not None and miss is None and prompt is not None:
         miss = max(prompt - cached, 0)
-    # No cache split at all: the observed gateway surfaces cache fields
-    # ONLY when a prefix is actually cached (probe 2026-08-16), so an
-    # absent split means everything was a fresh (uncached) read — all-miss.
+    # No cache split at all: all tokens are fresh (uncached) reads.
     if cached is None and miss is None and prompt is not None:
         miss = prompt
     if (
@@ -326,10 +314,7 @@ class OpenAICompatibleClient:
     """httpx-based client for any OpenAI-compatible /chat/completions."""
 
     supports_json: bool = True
-    #: ENDPOINT capability, not model capability: the endpoint accepts the
-    #: `tools` parameter, but the MODEL may still fail to call tools
-    #: correctly — that failure is the runner's loud parse-failure path
-    #: (WS2), not a client concern.
+    #: The endpoint accepts the `tools` parameter.
     supports_tools: bool = True
 
     def __init__(
@@ -341,10 +326,7 @@ class OpenAICompatibleClient:
         max_retries: int = _MAX_RETRIES,
         lane: str | None = None,
     ):
-        # Lane resolution (WS-C): explicit args win over the resolver; the
-        # resolver fails loudly at construction when the lane token is
-        # missing. lane=None keeps the legacy LLM_* env behavior and stamps
-        # nothing (client.lane stays None).
+        # Credentials: explicit args win, then lane resolver, then env vars.
         if lane is not None:
             lane_key, lane_base = resolve_credentials(lane)
             self.api_key = api_key if api_key is not None else lane_key
@@ -445,16 +427,13 @@ class OpenAICompatibleClient:
             )
         if system is not None:
             if messages:
-                # WS-E: every message is run through the serializer guard —
-                # a reasoning-only turn (content None) must reach the wire
-                # as content:"" , never content:null (the gateway 400s it).
+                # Normalize messages: null content is sent as "" on the wire.
                 payload_messages = [
                     {"role": "system", "content": system},
                     *_normalize_messages(messages),
                 ]
             else:
-                # Proactive opener on a fresh transcript: a system-only request
-                # is the honest context (no user turns exist yet).
+                # No user turns yet: send the system prompt alone.
                 payload_messages = [{"role": "system", "content": system}]
         else:
             payload_messages = _normalize_messages(messages)
@@ -486,9 +465,8 @@ class OpenAICompatibleClient:
                 tool_calls = _parse_tool_calls(msg.get("tool_calls"))
                 reasoning = _extract_reasoning(msg)
             except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
-                # Malformed (p.ej. 200 sin 'content'): reintentable con el
-                # MISMO presupuesto acotado que los vacíos (it3 G5:
-                # opencode-go/luna devuelve ocasionalmente 200 sin content).
+                # Malformed response (e.g. 200 without 'content'): retry with
+                # the same bounded budget as empty completions.
                 if attempt < self.max_retries:
                     _logger.warning(
                         "malformed LLM response (%s, attempt %d/%d) — retrying",
@@ -498,24 +476,14 @@ class OpenAICompatibleClient:
                     continue
                 raise RuntimeError(f"malformed LLM response: {exc}") from exc
             if content is None and not tool_calls and reasoning is None:
-                # Null content with no tool calls is a broken reply; a
-                # tool-call-only response (content=None + tool_calls) is
-                # legitimate and must NOT be retried; a reasoning-only
-                # response (content=None + reasoning_content populated, no
-                # tool_calls — the v4-flash quirk, WS-E) is ALSO legitimate
-                # and must NOT be retried: it round-trips as
-                # ChatResult(content="", reasoning=...).
+                # Retry null content only when no tool calls or reasoning
+                # are present; those round-trip as content "".
                 retry_reason = "null content"
                 terminal = RuntimeError("LLM response had null content")
             text = "" if content is None else str(content)
             if retry_reason is None and not text.strip() and not tool_calls and reasoning is None:
-                # 200-with-empty-body / empty completion: retry with the
-                # same bounded backoff as transport failures (it2 F1: blanks
-                # were persisted because empties were returned silently).
-                # A reasoning-only reply (content "" + reasoning populated)
-                # is exempt — the model DID answer, in the reasoning channel.
-                # A null content (content None) is already handled above and
-                # must NOT be re-classified as empty — the null branch wins.
+                # Empty/whitespace content is retried; reasoning-only and
+                # null-content replies are exempt (handled above).
                 retry_reason = "empty content"
                 terminal = RuntimeError(
                     f"LLM returned empty/whitespace-only content after "
@@ -530,11 +498,9 @@ class OpenAICompatibleClient:
                     resp = self._retry_post(payload, attempt)
                     continue
                 raise terminal
-            assert terminal is None  # terminal set exactly when retry_reason is
+            assert terminal is None  # terminal is None unless retry_reason was set
             if finish_reason == "length":
-                # Truncation is NOT an empty reply: content is persisted, the
-                # truncation is recorded as a marker log line (it2 corpus ends
-                # on "Nova: Hey" — truncated runs must be visible).
+                # Truncation is logged as a warning; content is persisted.
                 _logger.warning(
                     "LLM reply truncated (finish_reason=length, %d chars) — "
                     "content persisted, truncation recorded",
@@ -582,8 +548,7 @@ class FakeClient:
         self.responses = deque(responses or [])
         self.calls: list[dict] = []
         self.echo = echo
-        #: Lane stamp (WS-C attribution): mirrors OpenAICompatibleClient —
-        #: None for un-laned fakes.
+        #: Lane name for spend attribution, like OpenAICompatibleClient.
         self.lane = lane
 
     def chat(
@@ -616,12 +581,10 @@ class FakeClient:
         tool_choice: dict | str | None = None,
         reasoning_effort: str | None = None,
     ) -> ChatResult:
-        # Mirror OpenAICompatibleClient semantics (system-only payload when the
-        # transcript is empty) so fakes are faithful protocol stand-ins.
+        # Mirror OpenAICompatibleClient: system-only payload on empty transcripts.
         if system is not None and not messages:
             messages = [{"role": "system", "content": system}]
-        # WS-E: mirror the serializer guard — the recorded request carries
-        # the WIRE shape (reasoning-only turns record content "", never null).
+        # Record the wire shape: null content is normalized to "".
         messages = _normalize_messages(messages)
         self.calls.append(
             {

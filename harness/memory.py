@@ -114,8 +114,7 @@ from harness.summarization import (
     deterministic_summarizer,
 )
 
-# Backward-compatible re-exports (tests and callers import these names from
-# harness.memory; the implementations now live in their own modules).
+# Backward-compatible re-exports for tests and callers.
 __all__ = [
     "MemoryAgent",
     "PromotionPolicy",
@@ -149,8 +148,7 @@ def deterministic_hash_embedder(text: str, *, dim: int = 64, seed: int = 0) -> l
 
 
 # ---------------------------------------------------------------------------
-# Weights and budgets (documented; tests assert against these constants)
-# ---------------------------------------------------------------------------
+# Weights and budgets
 
 SEM_WEIGHT = 0.35
 STRENGTH_WEIGHT = 0.30
@@ -215,7 +213,6 @@ def _clip(x: float, lo: float = 0.0, hi: float = 1.0) -> float:
 
 # ---------------------------------------------------------------------------
 # L3/L4 — episodic strength, reranker, promotion policy
-# ---------------------------------------------------------------------------
 
 
 def episodic_strength(episode: EpisodicMemory, now_t_h: float) -> float:
@@ -274,8 +271,7 @@ class PromotionPolicy:
 
 
 # ---------------------------------------------------------------------------
-# Baselines (Memory Gate item 10 — the policy baselines)
-# ---------------------------------------------------------------------------
+# Baselines
 
 
 def raw_history(store, *, limit: int = L1_SLICE_LIMIT) -> tuple[Turn, ...]:
@@ -315,7 +311,6 @@ def simple_retrieval(
 
 # ---------------------------------------------------------------------------
 # MemoryAgent
-# ---------------------------------------------------------------------------
 
 
 class MemoryAgent:
@@ -345,7 +340,7 @@ class MemoryAgent:
         self._embed: Embedder = embedder or DeterministicHashEmbedder()
         self._policy = policy if policy is not None else PromotionPolicy()
         self._summarizer: Summarizer = summarizer or DeterministicSummaryExtractor()
-        self._rng = rng  # reserved for future stochastic extensions; A4 is deterministic
+        self._rng = rng  # stored for future use
         self.memory_policy = memory_policy
         try:
             self._add_message_accepts_session = (
@@ -353,9 +348,7 @@ class MemoryAgent:
             )
         except (TypeError, AttributeError):
             self._add_message_accepts_session = False
-        # A9 M-1b provenance leg: stores whose supersede_assertion accepts
-        # provenance kwargs let the negation evidence be persisted on the
-        # superseded row; minimal stores fall back to a bare status flip.
+        # Stores accepting provenance kwargs persist it on the superseded row.
         try:
             self._supersede_accepts_provenance = (
                 "source_memory_ids"
@@ -363,10 +356,8 @@ class MemoryAgent:
             )
         except (TypeError, AttributeError):
             self._supersede_accepts_provenance = False
-        # Canonical L4 category kwarg (plan §5-A4 Task 1, invariant 10): the
-        # store persists the UserModelCategory directly on the assertion row.
-        # Stores without the kwarg fall back to their legacy key-prefix
-        # bucketing (detected once at construction, never re-derived).
+        # The store persists the UserModelCategory on the assertion row;
+        # stores without the kwarg fall back to legacy key-prefix bucketing.
         try:
             self._upsert_accepts_category = (
                 "category" in inspect.signature(store.upsert_assertion).parameters
@@ -554,8 +545,7 @@ class MemoryAgent:
                 )
             )
 
-        # Fallbacks for summaries promoted without extractable facts: use the
-        # summary's own fields (never fabricate anchors — they stay empty).
+        # Fallbacks use the summary's own fields when no facts were extracted.
         if not episodes:
             for fact_str in summary.user_facts:
                 episodes.append(
@@ -665,10 +655,7 @@ class MemoryAgent:
                 self.store.upsert_assertion(assertion)
             updated.append(assertion)
 
-        # M-1b gate fix (A9 Gate 3): negation facts supersede EVERY current
-        # assertion whose value mentions the negated subject — a name-based
-        # contradiction ("I don't have Luna anymore") kills "user has a cat
-        # named Luna" even though the keys differ ("user:luna" vs "user:cat").
+        # Negation facts supersede current assertions mentioning the subject.
         for f in facts:
             m = _NEGATION_VALUE_RE.match(f.value)
             if not m:
@@ -679,7 +666,7 @@ class MemoryAgent:
             )
             for a in self.store.list_assertions(status="current"):
                 if a.key == f.key:
-                    continue  # same-key supersede already handled by upsert
+                    continue  # same-key supersede handled by the upsert above
                 if re.search(rf"\b{re.escape(subject)}\b", a.value, re.IGNORECASE):
                     superseded = replace(
                         a,
@@ -688,9 +675,7 @@ class MemoryAgent:
                         source_memory_ids=a.source_memory_ids + extra,
                     )
                     if self._supersede_accepts_provenance:
-                        # Persist the merged provenance (original episodes +
-                        # negation episode) so the superseded row keeps BOTH
-                        # sources after a restart — not just the return value.
+                        # Persist merged provenance on the superseded row.
                         self.store.supersede_assertion(
                             a.key,
                             source_memory_ids=superseded.source_memory_ids,

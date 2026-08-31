@@ -40,13 +40,7 @@ EXPERIMENT_NAME = "it3-perceptual-validity"
 SCHEMA_VERSION = "2.0"
 DAYS = 30
 
-#: Decisión de margen (G2, reconciliada 2026-08-10): la pata de conteo de
-#: STRUCTURED_NO_STATE quedó en 14.4% (pooled, fake, 30 días) por debajo
-#: del margen preregistrado 0.15; la pata de gaps (12.5%) la superó. La
-#: compuerta del pre-flight pasa por la pata de disparos (29.2% — control
-#: positivo) y por la barra baja de nulidad. El umbral NO se mueve; la
-#: claim de manifiesto se prueba en la matriz real (G5) y el resultado se
-#: reporta como metido o no-metido-a-margen con la pata de gaps anotada.
+# Margin decision 2026-08-10: count leg 14.4%, gap leg 12.5%, margin 0.15.
 RECONCILIATION = {
     "record": "results/it3-g2-horizon-split-reconciliation-2026-08-10.md",
     "three_flags_two_causes": {
@@ -67,10 +61,7 @@ RECONCILIATION = {
     ),
 }
 
-#: SPLIT de compuerta vs hipótesis (corrección del usuario, G2): la
-#: compuerta del pre-flight responde "¿está dormido el canal?" con una
-#: barra baja robusta al horizonte; los umbrales de hipótesis se prueban
-#: en la matriz real. Nada depende del valor exacto de la compuerta.
+# Split between the pre-flight divergence check and hypothesis thresholds.
 THRESHOLD_SPLIT = {
     "gate_min_divergence": GATE_MIN_DIVERGENCE,
     "gate_role": "null-detector: channel not dormant; immune to post-hoc tuning",
@@ -84,12 +75,10 @@ THRESHOLD_SPLIT = {
     ),
 }
 
-#: Horizonte mínimo por claim (cuándo el mecanismo ablado pudo haber
-#: actuado). Por debajo: NOT EVALUABLE, nunca FAIL.
+# Minimum horizon per claim, in days.
 CLAIM_MIN_DAYS = {c.condition: c.min_days for c in CLAIMS}
 
-#: Invariante dura: blancos < 1% (DoD §11). El cliente endurecido nunca
-#: persiste contenido vacío; la matriz la verifica sobre el corpus real.
+# Maximum blank-turn rate.
 BLANK_RATE_HARD_INVARIANT = 0.01
 
 

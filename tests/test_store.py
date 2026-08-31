@@ -75,9 +75,7 @@ def test_proactive_count(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# vertical-slice seam (A2)
-# --------------------------------------------------------------------------- #
+# Vertical-slice seam
 
 def test_schema_version_recorded(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
@@ -184,7 +182,7 @@ def test_proactive_intent_crud_and_resolve(tmp_path):
     )
     resolved = store.resolve_intent_source(intent)
     assert resolved is not None and resolved.id == "a1"
-    # unknown source types never resolve
+    # Unknown source types do not resolve.
     alien = ProactiveIntent("p2", "x", "universe", "u1", "h", 1.0, 2.0, 0.1, "e")
     assert store.resolve_intent_source(alien) is None
     store.close()
@@ -245,7 +243,7 @@ def test_supersede_assertion_cross_key(tmp_path):
                                               50.0, ("ep2",), "current"))
     assert store.get_assertion("user:cat") is not None
     store.supersede_assertion("user:cat")
-    # real-store contract: get_assertion returns most recent row (any status)
+    # get_assertion returns the most recent row (any status).
     flipped = store.get_assertion("user:cat")
     assert flipped is not None and flipped.status == "superseded"
     superseded = [a for a in store.list_assertions("superseded")]

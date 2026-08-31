@@ -174,10 +174,8 @@ def build_persona(
                 exacts.append(node)
         exact_set = set(exacts)
 
-        # 2. Adjacent / independent pools RELATIVE to this profile's exacts:
-        #    adjacent = path of <= MAX_ADJACENCY_HOPS to at least one exact,
-        #    independent = no such path. The graph-level samplers cannot know the
-        #    profile's exact set, so membership is computed here, structurally.
+        # 2. Adjacent / independent pools relative to this profile's exacts;
+        #    membership is computed structurally here.
         all_nodes = graph.nodes()
         adjacent_candidates = [
             n

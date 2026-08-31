@@ -39,9 +39,8 @@ PLAN_USER = UserProfile(
     name="Ars", interests=("mathematics", "metal", "lifting", "movies")
 )
 
-#: Every catalog hub as the user set — no pool clamping, so every bucket mean
-#: lands exactly on its target (exact pool 8, adjacent pool = all cluster
-#: members, independent pool = the 3-node island).
+#: Every catalog hub as the user set: each sample lands on its target
+#: pool (exact 8, adjacent cluster members, independent 3-node island).
 ALL_HUBS = UserProfile(name="Omni", interests=tuple(build_catalog().hubs()))
 
 N_SEEDS = 100

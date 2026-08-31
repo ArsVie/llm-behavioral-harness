@@ -52,9 +52,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import Enum
 
-# --------------------------------------------------------------------------- #
 # phases
-# --------------------------------------------------------------------------- #
 
 
 class NegotiationPhase(str, Enum):
@@ -67,48 +65,32 @@ class NegotiationPhase(str, Enum):
     RESOLVED_FORCED = "resolved_forced"  # terminal: backstop (missed it)
 
 
-#: Verdict actions map 1:1 to the existing tool_decide_event action enum.
-GO = "follow"          # go   -> existing follow
-SKIP = "abandon"       # skip -> existing abandon
-DELAY = "defer"        # delay-> existing defer (+ N payload)
+GO = "follow"          # go -> follow
+SKIP = "abandon"       # skip -> abandon
+DELAY = "defer"        # delay -> defer (+ N payload)
 
 
-# --------------------------------------------------------------------------- #
 # triggers
-# --------------------------------------------------------------------------- #
 
-#: Decide trigger / AFK time bomb: minutes of user silence since the last
-#: user turn (steerable knob, default 10 min).
+#: Minutes of user silence that trigger the decide phase (default 10 min).
 SHORT_AFK_MIN = 10.0
 SHORT_AFK_H = SHORT_AFK_MIN / 60.0
 
-#: Default N when the model says "a bit longer" (steerable; small).
+#: Default defer turns for a vague "a bit longer" request.
 DEFAULT_DEFER_TURNS = 2
 
-#: The user-away threshold is defined ONCE in harness.tunables; the contract
-#: must never re-hardcode it — the previous hardcoded 12.0 copy went stale
-#: when the value changed. Distinct from SHORT_AFK by design; never collapse
-#: the two (tunables is the single source; no import here by design — the
-#: values are read at the call sites).
+#: User-away threshold is read from harness.tunables at the call sites.
 
-#: Converging pull schedule: per-delay weight added toward go (steerable;
-#: linear default). The server presents this as rising pressure in the
-#: decide request (mounting cost / eroding window) -- the model still
-#: chooses; the pull only raises the weight.
+#: Weight added toward "go" after each delay (steerable, linear default).
 PULL_PER_DELAY = 0.15
 
 
-# --------------------------------------------------------------------------- #
-# defer(N) payload shape (extends the existing tool_decide_event verdict)
-# --------------------------------------------------------------------------- #
+# defer(N) payload shape
 
-#: Key inside the decide verdict for the SERVER-FILLED N (the model never
-#: emits arithmetic; the server maps "a bit longer" -> turns).
+#: Verdict key holding the server-computed defer turns.
 DEFER_TURNS_KEY = "defer_turns"
 
-#: Natural-language patterns the server maps to N (deterministic, small):
-#: "a bit longer" / "just a sec" / "a few more messages" -> DEFAULT_DEFER_TURNS
-#: an explicit "N more turns/messages" -> N (clamped to 1..4).
+#: NL patterns mapped to defer turns: vague phrases -> default, explicit N -> clamped.
 DEFER_N_PATTERNS: tuple[tuple[str, int], ...] = (
     (r"\bjust\s+(?:a\s+)?(second|sec|moment|minute|min)\b", 1),
     (r"\b(a\s+)?bit\s+longer\b", 2),
@@ -120,13 +102,9 @@ DEFER_N_MIN = 1
 DEFER_N_MAX = 4
 
 
-# --------------------------------------------------------------------------- #
 # skippable / unskippable
-# --------------------------------------------------------------------------- #
 
-#: AgendaItem source_type values treated as UNSKIPPABLE commitments
-#: (class/work/routine -> Inform is a heads-up, Decide ~ deterministic go).
-#: Skippable = source_type NOT in this set (arc/interest -> discretionary).
+#: Source types treated as unskippable commitments; other types are skippable.
 UNSKIPPABLE_SOURCE_TYPES: frozenset[str] = frozenset({"routine"})
 
 
@@ -135,21 +113,18 @@ def is_skippable(source_type: str) -> bool:
     return source_type not in UNSKIPPABLE_SOURCE_TYPES
 
 
-# --------------------------------------------------------------------------- #
-# episode emission shape (A3)
-# --------------------------------------------------------------------------- #
+# episode emission shape
 
 #: MemoryKind category for negotiation outcomes (companion-side episodes).
 EPISODE_CATEGORY = "companion_episode"
 
-#: Episode tags so later conversations can retrieve go/skip/delay outcomes.
+#: Episode tags for retrieving go/skip/delay outcomes later.
 TAG_GO = "negotiation_go"
 TAG_SKIP = "negotiation_skip"
 TAG_FORCED = "negotiation_forced"
 TAG_DELAY = "negotiation_delay"
 
-#: Salience gate: only consequential outcomes emit. A plain go with zero
-#: delays is NOT an episode; skip / forced-skip / go-after-any-delay are.
+#: Only consequential outcomes emit; a plain go with zero delays does not.
 EMIT_GO_WITH_DELAYS = True      # go after >=1 delay emits
 EMIT_GO_WITHOUT_DELAYS = False  # plain go does not
 EMIT_SKIP = True

@@ -45,8 +45,7 @@ from engine import circadian, mood
 from engine.types import MoodVariant, PersonaParams, SimResult, TimingParams
 from sim.run_daily import run
 
-# ---------------------------------------------------------------------------
-# Constantes del experimento
+# Experiment constants
 
 DAYS = 30
 SEED = 3001
@@ -56,18 +55,14 @@ OUT_DIR = Path(__file__).resolve().parent.parent / "engine_simulation"
 _BASE_PERSONA = PersonaParams()
 _TIMING = TimingParams()
 
-#: Ventana de la racha negativa (dias, inclusive) para el escenario 04.
-STREAK_DAYS = range(10, 15)  # 10..14
+# Negative streak window (days, inclusive) for scenario 04: 10..14.
+STREAK_DAYS = range(10, 15)
 STREAK_SCORE = -1.0
 SHOCKS_STREAK: dict[int, float] = {t: STREAK_SCORE for t in STREAK_DAYS}
 
 
-# ---------------------------------------------------------------------------
-# Definicion de escenarios: (slug, titulo corto, overrides, shocks)
-#
-# `overrides` son campos de PersonaParams aplicados sobre _BASE_PERSONA con
-# dataclasses.replace; `shocks` es el dict día->score forzado que consume
-# sim.run_daily.run (None == sin shocks).
+# Scenario definitions: (slug, short title, overrides, shocks).
+# overrides = PersonaParams fields via dataclasses.replace; shocks = day->score dict (None = none).
 
 ScenarioSpec = tuple[str, str, dict[str, float], dict[int, float] | None]
 
@@ -122,8 +117,7 @@ def run_scenario(overrides: dict[str, float], shocks: dict[int, float] | None) -
     return run(days=DAYS, seed=SEED, variant=VARIANT, persona=persona, shocks=shocks)
 
 
-# ---------------------------------------------------------------------------
-# Figura por escenario: 3 paneles (M con banda, mu/eta, m/g)
+# Per-scenario figure: 3 panels (M with band, mu/eta, m/g).
 
 
 def plot_scenario(slug: str, label: str, result: SimResult) -> Path:
@@ -141,7 +135,7 @@ def plot_scenario(slug: str, label: str, result: SimResult) -> Path:
 
     fig, (ax_m, ax_mu, ax_mg) = plt.subplots(3, 1, figsize=(10, 9), sharex=True, dpi=120)
 
-    # (a) M(t) con banda N*p(t) +/- sd binomial
+    # Panel (a): M(t) with an N*p(t) +/- binomial sd band.
     sd_binom = np.sqrt(N * p * (1.0 - p))
     upper = N * p + sd_binom
     lower = N * p - sd_binom
@@ -153,7 +147,7 @@ def plot_scenario(slug: str, label: str, result: SimResult) -> Path:
     ax_m.legend(loc="upper right", fontsize=8)
     ax_m.grid(True, alpha=0.3)
 
-    # (b) mu(t) y eta(t); en 04 sombrea la ventana de la racha
+    # Panel (b): mu(t) and eta(t).
     ax_mu.plot(t, mu, "o-", color="C2", linewidth=1.6, markersize=3.5, label="μ(t)")
     ax_mu.plot(t, eta, "s-", color="C3", linewidth=1.6, markersize=3.5, label="η(t)")
     ax_mu.axhline(0.0, color="gray", linewidth=0.6)
@@ -169,7 +163,7 @@ def plot_scenario(slug: str, label: str, result: SimResult) -> Path:
     ax_mu.legend(loc="upper right", fontsize=8)
     ax_mu.grid(True, alpha=0.3)
 
-    # (c) m(t) y g(t) — mismo panel, dos ejes y (izq: m, der: g)
+    # Panel (c): m(t) and g(t), two y-axes.
     ax_mg2 = ax_mg.twinx()
     l1, = ax_mg.plot(t, m, "o-", color="C4", linewidth=1.6, markersize=3.5, label="m(t)")
     l2, = ax_mg2.plot(t, g, "s-", color="C5", linewidth=1.6, markersize=3.5, label="g(t)")
@@ -190,8 +184,7 @@ def plot_scenario(slug: str, label: str, result: SimResult) -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# 00_comparativa.png — small multiples 2x3 de M(t)
+# 00_comparativa.png: 2x3 small multiples of M(t).
 
 
 def plot_comparativa(results: dict[str, SimResult]) -> Path:
@@ -228,11 +221,10 @@ def plot_comparativa(results: dict[str, SimResult]) -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# 07_intradia.png — efecto circadiano rapido sobre el baseline
+# 07_intradia.png: fast circadian effect on the baseline.
 
 
-#: Fases del ciclo, en orden, para las curvas de energia del panel (b).
+# Cycle phases, for the energy curves of panel (b).
 _PHASE_LABELS = (
     "menstrual",
     "follicular",
@@ -247,14 +239,14 @@ def plot_intradia(baseline_result: SimResult) -> Path:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
 
     days = baseline_result.t
-    arg_by_day = baseline_result.arg  # arg(d) del baseline, ya calculado por mood.step
+    arg_by_day = baseline_result.arg
 
     hours = np.arange(24)
-    # p_h(d, h) = sigmoid(arg(d) + c(h, TimingParams()))
+    # p_h(d, h) = sigmoid(arg(d) + c(h)).
     c_by_hour = np.array([circadian.c(float(h), _TIMING) for h in hours])
     p_h = np.array(
         [[mood.sigmoid(arg_d + c_h) for arg_d in arg_by_day] for c_h in c_by_hour]
-    )  # shape (24, DAYS): fila=hora, columna=dia
+    )  # shape (24, DAYS): row=hour, column=day.
 
     fig, (ax_hm, ax_energy) = plt.subplots(1, 2, figsize=(14, 6), dpi=120)
 
@@ -293,8 +285,7 @@ def plot_intradia(baseline_result: SimResult) -> Path:
     return png_path
 
 
-# ---------------------------------------------------------------------------
-# README.md — indice corto de la galeria
+# README.md: short index of the gallery.
 
 
 def write_readme(results: dict[str, SimResult]) -> Path:
@@ -386,8 +377,7 @@ def write_readme(results: dict[str, SimResult]) -> Path:
     return readme_path
 
 
-# ---------------------------------------------------------------------------
-# Orquestacion
+# Orchestration
 
 
 def main() -> int:

@@ -46,9 +46,7 @@ def _day_session(store, day: int, user_text: str, *, t_h: float | None = None,
     return agent, summary
 
 
-# --------------------------------------------------------------------------- #
-# M-1 / M-2: contradictory facts (cat Luna / no Luna)
-# --------------------------------------------------------------------------- #
+# Contradictory facts (cat Luna / no Luna)
 
 
 def test_m1_contradictory_facts_supersede_stale_truth(tmp_path):
@@ -134,9 +132,7 @@ def test_m2_stale_episode_anchored_not_blended_into_current(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# M-3: irrelevant high-salience memory
-# --------------------------------------------------------------------------- #
+# Irrelevant high-salience memory
 
 
 def _episode(ep_id: str, summary: str, importance: float, tags, *,
@@ -184,8 +180,7 @@ def test_m3_relevant_low_salience_not_crowded_out(tmp_path):
     store.insert_episode(relevant)
     store.save_embedding(relevant.id, deterministic_hash_embedder(MemoryAgent._episode_text(relevant)))
 
-    # Leg 1 — experimental variant: the topicality boost must save the
-    # relevant low-salience memory from the high-salience distractors.
+    # Leg 1: the experimental variant keeps the relevant memory in the top results.
     from harness.domain import MemoryPolicy
     agent = MemoryAgent(
         store, memory_policy=MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT
@@ -199,8 +194,7 @@ def test_m3_relevant_low_salience_not_crowded_out(tmp_path):
     from harness.memory import _context_chars
     assert _context_chars(ctx) <= MAX_CONTEXT_CHARS
 
-    # Leg 2 — faithful condition: formula-exact 0.35/0.30/0.35, NO hidden
-    # topicality. Crowding-out here is the documented contrast (plan §5-A4 T2).
+    # Leg 2: the faithful condition has no topicality boost.
     agent_faithful = MemoryAgent(store)
     ctx_f = agent_faithful.retrieve("pottery class", context={"t_h": 200.0}, limit=8)
     assert not any("pottery" in e.summary for e in ctx_f.episodes), (
@@ -210,9 +204,7 @@ def test_m3_relevant_low_salience_not_crowded_out(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# M-4 / M-5: provenance — no sourceless episodes, no hallucinated L4
-# --------------------------------------------------------------------------- #
+# Provenance: sourceless episodes and hallucinated L4
 
 
 def test_m4_no_sourceless_episodes(tmp_path):
@@ -230,7 +222,7 @@ def test_m4_no_sourceless_episodes(tmp_path):
     with pytest.raises(ValueError):
         agent.promote(bad)  # refuses to promote unprovenanced content
 
-    # direct store attack: an episode with empty source turns must be rejected
+    # An episode with empty source turns is rejected.
     ghost = _episode("ep_ghost", "user owns a dragon", 0.9, ("dragon",))
     store.insert_episode(ghost)
     stored = store.get_episode("ep_ghost")
@@ -265,9 +257,7 @@ def test_m5_summarization_hallucination_blocked_from_l4(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# M-6: user affect != companion state
-# --------------------------------------------------------------------------- #
+# User affect is separate from companion state
 
 
 def test_m6_user_affect_and_companion_state_are_independent():
@@ -280,7 +270,7 @@ def test_m6_user_affect_and_companion_state_are_independent():
         f"shared fields between affect observation and companion state: "
         f"{obs_fields & state_fields}"
     )
-    # no implicit conversion either way: mutating one never touches the other
+    # There is no implicit conversion between the two types.
     playful = CompanionBehaviorState("d1", 0.9, 0.9, 0.8, 0.95)
     neutral_obs = UserAffectObservation(10.0, 0.1, 0.1, "neutral")
     assert neutral_obs.label == "neutral" and neutral_obs.valence == 0.1
@@ -289,9 +279,7 @@ def test_m6_user_affect_and_companion_state_are_independent():
     assert not hasattr(playful, "label")
 
 
-# --------------------------------------------------------------------------- #
-# M-7: 12-turn horizon recall + no false recall
-# --------------------------------------------------------------------------- #
+# 12-turn horizon recall and false recall
 
 
 def test_m7_bruno_recall_across_horizon_and_no_false_recall(tmp_path):
@@ -301,7 +289,7 @@ def test_m7_bruno_recall_across_horizon_and_no_false_recall(tmp_path):
     store = _store(tmp_path, "m7.db")
     agent = MemoryAgent(store)
     _day_session(store, 2, "My dog's name is Bruno", agent=agent)
-    # flood many turns + days so the transcript horizon cannot carry it
+    # Many turns and days are added so the transcript horizon cannot carry it.
     for d in range(3, 20):
         _day_session(store, d, f"just a normal day {d} at work", agent=agent)
 
@@ -320,9 +308,7 @@ def test_m7_bruno_recall_across_horizon_and_no_false_recall(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# M-8: memory wipe / goldfish reset
-# --------------------------------------------------------------------------- #
+# Memory wipe and goldfish reset
 
 
 def test_m8_memory_wipe_no_crash_no_phantom_continuity(tmp_path):
@@ -338,27 +324,27 @@ def test_m8_memory_wipe_no_crash_no_phantom_continuity(tmp_path):
     _day_session(store, 5, "remind me to water the plants", agent=agent)
     assert store.list_episodes(), "precondition: memories exist"
 
-    # simulated DB wipe of the memory tiers (L3/L4/L2 rows gone)
+    # Simulated DB wipe of the memory tiers (L3/L4/L2 rows gone).
     store.conn.execute("DELETE FROM memory_episodes")
     store.conn.execute("DELETE FROM memory_episode_sources")
     store.conn.execute("DELETE FROM memory_session_summaries")
     store.conn.execute("DELETE FROM user_model_assertions")
     store.conn.commit()
 
-    # restart: fresh agent over the same file
+    # Restart with a fresh agent over the same file.
     store2 = _store(tmp_path, "m8.db")
     agent2 = MemoryAgent(store2)
     ctx = agent2.retrieve("cat", context={"t_h": 21 * 24.0})
     assert ctx.episodes == ()  # no phantom episodes
     assert not store2.list_assertions(), "phantom L4 truth after wipe"
-    # intent referencing a wiped memory suppresses
+    # An intent referencing a wiped memory suppresses.
     ghost = ProactiveIntent(
         "pi_ghost", "callback", "callback", "ep-day-2-0",
         "Callback: remind me to water the plants", 500.0, 506.0, 0.6,
         "episode:ep-day-2-0",
     )
     assert content_gate(ghost, store2, now_h=500.0).code == "no_source"
-    # L1/L2 rebuild proceeds cleanly
+    # The L1/L2 rebuild proceeds cleanly.
     agent2.record_turn("user", "hello again", 505.0, "day-21")
     agent2.record_turn("assistant", "hi", 505.1, "day-21")
     summary = agent2.close_session("day-21", ended_at_t_h=22 * 24.0)
@@ -368,9 +354,7 @@ def test_m8_memory_wipe_no_crash_no_phantom_continuity(tmp_path):
     store2.close()
 
 
-# --------------------------------------------------------------------------- #
-# M-9: Iteration-2 memory attacks (plan §5-A9 M9, invariants 10-12)
-# --------------------------------------------------------------------------- #
+# Canonical categories, policy switch, and determinism
 
 
 def test_m9_canonical_categories_only_foreign_strings_never_persist(tmp_path):
@@ -397,7 +381,7 @@ def test_m9_canonical_categories_only_foreign_strings_never_persist(tmp_path):
                 f"foreign category {r['category']!r} persisted for {r['key']!r} "
                 "(invariant 10)"
             )
-        # the write seam refuses garbage outright
+        # The write seam refuses foreign categories outright.
         bad = UserModelAssertion(
             "user:x", "some value", 0.5, 100.0, ("ep1",), "current"
         )
@@ -405,7 +389,7 @@ def test_m9_canonical_categories_only_foreign_strings_never_persist(tmp_path):
             store.upsert_assertion(bad, category="garbage_category")
         with pytest.raises(ValueError):
             store.upsert_assertion(bad, category="favorite_color")
-        # category lookups always return canonical enums
+        # Category lookups always return canonical enums.
         for a in store.list_assertions():
             cat = store.get_assertion_category(a.key)
             assert isinstance(cat, UserModelCategory)
@@ -503,7 +487,7 @@ def test_m9c_embedder_and_summarizer_deterministic_across_instances(tmp_path):
         assert [e.id for e in ctx_a.episodes] == [e.id for e in ctx_b.episodes]
         assert ctx_a.evidence_anchors == ctx_b.evidence_anchors
 
-        # summarizer determinism: same input, identical output across instances
+        # The summarizer gives identical output across instances.
         messages = [
             {"role": "user", "content": "I love hiking in the mountains"},
             {"role": "assistant", "content": "that sounds lovely"},

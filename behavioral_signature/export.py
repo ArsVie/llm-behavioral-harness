@@ -7,9 +7,9 @@ JSON (see ``log.log_to_json``).
 
 Usage (from the worktree root):
 
-    /home/vruizes/.hermes/projects/llm-behavioral-harness/.venv/bin/python \\
+    .venv/bin/python \\
         -m behavioral_signature.export \\
-        --db /home/vruizes/.hermes/projects/llm-behavioral-harness/results/live-companion/companion.db \\
+        --db results/live-companion/companion.db \\
         --conv conv-3
 
 Writes ``tests/fixtures/conv3_log.json`` (override with ``--out``) and prints

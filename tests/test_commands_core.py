@@ -54,9 +54,7 @@ def _ctx(store, clock, **overrides):
     return ctx, recorded
 
 
-# --------------------------------------------------------------------------- #
 # /help, /ping, unknown
-# --------------------------------------------------------------------------- #
 
 
 def test_help_lists_every_command(tmp_path) -> None:
@@ -96,9 +94,7 @@ def test_leading_slash_in_name_is_tolerated(tmp_path) -> None:
     assert handle_command(_cmd("/ping"), ctx).startswith("pong")
 
 
-# --------------------------------------------------------------------------- #
 # /setup — pre-bootstrap only
-# --------------------------------------------------------------------------- #
 
 
 def test_setup_refuses_once_persona_exists(tmp_path) -> None:
@@ -147,9 +143,7 @@ def test_setup_hook_failure_is_reported_not_raised(tmp_path) -> None:
     assert "disk full" in reply
 
 
-# --------------------------------------------------------------------------- #
 # /tz — IANA validation, applied at the next rollover
-# --------------------------------------------------------------------------- #
 
 
 def test_tz_valid_name_records_the_change(tmp_path) -> None:
@@ -184,9 +178,7 @@ def test_tz_without_hook_still_validates_and_reports(tmp_path) -> None:
     assert "UTC" in reply  # validated; no hook -> informational
 
 
-# --------------------------------------------------------------------------- #
 # /status — runtime facts only
-# --------------------------------------------------------------------------- #
 
 
 def test_status_reports_day_local_hour_pending_and_age(tmp_path) -> None:
@@ -217,9 +209,7 @@ def test_status_age_under_an_hour_is_in_minutes(tmp_path) -> None:
     assert "30 min ago" in reply
 
 
-# --------------------------------------------------------------------------- #
 # /state — mood internals, BEHIND the debug flag
-# --------------------------------------------------------------------------- #
 
 
 def test_state_is_refused_without_the_debug_flag(tmp_path) -> None:
@@ -281,9 +271,7 @@ def test_state_debug_on_empty_store_reports_nothing_recorded(tmp_path) -> None:
     assert "no state recorded yet" in reply
 
 
-# --------------------------------------------------------------------------- #
 # /mute — defer, never consume
-# --------------------------------------------------------------------------- #
 
 
 def test_mute_records_hours_and_promises_deferral(tmp_path) -> None:
@@ -320,9 +308,7 @@ def test_mute_without_args_prints_usage(tmp_path) -> None:
     assert recorded["mute"] == []
 
 
-# --------------------------------------------------------------------------- #
 # /version — commit sha, seed, active flags
-# --------------------------------------------------------------------------- #
 
 
 def test_version_renders_sha_seed_and_flags(tmp_path) -> None:

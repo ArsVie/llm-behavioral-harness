@@ -95,11 +95,8 @@ def _render_brief(
     else:
         continuity = "Carry a sense of emotional continuity from the recent past."
 
-    # NOTE (WS4): these lines are rendered verbatim into the system prompt
-    # (prompt_brief is the single source of the state-card mood line) and the
-    # forbidden-token battery (tests/test_snapshot.py) scans the assembled
-    # prompt for raw SUBSTRINGS of engine internals — words containing "eta"
-    # (detail/details) or "mu" are banned even inside ordinary English.
+    # These lines render verbatim into the system prompt; the forbidden-
+    # token battery scans for raw substrings of engine internals.
     if playfulness > reflectiveness + 0.12:
         texture = "Favor light wit and small spontaneous touches over big declarations."
     elif reflectiveness > playfulness + 0.12:

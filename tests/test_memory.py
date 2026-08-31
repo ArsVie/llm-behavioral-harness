@@ -61,10 +61,7 @@ from harness.summarization import (
     SemanticSummaryExtractor,
 )
 
-# ---------------------------------------------------------------------------
-# Seam-faithful in-memory store (A7 Iteration-2 §15 contract: canonical L4
-# categories stored directly on the assertion row)
-# ---------------------------------------------------------------------------
+# Seam-faithful in-memory store
 
 _LEGACY_PREFIX_CATEGORIES = [
     ("identity", UserModelCategory.IDENTITY),
@@ -125,7 +122,7 @@ class FakeStore:
         self._assertions: list[UserModelAssertion] = []
         self._assertion_categories: list[UserModelCategory] = []
 
-    # -- L1 (messages) ------------------------------------------------------
+    # -- L1 (messages) ---
     def add_message(self, role, content, t_h, day, proactive=False, session_id=None) -> int:
         row = {
             "id": self._next_id,
@@ -141,7 +138,7 @@ class FakeStore:
         return row["id"]
 
     def recent_messages(self, limit: int = 12) -> list[dict]:
-        # Mirrors the real store: newest `limit` rows, oldest -> newest.
+        # Mirrors the real store: newest rows, oldest -> newest.
         return self._messages[-limit:]
 
     def messages_for_day(self, day: int) -> list[dict]:
@@ -159,14 +156,14 @@ class FakeStore:
             "model": model, "shadow": shadow,
         }
 
-    # -- L2 ----------------------------------------------------------------
+    # -- L2 ---
     def save_session_summary(self, summary: SessionSummary) -> None:
         self._summaries[summary.session_id] = summary
 
     def load_session_summary(self, session_id: str) -> SessionSummary | None:
         return self._summaries.get(session_id)
 
-    # -- L3 ----------------------------------------------------------------
+    # -- L3 ---
     def insert_episode(self, ep: EpisodicMemory) -> str:
         self._episodes[ep.id] = ep
         return ep.id
@@ -193,7 +190,7 @@ class FakeStore:
     def load_embeddings(self) -> list[tuple[str, list[float]]]:
         return list(self._embeddings.items())
 
-    # -- L4 ----------------------------------------------------------------
+    # -- L4 ---
     def upsert_assertion(self, a: UserModelAssertion, *, category=None) -> None:
         """Insert an assertion; a new ``current`` one supersedes (status
         flip, provenance kept) the previous ``current`` row of the same key.
@@ -274,9 +271,7 @@ class FakeStore:
         return UserModel(identity=identity, **buckets)
 
 
-# ---------------------------------------------------------------------------
 # Helpers
-# ---------------------------------------------------------------------------
 
 
 def run_day(
@@ -369,16 +364,14 @@ def _context_chars(ctx: MemoryContext) -> int:
     return memory._context_chars(ctx)
 
 
-# ---------------------------------------------------------------------------
-# Bruno: the 12-turn-horizon flagship test
-# ---------------------------------------------------------------------------
+# Bruno: 12-turn-horizon flagship test
 
 
 def test_bruno_crosses_12_turn_horizon():
     store = FakeStore()
     agent = MemoryAgent(store)
 
-    # Day 2: the user discloses the dog's name (sessions are calendar days).
+    # Day 2: the user discloses the dog's name.
     run_day(
         store, 2,
         [("user", "My dog's name is Bruno."), ("assistant", "Nice to meet Bruno!")],
@@ -387,8 +380,7 @@ def test_bruno_crosses_12_turn_horizon():
     assert any("Bruno" in e.summary for e in store.list_episodes())
     assert store.get_assertion("user:dog:name") is not None
 
-    # Several days of small talk: >12 stored messages AFTER the Bruno turn,
-    # none of which mention the dog.
+    # Several days of small talk: >12 stored messages after the Bruno turn, none mentioning the dog.
     for day in (3, 4):
         turns = []
         for i in range(5):
@@ -401,7 +393,7 @@ def test_bruno_crosses_12_turn_horizon():
     assert not any("Bruno" in m["content"] for m in recent)
     assert all(m["id"] > 2 for m in recent)  # >12 messages after the Bruno turn
 
-    # Day 20: a relevant query still surfaces dog=Bruno — from L3/L4, not L1.
+    # Day 20: the query still surfaces dog=Bruno from L3/L4.
     ctx = agent.retrieve("what is my dog's name?", context={"t_h": 20 * 24 + 12.0})
 
     assert not any("Bruno" in t.text for t in ctx.recent_turns)          # not L1
@@ -409,8 +401,7 @@ def test_bruno_crosses_12_turn_horizon():
     assert any("Bruno" in a for a in ctx.evidence_anchors)               # exact evidence
     assert ctx.session_context and "Bruno" in ctx.session_context[0].summary  # L2
     assert ctx.user_model is not None
-    # L4 projection: the dog fact is consolidated under identity (a string)
-    # and its assertion record carries the value.
+    # L4: the dog fact is consolidated under identity; the record carries the value.
     assert "Bruno" in ctx.user_model.identity
     dog_assertion = store.get_assertion("user:dog:name")
     assert dog_assertion is not None and "Bruno" in dog_assertion.value
@@ -418,9 +409,7 @@ def test_bruno_crosses_12_turn_horizon():
     assert ctx.evidence_anchors[0] == "My dog's name is Bruno."  # verbatim
 
 
-# ---------------------------------------------------------------------------
 # Promotion policy (L2 -> L3)
-# ---------------------------------------------------------------------------
 
 
 def test_promotion_high_importance_session_promotes():
@@ -505,9 +494,7 @@ def test_promote_is_idempotent():
     assert len(store.list_episodes()) == 1
 
 
-# ---------------------------------------------------------------------------
 # L4 consolidation and revision
-# ---------------------------------------------------------------------------
 
 
 def test_l4_compatible_facts_consolidate_no_duplicates():
@@ -562,7 +549,7 @@ def test_negation_supersedes_stale_fact_across_keys():
     store = FakeStore()
     agent = MemoryAgent(store)
 
-    # Day 2: positive fact WITH the name kept inside the value.
+    # Day 2: positive fact, name kept inside the value.
     run_day(
         store, 2,
         [("user", "I have a cat named Luna."), ("assistant", "Aww, cute!")],
@@ -579,8 +566,7 @@ def test_negation_supersedes_stale_fact_across_keys():
          ("assistant", "Oh, I'm sorry to hear that.")],
         judgement=0.7, agent=agent,
     )
-    # stale cat claim superseded (cross-key via subject match): the most
-    # recent row of user:cat is the SUPERSEDED one (real-store semantics)
+    # Stale cat claim superseded cross-key; the latest user:cat row is superseded.
     stale = store.get_assertion("user:cat")
     assert stale is not None and stale.status == "superseded"
     superseded = [a for a in store.list_assertions("superseded")
@@ -627,17 +613,14 @@ def test_l4_assertions_traceable_to_episodes_to_turns():
 def test_no_assertion_without_promoted_episode_source():
     store = FakeStore()
     agent = MemoryAgent(store)
-    # A mild preference day that does NOT reach the promotion threshold:
-    # the fact must not become L4 truth without a source episode.
+    # Mild preference day below the promotion threshold.
     summary = run_day(store, 6, [("user", "I like jazz.")], agent=agent)
     assert agent.promote(summary) == []
     assert agent.update_user_model(summary) == []
     assert store.list_assertions(status=None) == []
 
 
-# ---------------------------------------------------------------------------
 # Affect, separation, provenance, temporal anchors
-# ---------------------------------------------------------------------------
 
 
 def test_affect_is_metadata_on_memories_no_emotional_db():
@@ -663,8 +646,7 @@ def test_user_affect_vs_companion_state_no_cross_contamination():
     ua_fields = {f.name for f in fields(UserAffectObservation)}
     cb_fields = {f.name for f in fields(CompanionBehaviorState)}
     assert ua_fields.isdisjoint(cb_fields)  # no shared fields, ever
-    # memory.py emits affect metadata, never companion behavior state, and
-    # never converts between the two.
+    # memory.py emits affect metadata, not companion behavior state.
     source = inspect.getsource(memory)
     assert "CompanionBehaviorState" not in source
     assert "UserAffectObservation" not in source
@@ -685,7 +667,7 @@ def test_provenance_required_no_record_without_source_ids():
         agent.promote(bare)
     with pytest.raises(ValueError):
         agent.update_user_model(bare)
-    # record_turn always yields a provenanced row.
+    # record_turn yields a provenanced row.
     agent.record_turn("user", "Hello.", 25.0, "day-1")
     row = store.recent_messages(1)[0]
     assert row["id"] > 0 and row["content"] == "Hello."
@@ -723,16 +705,13 @@ def test_episodes_link_back_to_exact_turns():
     assert store.list_episodes()[0].verbatim_anchors == ("My dog's name is Bruno.",)
 
 
-# ---------------------------------------------------------------------------
 # Retrieval: reranker, budgets, baselines, L1
-# ---------------------------------------------------------------------------
 
 
 def test_retrieval_uses_035_030_035_formula():
     assert (SEM_WEIGHT, STRENGTH_WEIGHT, IMPORTANCE_WEIGHT) == (0.35, 0.30, 0.35)
     store = FakeStore()
-    # Near-orthogonal embeddings: sem(q,j) ~ 0 for both candidates, so the
-    # 0.30*strength + 0.35*importance terms decide (importance dominates).
+    # Near-orthogonal embeddings: sem ~ 0 for both, so strength+importance decide.
     vocab = VocabEmbedder(["x", "y", "z"])
     store.insert_episode(make_episode("ep-a", "episode about x", importance=0.3, tags=("x",)))
     store.insert_episode(make_episode("ep-b", "episode about y", importance=0.9, tags=("y",)))
@@ -836,7 +815,7 @@ def test_baselines_raw_history_and_simple_retrieval():
     top = simple_retrieval("my dog", eps, emb, embedder=vocab)
     assert top and top[0].id == "ep-a"
 
-    # STRUCTURED: the full MemoryAgent pipeline (covered by every other test).
+# STRUCTURED: the full MemoryAgent pipeline.
 
 
 def test_record_turn_persists_exact_text_l1():
@@ -877,9 +856,7 @@ def test_invalid_session_id_rejected():
         agent.record_turn("user", "hi", 1.0, "not-a-day-session")
 
 
-# ---------------------------------------------------------------------------
-# Iteration-2 A4 — T1: canonical L4 categories (plan §5-A4 Task 1)
-# ---------------------------------------------------------------------------
+# T1: canonical L4 categories
 
 
 def test_t1_canonical_categories_preference_relationship_identity():
@@ -900,8 +877,7 @@ def test_t1_canonical_categories_preference_relationship_identity():
     assert any("metal" in a.value for a in model.current_preferences)   # preference -> CURRENT_PREFERENCE
     assert any("gratitude" in a.value for a in model.relationship_patterns)  # relationship -> RELATIONSHIP_PATTERN
 
-    # The canonical category is stored ON the assertion row (never inferred
-    # from keys at load time).
+    # The canonical category is stored on the assertion row, not inferred from keys.
     assert store.get_assertion_category("user:dog:name") is UserModelCategory.IDENTITY
     assert store.get_assertion_category("preference:like:metal") is UserModelCategory.CURRENT_PREFERENCE
     assert store.get_assertion_category("relationship:gratitude") is UserModelCategory.RELATIONSHIP_PATTERN
@@ -912,8 +888,7 @@ def test_t1_canonical_categories_preference_relationship_identity():
     ids = store.list_assertions(status="current", category=UserModelCategory.IDENTITY)
     assert [a.key for a in ids] == ["user:dog:name"]
 
-    # The extractor itself assigns canonical categories (enum consumed at
-    # the source, not store conventions).
+    # The extractor assigns canonical categories directly.
     facts = memory._extract_facts(store.messages_for_day(3))
     assert facts and facts[0].category is UserModelCategory.CURRENT_PREFERENCE
     facts2 = memory._extract_facts(store.messages_for_day(2))
@@ -943,8 +918,7 @@ def test_t1_canonical_categories_sqlite(tmp_path):
         assert store.get_assertion("preference:like:metal") is not None
         assert store.get_assertion("relationship:gratitude") is not None
         if hasattr(store, "get_assertion_category"):
-            # Canonical projection: preference -> CURRENT_PREFERENCE,
-            # relationship pattern -> RELATIONSHIP_PATTERN, identity -> IDENTITY.
+            # Canonical projection: each category maps to its enum.
             model = store.load_user_model()
             assert any("metal" in a.value for a in model.current_preferences)
             assert any("gratitude" in a.value for a in model.relationship_patterns)
@@ -960,10 +934,7 @@ def test_t1_canonical_categories_sqlite(tmp_path):
         store.close()
 
 
-# ---------------------------------------------------------------------------
-# Iteration-2 A4 — T2: research-faithful reranker + MemoryPolicy (plan §5-A4
-# Task 2, invariants 11/12)
-# ---------------------------------------------------------------------------
+# T2: reranker + MemoryPolicy
 
 
 def test_t2_memory_policy_respected_and_experimental_flag():
@@ -999,7 +970,7 @@ def test_t2_structured_memory_formula_exact_no_hidden_topicality():
     )
     store.save_embedding("ep-distractor", vocab("dog dog dog"))
 
-    # Expected ordering from the literal formula (no hidden term).
+    # Expected ordering from the literal formula.
     qv = vocab("pottery")
     emb = dict(store.load_embeddings())
     scores = {}
@@ -1022,9 +993,7 @@ def test_t2_structured_memory_formula_exact_no_hidden_topicality():
     assert ctx2.episodes[0].id == "ep-relevant"  # experiment: topicality keeps it
 
 
-# ---------------------------------------------------------------------------
-# Iteration-2 A4 — T3: embeddings interface (plan §5-A4 Task 3)
-# ---------------------------------------------------------------------------
+# T3: embeddings interface
 
 
 class RecordingEmbedder(VocabEmbedder):
@@ -1040,15 +1009,14 @@ class RecordingEmbedder(VocabEmbedder):
 
 
 def test_t3_embedder_interfaces_deterministic_and_real():
-    # DeterministicHashEmbedder: deterministic, unit-norm, e0 for empty,
-    # dimension/seed knobs.
+    # DeterministicHashEmbedder: deterministic, unit-norm, e0 for empty input.
     emb = DeterministicHashEmbedder(dim=32, seed=7)
     assert emb("my dog's name is Bruno") == emb("my dog's name is Bruno")
     v = emb("my dog's name is Bruno")
     assert sum(x * x for x in v) == pytest.approx(1.0)
     assert emb("") == [1.0] + [0.0] * 31
     assert emb("Bruno") != v
-    # Function form (legacy) is byte-identical to the class form.
+    # Function form is byte-identical to the class form.
     assert deterministic_hash_embedder("x", dim=32, seed=7) == DeterministicHashEmbedder(dim=32, seed=7)("x")
 
     # RealSemanticEmbedder: injectable batch backend, no vector DB.
@@ -1064,7 +1032,7 @@ def test_t3_embedder_interfaces_deterministic_and_real():
     assert real.embed_many(["a", "b"]) == [[1.0, 0.0], [1.0, 0.0]]
     assert calls[-1] == ["a", "b"]
 
-    # Both implementations satisfy the single callable contract.
+    # Both implementations satisfy the callable interface.
     assert isinstance(emb, memory.Embedder)
     assert isinstance(real, memory.Embedder)
 
@@ -1112,16 +1080,13 @@ def test_t3_raw_context_baseline_uses_budget_not_twelve():
     assert memory._context_chars(ctx) <= MAX_CONTEXT_CHARS
 
 
-# ---------------------------------------------------------------------------
-# Iteration-2 A4 — T4: summarization interface (plan §5-A4 Task 4)
-# ---------------------------------------------------------------------------
+# T4: summarization interface
 
 
 def test_t4_summarizer_interfaces_deterministic_and_semantic():
     store = FakeStore()
     agent = MemoryAgent(store)
-    # The default is the deterministic TESTING path — never presented as the
-    # research-quality production path (which is SemanticSummaryExtractor).
+    # The default is the deterministic testing path; production uses SemanticSummaryExtractor.
     assert isinstance(agent._summarizer, DeterministicSummaryExtractor)
 
     messages = [
@@ -1133,8 +1098,7 @@ def test_t4_summarizer_interfaces_deterministic_and_semantic():
     det_fn = deterministic_summarizer("day-2", messages, j, 57.0, 71.0)
     assert det_class == det_fn
 
-    # Semantic path: the LLM writes the prose; structured fields and
-    # provenance stay factual.
+    # Semantic path: the LLM writes prose; structured fields stay factual.
     def fake_client(prompt: str) -> str:
         assert "My dog's name is Bruno." in prompt
         return "The user introduced their dog Bruno."
@@ -1148,7 +1112,7 @@ def test_t4_summarizer_interfaces_deterministic_and_semantic():
     # A model output cannot inject source turns.
     s2 = SemanticSummaryExtractor(lambda p: "Some model text.")("day-2", messages, j, 57.0, 71.0)
     assert s2.source_turn_ids == (1, 2)
-    # A broken client degrades to the deterministic summary (never fabricates).
+    # A broken client falls back to the deterministic summary.
     broken = SemanticSummaryExtractor(lambda p: (_ for _ in ()).throw(RuntimeError("offline")))
     assert broken("day-2", messages, j, 57.0, 71.0) == det_fn
 
@@ -1169,8 +1133,7 @@ def test_t4_semantic_summary_fact_never_authoritative_without_source_turns():
     )
     run_day(store, 6, [("user", "I like jazz."), ("assistant", "Cool!")],
             judgement=0.5, agent=agent)
-    # The session promoted, but only the REAL fact (jazz) reached L4 —
-    # the hallucinated dragon never became authoritative.
+    # The session promoted, but only the real fact (jazz) reached L4.
     assert store.list_episodes()
     assert store.get_assertion("preference:like:jazz") is not None
     for a in store.list_assertions(status=None):
@@ -1178,9 +1141,7 @@ def test_t4_semantic_summary_fact_never_authoritative_without_source_turns():
     assert store.get_assertion("user:dragon") is None
 
 
-# ---------------------------------------------------------------------------
-# Iteration-2 A4 — T5: provenance chain L4 -> L3 -> L2 -> raw turns
-# ---------------------------------------------------------------------------
+# T5: provenance chain L4 -> L3 -> L2 -> raw turns
 
 
 def _walk_provenance_chain(store) -> None:
@@ -1233,9 +1194,7 @@ def test_t5_provenance_chain_full_walk_sqlite(tmp_path):
         store.close()
 
 
-# ---------------------------------------------------------------------------
-# Iteration-2 A4 — T6: preference revision (day 2 -> day 80)
-# ---------------------------------------------------------------------------
+# T6: preference revision (day 2 -> day 80)
 
 
 def test_t6_preference_revision_metal_day2_day80():
@@ -1283,8 +1242,7 @@ def test_t6_preference_revision_metal_day2_day80_sqlite(tmp_path):
         run_day(store, 80, [("user", "I barely listen to metal anymore."), ("assistant", "Got it.")],
                 judgement=0.5, agent=agent)
 
-        # Current preference is the revision; the historical one is
-        # superseded with provenance intact (both store generations).
+        # Current preference is the revision; the old one is superseded.
         cur = store.get_assertion("preference:like:metal")
         assert cur is not None and cur.status == "current"
         assert cur.value == "user no longer likes metal"

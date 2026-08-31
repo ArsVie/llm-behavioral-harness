@@ -107,9 +107,7 @@ def _no_llh_threads() -> bool:
                    [t.name for t in threading.enumerate()])
 
 
-# --------------------------------------------------------------------------- #
-# R1-a: rollover never jumps the clock past a pending event (invariant 3)
-# --------------------------------------------------------------------------- #
+# R1-a: the clock does not jump past a pending event
 
 
 def test_r1a_fast_clock_events_near_midnight_fire_not_expire(tmp_path):
@@ -131,9 +129,8 @@ def test_r1a_fast_clock_events_near_midnight_fire_not_expire(tmp_path):
         channel = FakeChannel()
 
         async def blocking_sleeper(delay: float) -> None:
-            # bounded real wait: deterministic trigger for the rollover-vs-
-            # firing race (the rollover's 24:00 sleep completes during
-            # event A's response delay)
+            # bounded real wait: a deterministic rollover-vs-firing race trigger
+            # (the 24:00 sleep completes during event A's response delay)
             await asyncio.sleep(0.3)
 
         _run(store, _session(store), ProactiveSchedule.restore(SEED, store),
@@ -193,15 +190,8 @@ def test_r1c_three_events_before_midnight_all_fire_at_own_times(tmp_path):
         store.close()
 
 
-# --------------------------------------------------------------------------- #
-# R1-b: quiet-hours deferral must not consume still-valid events — and the
-# run must TERMINATE (invariant 17). A future event inside quiet hours whose
-# validity outlives the window is the adversarial combination of the E0 park
-# discipline and the r4b deferral: the rollover parks at the pending event,
-# the firing loop defers it — the clock must still advance to the next awake
-# instant and the event must fire there, and the run MUST end at
-# max_virtual_hours at the latest.
-# --------------------------------------------------------------------------- #
+# R1-b: a quiet-hours event whose validity outlives the window is deferred;
+# it fires at the next awake instant and the run ends at max_virtual_hours.
 
 
 def test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers(tmp_path):
@@ -229,7 +219,7 @@ def test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers(tmp_path):
         ensure_companion_initialized(
             store, seed=SEED, user=UserProfile(name="u", interests=("pottery",))
         )
-        # g8b: the episode's source session must exist — register it
+        # g8b: register the episode's source session
         store.open_session("day-0", 22.0)
         store.close_session("day-0", 22.7)
         store.insert_episode(EpisodicMemory(
@@ -252,8 +242,7 @@ def test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers(tmp_path):
             sleeper=noop_sleeper,
         )
 
-        # bound the run: healthy execution needs < 2s wall (34 virtual hours
-        # at 0.02 s/h + the deferral sleep); a livelock runs forever
+        # bound the run: healthy execution needs < 2s wall time
         try:
             asyncio.run(asyncio.wait_for(runtime.run(), timeout=20.0))
         except asyncio.TimeoutError:
@@ -281,9 +270,7 @@ def test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers(tmp_path):
         store.close()
 
 
-# --------------------------------------------------------------------------- #
 # R1-c: send exceptions and cancellation — clean termination, no leaks
-# --------------------------------------------------------------------------- #
 
 
 class _BoomChannel(FakeChannel):

@@ -84,8 +84,6 @@ def _snapshot(profile: PersonaProfile, brief=None) -> CompanionSnapshot:
 
 
 # --------------------------------------------------------------------------- #
-# A-1: length actuator reaches the generation budget
-# --------------------------------------------------------------------------- #
 
 
 def test_a1_length_actuator_reaches_max_tokens_budget():
@@ -106,8 +104,6 @@ def test_a1_length_actuator_reaches_max_tokens_budget():
     assert client.calls[0]["system"] == client.calls[1]["system"]
 
 
-# --------------------------------------------------------------------------- #
-# A-2: delay actuator reaches runtime delivery
 # --------------------------------------------------------------------------- #
 
 
@@ -151,14 +147,12 @@ def test_a2_delay_reaches_runtime_before_send(tmp_path):
     assert sleeps == [7.0], f"sleeper got {sleeps}, expected [7.0]"
     assert trace == ["sleep", "send"], "delay must happen BEFORE delivery"
     assert channel.sent and channel.sent[0].text == "hello"
-    # no literal time.sleep anywhere in the runtime module (the delay is data)
+    # The runtime module has no literal time.sleep call.
     src = inspect.getsource(rt_mod)
     assert "time.sleep" not in src
     store.close()
 
 
-# --------------------------------------------------------------------------- #
-# A-3: closing tendency is observable (not a dead number)
 # --------------------------------------------------------------------------- #
 
 
@@ -183,8 +177,6 @@ def test_a3_closing_tendency_changes_observable_signal():
 
 
 # --------------------------------------------------------------------------- #
-# A-4: initiative reaches the scheduler
-# --------------------------------------------------------------------------- #
 
 
 def test_a4_initiative_reaches_scheduler_hazard():
@@ -202,13 +194,11 @@ def test_a4_initiative_reaches_scheduler_hazard():
 
     high, mid, low = counts(1.0), counts(0.5), counts(0.0)
     assert high > mid > low, f"initiative direction broken: {high} {mid} {low}"
-    # deterministic per seed
+    # Results are deterministic per seed.
     assert counts(1.0) == high
     assert counts(0.0) == low
 
 
-# --------------------------------------------------------------------------- #
-# A-5: extreme directive values clamp safely
 # --------------------------------------------------------------------------- #
 
 
@@ -238,8 +228,6 @@ def test_a5_extreme_values_clamp_safely():
 
 
 # --------------------------------------------------------------------------- #
-# A-6: actuators-off ablation is neutral and text-clean
-# --------------------------------------------------------------------------- #
 
 
 def test_a6_actuators_off_neutral_and_text_clean():
@@ -250,7 +238,7 @@ def test_a6_actuators_off_neutral_and_text_clean():
     neutral = _directive(
         response_length_scale=1.0, response_delay_s=0.0,
         closing_tendency=0.5, initiative=0.5,
-        energy=0.9, warmth=0.9, playfulness=0.9,  # channel values ≠ neutral
+        energy=0.9, warmth=0.9, playfulness=0.9,  # channel values are non-neutral
     )
     controls = _controls(neutral)
     assert controls.max_tokens == 600
@@ -271,18 +259,14 @@ def test_a6_actuators_off_neutral_and_text_clean():
     assert not re.search(r"\b\d+\.\d+\b", prompt), (
         "numeric channel/state values leaked into the prompt"
     )
-    # channel values only affect mechanics: same prompt content, same controls
+    # Channel values affect only the mechanics, not the prompt text.
     client = FakeClient()
     client.chat([], system=prompt, max_tokens=controls.max_tokens)
     assert client.calls[0]["max_tokens"] == 600
 
 
+# Raw state isolation and deterministic derivation
 # --------------------------------------------------------------------------- #
-# A-7 / A-8: Iteration-2 actuation attacks (plan §16 invariants 16 + 20 —
-# raw internal state never reaches conversational context; mechanical
-# derivation is deterministic)
-# --------------------------------------------------------------------------- #
-
 
 def test_a7_raw_engine_state_never_reaches_conversation_context(tmp_path):
     """Invariant 16: no raw cycle/hormonal internal variable (phase label,
@@ -315,7 +299,7 @@ def test_a7_raw_engine_state_never_reaches_conversation_context(tmp_path):
             assert token not in payload, (
                 f"raw internal token {token!r} leaked into the message payload"
             )
-        # the guidance that IS present is the rendered prose brief
+        # The guidance present is the rendered prose brief.
         assert "Current behavioral guidance:" in system
         assert "You are Nova" in system
     finally:
@@ -338,9 +322,9 @@ def test_a8_behavioral_derivation_deterministic_and_stateless():
     assert d1 == d2, "derive_behavior not deterministic"
     assert actuation.controls_from_directive(d1) == actuation.controls_from_directive(d2)
     assert actuation.to_brief(d1) == actuation.to_brief(d2)
-    # a different hour must change SOMETHING mechanical (energy is circadian)
+    # A different hour changes some mechanical control (energy is circadian).
     d3 = derive_behavior(record, TIMING, hour=22.0)
     assert d3 != d1, "circadian hour has no mechanical effect"
     assert actuation.controls_from_directive(d3) != actuation.controls_from_directive(d1)
-    # the derivation never reads or writes external state
+    # Derivation reads and writes no external state.
     assert derive_behavior(record, TIMING, hour=10.0) == d1

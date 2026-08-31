@@ -89,9 +89,7 @@ class CommandContext:
     state_summary: Callable[[], dict] | None = None  # dev snapshot (session.state_summary)
 
 
-# --------------------------------------------------------------------------- #
 # formatting helpers
-# --------------------------------------------------------------------------- #
 
 
 def _fmt_hour(h: float) -> str:
@@ -124,9 +122,7 @@ def _debug_enabled(ctx: CommandContext) -> bool:
     return bool(flags.get("debug") or flags.get("debug_commands"))
 
 
-# --------------------------------------------------------------------------- #
-# per-command handlers (all pure: render facts, call hooks, return a string)
-# --------------------------------------------------------------------------- #
+# per-command handlers (pure: render facts, call hooks, return a string)
 
 
 def _cmd_help(cmd: ControlCommand, ctx: CommandContext) -> str:
@@ -294,9 +290,7 @@ def _cmd_unknown(cmd: ControlCommand) -> str:
     return f"unknown command '/{cmd.name}' — /help lists what I understand."
 
 
-# --------------------------------------------------------------------------- #
 # dispatch
-# --------------------------------------------------------------------------- #
 
 _COMMANDS: dict[str, Callable[[ControlCommand, CommandContext], str]] = {
     "help": _cmd_help,

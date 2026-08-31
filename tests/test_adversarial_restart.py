@@ -47,8 +47,7 @@ VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
 LIFE_SEED = 12345
 
-#: 0.5 s per virtual hour — robust against the rollover-vs-firing race
-#: (same rationale as tests/test_runtime.py SLOW).
+#: 0.5 s per virtual hour
 SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 
 
@@ -110,9 +109,7 @@ def _suppressed_codes(store):
     }
 
 
-# --------------------------------------------------------------------------- #
 # R-1 .. R-6: restart timing attacks
-# --------------------------------------------------------------------------- #
 
 
 def test_r1_restart_exactly_at_event_time_fires_once(tmp_path):
@@ -197,7 +194,7 @@ def test_r3_restart_beyond_validity_expires_without_ghost(tmp_path):
     assert channel.sent == [], "expired event must not produce a message"
     assert _rows(store2)[H]["status"] == "expired"
     assert "expired" in _suppressed_codes(store2)
-    # no ghost: a later poll never re-surfaces the expired row
+    # a later poll does not re-surface the expired row
     after = ProactiveSchedule.restore(SEED, store2)
     assert after.next_pending(H + 4.5) != H
     store2.close()
@@ -269,7 +266,7 @@ def test_r4b_quiet_hours_does_not_consume_still_valid_event(tmp_path):
 
     assert channel.sent == [], "no message during quiet hours"
     row = _rows(store2)[23.5]
-    # still valid (until 11:30) → must not be consumed as fired-without-delivery
+    # still valid (until 11:30), not consumed as fired-without-delivery
     assert row["status"] in ("pending", "expired"), (
         f"still-valid overdue event consumed as {row['status']} during "
         "quiet hours — deferred firing is lost"
@@ -378,7 +375,7 @@ def test_r6_restart_at_midnight_day_boundary(tmp_path):
     rows = _rows(store2)
     assert rows[23.5]["status"] == "fired"  # evaluated (suppressed: quiet hours)
     assert rows[33.0]["status"] == "fired"
-    # the day-0 row fired at midnight consumed NO day-1 cap slot
+    # the day-0 row fired at midnight took no day-1 cap slot
     assert store2.proactive_count(1) == 1, "only the day-1 09:00 message counts"
     # day 0's score is still the one feeding day 1's hazard
     from harness.scheduler import day_initiative
@@ -396,9 +393,7 @@ def test_r6_restart_at_midnight_day_boundary(tmp_path):
     store2.close()
 
 
-# --------------------------------------------------------------------------- #
 # R-7 .. R-9: agenda / memory / judge restart attacks
-# --------------------------------------------------------------------------- #
 
 
 def test_r7_restart_after_agenda_generation_before_completion(tmp_path):
@@ -433,15 +428,14 @@ def test_r7_restart_after_agenda_generation_before_completion(tmp_path):
     assert ca_pre.item.id == item.id
     idle_h = 5 * 24.0 + 15.0
     if not any(it.start_t_h <= idle_h < it.end_t_h for it in agenda_pre.items):
-        # NOW-semantics regression pin: outside every window there is no
-        # current activity (the removed highest-salience fallback).
+        # no current activity outside every window
         assert session._current_activity(5, idle_h) is None
 
     # kill + resume at the same moment
     store2 = _store(tmp_path, "r7.db")
     session2 = _session(store2, profile=profile)
     session2.clock.advance_to_day(5)
-    session2.ensure_day(5)  # agenda exists → must NOT regenerate
+    session2.ensure_day(5)  # agenda exists, not regenerated
     agenda_post = store2.load_agenda(5)
     assert [it.id for it in agenda_post.items] == ids_pre, (
         "agenda regenerated after restart (duplicate items)"
@@ -510,12 +504,12 @@ def test_r9a_restart_before_judge_finalization_neutral_fallback(tmp_path):
     store = _store(tmp_path, "r9a.db")
     s0 = _session(store)
     s0.clock.advance_hours(19.0)
-    s0.on_message("hello")  # day 0 runs but is never finalized
+    s0.on_message("hello")  # day 0 runs but is not finalized
     assert store.load_previous_judgement(1) is None
     scores = day_scores(store, 1, TIMING)
     assert scores is not None and len(scores) == 2
     assert float(scores[0]) == 0.0, "no judgement ⇒ neutral A=1, score 0"
-    # live-style planning with the concrete array works and never sees None
+    # live-style planning with the concrete array sees no None
     events = plan_proactive_events(2, SEED, PERSONA, TIMING, scores=scores)
     assert len(events) > 0
     ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store, scores=scores)
@@ -556,9 +550,7 @@ def test_r9b_restart_after_judge_finalization_score_feeds_hazard(tmp_path):
     store.close()
 
 
-# --------------------------------------------------------------------------- #
 # Case 40 (A1-flagged): finalize_day crash window
-# --------------------------------------------------------------------------- #
 
 
 def test_case40_finalize_crash_window_no_lost_memory_or_life(tmp_path):
@@ -584,8 +576,7 @@ def test_case40_finalize_crash_window_no_lost_memory_or_life(tmp_path):
         conv = session._conversation
         assert conv is not None
         try:
-            # 23.0 = a natural quiet-hours boundary close (the runtime's
-            # closes land inside the day, never on the 24.0 instant)
+            # 23.0 = a quiet-hours boundary close inside the day
             session._close_conversation(conv, 23.0, "quiet_hours")
         except RuntimeError:
             pass  # the simulated process death
@@ -617,14 +608,11 @@ def test_case40_finalize_crash_window_no_lost_memory_or_life(tmp_path):
     crashed = crashed_run(tmp_path / "crash.db")
     control = control_run(tmp_path / "control.db")
 
-    # judgement-guarded: no double-advance (the one thing that must hold even
-    # in the crash case)
+    # no double-advance in the crash case
     assert len(crashed.conn.execute("SELECT day FROM judgements").fetchall()) == 1
 
-    # Conversation + memory state must match the control (completed), or be
-    # cleanly recoverable. A silent gap is the failure this case pins.
-    # (it3 B2: memory sessions now key off conversations — plan §5.1 — so
-    # the recoverable unit is the conversation and its memory tail.)
+    # Conversation + memory state matches the control or is recoverable.
+    # (it3 B2: memory sessions key off conversations.)
     ctrl_conv = control.load_open_conversation()
     assert ctrl_conv is not None and ctrl_conv.close_reason is None, (
         "control conversation must still be open"
@@ -635,9 +623,8 @@ def test_case40_finalize_crash_window_no_lost_memory_or_life(tmp_path):
     assert crashed.load_session_summary("day-1000") is not None, (
         "conversation memory tail lost on resume after the close crash"
     )
-    # it3 B2: L1 episode formation keys off the CONVERSATION boundary too,
-    # so the control (conversation still open) has no episodes yet — the
-    # crashed run must show the RECOVERED memory instead.
+    # it3 B2: L1 episodes key off the conversation boundary; the open control
+    # has none, so the crashed run shows the recovered memory.
     crash_eps = {(e.id, e.summary) for e in crashed.list_episodes()}
     assert crash_eps, (
         "crashed run lost its recovered episodes"
@@ -676,8 +663,8 @@ def test_case40_finalize_no_double_advance_on_resume(tmp_path):
     s2.ensure_day(1)
     assert len(store2.conn.execute("SELECT day FROM judgements").fetchall()) == 1
     assert {(e.id, e.summary) for e in store2.list_episodes()} == eps_pre
-    # it3 B2: the exchange lives in an open conversation (conv-0) that must
-    # survive the clean finalize + resume without rewind.
+    # it3 B2: the exchange lives in open conversation conv-0, which survives
+    # the clean finalize + resume without rewind.
     conv = store2.load_open_conversation()
     assert conv is not None and len(conv.turns) == 2
     assert len(store2.list_assertions()) == n_assertions
@@ -686,15 +673,11 @@ def test_case40_finalize_no_double_advance_on_resume(tmp_path):
     store2.close()
 
 
-# --------------------------------------------------------------------------- #
-# R-10 / V-1: Iteration-2 restart-across-quiet-boundary + message provenance
-# (plan §5-A9 R1/V1, invariants 6/17 + r4b deferral semantics)
-# --------------------------------------------------------------------------- #
+# R-10 / V-1: restart across quiet boundary + message provenance
 
 FAST = TimeScale(seconds_per_virtual_hour=0.02)
 
-#: 12:00 local — outside the check-in windows (8-11, 19-22), so the
-#: callback candidate wins the rank cleanly.
+#: 12:00 local, outside the check-in windows (8-11, 19-22)
 NOW_H = 300.0
 
 
@@ -715,7 +698,7 @@ def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
     ensure_companion_initialized(
         store, seed=SEED, user=UserProfile(name="u", interests=("pottery",))
     )
-    # g8b: the episode's source session must exist — register it
+    # g8b: register the episode's source session
     store.open_session("day-0", 22.0)
     store.close_session("day-0", 22.7)
     store.insert_episode(EpisodicMemory(
@@ -732,8 +715,7 @@ def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
         "event consumed before its own time"
     )
 
-    # phase 2: restart at 03:00 (quiet) — deferred, never consumed/expired,
-    # no message during the quiet window
+    # phase 2: restart at 03:00 (quiet) — deferred, no message during it
     s2 = _store(tmp_path, "r10.db")
     chan2 = FakeChannel()
     _run_runtime(s2, _session(s2), ProactiveSchedule.restore(SEED, s2),
@@ -755,8 +737,7 @@ def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
     row3 = _rows(s3)[23.5]
     assert row3["status"] == "fired"
     assert "expired" not in _suppressed_codes(s3)
-    # the delivered message carries the exact validated intent id, resolvable
-    # to a real source (invariant 6)
+    # the delivered message carries the validated intent id, resolvable to a source
     last = s3.recent_messages()[-1]
     assert last["intent_id"], "delivered message missing intent provenance"
     intent = s3.load_proactive_intent(last["intent_id"])

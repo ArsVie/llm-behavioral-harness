@@ -20,12 +20,8 @@ from harness.persona import (
 #: Number of seeded personas used for the population-level checks.
 N_SEEDS = 100
 
-# Frozen tolerances for the 40/40/20 claim. The claim is about the POPULATION
-# mean across ~100 seeds, not any single profile: bucket counts are sampled
-# uniform over {target-1, target, target+1} per profile (sd ~0.82, so the
-# count tolerance of +-0.5 is ~6 standard errors of the mean at N_SEEDS), and
-# the fraction tolerance of +-5 percentage points is ~2.4 sd of the
-# per-profile fraction around the 0.40/0.40/0.20 targets.
+# Tolerances for the 40/40/20 population mean across ~100 seeds:
+# bucket counts within +-0.5, fractions within +-5 percentage points.
 COUNT_TOL = 0.5
 FRACTION_TOL = 0.05
 
@@ -65,9 +61,8 @@ def test_no_duplicate_interests_across_100_profiles(graph):
 
 
 def test_bucket_counts_sampled_around_targets(graph):
-    # Defaults n_exact=4, n_adjacent=4, n_independent=2 -> per-profile counts
-    # are uniform over {3,4,5}/{3,4,5}/{1,2,3} (the frozen "sampled around the
-    # target, not forced" contract).
+    # Defaults n_exact=4, n_adjacent=4, n_independent=2: per-profile counts
+    # are uniform over {3,4,5}/{3,4,5}/{1,2,3}.
     for p in _profiles(graph):
         c = _bucket_counts(p)
         assert c["exact"] in (3, 4, 5)
@@ -135,7 +130,7 @@ def test_same_seed_reproduces_identical_profile(graph):
     a = build_persona(42, graph=graph)
     b = build_persona(42, graph=graph)
     assert a == b  # deep equality on frozen dataclasses
-    # rng=None must resolve to stream_rng(seed, PERSONA_STREAM)
+    # rng=None resolves to stream_rng(seed, PERSONA_STREAM)
     c = build_persona(42, graph=graph, rng=stream_rng(42, PERSONA_STREAM))
     assert a == c
 

@@ -179,7 +179,7 @@ def main(argv: list[str] | None = None) -> int:
         "record": "tier1-masking-wsa-remeasure-2026-08-15",
         "date": "2026-08-15",
         "branch": "wip/tier1-masking",
-        "head": None,  # filled by caller if available
+        "head": None,  # filled by the caller if available
         "path": "fixed day-0 plan (ensure_day(0) + day_scores(store,0,timing)); "
                 "pre-fix was plan_and_persist(scores=None)",
         "model_free": True,
