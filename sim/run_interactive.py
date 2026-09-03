@@ -104,6 +104,25 @@ def _print_trace(directive) -> None:
     )
 
 
+def _format_state(s: dict) -> str:
+    """Render the state line, tolerating a session that has not rolled a day.
+
+    ``Session.state_summary`` returns None for every latent field until the
+    first rollover, so formatting them with ``:.3f`` raised TypeError — /state
+    as the first command of a fresh session used to crash the driver.
+    """
+    def num(key: str, places: int = 3) -> str:
+        value = s.get(key)
+        return "-" if value is None else f"{value:.{places}f}"
+
+    return (
+        f"day={s['day']} M={s['M']} m={num('m')} g={num('g')} "
+        f"mu={num('mu')} eta={num('eta')} phase={s['phase']} "
+        f"cycle_day={num('cycle_day', 1)} hour={num('hour', 1)} "
+        f"feedback={s['feedback']}"
+    )
+
+
 def build_parser() -> argparse.ArgumentParser:
     """The CLI surface. Separate from main() so the flags can be tested
     without standing up a store or a client."""
@@ -221,13 +240,7 @@ def handle_command(ctx: InteractiveContext, cmd: str, arg: str) -> bool:
         if ctx.trace:
             _print_trace(result.directive)
     elif cmd == "state":
-        s = ctx.session.state_summary()
-        print(
-            f"day={s['day']} M={s['M']} m={s['m']:.3f} g={s['g']:.3f} "
-            f"mu={s['mu']:.3f} eta={s['eta']:.3f} phase={s['phase']} "
-            f"cycle_day={s['cycle_day']:.1f} hour={s['hour']:.1f} "
-            f"feedback={s['feedback']}"
-        )
+        print(_format_state(ctx.session.state_summary()))
     elif cmd == "trace":
         ctx.trace = not ctx.trace
         print(f"trace {'on' if ctx.trace else 'off'}")

@@ -38,3 +38,23 @@ addopts = "-q -n 8 -m 'not slow'"
 markers = [
     "slow: experiment-scale run (full ablation matrix over the 30-day confirmatory horizon). Minutes, not seconds - excluded from the default suite, run explicitly with `-m slow`.",
 ]
+
+[tool.coverage.run]
+branch = false
+source = ["engine", "harness", "sim", "behavioral_signature"]
+omit = ["*/__pycache__/*", "*/.venv/*"]
+
+[tool.coverage.report]
+# The agreed floor. Coverage is measured over the WHOLE suite including the
+# slow ablation gate:
+#   pytest -m '' --cov --cov-report=term-missing
+# The default (fast) suite alone reads lower - it deliberately skips the
+# 30-day matrix - so do not gate CI on that number.
+fail_under = 95
+show_missing = true
+skip_covered = true
+exclude_also = [
+    "if TYPE_CHECKING:",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

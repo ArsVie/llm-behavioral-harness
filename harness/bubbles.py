@@ -53,7 +53,7 @@ def parse_bubbles(text: str) -> list[str]:
     # Any run of newlines (with optional whitespace on blank lines) is one
     # separator — both \n and \n\n count as one boundary (WS-B ruling).
     raw = re.split(r"(?:\n\s*)+", text)
-    bubbles = [p.strip() for p in raw if p.strip() != ""]
-    if not bubbles:
-        return [text.strip()]
-    return bubbles
+    # At least one piece survives: the empty-input guard above means `text`
+    # holds a non-whitespace character, and whichever piece contains it
+    # strips to something non-empty. No fallback branch is reachable here.
+    return [p.strip() for p in raw if p.strip() != ""]
