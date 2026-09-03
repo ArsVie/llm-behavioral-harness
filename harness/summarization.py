@@ -314,6 +314,64 @@ def _session_importance(
     return max(0.0, min(1.0, signal + 0.15 * affect_signal + 0.10 * engagement))
 
 
+def _judgement_score(judgement: dict | None) -> float | None:
+    """The judge's score as a float, or None when there isn't a usable one.
+
+    The judge is a noisy sensor: a missing judgement, a missing score, or a
+    score that will not parse all mean "no affect signal from the judge",
+    never a crash and never a fabricated 0.0.
+    """
+    if judgement is None:
+        return None
+    raw = judgement.get("score")
+    if raw is None:
+        return None
+    try:
+        return float(raw)
+    except (TypeError, ValueError):
+        return None
+
+
+def _companion_events(messages: list[dict]) -> tuple[str, ...]:
+    """Companion turns worth remembering, truncated to 120 chars.
+
+    A turn qualifies if it was proactive (she chose to send it) or if it
+    reads as her reporting her own life — the "I will / I'll / I started /
+    I finished" forms that carry an event the user may refer back to.
+    """
+    pattern = r"\b(i will|i'll|i started|i finished)\b"
+    return tuple(
+        str(m.get("content", ""))[:120]
+        for m in messages
+        if m.get("role") == "assistant"
+        and (
+            m.get("proactive")
+            or re.search(pattern, str(m.get("content", "")), re.IGNORECASE)
+        )
+    )
+
+
+def _summary_prose(session_id: str, turns: int, started_at_t_h: float,
+                   ended_at_t_h: float, user_facts: tuple,
+                   preferences: tuple, observations: list) -> str:
+    """The one-paragraph session summary; each clause appears only when it
+    has something to say, so an empty session reads as a bare header rather
+    than a list of empty headings."""
+    parts = [
+        f"Session {session_id}: {turns} turn(s) between "
+        f"{started_at_t_h:.1f}h and {ended_at_t_h:.1f}h.",
+    ]
+    if user_facts:
+        parts.append("User shared: " + "; ".join(user_facts) + ".")
+    if preferences:
+        parts.append("Preferences: " + "; ".join(preferences) + ".")
+    if observations:
+        mean = sum(o.intensity for o in observations) / len(observations)
+        peak = str(any(o.emotional_peak for o in observations)).lower()
+        parts.append(f"Affect: peak={peak}, mean intensity={mean:.2f}.")
+    return " ".join(parts)
+
+
 def deterministic_summarizer(
     session_id: str,
     messages: list[dict],
@@ -332,47 +390,22 @@ def deterministic_summarizer(
     """
     facts = _extract_facts(messages)
     cbs = _callbacks(messages)
-    score = None
-    if judgement is not None:
-        raw = judgement.get("score")
-        if raw is not None:
-            try:
-                score = float(raw)
-            except (TypeError, ValueError):
-                score = None
-    observations = _affect_observations(messages, score)
+    observations = _affect_observations(messages, _judgement_score(judgement))
 
     user_facts = tuple(f.value for f in facts if f.kind == "user_fact")
     preferences = tuple(f.value for f in facts if f.kind == "preference")
     relationships = tuple(f.value for f in facts if f.kind == "relationship")
     callback_excerpts = tuple(cb[0] for cb in cbs)
-    companion_events = tuple(
-        str(m.get("content", ""))[:120]
-        for m in messages
-        if m.get("role") == "assistant"
-        and (m.get("proactive") or re.search(r"\b(i will|i'll|i started|i finished)\b", str(m.get("content", "")), re.IGNORECASE))
-    )
-
-    summary_parts = [
-        f"Session {session_id}: {len(messages)} turn(s) between "
-        f"{started_at_t_h:.1f}h and {ended_at_t_h:.1f}h.",
-    ]
-    if user_facts:
-        summary_parts.append("User shared: " + "; ".join(user_facts) + ".")
-    if preferences:
-        summary_parts.append("Preferences: " + "; ".join(preferences) + ".")
-    if observations:
-        summary_parts.append(
-            "Affect: peak=" + str(any(o.emotional_peak for o in observations)).lower()
-            + ", mean intensity=" + f"{sum(o.intensity for o in observations) / len(observations):.2f}."
-        )
-
+    companion_events = _companion_events(messages)
     peak = any(o.emotional_peak for o in observations)
     return SessionSummary(
         session_id=session_id,
         started_at_t_h=float(started_at_t_h),
         ended_at_t_h=float(ended_at_t_h),
-        summary=" ".join(summary_parts),
+        summary=_summary_prose(
+            session_id, len(messages), started_at_t_h, ended_at_t_h,
+            user_facts, preferences, observations,
+        ),
         topics=_topics(messages),
         user_facts=user_facts,
         preference_updates=preferences,

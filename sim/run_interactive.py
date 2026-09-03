@@ -25,9 +25,8 @@ Judge runs in shadow mode unless --feedback is given.
 from __future__ import annotations
 
 import argparse
-import sys
+from dataclasses import dataclass
 
-import numpy as np
 
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.assembler import DEFAULT_PERSONA_CORE
@@ -105,7 +104,9 @@ def _print_trace(directive) -> None:
     )
 
 
-def main(argv: list[str] | None = None) -> int:
+def build_parser() -> argparse.ArgumentParser:
+    """The CLI surface. Separate from main() so the flags can be tested
+    without standing up a store or a client."""
     parser = argparse.ArgumentParser(
         prog="run_interactive",
         description="Interactive CLI driver — the e2e slice front door (W-E2).",
@@ -128,26 +129,43 @@ def main(argv: list[str] | None = None) -> int:
         help="comma-separated user interests for the user-relative 40/40/20 "
              "portfolio (default: mathematics,metal,lifting,movies)",
     )
-    args = parser.parse_args(argv)
+    return parser
 
+
+@dataclass
+class InteractiveContext:
+    """Everything the REPL needs, built once before the loop starts."""
+
+    store: SQLiteStore
+    clock: VirtualClock
+    session: Session
+    schedule: ProactiveSchedule
+    parser: argparse.ArgumentParser
+    trace: bool
+    synthetic: bool
+
+
+def build_context(args, parser: argparse.ArgumentParser) -> InteractiveContext:
+    """Wire the store, clock, clients and session for one interactive run.
+
+    ``--fake`` runs fully offline: a scripted client, synthetic scores, and
+    no judge-lane client at all (the session default stands). A live run
+    gets its own RESEARCH-lane client for judging, so judge spend is never
+    attributed to the product lane.
+    """
     store = SQLiteStore(args.store)
     clock = VirtualClock(t_h=0.0 + WAKE_HOUR)
     _bootstrap_and_report(store, args.seed, args)
     if args.fake:
         client = FakeClient(echo=True)
         synthetic = True
+        judge_client = None
     else:
         client = OpenAICompatibleClient(model=args.model, lane="product")
         synthetic = args.synthetic
-    # Judge-lane client: judging is a research consumer; live runs pass
-    # it explicitly, fake runs leave the session default.
-    judge_client = None
-    if not args.fake:
         judge_client = OpenAICompatibleClient(model=args.model, lane="research")
     persona = PersonaParams()
     timing = TimingParams()
-
-    schedule = ProactiveSchedule.plan(args.days, args.seed, persona, timing)
     session = Session(
         store,
         persona=persona,
@@ -162,73 +180,98 @@ def main(argv: list[str] | None = None) -> int:
         synthetic_score=synthetic,
         judge_client=judge_client,
     )
+    return InteractiveContext(
+        store=store, clock=clock, session=session,
+        schedule=ProactiveSchedule.plan(args.days, args.seed, persona, timing),
+        parser=parser, trace=args.trace, synthetic=synthetic,
+    )
 
-    state = session.state_summary()
+
+def handle_command(ctx: InteractiveContext, cmd: str, arg: str) -> bool:
+    """Run one slash command. Returns False when the session should end.
+
+    A malformed argument prints usage and is otherwise a no-op — the REPL
+    must survive a typo, not exit on one.
+    """
+    if cmd == "quit":
+        return False
+    if cmd == "help":
+        print(ctx.parser.format_help())
+        print("commands: <text> | /advance N | /day N | /proactive | /state | /trace | /help | /quit")
+    elif cmd == "advance":
+        try:
+            ctx.clock.advance_hours(float(arg))
+        except ValueError:
+            print("usage: /advance <hours>")
+            return True
+        n = _fire_due(ctx.session, ctx.schedule, ctx.trace)
+        print(f"[day {ctx.clock.day()}, hour {ctx.clock.local_hour():.0f}:00] "
+              f"advanced; {n} proactive event(s) fired")
+    elif cmd == "day":
+        try:
+            ctx.clock.advance_to_day(int(arg))
+        except ValueError as exc:
+            print(f"error: {exc}")
+            return True
+        n = _fire_due(ctx.session, ctx.schedule, ctx.trace)
+        print(f"[day {ctx.clock.day()}] {n} proactive event(s) fired")
+    elif cmd == "proactive":
+        result = ctx.session.fire_proactive(REASON_SCHEDULE)
+        print(result.reply)
+        if ctx.trace:
+            _print_trace(result.directive)
+    elif cmd == "state":
+        s = ctx.session.state_summary()
+        print(
+            f"day={s['day']} M={s['M']} m={s['m']:.3f} g={s['g']:.3f} "
+            f"mu={s['mu']:.3f} eta={s['eta']:.3f} phase={s['phase']} "
+            f"cycle_day={s['cycle_day']:.1f} hour={s['hour']:.1f} "
+            f"feedback={s['feedback']}"
+        )
+    elif cmd == "trace":
+        ctx.trace = not ctx.trace
+        print(f"trace {'on' if ctx.trace else 'off'}")
+    else:
+        print(f"unknown command: /{cmd} (try /help)")
+    return True
+
+
+def handle_line(ctx: InteractiveContext, line: str) -> bool:
+    """Route one input line. Returns False when the session should end."""
+    if not line:
+        return True
+    if line.startswith("/"):
+        cmd, _, arg = line[1:].partition(" ")
+        return handle_command(ctx, cmd, arg.strip())
+    result = ctx.session.on_message(line)
+    print(result.reply)
+    if ctx.trace:
+        _print_trace(result.directive)
+    return True
+
+
+def main(argv: list[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
+    ctx = build_context(args, parser)
+
+    state = ctx.session.state_summary()
     print("llm-behavioral-harness — interactive session")
     print(f"seed={args.seed} day={state['day']} M={state['M']} phase={state['phase']} "
-          f"feedback={args.feedback} synthetic={synthetic}")
+          f"feedback={args.feedback} synthetic={ctx.synthetic}")
     print("type /help for commands; plain text sends a message.\n")
 
-    trace = args.trace
     try:
         while True:
             try:
                 line = input("you> ").strip()
             except EOFError:
                 break
-            if not line:
-                continue
-            if line.startswith("/"):
-                cmd, _, arg = line[1:].partition(" ")
-                arg = arg.strip()
-                if cmd == "quit":
-                    break
-                elif cmd == "help":
-                    print(parser.format_help())
-                    print("commands: <text> | /advance N | /day N | /proactive | /state | /trace | /help | /quit")
-                elif cmd == "advance":
-                    try:
-                        clock.advance_hours(float(arg))
-                    except ValueError:
-                        print("usage: /advance <hours>")
-                        continue
-                    n = _fire_due(session, schedule, trace)
-                    print(f"[day {clock.day()}, hour {clock.local_hour():.0f}:00] "
-                          f"advanced; {n} proactive event(s) fired")
-                elif cmd == "day":
-                    try:
-                        clock.advance_to_day(int(arg))
-                    except ValueError as exc:
-                        print(f"error: {exc}")
-                        continue
-                    n = _fire_due(session, schedule, trace)
-                    print(f"[day {clock.day()}] {n} proactive event(s) fired")
-                elif cmd == "proactive":
-                    result = session.fire_proactive(REASON_SCHEDULE)
-                    print(result.reply)
-                    if trace:
-                        _print_trace(result.directive)
-                elif cmd == "state":
-                    s = session.state_summary()
-                    print(
-                        f"day={s['day']} M={s['M']} m={s['m']:.3f} g={s['g']:.3f} "
-                        f"mu={s['mu']:.3f} eta={s['eta']:.3f} phase={s['phase']} "
-                        f"cycle_day={s['cycle_day']:.1f} hour={s['hour']:.1f} "
-                        f"feedback={s['feedback']}"
-                    )
-                elif cmd == "trace":
-                    trace = not trace
-                    print(f"trace {'on' if trace else 'off'}")
-                else:
-                    print(f"unknown command: /{cmd} (try /help)")
-            else:
-                result = session.on_message(line)
-                print(result.reply)
-                if trace:
-                    _print_trace(result.directive)
+            if not handle_line(ctx, line):
+                break
     finally:
-        session.finalize_current()  # persist the current day's judgement on quit
-        store.close()
+        ctx.session.finalize_current()  # persist the current day's judgement on quit
+        ctx.store.close()
     return 0
 
 
