@@ -503,41 +503,59 @@ def _normalize_verdict(
     """Coerce raw keys to the canonical verdict shape with safe defaults."""
     if popup_kind == "tool_decide_event":
         if phase == "inform":
-            # Inform verdict: the natural mention with no action; legacy
-            # forms normalize onto {message: str} (message := reason).
-            message = obj.get("message")
-            if not isinstance(message, str):
-                message = (
-                    obj.get("reason")
-                    if isinstance(obj.get("reason"), str)
-                    else ""
-                )
-            verdict: dict = {"message": message}
-            if isinstance(obj.get("reason"), str):
-                verdict["reason"] = obj["reason"]
-            return verdict
-        verdict: dict = {"initiate": False, "reason": "", "action": None}
-        flag = _as_bool(obj.get("initiate", obj.get("verdict")))
-        if flag is not None:
-            verdict["initiate"] = flag
-        if isinstance(obj.get("reason"), str):
-            verdict["reason"] = obj["reason"]
-        action = obj.get("action")
-        if action in ("follow", "abandon", "defer"):
-            verdict["action"] = action
-        return verdict
+            return _inform_verdict(obj)
+        return _event_verdict(obj)
     if popup_kind == "tool_decide_reply":
-        verdict = {"reply": False, "reason": "", "terminate_event": False}
-        flag = _as_bool(obj.get("reply", obj.get("verdict")))
-        if flag is not None:
-            verdict["reply"] = flag
-        if isinstance(obj.get("reason"), str):
-            verdict["reason"] = obj["reason"]
-        term = _as_bool(obj.get("terminate_event"))
-        if term is not None:
-            verdict["terminate_event"] = term
-        return verdict
+        return _reply_verdict(obj)
     raise ValueError(f"unknown popup_kind: {popup_kind!r}")
+
+
+def _inform_verdict(obj: dict) -> dict:
+    """The inform leg: a natural mention, no action.
+
+    Legacy forms carried the text under ``reason``; both normalize onto
+    ``message``, and ``reason`` is preserved when it was a string so the
+    audit trail keeps whatever the model actually sent.
+    """
+    message = obj.get("message")
+    if not isinstance(message, str):
+        message = obj["reason"] if isinstance(obj.get("reason"), str) else ""
+    verdict: dict = {"message": message}
+    if isinstance(obj.get("reason"), str):
+        verdict["reason"] = obj["reason"]
+    return verdict
+
+
+def _event_verdict(obj: dict) -> dict:
+    """The decide leg for an agenda event.
+
+    Defaults are the conservative ones: she does not initiate unless the
+    model actually said so, and an unrecognised ``action`` is dropped rather
+    than passed through.
+    """
+    verdict: dict = {"initiate": False, "reason": "", "action": None}
+    flag = _as_bool(obj.get("initiate", obj.get("verdict")))
+    if flag is not None:
+        verdict["initiate"] = flag
+    if isinstance(obj.get("reason"), str):
+        verdict["reason"] = obj["reason"]
+    if obj.get("action") in ("follow", "abandon", "defer"):
+        verdict["action"] = obj["action"]
+    return verdict
+
+
+def _reply_verdict(obj: dict) -> dict:
+    """The decide leg for a user message arriving mid-event."""
+    verdict: dict = {"reply": False, "reason": "", "terminate_event": False}
+    flag = _as_bool(obj.get("reply", obj.get("verdict")))
+    if flag is not None:
+        verdict["reply"] = flag
+    if isinstance(obj.get("reason"), str):
+        verdict["reason"] = obj["reason"]
+    term = _as_bool(obj.get("terminate_event"))
+    if term is not None:
+        verdict["terminate_event"] = term
+    return verdict
 
 
 def _valid_verdict(
@@ -789,6 +807,83 @@ class DecisionRunner:
 
     # -- public API ---------------------------------------------------------
 
+    def _obtain_verdict(self, decision_id: str, popup_kind: str, phase: str,
+                        inputs: dict, capabilities: Capabilities,
+                        call: ModelCall, day: int, t_h: float):
+        """Get one verdict, from the server draw or from the model.
+
+        Returns ``(verdict, source, transport, raw_reply, parse_failed)``.
+        A parse failure is always RECORDED before the configured policy
+        decides what happens next — requeue (re-ask at the next boundary),
+        server_draw (fall back to the draw, transport marked as the
+        fallback), or abort. The record is the point: a chatty model that
+        answers a pop-up in prose leaves an audit trail either way.
+        """
+        source = self.decision_source
+        if source == "server_draw":
+            return self._draw_verdict(popup_kind, phase=phase), source, \
+                "server_draw", None, False
+        transport = self._choose_transport(capabilities)
+        request = PopupRequest(
+            popup_kind=popup_kind,
+            popup=render_popup(popup_kind, inputs),
+            # Inform legs get the mention-only schema; decide legs get the verdict schema.
+            tools=TOOL_SCHEMAS_INFORM if phase == "inform" else TOOL_SCHEMAS,
+            native=(transport == "native"),
+            inputs=inputs,
+        )
+        raw = call(request)
+        raw_reply = self._raw_to_text(raw, transport)
+        try:
+            verdict = self._parse_raw(popup_kind, raw, transport, phase=phase)
+        except DecisionParseError:
+            self._record_parse_failure(
+                decision_id, popup_kind, transport, raw_reply, day, t_h
+            )
+            if self.parse_failure_mode == "requeue":
+                raise DecisionRequeue(
+                    f"{popup_kind} parse failed (decision {decision_id}) — "
+                    f"re-queue for the next boundary"
+                ) from None
+            if self.parse_failure_mode == "server_draw":
+                return (self._draw_verdict(popup_kind, phase=phase),
+                        "server_draw", "server_draw_fallback", raw_reply, True)
+            raise DecisionParseError(
+                f"{popup_kind} parse failed (decision {decision_id}) — "
+                f"aborting per HARNESS_DECISION_PARSE_FAILURE=abort"
+            ) from None
+        return verdict, source, transport, raw_reply, False
+
+    def _apply_reply_budget(self, popup_kind: str, verdict: dict,
+                            decision_id: str, day: int, t_h: float):
+        """Enforce the daily no-reply budget; returns (verdict, forced, used).
+
+        Only a ``reply: false`` verdict spends budget. Once the day's budget
+        is gone the verdict is REPLACED by a forced reply — the companion
+        may decline to answer, but not indefinitely, or a user could be
+        silently ignored all day. The override is logged with the budget
+        that triggered it.
+        """
+        if popup_kind != "tool_decide_reply" or verdict.get("reply") is not False:
+            return verdict, False, 0
+        used = self._no_replies_used(day, decision_id)
+        if self.budget is None or used < self.budget:
+            return verdict, False, 1
+        self.store.log_event(
+            day, t_h, EVENT_BUDGET_FORCED_REPLY,
+            json.dumps(
+                {"decision_id": decision_id, "popup_kind": popup_kind,
+                 "day": day, "budget": self.budget},
+                sort_keys=True,
+            ),
+        )
+        return {
+            "reply": True,
+            "reason": FORCED_REPLY_REASON,
+            "terminate_event": False,
+            "forced": True,
+        }, True, 0
+
     def execute(
         self,
         decision_id: str,
@@ -829,79 +924,21 @@ class DecisionRunner:
         if replay is not None:
             return self._replay_result(decision_id, popup_kind, replay, day, t_h)
 
-        source = self.decision_source
-        transport: str
-        raw_reply: str | None = None
-        parse_failed = False
-
-        if source == "server_draw":
-            transport = "server_draw"
-            verdict = self._draw_verdict(popup_kind, phase=phase)
-        else:
-            transport = self._choose_transport(capabilities)
-            request = PopupRequest(
-                popup_kind=popup_kind,
-                popup=render_popup(popup_kind, inputs),
-                # Inform legs get the mention-only schema; decide legs get the verdict schema.
-                tools=(
-                    TOOL_SCHEMAS_INFORM if phase == "inform" else TOOL_SCHEMAS
-                ),
-                native=(transport == "native"),
-                inputs=inputs,
+        verdict, source, transport, raw_reply, parse_failed = (
+            self._obtain_verdict(
+                decision_id, popup_kind, phase, inputs, capabilities, call,
+                day, t_h,
             )
-            raw = call(request)
-            raw_reply = self._raw_to_text(raw, transport)
-            try:
-                verdict = self._parse_raw(
-                    popup_kind, raw, transport, phase=phase
-                )
-            except DecisionParseError:
-                parse_failed = True
-                self._record_parse_failure(
-                    decision_id, popup_kind, transport, raw_reply, day, t_h
-                )
-                if self.parse_failure_mode == "requeue":
-                    raise DecisionRequeue(
-                        f"{popup_kind} parse failed (decision {decision_id}) — "
-                        f"re-queue for the next boundary"
-                    ) from None
-                if self.parse_failure_mode == "server_draw":
-                    transport = "server_draw_fallback"
-                    source = "server_draw"
-                    verdict = self._draw_verdict(popup_kind, phase=phase)
-                else:  # abort
-                    raise DecisionParseError(
-                        f"{popup_kind} parse failed (decision {decision_id}) — "
-                        f"aborting per HARNESS_DECISION_PARSE_FAILURE=abort"
-                    ) from None
+        )
 
         # Defer verdicts carry the server-filled N; model-supplied
         # defer_turns is dropped and replaced by the reason mapping.
         if popup_kind == "tool_decide_event":
             verdict = fill_defer_turns(verdict)
 
-        forced = False
-        budget_consumed = 0
-        if popup_kind == "tool_decide_reply" and verdict.get("reply") is False:
-            used = self._no_replies_used(day, decision_id)
-            if self.budget is not None and used >= self.budget:
-                forced = True
-                verdict = {
-                    "reply": True,
-                    "reason": FORCED_REPLY_REASON,
-                    "terminate_event": False,
-                    "forced": True,
-                }
-                self.store.log_event(
-                    day, t_h, EVENT_BUDGET_FORCED_REPLY,
-                    json.dumps(
-                        {"decision_id": decision_id, "popup_kind": popup_kind,
-                         "day": day, "budget": self.budget},
-                        sort_keys=True,
-                    ),
-                )
-            else:
-                budget_consumed = 1
+        verdict, forced, budget_consumed = self._apply_reply_budget(
+            popup_kind, verdict, decision_id, day, t_h
+        )
 
         record_id = self.store.record_decision(
             day,

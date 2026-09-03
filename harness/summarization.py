@@ -102,6 +102,62 @@ def _clean(value: str) -> str:
     return re.sub(r"\s+", " ", value.strip().strip(".!?;,。")).strip()
 
 
+def _match_user_turn(text: str) -> tuple[str, str, str] | None:
+    """First matching rule for one user turn, as ``(key, value, kind)``.
+
+    Order is load-bearing and unchanged: negation and retraction are tried
+    BEFORE the positive rules, so "I don't have a dog any more" never
+    registers as owning a dog. A rule whose regex matches but whose captured
+    subject is junk (or empties under ``_clean``) falls through to the next
+    rule rather than swallowing the turn — which is why each positive rule
+    re-checks its own capture instead of relying on the match alone.
+    """
+    m = _NEGATION_RE.search(text)
+    if m and m.group(1).lower() not in _JUNK_NOUNS:
+        subject = m.group(1).lower()
+        return f"user:{subject}", f"user no longer has {subject}", "user_fact"
+    # Retraction reuses the positive fact's key.
+    m = _RETRACT_RE.search(text)
+    if m:
+        topic = _clean(m.group(1))
+        if topic:
+            return (f"preference:like:{topic}",
+                    f"user no longer likes {topic}", "preference")
+    m = _NAME_RE.search(text)
+    if m and m.group(1).lower() not in _JUNK_NOUNS:
+        noun, name = m.group(1).lower(), m.group(2)
+        return (f"user:{noun}:name", f"user's {noun} is named {name}",
+                "user_fact")
+    m = _POSSESSIVE_RE.search(text)
+    if m and m.group(1).lower() not in _JUNK_NOUNS:
+        noun, rest = m.group(1).lower(), _clean(m.group(2))
+        return f"user:{noun}", f"user's {noun} is {rest}", "user_fact"
+    m = _HAVE_RE.search(text)
+    if m and m.group(1).lower() not in _JUNK_NOUNS:
+        noun = m.group(1).lower()
+        name_m = _NAMED_RE.search(text)
+        if name_m:
+            # The name stays in the value for subject-word matching.
+            return (f"user:{noun}",
+                    f"user has a {noun} named {name_m.group(1)}", "user_fact")
+        return f"user:{noun}", f"user has a {noun}", "user_fact"
+    m = _LIKE_RE.search(text)
+    if m:
+        topic = _clean(m.group(1))
+        if topic:
+            return f"preference:like:{topic}", f"user likes {topic}", "preference"
+    m = _DISLIKE_RE.search(text)
+    if m:
+        topic = _clean(m.group(1))
+        if topic:
+            return (f"preference:dislike:{topic}", f"user dislikes {topic}",
+                    "preference")
+    if _THANKS_RE.search(text):
+        return ("relationship:gratitude", "user expressed gratitude",
+                "relationship")
+    return None
+
+
 def _extract_facts(messages: list[dict]) -> list[_Fact]:
     """Conservative, deterministic fact extraction over USER turns only.
 
@@ -132,58 +188,10 @@ def _extract_facts(messages: list[dict]) -> list[_Fact]:
         if msg.get("role") != "user":
             continue
         text = str(msg.get("content", ""))
-        tid = int(msg.get("id", -1))
-        # Negation is checked before the positive rules.
-        m = _NEGATION_RE.search(text)
-        if m and m.group(1).lower() not in _JUNK_NOUNS:
-            subject = m.group(1).lower()
-            add(f"user:{subject}", f"user no longer has {subject}",
-                "user_fact", tid, text)
-            continue
-        # Retraction reuses the positive fact's key.
-        m = _RETRACT_RE.search(text)
-        if m:
-            topic = _clean(m.group(1))
-            if topic:
-                add(f"preference:like:{topic}", f"user no longer likes {topic}",
-                    "preference", tid, text)
-                continue
-        m = _NAME_RE.search(text)
-        if m and m.group(1).lower() not in _JUNK_NOUNS:
-            noun, name = m.group(1).lower(), m.group(2)
-            add(f"user:{noun}:name", f"user's {noun} is named {name}", "user_fact", tid, text)
-            continue
-        m = _POSSESSIVE_RE.search(text)
-        if m and m.group(1).lower() not in _JUNK_NOUNS:
-            noun, rest = m.group(1).lower(), _clean(m.group(2))
-            add(f"user:{noun}", f"user's {noun} is {rest}", "user_fact", tid, text)
-            continue
-        m = _HAVE_RE.search(text)
-        if m and m.group(1).lower() not in _JUNK_NOUNS:
-            noun = m.group(1).lower()
-            name_m = _NAMED_RE.search(text)
-            if name_m:
-                # The name stays in the value for subject-word matching.
-                add(f"user:{noun}",
-                    f"user has a {noun} named {name_m.group(1)}",
-                    "user_fact", tid, text)
-            else:
-                add(f"user:{noun}", f"user has a {noun}", "user_fact", tid, text)
-            continue
-        m = _LIKE_RE.search(text)
-        if m:
-            topic = _clean(m.group(1))
-            if topic:
-                add(f"preference:like:{topic}", f"user likes {topic}", "preference", tid, text)
-                continue
-        m = _DISLIKE_RE.search(text)
-        if m:
-            topic = _clean(m.group(1))
-            if topic:
-                add(f"preference:dislike:{topic}", f"user dislikes {topic}", "preference", tid, text)
-                continue
-        if _THANKS_RE.search(text):
-            add("relationship:gratitude", "user expressed gratitude", "relationship", tid, text)
+        matched = _match_user_turn(text)
+        if matched is not None:
+            key, value, kind = matched
+            add(key, value, kind, int(msg.get("id", -1)), text)
     return facts
 
 

@@ -353,6 +353,70 @@ def generate_agenda(
     return agenda
 
 
+def _step_arc(arc: LifeArc, day: int, store: LifeStore,
+              rng: np.random.Generator) -> LifeArc:
+    """One day of progress for one arc.
+
+    An arc whose ``started_day`` is still in the future is returned
+    untouched and — critically — consumes NO draws, which is what keeps a
+    day byte-identical across runs that differ only in future plans.
+    Reaching 1.0 completes the arc; an active arc is then abandoned with
+    ``_ABANDON_PROB``.
+    """
+    if arc.status != "active" or arc.started_day > day:
+        return arc
+    progress = min(
+        1.0, arc.progress + _PROGRESS_MIN + float(rng.random()) * _PROGRESS_SPAN
+    )
+    status = "completed" if progress >= 1.0 else arc.status
+    if status == "active" and rng.random() < _ABANDON_PROB:
+        status = "abandoned"
+    new_arc = replace(arc, progress=round(progress, 3), status=status)
+    store.upsert_life_arc(new_arc)
+    return new_arc
+
+
+def _step_item(item: AgendaItem, store: LifeStore,
+               rng: np.random.Generator) -> AgendaItem:
+    """Resolve one planned agenda item: ~80% completed, ~10% skipped,
+    ~10% shifted. An item that is no longer ``planned`` is already resolved
+    and consumes no draw."""
+    if item.status != "planned":
+        return item
+    draw = float(rng.random())
+    if draw < 0.80:
+        status = "completed"
+    elif draw < 0.90:
+        status = "skipped"
+    else:
+        status = "shifted"
+    new_item = replace(item, status=status)
+    store.update_agenda_item_status(new_item.id, status)
+    return new_item
+
+
+def _current_activity_for(agenda: DailyAgenda, items: list[AgendaItem],
+                          t_h: float | None) -> "CurrentActivity | None":
+    """What she is doing, under whichever of the two semantics applies.
+
+    With ``t_h`` (NOW semantics, invariant 8) only an item actually in
+    progress counts — a plan for later today is not what she is doing now.
+    Without it (legacy seam callers) the answer is the day's MAIN activity:
+    the highest-salience completed item, falling back to the
+    highest-salience item when nothing completed.
+    """
+    if t_h is not None:
+        return current_activity_now(agenda, t_h)
+    completed = [it for it in items if it.status == "completed"]
+    candidates = completed or items
+    if not candidates:
+        return None
+    main = max(candidates, key=lambda it: (it.salience, it.start_t_h))
+    return CurrentActivity(
+        t_h=main.start_t_h, item=main, description=main.activity
+    )
+
+
 def step_life(
     day: int,
     persona: PersonaProfile,
@@ -395,46 +459,10 @@ def step_life(
     deterministic per (seed, day) when ``rng`` is
     ``stream_rng(seed, LIFE_STREAM, day)``.
     """
-    updated_arcs: list[LifeArc] = []
-    for arc in arcs:
-        new_arc = arc
-        if arc.status == "active" and arc.started_day <= day:
-            progress = min(1.0, arc.progress + _PROGRESS_MIN + float(rng.random()) * _PROGRESS_SPAN)
-            status = "completed" if progress >= 1.0 else arc.status
-            if status == "active" and rng.random() < _ABANDON_PROB:
-                status = "abandoned"
-            new_arc = replace(arc, progress=round(progress, 3), status=status)
-            store.upsert_life_arc(new_arc)
-        updated_arcs.append(new_arc)
-
-    updated_items: list[AgendaItem] = []
-    for item in agenda.items:
-        if item.status != "planned":
-            updated_items.append(item)
-            continue
-        draw = float(rng.random())
-        if draw < 0.80:
-            status = "completed"
-        elif draw < 0.90:
-            status = "skipped"
-        else:
-            status = "shifted"
-        new_item = replace(item, status=status)
-        store.update_agenda_item_status(new_item.id, status)
-        updated_items.append(new_item)
-
+    updated_arcs = [_step_arc(arc, day, store, rng) for arc in arcs]
+    updated_items = [_step_item(item, store, rng) for item in agenda.items]
     updated_agenda = DailyAgenda(day=agenda.day, items=tuple(updated_items))
-
-    if t_h is not None:
-        # Only an item actually in progress at t_h is the current activity.
-        current = current_activity_now(updated_agenda, t_h)
-    else:
-        completed = [it for it in updated_items if it.status == "completed"]
-        candidates = completed or updated_items
-        current = None
-        if candidates:
-            main = max(candidates, key=lambda it: (it.salience, it.start_t_h))
-            current = CurrentActivity(t_h=main.start_t_h, item=main, description=main.activity)
+    current = _current_activity_for(updated_agenda, updated_items, t_h)
 
     spawned = _maybe_spawn_arc(day, persona, updated_arcs, store, rng)
     if spawned is not None:
@@ -559,25 +587,7 @@ def _maybe_spawn_arc(
         return None
 
     active_interests = {a.interest for a in arcs if a.status == "active"}
-    seen: set[str] = set()
-    pool: list[tuple[str, str]] = []  # (interest name, origin)
-
-    for arc in store.list_life_arcs(status="completed"):  # descendants
-        if arc.interest not in active_interests and arc.interest not in seen:
-            pool.append((arc.interest, "descendant"))
-            seen.add(arc.interest)
-    for interest in persona.interests:  # adjacent interests
-        if (
-            interest.bucket == "adjacent"
-            and interest.name not in active_interests
-            and interest.name not in seen
-        ):
-            pool.append((interest.name, "adjacent"))
-            seen.add(interest.name)
-    for interest in persona.interests:  # companion interests (any bucket)
-        if interest.name not in active_interests and interest.name not in seen:
-            pool.append((interest.name, "companion"))
-            seen.add(interest.name)
+    pool = _spawn_pool(persona, store, active_interests)
     if not pool:
         return None
 
@@ -600,6 +610,40 @@ def _maybe_spawn_arc(
     )
     store.upsert_life_arc(arc)
     return arc
+
+
+def _spawn_pool(persona: PersonaProfile, store: LifeStore,
+                active_interests: set) -> list[tuple[str, str]]:
+    """Interests a replacement arc could come from, as (name, origin).
+
+    Three sources in a fixed order — a completed arc's interest
+    ("descendant", so an old thread can be picked back up), then the
+    persona's ADJACENT interests, then any remaining persona interest.
+    Order matters twice over: it decides which origin an interest is tagged
+    with when it appears in more than one source, and the pool is indexed by
+    a keyed draw, so reordering it would change every future spawn.
+    Interests already carried by an active arc are excluded — she does not
+    start a second arc on something she is already doing.
+    """
+    seen: set[str] = set()
+    pool: list[tuple[str, str]] = []
+    for arc in store.list_life_arcs(status="completed"):
+        if arc.interest not in active_interests and arc.interest not in seen:
+            pool.append((arc.interest, "descendant"))
+            seen.add(arc.interest)
+    for interest in persona.interests:
+        if (
+            interest.bucket == "adjacent"
+            and interest.name not in active_interests
+            and interest.name not in seen
+        ):
+            pool.append((interest.name, "adjacent"))
+            seen.add(interest.name)
+    for interest in persona.interests:
+        if interest.name not in active_interests and interest.name not in seen:
+            pool.append((interest.name, "companion"))
+            seen.add(interest.name)
+    return pool
 
 
 def _interest_by_name(persona: PersonaProfile, name: str) -> Interest | None:

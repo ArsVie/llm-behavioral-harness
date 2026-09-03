@@ -251,6 +251,39 @@ def _cost_or_none(value: object) -> float | None:
     return float(value)
 
 
+def _parse_cache_split(raw: dict,
+                       prompt: int | None) -> tuple[int | None, int | None]:
+    """The (cached, miss) prompt-token split, across gateway dialects.
+
+    Three shapes in the wild, tried in order: DeepSeek's explicit
+    hit/miss pair, OpenAI's ``prompt_tokens_details.cached_tokens``, and
+    Anthropic's read/creation counters — where a cache READ is a hit but a
+    cache CREATION is fresh input and belongs in the miss bucket.
+
+    Whatever the dialect, the two numbers are reconciled against the prompt
+    total so the ledger always adds up: a missing miss count is the
+    remainder, and a response with no cache information at all is treated
+    as fully uncached rather than unknown.
+    """
+    cached = _int_or_none(raw.get("prompt_cache_hit_tokens"))
+    miss = _int_or_none(raw.get("prompt_cache_miss_tokens"))
+    if cached is None and miss is None:
+        details = raw.get("prompt_tokens_details")
+        if isinstance(details, dict):
+            cached = _int_or_none(details.get("cached_tokens"))
+        if cached is None:
+            cached = _int_or_none(raw.get("cache_read_input_tokens"))
+        creation = _int_or_none(raw.get("cache_creation_input_tokens"))
+        if creation is not None:
+            miss = creation if miss is None else miss + creation
+    if prompt is not None:
+        if cached is not None and miss is None:
+            miss = max(prompt - cached, 0)
+        elif cached is None and miss is None:
+            miss = prompt
+    return cached, miss
+
+
 def _parse_usage(raw: object) -> Usage | None:
     """Parse the OpenAI-compatible ``usage`` object (WS-D), or ``None``.
 
@@ -273,28 +306,7 @@ def _parse_usage(raw: object) -> Usage | None:
     ctd = raw.get("completion_tokens_details")
     if isinstance(ctd, dict):
         reasoning = _int_or_none(ctd.get("reasoning_tokens"))
-    # DeepSeek variant: explicit hit/miss split on the usage object.
-    cached = _int_or_none(raw.get("prompt_cache_hit_tokens"))
-    miss = _int_or_none(raw.get("prompt_cache_miss_tokens"))
-    if cached is None and miss is None:
-        # OpenAI variant: cached_tokens from prompt_tokens_details.
-        details = raw.get("prompt_tokens_details")
-        if isinstance(details, dict):
-            cached = _int_or_none(details.get("cached_tokens"))
-        # Anthropic variant: cache reads count as hits; cache creation
-        # writes are fresh input, folded into the miss bucket.
-        read = _int_or_none(raw.get("cache_read_input_tokens"))
-        if cached is None:
-            cached = read
-        creation = _int_or_none(raw.get("cache_creation_input_tokens"))
-        if creation is not None:
-            miss = creation if miss is None else miss + creation
-    # Miss count absent: estimate it as prompt minus cached, minimum 0.
-    if cached is not None and miss is None and prompt is not None:
-        miss = max(prompt - cached, 0)
-    # No cache split at all: all tokens are fresh (uncached) reads.
-    if cached is None and miss is None and prompt is not None:
-        miss = prompt
+    cached, miss = _parse_cache_split(raw, prompt)
     if (
         prompt is None and completion is None and total is None
         and cached is None and miss is None and reasoning is None
@@ -389,6 +401,68 @@ class OpenAICompatibleClient:
             max_tokens=max_tokens,
         ).content
 
+    def _build_payload(self, messages: list[dict], *, system: str | None,
+                       temperature: float, json_mode: bool,
+                       max_tokens: int | None, tools: list[dict] | None,
+                       tool_choice: dict | str | None,
+                       reasoning_effort: str | None) -> dict:
+        """The request body for one completion.
+
+        Every optional field is omitted rather than sent as null, and the
+        two capability flags gate their own: an endpoint without JSON mode
+        or tool support never sees those keys. A system prompt with no user
+        turns yet is sent alone.
+        """
+        if not self.api_key:
+            raise RuntimeError(
+                "LLM_API_KEY is not set — the harness never stores credentials. "
+                "Export it before running live."
+            )
+        if system is None:
+            payload_messages = _normalize_messages(messages)
+        elif messages:
+            # Normalize messages: null content is sent as "" on the wire.
+            payload_messages = [
+                {"role": "system", "content": system},
+                *_normalize_messages(messages),
+            ]
+        else:
+            payload_messages = [{"role": "system", "content": system}]
+        payload: dict = {
+            "model": self.model,
+            "messages": payload_messages,
+            "temperature": temperature,
+        }
+        if json_mode and self.supports_json:
+            payload["response_format"] = {"type": "json_object"}
+        if max_tokens is not None:
+            payload["max_tokens"] = max_tokens
+        if tools is not None and self.supports_tools:
+            payload["tools"] = tools
+        if tool_choice is not None and self.supports_tools:
+            payload["tool_choice"] = tool_choice
+        if reasoning_effort is not None:
+            payload["reasoning_effort"] = reasoning_effort
+        return payload
+
+    def _empty_reply_verdict(self, content, text: str, tool_calls,
+                             reasoning) -> tuple[str | None,
+                                                 RuntimeError | None]:
+        """Whether this response is worth retrying, and what to raise if not.
+
+        A tool call or a reasoning-only turn legitimately carries no content
+        — those round-trip as ``""`` and must never be retried. Only a reply
+        that is empty in EVERY channel is a real empty completion.
+        """
+        if content is None and not tool_calls and reasoning is None:
+            return "null content", RuntimeError("LLM response had null content")
+        if not text.strip() and not tool_calls and reasoning is None:
+            return "empty content", RuntimeError(
+                f"LLM returned empty/whitespace-only content after "
+                f"{self.max_retries + 1} attempts"
+            )
+        return None, None
+
     def chat_with_meta(
         self,
         messages: list[dict],
@@ -420,38 +494,11 @@ class OpenAICompatibleClient:
         control; callers configuring a reasoning model must pass
         ``max_tokens=None``.
         """
-        if not self.api_key:
-            raise RuntimeError(
-                "LLM_API_KEY is not set — the harness never stores credentials. "
-                "Export it before running live."
-            )
-        if system is not None:
-            if messages:
-                # Normalize messages: null content is sent as "" on the wire.
-                payload_messages = [
-                    {"role": "system", "content": system},
-                    *_normalize_messages(messages),
-                ]
-            else:
-                # No user turns yet: send the system prompt alone.
-                payload_messages = [{"role": "system", "content": system}]
-        else:
-            payload_messages = _normalize_messages(messages)
-        payload: dict = {
-            "model": self.model,
-            "messages": payload_messages,
-            "temperature": temperature,
-        }
-        if json_mode and self.supports_json:
-            payload["response_format"] = {"type": "json_object"}
-        if max_tokens is not None:
-            payload["max_tokens"] = max_tokens
-        if tools is not None and self.supports_tools:
-            payload["tools"] = tools
-        if tool_choice is not None and self.supports_tools:
-            payload["tool_choice"] = tool_choice
-        if reasoning_effort is not None:
-            payload["reasoning_effort"] = reasoning_effort
+        payload = self._build_payload(
+            messages, system=system, temperature=temperature,
+            json_mode=json_mode, max_tokens=max_tokens, tools=tools,
+            tool_choice=tool_choice, reasoning_effort=reasoning_effort,
+        )
         resp = self._post(payload)
         for attempt in range(self.max_retries + 1):
             retry_reason: str | None = None
@@ -475,20 +522,10 @@ class OpenAICompatibleClient:
                     resp = self._retry_post(payload, attempt)
                     continue
                 raise RuntimeError(f"malformed LLM response: {exc}") from exc
-            if content is None and not tool_calls and reasoning is None:
-                # Retry null content only when no tool calls or reasoning
-                # are present; those round-trip as content "".
-                retry_reason = "null content"
-                terminal = RuntimeError("LLM response had null content")
             text = "" if content is None else str(content)
-            if retry_reason is None and not text.strip() and not tool_calls and reasoning is None:
-                # Empty/whitespace content is retried; reasoning-only and
-                # null-content replies are exempt (handled above).
-                retry_reason = "empty content"
-                terminal = RuntimeError(
-                    f"LLM returned empty/whitespace-only content after "
-                    f"{self.max_retries + 1} attempts"
-                )
+            retry_reason, terminal = self._empty_reply_verdict(
+                content, text, tool_calls, reasoning
+            )
             if retry_reason is not None and terminal is not None:
                 if attempt < self.max_retries:
                     _logger.warning(

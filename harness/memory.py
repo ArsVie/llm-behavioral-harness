@@ -618,44 +618,72 @@ class MemoryAgent:
             )
             if not sources:
                 continue  # provenance required
-            existing = self.store.get_assertion(f.key)
-            if existing is None:
-                assertion = UserModelAssertion(
-                    key=f.key,
-                    value=f.value,
-                    confidence=ASSERTION_INITIAL_CONFIDENCE,
-                    updated_at_t_h=summary.ended_at_t_h,
-                    source_memory_ids=sources,
-                    status="current",
-                )
-            elif _clean(existing.value).lower() == _clean(f.value).lower():
-                assertion = UserModelAssertion(
-                    key=f.key,
-                    value=existing.value,
-                    confidence=min(
-                        ASSERTION_MAX_CONFIDENCE,
-                        existing.confidence + ASSERTION_STRENGTHEN_STEP,
-                    ),
-                    updated_at_t_h=summary.ended_at_t_h,
-                    source_memory_ids=existing.source_memory_ids + sources,
-                    status="current",
-                )
-            else:
-                assertion = UserModelAssertion(
-                    key=f.key,
-                    value=f.value,
-                    confidence=ASSERTION_CONTRADICTION_CONFIDENCE,
-                    updated_at_t_h=summary.ended_at_t_h,
-                    source_memory_ids=sources,
-                    status="current",
-                )
+            assertion = self._merged_assertion(
+                f, self.store.get_assertion(f.key), sources,
+                summary.ended_at_t_h,
+            )
             if self._upsert_accepts_category:
                 self.store.upsert_assertion(assertion, category=f.category)
             else:
                 self.store.upsert_assertion(assertion)
             updated.append(assertion)
+        updated.extend(
+            self._supersede_negated(facts, ep_by_turn, summary.ended_at_t_h)
+        )
+        return updated
 
-        # Negation facts supersede current assertions mentioning the subject.
+    @staticmethod
+    def _merged_assertion(fact, existing, sources: tuple,
+                          ended_at_t_h: float) -> UserModelAssertion:
+        """One fact merged against what the model already believes.
+
+        Three cases, and the confidence is what distinguishes them: a NEW
+        key starts at the initial confidence; COMPATIBLE evidence (same
+        normalized value) keeps the stored wording, raises confidence and
+        appends provenance; CONTRADICTORY evidence takes the new value and
+        drops to the contradiction confidence — she believes the latest
+        thing said, but weakly, because she has been told two things.
+        """
+        if existing is None:
+            return UserModelAssertion(
+                key=fact.key,
+                value=fact.value,
+                confidence=ASSERTION_INITIAL_CONFIDENCE,
+                updated_at_t_h=ended_at_t_h,
+                source_memory_ids=sources,
+                status="current",
+            )
+        if _clean(existing.value).lower() == _clean(fact.value).lower():
+            return UserModelAssertion(
+                key=fact.key,
+                value=existing.value,
+                confidence=min(
+                    ASSERTION_MAX_CONFIDENCE,
+                    existing.confidence + ASSERTION_STRENGTHEN_STEP,
+                ),
+                updated_at_t_h=ended_at_t_h,
+                source_memory_ids=existing.source_memory_ids + sources,
+                status="current",
+            )
+        return UserModelAssertion(
+            key=fact.key,
+            value=fact.value,
+            confidence=ASSERTION_CONTRADICTION_CONFIDENCE,
+            updated_at_t_h=ended_at_t_h,
+            source_memory_ids=sources,
+            status="current",
+        )
+
+    def _supersede_negated(self, facts, ep_by_turn: dict,
+                           ended_at_t_h: float) -> list[UserModelAssertion]:
+        """Retire assertions a negation fact contradicts by subject.
+
+        "I don't have a dog any more" must also retire "user's dog is named
+        Rex" — a different key that merely MENTIONS the subject, which the
+        same-key upsert above can never reach. Nothing is deleted: the row
+        flips to "superseded" with the negation's provenance merged in.
+        """
+        retired: list[UserModelAssertion] = []
         for f in facts:
             m = _NEGATION_VALUE_RE.match(f.value)
             if not m:
@@ -667,24 +695,26 @@ class MemoryAgent:
             for a in self.store.list_assertions(status="current"):
                 if a.key == f.key:
                     continue  # same-key supersede handled by the upsert above
-                if re.search(rf"\b{re.escape(subject)}\b", a.value, re.IGNORECASE):
-                    superseded = replace(
-                        a,
-                        status="superseded",
-                        updated_at_t_h=summary.ended_at_t_h,
-                        source_memory_ids=a.source_memory_ids + extra,
+                if not re.search(rf"\b{re.escape(subject)}\b", a.value,
+                                 re.IGNORECASE):
+                    continue
+                superseded = replace(
+                    a,
+                    status="superseded",
+                    updated_at_t_h=ended_at_t_h,
+                    source_memory_ids=a.source_memory_ids + extra,
+                )
+                if self._supersede_accepts_provenance:
+                    # Persist merged provenance on the superseded row.
+                    self.store.supersede_assertion(
+                        a.key,
+                        source_memory_ids=superseded.source_memory_ids,
+                        updated_at_t_h=superseded.updated_at_t_h,
                     )
-                    if self._supersede_accepts_provenance:
-                        # Persist merged provenance on the superseded row.
-                        self.store.supersede_assertion(
-                            a.key,
-                            source_memory_ids=superseded.source_memory_ids,
-                            updated_at_t_h=superseded.updated_at_t_h,
-                        )
-                    else:
-                        self.store.supersede_assertion(a.key)
-                    updated.append(superseded)
-        return updated
+                else:
+                    self.store.supersede_assertion(a.key)
+                retired.append(superseded)
+        return retired
 
     # -- retrieval ----------------------------------------------------------
 
