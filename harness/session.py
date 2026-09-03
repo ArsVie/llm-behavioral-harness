@@ -54,7 +54,7 @@ from __future__ import annotations
 import inspect
 import json
 import os
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from typing import Literal
 
 import engine.rng as rng_mod
@@ -283,6 +283,56 @@ class _NoopMemory:
 
     def update_user_model(self, summary) -> list:
         return []
+
+
+@dataclass
+class _SteerDrain:
+    """What draining this turn's steers produced.
+
+    Mutable by design: ``_apply_steer`` appends to ``notices`` and
+    ``proactive_out`` through the same lists the caller reads back.
+    """
+
+    notices: list[str] = field(default_factory=list)
+    proactive_out: list[tuple[str, str]] = field(default_factory=list)
+    injections: list[str] = field(default_factory=list)
+    suppress_reply: bool = False
+
+
+def _with_bubble_instruction(system: str) -> str:
+    """Append the bubble instruction when HARNESS_BUBBLES is on.
+
+    Import and flag read are both inside the guard on purpose: bubbles are
+    an optional layer, and a harness built without the module (or with a
+    broken flag) must still produce an ordinary single-message turn.
+    """
+    try:
+        from harness.bubbles import BUBBLE_INSTRUCTION, bubbles_enabled
+
+        if bubbles_enabled():
+            return system + "\n\n" + BUBBLE_INSTRUCTION
+    except Exception:
+        pass
+    return system
+
+
+def _split_into_bubbles(reply: str) -> tuple[str, ...] | None:
+    """Split a reply on blank-line runs when HARNESS_BUBBLES is on.
+
+    Both ``\n`` and ``\n\n`` count as one boundary. None means "send as one
+    message" — which is also what a single part means, so the caller never
+    has to distinguish "off" from "the model did not split".
+    """
+    try:
+        from harness.bubbles import bubbles_enabled, parse_bubbles
+
+        if bubbles_enabled():
+            parts = parse_bubbles(reply)
+            if len(parts) >= 2:
+                return tuple(parts)
+    except Exception:
+        pass
+    return None
 
 
 class Session:
@@ -1302,6 +1352,137 @@ class Session:
             kwargs["conversation_id"] = conversation_id
         return self.store.add_message(role, content, t_h, day, **kwargs)
 
+    def _drain_steers(self, day: int, t_h: float, turn_id: str) -> _SteerDrain:
+        """Apply every steer pending at this turn's idle boundary.
+
+        Three outcomes per steer: SUPPRESS kills the ordinary reply (a
+        no-reply verdict), INJECT adds a marked block to the prompt, and
+        anything else is handled entirely by ``_apply_steer``'s side effects.
+        Only INJECT steers stay in ``_turn_drained`` — the requeue set — so a
+        turn that dies mid-generation puts back exactly the steers whose
+        delivery the model never actually saw.
+
+        With no steering backend the result is empty and the turn proceeds
+        unchanged.
+        """
+        drain = _SteerDrain()
+        self._turn_drained = []
+        if self._steering is None:
+            return drain
+        if self._decision_enabled:
+            self._enqueue_event_popups(day, t_h)
+        # Negotiations already deciding fire their decide trigger
+        # this companion turn.
+        active_before = {
+            iid for iid, st in self._negotiations.items()
+            if st.phase == NegotiationPhase.DECIDE.value
+            and not st.resolved
+        }
+        drained = self._steering.drain_pending(BOUNDARY_IDLE, turn_id, t_h)
+        self._turn_drained = [s.steer_id for s in drained]
+        try:
+            for steer in drained:
+                outcome = self._apply_steer(
+                    steer, day=day, t_h=t_h,
+                    notices=drain.notices, proactive_out=drain.proactive_out,
+                )
+                if outcome == _STEER_SUPPRESS:
+                    drain.suppress_reply = True
+                if outcome == _STEER_INJECT:
+                    drain.injections.append(
+                        wrap_steer_marker(render_steer_block(steer))
+                    )
+                else:
+                    self._turn_drained.remove(steer.steer_id)
+            # The decide loop fires for every already-deciding
+            # negotiation; a go verdict suppresses the ordinary reply.
+            if self._run_turn_decides(
+                day, t_h, drain.proactive_out, active_before=active_before
+            ):
+                drain.suppress_reply = True
+        except BaseException:
+            for steer_id in self._turn_drained:
+                self._steering.requeue(steer_id)
+            self._turn_drained = []
+            raise
+        return drain
+
+    def _generate(self, messages: list, system: str,
+                  max_tokens: int | None):
+        """Run the turn's LLM call; return (reply, reasoning, usage, raw_cost).
+
+        ``chat_with_meta`` is the richer surface (reasoning, parsed usage,
+        gateway cost); a client without it is still supported and simply
+        yields None for the three extras. An empty or whitespace-only reply
+        raises rather than persisting: the client has already retried empties
+        with bounded backoff, so one that reaches here is a real failure and
+        a blank assistant message would corrupt the transcript.
+        """
+        chat_with_meta = getattr(self.client, "chat_with_meta", None)
+        if chat_with_meta is None:
+            reply = self.client.chat(
+                messages, system=system, max_tokens=max_tokens
+            )
+            reasoning = usage = raw_cost = None
+        else:
+            result = chat_with_meta(
+                messages, system=system, max_tokens=max_tokens,
+                reasoning_effort=self._thinking_effort,
+            )
+            reply = result.content
+            reasoning = result.reasoning
+            # Parsed usage and cost ride on the ChatResult and persist
+            # with the lane attribution when the store accepts them.
+            usage = getattr(result, "usage", None)
+            raw_cost = getattr(result, "raw_cost", None)
+        if not reply.strip():
+            raise RuntimeError(
+                "refusing to persist empty assistant reply (client returned "
+                "empty/whitespace-only content)"
+            )
+        return reply, reasoning, usage, raw_cost
+
+    def _repro_kwargs(self, system: str, messages: list,
+                      max_tokens: int | None, controls, intent,
+                      day: int, t_h: float) -> dict:
+        """The exact prompt/payload/params needed to reconstruct this call.
+
+        Empty unless the store accepts ``repro`` — and the store drops it
+        again unless audit_mode=True, so production logs only the hash.
+        """
+        if not self._accepts_repro:
+            return {}
+        return {"repro": {
+            "model": getattr(self.client, "model", None),
+            "system": system,
+            "messages": messages,
+            "max_tokens": max_tokens,
+            "temperature": 0.8,
+            "json_mode": False,
+            "controls": {
+                "response_delay_s": controls.response_delay_s,
+                "closing_tendency": controls.closing_tendency,
+                "initiative_factor": controls.initiative_factor,
+                "closing_guidance": controls.closing_guidance,
+            },
+            "intent_id": intent.id if intent is not None else None,
+            "timestamp": {"day": day, "t_h": t_h},
+        }}
+
+    def _usage_kwargs(self, usage, raw_cost) -> dict:
+        """Token usage, lane attribution and gateway cost for the ledger.
+
+        Empty on stores without the columns; un-laned clients record
+        lane=NULL rather than guessing a lane.
+        """
+        if not self._accepts_usage:
+            return {}
+        return {
+            "usage": usage,
+            "lane": getattr(self.client, "lane", None),
+            "raw_cost": raw_cost,
+        }
+
     def _chat(
         self,
         user_text: str | None,
@@ -1372,15 +1553,7 @@ class Session:
             # The temporal section renders only when the run is anchored.
             t_h=t_h, anchor=self._real_time_anchor(),
         )
-        # Bubbles (flag-gated): the model may split into bubbles on
-        # blank-line runs; a run of newlines is one separator.
-        try:
-            from harness.bubbles import BUBBLE_INSTRUCTION, bubbles_enabled
-
-            if bubbles_enabled():
-                system = system + "\n\n" + BUBBLE_INSTRUCTION
-        except Exception:
-            pass
+        system = _with_bubble_instruction(system)
         if user_text is None and intent is None:
             # Legacy ungrounded proactive call (pre-slice callers/tests):
             # generic opening without any invented source claim.
@@ -1409,49 +1582,11 @@ class Session:
 
         # Drain pending steers into this turn; no-reply verdicts
         # suppress the reply, and delivered steers re-queue on error.
-        notices: list[str] = []
-        proactive_out: list[tuple[str, str]] = []
-        suppress_reply = False
-        injections: list[str] = []
-        self._turn_drained = []
-        active_before: set[str] = set()
-        if self._steering is not None:
-            if self._decision_enabled:
-                self._enqueue_event_popups(day, t_h)
-            # Negotiations already deciding fire their decide trigger
-            # this companion turn.
-            active_before = {
-                iid for iid, st in self._negotiations.items()
-                if st.phase == NegotiationPhase.DECIDE.value
-                and not st.resolved
-            }
-            drained = self._steering.drain_pending(BOUNDARY_IDLE, turn_id, t_h)
-            self._turn_drained = [s.steer_id for s in drained]
-            try:
-                for steer in drained:
-                    outcome = self._apply_steer(
-                        steer, day=day, t_h=t_h,
-                        notices=notices, proactive_out=proactive_out,
-                    )
-                    if outcome == _STEER_SUPPRESS:
-                        suppress_reply = True
-                    if outcome == _STEER_INJECT:
-                        injections.append(
-                            wrap_steer_marker(render_steer_block(steer))
-                        )
-                    else:
-                        self._turn_drained.remove(steer.steer_id)
-                # The decide loop fires for every already-deciding
-                # negotiation; a go verdict suppresses the ordinary reply.
-                if self._run_turn_decides(
-                    day, t_h, proactive_out, active_before=active_before
-                ):
-                    suppress_reply = True
-            except BaseException:
-                for steer_id in self._turn_drained:
-                    self._steering.requeue(steer_id)
-                self._turn_drained = []
-                raise
+        drain = self._drain_steers(day, t_h, turn_id)
+        notices = drain.notices
+        proactive_out = drain.proactive_out
+        injections = drain.injections
+        suppress_reply = drain.suppress_reply
 
         # Agenda status transitions as windows pass, persisted via the
         # store; runs after the steering drain.
@@ -1479,30 +1614,9 @@ class Session:
         max_tokens = (
             None if self._thinking_effort is not None else controls.max_tokens
         )
-        reasoning: str | None = None
-        usage = None
-        raw_cost = None
-        chat_with_meta = getattr(self.client, "chat_with_meta", None)
-        if chat_with_meta is None:
-            reply = self.client.chat(messages, system=system, max_tokens=max_tokens)
-        else:
-            result = chat_with_meta(
-                messages, system=system, max_tokens=max_tokens,
-                reasoning_effort=self._thinking_effort,
-            )
-            reply = result.content
-            reasoning = result.reasoning
-            # Parsed usage and cost ride on the ChatResult and persist
-            # with the lane attribution when the store accepts them.
-            usage = getattr(result, "usage", None)
-            raw_cost = getattr(result, "raw_cost", None)
-        if not reply.strip():
-            # An empty/whitespace reply is never persisted; the client
-            # retries empties with bounded backoff first.
-            raise RuntimeError(
-                "refusing to persist empty assistant reply (client returned "
-                "empty/whitespace-only content)"
-            )
+        reply, reasoning, usage, raw_cost = self._generate(
+            messages, system, max_tokens
+        )
         mid = self._persist_message(
             "assistant", reply, t_h, day,
             proactive=proactive, session_id=session_id, conversation_id=conv_id,
@@ -1514,36 +1628,13 @@ class Session:
         # Companion-turn close checks: the closing_tendency draw and
         # the max_turns cap; a close persists close_reason.
         self._maybe_close_conversation(conv, t_h, controls.closing_tendency)
-        repro_kwargs: dict = {}
-        if self._accepts_repro:
-            # Persist the exact prompt/payload/params so repro_json
-            # reconstructs the call; dropped unless audit_mode=True.
-            repro_kwargs["repro"] = {
-                "model": getattr(self.client, "model", None),
-                "system": system,
-                "messages": messages,
-                "max_tokens": max_tokens,
-                "temperature": 0.8,
-                "json_mode": False,
-                "controls": {
-                    "response_delay_s": controls.response_delay_s,
-                    "closing_tendency": controls.closing_tendency,
-                    "initiative_factor": controls.initiative_factor,
-                    "closing_guidance": controls.closing_guidance,
-                },
-                "intent_id": intent.id if intent is not None else None,
-                "timestamp": {"day": day, "t_h": t_h},
-            }
+        repro_kwargs = self._repro_kwargs(
+            system, messages, max_tokens, controls, intent, day, t_h
+        )
         # WS4: reasoning persists in the call's meta (audit.py renders it
         # under #Thinking; non-reasoning runs store nothing).
         meta = {"reasoning": reasoning} if reasoning else None
-        usage_kwargs: dict = {}
-        if self._accepts_usage:
-            # Parsed usage, lane attribution and gateway-reported cost
-            # persist; un-laned clients record lane=NULL.
-            usage_kwargs["usage"] = usage
-            usage_kwargs["lane"] = getattr(self.client, "lane", None)
-            usage_kwargs["raw_cost"] = raw_cost
+        usage_kwargs = self._usage_kwargs(usage, raw_cost)
         self.store.log_llm_call(
             day,
             t_h,
@@ -1557,18 +1648,7 @@ class Session:
         )
         self.store.log_event(day, t_h, "assistant_reply", f"len={len(reply)}")
         self._turn_drained = []
-        # Bubbles (model-driven, flag-gated HARNESS_BUBBLES): parse the reply
-        # on blank-line runs — both \n and \n\n count as one boundary.
-        bubbles: tuple[str, ...] | None = None
-        try:
-            from harness.bubbles import bubbles_enabled, parse_bubbles
-
-            if bubbles_enabled():
-                parts = parse_bubbles(reply)
-                if len(parts) >= 2:
-                    bubbles = tuple(parts)
-        except Exception:
-            pass
+        bubbles = _split_into_bubbles(reply)
         return TurnResult(
             reply=reply,
             directive=directive,
@@ -1671,6 +1751,88 @@ class Session:
                 )
         self.store.log_event(day, now, "popup_boundary_check", f"items={len(items)}")
 
+    def _steer_user_message(self, steer: Steer, payload: dict, *,
+                            day: int, t_h: float,
+                            notices: list[str]) -> str:
+        """A user message that arrived while an event was in progress.
+
+        With no event running the message is already in the transcript, so
+        the steer is consumed without a model call. Otherwise the model
+        decides whether to reply at all: ``reply: false`` suppresses the
+        ordinary reply and sends the notice instead (the single reply-path
+        invariant), and ``terminate_event`` ends the event she was in.
+        """
+        activity = self._current_activity(day, t_h)
+        if activity is None or activity.item is None:
+            return _STEER_CONSUMED
+        result = self._execute_decision(
+            decision_id=f"steer-{steer.steer_id}",
+            popup_kind="tool_decide_reply",
+            inputs={
+                "event_id": activity.item.id,
+                "event_label": activity.item.activity,
+                "state_label": "in_progress",
+                "time": str(t_h),
+                "latest_user_message": str(payload.get("message", "")),
+                "conversation_context": self._conversation_context(),
+            },
+            steer=steer,
+            day=day,
+            t_h=t_h,
+        )
+        if result is None:
+            return _STEER_CONSUMED  # re-queued: next boundary
+        if result.verdict.get("reply") is False:
+            notices.append(result.notice or "")
+            return _STEER_SUPPRESS
+        if result.verdict.get("terminate_event"):
+            self._mark_event_closed(activity.item.id)
+        return _STEER_CONSUMED
+
+    def _steer_event_popup(self, steer: Steer, payload: dict, *,
+                           day: int, t_h: float,
+                           proactive_out: list[tuple[str, str]]) -> str:
+        """An agenda event starting or ending.
+
+        A negotiation, once it owns the item, owns both ends of its
+        lifecycle — the START pop-up becomes Inform-then-Decide and the END
+        pop-up is consumed with no model call. Otherwise the model decides:
+        ``initiate`` on a start sends a proactive message in her own words,
+        ``abandon`` on an end closes the event.
+        """
+        state = str(payload.get("state", "start"))
+        item_id = str(payload.get("item_id") or payload.get("event_id") or "")
+        if item_id:
+            if state == "start" and self._maybe_start_negotiation(
+                item_id, day, t_h, steer, proactive_out
+            ):
+                return _STEER_CONSUMED
+            if state == "end" and item_id in self._negotiations:
+                return _STEER_CONSUMED
+        result = self._execute_decision(
+            decision_id=f"steer-{steer.steer_id}",
+            popup_kind="tool_decide_event",
+            inputs={
+                "event_id": item_id,
+                "event_label": str(payload.get("event") or "?"),
+                "state_label": state,
+                "time": str(payload.get("time", t_h)),
+            },
+            steer=steer,
+            day=day,
+            t_h=t_h,
+        )
+        if result is None:
+            return _STEER_CONSUMED  # re-queued: next boundary
+        verdict = result.verdict
+        if state == "start" and verdict.get("initiate"):
+            label = str(payload.get("event") or "?")
+            text = str(verdict.get("reason") or "").strip() or f"Starting {label}."
+            proactive_out.append(("event_popup", text))
+        elif state == "end" and verdict.get("action") == "abandon":
+            self._mark_event_closed(item_id)
+        return _STEER_CONSUMED
+
     def _apply_steer(
         self,
         steer: Steer,
@@ -1698,79 +1860,14 @@ class Session:
         payload = steer.payload or {}
         kind = steer.kind
         if kind == KIND_USER_MESSAGE:
-            activity = self._current_activity(day, t_h)
-            if activity is None or activity.item is None:
-                # No event in progress: the message is already part of the
-                # transcript — consume the steer without a pop-up.
-                return _STEER_CONSUMED
-            result = self._execute_decision(
-                decision_id=f"steer-{steer.steer_id}",
-                popup_kind="tool_decide_reply",
-                inputs={
-                    "event_id": activity.item.id,
-                    "event_label": activity.item.activity,
-                    "state_label": "in_progress",
-                    "time": str(t_h),
-                    "latest_user_message": str(payload.get("message", "")),
-                    "conversation_context": self._conversation_context(),
-                },
-                steer=steer,
-                day=day,
-                t_h=t_h,
+            return self._steer_user_message(
+                steer, payload, day=day, t_h=t_h, notices=notices
             )
-            if result is None:
-                return _STEER_CONSUMED  # re-queued: next boundary
-            if result.verdict.get("reply") is False:
-                notices.append(result.notice or "")
-                return _STEER_SUPPRESS
-            if result.verdict.get("terminate_event"):
-                self._mark_event_closed(activity.item.id)
-            return _STEER_CONSUMED
         if kind == KIND_EVENT_POPUP:
-            state = str(payload.get("state", "start"))
-            item_id = str(
-                payload.get("item_id") or payload.get("event_id") or ""
+            return self._steer_event_popup(
+                steer, payload, day=day, t_h=t_h,
+                proactive_out=proactive_out,
             )
-            if item_id:
-                if state == "start" and self._maybe_start_negotiation(
-                    item_id, day, t_h, steer, proactive_out
-                ):
-                    # The negotiation owns the start pop-up: Inform-once
-                    # then the Decide loop.
-                    return _STEER_CONSUMED
-                if state == "end" and item_id in self._negotiations:
-                    # The negotiation owns the item lifecycle: the END
-                    # pop-up is consumed without a model call.
-                    return _STEER_CONSUMED
-            result = self._execute_decision(
-                decision_id=f"steer-{steer.steer_id}",
-                popup_kind="tool_decide_event",
-                inputs={
-                    "event_id": str(
-                        payload.get("item_id") or payload.get("event_id") or ""
-                    ),
-                    "event_label": str(payload.get("event") or "?"),
-                    "state_label": state,
-                    "time": str(payload.get("time", t_h)),
-                },
-                steer=steer,
-                day=day,
-                t_h=t_h,
-            )
-            if result is None:
-                return _STEER_CONSUMED  # re-queued: next boundary
-            verdict = result.verdict
-            if state == "start" and verdict.get("initiate"):
-                # Initiate: she engages the event — a proactive message goes
-                # out through the channel (her own reason when present).
-                label = str(payload.get("event") or "?")
-                text = str(verdict.get("reason") or "").strip() or f"Starting {label}."
-                proactive_out.append(("event_popup", text))
-            elif state == "end" and verdict.get("action") == "abandon":
-                self._mark_event_closed(
-                    str(payload.get("item_id") or payload.get("event_id") or "")
-                )
-            return _STEER_CONSUMED
         # schedule_fire / day_rollover (or unknown kinds): the harness's own
         # paths own those flows; the block is still rendered as context.
         return _STEER_INJECT
