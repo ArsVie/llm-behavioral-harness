@@ -49,6 +49,8 @@ from harness.scheduler import ProactiveSchedule
 from harness.session import MAX_TURNS, Session, USER_LEFT_THRESHOLD_H
 from harness.store import SCHEMA_VERSION, SQLiteStore
 
+from tests.helpers import no_wait
+
 PERSONA = PersonaParams()
 TIMING = TimingParams()
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
@@ -419,7 +421,7 @@ def test_user_left_close_at_deadline_runtime(tmp_path):
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
-                store=store, timing=TIMING, seed=SEED,
+                store=store, timing=TIMING, seed=SEED, sleeper=no_wait,
                 time_scale=FAST, max_virtual_hours=deadline + 0.5,
             ).run()
         finally:
@@ -448,7 +450,7 @@ def test_quiet_hours_close_at_boundary_runtime(tmp_path):
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
-                store=store, timing=TIMING, seed=SEED,
+                store=store, timing=TIMING, seed=SEED, sleeper=no_wait,
                 time_scale=FAST, max_virtual_hours=23.5,
             ).run()
         finally:

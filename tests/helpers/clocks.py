@@ -69,3 +69,16 @@ class AnchorManualClock:
 
     async def sleep(self, delay: float) -> None:
         self.t += delay * self.drift
+
+
+async def no_wait(delay: float) -> None:
+    """Sleeper that consumes ``response_delay_s`` without waiting for it.
+
+    ``BehaviorDirective.response_delay_s`` is WALL-CLOCK seconds and is
+    deliberately not scaled by ``TimeScale`` — it is the humanising pause
+    before a reply, ~30 s at the default persona. A runtime built without an
+    injected sleeper therefore really sleeps that long per turn, which is
+    what made a handful of lifecycle tests cost 17-30 s each. Tests that
+    assert on the delay VALUE use ``helpers.runtime.run``'s recorder; tests
+    that only care about the resulting messages/events take this.
+    """

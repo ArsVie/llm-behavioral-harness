@@ -38,7 +38,13 @@ from tests.helpers.agenda import (
 )
 from tests.helpers.fakes import FakeStore, SeamStore
 from tests.helpers.channel_fakes import FakeApplication, FakeBot, StubUpdate
-from tests.helpers.clocks import AnchorManualClock, GateSleeper, ManualClock, drain
+from tests.helpers.clocks import (
+    AnchorManualClock,
+    GateSleeper,
+    ManualClock,
+    drain,
+    no_wait,
+)
 from tests.helpers.forbidden import (
     BATTERY_MESSAGES,
     BATTERY_VARIANTS,
@@ -69,6 +75,7 @@ __all__ = [
     "ManualClock",
     "AnchorManualClock",
     "drain",
+    "no_wait",
     "BATTERY_MESSAGES",
     "BATTERY_VARIANTS",
     "CLOCK_TIME_RE",

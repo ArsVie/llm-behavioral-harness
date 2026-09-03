@@ -6,6 +6,50 @@ the agent. New asks get appended here as they are spoken.
 
 ## Open
 
+### Clear the live-trial blockers (review 2026-09-02)
+- Date: 2026-09-02
+- Verbatim: "Clear the hard blockers and the things that will degrade badly."
+- Summary: A review of the live entry found six items standing between the repo
+  and a week-long Telegram trial (four that stop it outright, two that would
+  make the data worthless). Work them in the order below; the first two decide
+  whether the week produces meaningful data at all.
+
+  1. **Fake feedback loop (hard).** `live_companion.build_runtime` leaves
+     `judge=None`, falling back to `DeterministicJudge` (a seed-keyed sinusoid
+     with a scripted bad-mood block on days 11-14) while the session is built
+     `feedback=True`. Scripted scores drive `mu`; nothing the real user says
+     moves her mood. Wire `harness/judge.py` on the research lane — and note
+     judge.py's own docstring still calls for re-verifying the v2 rubric's
+     monthly separation before feedback is trusted.
+  2. **Stale clock anchor in the trial DB (hard).** `results/live-companion/companion.db`
+     holds an anchor from 2026-08-16 with only day 0 in `daily_state`. Verified
+     on a copy: resume puts the clock at t_h 427 (day 17) while
+     `session.current_day` stays 0, and the first midnight `ensure_day(18)`
+     fast-forwards 18 days through the scripted judge in 1.5 s. Start the trial
+     on a fresh DB; archive this one.
+  3. **Unguarded LLM call kills the process (hard).** `runtime.py` has two
+     `except` clauses in the whole file, neither around a turn.
+     `_firing_loop` -> `_fire_exact_intent` -> `session.fire_proactive` is
+     unguarded and `client.py` raises once retries are exhausted; the exception
+     unwinds `asyncio.gather` in `run()` and the bot exits. Inbound fails
+     silently instead: no error handler is registered on the telegram
+     application. Guard both paths; register the handler.
+  4. **Nothing keeps it alive for a week (hard).** No systemd unit, supervisor,
+     or restart wrapper — `live_telegram.sh` ends in a bare `exec python` — and
+     no log file anywhere (`logging.basicConfig` is never called). A Windows
+     sleep ends the run unnoticed.
+  5. **She does not know the user, and her name is seed-drawn (degrades).**
+     `bootstrap()` hardcodes `UserProfile(name="User", interests=("mathematics",
+     "lifting", "movies", "metal"))` — the ablation fixture. The persona row in
+     the live DB is "Nova" (seed 5001) while the bot is @Lily_Vie_bot;
+     `DEFAULT_PERSONA = "Ana"` in live_companion.py is dead. This is the open
+     "setup window for themes" ask.
+  6. **Every slash command is off (degrades).** The launcher never passes
+     `--enable-commands`, so `/help /ping /setup /tz /status /mute` are dropped
+     — including `/mute`, the only way to stop proactive messages short of
+     killing the process, and `/setup`, the fix for (5).
+
+
 ### Bot time anchored to a real timezone
 - Date: 2026-08-15
 - Verbatim: "another thing for the backlog, bot time is not real time. we should have a command to set the timezone of the bot too"

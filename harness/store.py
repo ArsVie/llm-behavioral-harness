@@ -132,6 +132,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import sqlite3
 from array import array
 from dataclasses import asdict
@@ -156,6 +157,32 @@ from harness.domain import (
     UserModelAssertion,
     UserModelCategory,
 )
+
+#: PRAGMA synchronous level for every connection this module opens. Production
+#: keeps SQLite's FULL default (one fsync per commit). The test suite exports
+#: OFF, which is the difference between ~4.8 ms and ~0.01 ms per commit — the
+#: fsync, not the work, is what made the suite take minutes.
+SYNCHRONOUS_ENV = "HARNESS_SQLITE_SYNCHRONOUS"
+_SYNCHRONOUS_LEVELS = ("OFF", "NORMAL", "FULL", "EXTRA")
+
+
+def sqlite_synchronous() -> str:
+    """The PRAGMA synchronous level from the environment; FULL when unset.
+
+    Raises on anything outside SQLite's vocabulary so a typo downgrades
+    durability loudly instead of silently.
+    """
+    raw = os.environ.get(SYNCHRONOUS_ENV)
+    if raw is None or raw.strip() == "":
+        return "FULL"
+    level = raw.strip().upper()
+    if level not in _SYNCHRONOUS_LEVELS:
+        raise ValueError(
+            f"{SYNCHRONOUS_ENV} must be one of {'|'.join(_SYNCHRONOUS_LEVELS)}, "
+            f"got {raw!r}"
+        )
+    return level
+
 
 SCHEMA_VERSION = 8
 
@@ -709,6 +736,7 @@ class SQLiteStore:
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
         self.conn.execute("PRAGMA busy_timeout=10000")
+        self.conn.execute(f"PRAGMA synchronous={sqlite_synchronous()}")
         self.conn.executescript(_SCHEMA)  # v1 base: idempotent on every open
         self.conn.executescript(schema_meta(SCHEMA_VERSION))  # bookkeeping
         _migrate(self.conn)  # version-gated, additive, completes in __init__

@@ -34,7 +34,7 @@ from harness.scheduler import (
     day_scores,
 )
 from harness.session import Session
-from tests.helpers import SeamStore, agenda_item, ground_agenda, make_session, rows, suppressed_codes
+from tests.helpers import SeamStore, agenda_item, ground_agenda, make_session, no_wait, rows, suppressed_codes
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -204,7 +204,7 @@ def test_reactive_inbound_reply_via_channel():
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
-                store=store, timing=TIMING, seed=SEED,
+                store=store, timing=TIMING, seed=SEED, sleeper=no_wait,
                 time_scale=FAST, max_virtual_hours=1.0,
             ).run()
         finally:
@@ -239,7 +239,7 @@ def test_expired_event_marked_expired():
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
-                store=store, timing=TIMING, seed=SEED,
+                store=store, timing=TIMING, seed=SEED, sleeper=no_wait,
                 time_scale=FAST, max_virtual_hours=30.0,
             ).run()
         finally:
@@ -477,7 +477,7 @@ def test_quiet_hours_closes_open_conversation_at_boundary():
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
-                store=store, timing=TIMING, seed=SEED,
+                store=store, timing=TIMING, seed=SEED, sleeper=no_wait,
                 time_scale=FAST, max_virtual_hours=23.5,
             ).run()
         finally:
@@ -513,7 +513,7 @@ def test_user_left_closes_open_conversation_at_deadline():
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
-                store=store, timing=TIMING, seed=SEED,
+                store=store, timing=TIMING, seed=SEED, sleeper=no_wait,
                 time_scale=FAST, max_virtual_hours=22.5,
             ).run()
         finally:

@@ -208,6 +208,7 @@ class TestControlsStats:
 class TestPreflightGate:
     """La compuerta (Gate G2): veredictos por condición contra FULL."""
 
+    @pytest.mark.slow
     def test_preflight_flags_null_ablations_on_current_code(self, tmp_path):
         """Aceptación B8 #2 (G2, goldfish + claims fundidos + SPLIT de
         compuerta): sobre el código ACTUAL y en el horizonte CONFIRMATORIO
@@ -256,6 +257,7 @@ class TestPreflightGate:
                 assert v["passed"] is None
                 assert "min_days" in v["reason"]
 
+    @pytest.mark.slow
     def test_preflight_positive_control_detectable_across_frozen_seeds(
         self, tmp_path
     ):
@@ -290,6 +292,7 @@ class TestPreflightGate:
         assert m["count_div"] is not None
         assert "gap_div" in m and "times_identical" in m
 
+    @pytest.mark.slow
     def test_positive_control_high_margin_seed5005(self, tmp_path):
         """El control positivo en la semilla 5005 tiene margen amplio en la
         pata de disparos en el horizonte confirmatorio — el canal responde.

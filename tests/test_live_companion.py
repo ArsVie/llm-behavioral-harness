@@ -20,6 +20,8 @@ from experiments.live_companion import bootstrap, build_runtime
 from harness.channels.base import FakeChannel, InboundMessage, OutboundMessage
 from harness.client import FakeClient
 
+from tests.helpers import no_wait
+
 
 def test_live_runtime_round_trip_reply_and_proactive():
     """Inbound -> réplica -> send, y los proactivos llegan al canal.
@@ -40,6 +42,9 @@ def test_live_runtime_round_trip_reply_and_proactive():
                 client=FakeClient(), judge=judge,
                 time_scale_s_per_vh=0.0004,  # escala acelerada del CI
             )
+            # response_delay_s son segundos de reloj REAL (no los escala
+            # TimeScale): sin esto la compuerta duerme ~30 s de verdad.
+            runtime.sleeper = no_wait
             task = asyncio.create_task(runtime.run())
             try:
                 for _ in range(50):
