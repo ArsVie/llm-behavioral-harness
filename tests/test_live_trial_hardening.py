@@ -350,3 +350,155 @@ def test_telegram_handler_error_is_reported(caplog):
     with caplog.at_level(logging.ERROR, logger="harness.channels.telegram"):
         asyncio.run(channel._on_handler_error(object(), Ctx()))
     assert "handler blew up" in caplog.text
+
+
+# --- CRAP outliers: low complexity, thin coverage ------------------------
+
+
+class _FakeResp:
+    def __init__(self, status_code: int, payload: dict) -> None:
+        self.status_code = status_code
+        self._payload = payload
+
+    def json(self) -> dict:
+        return self._payload
+
+
+class _FakeAsyncClient:
+    """Stands in for httpx.AsyncClient in check_token's `async with`."""
+
+    def __init__(self, resp=None, error: Exception | None = None) -> None:
+        self._resp = resp
+        self._error = error
+        self.requested: str | None = None
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *exc):
+        return False
+
+    async def get(self, url: str):
+        self.requested = url
+        if self._error is not None:
+            raise self._error
+        return self._resp
+
+
+def _telegram_channel(**kw):
+    from harness.channels.telegram import TelegramChannel
+
+    return TelegramChannel(**kw)
+
+
+def _patch_async_client(monkeypatch, client):
+    import httpx
+
+    monkeypatch.setattr(httpx, "AsyncClient", lambda **kw: client)
+
+
+def test_check_token_without_a_token_is_false(monkeypatch):
+    """No token configured is a clean False, not an exception."""
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    channel = _telegram_channel(application=object(), owner_chat_id=1)
+    assert asyncio.run(channel.check_token()) is False
+
+
+def test_check_token_calls_get_me_and_sends_nothing(monkeypatch):
+    """The gate proves the token is live WITHOUT delivering a message: the
+    only request is a GET to getMe."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+    client = _FakeAsyncClient(_FakeResp(200, {"ok": True}))
+    _patch_async_client(monkeypatch, client)
+    channel = _telegram_channel(application=object(), owner_chat_id=1)
+    assert asyncio.run(channel.check_token()) is True
+    assert client.requested == "https://api.telegram.org/bot123:abc/getMe"
+
+
+def test_check_token_false_on_non_200(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+    _patch_async_client(monkeypatch, _FakeAsyncClient(_FakeResp(401, {})))
+    channel = _telegram_channel(application=object(), owner_chat_id=1)
+    assert asyncio.run(channel.check_token()) is False
+
+
+def test_check_token_false_when_the_api_says_not_ok(monkeypatch):
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+    _patch_async_client(
+        monkeypatch, _FakeAsyncClient(_FakeResp(200, {"ok": False}))
+    )
+    channel = _telegram_channel(application=object(), owner_chat_id=1)
+    assert asyncio.run(channel.check_token()) is False
+
+
+def test_check_token_false_on_transport_failure(monkeypatch):
+    """A network failure must not raise out of a gate check."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+    _patch_async_client(
+        monkeypatch, _FakeAsyncClient(error=RuntimeError("no route"))
+    )
+    channel = _telegram_channel(application=object(), owner_chat_id=1)
+    assert asyncio.run(channel.check_token()) is False
+
+
+def test_check_token_warns_when_no_owner_chat_is_set(monkeypatch, capsys):
+    """Outbound still works without TELEGRAM_CHAT_ID, but owner-only inbound
+    filtering is off — that has to be said out loud, not discovered."""
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
+    _patch_async_client(
+        monkeypatch, _FakeAsyncClient(_FakeResp(200, {"ok": True}))
+    )
+    channel = _telegram_channel(application=object(), owner_chat_id=None)
+    assert asyncio.run(channel.check_token()) is True
+    assert "TELEGRAM_CHAT_ID not set" in capsys.readouterr().out
+
+
+def test_life_step_done_is_true_without_an_agenda(tmp_path):
+    """No agenda means _step_life would no-op, so the day counts as done —
+    this is what makes the crash-window completion idempotent."""
+    store = build_store(tmp_path / "life-none.db")
+    try:
+        session = make_session(store, clock=VirtualClock())
+        assert session._life_step_done(0) is True
+    finally:
+        store.close()
+
+
+def test_life_step_done_tracks_the_persisted_marker(tmp_path):
+    """With an agenda present the answer is the persisted life_step event.
+
+    An agenda but no marker means the step has NOT run — which is the case
+    the crash-window completion exists to finish. Logging the marker flips
+    it, so completing twice is a no-op.
+    """
+    store = build_store(tmp_path / "life-marker.db")
+    try:
+        bootstrap(store, SEED)
+        session = make_session(store, clock=VirtualClock())
+        assert store.load_agenda(0) is not None
+        assert session._life_step_done(0) is False
+        store.log_event(0, 1.0, "life_step", "day=0")
+        assert session._life_step_done(0) is True
+    finally:
+        store.close()
+
+
+def test_life_step_done_is_keyed_on_the_event_row_day(tmp_path):
+    """The marker matches the event ROW's day column, not its detail text.
+
+    Both days here have an agenda, so neither short-circuits: marking day 0
+    must leave day 1 unstepped. (The detail string is free-form and is
+    deliberately not what the lookup keys on.)
+    """
+    store = build_store(tmp_path / "life-otherday.db")
+    try:
+        bootstrap(store, SEED)
+        session = make_session(store, clock=VirtualClock())
+        session.ensure_day(1)  # give day 1 an agenda too
+        assert store.load_agenda(0) is not None
+        assert store.load_agenda(1) is not None
+        store.log_event(0, 1.0, "life_step", "irrelevant detail")
+        assert session._life_step_done(0) is True
+        assert session._life_step_done(1) is False
+    finally:
+        store.close()

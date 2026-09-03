@@ -58,3 +58,45 @@ exclude_also = [
     "raise NotImplementedError",
     "if __name__ == .__main__.:",
 ]
+
+[tool.mutmut]
+# Mutation testing, scoped to engine/ deliberately. The engine is the FROZEN
+# contract layer — mood, cycle, circadian, hazard timing, seed-keyed RNG — so
+# a surviving mutant there means a stochastic law nothing pins, which is the
+# failure that would quietly invalidate every experiment downstream. It is
+# also small (~920 lines) with a 154-test, 1.5 s subset, so a full sweep
+# finishes in minutes rather than the hours harness/ would take.
+#
+#   .venv/bin/mutmut run          # sweep
+#   .venv/bin/mutmut results      # what survived
+#   .venv/bin/mutmut show <id>    # the diff for one mutant
+#
+# Widening to harness/ is the next step and needs its own budget.
+source_paths = ["engine"]
+# -n 0 is REQUIRED, not a preference: mutmut runs pytest in-process with an
+# injected plugin, so the -n 8 in [tool.pytest.ini_options] addopts would
+# push collection into xdist workers the plugin cannot hook — mutmut then
+# reports only "runner returned 5". These args land after addopts, so the
+# later -n wins.
+pytest_add_cli_args = ["-n", "0", "-p", "no:cacheprovider"]
+# Must be a LIST: mutmut passes this through verbatim, so a single
+# whitespace-joined string becomes one nonexistent path.
+# The engine-facing set. It has to include the REPLAY tests, not just the
+# per-module unit tests: with only the latter, replacing day_rng's whole
+# SeedSequence with None survives, which would read as "determinism is
+# unpinned" when in truth the tests that pin it were simply not selected.
+pytest_add_cli_args_test_selection = [
+    "tests/test_mood.py",
+    "tests/test_cycle.py",
+    "tests/test_circadian.py",
+    "tests/test_timing.py",
+    "tests/test_validation.py",
+    "tests/test_snapshot.py",
+    "tests/test_session.py",
+    "tests/test_adversarial_restart.py",
+    "tests/test_scheduler.py",
+    "tests/test_proactive.py",
+    "tests/test_behavior.py",
+    "tests/test_persona.py",
+    "tests/test_run_daily.py",
+]
