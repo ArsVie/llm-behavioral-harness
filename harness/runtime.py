@@ -592,49 +592,8 @@ class AsyncRuntime:
             if self._max_reached(now):
                 return
             next_midnight = (self.session.clock.day() + 1) * 24.0
-            if self.max_virtual_hours is not None:
-                target = min(next_midnight, self.max_virtual_hours)
-            else:
-                target = next_midnight
-            async with self._lock:
-                # Re-read the clock under the lock; the firing loop may have advanced it.
-                now = self.session.clock.now_h()
-                # Close the open conversation when its boundary close is due.
-                await self._executor.run_in_thread(
-                    self.session.check_conversation_lifecycle, now
-                )
-                # Run availability-negotiation wakes: boundary detection plus due decide legs.
-                neg_outs = await self._executor.run_in_thread(
-                    self.session.check_negotiation, now
-                )
-                pending = self.schedule.next_pending(now)
-                if pending is not None and pending < now - 1e-9:
-                    # Overdue row: park only if the firing loop will consume it (verdict None).
-                    overdue_park = self._defer_verdict(pending, now) is None
-                else:
-                    overdue_park = True
-                # Park at the conversation's next close instant (quiet boundary or deadline).
-                close_t = self.session.next_conversation_close_t_h(now)
-                # Park at the next availability-negotiation wake (AFK bomb or backstop).
-                neg_t = self.session.next_negotiation_trigger_t_h(now)
-            for out_reason, text in neg_outs:
-                await self.channel.send(
-                    OutboundMessage(text=text, proactive=True, reason=out_reason)
-                )
-            if close_t is not None and close_t < target:
-                target = close_t
-            if neg_t is not None and neg_t < target:
-                target = neg_t
-            if (
-                pending is not None
-                # Include overdue rows: next_pending returns overdue-first.
-                and pending < target
-                and not self._firing_done
-                # Park strictly overdue rows only when the firing loop will consume them.
-                and (pending > now or overdue_park)
-            ):
-                # Park at the earliest pending event; the firing loop gates it there.
-                target = pending
+            target, now, neg_outs = await self._survey_park_target(next_midnight)
+            await self._send_neg_outs(neg_outs)
             if target <= now:
                 # Yield to the firing loop without advancing past the parked event hour.
                 await self._poll_wait()
@@ -643,32 +602,80 @@ class AsyncRuntime:
             now = self.session.clock.now_h()
             if self._max_reached(now):
                 return
-            async with self._lock:
-                # Re-read the clock inside the lock so the advance cannot overshoot the target.
-                now = self.session.clock.now_h()
-                if now < target:
-                    self.session.clock.advance_hours(target - now)
-                now = self.session.clock.now_h()
-                # The clock landed on a conversation close instant; record the close.
-                await self._executor.run_in_thread(
-                    self.session.check_conversation_lifecycle, now
-                )
-                # The clock reached a negotiation park instant; run the due decide legs.
-                neg_outs = await self._executor.run_in_thread(
-                    self.session.check_negotiation, now
-                )
-                day = self.session.clock.day()
-                if target >= next_midnight:
-                    # A real rollover crossed midnight; the run-end boundary does not re-plan.
-                    await self._executor.run_in_thread(self.session.ensure_day, day)
-                    self._replan()
-                    # Apply a queued /tz change at the next rollover.
-                    self._apply_pending_tz()
-            # Send negotiation decide-leg outputs after the lock releases.
-            for out_reason, text in neg_outs:
-                await self.channel.send(
-                    OutboundMessage(text=text, proactive=True, reason=out_reason)
-                )
+            await self._land_on_target(target, next_midnight)
+
+    async def _survey_park_target(
+        self, next_midnight: float
+    ) -> tuple[float, float, list]:
+        """Where the rollover may pace the clock to, and why.
+
+        Returns ``(target, now, neg_outs)``. The target starts at the next
+        midnight (or the run end) and is pulled EARLIER by whichever of the
+        three park instants lands first: a conversation's next close, the
+        next negotiation wake, and the earliest pending event. The event park
+        is the clock-discipline rule (it2 A3): the clock must never pass a
+        pending event, or an accelerated midnight jump could expire an event
+        that was still valid. ``neg_outs`` is returned unsent — the caller
+        delivers it after the lock releases.
+        """
+        if self.max_virtual_hours is not None:
+            target = min(next_midnight, self.max_virtual_hours)
+        else:
+            target = next_midnight
+        async with self._lock:
+            # Re-read the clock under the lock; the firing loop may have advanced it.
+            now = self.session.clock.now_h()
+            neg_outs = await self._due_hook_outputs(now)
+            pending = self.schedule.next_pending(now)
+            if pending is not None and pending < now - 1e-9:
+                # Overdue row: park only if the firing loop will consume it (verdict None).
+                overdue_park = self._defer_verdict(pending, now) is None
+            else:
+                overdue_park = True
+            # Park at the conversation's next close instant (quiet boundary or deadline).
+            close_t = self.session.next_conversation_close_t_h(now)
+            # Park at the next availability-negotiation wake (AFK bomb or backstop).
+            neg_t = self.session.next_negotiation_trigger_t_h(now)
+        if close_t is not None and close_t < target:
+            target = close_t
+        if neg_t is not None and neg_t < target:
+            target = neg_t
+        if (
+            pending is not None
+            # Include overdue rows: next_pending returns overdue-first.
+            and pending < target
+            and not self._firing_done
+            # Park strictly overdue rows only when the firing loop will consume them.
+            and (pending > now or overdue_park)
+        ):
+            # Park at the earliest pending event; the firing loop gates it there.
+            target = pending
+        return target, now, neg_outs
+
+    async def _land_on_target(self, target: float,
+                              next_midnight: float) -> None:
+        """Advance the clock onto ``target`` and run what landing there owes.
+
+        Only a target at-or-past the next midnight is a REAL rollover: the
+        run-end boundary reaches the same code path but must not re-plan the
+        day or apply a queued timezone change.
+        """
+        async with self._lock:
+            # Re-read the clock inside the lock so the advance cannot overshoot the target.
+            now = self.session.clock.now_h()
+            if now < target:
+                self.session.clock.advance_hours(target - now)
+            now = self.session.clock.now_h()
+            neg_outs = await self._due_hook_outputs(now)
+            day = self.session.clock.day()
+            if target >= next_midnight:
+                # A real rollover crossed midnight; the run-end boundary does not re-plan.
+                await self._executor.run_in_thread(self.session.ensure_day, day)
+                self._replan()
+                # Apply a queued /tz change at the next rollover.
+                self._apply_pending_tz()
+        # Send negotiation decide-leg outputs after the lock releases.
+        await self._send_neg_outs(neg_outs)
 
     # proactive firing
 
@@ -719,84 +726,142 @@ class AsyncRuntime:
                 return
             if nxt > now:
                 await self._sleep_until_t_h(nxt, now)
-            defer_until: float | None = None
-            async with self._lock:
-                now = self.session.clock.now_h()
-                if now < nxt:
-                    self.session.clock.advance_hours(nxt - now)
-                now = self.session.clock.now_h()
-                defer_until = self._defer_verdict(nxt, now)
-                if defer_until is not None and now - nxt < 1e-9:
-                    # On-schedule deferrals advance the clock to the next awake instant; overdue recoveries do not.
-                    if self.anchor is not None:
-                        # Anchor mode sleeps in real time before the deferral advance.
-                        await self._sleep_until_t_h(defer_until, now)
-                    self.session.clock.advance_hours(defer_until - now)
-                    now = self.session.clock.now_h()
-                    defer_until = self._defer_verdict(nxt, now)
-                # Record a conversation close if the clock jumped past its boundary.
-                await self._executor.run_in_thread(
-                    self.session.check_conversation_lifecycle, now
-                )
-                # Run due availability-negotiation decide legs and send any natural close.
-                neg_outs = await self._executor.run_in_thread(
-                    self.session.check_negotiation, now
-                )
-                for out_reason, text in neg_outs:
-                    await self.channel.send(
-                        OutboundMessage(text=text, proactive=True, reason=out_reason)
-                    )
-                if defer_until is None:
-                    day = self.session.clock.day()
-                    # Resolve the contact opportunity into a grounded intent; None suppresses.
-                    opportunity = self.schedule.opportunity_for(nxt)
-                    if opportunity is not None:
-                        self.store.log_event(
-                            day, nxt, "contact_opportunity",
-                            f"id={opportunity.id} "
-                            f"desired={opportunity.desired_t_h:.3f} "
-                            f"valid_until={opportunity.valid_until_t_h:.3f} "
-                            f"hazard={opportunity.hazard_components}",
-                        )
-                    intent = self.resolver.resolve(
-                        opportunity if opportunity is not None else nxt
-                    )
-                    if intent is None:
-                        self.store.log_event(
-                            day, now, "proactive_suppressed", "no_grounded_reason"
-                        )
-                        self.schedule.mark_fired_persisted(
-                            nxt, now, self.seed, self.store
-                        )
-                        continue
-                    self.store.save_proactive_intent(intent)
-                    cg = content_gate(intent, self.store, now_h=now)
-                    xg = context_gate(
-                        now,
-                        day,
-                        store=self.store,
-                        timing=self.timing,
-                        last_fired_t_h=self.store.last_proactive_t_h(self.seed),
-                    )
-                    if not (cg.allowed and xg.allowed):
-                        code = cg.code if cg.code != "ok" else xg.code
-                        self.store.log_event(
-                            day, now, "proactive_suppressed", code
-                        )
-                        self.store.update_proactive_intent_status(
-                            intent.id, "suppressed"
-                        )
-                        if cg.code == "expired":
-                            self.store.mark_schedule_expired(self.seed, nxt)
-                            self.schedule.mark_fired(nxt)
-                        else:
-                            self.schedule.mark_fired_persisted(
-                                nxt, now, self.seed, self.store
-                            )
-                        continue
-                    await self._fire_or_record_failure(intent, nxt, now, day)
+            defer_until, now = await self._service_event(nxt)
             if defer_until is not None:
                 await self._sleep_until_t_h(defer_until, now)
+
+    async def _service_event(self, nxt: float) -> tuple[float | None, float]:
+        """Do everything one pending event needs, under the runtime lock.
+
+        Returns ``(defer_until, now)``. A non-None ``defer_until`` means the
+        caller sleeps to that instant and the row stays pending; None means
+        the event was consumed — fired, suppressed, expired or failed — and
+        the loop simply comes round again. That is exactly what the inline
+        ``continue`` used to do: skip the trailing sleep and re-enter the
+        loop, which returning None here reproduces.
+        """
+        async with self._lock:
+            now = self.session.clock.now_h()
+            if now < nxt:
+                self.session.clock.advance_hours(nxt - now)
+            now = self.session.clock.now_h()
+            defer_until, now = await self._settle_deferral(nxt, now)
+            await self._run_due_hooks(now)
+            if defer_until is not None:
+                return defer_until, now
+            day = self.session.clock.day()
+            intent = self._resolve_grounded_intent(nxt, now, day)
+            if intent is None:
+                return None, now
+            if not self._gate_or_consume(intent, nxt, now, day):
+                return None, now
+            await self._fire_or_record_failure(intent, nxt, now, day)
+            return None, now
+
+    async def _settle_deferral(self, nxt: float,
+                               now: float) -> tuple[float | None, float]:
+        """Resolve the quiet-hours deferral verdict, advancing if it is due.
+
+        An ON-SCHEDULE deferral advances the virtual clock to the next awake
+        instant and re-asks, so a still-pending event parked by the rollover
+        cannot livelock the run (R1-F1). An OVERDUE recovery does not advance
+        — it is already late, and moving the clock would skip the recovery
+        evaluation the event is owed.
+        """
+        defer_until = self._defer_verdict(nxt, now)
+        if defer_until is None or now - nxt >= 1e-9:
+            return defer_until, now
+        if self.anchor is not None:
+            # Anchor mode sleeps in real time before the deferral advance.
+            await self._sleep_until_t_h(defer_until, now)
+        self.session.clock.advance_hours(defer_until - now)
+        now = self.session.clock.now_h()
+        return self._defer_verdict(nxt, now), now
+
+    async def _due_hook_outputs(self, now: float) -> list:
+        """Run the session hooks the clock's arrival at ``now`` makes due and
+        return the negotiation output UNSENT.
+
+        The hooks are a conversation close if the clock jumped past its
+        boundary, plus any availability-negotiation decide leg. Delivery is
+        the caller's business on purpose: the firing loop sends inside the
+        runtime lock, the rollover deliberately sends after releasing it.
+        """
+        await self._executor.run_in_thread(
+            self.session.check_conversation_lifecycle, now
+        )
+        return await self._executor.run_in_thread(
+            self.session.check_negotiation, now
+        )
+
+    async def _send_neg_outs(self, neg_outs) -> None:
+        """Deliver negotiation decide-leg output as proactive messages."""
+        for out_reason, text in neg_outs:
+            await self.channel.send(
+                OutboundMessage(text=text, proactive=True, reason=out_reason)
+            )
+
+    async def _run_due_hooks(self, now: float) -> None:
+        """Run the due session hooks and send their output (firing-loop
+        order: delivery happens while the lock is still held)."""
+        await self._send_neg_outs(await self._due_hook_outputs(now))
+
+    def _resolve_grounded_intent(self, nxt: float, now: float, day: int):
+        """Resolve the contact opportunity into a grounded ProactiveIntent.
+
+        The scheduler's ContactOpportunity carries no semantic reason (it2
+        A3); the resolver supplies one from real state. None means nothing
+        grounded was available, which consumes the row as a suppression —
+        the companion has no honest reason to reach out, so she does not.
+        """
+        opportunity = self.schedule.opportunity_for(nxt)
+        if opportunity is not None:
+            self.store.log_event(
+                day, nxt, "contact_opportunity",
+                f"id={opportunity.id} "
+                f"desired={opportunity.desired_t_h:.3f} "
+                f"valid_until={opportunity.valid_until_t_h:.3f} "
+                f"hazard={opportunity.hazard_components}",
+            )
+        intent = self.resolver.resolve(
+            opportunity if opportunity is not None else nxt
+        )
+        if intent is None:
+            self.store.log_event(
+                day, now, "proactive_suppressed", "no_grounded_reason"
+            )
+            self.schedule.mark_fired_persisted(nxt, now, self.seed, self.store)
+            return None
+        self.store.save_proactive_intent(intent)
+        return intent
+
+    def _gate_or_consume(self, intent, nxt: float, now: float,
+                         day: int) -> bool:
+        """True when both gates allow the intent; otherwise consume it.
+
+        An EXPIRED intent marks the schedule row expired (it could never
+        have been delivered); every other suppression consumes the row
+        normally. Both paths record the gate code that rejected it.
+        """
+        cg = content_gate(intent, self.store, now_h=now)
+        xg = context_gate(
+            now,
+            day,
+            store=self.store,
+            timing=self.timing,
+            last_fired_t_h=self.store.last_proactive_t_h(self.seed),
+        )
+        if cg.allowed and xg.allowed:
+            return True
+        code = cg.code if cg.code != "ok" else xg.code
+        self.store.log_event(day, now, "proactive_suppressed", code)
+        self.store.update_proactive_intent_status(intent.id, "suppressed")
+        if cg.code == "expired":
+            self.store.mark_schedule_expired(self.seed, nxt)
+            self.schedule.mark_fired(nxt)
+        else:
+            self.schedule.mark_fired_persisted(nxt, now, self.seed, self.store)
+        return False
 
     async def _fire_or_record_failure(self, intent, nxt: float, now: float,
                                       day: int) -> None:
