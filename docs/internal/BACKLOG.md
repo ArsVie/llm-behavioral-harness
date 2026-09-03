@@ -7,6 +7,11 @@ the agent. New asks get appended here as they are spoken.
 ## Open
 
 ### Clear the live-trial blockers (review 2026-09-02)
+- Status 2026-09-02: DONE — all six cleared in 8d23e7a, covered by
+  tests/test_live_trial_hardening.py (16 tests). Two follow-ups left,
+  both noted below: the judge's v2 rubric still owes a monthly-separation
+  re-check before its scores are trusted, and the systemd unit is
+  installed but NOT enabled (starting it messages a real person).
 - Date: 2026-09-02
 - Verbatim: "Clear the hard blockers and the things that will degrade badly."
 - Summary: A review of the live entry found six items standing between the repo
