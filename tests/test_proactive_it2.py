@@ -29,7 +29,7 @@ from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.channels.base import FakeChannel
 from harness.client import FakeClient
 from harness.clock import VirtualClock
-from harness.domain import ContactOpportunity, DailyAgenda, ProactiveIntent
+from harness.domain import ContactOpportunity, ProactiveIntent
 from harness.judge import ScriptedJudge
 from harness.proactive import SOURCE_AGENDA, IntentResolver, compose_hook
 from harness.runtime import AsyncRuntime, TimeScale
@@ -48,7 +48,6 @@ from harness.session import Session, TurnResult
 from harness.store import SQLiteStore
 from tests.helpers import (
     SeamStore,
-    agenda_item,
     ground_agenda,
     make_session,
     rows,

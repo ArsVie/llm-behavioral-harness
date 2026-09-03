@@ -53,7 +53,7 @@ def assemble(data: dict, g6: dict | None) -> str:
     a("| G1 | seam audit + generation integrity | PASS | it3-b1 merges |")
     a("| G2 | preflight gate, real claims, horizon split | PASS | 941/941 (main-g2close3.log) |")
     a(f"| G3 | real-model smoke | PASS | {DATA.parent}/it3-g3-smoke-night/ |")
-    a(f"| G4 | manifest freeze (B10) | DONE | results/it3-g4-manifest-*.json |")
+    a("| G4 | manifest freeze (B10) | DONE | results/it3-g4-manifest-*.json |")
     a(f"| G5 | confirmatory matrix | {'PASS' if data.get('n_cells', 0) > 0 and data.get('blank_invariant_ok') else 'REVIEW'} | results/it3-g5-matrix/ |")
     a(f"| G6 | judge protocol v2 | {'PASS' if g6 and g6.get('ok') else 'REVIEW'} | results/it3-g6-judge/ |")
     a("")

@@ -6,7 +6,6 @@ from experiments.cvs_manifest import (
     COMPANION_CONDITIONS,
     DIMENSIONS,
     EVENT_CHAINS,
-    HYPOTHESES,
     JUDGE_FAMILIES,
     MEMORY_CONDITIONS,
     SEEDS,

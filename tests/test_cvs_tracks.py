@@ -13,7 +13,6 @@ from experiments.cvs_common import (
     message_stream,
     run_cell,
     run_replay,
-    user_script,
 )
 from experiments.cvs_manifest import (
     EVENT_CHAINS,
@@ -110,7 +109,6 @@ def test_recall_probes_cover_structured_promotion_patterns(tmp_path):
     name/possessive/have)."""
     import re
 
-    from experiments.cvs_manifest import RECALL_PROBES
 
     name_re = re.compile(r"\bmy\s+[a-z]+'s\s+name\s+is\b", re.IGNORECASE)
     poss_re = re.compile(r"\bmy\s+[a-z]+\s+is\b", re.IGNORECASE)

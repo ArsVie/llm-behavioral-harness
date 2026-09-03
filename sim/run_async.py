@@ -66,10 +66,8 @@ import argparse
 import asyncio
 import inspect
 import os
-import subprocess
 import time
 from collections.abc import Mapping
-from pathlib import Path
 from typing import Any, Callable
 from zoneinfo import ZoneInfoNotFoundError
 
@@ -77,9 +75,6 @@ from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.anchor import RealTimeAnchor, anchor_for_fresh_start
 from harness.assembler import DEFAULT_PERSONA_CORE
 from harness.bootstrap import (
-    DEFAULT_USER_INTERESTS,
-    DEFAULT_USER_NAME,
-    OnboardingConfig,
     ensure_companion_initialized,
 )
 from harness.channels.base import OutboundMessage
@@ -93,61 +88,19 @@ from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import ProactiveSchedule
 from harness.session import Session
 from harness.store import SQLiteStore
+from harness.env import env_bool as _env_bool
+from sim.cli_common import (
+    bootstrap_and_report as _bootstrap_and_report,
+    commit_sha as _commit_sha,
+    onboarding_config as _onboarding_config,
+    restore_or_plan as _restore_or_plan,
+)
 
 WAKE_HOUR = 8.0
 
 
-def _env_bool(name: str, default: bool = False) -> bool:
-    """Env bool with the harness convention (mirrors tools._env_bool):
-    unset/empty -> default; truthy = 1/true/yes/on."""
-    raw = os.environ.get(name)
-    if raw is None or raw.strip() == "":
-        return default
-    return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
-def _onboarding_config(args) -> OnboardingConfig:
-    """Onboarding config from CLI args (shared by the startup bootstrap and
-    the /setup hook so both initialize identically)."""
-    user_interests = tuple(
-        s.strip()
-        for s in (args.user_interests or ",".join(DEFAULT_USER_INTERESTS)).split(",")
-        if s.strip()
-    )
-    return OnboardingConfig(
-        user_name=args.user_name or DEFAULT_USER_NAME,
-        user_interests=user_interests,
-    )
-
-
-def _bootstrap_and_report(store: SQLiteStore, seed: int, args) -> None:
-    """Idempotent clean-start initialization (Iteration-2 A1b): blank DB →
-    persona → user-relative interests → life arcs → today's agenda, then a
-    one-line summary. Safe to call on every start (no-op once initialized)."""
-    boot = ensure_companion_initialized(
-        store, seed=seed, config=_onboarding_config(args), day=0
-    )
-    counts: dict[str, int] = {}
-    for interest in boot.persona.interests:
-        counts[interest.bucket] = counts.get(interest.bucket, 0) + 1
-    print(
-        f"bootstrap: user={boot.user_profile.name} persona={boot.persona.name} "
-        f"interests={len(boot.persona.interests)} "
-        f"(exact {counts.get('exact', 0)} / adjacent {counts.get('adjacent', 0)} / "
-        f"independent {counts.get('independent', 0)}) arcs={len(boot.life_arcs)} "
-        f"agenda[0]={len(boot.today_agenda.items) if boot.today_agenda else 0}"
-    )
-
-
-def _restore_or_plan(
-    store: SQLiteStore, seed: int, persona: PersonaParams, timing: TimingParams,
-    days: int,
-) -> ProactiveSchedule:
-    """Restart-resume: restore the persisted schedule when pending events
-    exist, otherwise plan + persist a fresh horizon."""
-    if store.pending_schedule_events(seed):
-        return ProactiveSchedule.restore(seed, store)
-    return ProactiveSchedule.plan_and_persist(days, seed, persona, timing, store)
 
 
 def resolve_tz(
@@ -166,19 +119,6 @@ def resolve_tz(
     return tz, anchor_for_fresh_start(time.time(), tz)
 
 
-def _commit_sha() -> str | None:
-    """Short HEAD sha of the harness repo, or None when unavailable (best
-    effort — never fails the launcher)."""
-    try:
-        root = Path(__file__).resolve().parents[1]
-        out = subprocess.run(
-            ["git", "rev-parse", "--short", "HEAD"],
-            cwd=root, capture_output=True, text=True, timeout=5,
-        )
-        sha = out.stdout.strip()
-        return sha or None
-    except Exception:  # noqa: BLE001 - best effort
-        return None
 
 
 def _make_request_setup(store: SQLiteStore, args, persona, timing) -> Callable[[], str]:

@@ -60,11 +60,8 @@ REPO_ROOT = SPIKE_ROOT.parent.parent  # llm-behavioral-harness
 # ---------------------------------------------------------------------------
 sys.path.insert(0, str(SPIKE_ROOT))
 from harness.determinism import (  # noqa: E402  (spike harness, seed utils)
-    DecodingConfig,
     MASTER_SEED,
-    derive_seed,
     rng_for,
-    seed_everything,
 )
 
 sys.modules.pop("harness", None)
@@ -74,12 +71,7 @@ sys.path.insert(0, str(REPO_ROOT))
 from engine.types import DayRecord, TimingParams  # noqa: E402  (frozen, read-only)
 from harness.assembler import (  # noqa: E402  (production harness)
     AFFECTIVE_HEADER,
-    AVAILABILITY_HIGH,
-    AVAILABILITY_LOW,
-    AVAILABILITY_MID,
     DEFAULT_PERSONA_CORE,
-    MAX_PROMPT_CHARS,
-    MOOD_BRIEF_HEADER,
     assemble_snapshot,
 )
 from harness.behavior import derive_behavior  # noqa: E402  (production harness)
@@ -89,7 +81,6 @@ from harness.domain import (  # noqa: E402  (production harness)
     MemoryContext,
     PersonaProfile,
 )
-from harness.prompts import SYSTEM_CORE_WITH_TOOLS  # noqa: E402  (production harness)
 
 # ---------------------------------------------------------------------------
 # Model registry (pinned revisions — identical to p2 extraction scripts and

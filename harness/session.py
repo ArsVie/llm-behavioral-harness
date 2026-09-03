@@ -100,7 +100,6 @@ from harness.life import LIFE_STREAM, transition_past_windows
 from harness.memory import MemoryAgent
 from harness.negotiation_contract import (
     DEFER_TURNS_KEY,
-    PULL_PER_DELAY,
     SHORT_AFK_H,
     NegotiationEpisode,
     NegotiationPhase,

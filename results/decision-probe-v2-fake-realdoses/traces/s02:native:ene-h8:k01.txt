@@ -1,0 +1,1 @@
+[fake reasoning for s02:native:ene-h8:k01] dose ene-h8, rep 1, tool_decide_reply on s02: the state card brief is applied verbatim; the scripted policy for this sample decides the verdict.

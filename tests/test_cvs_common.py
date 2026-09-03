@@ -4,7 +4,6 @@ import json
 
 import numpy as np
 
-from engine.types import PersonaParams, TimingParams
 from harness.domain import AgendaItem, EpisodicMemory, MemoryKind, ProactiveIntent
 
 from experiments import cvs_common
@@ -236,7 +235,6 @@ def test_classify_chain_levels():
 
 
 def test_episode_text_includes_anchors():
-    ep = _episode("e0", "summary")
     assert "anchor-xyz" in cvs_common._episode_text(
         EpisodicMemory(
             id="e0", summary="summary", category=MemoryKind.USER_FACT,
@@ -283,14 +281,59 @@ def test_token_gap():
 
 
 def test_perturbation_block_analysis():
-    values = [5.0] * 10 + [2.0] * 4 + [5.0] * 16
-    out = cvs_common.compute_perturbation_metrics.__globals__  # noqa: F841
-    # Prueba directa del análisis de bloque vía métricas sobre series falsas:
-    series = {"M": values}
-    base = values[:10]
-    block = values[10:14]
-    assert abs(np.mean(block) - np.mean(base)) > 2.0
-    assert np.std(values) > 0.5
+    """Bloque negativo con recuperación completa.
+
+    Antes esta prueba no llamaba a la función que nombra: tomaba
+    ``__globals__``, lo descartaba, y afirmaba hechos de numpy sobre una
+    lista hecha a mano. Ahora ejercita la aritmética real
+    (``block_deviation_analysis``, extraída de la clausura para poder
+    probarse sin un store).
+    """
+    days = 30
+    base_end = cvs_common.BLOCK_START_D
+    block = list(range(cvs_common.BLOCK_START_D, cvs_common.BLOCK_END_D + 1))
+    # 10 días en 5.0, el bloque en 2.0, luego vuelta a 5.0.
+    values = ([5.0] * base_end
+              + [2.0] * len(block)
+              + [5.0] * (days - base_end - len(block)))
+
+    out = cvs_common.block_deviation_analysis(
+        values, base_end=base_end, block=block, days=days
+    )
+    assert out["baseline_mean"] == 5.0
+    assert out["baseline_sd"] == 0.0          # base plana: sin dispersión
+    assert out["block_mean"] == 2.0
+    assert out["deviation"] == -3.0           # el bloque hunde la serie
+    assert out["peak_deviation"] == 3.0
+    # Recupera inmediatamente después del bloque (dos días consecutivos en banda).
+    assert out["recovery_time_days"] == 1
+
+
+def test_perturbation_block_analysis_without_recovery():
+    """Una serie que nunca vuelve a la base no reporta recuperación —
+    ``None`` significa "no recuperó", nunca 0."""
+    days = 30
+    base_end = cvs_common.BLOCK_START_D
+    block = list(range(cvs_common.BLOCK_START_D, cvs_common.BLOCK_END_D + 1))
+    values = [5.0] * base_end + [2.0] * (days - base_end)
+
+    out = cvs_common.block_deviation_analysis(
+        values, base_end=base_end, block=block, days=days
+    )
+    assert out["deviation"] == -3.0
+    assert out["recovery_time_days"] is None
+
+
+def test_perturbation_block_analysis_on_an_empty_series():
+    """Sin días base la media es 0.0 y nada explota."""
+    out = cvs_common.block_deviation_analysis(
+        [], base_end=0, block=[], days=0
+    )
+    assert out["baseline_mean"] == 0.0
+    assert out["baseline_sd"] == 0.0
+    assert out["peak_deviation"] == 0.0
+    assert out["persistence_days"] is None
+    assert out["recovery_time_days"] is None
 
 
 def test_shuffled_order_no_adjacent_same_condition():

@@ -53,6 +53,7 @@ from typing import Any
 
 from harness.channels.base import InboundMessage, OutboundMessage
 from harness.concurrency import Sleeper, default_sleeper
+from harness.env import env_bool as _env_bool
 
 #: Errors raised inside a ptb handler land here instead of being
 #: swallowed by the library's default (which logs only when an error
@@ -112,13 +113,6 @@ def _debounce_window(name: str, default: float) -> float:
     return value
 
 
-def _env_bool(name: str, default: bool = False) -> bool:
-    """Env bool with the harness convention (mirrors tools._env_bool):
-    unset/empty -> default; truthy = 1/true/yes/on."""
-    raw = os.environ.get(name)
-    if raw is None or raw.strip() == "":
-        return default
-    return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
 @dataclass(frozen=True)

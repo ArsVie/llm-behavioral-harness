@@ -38,7 +38,6 @@ import hashlib
 import json
 import sys
 import time
-from pathlib import Path
 
 import numpy as np
 import torch
@@ -47,13 +46,11 @@ from p6_common import (
     BANDS,
     BAND_ORDER,
     JUDGE_FOR,
-    LEVELS,
     MODELS,
     SEED_KEY,
     SPIKE_ROOT,
     bootstrap_ci,
     derive_seed,
-    eval_dir,
     gen_path,
     judge_prompt,
     judged_path,

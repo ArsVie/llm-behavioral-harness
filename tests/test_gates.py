@@ -9,10 +9,10 @@ seam-faithful SeamStore (A2 store ops have not landed in this repo yet).
 
 from engine.circadian import envelope
 from engine.types import TimingParams
-from harness.domain import AgendaItem, DailyAgenda
+from harness.domain import DailyAgenda
 from harness.gates import GateDecision, content_gate, context_gate
 from harness.proactive import IntentResolver, compose_hook
-from harness.scheduler import REASON_SCHEDULE, REASON_VALIDITY_H
+from harness.scheduler import REASON_SCHEDULE
 from tests.helpers import SeamStore, agenda_item
 
 TIMING = TimingParams()

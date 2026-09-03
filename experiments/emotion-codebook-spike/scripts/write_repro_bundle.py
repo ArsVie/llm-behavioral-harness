@@ -117,7 +117,7 @@ def main() -> None:
         rec.add_file(f"datasets.{name}", RAW / fname, source=source, revision=rev, rows=rows)
     for split in ["train", "validation", "test"]:
         rec.add_file(
-            f"datasets.goemotions_simplified",
+            "datasets.goemotions_simplified",
             RAW / f"goemotions_simplified_{split}.parquet",
             source="https://huggingface.co/datasets/google-research-datasets/go_emotions",
             revision="add492243ff905527e67aeb8b80c082af02207c3",

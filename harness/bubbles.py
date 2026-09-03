@@ -10,8 +10,8 @@ No model call is changed when the flag is off: parity holds.
 
 from __future__ import annotations
 
-import os
 import re
+from harness.env import env_bool as _env_bool
 
 # Instruction appended to the system prompt when bubbling is enabled.
 # Plain English, no numbers, no jargon.
@@ -25,11 +25,6 @@ BUBBLE_INSTRUCTION = (
 _BUBBLE_ENV = "HARNESS_BUBBLES"
 
 
-def _env_bool(name: str, default: bool = False) -> bool:
-    raw = os.environ.get(name)
-    if raw is None or raw.strip() == "":
-        return default
-    return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
 def bubbles_enabled() -> bool:

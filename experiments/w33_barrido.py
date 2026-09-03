@@ -590,10 +590,10 @@ def write_report(
     # --- Proposed defaults ---
     lines.append("## Defaults afinados propuestos\n")
     lines.append(
-        f"A partir del grid 1 (única fuente de autocorrelación endógena "
-        f"pura), se elige el punto que acerca autocorr_lag1 al centro del "
-        f"rango objetivo [0.2, 0.5] sin salir de sd(M) ≤ 2.8 ni saturar. "
-        f"Todo lo demás queda en el default de `PersonaParams()`.\n"
+        "A partir del grid 1 (única fuente de autocorrelación endógena "
+        "pura), se elige el punto que acerca autocorr_lag1 al centro del "
+        "rango objetivo [0.2, 0.5] sin salir de sd(M) ≤ 2.8 ni saturar. "
+        "Todo lo demás queda en el default de `PersonaParams()`.\n"
     )
     lines.append("```python")
     lines.append("PersonaParams(")

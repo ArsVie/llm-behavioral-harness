@@ -305,7 +305,7 @@ def build(model: str) -> None:
     # --- per-axis binning + softmax readout (identical to the 8B readout) ---
     for ax in AXES:
         stim = per_stim[ax]
-        y_arr = np.array([s["y"] for s in stim])
+        np.array([s["y"] for s in stim])
         p_all = np.array([s["p"] for s in stim])
         pmin, pmax = float(p_all.min()), float(p_all.max())
         p_tilde = p2.minmax_map(p_all, pmin, pmax)

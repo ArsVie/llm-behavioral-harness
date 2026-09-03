@@ -28,7 +28,6 @@ from harness.judge import ScriptedJudge
 from harness.proactive import IntentResolver
 from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import (
-    REASON_CHECK_IN,
     REASON_SCHEDULE,
     REASON_SHARED_INTEREST,
     ProactiveSchedule,

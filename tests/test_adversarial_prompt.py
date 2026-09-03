@@ -17,7 +17,6 @@ from harness.assembler import (
     MAX_PROMPT_CHARS,
     MEMORY_EVIDENCE_HEADER,
     assemble_snapshot,
-    build_messages,
 )
 from harness.client import FakeClient
 from harness.clock import VirtualClock

@@ -21,7 +21,7 @@ from harness.channels.base import FakeChannel
 from harness.client import FakeClient
 from harness.clock import VirtualClock
 from harness.domain import AgendaItem, DailyAgenda, EpisodicMemory, MemoryKind
-from harness.gates import content_gate, context_gate
+from harness.gates import context_gate
 from harness.interests import build_catalog
 from harness.judge import ScriptedJudge
 from harness.memory import MemoryAgent

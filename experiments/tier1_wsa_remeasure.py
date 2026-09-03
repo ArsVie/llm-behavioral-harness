@@ -228,15 +228,15 @@ def _render_md(report: dict) -> str:
     a = report["analysis"]
     c = report["conditions"]
     f, s = a["arms"][c[0]]["n_proactive"], a["arms"][c[1]]["n_proactive"]
-    da, dr = a["delta_abs"], a["delta_rel_paired"]
+    _da, _dr = a["delta_abs"], a["delta_rel_paired"]
     lines = [
         f"# WS-A re-measure: FULL vs STRUCTURED_NO_STATE (model-free, n={report['n_seeds']})",
         "",
         f"- Date: {report['date']} — branch {report['branch']} (fixed day-0 plan path)",
         f"- Driver: `{report['driver']}` → `experiments.cvs_common.run_cell` (fake client, perturb=True, "
         f"{report['days']} days, checkpoints {report['checkpoints']}, default memory policy)",
-        f"- Model-free: deterministic fake client + scripted judge; counts flow through the real "
-        f"AsyncRuntime → engine.timing.next_event path; engine/ and harness/ untouched.",
+        "- Model-free: deterministic fake client + scripted judge; counts flow through the real "
+        "AsyncRuntime → engine.timing.next_event path; engine/ and harness/ untouched.",
         f"- Seeds: {report['seed_base']}..{report['seed_base'] + report['n_seeds'] - 1} "
         f"(same base as the G0 500-seed rerun); paired by seed.",
         f"- Elapsed: {report['elapsed_s']} s (workers={report['workers']}).",
@@ -259,7 +259,7 @@ def _render_md(report: dict) -> str:
         "",
         "## Verdict on the ≈ +10% prediction",
         "",
-        f"- Prediction: FULL exceeds SNS by ~+10% (basis: stored-run S_d mean 1.3123, G0 rerun).",
+        "- Prediction: FULL exceeds SNS by ~+10% (basis: stored-run S_d mean 1.3123, G0 rerun).",
         f"- Verdict: **{a['verdict'].upper()}** "
         f"(target 10% ∈ paired-ratio CI: {'yes' if a['delta_rel_paired']['ci95'][0] <= 0.10 <= a['delta_rel_paired']['ci95'][1] else 'no'}; "
         f"delta>0 at 95%: {'yes' if a['delta_abs']['ci95'][0] > 0 else 'no'}).",

@@ -24,7 +24,6 @@ from engine.rng import stream_rng
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.behavior import BehaviorDirective, BehaviorTrace, _render_brief
 from harness.clock import VirtualClock
-from harness.client import LLMClient
 from harness.domain import (
     AgendaItem,
     GenerationControls,
@@ -45,7 +44,6 @@ from harness.session import Session
 from harness.store import SQLiteStore
 
 from experiments.cvs_manifest import (
-    BASE_MESSAGES,
     EVENT_CHAINS,
     PERTURBATION,
     RECALL_PROBES,
@@ -531,7 +529,7 @@ class NoTimingFeedbackRuntime(AsyncRuntime):
     (A(score_{d-1}) ≡ 1 — el modo scores=None documentado del harness)."""
 
     def _replan(self) -> None:
-        day = self.session.clock.day()
+        self.session.clock.day()
         ProactiveSchedule.plan_and_persist(
             self._horizon_days(),
             self.seed,
@@ -2280,6 +2278,51 @@ def _token_gap(init_daily: Sequence[float], tokens_daily: Sequence[float]) -> fl
     return round(abs(float(np.mean(hi)) - float(np.mean(lo))), 2)
 
 
+def block_deviation_analysis(values: list[float], *, base_end: int,
+                             block: list[int], days: int) -> dict:
+    """Baseline-vs-perturbation-block analysis of one daily series (§17.3).
+
+    Módulo-level (no una clausura) para que sea testeable sin un store: es la
+    aritmética del hallazgo, no de la recolección.
+
+    * ``baseline`` = días ``0..base_end-1``; una serie vacía da media 0.0 y
+      una de un solo día da sd 0.0 (no hay dispersión que medir).
+    * ``persistence_days`` = primer día de la ventana que vuelve dentro de la
+      MITAD de la desviación pico; ``None`` = nunca lo hizo.
+    * ``recovery_time_days`` = primer día tras el bloque con DOS días
+      consecutivos dentro de la banda base (sd, con piso 0.05, para que una
+      base plana no exija una coincidencia exacta); ``None`` = sin recuperar.
+    """
+    base = values[:base_end]
+    base_mean = float(np.mean(base)) if base else 0.0
+    base_sd = float(np.std(base)) if len(base) > 1 else 0.0
+    block_mean = float(np.mean([values[d] for d in block])) if block else base_mean
+    deviation = block_mean - base_mean
+    window = values[BLOCK_START_D:]
+    peak_dev = max((abs(v - base_mean) for v in window), default=0.0)
+    persistence = None
+    for i, v in enumerate(window):
+        if abs(v - base_mean) < 0.5 * peak_dev:
+            persistence = i
+            break
+    recovery_time = None
+    band = max(base_sd, 0.05)
+    for i in range(BLOCK_END_D + 1, days - 1):
+        if (abs(values[i] - base_mean) <= band
+                and abs(values[i + 1] - base_mean) <= band):
+            recovery_time = i - BLOCK_END_D
+            break
+    return {
+        "baseline_mean": round(base_mean, 4),
+        "baseline_sd": round(base_sd, 4),
+        "block_mean": round(block_mean, 4),
+        "deviation": round(deviation, 4),
+        "peak_deviation": round(peak_dev, 4),
+        "persistence_days": persistence,
+        "recovery_time_days": recovery_time,
+    }
+
+
 def compute_perturbation_metrics(store: SQLiteStore, records: dict,
                                  days: int) -> dict:
     """Métricas de perturbación + recuperación (§17.3).
@@ -2318,34 +2361,9 @@ def compute_perturbation_metrics(store: SQLiteStore, records: dict,
     block = [d for d in range(BLOCK_START_D, BLOCK_END_D + 1) if d < days]
 
     def block_analysis(values: list[float]) -> dict:
-        base = values[:base_end]
-        base_mean = float(np.mean(base)) if base else 0.0
-        base_sd = float(np.std(base)) if len(base) > 1 else 0.0
-        block_mean = float(np.mean([values[d] for d in block])) if block else base_mean
-        deviation = block_mean - base_mean
-        window = values[BLOCK_START_D:]
-        peak_dev = max((abs(v - base_mean) for v in window), default=0.0)
-        persistence = None
-        for i, v in enumerate(window):
-            if abs(v - base_mean) < 0.5 * peak_dev:
-                persistence = i
-                break
-        recovery_time = None
-        band = max(base_sd, 0.05)
-        for i in range(BLOCK_END_D + 1, days - 1):
-            if (abs(values[i] - base_mean) <= band
-                    and abs(values[i + 1] - base_mean) <= band):
-                recovery_time = i - BLOCK_END_D
-                break
-        return {
-            "baseline_mean": round(base_mean, 4),
-            "baseline_sd": round(base_sd, 4),
-            "block_mean": round(block_mean, 4),
-            "deviation": round(deviation, 4),
-            "peak_deviation": round(peak_dev, 4),
-            "persistence_days": persistence,
-            "recovery_time_days": recovery_time,
-        }
+        return block_deviation_analysis(
+            values, base_end=base_end, block=block, days=days
+        )
 
     n_pro, grounding = _proactive_grounding(store, days * 24.0)
     block_failures = [

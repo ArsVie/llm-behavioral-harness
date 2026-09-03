@@ -362,7 +362,6 @@ def test_m9_canonical_categories_only_foreign_strings_never_persist(tmp_path):
     ONLY canonical UserModelCategory values — a foreign/garbage category
     string is refused at the write seam, never silently stored."""
     from harness.domain import UserModelCategory
-    from harness.domain import UserModelAssertion
 
     store = _store(tmp_path, "m9.db")
     agent = MemoryAgent(store)

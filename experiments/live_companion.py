@@ -54,14 +54,10 @@ import sys
 import time
 from pathlib import Path
 
-from harness.channels.base import InboundMessage
 from harness.domain import UserProfile
-from harness.session import Session
 from harness.store import SQLiteStore
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from experiments.cvs_common import (
-    BLOCK_END_D,
-    BLOCK_START_D,
     GATE2_USER_INTERESTS,
     REASON_SCHEDULE,
     DeterministicJudge,
@@ -76,6 +72,7 @@ from harness.client import OpenAICompatibleClient
 from harness.judge import judge_day
 from sim.run_async import CommandBridgeChannel, build_command_callback, _commit_sha
 from harness.credentials import load_env_file
+from harness.env import env_bool as _env_bool
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -91,13 +88,6 @@ OWNER_INTERESTS_ENV = "LILY_OWNER_INTERESTS"       # comma-separated
 COMPANION_NAME_ENV = "LILY_COMPANION_NAME"
 
 
-def _env_bool(name: str, default: bool = False) -> bool:
-    """Env bool with the harness convention (mirrors tools._env_bool):
-    unset/empty -> default; truthy = 1/true/yes/on."""
-    raw = os.environ.get(name)
-    if raw is None or raw.strip() == "":
-        return default
-    return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
 #: How much unrun virtual time a resume may silently skip. Beyond this the

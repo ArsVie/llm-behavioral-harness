@@ -5,8 +5,6 @@ sim/run_daily.py. Semillas y tolerancias documentadas en cada test.
 """
 from __future__ import annotations
 
-import dataclasses
-import math
 
 import numpy as np
 import pytest
@@ -225,7 +223,6 @@ def test_run_cycle_day_and_phase_are_entry_state_not_next() -> None:
     de ENTRADA a cycle.step (antes de avanzar), no al cycle_next."""
     from engine import cycle as cycle_mod
     from engine import rng as rng_mod
-    from engine.types import MoodState
 
     seed = 321
     persona = PersonaParams()

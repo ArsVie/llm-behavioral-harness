@@ -419,7 +419,7 @@ def stage_p2a(h: QwenHarness, train_sample: dict[str, list[dict]], seed: int) ->
     for axis in AXES:
         dhat = directions[axis][c2_layer]
         stim = per_stim[axis]
-        y_arr = np.array([s["y"] for s in stim])
+        np.array([s["y"] for s in stim])
         p_all = np.array([float(s["acts"][c2_layer].numpy() @ dhat) for s in stim])
         pmin, pmax = float(p_all.min()), float(p_all.max())
         p_tilde = minmax_map(p_all, pmin, pmax)

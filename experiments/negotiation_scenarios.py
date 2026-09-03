@@ -72,14 +72,12 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from typing import Any
 
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.clock import VirtualClock
 from harness.client import ChatResult
 from harness.domain import AgendaItem, Conversation, DailyAgenda
 from harness.judge import ScriptedJudge
-from harness.negotiation_contract import SHORT_AFK_H
 from harness.session import Session
 from harness.store import SQLiteStore
 from harness.tools import DecisionConfig

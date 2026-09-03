@@ -425,7 +425,7 @@ def build_report(
         cv_vals[i] >= cv_vals[i + 1] - 1e-6 for i in range(len(cv_vals) - 1)
     )
     kw1_row = next(r for r in sweep["rows"] if r["k_w"] == 1.0)
-    kw3_row = next(r for r in sweep["rows"] if r["k_w"] == 3.0)
+    next(r for r in sweep["rows"] if r["k_w"] == 3.0)
     lines.append(
         f"Lectura: la señal más limpia del barrido es **cv**, que decrece "
         f"{'monótonamente' if cv_monotone_down else 'de forma no estrictamente monótona pero con tendencia clara'} "

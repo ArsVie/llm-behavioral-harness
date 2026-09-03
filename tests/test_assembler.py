@@ -46,7 +46,6 @@ from harness.domain import (
     Turn,
 )
 from harness.prompts import (
-    ABOUT_YOU_HEADER,
     ACTIVITY_HEADER,
     AGENDA_HEADER,
     ARCS_HEADER,

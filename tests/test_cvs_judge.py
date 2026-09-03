@@ -1,6 +1,5 @@
 """Judge protocol v2 tests (it3 B9): pairwise, attention probe, BT/Elo."""
 
-import json
 
 import numpy as np
 import pytest

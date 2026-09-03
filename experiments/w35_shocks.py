@@ -41,7 +41,7 @@ import numpy as np
 
 from engine import validation
 from engine.types import MoodVariant, PersonaParams, TimingParams
-from sim.metrics import mean_sd, reversion_days
+from sim.metrics import reversion_days
 from sim.run_daily import run
 
 # Experiment constants
@@ -478,7 +478,7 @@ def write_report(shock_result: dict, rho_result: dict, k_result: dict) -> Path:
         "el sistema se auto-fija en un runaway hasta saturar M cerca de N.\n"
     )
     lines.append(
-        f"**Hallazgo no anticipado**: el runaway no es simetrico (+/-) entre "
+        "**Hallazgo no anticipado**: el runaway no es simetrico (+/-) entre "
         "semillas — las 5 semillas, en las 3 celdas de k (incluida k=0.40, "
         "*dentro* de la cota formal), derivan sistematicamente hacia mu "
         "**positivo**. La causa es lam=0.60 por defecto: logit(0.60)~=+0.405, "

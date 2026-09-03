@@ -16,7 +16,6 @@ from harness.domain import (
     MemoryContext,
     MemoryKind,
     PersonaProfile,
-    Turn,
 )
 from harness.prompts import (
     HEADER_CONVERSATION,

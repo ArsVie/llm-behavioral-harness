@@ -14,7 +14,7 @@ import math
 import re
 
 from engine.types import ADJ_SLOPE, MoodVariant, PersonaParams, TimingParams
-from harness import actuation, domain
+from harness import actuation
 from harness.behavior import BehaviorDirective, BehaviorTrace
 from harness.channels.base import FakeChannel, InboundMessage
 from harness.client import FakeClient

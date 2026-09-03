@@ -1,0 +1,1 @@
+[fake reasoning for s10:native:ene-h20:k02] dose ene-h20, rep 2, tool_decide_event on s10: the state card brief is applied verbatim; the scripted policy for this sample decides the verdict.

@@ -13,13 +13,9 @@ import asyncio
 
 import engine.rng as rng_mod
 from engine.types import MoodVariant, PersonaParams, TimingParams
-from harness.client import FakeClient
-from harness.clock import VirtualClock
 from harness.domain import AgendaItem, DailyAgenda
-from harness.judge import ScriptedJudge
 from harness.proactive import IntentResolver
 from harness.runtime import AsyncRuntime, TimeScale
-from harness.session import Session
 
 # make_session lives in tests.helpers.store (the canonical superset); re-export
 # it here so the runtime module remains the single import surface for the

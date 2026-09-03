@@ -1,0 +1,1 @@
+[fake reasoning for s02:native:ext-M10:k03] dose ext-M10, rep 3, tool_decide_reply on s02: the state card brief is applied verbatim; the scripted policy for this sample decides the verdict.

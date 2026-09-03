@@ -33,7 +33,6 @@ child's sleeper is a recorder.
 import ast
 import subprocess
 import sys
-import threading
 from pathlib import Path
 
 import pytest

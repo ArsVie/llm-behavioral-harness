@@ -72,7 +72,7 @@ def main() -> None:
     state = [s for s in data["state"] if s[0] < N_DAYS]
     days = np.arange(len(state))
     M = np.array([float(s[1]) for s in state])
-    g = np.array([float(s[2]) for s in state])
+    np.array([float(s[2]) for s in state])
     phase = [s[3] for s in state]
 
     kernel = np.ones(7) / 7.0

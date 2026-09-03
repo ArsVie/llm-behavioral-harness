@@ -18,7 +18,7 @@ from engine.circadian import envelope
 from engine.types import TimingParams
 from harness.domain import AgendaItem, EpisodicMemory, LifeArc
 from harness.proactive import compose_hook
-from harness.scheduler import REASON_EVENT, REASON_VALIDITY_H, VALID_REASONS
+from harness.scheduler import REASON_EVENT
 
 
 @dataclass(frozen=True)

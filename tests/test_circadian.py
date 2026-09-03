@@ -1,16 +1,13 @@
 """Tests de aceptación para engine/circadian.py (W1.3)."""
 from __future__ import annotations
 
-import math
-from dataclasses import dataclass, replace
+from dataclasses import replace
 
-import pytest
 
 from engine.circadian import c, energy, envelope
 from engine.types import (
     ENERGY_BASE,
     ENERGY_PHASE_OFFSETS,
-    ENVELOPE_RAMP_H,
     PHASE_FOLLICULAR,
     PHASE_LUTEAL_EARLY,
     PHASE_LUTEAL_LATE,
@@ -102,7 +99,6 @@ class TestEnergy:
         """Orden de offsets se refleja en energy con mismo coseno."""
         params = TimingParams()
         h = 14.0  # pico del coseno
-        base_diurnal = 0.25
 
         e_menstrual = energy(h, PHASE_MENSTRUAL, params)
         e_follicular = energy(h, PHASE_FOLLICULAR, params)

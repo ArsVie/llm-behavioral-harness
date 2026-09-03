@@ -153,7 +153,6 @@ async def amain(argv: Sequence[str] | None = None) -> int:
     from harness.domain import UserProfile
     from harness.runtime import AsyncRuntime, IntentResolver
     from harness.scheduler import ProactiveSchedule, day_scores
-    from harness.session import Session
     from harness.store import SQLiteStore
     from sim.run_async import CommandBridgeChannel  # noqa: F401 (CLI parity)
 

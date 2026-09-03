@@ -23,7 +23,6 @@ import dataclasses
 import json
 from pathlib import Path
 
-import pytest
 
 from engine.rng import day_rng, stream_rng
 

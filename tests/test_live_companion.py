@@ -14,10 +14,9 @@ import asyncio
 import tempfile
 from pathlib import Path
 
-import pytest
 
 from experiments.live_companion import bootstrap, build_runtime
-from harness.channels.base import FakeChannel, InboundMessage, OutboundMessage
+from harness.channels.base import FakeChannel, InboundMessage
 from harness.client import FakeClient
 
 from tests.helpers import no_wait

@@ -10,7 +10,6 @@ data must remain present and interpretable, re-opening the same database
 work on a fresh database. No destructive migration.
 """
 
-import json
 import sqlite3
 
 from harness.store import SCHEMA_VERSION, SQLiteStore

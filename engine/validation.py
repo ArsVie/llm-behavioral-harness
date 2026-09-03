@@ -24,7 +24,6 @@ TimingParams:
 """
 from __future__ import annotations
 
-import math
 
 from engine.types import PHASE_FRACTIONS, PersonaParams, TimingParams
 

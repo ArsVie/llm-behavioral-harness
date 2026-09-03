@@ -31,7 +31,6 @@ from harness.domain import (
     UserProfile,
 )
 from harness.gates import content_gate
-from harness.interests import build_catalog
 from harness.judge import ScriptedJudge
 from harness.proactive import IntentResolver, compose_hook
 from harness.runtime import AsyncRuntime, TimeScale

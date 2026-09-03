@@ -92,7 +92,6 @@ from harness.domain import (
     Turn,
     UserModel,
     UserModelAssertion,
-    UserModelCategory,
 )
 from harness.embeddings import (
     DeterministicHashEmbedder,
@@ -104,14 +103,18 @@ from harness.summarization import (
     DeterministicSummaryExtractor,
     SemanticSummaryExtractor,
     Summarizer,
-    _NEGATION_VALUE_RE,
     _STOP,
     _TOKENS_RE,
     _affect_observation,
+    deterministic_summarizer,
+)
+# Fact extraction moved to its own module; import from the source rather
+# than through a summarization re-export.
+from harness.summarization_facts import (
+    _NEGATION_VALUE_RE,
     _callbacks,
     _clean,
     _extract_facts,
-    deterministic_summarizer,
 )
 
 # Backward-compatible re-exports for tests and callers.

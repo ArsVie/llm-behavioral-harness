@@ -1,0 +1,5051 @@
+{
+  "doses": [
+    {
+      "dose_id": "nat-d00",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 0,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 0,
+        "m": -1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d00 — valence -1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "3c26d03e6e3ee333110c1aea22fbd0dd17bba64f"
+    },
+    {
+      "dose_id": "nat-d01",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 7,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 7,
+        "m": 0.3999999999999999,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.3999999999999999,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d01 — valence 0.3999999999999999, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "29c61c99e279fb3e704622c49a22b5a54db01808"
+    },
+    {
+      "dose_id": "nat-d02",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 3,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 3,
+        "m": -0.4,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.4,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d02 — valence -0.4, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "3330e677206f0f002cc0ae9b6445df1922a4b9be"
+    },
+    {
+      "dose_id": "nat-d03",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 10,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 10,
+        "m": 1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d03 — valence 1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "6e07f50b7ad9a416ea93699ba2646a57ce2c1e18"
+    },
+    {
+      "dose_id": "nat-d04",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 6,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 6,
+        "m": 0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d04 — valence 0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "56f10eef4d5f0ccfc5c844cc67d5ae8e3a2742f1"
+    },
+    {
+      "dose_id": "nat-d05",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 2,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 2,
+        "m": -0.6,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.6,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d05 — valence -0.6, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "0d5a748f16475dd37b85c84beb689e76e0c99191"
+    },
+    {
+      "dose_id": "nat-d06",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 9,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 9,
+        "m": 0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d06 — valence 0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "7be65433fe3a5f7e7c24551b9e22bc076a7ac023"
+    },
+    {
+      "dose_id": "nat-d07",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 5,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d07 — valence 0.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "8d9cc003b750d82810eeb7b9d9768f0afe3718f5"
+    },
+    {
+      "dose_id": "nat-d08",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 1,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 1,
+        "m": -0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d08 — valence -0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "b191eec07875c57a85e956bf0ec4125b664a23e9"
+    },
+    {
+      "dose_id": "nat-d09",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 8,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 8,
+        "m": 0.6000000000000001,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.6000000000000001,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d09 — valence 0.6000000000000001, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "27c1b9848c00f9e5248b3ee4e28c5fbaac93c6a9"
+    },
+    {
+      "dose_id": "nat-d10",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 4,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 4,
+        "m": -0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d10 — valence -0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "0b6a11b20c82500ebdf45e989d99610d46e9a4c9"
+    },
+    {
+      "dose_id": "nat-d11",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 0,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 0,
+        "m": -1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d11 — valence -1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "f80b2f6d03e10a043c2068daec692f0433d2557d"
+    },
+    {
+      "dose_id": "nat-d12",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 7,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 7,
+        "m": 0.3999999999999999,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.3999999999999999,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d12 — valence 0.3999999999999999, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "f8dbfbafacf7be853d70b2c8609da208244323e7"
+    },
+    {
+      "dose_id": "nat-d13",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 3,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 3,
+        "m": -0.4,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.4,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d13 — valence -0.4, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "20322c066bdc17a604a6c410e3b078b656fbded9"
+    },
+    {
+      "dose_id": "nat-d14",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 10,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 10,
+        "m": 1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d14 — valence 1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "f4b5be5e21d25acdacadcf1e6d379bc0897b13e1"
+    },
+    {
+      "dose_id": "nat-d15",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 6,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 6,
+        "m": 0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d15 — valence 0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "fdedca8adea204df89186a2d855d63b9fcb4353b"
+    },
+    {
+      "dose_id": "nat-d16",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 2,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 2,
+        "m": -0.6,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.6,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d16 — valence -0.6, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "1333e9c0d78ae1dac035902c3eed55fa817dfaac"
+    },
+    {
+      "dose_id": "nat-d17",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 9,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 9,
+        "m": 0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d17 — valence 0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "0979666d47544efab483266ed2a0c788fd893ebb"
+    },
+    {
+      "dose_id": "nat-d18",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 5,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d18 — valence 0.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "cfbc590bcb161f5a10bd862ee79e6f59b22f854b"
+    },
+    {
+      "dose_id": "nat-d19",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 1,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 1,
+        "m": -0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d19 — valence -0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "5de82976c6ff24c7a36a351ddeb0a93bfa70785c"
+    },
+    {
+      "dose_id": "nat-d20",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 8,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 8,
+        "m": 0.6000000000000001,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.6000000000000001,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d20 — valence 0.6000000000000001, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "4672d2e076dea7653dc7cd2f7d460f25c595d558"
+    },
+    {
+      "dose_id": "nat-d21",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 4,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 4,
+        "m": -0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d21 — valence -0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "b7fd50a152f139d940a85d7ee6cde120a3f3d110"
+    },
+    {
+      "dose_id": "nat-d22",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 0,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 0,
+        "m": -1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d22 — valence -1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "7c72c54679b6c627731c1e87b491d96017dc6f7d"
+    },
+    {
+      "dose_id": "nat-d23",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 7,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 7,
+        "m": 0.3999999999999999,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.3999999999999999,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d23 — valence 0.3999999999999999, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "45c4baa7500761db9af4c37a28dff8dd1659181e"
+    },
+    {
+      "dose_id": "nat-d24",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 3,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 3,
+        "m": -0.4,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.4,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d24 — valence -0.4, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "1eb44a44050850e6e329c2bee963ee81e2891354"
+    },
+    {
+      "dose_id": "nat-d25",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 10,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 10,
+        "m": 1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d25 — valence 1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "35d23141e74f953d89b8970eb3f9d677a10d480f"
+    },
+    {
+      "dose_id": "nat-d26",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 6,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 6,
+        "m": 0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d26 — valence 0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "8867a454b78e09490bc36e8cc07d7601fe0f601c"
+    },
+    {
+      "dose_id": "nat-d27",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 2,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 2,
+        "m": -0.6,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.6,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d27 — valence -0.6, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "88c580eea87b8bf03232aa3927ca7f404c562d01"
+    },
+    {
+      "dose_id": "nat-d28",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 9,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 9,
+        "m": 0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d28 — valence 0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "d81f94d8473b7b07190d5ddd56826e6b132d2d25"
+    },
+    {
+      "dose_id": "nat-d29",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 5,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d29 — valence 0.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "0cc55964ba992d390fb7adda5294ffad1dad802d"
+    },
+    {
+      "dose_id": "nat-d30",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 1,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 1,
+        "m": -0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d30 — valence -0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "80500509d53231c6402d9e21d5d80587a28f405b"
+    },
+    {
+      "dose_id": "nat-d31",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 8,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 8,
+        "m": 0.6000000000000001,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.6000000000000001,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d31 — valence 0.6000000000000001, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "653bbab4af9d4b30f297083d9636b0541a073284"
+    },
+    {
+      "dose_id": "nat-d32",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 4,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 4,
+        "m": -0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d32 — valence -0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "eef2a2c81a1d3eede82ed4962550cabe54b011c0"
+    },
+    {
+      "dose_id": "nat-d33",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 0,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 0,
+        "m": -1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d33 — valence -1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "6b00bfc1445235e8d1e005353bddc4a6822b0f4f"
+    },
+    {
+      "dose_id": "nat-d34",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 7,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 7,
+        "m": 0.3999999999999999,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.3999999999999999,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d34 — valence 0.3999999999999999, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "349d80c2a5479c5e608ef03fe77656bafefae6ed"
+    },
+    {
+      "dose_id": "nat-d35",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 3,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 3,
+        "m": -0.4,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.4,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d35 — valence -0.4, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "8d6a02153b42be17fb7698277a2d3643b959bd07"
+    },
+    {
+      "dose_id": "nat-d36",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 10,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 10,
+        "m": 1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d36 — valence 1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "77a0e8c6ff66c9986b3362a899bda4f66d06e392"
+    },
+    {
+      "dose_id": "nat-d37",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 6,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 6,
+        "m": 0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d37 — valence 0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "8876e2e8cfbe9c55cf33317581af7d21ed90a470"
+    },
+    {
+      "dose_id": "nat-d38",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 2,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 2,
+        "m": -0.6,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.6,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d38 — valence -0.6, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "91d310bbd5c4876eae08067793fe23146b019f95"
+    },
+    {
+      "dose_id": "nat-d39",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 9,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 9,
+        "m": 0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d39 — valence 0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "b8981abfac3ae9a02a70eab97d5a2a85cbd7f604"
+    },
+    {
+      "dose_id": "nat-d40",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 5,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d40 — valence 0.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "e5e6a19fce88a689916d55dcbfbd8381516abde8"
+    },
+    {
+      "dose_id": "nat-d41",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 1,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 1,
+        "m": -0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d41 — valence -0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "0a3ffe369327f56503706dd6d597fcbd9607348d"
+    },
+    {
+      "dose_id": "nat-d42",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 8,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 8,
+        "m": 0.6000000000000001,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.6000000000000001,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d42 — valence 0.6000000000000001, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "8eef15ec0f26bf2410966134620f481f9763ee7d"
+    },
+    {
+      "dose_id": "nat-d43",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 4,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 4,
+        "m": -0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d43 — valence -0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "24daa48f68e859921015765ef15d8fce54fea9ea"
+    },
+    {
+      "dose_id": "nat-d44",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 0,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 0,
+        "m": -1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d44 — valence -1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "752bf63cd11fc5adaf511ee2c448eb7fab71a1ae"
+    },
+    {
+      "dose_id": "nat-d45",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 7,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 7,
+        "m": 0.3999999999999999,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.3999999999999999,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d45 — valence 0.3999999999999999, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "2dbc0ff8f596b28fa23a8c47c85da91729639930"
+    },
+    {
+      "dose_id": "nat-d46",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 3,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 3,
+        "m": -0.4,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.4,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d46 — valence -0.4, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "0ca66bcd2955b10c701c4d954855bb68b8ae4884"
+    },
+    {
+      "dose_id": "nat-d47",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 10,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 10,
+        "m": 1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d47 — valence 1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "add3f07a933d825fa6ce4ec574147740c2b8fc6b"
+    },
+    {
+      "dose_id": "nat-d48",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 6,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 6,
+        "m": 0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d48 — valence 0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "9fa03a7f7b4bc0f40e8e0cf85b6886a031f6eab7"
+    },
+    {
+      "dose_id": "nat-d49",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 2,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 2,
+        "m": -0.6,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.6,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d49 — valence -0.6, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "ddb87c2563657308cf94498dba4c3d5e5b44d301"
+    },
+    {
+      "dose_id": "nat-d50",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 9,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 9,
+        "m": 0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d50 — valence 0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "58a5dfcdbf215db1dec8d43deb11b55447fb366b"
+    },
+    {
+      "dose_id": "nat-d51",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 5,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d51 — valence 0.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "fb629119aca89cec6c1aa9d23131f68814a0e34e"
+    },
+    {
+      "dose_id": "nat-d52",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 1,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 1,
+        "m": -0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d52 — valence -0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "194a328a09b2623a2499b9d8a78b640b5d659743"
+    },
+    {
+      "dose_id": "nat-d53",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 8,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 8,
+        "m": 0.6000000000000001,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.6000000000000001,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d53 — valence 0.6000000000000001, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "35c53480d8748ad99277896fc11d9eba3db58c10"
+    },
+    {
+      "dose_id": "nat-d54",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 4,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 4,
+        "m": -0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d54 — valence -0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "95d84118355c81eca1bf8c5a682963b0f253df7c"
+    },
+    {
+      "dose_id": "nat-d55",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 0,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 0,
+        "m": -1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d55 — valence -1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "158e71d7f02a794033119846be1e1eff3d031bdb"
+    },
+    {
+      "dose_id": "nat-d56",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 7,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 7,
+        "m": 0.3999999999999999,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.3999999999999999,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d56 — valence 0.3999999999999999, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "008525fd3e0a4152218ce1ffccf84da7066f4010"
+    },
+    {
+      "dose_id": "nat-d57",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 3,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 3,
+        "m": -0.4,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.4,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d57 — valence -0.4, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "b7a5454de9eb173c99ac67252fd593dddf4d8e64"
+    },
+    {
+      "dose_id": "nat-d58",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 10,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 10,
+        "m": 1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d58 — valence 1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "6b401ec3ba6da6ef3e45844673cfc36135cd77ac"
+    },
+    {
+      "dose_id": "nat-d59",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 6,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 6,
+        "m": 0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d59 — valence 0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "4d3f44f086f313e9145b55a97dc70e6024361f04"
+    },
+    {
+      "dose_id": "nat-d60",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 2,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 2,
+        "m": -0.6,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.6,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d60 — valence -0.6, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "b97d7997e197a1eccecd6aae62e9f4a5b3227ae8"
+    },
+    {
+      "dose_id": "nat-d61",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 9,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 9,
+        "m": 0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d61 — valence 0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "48de1d675dbf2d5945d83c01a272830f61a280ef"
+    },
+    {
+      "dose_id": "nat-d62",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 5,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d62 — valence 0.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "6d786dab12cf53cbb6109a1e4816faa50d39ae5b"
+    },
+    {
+      "dose_id": "nat-d63",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 1,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 1,
+        "m": -0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d63 — valence -0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "77c68eb951c7eebd47a7cfe672ba438ea97e7d1e"
+    },
+    {
+      "dose_id": "nat-d64",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 8,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 8,
+        "m": 0.6000000000000001,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.6000000000000001,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d64 — valence 0.6000000000000001, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "71fbbecfbd75457637e865bed341240fd45de760"
+    },
+    {
+      "dose_id": "nat-d65",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 4,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 4,
+        "m": -0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d65 — valence -0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "3690527ed2cfd50b5373ceda54c3f6dc6d8afe0f"
+    },
+    {
+      "dose_id": "nat-d66",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 0,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 0,
+        "m": -1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d66 — valence -1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "c2fd79f9b3adb222dd7a6f00153b02f3f002e2db"
+    },
+    {
+      "dose_id": "nat-d67",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 7,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 7,
+        "m": 0.3999999999999999,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.3999999999999999,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d67 — valence 0.3999999999999999, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "a32f483d24a18e0eae8cd7185239e05ffaac9dc1"
+    },
+    {
+      "dose_id": "nat-d68",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 3,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 3,
+        "m": -0.4,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.4,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d68 — valence -0.4, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "27bf105c420c5cff46ddfb982cd56831b2a23030"
+    },
+    {
+      "dose_id": "nat-d69",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 10,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 10,
+        "m": 1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d69 — valence 1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "b436062635c470cd44b17213278242129d9654e9"
+    },
+    {
+      "dose_id": "nat-d70",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 6,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 6,
+        "m": 0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d70 — valence 0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "759ea6b0ef21880387bc7d5a6f3d62b0d4938b6b"
+    },
+    {
+      "dose_id": "nat-d71",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 2,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 2,
+        "m": -0.6,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.6,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d71 — valence -0.6, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "adbff9db23b9e23ec41b14609b7f905b65b59caf"
+    },
+    {
+      "dose_id": "nat-d72",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 9,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 9,
+        "m": 0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d72 — valence 0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "52e11c36364b086cb68b22f184a7c27e44e26e1a"
+    },
+    {
+      "dose_id": "nat-d73",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 5,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d73 — valence 0.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "bcf42d5a0c1832e9e0f8cdf820f52f31d0e998a6"
+    },
+    {
+      "dose_id": "nat-d74",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 1,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 1,
+        "m": -0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d74 — valence -0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "1ce0318d51d10bf2c5352b1e837b4128cb1b2c7a"
+    },
+    {
+      "dose_id": "nat-d75",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 8,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 8,
+        "m": 0.6000000000000001,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.6000000000000001,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d75 — valence 0.6000000000000001, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "f4b670409863989c6f7290684a94bfab2b7c638e"
+    },
+    {
+      "dose_id": "nat-d76",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 4,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 4,
+        "m": -0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d76 — valence -0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "d3ca23b112e72d201a1a7e640d711c3b9c65c292"
+    },
+    {
+      "dose_id": "nat-d77",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 0,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 0,
+        "m": -1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d77 — valence -1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "24442e87af0a78fd2460d3332b54035bc7aae939"
+    },
+    {
+      "dose_id": "nat-d78",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 7,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 7,
+        "m": 0.3999999999999999,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.3999999999999999,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d78 — valence 0.3999999999999999, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "22d809bacdaec90bbad9e7cfc4405edf02967131"
+    },
+    {
+      "dose_id": "nat-d79",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 3,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 3,
+        "m": -0.4,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.4,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d79 — valence -0.4, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "5b31c7c1b29ba045a68bbf702acf44e8017e170d"
+    },
+    {
+      "dose_id": "nat-d80",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 10,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 10,
+        "m": 1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d80 — valence 1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "a8573ee158b09e14cfb9a9375606513fa5336465"
+    },
+    {
+      "dose_id": "nat-d81",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 6,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 6,
+        "m": 0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d81 — valence 0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "a1776845dec61daabb40959abd46a58ba8ca617f"
+    },
+    {
+      "dose_id": "nat-d82",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 2,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 2,
+        "m": -0.6,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.6,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d82 — valence -0.6, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "ed6216c18f2e5d8f4a6992443644f2a204ab0a05"
+    },
+    {
+      "dose_id": "nat-d83",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 9,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 9,
+        "m": 0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d83 — valence 0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "19ea02f3e4dc21e29bc358e49d5accde3461474c"
+    },
+    {
+      "dose_id": "nat-d84",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 5,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d84 — valence 0.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "b58602f1b7fa4bfe98bb9218f7da14802393b5d4"
+    },
+    {
+      "dose_id": "nat-d85",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 1,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 1,
+        "m": -0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d85 — valence -0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "598fa9f3145d82e8c06f8533cfd923c4bc48e205"
+    },
+    {
+      "dose_id": "nat-d86",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 8,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 8,
+        "m": 0.6000000000000001,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.6000000000000001,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d86 — valence 0.6000000000000001, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "20de82514e4e078cbea154e71efd881d9a90332b"
+    },
+    {
+      "dose_id": "nat-d87",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 4,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 4,
+        "m": -0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d87 — valence -0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "ab1c85c2b5ac9799a3f7a9046ee28945985e1f12"
+    },
+    {
+      "dose_id": "nat-d88",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 0,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 0,
+        "m": -1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d88 — valence -1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "35f7c2c2109ccefdabd29e43c9e52e80983724f9"
+    },
+    {
+      "dose_id": "nat-d89",
+      "set_kind": "natural",
+      "engineered": {
+        "M": 7,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 7,
+        "m": 0.3999999999999999,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.3999999999999999,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose nat-d89 — valence 0.3999999999999999, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "02f45ce5faf48530d5799e356d59c0142b7b580c"
+    },
+    {
+      "dose_id": "val-M2",
+      "set_kind": "orthogonal_valence",
+      "engineered": {
+        "M": 2,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 2,
+        "m": -0.6,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.6,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose val-M2 — valence -0.6, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "19d12d942e5b4593f0fcac637dfb90563f69f35e"
+    },
+    {
+      "dose_id": "val-M4",
+      "set_kind": "orthogonal_valence",
+      "engineered": {
+        "M": 4,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 4,
+        "m": -0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose val-M4 — valence -0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "601b44d72193c14a128c4a147d4567fae107f287"
+    },
+    {
+      "dose_id": "val-M6",
+      "set_kind": "orthogonal_valence",
+      "engineered": {
+        "M": 6,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 6,
+        "m": 0.19999999999999996,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.19999999999999996,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose val-M6 — valence 0.19999999999999996, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "e6e0ea1729a0ae665b925cb80efc2cd1a7c70fc8"
+    },
+    {
+      "dose_id": "val-M8",
+      "set_kind": "orthogonal_valence",
+      "engineered": {
+        "M": 8,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 8,
+        "m": 0.6000000000000001,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.6000000000000001,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose val-M8 — valence 0.6000000000000001, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "08313d09a4a83c9df14ed56b26e04cf80f14beb2"
+    },
+    {
+      "dose_id": "val-M9",
+      "set_kind": "orthogonal_valence",
+      "engineered": {
+        "M": 9,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 9,
+        "m": 0.8,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.8,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose val-M9 — valence 0.8, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "4a510ac0e3dba8ecca73ede35e12d69d0f1e5d15"
+    },
+    {
+      "dose_id": "val-M10",
+      "set_kind": "orthogonal_valence",
+      "engineered": {
+        "M": 10,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 10,
+        "m": 1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 1.0,
+        "energy": 0.5,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose val-M10 — valence 1.0, energy 0.5. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "14ce85d3a39af17fffd6987833f22364d9ccb17f"
+    },
+    {
+      "dose_id": "ene-h4",
+      "set_kind": "orthogonal_energy",
+      "engineered": {
+        "M": 5,
+        "hour": 4.0,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.2,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose ene-h4 — valence 0.0, energy 0.2. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "71acbb1752893436dedbd09e43deb8d322ee8432"
+    },
+    {
+      "dose_id": "ene-h8",
+      "set_kind": "orthogonal_energy",
+      "engineered": {
+        "M": 5,
+        "hour": 8.0,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.2,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose ene-h8 — valence 0.0, energy 0.2. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "e1ddfec5868154a38a26c4860485a864c7295fb6"
+    },
+    {
+      "dose_id": "ene-h12",
+      "set_kind": "orthogonal_energy",
+      "engineered": {
+        "M": 5,
+        "hour": 12.0,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.2,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose ene-h12 — valence 0.0, energy 0.2. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "2dda127f0ff68c8e516c8f5b2decc75e4eb0d921"
+    },
+    {
+      "dose_id": "ene-h16",
+      "set_kind": "orthogonal_energy",
+      "engineered": {
+        "M": 5,
+        "hour": 16.0,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.85,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose ene-h16 — valence 0.0, energy 0.85. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "2204bbab94759d8e81ed406f574b1a0cb0d0ce1d"
+    },
+    {
+      "dose_id": "ene-h20",
+      "set_kind": "orthogonal_energy",
+      "engineered": {
+        "M": 5,
+        "hour": 20.0,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 5,
+        "m": 0.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 0.0,
+        "energy": 0.85,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose ene-h20 — valence 0.0, energy 0.85. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "314d88bfe1fa1a9499da5586b5923489275f6d67"
+    },
+    {
+      "dose_id": "ext-M10",
+      "set_kind": "extremes",
+      "engineered": {
+        "M": 10,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 10,
+        "m": 1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": 1.0,
+        "energy": 0.9,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose ext-M10 — valence 1.0, energy 0.9. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "8a579c6dcdcd29a59470b5e008a97fbe0b102d10"
+    },
+    {
+      "dose_id": "ext-M0",
+      "set_kind": "extremes",
+      "engineered": {
+        "M": 0,
+        "hour": null,
+        "phase": null,
+        "mu": null,
+        "eta": null
+      },
+      "record": {
+        "t": 0,
+        "M": 0,
+        "m": -1.0,
+        "g": 1.0,
+        "arg": 0.0,
+        "p": 0.5,
+        "score": 0.0,
+        "mu": 0.0,
+        "eta": 0.0,
+        "cycle_day": 0.0,
+        "phase_label": "follicular",
+        "seed": 20260814
+      },
+      "vector": {
+        "valence": -1.0,
+        "energy": 0.2,
+        "momentum": 0.5,
+        "reactivity": 0.5,
+        "warmth": 0.5,
+        "expressiveness": 0.5,
+        "playfulness": 0.5,
+        "reflectiveness": 0.5,
+        "initiative": 0.5,
+        "response_length_scale": 0.5,
+        "response_delay_s": 1.0,
+        "closing_tendency": 0.5
+      },
+      "trace": {
+        "phase_label": "follicular",
+        "hormonal_gain": 1.0,
+        "event_memory": 0.0,
+        "endogenous_tone": 0.0,
+        "mood_delta": 0.0
+      },
+      "brief": "[SYNTH] Current bearing: dose ext-M0 — valence -1.0, energy 0.2. Engine-rendered prose placeholder.",
+      "availability": "Energy is moderate.",
+      "brief_hash": "fb61151bee875b5f657ab3768d9d40540c541d6d"
+    }
+  ]
+}

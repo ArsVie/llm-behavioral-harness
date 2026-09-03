@@ -72,7 +72,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import time
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING, cast
@@ -85,7 +84,7 @@ from harness.anchor import RealTimeAnchor
 from harness.channels.base import Channel, InboundMessage, OutboundMessage
 
 if TYPE_CHECKING:  # S3: telegram defines ControlCommand (channel side, merged)
-    from harness.channels.telegram import ControlCommand
+    pass
 from harness.concurrency import (
     ExecutorOwner,
     ResourceRegistry,
@@ -103,6 +102,7 @@ from harness.scheduler import (
 )
 from harness.session import Session
 from harness.store import SQLiteStore
+from harness.env import env_bool as _env_bool
 
 #: Poll cadence with no pending schedule event, in virtual hours.
 POLL_INTERVAL_H = 0.05
@@ -146,13 +146,6 @@ def persist_anchor(store, anchor: RealTimeAnchor) -> None:
     set_kv("anchor.tz", anchor.tz)
 
 
-def _env_bool(name: str, default: bool = False) -> bool:
-    """Env bool with the harness convention (mirrors tools._env_bool):
-    unset/empty -> default; truthy = 1/true/yes/on."""
-    raw = os.environ.get(name)
-    if raw is None or raw.strip() == "":
-        return default
-    return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
 @dataclass

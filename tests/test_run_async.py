@@ -91,9 +91,13 @@ def test_onboarding_config_parses_and_trims_interests():
 
 
 def test_onboarding_config_defaults_when_flags_are_absent():
+    """Unset flags fall back to the bootstrap defaults, read from where they
+    are actually defined rather than from a re-export."""
+    from harness.bootstrap import DEFAULT_USER_INTERESTS, DEFAULT_USER_NAME
+
     cfg = ra._onboarding_config(_Args())
-    assert cfg.user_name == ra.DEFAULT_USER_NAME
-    assert cfg.user_interests == tuple(ra.DEFAULT_USER_INTERESTS)
+    assert cfg.user_name == DEFAULT_USER_NAME
+    assert cfg.user_interests == tuple(DEFAULT_USER_INTERESTS)
 
 
 # --- resolve_tz ----------------------------------------------------------

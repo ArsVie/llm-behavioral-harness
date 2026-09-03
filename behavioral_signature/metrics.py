@@ -47,7 +47,7 @@ import re
 from datetime import datetime
 from typing import Sequence, Union
 
-from .log import LogRecord, LogTurn, time_kind, _TIME_KIND_DATETIME, _TIME_KIND_T_H
+from .log import LogRecord, LogTurn, time_kind, _TIME_KIND_DATETIME
 
 # frozen lexical constants (contract)
 

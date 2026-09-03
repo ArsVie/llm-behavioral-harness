@@ -35,25 +35,20 @@ Usage (orchestrator, one actor per process):
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 import time
-from pathlib import Path
 
 import torch
 
 from p6_common import (
     BANDS,
     BAND_ORDER,
-    COMPANION_PREFIX,
     MODELS,
     SEED_KEY,
     SPIKE_ROOT,
-    USER_LINE,
     build_codebook_prompt,
     build_renderer_prompt,
     derive_seed,
-    eval_dir,
     gen_path,
     load_jsonl,
     model_input,

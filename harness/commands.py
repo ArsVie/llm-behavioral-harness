@@ -60,7 +60,7 @@ from zoneinfo import ZoneInfo
 from harness.channels.telegram import ControlCommand
 
 if TYPE_CHECKING:  # typing-only: the anchor is a pure value, never touched
-    from harness.anchor import RealTimeAnchor
+    pass
 
 
 @dataclass

@@ -17,7 +17,6 @@ clamping and lands exactly on 0.40/0.40/0.20.
 """
 
 import numpy as np
-import pytest
 
 from pathlib import Path
 

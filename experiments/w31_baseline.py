@@ -93,7 +93,6 @@ def evaluate_seed(result, persona: PersonaParams) -> dict:
     M = result.M
     m = result.m
     g = result.g
-    t = result.t
     N = persona.N
 
     mean_M, sd_M = mean_sd(M)

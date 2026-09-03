@@ -16,7 +16,6 @@ real seconds).
 
 import asyncio
 
-import numpy as np
 
 import engine.rng as rng_mod
 from engine.types import MoodVariant, PersonaParams, TimingParams
@@ -24,7 +23,6 @@ from harness.behavior import derive_behavior
 from harness.channels.base import FakeChannel
 from harness.client import FakeClient
 from harness.clock import VirtualClock
-from harness.domain import DailyAgenda
 from harness.judge import ScriptedJudge
 from harness.proactive import IntentResolver
 from harness.runtime import AsyncRuntime, TimeScale
@@ -34,7 +32,7 @@ from harness.scheduler import (
     day_scores,
 )
 from harness.session import Session
-from tests.helpers import SeamStore, agenda_item, ground_agenda, make_session, no_wait, rows, suppressed_codes
+from tests.helpers import SeamStore, ground_agenda, make_session, no_wait, rows, suppressed_codes
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()

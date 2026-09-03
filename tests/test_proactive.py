@@ -11,10 +11,8 @@ and test_gates import SeamStore from here.
 
 from __future__ import annotations
 
-import math
 from dataclasses import replace
 
-import numpy as np
 import pytest
 
 import engine.rng as rng_mod
@@ -28,7 +26,6 @@ from harness.domain import (
     ProactiveIntent,
 )
 from harness.proactive import (
-    CHECK_IN_SALIENCE,
     SOURCE_AGENDA,
     SOURCE_CALLBACK,
     SOURCE_CHECK_IN,

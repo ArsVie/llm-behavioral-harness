@@ -15,9 +15,8 @@ All data from real engine runs stored in results/it3-backfill-2026-08-09/dbs/FUL
 
 from __future__ import annotations
 
-import json
 import sqlite3
-from collections import Counter, defaultdict
+from collections import Counter
 from pathlib import Path
 
 import matplotlib

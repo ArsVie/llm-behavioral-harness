@@ -123,7 +123,7 @@ def test_setup_end_to_end_initializes_the_blank_db(tmp_path) -> None:
         seed=5001, user_name=None, user_interests=None,
     )
     from harness.bootstrap import OnboardingConfig, ensure_companion_initialized
-    from sim.run_async import _make_request_setup, _restore_or_plan
+    from sim.run_async import _restore_or_plan
 
     persona = PersonaParams()
     timing = TimingParams()
@@ -223,7 +223,8 @@ def test_state_is_gated_even_end_to_end(tmp_path) -> None:
 def test_flag_off_parity_commands_are_dropped(tmp_path) -> None:
     """start(on_message=...) without on_command: no command handler is
     registered and command updates reach nobody — today's behavior."""
-    store = _store(tmp_path)
+    # No store needed: this asserts on handler REGISTRATION, and the
+    # unused handle was also leaking a sqlite connection per run.
     app = FakeApplication()
     channel = TelegramChannel(application=app, owner_chat_id="42")
     received = []

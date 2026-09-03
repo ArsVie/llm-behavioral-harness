@@ -6,7 +6,6 @@ import pytest
 
 from engine.types import (
     DEFAULT_PHASE_MULTIPLIERS,
-    PHASE_FRACTIONS,
     PersonaParams,
     TimingParams,
 )
@@ -511,7 +510,6 @@ from experiments.validation.hard_invariants import (  # noqa: E402
     blank_rate,
     check_hard_invariants,
     conversation_coherence,
-    empty_assistant_turns,
     failure_messages,
     truncated_reply_hits,
 )

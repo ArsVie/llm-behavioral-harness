@@ -26,7 +26,7 @@ import pytest
 from harness.domain import AblationClaim
 
 from experiments.cvs_common import records_summary, run_cell
-from experiments.cvs_manifest import MATRIX_CONDITIONS, SEEDS
+from experiments.cvs_manifest import MATRIX_CONDITIONS
 from experiments.cvs_preflight import (
     CLAIMS,
     GATE_MIN_DIVERGENCE,

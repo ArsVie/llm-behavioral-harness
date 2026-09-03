@@ -21,7 +21,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from harness.determinism import (  # noqa: E402
     GPU_BUDGET_MIB,
     MASTER_SEED,
-    ProvenanceRecorder,
     derive_seed,
     seed_everything,
 )
@@ -52,7 +51,6 @@ def run_smoke(model_id: str, seq_len: int = 128) -> dict:
     # Deterministic 128-token input (fixed text, then seeded padding to seq_len).
     text = "The quiet warmth of a slow evening settles over the small room."
     ids = tok(text, return_tensors="pt").input_ids
-    pad = tok.pad_token_id if tok.pad_token_id is not None else tok.eos_token_id
     rng = torch.Generator(device="cuda").manual_seed(seed)
     extra = torch.randint(0, tok.vocab_size, (1, seq_len - ids.shape[1]), generator=rng, device="cuda")
     input_ids = torch.cat([ids.to("cuda"), extra], dim=1)[:, :seq_len]

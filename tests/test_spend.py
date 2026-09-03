@@ -32,7 +32,7 @@ from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.client import FakeClient, Usage
 from harness.clock import VirtualClock
 from harness.judge import ScriptedJudge
-from harness.pricing import MODELS, PRICING_PENDING, price_for
+from harness.pricing import MODELS, price_for
 from harness.session import Session
 from harness.spend import aggregate, aggregate_by, render_report
 from harness.store import (

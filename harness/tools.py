@@ -89,13 +89,10 @@ from dataclasses import dataclass
 from typing import Any, Callable, Protocol
 
 from harness.negotiation_contract import (
-    DEFAULT_DEFER_TURNS,
-    DEFER_N_MAX,
-    DEFER_N_MIN,
-    DEFER_N_PATTERNS,
     DEFER_TURNS_KEY,
 )
 from harness.negotiation_state import map_defer_n
+from harness.env import env_bool as _env_bool
 
 # Tool schemas (Hermes-style {name, description, parameters})
 
@@ -694,11 +691,6 @@ class DecisionConfig:
             )
 
 
-def _env_bool(name: str, default: bool = False) -> bool:
-    raw = os.environ.get(name)
-    if raw is None or raw.strip() == "":
-        return default
-    return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
 def _env_budget() -> int | None:

@@ -334,7 +334,6 @@ class PairwiseFakeJudge:
 
     def chat(self, messages, *, system=None, temperature=0.8, json_mode=False,
              max_tokens=None) -> str:
-        import hashlib
 
         self.calls.append({"json": json_mode})
         blob = "\n".join(str(m.get("content", "")) for m in messages)

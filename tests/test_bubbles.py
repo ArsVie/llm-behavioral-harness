@@ -1,7 +1,5 @@
 import os
-import asyncio
-import pytest
-from harness.bubbles import BUBBLE_INSTRUCTION, bubbles_enabled, parse_bubbles
+from harness.bubbles import parse_bubbles
 from harness.session import Session
 from harness.store import SQLiteStore
 from harness.client import FakeClient

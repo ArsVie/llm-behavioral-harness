@@ -16,7 +16,6 @@ import numpy as np
 from harness.interests import (
     ISLAND,
     MAX_ADJACENCY_HOPS,
-    InterestGraph,
     build_catalog,
 )
 from harness.persona import build_persona

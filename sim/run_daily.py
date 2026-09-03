@@ -34,7 +34,6 @@ import argparse
 import dataclasses
 import sys
 
-import numpy as np
 import yaml
 
 from engine import cycle, mood, rng as rng_mod

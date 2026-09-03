@@ -41,8 +41,6 @@ from harness.channels.base import FakeChannel
 from harness.channels.telegram import ControlCommand
 from harness.client import FakeClient
 from harness.clock import VirtualClock
-from harness.domain import DailyAgenda
-from harness.judge import ScriptedJudge
 from harness.proactive import IntentResolver
 from harness.runtime import (
     ANCHOR_KV_KEYS,
@@ -52,15 +50,12 @@ from harness.runtime import (
     persist_anchor,
 )
 from harness.scheduler import REASON_SCHEDULE, ProactiveSchedule
-from harness.session import Session
 from harness.store import SQLiteStore
 from tests.helpers import (
     AnchorManualClock,
     SeamStore,
-    agenda_item,
     ground_agenda,
     make_session,
-    make_store,
     rows,
     suppressed_codes,
 )

@@ -5,11 +5,9 @@ con redraw de L y fases según types.PHASE_FRACTIONS.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import replace
 
 import numpy as np
-import pytest
-from scipy import signal, stats
 
 from engine.cycle import init_state, phase_of, step
 from engine.types import (
@@ -319,7 +317,6 @@ class TestRNGOrder:
                 L = next_state.L_current
 
         # Near cycle end; next step consumes epsilon and redraw.
-        state_near_end = CycleState(cycle_day=d, L_current=L)
         rng_copy = np.random.default_rng(4444)
         # Replicate to the same point.
         state_rep = init_state(persona, rng_copy)

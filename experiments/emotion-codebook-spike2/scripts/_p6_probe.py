@@ -6,7 +6,7 @@ from pathlib import Path
 SPIKE_ROOT = Path(__file__).resolve().parent.parent
 REPO_ROOT = SPIKE_ROOT.parent.parent
 sys.path.insert(0, str(SPIKE_ROOT))
-from harness.determinism import MASTER_SEED, derive_seed, seed_everything  # noqa: E402
+from harness.determinism import MASTER_SEED  # noqa: E402
 
 sys.modules.pop("harness", None)
 sys.modules.pop("harness.determinism", None)
@@ -18,7 +18,7 @@ from harness.domain import (  # noqa: E402
     BehaviorBrief, CompanionSnapshot, MemoryContext, PersonaProfile,
 )
 from harness.assembler import (  # noqa: E402
-    AFFECTIVE_HEADER, assemble_snapshot, DEFAULT_PERSONA_CORE,
+    assemble_snapshot, DEFAULT_PERSONA_CORE,
 )
 
 # --- 1. renderer path ---

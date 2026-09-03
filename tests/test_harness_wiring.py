@@ -25,7 +25,6 @@ from harness.domain import AgendaItem, DailyAgenda
 from harness.judge import ScriptedJudge
 from harness.session import Session
 from harness.steering import (
-    KIND_EVENT_POPUP,
     KIND_USER_MESSAGE,
     STEER_MARKER_OPEN,
 )

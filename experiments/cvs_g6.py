@@ -24,7 +24,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -122,7 +121,6 @@ def run_g6(
         (staged / f.name).write_text(f.read_text(encoding="utf-8"), encoding="utf-8")
 
     all_outcomes: list[dict] = []
-    family_reports: dict[str, dict] = {}
     family_errors: dict[str, str] = {}
     for family in JUDGE_FAMILIES:
         client = build_client(family, dry_run=dry_run, seed=7000)

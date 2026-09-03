@@ -472,7 +472,7 @@ def _system_for(request) -> str:
     t_h = float(request.inputs.get("time", "12.0"))
     kind = request.popup_kind
     event_label = request.inputs.get("event_label", "event")
-    state_label = request.inputs.get("state_label", "start")
+    request.inputs.get("state_label", "start")
 
     item = AgendaItem(
         id=f"evt-{event_label}",

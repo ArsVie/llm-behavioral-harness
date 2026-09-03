@@ -46,7 +46,7 @@ import json
 import sys
 import tempfile
 from pathlib import Path
-from typing import Callable, Sequence
+from typing import Sequence
 
 from harness.domain import AblationClaim
 from experiments.cvs_common import records_summary, run_cell
