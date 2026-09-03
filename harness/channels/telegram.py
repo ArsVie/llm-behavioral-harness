@@ -42,6 +42,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import logging
 import math
 import os
 import time
@@ -52,6 +53,11 @@ from typing import Any
 
 from harness.channels.base import InboundMessage, OutboundMessage
 from harness.concurrency import Sleeper, default_sleeper
+
+#: Errors raised inside a ptb handler land here instead of being
+#: swallowed by the library's default (which logs only when an error
+#: handler is registered).
+_logger = logging.getLogger(__name__)
 
 try:  # optional dependency
     import telegram  # noqa: F401  (capability probe)
@@ -283,6 +289,7 @@ class TelegramChannel:
                 app.add_handler(
                     MessageHandler(filters.COMMAND, self._on_command_update)
                 )
+            app.add_error_handler(self._on_handler_error)
             await app.initialize()
             await app.start()
             await app.updater.start_polling()
@@ -294,6 +301,19 @@ class TelegramChannel:
         if on_command is not None:
             # Register the user-facing command menu when commands are enabled.
             await self._register_commands()
+
+    async def _on_handler_error(self, update: object, context: object) -> None:
+        """Report an exception raised inside a ptb handler.
+
+        Without a registered error handler python-telegram-bot discards
+        handler exceptions with a single unformatted warning, so a failing
+        turn looked exactly like a user who got no reply. Reporting only —
+        polling continues, which is the point: the bot outlives the error.
+        """
+        error = getattr(context, "error", None)
+        _logger.exception(
+            "telegram handler error: %s", error, exc_info=error
+        )
 
     async def send(self, message: OutboundMessage) -> None:
         """Post an outbound (reactive or proactive) message to the owner chat."""

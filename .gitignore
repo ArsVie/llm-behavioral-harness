@@ -7,3 +7,17 @@ harness-bot.env
 # Secrets — never commit any env file (LILY_TOKEN / JUDGE_GENERATOR_TOKEN live here)
 .env
 *.env
+
+# Live-trial databases hold real conversation content — never commit them.
+# (test_store_migrations_v6/v7 already assume this and skip when absent.)
+results/live-companion/**/*.db
+results/live-companion/**/*.db-shm
+results/live-companion/**/*.db-wal
+results/live-companion/**/*.log
+
+# Coverage artefacts
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+complexipy.json

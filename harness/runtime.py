@@ -71,6 +71,7 @@ byte-identical — the accelerated fleet never touches the anchor path.
 from __future__ import annotations
 
 import asyncio
+import logging
 import os
 import time
 from dataclasses import dataclass, replace
@@ -108,6 +109,11 @@ POLL_INTERVAL_H = 0.05
 
 #: Store kv keys that persist the RealTimeAnchor.
 ANCHOR_KV_KEYS = ("anchor.epoch0_s", "anchor.t_h0", "anchor.tz")
+
+
+#: Turn failures are reported here rather than killing the run. The live
+#: entry configures the root handler; library users get Python's default.
+_logger = logging.getLogger(__name__)
 
 
 def load_anchor(store) -> RealTimeAnchor | None:
@@ -188,6 +194,7 @@ class AsyncRuntime:
         anchor: RealTimeAnchor | None = None,
         now=None,
         enable_commands: bool = False,
+        survive_turn_failures: bool = False,
     ):
         self.session = session
         self.schedule = schedule
@@ -203,6 +210,13 @@ class AsyncRuntime:
         self._now = now if now is not None else time.time
         #: When True, run() registers _on_command with channel.start().
         self.enable_commands = enable_commands
+        #: Turn-failure policy. False (default) = fail fast: an exception
+        #: from generation or delivery ends the run, which is what a
+        #: bounded experiment cell wants — a cell that kept going after a
+        #: broken turn would report a corrupt result as a clean one.
+        #: True = the live policy: report the failure and stay up, because
+        #: a week-long companion must outlive one bad provider response.
+        self.survive_turn_failures = bool(survive_turn_failures)
         #: Virtual hour the anchor resume set the clock to (None before start).
         self._t_h_start: float | None = None
         #: Queued /tz change, applied at the next rollover.
@@ -478,8 +492,23 @@ class AsyncRuntime:
                     self.session.on_message, msg.text
                 )
 
-            result = await self._generate_with_typing(_gen)
-            await self._send_turn_outputs(result, proactive=False)
+            try:
+                result = await self._generate_with_typing(_gen)
+                await self._send_turn_outputs(result, proactive=False)
+            except asyncio.CancelledError:
+                raise  # shutdown, not a turn failure
+            except Exception as exc:  # noqa: BLE001 - the run must outlive one turn
+                # Without this the exception escapes into the channel's
+                # handler, where python-telegram-bot swallows it: the user
+                # gets silence and the operator gets nothing. Log it, record
+                # it, and stay up for the next message.
+                _logger.exception("reactive turn failed")
+                self.store.log_event(
+                    self.session.clock.day(), self.session.clock.now_h(),
+                    "reply_failed", f"error={type(exc).__name__}: {exc}",
+                )
+                if not self.survive_turn_failures:
+                    raise
 
     async def _generate_with_typing(self, generation):
         """S4 typing wrap: run ``generation()`` (the LLM call) and the
@@ -765,19 +794,51 @@ class AsyncRuntime:
                                 nxt, now, self.seed, self.store
                             )
                         continue
-                    async def _gen():
-                        return await self._fire_exact_intent(intent)
-
-                    result = await self._generate_with_typing(_gen)
-                    await self._send_turn_outputs(
-                        result, proactive=True, reason=intent.reason
-                    )
-                    self.store.update_proactive_intent_status(intent.id, "fired")
-                    self.schedule.mark_fired_persisted(
-                        nxt, now, self.seed, self.store
-                    )
+                    await self._fire_or_record_failure(intent, nxt, now, day)
             if defer_until is not None:
                 await self._sleep_until_t_h(defer_until, now)
+
+    async def _fire_or_record_failure(self, intent, nxt: float, now: float,
+                                      day: int) -> None:
+        """Generate and deliver one proactive turn; never let it end the run.
+
+        The generation is an LLM call, so it can raise after the client has
+        exhausted its retries (provider outage, malformed response). Before
+        this guard existed that exception unwound ``_firing_loop`` through
+        the ``asyncio.gather`` in ``run()`` and the process exited — one bad
+        response ended a multi-day run.
+
+        A failure consumes the schedule row and marks the intent ``failed``:
+        the row is deliberately NOT left pending, because a still-pending
+        overdue row is re-evaluated immediately and would hammer a provider
+        that is already failing. One proactive message is lost, loudly — the
+        ``proactive_failed`` event and the log line both name the exception.
+        """
+        try:
+            async def _gen():
+                return await self._fire_exact_intent(intent)
+
+            result = await self._generate_with_typing(_gen)
+            await self._send_turn_outputs(
+                result, proactive=True, reason=intent.reason
+            )
+        except asyncio.CancelledError:
+            raise  # shutdown, not a turn failure
+        except Exception as exc:  # noqa: BLE001 - the run must outlive one turn
+            _logger.exception("proactive turn failed (intent %s)", intent.id)
+            self.store.log_event(
+                day, now, "proactive_failed",
+                f"id={intent.id} error={type(exc).__name__}: {exc}",
+            )
+            self.store.update_proactive_intent_status(intent.id, "failed")
+            if not self.survive_turn_failures:
+                self.schedule.mark_fired_persisted(
+                    nxt, now, self.seed, self.store
+                )
+                raise
+        else:
+            self.store.update_proactive_intent_status(intent.id, "fired")
+        self.schedule.mark_fired_persisted(nxt, now, self.seed, self.store)
 
     async def _fire_exact_intent(self, intent):
         """Fire ``session.fire_proactive(intent.id)`` — the EXACT validated

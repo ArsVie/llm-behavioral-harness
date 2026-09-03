@@ -48,6 +48,7 @@ from __future__ import annotations
 import argparse
 import asyncio
 import inspect
+import logging
 import os
 import sys
 import time
@@ -72,6 +73,7 @@ from harness.anchor import anchor_for_fresh_start
 from harness.runtime import AsyncRuntime, IntentResolver, load_anchor, persist_anchor
 from harness.scheduler import ProactiveSchedule, day_scores
 from harness.client import OpenAICompatibleClient
+from harness.judge import judge_day
 from sim.run_async import CommandBridgeChannel, build_command_callback, _commit_sha
 from harness.credentials import load_env_file
 
@@ -80,8 +82,13 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # One virtual hour equals one real hour (live mode; the matrix cells use 0.0004).
 LIVE_TIME_SCALE_S_PER_VH = 3600.0
 
-# Persona constant (same as the matrix cells).
-DEFAULT_PERSONA = "Ana"
+#: Owner identity for a live trial. Without these the bootstrap falls back to
+#: the ablation matrix's fixture — a user literally named "User" whose
+#: interests are the matrix's four — so the companion spends the trial
+#: talking to a stranger she was told she knows.
+OWNER_NAME_ENV = "LILY_OWNER_NAME"
+OWNER_INTERESTS_ENV = "LILY_OWNER_INTERESTS"       # comma-separated
+COMPANION_NAME_ENV = "LILY_COMPANION_NAME"
 
 
 def _env_bool(name: str, default: bool = False) -> bool:
@@ -93,19 +100,117 @@ def _env_bool(name: str, default: bool = False) -> bool:
     return raw.strip().lower() in ("1", "true", "yes", "on")
 
 
+#: How much unrun virtual time a resume may silently skip. Beyond this the
+#: entry refuses: the anchor is a wall-clock line, so a DB parked for a week
+#: maps "now" to a virtual day the simulation never lived through, and the
+#: first midnight would manufacture every intervening day at once.
+MAX_RESUME_GAP_DAYS = 1.0
+
+
+def check_resume_gap(store: SQLiteStore, anchor, now_epoch_s: float,
+                     max_gap_days: float = MAX_RESUME_GAP_DAYS) -> str | None:
+    """Describe an unsafe resume gap, or None when the resume is safe.
+
+    ``anchor.t_h_at(now)`` is where the wall clock says the companion should
+    be; ``latest_daily_state`` is the last day she actually lived. When the
+    first is far ahead of the second, ``Session.ensure_day`` will roll every
+    missing day forward at the next midnight — finalising each one through
+    the judge — so the trial would start on top of days that never happened.
+    Refusing is the point: the operator archives the DB or accepts the gap
+    explicitly.
+    """
+    latest = store.latest_daily_state()
+    reached_day = int(latest["day"]) if latest else 0
+    now_day = anchor.t_h_at(now_epoch_s) / 24.0
+    gap = now_day - reached_day
+    if gap <= max_gap_days:
+        return None
+    return (
+        f"stale resume: the anchor maps now to virtual day {now_day:.1f} but "
+        f"the store only reached day {reached_day} — {gap:.1f} days would be "
+        f"manufactured at the first midnight (ensure_day finalises every missing "
+        f"day through the judge). Archive the DB and start fresh, or pass "
+        f"--accept-resume-gap to continue anyway."
+    )
+
+
+def configure_logging(db_path: Path) -> Path:
+    """Send warnings and errors to stderr AND to a file beside the DB.
+
+    Nothing configured a handler before, so a failed turn produced at best a
+    line on whatever terminal launched the bot — gone the moment the terminal
+    closed. The file is what you read after an unattended night.
+    """
+    log_path = db_path.parent / "companion.log"
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
+        handlers=[logging.StreamHandler(sys.stderr),
+                  logging.FileHandler(log_path, encoding="utf-8")],
+    )
+    # httpx logs every request at INFO; the turn traffic is already in the
+    # llm_calls ledger, so keep the file readable.
+    logging.getLogger("httpx").setLevel(logging.WARNING)
+    logging.getLogger("telegram").setLevel(logging.INFO)
+    return log_path
+
+
 def build_store(db_path: Path) -> SQLiteStore:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     return SQLiteStore(db_path, audit_mode=True)
 
 
-def bootstrap(store: SQLiteStore, seed: int) -> None:
+def owner_profile() -> UserProfile:
+    """The owner's identity from the environment, matrix fixture otherwise.
+
+    ``LILY_OWNER_INTERESTS`` is a comma-separated list; blank entries are
+    dropped so a trailing comma is harmless.
+    """
+    name = (os.environ.get(OWNER_NAME_ENV) or "").strip() or "User"
+    raw = os.environ.get(OWNER_INTERESTS_ENV) or ""
+    interests = tuple(x.strip() for x in raw.split(",") if x.strip())
+    return UserProfile(name=name, interests=interests or GATE2_USER_INTERESTS)
+
+
+def rename_companion(store: SQLiteStore, new_name: str) -> bool:
+    """Rename the persona in place, fixing the name inside the prose core.
+
+    ``harness.persona.build_persona`` hard-codes ``DEFAULT_NAME`` ("Nova")
+    and writes it into the core prose ("You are Nova, ..."), so a bot the
+    owner knows by another name introduces itself as Nova on turn one.
+    Returns True when a rename happened. Identity is otherwise untouched —
+    interests, routines and the seed-drawn portfolio are the persona's, not
+    the name's.
+    """
+    persona = store.load_persona()
+    if persona is None or not new_name or persona.name == new_name:
+        return False
+    from dataclasses import replace
+
+    store.save_persona(replace(
+        persona,
+        name=new_name,
+        core=persona.core.replace(persona.name, new_name),
+    ))
+    return True
+
+
+def bootstrap(store: SQLiteStore, seed: int, user: UserProfile | None = None,
+              companion_name: str | None = None) -> None:
+    """Initialise identity once (idempotent), with the owner's real profile."""
     from harness.bootstrap import ensure_companion_initialized
 
     ensure_companion_initialized(
         store, seed=seed,
-        user=UserProfile(name="User", interests=GATE2_USER_INTERESTS),
+        user=user if user is not None else owner_profile(),
         day=0,
     )
+    name = companion_name if companion_name is not None else (
+        os.environ.get(COMPANION_NAME_ENV) or ""
+    ).strip()
+    if name:
+        rename_companion(store, name)
 
 
 def build_runtime(store: SQLiteStore, seed: int, condition: str,
@@ -120,7 +225,14 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
     if client is None:
         client = OpenAICompatibleClient(lane="product")
     if judge is None:
-        judge = DeterministicJudge(seed, block_start=BLOCK_START_D, block_end=BLOCK_END_D)
+        # The REAL judge, not the matrix's DeterministicJudge. The scripted
+        # one returns a seed-keyed sinusoid with a hard-coded bad-mood block
+        # on days 11-14, and the session runs feedback=True — so with it in
+        # place the companion's mood answered a script, never the person she
+        # was talking to. See harness/judge.py: the v2 rubric scores the
+        # USER's treatment of the companion, and it still owes a monthly
+        # separation re-check before its numbers are trusted.
+        judge = judge_day
     # Judge lane: LLM judges get a research-lane client so judge spend
     # attributes to the research lane; offline judging keeps the product client.
     if judge_client is None and not isinstance(judge, DeterministicJudge):
@@ -151,13 +263,17 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
         resolver=IntentResolver(store, rng=stream_rng(seed, rng_mod.EXPERIMENT_STREAM)),
         sleeper=None,
         anchor=anchor,
+        # Live policy: one failed provider response must not end a week-long
+        # run. Experiment cells keep the fail-fast default.
+        survive_turn_failures=True,
     )
     return rt
 
 
 async def _amain(channel_name: str, db_path: Path, seed: int,
                  condition: str, check_only: bool, tz: str | None = None,
-                 enable_commands: bool = False) -> int:
+                 enable_commands: bool = False,
+                 accept_resume_gap: bool = False) -> int:
     from harness.config import select_channel
 
     if check_only:
@@ -171,6 +287,7 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
         print("--check only applies to the telegram channel")
         return 2
 
+    log_path = configure_logging(db_path)
     store = build_store(db_path)
     bootstrap(store, seed)
     # Real-time anchor: a persisted (resume) anchor wins; otherwise a fresh
@@ -187,6 +304,13 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
     # Store write path: real timestamps resolve from the anchor at row
     # creation; without an anchor the *_at columns stay NULL.
     if anchor is not None:
+        problem = check_resume_gap(store, anchor, time.time())
+        if problem is not None and not accept_resume_gap:
+            print(f"[live] {problem}", flush=True)
+            store.close()
+            return 3
+        if problem is not None:
+            print(f"[live] WARNING (--accept-resume-gap): {problem}", flush=True)
         store.attach_anchor(anchor)
     channel = select_channel(channel_name)
     clock = VirtualClock(0.0)
@@ -225,6 +349,7 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
           + (" commands=on" if enable_commands else ""),
           flush=True)
     print("[live] Ctrl-C to stop; the DB persists between sessions", flush=True)
+    print(f"[live] log: {log_path}", flush=True)
     try:
         await runtime.run()
     except asyncio.CancelledError:
@@ -254,6 +379,12 @@ def main(argv: list[str] | None = None) -> int:
              "(HARNESS_DEBUG_COMMANDS=1) and is never registered in the "
              "client command menu.",
     )
+    parser.add_argument(
+        "--accept-resume-gap", action="store_true",
+        help="resume even when the persisted anchor is far ahead of the last "
+             "day the store actually reached (the intervening days are "
+             "manufactured at the first midnight). Default: refuse.",
+    )
     args = parser.parse_args(argv)
     # WS-C env bootstrap: sources the repo-root .env so the product-lane
     # token (LILY_TOKEN) is available.
@@ -262,7 +393,8 @@ def main(argv: list[str] | None = None) -> int:
     try:
         return asyncio.run(_amain(args.channel, Path(args.db), args.seed,
                                   args.condition, args.check, tz,
-                                  args.enable_commands))
+                                  args.enable_commands,
+                                  args.accept_resume_gap))
     except KeyboardInterrupt:
         return 0
 
