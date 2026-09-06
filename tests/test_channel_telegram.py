@@ -7,70 +7,18 @@ telegram = pytest.importorskip("telegram")  # noqa: F401 - optional dep; whole m
 import asyncio
 
 from harness.channels.base import OutboundMessage
-from harness.channels.telegram import TelegramChannel
+from harness.channels.telegram import (
+    TelegramChannel,
+    chunk_send,
+    render_markdown,
+    split_sends,
+)
+from tests.helpers import FakeApplication, FakeBot, StubUpdate
+from tests.helpers.channel_fakes import StubChat, StubMessage
 
 
 def _run(coro) -> None:
     asyncio.run(coro)
-
-
-# --- fakes (pure seams; no python-telegram-bot runtime objects) ---
-
-
-class StubChat:
-    def __init__(self, chat_id):
-        self.id = chat_id
-
-
-class StubMessage:
-    def __init__(self, text, chat_id):
-        self.text = text
-        self.chat = StubChat(chat_id)
-
-
-class StubUpdate:
-    """Hand-built update: only .message.text and .message.chat.id, like the
-    minimal stub the mapping contract reads."""
-
-    def __init__(self, text, chat_id):
-        self.message = StubMessage(text, chat_id)
-
-
-class FakeBot:
-    def __init__(self):
-        self.calls = []
-        self.chat_actions = []
-        self.registered_commands = None  # setMyCommands recording (WS-A)
-
-    async def send_message(self, chat_id, text, **kwargs):
-        self.calls.append({"chat_id": chat_id, "text": text})
-
-    async def send_chat_action(self, chat_id, action, **kwargs):
-        self.chat_actions.append({"chat_id": chat_id, "action": action})
-
-    async def set_my_commands(self, commands, **kwargs):
-        self.registered_commands = list(commands)
-
-
-class FakeApplication:
-    """Records registered handlers; never polls, never touches the network.
-
-    Wave-1 growth (shared seam; Wave 2 consumes it unmodified):
-      - ``bot.send_chat_action`` recording (typing-indicator tests)
-      - ``command_update()`` — build a stub update carrying a /command
-        (command-routing tests drive the registered command handler with it)
-    """
-
-    def __init__(self):
-        self.bot = FakeBot()
-        self.handlers = []
-
-    def add_handler(self, handler):
-        self.handlers.append(handler)
-
-    def command_update(self, text, chat_id):
-        """Stub update carrying a slash-command (command-update injection)."""
-        return StubUpdate(text, chat_id)
 
 
 # --- env contract ---
@@ -213,3 +161,85 @@ def test_stop_is_idempotent() -> None:
 
     _run(scenario())
     assert len(app.handlers) == 1
+
+
+# --- paragraph sends + markdown ---
+
+
+def test_send_splits_paragraphs_and_italicises() -> None:
+    """\\n\\n becomes separate sends; RP *span* arrives as MarkdownV2 italics."""
+    app = FakeApplication()
+    channel = TelegramChannel(application=app, owner_chat_id="42")
+
+    async def scenario() -> None:
+        await channel.send(OutboundMessage(
+            text="*rolls eyes*\n\nFine, boring version."))
+
+    _run(scenario())
+    assert [c["text"] for c in app.bot.calls] == [
+        "_rolls eyes_", "Fine, boring version\\."]
+
+
+def test_send_escapes_stray_markdown() -> None:
+    """Underscores and unmatched asterisks are escaped, never parsed."""
+    assert split_sends("a_b\n\n*ok?") == ["a_b", "*ok?"]
+    app = FakeApplication()
+    channel = TelegramChannel(application=app, owner_chat_id="42")
+
+    async def scenario() -> None:
+        await channel.send(OutboundMessage(text="a_b *c* 5 * 3"))
+
+    _run(scenario())
+    assert [c["text"] for c in app.bot.calls] == ["a\\_b _c_ 5 \\* 3"]
+
+
+def test_send_falls_back_to_plain() -> None:
+    """A rejected Markdown send retries once as plain text (logged)."""
+
+    class FlakyBot(FakeBot):
+        async def send_message(self, chat_id, text, **kwargs):
+            if kwargs.get("parse_mode"):
+                raise RuntimeError("bad parse")
+            await super().send_message(chat_id, text, **kwargs)
+
+    app = FakeApplication()
+    app.bot = FlakyBot()
+    channel = TelegramChannel(application=app, owner_chat_id="42")
+
+    async def scenario() -> None:
+        await channel.send(OutboundMessage(text="*hi* there"))
+
+    _run(scenario())
+    assert [c["text"] for c in app.bot.calls] == ["*hi* there"]
+
+
+def test_chunk_send_guardrail() -> None:
+    """Oversized paragraphs split under the limit; short ones pass through."""
+    assert chunk_send("abc") == ["abc"]
+    long = "word " * 1000
+    parts = chunk_send(long, limit=100)
+    assert all(len(p) <= 100 for p in parts)
+    assert " ".join(p.strip() for p in parts).split() == long.split()
+    assert render_markdown("plain") == "plain"
+
+
+# --- single-poller guard ---
+
+
+def test_poller_lock_single_holder_per_token(tmp_path, monkeypatch) -> None:
+    """Two pollers on one token refuse loudly; different tokens coexist;
+    closing the holder releases."""
+    fcntl = pytest.importorskip("fcntl")  # noqa: F841 - documents posix-only guard
+    import tempfile
+
+    from harness.channels.telegram import acquire_poller_lock
+
+    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(tmp_path))
+    first = acquire_poller_lock("TOKEN-abc")
+    with pytest.raises(RuntimeError, match="already holds"):
+        acquire_poller_lock("TOKEN-abc")
+    other = acquire_poller_lock("TOKEN-other")
+    first.close()
+    again = acquire_poller_lock("TOKEN-abc")
+    other.close()
+    again.close()
