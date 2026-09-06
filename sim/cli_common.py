@@ -1,11 +1,9 @@
-"""Wiring shared by the two CLI launchers (``run_async``, ``run_interactive``).
+"""Wiring shared by the CLI launcher (``run_async``).
 
-Both entries do the same four things before their loop differs: build the
-onboarding config from the flags, initialise identity idempotently and say
-what exists, restore-or-plan the proactive horizon, and stamp the commit.
-``_bootstrap_and_report`` in particular was duplicated verbatim between them
-apart from one inlined config block, which meant a change to the startup
-contract had to be made twice.
+The entry builds the onboarding config from the flags, initialises identity
+idempotently and says what exists, restores-or-plans the proactive horizon,
+and stamps the commit. ``_bootstrap_and_report`` holds the startup contract
+in one place.
 """
 
 from __future__ import annotations

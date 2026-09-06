@@ -1,6 +1,6 @@
 """Async proactive driver — real-time runtime entrypoint (wave 3, seam A-6).
 
-Mirrors sim/run_interactive's flags (--seed --days --store --feedback
+Mirrors the documented CLI flags (--seed --days --store --feedback
 --synthetic --fake --trace --persona-core --model) and adds channel selection
 and clock pacing:
 
@@ -17,9 +17,6 @@ The schedule is restored from the store when pending events exist
 (restart-resume) and planned + persisted otherwise. The run lasts
 ``--days * 24`` virtual hours: --days is both the schedule horizon and the
 run length.
-
-This module never imports sim/run_interactive (it copies the Session
-construction pattern instead).
 
 Wave-2 command flags (worker W-commands; ALL OFF by default — existing
 invocations behave exactly as before):
