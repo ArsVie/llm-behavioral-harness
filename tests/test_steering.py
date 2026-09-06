@@ -38,7 +38,7 @@ def test_drain_delivers_pending_steers_once():
     # One-shot: nothing is ever re-delivered after the first drain.
     assert q.drain_pending(BOUNDARY_IDLE, "t2", now_t_h=4.0) == []
     assert q.drain_pending(BOUNDARY_IDLE, "t3", now_t_h=5.0) == []
-    assert q.pending_count() == 0
+    assert q._backend.pending_steers(day=7) == []
 
 
 def test_drain_empty_queue():
@@ -86,7 +86,6 @@ def test_delivery_records_timestamps_boundary_and_seen_turn():
     (drained,) = q.drain_pending(BOUNDARY_AFTER_REPLY, "t9", now_t_h=14.75)
 
     assert drained.t_h == 13.5  # enqueue time
-    assert drained.enqueued_t_h == 13.5  # explicit alias (summary #23)
     assert drained.delivered_t_h == 14.75  # actual delivery time
     assert drained.boundary == BOUNDARY_AFTER_REPLY
     assert drained.seen_turn_id == "t9"
@@ -128,7 +127,7 @@ def test_requeue_after_interrupt_delivers_at_next_boundary():
     drained2 = q.drain_pending(BOUNDARY_AFTER_TOOL, "turn-2", 4.0)
     assert [d.steer_id for d in drained2] == [a, b]
     assert all(d.seen_turn_id == "turn-2" for d in drained2)
-    assert q.pending_count() == 0
+    assert q._backend.pending_steers(day=7) == []
 
 
 def test_requeue_clears_delivery_fields():
@@ -179,7 +178,7 @@ def test_restart_with_fresh_backend_same_storage():
     # "Restart": a brand-new queue over the same storage (fresh backend
     # instance) sees only the undelivered steer.
     q2 = _queue(storage=storage)
-    assert q2.pending_count() == 1
+    assert len(q2._backend.pending_steers(day=7)) == 1
     drained = q2.drain_pending(BOUNDARY_IDLE, "new-turn", 4.0)
     assert [d.steer_id for d in drained] == [kept]
     assert drained[0].delivered_t_h == 4.0

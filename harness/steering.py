@@ -205,11 +205,6 @@ class Steer:
     boundary: str | None = None
     seen_turn_id: str | None = None
 
-    @property
-    def enqueued_t_h(self) -> float:
-        """Enqueue time — alias of ``t_h`` (summary #23: enqueue AND delivery)."""
-        return self.t_h
-
 
 class SteeringQueue:
     """Holds arriving events and delivers them at the next safe boundary.
@@ -295,10 +290,6 @@ class SteeringQueue:
         interrupt handler.
         """
         self._backend.requeue_steer(steer_id)
-
-    def pending_count(self) -> int:
-        """Number of undelivered steers in scope (diagnostics/tests)."""
-        return len(self._backend.pending_steers(day=self._day, limit=1_000_000))
 
 
 # --------------------------------------------------------------------------- #

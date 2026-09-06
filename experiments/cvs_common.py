@@ -24,6 +24,7 @@ from engine.rng import stream_rng
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.behavior import BehaviorDirective, BehaviorTrace, _render_brief
 from harness.clock import VirtualClock
+from harness.concurrency import RecordingSleeper
 from harness.domain import (
     AgendaItem,
     GenerationControls,
@@ -190,16 +191,6 @@ class MockJudgeClient:
 
     def close(self) -> None:
         pass
-
-
-class RecordingSleeper:
-    """Registra los response_delay_s pedidos sin esperar (la latencia es dato)."""
-
-    def __init__(self) -> None:
-        self.delays: list[float] = []
-
-    async def __call__(self, delay: float) -> None:
-        self.delays.append(float(delay))
 
 
 # Deterministic judge (feedback), perturbation-aware
