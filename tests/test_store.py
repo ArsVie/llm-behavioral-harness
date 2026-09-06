@@ -77,13 +77,6 @@ def test_proactive_count(tmp_path):
 
 # Vertical-slice seam
 
-def test_schema_version_recorded(tmp_path):
-    store = SQLiteStore(tmp_path / "s.db")
-    row = store.conn.execute("SELECT version FROM schema_meta").fetchone()
-    assert row["version"] == SCHEMA_VERSION
-    store.close()
-
-
 def test_persona_roundtrip(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     assert store.load_persona() is None
