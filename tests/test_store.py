@@ -345,8 +345,6 @@ def test_episode_roundtrip_touch_and_sources(tmp_path):
     assert got.tags == ("dog", "identity")
     assert got.source_turn_ids == (1, 2)
     assert got.affect is not None and got.affect.comfort == 0.9
-    assert store.list_episode_sources("e1") == [1, 2]
-    assert store.episodes_for_turn(2) == ["e1"]
     assert store.touch_episode("e1", 9.0) == 1
     got = store.get_episode("e1")
     assert got is not None
@@ -413,14 +411,9 @@ def test_assertions_supersede_and_user_model(tmp_path):
     store.close()
 
 
-def test_previous_judgement_and_latest_interaction(tmp_path):
+def test_latest_interaction_t_h(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
-    assert store.load_previous_judgement(5) is None
     assert store.latest_interaction_t_h() is None
-    store.save_judgement(0, 0.4, "j0", "fake", shadow=True)
-    store.save_judgement(2, 0.9, "j2", "fake", shadow=True)
-    assert store.load_previous_judgement(3) == 0.9
-    assert store.load_previous_judgement(2) == 0.4
     store.add_message("assistant", "proactive ping", t_h=5.0, day=0,
                       proactive=True)
     assert store.latest_interaction_t_h() is None  # only user turns count

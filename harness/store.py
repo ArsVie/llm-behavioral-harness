@@ -624,16 +624,6 @@ class SQLiteStore:
         except (TypeError, ValueError):
             return None
 
-    def load_previous_judgement(self, day: int) -> float | None:
-        """Score of the most recent judgement recorded before ``day``."""
-        row = self.conn.execute(
-            "SELECT score FROM judgements WHERE day < ? ORDER BY day DESC LIMIT 1",
-            (day,),
-        ).fetchone()
-        if row is None or row["score"] is None:
-            return None
-        return float(row["score"])
-
     def latest_interaction_t_h(self) -> float | None:
         """Virtual hour of the user's most recent message (None if never)."""
         row = self.conn.execute(
@@ -1222,24 +1212,6 @@ class SQLiteStore:
             "SELECT access_count FROM memory_episodes WHERE id = ?", (episode_id,)
         ).fetchone()
         return int(row["access_count"]) if row else 0
-
-    def list_episode_sources(self, episode_id: str) -> list[int]:
-        """Exact turn ids an episode points at (provenance, normalized)."""
-        rows = self.conn.execute(
-            "SELECT turn_id FROM memory_episode_sources WHERE episode_id = ? "
-            "ORDER BY turn_id",
-            (episode_id,),
-        ).fetchall()
-        return [int(r["turn_id"]) for r in rows]
-
-    def episodes_for_turn(self, turn_id: int) -> list[str]:
-        """Episode ids anchored to a given turn id."""
-        rows = self.conn.execute(
-            "SELECT episode_id FROM memory_episode_sources WHERE turn_id = ? "
-            "ORDER BY episode_id",
-            (turn_id,),
-        ).fetchall()
-        return [r["episode_id"] for r in rows]
 
     # -- memory tiers: local BLOB embeddings ---------------------------------
 

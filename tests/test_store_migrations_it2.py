@@ -388,7 +388,6 @@ def test_v2_db_migrates_and_all_data_survives(tmp_path):
 
     j = store.load_judgement(0)
     assert j is not None and j["score"] == 0.8 and j["shadow"] == 1
-    assert store.load_previous_judgement(1) == 0.8
 
     state0 = store.load_daily_state(0)
     assert state0 is not None and state0["M"] == 7
@@ -423,7 +422,6 @@ def test_v2_db_migrates_and_all_data_survives(tmp_path):
     assert summary.source_turn_ids == (1, 2)
     episode = store.get_episode("ep1")
     assert episode is not None and episode.summary == "User's dog is Bruno."
-    assert store.list_episode_sources("ep1") == [1, 2]
     vec = store.load_embeddings()[0][1]
     assert len(vec) == 3
     assert all(abs(v - want) < 1e-6 for v, want in zip(vec, [0.1, 0.2, 0.3]))

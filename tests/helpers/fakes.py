@@ -99,10 +99,6 @@ class SeamStore:
     def load_judgement(self, day: int) -> dict | None:
         return dict(self._judgements[day]) if day in self._judgements else None
 
-    def load_previous_judgement(self, day: int) -> float | None:
-        j = self._judgements.get(day - 1)
-        return float(j["score"]) if j else None
-
     # -- messages -----------------------------------------------------------
 
     def add_message(self, role, content, t_h, day, proactive, *,

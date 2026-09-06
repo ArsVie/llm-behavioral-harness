@@ -177,7 +177,6 @@ def test_legacy_db_migrates_and_data_survives(tmp_path):
     # legacy judgement survives
     j = store.load_judgement(0)
     assert j is not None and j["score"] == 0.8 and j["shadow"] == 1
-    assert store.load_previous_judgement(1) == 0.8
 
     # legacy audit log survives
     assert store.events_since(0)[0]["event"] == "day_rollover"

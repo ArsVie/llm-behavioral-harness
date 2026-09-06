@@ -418,7 +418,6 @@ def test_v4_to_v5_migration_preserves_everything(tmp_path):
     assert store.load_proactive_intent("p1").hook == "progress"
     assert store.load_session_summary("s1").summary == "User introduced Bruno."
     assert store.get_episode("ep1").summary == "User dog is Bruno."
-    assert store.list_episode_sources("ep1") == [1, 2]
     assert store.get_assertion_category("identity") is not None
     conv = store.conn.execute(
         "SELECT * FROM conversations WHERE id = 'c1'"

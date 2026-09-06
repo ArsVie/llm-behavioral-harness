@@ -505,7 +505,6 @@ def test_r9a_restart_before_judge_finalization_neutral_fallback(tmp_path):
     s0 = _session(store)
     s0.clock.advance_hours(19.0)
     s0.on_message("hello")  # day 0 runs but is not finalized
-    assert store.load_previous_judgement(1) is None
     scores = day_scores(store, 1, TIMING)
     assert scores is not None and len(scores) == 2
     assert float(scores[0]) == 0.0, "no judgement ⇒ neutral A=1, score 0"
