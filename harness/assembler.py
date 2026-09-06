@@ -46,10 +46,10 @@ tail — the state card (temporal frame / affective / behavioral bearing /
 current intent, activity, arcs, memories, about-you, proactive, closing,
 pop-up + the agenda plan) — rides as the TRAILING user message via the
 ``build_context_messages`` seam. ``assemble_snapshot`` keeps the legacy
-full 3-tier system string byte-identical (aux/experiment callers); the
-``build_context_messages`` seam exists for this split, but the session
-mainline still uses ``assemble_snapshot`` — WS-D mainline wiring is planned,
-not yet switched (see docs/internal/plan-2026-09-06-deletion-and-wsd-wiring.md).
+full 3-tier system string byte-identical: the session mainline wires
+``build_context_messages`` (state card as trailing user message), and the
+legacy string is still built per turn for ``_last_system_prompt`` so pop-up
+aux calls replay the mainline prefix.
 
 Leakage invariant (frozen): this module never receives engine state — the
 snapshot carries only domain objects. The rendered behavioral prose and all
