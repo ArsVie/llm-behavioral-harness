@@ -41,7 +41,7 @@ markers = [
 
 [tool.coverage.run]
 branch = false
-source = ["engine", "harness", "sim", "behavioral_signature"]
+source = ["engine", "harness", "sim"]
 omit = ["*/__pycache__/*", "*/.venv/*"]
 
 [tool.coverage.report]

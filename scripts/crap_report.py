@@ -26,7 +26,7 @@ cov = json.load(open(cov_path))["files"]
 
 cc_raw = subprocess.run(
     [".venv/bin/python", "-m", "radon", "cc", "-j",
-     "engine", "harness", "sim", "behavioral_signature"],
+     "engine", "harness", "sim"],
     capture_output=True, text=True).stdout
 cc = json.loads(cc_raw)
 
