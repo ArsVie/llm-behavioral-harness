@@ -46,7 +46,7 @@ import asyncio
 import logging
 import time
 from dataclasses import dataclass, replace
-from typing import TYPE_CHECKING, cast
+from typing import cast
 from zoneinfo import ZoneInfo
 
 import engine.rng as rng_mod
@@ -55,8 +55,6 @@ from engine.types import ENVELOPE_RAMP_H, TimingParams
 from harness.anchor import RealTimeAnchor
 from harness.channels.base import Channel, InboundMessage, OutboundMessage
 
-if TYPE_CHECKING:  # S3: telegram defines ControlCommand (channel side, merged)
-    pass
 from harness.concurrency import (
     ExecutorOwner,
     ResourceRegistry,
@@ -647,13 +645,9 @@ class AsyncRuntime:
     @staticmethod
     def _response_delay(result) -> float:
         """Wall-clock seconds the runtime waits between LLM completion and
-        channel.send. A1 wave 2 wires TurnResult.controls (GenerationControls);
-        today's TurnResult carries the BehaviorDirective — both expose
-        response_delay_s."""
-        controls = getattr(result, "controls", None)
-        if controls is not None:
-            return float(controls.response_delay_s)
-        return float(result.directive.response_delay_s)
+        channel.send. TurnResult.controls (GenerationControls) carries the
+        BehaviorDirective-derived response_delay_s."""
+        return float(result.controls.response_delay_s)
 
     async def _firing_loop(self) -> None:
         """Wait for the next pending event (overdue events are visible after
@@ -874,25 +868,10 @@ class AsyncRuntime:
         """Fire ``session.fire_proactive(intent.id)`` — the EXACT validated
         intent id (A5 seam; invariants 6/7: two same-reason intents are
         never interchangeable; the runtime never downgrades identity to
-        reason type).
-
-        Transitional leg: while A5's ``fire_proactive(intent_id)`` session
-        has not merged, the legacy session accepts a REASON and raises
-        ``ValueError("unknown proactive reason: ...")`` for an id. That
-        exact legacy message is caught and retried with the intent's reason
-        so pre-A5 callers keep working; A5's merge retires this leg (its
-        session fetches by id, and its own ValueErrors — e.g. unknown
-        intent — propagate)."""
-        try:
-            return await self._executor.run_in_thread(
-                self.session.fire_proactive, intent.id
-            )
-        except ValueError as exc:
-            if "unknown proactive reason" not in str(exc):
-                raise
-            return await self._executor.run_in_thread(
-                self.session.fire_proactive, intent.reason
-            )
+        reason type)."""
+        return await self._executor.run_in_thread(
+            self.session.fire_proactive, intent.id
+        )
 
     # quiet-hours deferral
 

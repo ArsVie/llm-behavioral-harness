@@ -103,12 +103,6 @@ from harness.negotiation_contract import (
 from harness.negotiation_state import (
     NegotiationState,
 )
-try:  # A3's episode hook (harness/negotiation_episodes.py). Checkouts
-    # without it degrade to NO episode emission — the negotiation itself
-    # is unaffected (the hook is an A3 landing pad, never a requirement).
-    from harness.negotiation_episodes import emit_negotiation_episode
-except ImportError:  # pragma: no cover — A3 not merged in this checkout
-    emit_negotiation_episode = None
 from harness.negotiation_coordinator import NegotiationMixin
 from harness.scheduler import VALID_REASONS
 from harness.score import synthetic_score as run_daily_synthetic_score
@@ -217,8 +211,7 @@ class TurnResult:
     observable state + the mechanical delivery controls.
 
     Wave 2: ``controls`` (GenerationControls) is what the runtime's delivery
-    path reads for ``response_delay_s``; ``directive`` remains for legacy
-    callers (runtime falls back to it when controls is None).
+    path reads for ``response_delay_s``.
 
     WS4 (runtime redesign): the decision layer's channel outputs ride along
     so the runtime can send them through the channel without the session
@@ -1776,6 +1769,20 @@ class Session(NegotiationMixin):
             self._mark_event_closed(activity.item.id)
         return _STEER_CONSUMED
 
+    def _omit_backlog_send(self, steer: Steer) -> bool:
+        """True when an initiate send is backlog catch-up to omit.
+
+        A steer enqueued BEFORE the current conversation opened is
+        fast-forward material: the verdict is decided and persisted, but
+        its reason never reaches the channel — no conversation was live
+        when it arose, so the text would reply to nobody. Steers born
+        inside the live conversation still send.
+        """
+        conv = self._conversation
+        if conv is None:
+            return True
+        return steer.t_h < conv.opened_t_h
+
     def _steer_event_popup(self, steer: Steer, payload: dict, *,
                            day: int, t_h: float,
                            proactive_out: list[tuple[str, str]]) -> str:
@@ -1815,7 +1822,15 @@ class Session(NegotiationMixin):
         if state == "start" and verdict.get("initiate"):
             label = str(payload.get("event") or "?")
             text = str(verdict.get("reason") or "").strip() or f"Starting {label}."
-            proactive_out.append(("event_popup", text))
+            if self._omit_backlog_send(steer):
+                if hasattr(self.store, "log_event"):
+                    self.store.log_event(
+                        day, t_h, "decision_catchup_omit",
+                        f"steer={steer.steer_id} event={label} "
+                        f"enqueued={steer.t_h:.2f}",
+                    )
+            else:
+                proactive_out.append(("event_popup", text))
         elif state == "end" and verdict.get("action") == "abandon":
             self._mark_event_closed(item_id)
         return _STEER_CONSUMED

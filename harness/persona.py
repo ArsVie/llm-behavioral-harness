@@ -79,8 +79,7 @@ SALIENCE_RANGES: dict[str, tuple[float, float]] = {
 #: Salience sampling range for routines.
 ROUTINE_SALIENCE_RANGE: tuple[float, float] = (0.30, 1.00)
 
-#: Counts are uniform over ``target +- COUNT_JITTER`` (clamped to the pool).
-COUNT_JITTER = 1
+#: Counts are uniform over ``target +- 1`` (clamped to the pool).
 
 
 def _sample_count(rng: np.random.Generator, target: int, pool: int) -> int:
@@ -91,7 +90,7 @@ def _sample_count(rng: np.random.Generator, target: int, pool: int) -> int:
     """
     if pool <= 0:
         return 0
-    k = target + int(rng.integers(-COUNT_JITTER, COUNT_JITTER + 1))
+    k = target + int(rng.integers(-1, 2))
     return max(1, min(k, pool))
 
 

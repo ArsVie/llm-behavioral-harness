@@ -64,14 +64,12 @@ decision/steering payload sections — current activity and the event/pop-up
 block — are PINNED: drop rules evict every other section first and never
 drop them.
 
-The legacy W-E1 entry points ``build_system_prompt`` (persona + directive
-brief) and ``build_messages`` (transcript tail + user request) are preserved
-verbatim for the ablation/harness-off conditions and pre-slice callers.
+The legacy W-E1 entry point ``build_messages`` (transcript tail + user
+request) is preserved verbatim for pre-slice callers.
 """
 
 from __future__ import annotations
 
-from harness.behavior import BehaviorDirective
 from harness.domain import BehaviorBrief, CompanionSnapshot, GenerationControls
 from harness.prompts import (
     ABOUT_YOU_HEADER,
@@ -188,25 +186,6 @@ def proactive_block(hook: str | None = None) -> str:
     ``DEFAULT_PROACTIVE_HOOK`` — no invented source claim.
     """
     return PROACTIVE_OPENING.format(hook=(hook or DEFAULT_PROACTIVE_HOOK).strip())
-
-
-def build_system_prompt(
-    persona_core: str | None = None,
-    directive: BehaviorDirective | None = None,
-) -> str:
-    """One system message: persona core + optional current behavioral guidance.
-
-    With `directive=None` the prompt contains ONLY the persona — this is the
-    "harness off" condition for the ablation experiment (persona preserved,
-    dynamic guidance removed).
-    """
-    core = (persona_core or DEFAULT_PERSONA_CORE).strip()
-    if directive is None:
-        return core
-    brief = directive.prompt_brief.strip()
-    if brief:
-        return f"{core}\n\nCurrent behavioral guidance: {brief}"
-    return core
 
 
 def build_messages(
@@ -549,7 +528,7 @@ def _state_card_sections(
 
     temporal = (
         render_temporal_section(snapshot, t_h, anchor)
-        if anchor is not None and t_h is not None
+        if t_h is not None
         else None
     )
     if temporal:

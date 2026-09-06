@@ -1,7 +1,7 @@
 """Assembler tests (W-E1 + Wave 2 + context construction v2).
 
-W-E1: system prompt shape + leakage invariants; legacy ``build_system_prompt``
-and ``build_messages`` verbatim. Wave 2: CompanionSnapshot assembly — bounded
+W-E1: system prompt shape + leakage invariants; legacy ``build_messages``
+verbatim. Wave 2: CompanionSnapshot assembly — bounded
 sections, proactive hook verbatim, closing guidance, no reason labels.
 v2 (WS1): the full 3-tier context — stable system core / day-start block /
 state card; the unified brief renderer consumes ``prompt_brief`` verbatim
@@ -23,7 +23,6 @@ from harness.assembler import (
     SYSTEM_CORE_WITH_TOOLS,
     assemble_snapshot,
     build_messages,
-    build_system_prompt,
     proactive_block,
     render_day_block,
 )
@@ -70,25 +69,6 @@ def _directive(**overrides) -> BehaviorDirective:
                             event_memory=0.3, endogenous_tone=-0.2, mood_delta=0.1),
     )
     return dataclasses.replace(base, **overrides)
-
-
-def test_system_prompt_contains_core_and_brief():
-    directive = _directive()
-    prompt = build_system_prompt("CORE TEXT.", directive)
-    assert prompt.startswith("CORE TEXT.")
-    assert "Current behavioral guidance:" in prompt
-    assert directive.prompt_brief in prompt
-
-
-def test_system_prompt_without_directive_is_persona_only():
-    prompt = build_system_prompt("CORE TEXT.")
-    assert prompt == "CORE TEXT."
-    assert "behavioral guidance" not in prompt
-
-
-def test_default_persona_fallback():
-    prompt = build_system_prompt(None, None)
-    assert "Nova" in prompt
 
 
 def test_brief_leaks_no_numbers_or_phase_labels():
