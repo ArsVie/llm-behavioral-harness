@@ -372,6 +372,42 @@ def test_render_day_block_is_persona_only():
     assert "planned thing" in tail_skip
 
 
+def test_seam_transcript_matches_legacy_build_messages():
+    """Task-11 switch gate: the seam carries the SAME transcript bytes as the
+    legacy mainline path — only the state card moves (system → trailing user
+    message). After the switch the model sees identical history bytes."""
+    snap = _snapshot(rich=True)
+    recent = _recent_turns(4)
+    controls = _controls()
+    brief = _prompt_brief()
+    day_block = render_day_block(snap)  # the session-cached block, as wired
+    legacy_system = assemble_snapshot(
+        snap, controls=controls, prompt_brief=brief, day_block=day_block,
+        t_h=27.0, anchor=_anchor(),
+    )
+    legacy_messages = build_messages(recent, "hi")
+    system, messages = build_context_messages(
+        snapshot=snap, recent_turns=recent, user_request="hi",
+        controls=controls, prompt_brief=brief,
+        t_h=27.0, anchor=_anchor(), day_block=day_block,
+    )
+# Transcript portion byte-identical; the volatile tail is appended, not interleaved.
+    assert messages[:-1] == legacy_messages
+    assert messages[-1]["role"] == "user"
+# Full-content parity with the legacy request (decomposition property).
+    assert legacy_system == system + "\n\n" + messages[-1]["content"]
+# No-request variant: transcript passes through untouched, tail still appended.
+    system2, messages2 = build_context_messages(
+        snapshot=snap, recent_turns=recent, user_request=None,
+        controls=controls, prompt_brief=brief,
+        t_h=27.0, anchor=_anchor(), day_block=day_block,
+    )
+    assert messages2[:-1] == [
+        {"role": turn["role"], "content": turn["content"]} for turn in recent
+    ]
+    assert system2 == system
+
+
 def test_seam_deterministic_replay_parity():
     """Replay parity at the assembly level: the seam is a pure function of its
     inputs — same inputs (e.g. same-seed fake run) yield byte-identical
