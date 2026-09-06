@@ -299,8 +299,9 @@ def test_a7_raw_engine_state_never_reaches_conversation_context(tmp_path):
             assert token not in payload, (
                 f"raw internal token {token!r} leaked into the message payload"
             )
-        # The guidance present is the rendered prose brief.
-        assert "Current behavioral guidance:" in system
+        # The guidance present is the rendered prose brief (WS-D: tail).
+        tail = call["messages"][-1]["content"]
+        assert "Current behavioral guidance:" in tail
         assert "You are Nova" in system
     finally:
         store.close()

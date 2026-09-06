@@ -359,10 +359,10 @@ def test_exact_intent_identity_two_same_reason_intents():
     assert last["intent_id"] == "87"
     # The snapshot renders #87's intent hook, not #88's (the agenda
     # lane lists both items; the intent hook is #87's)
-    system = session.client.calls[-1]["system"]
-    assert "reaching out first" in system
-    assert "Agenda: pottery class" in system
-    assert "Agenda: gym session" not in system
+    tail = session.client.calls[-1]["messages"][-1]["content"]
+    assert "reaching out first" in tail
+    assert "Agenda: pottery class" in tail
+    assert "Agenda: gym session" not in tail
     # lifecycle: #87 fired, #88 untouched
     assert {i.id for i in store.list_proactive_intents(status="fired")} == {"87"}
     assert "88" not in {

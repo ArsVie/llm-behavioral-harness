@@ -101,6 +101,15 @@ def _drive_exchange(session, clock, text: str, *, gap_h: float = 0.05):
     return session.on_message(text)
 
 
+def _whole_request(client) -> str:
+    """Full model-visible request bytes of the last call (WS-D layout:
+    stable system + every message content, including the volatile tail)."""
+    call = client.calls[-1]
+    parts = [call["system"]]
+    parts.extend(m["content"] or "" for m in call["messages"])
+    return "\n\n".join(parts)
+
+
 def test_seeded_three_turn_goodbye_path(tmp_path, forced_close):
     """Draw -> pending; guidance visible in the NEXT companion turn's
     prompt; the user's reply closes the conversation deterministically
@@ -126,8 +135,8 @@ def test_seeded_three_turn_goodbye_path(tmp_path, forced_close):
     assert "wind_down_started" in events
     # exchange 3: wind-down guidance appears in the next companion turn
     _drive_exchange(session, clock, "ok, bye!")
-    last_system = client.calls[-1]["system"]
-    assert WIND_DOWN_GUIDANCE in last_system
+    last_tail = client.calls[-1]["messages"][-1]["content"]
+    assert WIND_DOWN_GUIDANCE in last_tail
     convs = store.list_conversations()
     assert len(convs) == 1
     assert convs[0].close_reason == "closing_tendency"
@@ -145,16 +154,16 @@ def test_guidance_only_while_wind_down_pending(tmp_path, forced_close):
     store, clock, client, session = _session(tmp_path, two_phase=True)
     clock.advance_hours(8.5)
     _drive_exchange(session, clock, "hi there")
-    assert WIND_DOWN_GUIDANCE not in client.calls[-1]["system"], (
+    assert WIND_DOWN_GUIDANCE not in _whole_request(client), (
         "no wind-down guidance before the draw fires"
     )
     _drive_exchange(session, clock, "so, about today...")
     _drive_exchange(session, clock, "ok, bye!")
     # the goodbye turn carried the wind-down guidance
-    assert WIND_DOWN_GUIDANCE in client.calls[-1]["system"]
+    assert WIND_DOWN_GUIDANCE in client.calls[-1]["messages"][-1]["content"]
     # a NEW conversation (after the close) has no wind-down guidance
     _drive_exchange(session, clock, "another day, another chat")
-    assert WIND_DOWN_GUIDANCE not in client.calls[-1]["system"], (
+    assert WIND_DOWN_GUIDANCE not in _whole_request(client), (
         "wind-down guidance must not leak into the next conversation"
     )
     store.close()
@@ -227,7 +236,7 @@ def test_wind_down_pending_survives_restart(tmp_path, forced_close):
     assert len(convs) == 1
     assert convs[0].close_reason == "closing_tendency"
     assert len(convs[0].turns) == 6
-    assert WIND_DOWN_GUIDANCE in client2.calls[-1]["system"]
+    assert WIND_DOWN_GUIDANCE in client2.calls[-1]["messages"][-1]["content"]
     store2.close()
 
 
@@ -272,5 +281,5 @@ def test_flag_off_closes_at_the_draw_turn(tmp_path, forced_close):
     assert store.conversation_closing_pending("conv-0") is None
     events = [r["event"] for r in store.conn.execute("SELECT event FROM state_events")]
     assert "wind_down_started" not in events
-    assert WIND_DOWN_GUIDANCE not in client.calls[-1]["system"]
+    assert WIND_DOWN_GUIDANCE not in _whole_request(client)
     store.close()

@@ -136,29 +136,42 @@ def _ensure_activity_at(store, session, day: int, t_h: float) -> None:
     store.save_agenda(day, DailyAgenda(day, tuple(items) + (extra,)))
 
 
-def _check_prompt(prompt: str, *, seed: int, day: int) -> None:
-    low = prompt.lower()
-    for token in FORBIDDEN_SUBSTRINGS:
-        assert token not in low, (
-            f"forbidden token {token!r} leaked (seed={seed} day={day}): {prompt[:600]}"
+def _whole_request(call) -> str:
+    """Full model-visible request bytes (WS-D layout): stable system plus
+    every message content, including the volatile state-card tail."""
+    parts = [call["system"]]
+    parts.extend(m["content"] or "" for m in call["messages"])
+    return "\n\n".join(parts)
+
+
+def _check_prompt(call, *, seed: int, day: int) -> None:
+    system = call["system"]
+    tail = call["messages"][-1]["content"]
+    for prompt in (system, tail):
+        low = prompt.lower()
+        for token in FORBIDDEN_SUBSTRINGS:
+            assert token not in low, (
+                f"forbidden token {token!r} leaked (seed={seed} day={day}): {prompt[:600]}"
+            )
+        assert not FORBIDDEN_G_RE.search(low), (
+            f"standalone 'g' leaked (seed={seed} day={day}): {prompt[:600]}"
         )
-    assert not FORBIDDEN_G_RE.search(low), (
-        f"standalone 'g' leaked (seed={seed} day={day}): {prompt[:600]}"
-    )
-    # Only clock times and the temporal day index are numeric content.
-    assert not FORBIDDEN_FLOAT_RE.search(prompt), (
-        f"raw engine float leaked (seed={seed} day={day}): {prompt[:600]}"
-    )
-    leaked = numeric_leak(prompt)
-    assert not leaked, (
-        f"unexpected numeric content {leaked!r} (seed={seed} day={day}): {prompt[:600]}"
-    )
-    # Persona core + life content present and bounded.
-    assert "Nova" in prompt
-    assert "Current activity:" in prompt
-    assert "Active life arcs:" in prompt
-    assert "Today's agenda:" in prompt
-    assert len(prompt) <= MAX_PROMPT_CHARS
+        # Only clock times and the temporal day index are numeric content.
+        assert not FORBIDDEN_FLOAT_RE.search(prompt), (
+            f"raw engine float leaked (seed={seed} day={day}): {prompt[:600]}"
+        )
+        leaked = numeric_leak(prompt)
+        assert not leaked, (
+            f"unexpected numeric content {leaked!r} (seed={seed} day={day}): {prompt[:600]}"
+        )
+    # The budget bound applies to the system prompt, not the transcript.
+    assert len(system) <= MAX_PROMPT_CHARS
+    # Persona core + life content present across the whole request.
+    whole = system + "\n\n" + tail
+    assert "Nova" in whole
+    assert "Current activity:" in whole
+    assert "Active life arcs:" in whole
+    assert "Today's agenda:" in whole
 
 
 def test_forbidden_tokens_never_reach_assembled_prompt(tmp_path):
@@ -175,7 +188,7 @@ def test_forbidden_tokens_never_reach_assembled_prompt(tmp_path):
             _ensure_activity_at(store, session, day, clock.now_h())
             result = session.on_message(BATTERY_MESSAGES[day % len(BATTERY_MESSAGES)])
             phases_seen.add(result.directive.trace.phase_label)
-            _check_prompt(client.calls[-1]["system"], seed=seed, day=day)
+            _check_prompt(client.calls[-1], seed=seed, day=day)
             prompts_checked += 1
         store.close()
     assert prompts_checked == 30
@@ -212,7 +225,7 @@ def test_time_aware_anchored_battery_clean(tmp_path):
         clock.advance_hours(15.0)
         _ensure_activity_at(store, session, day, clock.now_h())
         session.on_message("hello there")
-        prompt = client.calls[-1]["system"]
+        prompt = _whole_request(client.calls[-1])
         # G3: temporal line present, correct weekday + day index
         assert f"It is 15:00, {weekdays[day]} afternoon — day {day}." in prompt, (
             f"temporal line wrong (day={day}): {prompt[:600]}"
@@ -221,7 +234,7 @@ def test_time_aware_anchored_battery_clean(tmp_path):
         assert "Done earlier:" in prompt or "Happening now:" in prompt
         assert "Later today:" in prompt
         # The numeric scan holds on the anchored prompts too.
-        _check_prompt(prompt, seed=44, day=day)
+        _check_prompt(client.calls[-1], seed=44, day=day)
         store.close()
         assert TEMPORAL_LINE_RE.search(prompt)
 
@@ -249,7 +262,7 @@ def test_forbidden_tokens_absent_after_finalize_and_resume(tmp_path):
     session.ensure_day(2)
     _ensure_activity_at(store, session, 2, clock.now_h())
     session.on_message("hello again")
-    _check_prompt(client.calls[-1]["system"], seed=7, day=2)
+    _check_prompt(client.calls[-1], seed=7, day=2)
     store.close()
 
     # Reopen: the assembled prompt stays clean.
@@ -268,7 +281,7 @@ def test_forbidden_tokens_absent_after_finalize_and_resume(tmp_path):
     )
     _ensure_activity_at(store2, session2, 2, 67.0)
     session2.on_message("one more")
-    _check_prompt(client2.calls[-1]["system"], seed=7, day=2)
+    _check_prompt(client2.calls[-1], seed=7, day=2)
     store2.close()
 
 
@@ -304,6 +317,6 @@ def test_grounded_proactive_prompt_is_clean(tmp_path):
     store.save_proactive_intent(intent)
     _ensure_activity_at(store, session, 0, 10.0)
     session.fire_proactive("schedule")
-    _check_prompt(client.calls[-1]["system"], seed=7, day=0)
-    assert intent.hook in client.calls[-1]["system"]
+    _check_prompt(client.calls[-1], seed=7, day=0)
+    assert intent.hook in client.calls[-1]["messages"][-1]["content"]
     store.close()

@@ -60,8 +60,8 @@ def test_first_message_rolls_over_day_zero(tmp_path):
     assert 0 <= state["M"] <= 10
     msgs = store.messages_for_day(0)
     assert [m["role"] for m in msgs] == ["user", "assistant"]
-    # directive exists and the client saw a system prompt with guidance
-    assert "Current behavioral guidance" in client.calls[0]["system"]
+    # directive exists and the client saw guidance (WS-D: state card tail)
+    assert "Current behavioral guidance" in client.calls[0]["messages"][-1]["content"]
     store.close()
 
 
@@ -300,14 +300,16 @@ def test_reactive_turn_persists_snapshot_and_controls(tmp_path):
     call = client.calls[-1]
     assert call["max_tokens"] == result.controls.max_tokens
     system = call["system"]
-    assert "Current behavioral guidance:" in system
+    tail = call["messages"][-1]["content"]
+    assert "Current behavioral guidance:" in tail
     # Recent dialogue appears once, in the message payload.
     assert "Recent conversation:" not in system
     assert "user: hello there" not in system
     payload = call["messages"]
     assert sum(1 for m in payload if m["content"] == "hello there") == 1
-    assert sum(1 for m in payload if m["role"] == "user") == 2
-    assert payload[-1] == {"role": "user", "content": "how are you"}
+    assert sum(1 for m in payload[:-1] if m["role"] == "user") == 2
+    assert payload[-2] == {"role": "user", "content": "how are you"}
+    assert payload[-1]["role"] == "user"  # volatile state-card tail
     msgs = store.messages_for_day(0)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
     # Messages are scoped to the conversation's memory session.
@@ -347,11 +349,13 @@ def test_proactive_grounded_intent_carries_hook(tmp_path):
     )
     store.save_proactive_intent(intent)
     result = session.fire_proactive("schedule")
-    system = client.calls[-1]["system"]
+    call = client.calls[-1]
+    tail = call["messages"][-1]["content"]
     assert result.controls is not None
-    assert "reaching out first" in system
-    assert intent.hook in system
-    assert "Contact reason" not in system
+    assert "reaching out first" in tail
+    assert intent.hook in tail
+    assert "Contact reason" not in tail
+    assert "Contact reason" not in call["system"]
     msgs = store.messages_for_day(0)
     assert len(msgs) == 1 and msgs[0]["role"] == "assistant" and msgs[0]["proactive"] == 1
     # The outgoing message persists the exact validated intent id.
@@ -538,11 +542,13 @@ def test_fire_proactive_exact_intent_never_reason_substitute(tmp_path):
     store.save_proactive_intent(intent_87)
 
     result = session.fire_proactive("pi_87")
-    system = client.calls[-1]["system"]
+    call = client.calls[-1]
+    tail = call["messages"][-1]["content"]
     assert result.reply == "from intent 87"
-    assert hook_87 in system
-    assert hook_88 not in system
-    assert "Contact reason" not in system
+    assert hook_87 in tail
+    assert hook_88 not in tail
+    assert "Contact reason" not in tail
+    assert "Contact reason" not in call["system"]
     msgs = store.messages_for_day(0)
     assert len(msgs) == 1 and msgs[0]["role"] == "assistant"
     assert msgs[0]["intent_id"] == "pi_87"
@@ -633,7 +639,7 @@ def test_resume_with_day_zero_clock_does_not_rewind(tmp_path):
     store2.save_proactive_intent(intent)
     result = session2.fire_proactive("pi_resume")
     assert result.day == 2
-    assert intent.hook in client2.calls[-1]["system"]
+    assert intent.hook in client2.calls[-1]["messages"][-1]["content"]
     msgs = store2.messages_for_day(2)
     assert msgs and msgs[-1]["role"] == "assistant" and msgs[-1]["proactive"] == 1
     assert msgs[-1]["intent_id"] == "pi_resume"
@@ -872,6 +878,6 @@ def test_current_activity_in_progress_reaches_the_system_prompt(tmp_path):
     ))
     clock.advance_hours(19.0)
     session.on_message("hi there")
-    system = session.client.calls[-1]["system"]
-    assert "Current activity: evening run" in system
+    call = session.client.calls[-1]
+    assert "Current activity: evening run" in call["messages"][-1]["content"]
     store.close()

@@ -396,12 +396,12 @@ def test_session_transition_persisted_and_render_agrees(tmp_path):
                      "ag_pottery": "planned",
                      "ag_walk": "planned"}
 
-    system = client.calls[-1]["system"]
-    assert "It is 15:24, Saturday afternoon — day 0." in system
-    assert "Done earlier:\n- morning coffee (06:58–07:46)" in system
-    assert "Happening now:\n- pottery (15:00–16:00)" in system
-    assert "Later today:\n- evening walk (20:00–21:00)" in system
-    assert not FLOAT_RE.search(system), "raw floats leaked into the live prompt"
+    tail = client.calls[-1]["messages"][-1]["content"]
+    assert "It is 15:24, Saturday afternoon — day 0." in tail
+    assert "Done earlier:\n- morning coffee (06:58–07:46)" in tail
+    assert "Happening now:\n- pottery (15:00–16:00)" in tail
+    assert "Later today:\n- evening walk (20:00–21:00)" in tail
+    assert not FLOAT_RE.search(tail), "raw floats leaked into the live prompt"
     store.close()
 
 
@@ -423,10 +423,10 @@ def test_session_before_window_stays_planned_and_renders_later(tmp_path):
     assert {it.id: it.status for it in stored.items} == {
         "ag_coffee": "planned", "ag_pottery": "planned", "ag_walk": "planned",
     }
-    system = client.calls[-1]["system"]
-    assert "It is 06:00, Saturday morning — day 0." in system
-    assert "Later today:\n- morning coffee (06:58–07:46)" in system
-    assert "Done earlier:" not in system
+    tail = client.calls[-1]["messages"][-1]["content"]
+    assert "It is 06:00, Saturday morning — day 0." in tail
+    assert "Later today:\n- morning coffee (06:58–07:46)" in tail
+    assert "Done earlier:" not in tail
     store.close()
 
 
@@ -438,12 +438,13 @@ def test_session_unanchored_prompt_has_no_temporal_section(tmp_path):
     clock = VirtualClock(t_h=15.4)
     session, client = _session(store, clock)
     session.on_message("hello there")
-    system = client.calls[-1]["system"]
-    assert TEMPORAL_HEADER not in system
-    assert "It is " not in system
-    assert "Done earlier" not in system
+    call = client.calls[-1]
+    assert TEMPORAL_HEADER not in call["system"]
+    assert "It is " not in call["system"]
+    assert "Done earlier" not in call["system"]
     # the sectioned card (affective/behavioral/intent) still renders
-    assert AFFECTIVE_HEADER in system
-    assert BEHAVIORAL_HEADER in system
-    assert CURRENT_INTENT_HEADER in system
+    tail = call["messages"][-1]["content"]
+    assert AFFECTIVE_HEADER in tail
+    assert BEHAVIORAL_HEADER in tail
+    assert CURRENT_INTENT_HEADER in tail
     store.close()

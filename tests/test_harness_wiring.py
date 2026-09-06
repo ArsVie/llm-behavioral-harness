@@ -1,7 +1,6 @@
 """WS4 integration wiring tests: steering + decision layer in Session._chat.
 
-Exercises the wiring the integration agent added on top of the three WS
-streams (design plans/harness-runtime-design-2026-08-14.md §2):
+Exercises the current steering + decision-layer wiring in Session._chat:
 
 - idle-boundary drain (event pop-ups, mid-turn user messages) and the
   decide_event / decide_reply pop-ups through the real DecisionRunner;
@@ -25,6 +24,7 @@ from harness.domain import AgendaItem, DailyAgenda
 from harness.judge import ScriptedJudge
 from harness.session import Session
 from harness.steering import (
+    KIND_EVENT_POPUP,
     KIND_USER_MESSAGE,
     STEER_MARKER_OPEN,
 )
@@ -125,6 +125,38 @@ def test_event_popup_no_initiate_no_channel_output(tmp_path):
     assert len(records) == 1
     assert records[0]["verdict"]["initiate"] is False
     assert records[0]["verdict"]["reason"] == "too tired"
+    store.close()
+
+
+def test_backlog_initiate_omits_channel_send(tmp_path):
+    """A steer enqueued BEFORE the conversation opened is fast-forward
+    material: the initiate verdict is decided and persisted, but its
+    reason never reaches the channel — no conversation was live when
+    it arose."""
+    store = _store(tmp_path)
+    store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
+    store.enqueue_steer(0, 8.0, KIND_EVENT_POPUP, {
+        "event_id": "ag1", "event": "pottery", "state": "start",
+        "time": 9.0, "item_id": "ag1",
+    })
+    clock = VirtualClock(t_h=8.5)
+    client = FakeClient(responses=[
+        'tool_decide_event: {"initiate": true, "reason": "ready to go"}',
+        "main reply",
+    ])
+    session = _session(store, client=client, clock=clock,
+                       decision=DecisionConfig())
+    result = session.on_message("hello")
+
+    assert result.reply == "main reply"
+    assert result.proactive_out == () and result.notices == ()
+    records = store.decisions_for_day(0)
+    assert len(records) == 1
+    assert records[0]["verdict"]["initiate"] is True
+    omits = store.conn.execute(
+        "SELECT detail FROM state_events WHERE event='decision_catchup_omit'"
+    ).fetchall()
+    assert len(omits) == 1 and "pottery" in omits[0][0]
     store.close()
 
 
@@ -396,25 +428,27 @@ def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
     client = FakeClient(responses=["r1", "r2", "r3"])
     session = _session(store, client=client, clock=clock)
 
-    def _agenda_segment(system: str) -> str:
-        # Pull the day-start block's agenda segment so the cached-block
-        # comparison is independent of state-card section ordering.
-        _, sep, rest = system.partition("\n\nToday's agenda:")
+    def _agenda_segment(call) -> str:
+        # Pull the tail's agenda segment (WS-D: the day-plan agenda rides
+        # the volatile state card) so the cached-day comparison is
+        # independent of state-card section ordering.
+        tail = call["messages"][-1]["content"]
+        _, sep, rest = tail.partition("Today's agenda:")
         if not sep:
             return ""
         return rest.split("\n\n", 1)[0]
 
     session.on_message("morning")
     session.on_message("still here")
-    block0a = _agenda_segment(client.calls[0]["system"])
-    block0b = _agenda_segment(client.calls[1]["system"])
+    block0a = _agenda_segment(client.calls[0])
+    block0b = _agenda_segment(client.calls[1])
     assert block0a == block0b, "day-start block must be stable within the day"
     assert "pottery" in block0a
 
     clock.advance_to_day(1)
     clock.advance_hours(10.0)
     session.on_message("next day")
-    block1 = _agenda_segment(client.calls[2]["system"])
+    block1 = _agenda_segment(client.calls[2])
     assert block1 != block0a, "day-start block must refresh at rollover"
     assert "chess" in block1
     store.close()

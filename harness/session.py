@@ -73,7 +73,7 @@ from harness.assembler import (
     DEFAULT_PERSONA_CORE,
     RECENT_TURNS,
     assemble_snapshot,
-    build_messages,
+    build_context_messages,
     proactive_block,
     render_day_block,
 )
@@ -1543,8 +1543,16 @@ class Session(NegotiationMixin):
         self._last_system_prompt = system
 
         recent = self.store.recent_messages()
+        # WS-D mainline: stable system + transcript + volatile state card as
+        # the trailing user message. The legacy full 3-tier `system` above
+        # stays for `_last_system_prompt` (pop-up aux calls replay it).
         if user_text is not None:
-            messages = build_messages(recent, user_text)
+            stable, messages = build_context_messages(
+                snapshot, recent, user_text,
+                controls=controls, prompt_brief=directive.prompt_brief,
+                t_h=t_h, anchor=self._real_time_anchor(),
+                day_block=self._day_block,
+            )
             mid = self._persist_message(
                 "user", user_text, t_h, day,
                 proactive=False, session_id=session_id, conversation_id=conv_id,
@@ -1555,10 +1563,20 @@ class Session(NegotiationMixin):
         else:
             # Pass "" instead of None content; None serializes to
             # content:null and 400s the request.
-            messages = [
-                {"role": m["role"], "content": m["content"] or ""}
-                for m in recent
-            ]
+            stable, messages = build_context_messages(
+                snapshot,
+                [{"role": m["role"], "content": m["content"] or ""}
+                 for m in recent],
+                None,
+                controls=controls, prompt_brief=directive.prompt_brief,
+                t_h=t_h, anchor=self._real_time_anchor(),
+                day_block=self._day_block,
+            )
+        stable = _with_bubble_instruction(stable)
+        if user_text is None and intent is None:
+            # Legacy ungrounded proactive call (pre-slice callers/tests):
+            # generic opening without any invented source claim.
+            stable += "\n\n" + proactive_block()
 
         # Drain pending steers into this turn; no-reply verdicts
         # suppress the reply, and delivered steers re-queue on error.
@@ -1595,7 +1613,7 @@ class Session(NegotiationMixin):
             None if self._thinking_effort is not None else controls.max_tokens
         )
         reply, reasoning, usage, raw_cost = self._generate(
-            messages, system, max_tokens
+            messages, stable, max_tokens
         )
         mid = self._persist_message(
             "assistant", reply, t_h, day,
@@ -1609,7 +1627,7 @@ class Session(NegotiationMixin):
         # the max_turns cap; a close persists close_reason.
         self._maybe_close_conversation(conv, t_h, controls.closing_tendency)
         repro_kwargs = self._repro_kwargs(
-            system, messages, max_tokens, controls, intent, day, t_h
+            stable, messages, max_tokens, controls, intent, day, t_h
         )
         # WS4: reasoning persists in the call's meta (audit.py renders it
         # under #Thinking; non-reasoning runs store nothing).

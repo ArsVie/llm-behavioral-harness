@@ -266,9 +266,11 @@ def test_fire_proactive_creates_proactive_message(tmp_path):
     assert len(msgs) == 1
     assert msgs[0]["role"] == "assistant"
     assert msgs[0]["proactive"] == 1
-# fresh transcript → system-only payload; no trailing user request
+# fresh transcript → stable system + state-card tail (WS-D: the tail user
+# message always rides along, so the empty-transcript system-only
+# normalization never triggers on session turns)
     last_call = client.calls[-1]
-    assert last_call["messages"][-1]["role"] == "system"
+    assert last_call["messages"][-1]["role"] == "user"
     assert "reaching out first" in last_call["system"]
 
 

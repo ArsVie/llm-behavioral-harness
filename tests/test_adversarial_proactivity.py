@@ -333,10 +333,10 @@ def test_p1g_session_fires_exact_id_not_reason_sibling(tmp_path):
         assert last["proactive"] == 1
         # The sibling's lifecycle is untouched.
         assert "88" not in {i.id for i in store.list_proactive_intents(status="fired")}
-        # The prompt renders #87's hook.
-        system = session.client.calls[-1]["system"]
-        assert "Agenda: pottery class" in system
-        assert "Agenda: gym session" not in system
+        # The prompt renders #87's hook (WS-D: state card tail).
+        tail = session.client.calls[-1]["messages"][-1]["content"]
+        assert "Agenda: pottery class" in tail
+        assert "Agenda: gym session" not in tail
     finally:
         store.close()
 
