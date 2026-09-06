@@ -29,7 +29,7 @@ import pytest
 
 telegram = pytest.importorskip("telegram")  # noqa: F401 - shared with the channel tests
 
-from tests.helpers import FakeApplication  # noqa: E402 - shared fake, unmodified
+from tests.helpers import FakeApplication, make_store  # noqa: E402 - shared fake, unmodified
 
 from engine.types import PersonaParams, TimingParams  # noqa: E402
 from harness.channels.base import OutboundMessage  # noqa: E402
@@ -49,8 +49,6 @@ def _run(coro) -> None:
     asyncio.run(coro)
 
 
-def _store(tmp_path, name="e2e.db"):
-    return SQLiteStore(tmp_path / name)
 
 
 def _defaults(store, clock, **overrides):
@@ -96,7 +94,7 @@ async def _started(channel, on_command, on_message=None):
     ],
 )
 def test_command_happy_paths_end_to_end(tmp_path, command_text, expect) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     app = FakeApplication()
     channel = TelegramChannel(application=app, owner_chat_id="42")
@@ -116,7 +114,7 @@ def test_command_happy_paths_end_to_end(tmp_path, command_text, expect) -> None:
 
 def test_setup_end_to_end_initializes_the_blank_db(tmp_path) -> None:
     """/setup on a blank DB runs the hook and the refusal follows."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     assert store.load_persona() is None
     args = argparse.Namespace(
@@ -161,7 +159,7 @@ def test_setup_end_to_end_initializes_the_blank_db(tmp_path) -> None:
 
 def test_mute_defer_semantics_end_to_end(tmp_path) -> None:
     """/mute records the deferral; pending schedule rows are never consumed."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     persona = PersonaParams()
     timing = TimingParams()
@@ -185,7 +183,7 @@ def test_mute_defer_semantics_end_to_end(tmp_path) -> None:
 
 
 def test_tz_records_the_pending_change_end_to_end(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     app = FakeApplication()
     channel = TelegramChannel(application=app, owner_chat_id="42")
@@ -202,7 +200,7 @@ def test_tz_records_the_pending_change_end_to_end(tmp_path) -> None:
 
 
 def test_state_is_gated_even_end_to_end(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     app = FakeApplication()
     channel = TelegramChannel(application=app, owner_chat_id="42")
@@ -266,7 +264,7 @@ def test_flag_off_parity_plain_text_still_flows(tmp_path) -> None:
 
 
 def test_bridge_injects_the_launcher_callback_into_start(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     app = FakeApplication()
     channel = TelegramChannel(application=app, owner_chat_id="42")
@@ -287,7 +285,7 @@ def test_bridge_injects_the_launcher_callback_into_start(tmp_path) -> None:
 def test_bridge_runtimes_own_callback_wins(tmp_path) -> None:
     """When the runtime passes its own on_command, it supersedes the
     launcher's — no double wiring after W-runtime merges."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     app = FakeApplication()
     channel = TelegramChannel(application=app, owner_chat_id="42")

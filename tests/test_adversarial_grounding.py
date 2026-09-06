@@ -19,14 +19,13 @@ from harness.domain import (
 from harness.gates import content_gate
 from harness.proactive import IntentResolver
 from harness.store import SQLiteStore
+from tests.helpers import make_store
 
 SEED = 4242
 #: 12:00 local — outside the check-in windows (8-11, 19-22).
 NOW_H = 300.0
 
 
-def _store(tmp_path, name: str) -> SQLiteStore:
-    return SQLiteStore(tmp_path / name)
 
 
 def _resolver(store, seed: int = SEED) -> IntentResolver:
@@ -62,7 +61,7 @@ def test_g1_agenda_item_skipped_before_firing_suppressed(tmp_path):
     a removed state ('skipped') before fire time. The message must be
     SUPPRESSED (source_superseded), never hallucinated, with no fallback to a
     generic 'schedule' reason; the intent row ends suppressed."""
-    store = _store(tmp_path, "g1a.db")
+    store = make_store(tmp_path, "g1a.db")
     store.save_agenda(8, DailyAgenda(8, (
         _near_item("pottery_1"),
     )))
@@ -86,7 +85,7 @@ def test_g1b_agenda_item_row_deleted_suppressed(tmp_path):
     """G-1 variant: the item ROW is hard-deleted from the store. The content
     gate's existence check must reject with no_source (no hallucinated
     message)."""
-    store = _store(tmp_path, "g1b.db")
+    store = make_store(tmp_path, "g1b.db")
     store.save_agenda(8, DailyAgenda(8, (
         _near_item("pottery_2"),
     )))
@@ -107,7 +106,7 @@ def test_g2_shared_interest_without_record_no_grounded_reason(tmp_path):
     """G-2: interests exist but NO episode carries a matching tag (and no
     other candidate exists) → resolver returns None ⇒ SUPPRESS:
     no_grounded_reason; no invented 'we both like X' text can be emitted."""
-    store = _store(tmp_path, "g2.db")
+    store = make_store(tmp_path, "g2.db")
     store.save_interests([Interest("metal", "exact", 0.9)])
     store.insert_episode(_episode(
         "ep_plants", MemoryKind.SHARED_EPISODE, 280.0, tags=("plants",),
@@ -120,7 +119,7 @@ def test_g2_shared_interest_without_record_no_grounded_reason(tmp_path):
 
 def test_g2b_shared_interest_without_record_empty_store(tmp_path):
     """G-2 variant: completely empty store → None (blank slate)."""
-    store = _store(tmp_path, "g2b.db")
+    store = make_store(tmp_path, "g2b.db")
     assert _resolver(store).resolve(NOW_H) is None
     store.close()
 
@@ -132,7 +131,7 @@ def test_g3_hook_not_traceable_to_source_rejected(tmp_path):
     """G-3: an intent whose hook references a detail ABSENT from the source
     record (LLM-embellished hook) must be rejected even though the source
     exists — the gate re-derives the hook deterministically."""
-    store = _store(tmp_path, "g3.db")
+    store = make_store(tmp_path, "g3.db")
     store.save_agenda(8, DailyAgenda(8, (
         _agenda_item("pottery_3", 295.0, 297.0, "pottery class"),
     )))
@@ -157,7 +156,7 @@ def test_g4_superseded_l4_assertion_grounds_nothing(tmp_path):
     content gate must treat the superseded fact as an invalid source."""
     from harness.domain import UserModelAssertion
 
-    store = _store(tmp_path, "g4.db")
+    store = make_store(tmp_path, "g4.db")
     store.save_interests([Interest("music", "exact", 0.9)])
     store.insert_episode(_episode(
         "ep_luna", MemoryKind.SHARED_EPISODE, 280.0, tags=("music",),
@@ -190,7 +189,7 @@ def test_g5_completion_claim_without_persisted_completion(tmp_path):
     still 'planned' in the store (completion write lost). The message must
     never claim completion the store does not record — suppressed or re-hooked
     to a truthful source."""
-    store = _store(tmp_path, "g5.db")
+    store = make_store(tmp_path, "g5.db")
     store.save_agenda(8, DailyAgenda(8, (
         _agenda_item("pottery_5", 290.0, 293.0, "pottery class"),
     )))
@@ -213,7 +212,7 @@ def test_g5_completion_claim_without_persisted_completion(tmp_path):
 def test_g6_valid_until_boundary_inclusive(tmp_path):
     """G-6: fire attempted at V−ε, at V (inclusive — pinned by test), and at
     V+ε. Only V+ε may expire, so restart timing can never flip the verdict."""
-    store = _store(tmp_path, "g6.db")
+    store = make_store(tmp_path, "g6.db")
     store.save_agenda(8, DailyAgenda(8, (
         _near_item("pottery_6"),
     )))
@@ -237,7 +236,7 @@ def test_g7_fired_intent_never_refired_and_expired_not_resurrected(tmp_path):
     later opportunity at the same moment re-derives the SAME id but the upsert
     must not resurrect the fired row), expired intents are never re-used, and
     every fireable intent resolves to a live source."""
-    store = _store(tmp_path, "g7.db")
+    store = make_store(tmp_path, "g7.db")
     store.save_agenda(8, DailyAgenda(8, (
         _near_item("pottery_7"),
     )))
@@ -276,7 +275,7 @@ def test_g8_callback_memory_deleted_before_fire_suppressed(tmp_path):
     """G-8: a CALLBACK memory ('promise to send the playlist') is the intent's
     source; the memory is deleted before fire time → suppressed; no 'you said
     you'd…' message without a record."""
-    store = _store(tmp_path, "g8a.db")
+    store = make_store(tmp_path, "g8a.db")
     store.insert_episode(_episode(
         "ep_cb", MemoryKind.CALLBACK, 290.0, tags=("callback",),
         summary="promised to send the playlist",
@@ -294,7 +293,7 @@ def test_g8b_callback_provenance_session_gone_suppressed(tmp_path):
     """G-8 variant: the callback episode exists but its source session no
     longer exists in the store (provenance chain broken) → the message must
     still be suppressed: no record of the promise ⇒ no claim."""
-    store = _store(tmp_path, "g8b.db")
+    store = make_store(tmp_path, "g8b.db")
     store.insert_episode(_episode(
         "ep_cb2", MemoryKind.CALLBACK, 290.0, tags=("callback",),
         summary="promised to send the playlist", session="day-99",
@@ -322,7 +321,7 @@ def test_v1a_gate_allows_only_intents_with_live_sources(tmp_path):
     skipped → source_superseded. A proactive message can never be grounded
     on a dead record (g8b semantics keep passing)."""
     # Agenda source: planned→ok, skipped→source_superseded, deleted→no_source.
-    store = _store(tmp_path, "v1a.db")
+    store = make_store(tmp_path, "v1a.db")
     store.save_agenda(0, DailyAgenda(0, (_agenda_item("g1", 299.0, 301.0),)))
     intent = _resolver(store).resolve(NOW_H)
     assert intent is not None and intent.source_type == "agenda_item"
@@ -372,7 +371,7 @@ def test_v1b_suppressed_intents_never_carry_a_message_row(tmp_path):
     """V-1 (message-level): after a runtime run whose only proactive event is
     suppressed (source deleted), NO message row exists at all — a suppressed
     intent is never attached to a message, and no ghost row carries its id."""
-    store = _store(tmp_path, "v1b.db")
+    store = make_store(tmp_path, "v1b.db")
     from harness.channels.base import FakeChannel
     from harness.client import FakeClient
     from harness.clock import VirtualClock

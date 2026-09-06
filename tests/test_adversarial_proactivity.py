@@ -46,6 +46,7 @@ from harness.scheduler import (
 )
 from harness.session import Session
 from harness.store import SQLiteStore
+from tests.helpers import make_store
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -55,8 +56,6 @@ SEED = 12345
 FAST = TimeScale(seconds_per_virtual_hour=0.02)
 
 
-def _store(tmp_path, name: str) -> SQLiteStore:
-    return SQLiteStore(tmp_path / name)
 
 
 def _session(store, clock: VirtualClock | None = None):
@@ -149,7 +148,7 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
     from harness.bootstrap import ensure_companion_initialized
 
     # Schedule: a planned agenda item around now.
-    s1 = _store(tmp_path, "p1b_sched.db")
+    s1 = make_store(tmp_path, "p1b_sched.db")
     try:
         item = _ground_agenda(s1, 9.5, 10.5, item_id="slot_sched",
                               activity="pottery class")
@@ -161,7 +160,7 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
         s1.close()
 
     # Event: a completed agenda item within 48h.
-    s2 = _store(tmp_path, "p1b_event.db")
+    s2 = make_store(tmp_path, "p1b_event.db")
     try:
         done = _ground_agenda(s2, 4.0, 5.0, item_id="slot_done", salience=0.9,
                               activity="finished run")
@@ -174,7 +173,7 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
         s2.close()
 
     # Callback: a CALLBACK episode, resolved outside check-in windows.
-    s3 = _store(tmp_path, "p1b_cb.db")
+    s3 = make_store(tmp_path, "p1b_cb.db")
     try:
         s3.insert_episode(EpisodicMemory(
             "ep_cb", "user asked to be reminded to water the plants",
@@ -188,7 +187,7 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
         s3.close()
 
     # Shared interest: an episode tagged with a persona interest.
-    s4 = _store(tmp_path, "p1b_si.db")
+    s4 = make_store(tmp_path, "p1b_si.db")
     try:
         ensure_companion_initialized(
             s4, seed=SEED, user=UserProfile(name="u", interests=("pottery",))
@@ -205,7 +204,7 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
         s4.close()
 
     # Check-in: episodes plus a >12h silence gap, inside the 08-11 window.
-    s5 = _store(tmp_path, "p1b_ci.db")
+    s5 = make_store(tmp_path, "p1b_ci.db")
     try:
         s5.insert_episode(EpisodicMemory(
             "ep_anchor", "we talked about the trip", MemoryKind.SHARED_EPISODE,
@@ -229,7 +228,7 @@ def test_p1c_unknown_intent_id_raises_value_error_no_message(tmp_path):
     """fire_proactive('does-not-exist') raises ValueError and produces NO
     message row and NO client call — an unknown id can never become a
     message."""
-    store = _store(tmp_path, "p1c.db")
+    store = make_store(tmp_path, "p1c.db")
     store.save_daily_state(0, {"day": 0, "M": 6, "m": 0.0, "g": 0.7, "p": 0.5,
                                "arg": 0.0, "mu": 0.0, "eta": 0.0,
                                "cycle_day": 0.0, "phase_label": "phase_a",
@@ -251,7 +250,7 @@ def test_p1d_expired_intent_id_raises_value_error_no_message(tmp_path):
     """fire_proactive on a STORED but EXPIRED intent raises ValueError (the
     intent's validity window has closed) and produces no message — an
     expired intent is never deliverable."""
-    store = _store(tmp_path, "p1d.db")
+    store = make_store(tmp_path, "p1d.db")
     store.save_daily_state(0, {"day": 0, "M": 6, "m": 0.0, "g": 0.7, "p": 0.5,
                                "arg": 0.0, "mu": 0.0, "eta": 0.0,
                                "cycle_day": 0.0, "phase_label": "phase_a",
@@ -281,7 +280,7 @@ def test_p1e_exact_id_isolation_between_same_reason_siblings(tmp_path):
     """Store-level isolation (invariant 7): two intents with the SAME reason
     and the SAME hook are distinct rows; loading by exact id returns the
     exact one; lifecycle updates of one never touch the sibling."""
-    store = _store(tmp_path, "p1e.db")
+    store = make_store(tmp_path, "p1e.db")
     try:
         pottery = _ground_agenda(store, 9.5, 10.5, item_id="pottery",
                                  activity="pottery class")
@@ -311,7 +310,7 @@ def test_p1g_session_fires_exact_id_not_reason_sibling(tmp_path):
     outgoing message persists EXACTLY the id passed to fire_proactive — the
     sibling is never substituted, even though a reason-only lookup would
     return the most recent sibling."""
-    store = _store(tmp_path, "p1g.db")
+    store = make_store(tmp_path, "p1g.db")
     store.save_daily_state(0, {"day": 0, "M": 6, "m": 0.0, "g": 0.7, "p": 0.5,
                                "arg": 0.0, "mu": 0.0, "eta": 0.0,
                                "cycle_day": 0.0, "phase_label": "phase_a",
@@ -349,7 +348,7 @@ def test_p1f_opportunity_without_intent_no_message(tmp_path):
     store must flow through the runtime as a SUPPRESSION: no message, no
     persisted intent, suppression logged as no_grounded_reason (a normal
     outcome, never an error) and the event row consumed, not stranded."""
-    store = _store(tmp_path, "p1f.db")
+    store = make_store(tmp_path, "p1f.db")
     schedule = ProactiveSchedule.plan_and_persist(1, SEED, PERSONA, TIMING, store)
     assert schedule.event_hours, "precondition: at least one opportunity today"
     h = float(schedule.event_hours[0])

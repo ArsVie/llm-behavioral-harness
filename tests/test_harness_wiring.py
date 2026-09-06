@@ -29,6 +29,7 @@ from harness.steering import (
     STEER_MARKER_OPEN,
 )
 from harness.store import SQLiteStore
+from tests.helpers import make_store
 from harness.tools import DecisionConfig
 
 PERSONA = PersonaParams()
@@ -57,8 +58,6 @@ def _session(store, *, client, clock, decision=None):
     )
 
 
-def _store(tmp_path, name: str = "w.db") -> SQLiteStore:
-    return SQLiteStore(tmp_path / name)
 
 
 # event pop-ups (decide_event)
@@ -70,7 +69,7 @@ def test_event_popup_initiate_fires_proactive_out(tmp_path):
     a native-capable client exercises the text fallback), an initiate
     verdict produces a proactive_out message, and the decision + delivery
     are both persisted (delivered_t_h recorded)."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
@@ -108,7 +107,7 @@ def test_event_popup_initiate_fires_proactive_out(tmp_path):
 def test_event_popup_no_initiate_no_channel_output(tmp_path):
     """An initiate=no verdict (with a reason) records the decision and
     produces no channel output at all."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
@@ -133,7 +132,7 @@ def test_backlog_initiate_omits_channel_send(tmp_path):
     material: the initiate verdict is decided and persisted, but its
     reason never reaches the channel — no conversation was live when
     it arose."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     store.enqueue_steer(0, 8.0, KIND_EVENT_POPUP, {
         "event_id": "ag1", "event": "pottery", "state": "start",
@@ -165,7 +164,7 @@ def test_event_popup_end_abandon_marks_item_skipped(tmp_path):
     agenda item is marked skipped (the NOW-semantics state card stops
     showing it). The start pop-up is consumed by an earlier turn so the end
     pop-up is the only one in play at 12:00."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
@@ -200,7 +199,7 @@ def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
     reply-path invariant) and the notice rides out through TurnResult. The
     user message IS persisted; no assistant row is created; the main LLM
     call never happens (the pop-up call is the only call)."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
@@ -241,7 +240,7 @@ def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
 def test_decide_reply_yes_proceeds_with_ordinary_reply(tmp_path):
     """A reply=yes verdict proceeds with the ordinary reply; terminate_event
     closes the event server-side (item -> skipped)."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
@@ -270,7 +269,7 @@ def test_decide_reply_yes_proceeds_with_ordinary_reply(tmp_path):
 
 def test_decide_reply_verbose_notice_carries_reason(tmp_path):
     """HARNESS_VERBOSE=1: the no-reply notice carries the model's reason."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
@@ -300,7 +299,7 @@ def test_parse_failure_requeues_steer_for_next_boundary(tmp_path):
     inside the runner; the steer returns to pending (the parse failure is a
     LOUD recorded event) and the next turn drains it again — this time with
     a parseable reply. The raw gibberish reply stays persisted."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
@@ -328,7 +327,7 @@ def test_parse_failure_requeues_steer_for_next_boundary(tmp_path):
 def test_interrupted_turn_requeues_delivered_steers(tmp_path):
     """If the pop-up call raises (abandoned turn), the steers delivered to
     that turn are re-queued and delivered again at the next boundary."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
@@ -370,7 +369,7 @@ def test_thinking_effort_passthrough_and_reasoning_persistence(
     reasoning model), and the model's reasoning is persisted in the llm_call
     meta (audit renders it under #Thinking)."""
     monkeypatch.setenv("HARNESS_THINKING_EFFORT", "low")
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[{
         "content": "hello back",
@@ -397,7 +396,7 @@ def test_defaults_inert_no_thinking_no_steering(tmp_path):
     """With no HARNESS_* env vars and no injected config the harness is
     exactly as before: one model call per turn, no reasoning_effort, no
     steering activity, no meta."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=["plain reply"])
     session = _session(store, client=client, clock=clock)
@@ -420,7 +419,7 @@ def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
     """Tier 2 (day-start block) is rendered once per day and cached: two
     turns of the same day share the identical block; the next day's block
     differs (new agenda)."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0, activity="pottery"),)))
     store.save_agenda(1, DailyAgenda(1, (_item(33.0, 35.0, activity="chess",
                                                 item_id="ag2"),)))

@@ -19,6 +19,7 @@ from harness.judge import ScriptedJudge
 from harness.persona import build_persona
 from harness.session import Session
 from harness.store import SQLiteStore
+from tests.helpers import make_store
 from harness import life
 
 PERSONA = PersonaParams()
@@ -28,8 +29,6 @@ SEED = 12345
 ALT_SEED = 999
 
 
-def _store(tmp_path, name: str) -> SQLiteStore:
-    return SQLiteStore(tmp_path / name)
 
 
 def _profile(seed: int = SEED):
@@ -68,7 +67,7 @@ def _run_days(session, days: int, *, start_day: int = 1,
 
 def _run_60(tmp_path, name: str, seed: int = SEED, *, stop_at: int | None = None) -> SQLiteStore:
     """Full 60-day run (or partial when stop_at given); returns the store."""
-    store = _store(tmp_path, name)
+    store = make_store(tmp_path, name)
     profile = _profile(seed)
     store.save_persona(profile)
     session = _session(store, profile, seed=seed)
@@ -114,7 +113,7 @@ def test_l2_completed_arcs_excluded_from_agenda(tmp_path):
     """L-2: agenda generation must never reference a completed arc (no
     dangling source_id), and 'everything completing too fast' must leave a
     legitimately sparse-but-valid agenda — never items of a dead arc."""
-    store = _store(tmp_path, "l2.db")
+    store = make_store(tmp_path, "l2.db")
     profile = _profile(SEED)
     store.save_persona(profile)
     session = _session(store, profile)
@@ -183,7 +182,7 @@ def test_l4_overlapping_items_still_single_current_activity(tmp_path):
     15:00-17:00), CurrentActivity resolution is single-valued (one item or
     None — never two), and across 60 accelerated days no snapshot ever shows
     concurrent activities."""
-    store = _store(tmp_path, "l4.db")
+    store = make_store(tmp_path, "l4.db")
     profile = _profile(SEED)
     store.save_persona(profile)
     session = _session(store, profile)
@@ -230,7 +229,7 @@ def test_l5_dead_arcs_stop_generating_and_never_reactivate(tmp_path):
     """L-5: abandoned arcs stop generating agenda items after their
     abandonment day; the snapshot's active set excludes them; no dead arc is
     ever re-activated by init_life after a restart."""
-    store = _store(tmp_path, "l5.db")
+    store = make_store(tmp_path, "l5.db")
     profile = _profile(SEED)
     store.save_persona(profile)
     session = _session(store, profile)
@@ -258,7 +257,7 @@ def test_l5_dead_arcs_stop_generating_and_never_reactivate(tmp_path):
     assert not bad, f"abandoned arc still generating agenda: {bad[:5]}"
     abandoned = {a.id for a in store.list_life_arcs() if a.status == "abandoned"}
     # Restart: init_life does not resurrect dead arcs.
-    store2 = _store(tmp_path, "l5.db")
+    store2 = make_store(tmp_path, "l5.db")
     profile2 = _profile(SEED)
     s2 = _session(store2, profile2)
     s2.clock.advance_to_day(62)
@@ -323,7 +322,7 @@ def test_l7_arc_wipe_restart_no_silent_id_reuse(tmp_path):
     store.conn.commit()
 
     # Restart with a fresh store instance over the same file.
-    store2 = _store(tmp_path, "l7.db")
+    store2 = make_store(tmp_path, "l7.db")
     profile = _profile(SEED)
     s2 = _session(store2, profile)
     s2.clock.advance_to_day(31)
@@ -348,7 +347,7 @@ def test_l8_restart_reproduces_persistent_state_exactly(tmp_path):
     collisions; every started_day <= current day."""
     straight = _run_60(tmp_path, "l8_straight.db", seed=SEED)
 
-    restarted = _store(tmp_path, "l8_restart.db")
+    restarted = make_store(tmp_path, "l8_restart.db")
     profile = _profile(SEED)
     restarted.save_persona(profile)
     s1 = _session(restarted, profile)
@@ -359,7 +358,7 @@ def test_l8_restart_reproduces_persistent_state_exactly(tmp_path):
                    for a in restarted.list_life_arcs()}
 
     # Restart at day 31.
-    store2 = _store(tmp_path, "l8_restart.db")
+    store2 = make_store(tmp_path, "l8_restart.db")
     s2 = _session(store2, profile)
     s2.clock.advance_to_day(31)
     s2.ensure_day(31)
@@ -399,7 +398,7 @@ def test_l9a_replenishment_never_reaches_active_zero(tmp_path):
     run must terminate, and every persisted arc stays valid."""
     for seed in (11, 22, 33):
         for days in (30, 60, 120):
-            store = _store(tmp_path, f"l9a_{seed}_{days}.db")
+            store = make_store(tmp_path, f"l9a_{seed}_{days}.db")
             persona = _profile(seed)
             arcs = life.init_life(seed, persona, store, start_day=1)
             assert arcs, "precondition: initial arcs exist"
@@ -427,7 +426,7 @@ def test_l9b_arc_start_time_respected_across_restart(tmp_path):
     reopened mid-run (arcs reloaded from the DB) continues byte-identically
     to the uninterrupted run."""
     persona = _profile(SEED)
-    store = _store(tmp_path, "l9b.db")
+    store = make_store(tmp_path, "l9b.db")
     arcs = life.init_life(SEED, persona, store, start_day=1)
     future = [a for a in arcs if a.started_day > 1]
     assert future, "precondition: some arc starts in the future"
@@ -449,7 +448,7 @@ def test_l9b_arc_start_time_respected_across_restart(tmp_path):
         ), f"arc {target.id} generated agenda items before its start"
 
     # Restart with a fresh store over the same file; arcs reload from the DB.
-    store2 = _store(tmp_path, "l9b.db")
+    store2 = make_store(tmp_path, "l9b.db")
     arcs2 = sorted(store2.list_life_arcs(), key=lambda a: a.id)
     assert [a.id for a in arcs2] == [a.id for a in arcs]
     assert all(
@@ -480,7 +479,7 @@ def test_l9c_current_activity_never_in_the_future(tmp_path):
     the sampled instant (start <= t_h < end) — a future plan is never the
     current activity, and the reported t_h is the sampled now."""
     for seed in (11, 22):
-        store = _store(tmp_path, f"l9c_{seed}.db")
+        store = make_store(tmp_path, f"l9c_{seed}.db")
         persona = _profile(seed)
         arcs = life.init_life(seed, persona, store)
         for d in range(1, 60):

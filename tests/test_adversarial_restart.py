@@ -40,6 +40,7 @@ from harness.scheduler import (
 )
 from harness.session import Session
 from harness.store import SQLiteStore
+from tests.helpers import make_store
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -51,8 +52,6 @@ LIFE_SEED = 12345
 SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 
 
-def _store(tmp_path, name: str) -> SQLiteStore:
-    return SQLiteStore(tmp_path / name)
 
 
 def _session(store, *, clock=None, profile=None, replies=None):
@@ -117,7 +116,7 @@ def test_r1_restart_exactly_at_event_time_fires_once(tmp_path):
     exactly H. The event must be VISIBLE at now == H (regression on the old
     strict `h > t_h` bug), pass gates, resolve to a grounded source, fire
     exactly once, and the fired row must persist."""
-    store = _store(tmp_path, "r1.db")
+    store = make_store(tmp_path, "r1.db")
     sched = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store)
     H = next(float(h) for h in sched.event_hours if h < 20.0)
     store.save_agenda(0, DailyAgenda(0, (
@@ -125,7 +124,7 @@ def test_r1_restart_exactly_at_event_time_fires_once(tmp_path):
     )))
 
     # restart: fresh store instance (same file) + restored schedule, clock at H
-    store2 = _store(tmp_path, "r1.db")
+    store2 = make_store(tmp_path, "r1.db")
     restored = ProactiveSchedule.restore(SEED, store2)
     assert restored.next_pending(H) == H, "event invisible at now == H"
     session = _session(store2)
@@ -150,14 +149,14 @@ def test_r2_restart_ten_minutes_after_event_fires(tmp_path):
     window). The overdue pending row must be EVALUATED (not dropped): the
     grounded source still exists ⇒ fires with a grounded intent; row ends
     'fired', never silently stranded."""
-    store = _store(tmp_path, "r2.db")
+    store = make_store(tmp_path, "r2.db")
     sched = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store)
     H = next(float(h) for h in sched.event_hours if h < 20.0)
     store.save_agenda(0, DailyAgenda(0, (
         _ground_item("g1", H - 1.0, H + 1.0),
     )))
 
-    store2 = _store(tmp_path, "r2.db")
+    store2 = make_store(tmp_path, "r2.db")
     restored = ProactiveSchedule.restore(SEED, store2)
     restart_h = H + 10.0 / 60.0
     assert restored.next_pending(restart_h) == H, "overdue row stranded"
@@ -175,14 +174,14 @@ def test_r3_restart_beyond_validity_expires_without_ghost(tmp_path):
     """R-3: restart at H+4h for a schedule reason (validity 3h). The gate must
     return 'expired' → row marked expired, NO message, and no ghost firing on
     later polls (invariant: stranded overdue events = 0)."""
-    store = _store(tmp_path, "r3.db")
+    store = make_store(tmp_path, "r3.db")
     sched = ProactiveSchedule.plan_and_persist(3, SEED, PERSONA, TIMING, store)
     H = next(float(h) for h in sched.event_hours if h < 20.0)
     store.save_agenda(0, DailyAgenda(0, (
         _ground_item("g1", H - 1.0, H + 1.0),
     )))
 
-    store2 = _store(tmp_path, "r3.db")
+    store2 = make_store(tmp_path, "r3.db")
     restored = ProactiveSchedule.restore(SEED, store2)
     late = H + 4.0
     assert restored.next_pending(late) == H  # overdue row surfaced
@@ -205,7 +204,7 @@ def test_r4_restart_during_quiet_hours_expires_by_policy_no_retry(tmp_path):
     (envelope == 0). The overdue row is past its validity window ⇒ expired per
     policy: no message during quiet hours, no infinite retry loop, row not
     stranded. Also: no NEW plan may land in quiet hours."""
-    store = _store(tmp_path, "r4.db")
+    store = make_store(tmp_path, "r4.db")
     store.save_schedule_events(SEED, [
         {"t_h": 14.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
@@ -217,7 +216,7 @@ def test_r4_restart_during_quiet_hours_expires_by_policy_no_retry(tmp_path):
     assert context_gate(27.0, 1, store=store, timing=TIMING,
                         last_fired_t_h=None).code == "quiet_hours"
 
-    store2 = _store(tmp_path, "r4.db")
+    store2 = make_store(tmp_path, "r4.db")
     restored = ProactiveSchedule.restore(SEED, store2)
     session = _session(store2)
     channel = FakeChannel()
@@ -242,7 +241,7 @@ def test_r4b_quiet_hours_does_not_consume_still_valid_event(tmp_path):
     fired — it must be deferred to the next awake instant or expired per
     policy. Consuming it without delivery loses a message the store still
     grounds."""
-    store = _store(tmp_path, "r4b.db")
+    store = make_store(tmp_path, "r4b.db")
     store.save_schedule_events(SEED, [
         {"t_h": 23.5, "day": 0, "reason": REASON_CHECK_IN},  # valid until 11:30 d+1
     ])
@@ -257,7 +256,7 @@ def test_r4b_quiet_hours_does_not_consume_still_valid_event(tmp_path):
         22.0, 22.1, 0.6, 0, None, None, "day-0", (1,), ("long talk about the trip",), ("trip",),
     ))
 
-    store2 = _store(tmp_path, "r4b.db")
+    store2 = make_store(tmp_path, "r4b.db")
     restored = ProactiveSchedule.restore(SEED, store2)
     session = _session(store2)
     channel = FakeChannel()
@@ -279,7 +278,7 @@ def test_r5_two_missed_events_evaluated_independently(tmp_path):
     restart at 14:00 → H1 expired, H2 still valid. Each row evaluated
     independently: expired → expire (no message), valid → fire with ITS OWN
     grounded intent; no double-fire, no cross-reason contamination."""
-    store = _store(tmp_path, "r5.db")
+    store = make_store(tmp_path, "r5.db")
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
         {"t_h": 12.0, "day": 0, "reason": REASON_SCHEDULE},
@@ -289,7 +288,7 @@ def test_r5_two_missed_events_evaluated_independently(tmp_path):
         _ground_item("gB", 11.5, 12.5, activity="evening run"),
     )))
 
-    store2 = _store(tmp_path, "r5.db")
+    store2 = make_store(tmp_path, "r5.db")
     restored = ProactiveSchedule.restore(SEED, store2)
     assert restored.next_pending(14.0) == 10.0  # oldest overdue first
     session = _session(store2)
@@ -313,7 +312,7 @@ def test_r5b_two_missed_events_both_valid(tmp_path):
     """R-5 variant: restart at 13:00 with both rows still inside their
     validity windows. Both are evaluated; the first fires, the second is
     subject to cooldown/daily-cap — neither is stranded."""
-    store = _store(tmp_path, "r5b.db")
+    store = make_store(tmp_path, "r5b.db")
     store.save_schedule_events(SEED, [
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
         {"t_h": 12.0, "day": 0, "reason": REASON_SCHEDULE},
@@ -323,7 +322,7 @@ def test_r5b_two_missed_events_both_valid(tmp_path):
         _ground_item("gB", 11.5, 12.5),
     )))
 
-    store2 = _store(tmp_path, "r5b.db")
+    store2 = make_store(tmp_path, "r5b.db")
     restored = ProactiveSchedule.restore(SEED, store2)
     session = _session(store2)
     channel = FakeChannel()
@@ -345,7 +344,7 @@ def test_r6_restart_at_midnight_day_boundary(tmp_path):
     the boundary (day attribution does not expire it), the day-1 daily cap
     starts fresh, day 0's judge score is available for day 1's hazard, and the
     day-0 event is never double-counted against day 1's cap."""
-    store = _store(tmp_path, "r6.db")
+    store = make_store(tmp_path, "r6.db")
     # set up a finalized day 0 so the judgement feeds day 1's hazard
     s0 = _session(store)
     s0.clock.advance_hours(19.0)
@@ -364,7 +363,7 @@ def test_r6_restart_at_midnight_day_boundary(tmp_path):
         _ground_item("gM", 32.0, 34.0),
     )))
 
-    store2 = _store(tmp_path, "r6.db")
+    store2 = make_store(tmp_path, "r6.db")
     restored = ProactiveSchedule.restore(SEED, store2)
     assert restored.next_pending(24.0) == 23.5, "day-0 row invisible at midnight"
     session = _session(store2)
@@ -410,7 +409,7 @@ def test_r7_restart_after_agenda_generation_before_completion(tmp_path):
     below asserts the NOW behavior itself: at an idle hour there is no
     current activity at all.
     """
-    store = _store(tmp_path, "r7.db")
+    store = make_store(tmp_path, "r7.db")
     profile = build_persona(LIFE_SEED, graph=build_catalog())
     store.save_persona(profile)
     session = _session(store, profile=profile)
@@ -432,7 +431,7 @@ def test_r7_restart_after_agenda_generation_before_completion(tmp_path):
         assert session._current_activity(5, idle_h) is None
 
     # kill + resume at the same moment
-    store2 = _store(tmp_path, "r7.db")
+    store2 = make_store(tmp_path, "r7.db")
     session2 = _session(store2, profile=profile)
     session2.clock.advance_to_day(5)
     session2.ensure_day(5)  # agenda exists, not regenerated
@@ -501,7 +500,7 @@ def test_r9a_restart_before_judge_finalization_neutral_fallback(tmp_path):
     """R-9(a): resume with no previous judgement — the scheduler must not
     crash and must NOT use scores=None in live planning (plan §7.4): the
     neutral fallback (A=1) is a real array, no fabricated score."""
-    store = _store(tmp_path, "r9a.db")
+    store = make_store(tmp_path, "r9a.db")
     s0 = _session(store)
     s0.clock.advance_hours(19.0)
     s0.on_message("hello")  # day 0 runs but is not finalized
@@ -519,7 +518,7 @@ def test_r9b_restart_after_judge_finalization_score_feeds_hazard(tmp_path):
     """R-9(b): day D finalized; D's real score feeds D+1's hazard
     (A(score)·I term) and the judge never re-runs for a finalized day
     (idempotent finalization: one judgement row, one day_finalized event)."""
-    store = _store(tmp_path, "r9b.db")
+    store = make_store(tmp_path, "r9b.db")
     s0 = _session(store)
     s0.clock.advance_hours(19.0)
     s0.on_message("a warm evening")
@@ -645,7 +644,7 @@ def test_case40_finalize_no_double_advance_on_resume(tmp_path):
     double-advance — one judgement, one summary, one episode set, one life
     step; the resumed session reproduces the same persistent state."""
     profile = build_persona(LIFE_SEED, graph=build_catalog())
-    store = _store(tmp_path, "c40.db")
+    store = make_store(tmp_path, "c40.db")
     store.save_persona(profile)
     session = _session(store, profile=profile)
     session.clock.advance_hours(19.0)
@@ -656,7 +655,7 @@ def test_case40_finalize_no_double_advance_on_resume(tmp_path):
     eps_pre = {(e.id, e.summary) for e in store.list_episodes()}
     n_assertions = len(store.list_assertions())
 
-    store2 = _store(tmp_path, "c40.db")
+    store2 = make_store(tmp_path, "c40.db")
     s2 = _session(store2, profile=profile)
     s2.clock.advance_to_day(1)
     s2.ensure_day(1)
@@ -690,7 +689,7 @@ def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
     from harness.bootstrap import ensure_companion_initialized
     from harness.domain import EpisodicMemory, MemoryKind, UserProfile
 
-    store = _store(tmp_path, "r10.db")
+    store = make_store(tmp_path, "r10.db")
     store.save_schedule_events(SEED, [
         {"t_h": 23.5, "day": 0, "reason": REASON_SHARED_INTEREST},
     ])
@@ -707,7 +706,7 @@ def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
     ))
 
     # phase 1: run to 23:00 — the event is still in the future, untouched
-    s1 = _store(tmp_path, "r10.db")
+    s1 = make_store(tmp_path, "r10.db")
     _run_runtime(s1, _session(s1), ProactiveSchedule.restore(SEED, s1),
                  FakeChannel(), max_hours=23.0, clock_start_h=None)
     assert _rows(s1)[23.5]["status"] == "pending", (
@@ -715,7 +714,7 @@ def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
     )
 
     # phase 2: restart at 03:00 (quiet) — deferred, no message during it
-    s2 = _store(tmp_path, "r10.db")
+    s2 = make_store(tmp_path, "r10.db")
     chan2 = FakeChannel()
     _run_runtime(s2, _session(s2), ProactiveSchedule.restore(SEED, s2),
                  chan2, max_hours=34.0, clock_start_h=26.0)
@@ -727,7 +726,7 @@ def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
     )
 
     # phase 3: restart at 09:00 — fully awake — the event fires exactly once
-    s3 = _store(tmp_path, "r10.db")
+    s3 = make_store(tmp_path, "r10.db")
     chan3 = FakeChannel()
     _run_runtime(s3, _session(s3), ProactiveSchedule.restore(SEED, s3),
                  chan3, max_hours=34.5, clock_start_h=33.0)
@@ -752,7 +751,7 @@ def test_v1_every_proactive_message_carries_real_intent_id(tmp_path):
     AsyncRuntime + Session + SQLiteStore: every proactive message row carries
     the intent_id of a REAL stored intent whose source exists (never a
     reason label, never a missing id); reactive rows keep intent_id None."""
-    store = _store(tmp_path, "v1.db")
+    store = make_store(tmp_path, "v1.db")
     sched = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store)
     h = next(float(x) for x in sched.event_hours if x < 20.0)
     store.save_agenda(0, DailyAgenda(0, (
@@ -795,7 +794,7 @@ def test_v1b_intent_provenance_survives_restart(tmp_path):
     """After a fire, a full restart (fresh store over the same file) keeps
     the provenance chain intact: message.intent_id unchanged, the intent row
     still stored with status fired, and its source still resolvable."""
-    store = _store(tmp_path, "v1b.db")
+    store = make_store(tmp_path, "v1b.db")
     sched = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store)
     h = next(float(x) for x in sched.event_hours if x < 20.0)
     store.save_agenda(0, DailyAgenda(0, (
@@ -810,7 +809,7 @@ def test_v1b_intent_provenance_survives_restart(tmp_path):
     assert before, "precondition: a proactive message fired"
     store.close()
 
-    store2 = _store(tmp_path, "v1b.db")
+    store2 = make_store(tmp_path, "v1b.db")
     after = {
         m["id"]: m["intent_id"] for m in store2.recent_messages(limit=100)
         if m["proactive"]
@@ -834,7 +833,7 @@ def test_v1c_callback_provenance_required_end_to_end(tmp_path):
     source session record is deleted the runtime must suppress (no_source)
     and NEVER attach the stale intent to a message — no record of the
     promise, no claim."""
-    store = _store(tmp_path, "v1c.db")
+    store = make_store(tmp_path, "v1c.db")
     store.open_session("day-12", 288.0)
     agent = MemoryAgent(store)
     agent.record_turn("user", "remind me to send the playlist", 290.0, "day-12")
@@ -859,7 +858,7 @@ def test_v1c_callback_provenance_required_end_to_end(tmp_path):
     store.conn.commit()
     assert not store.session_exists("day-12")
 
-    store2 = _store(tmp_path, "v1c.db")
+    store2 = make_store(tmp_path, "v1c.db")
     channel = FakeChannel()
     _run_runtime(store2, _session(store2),
                  ProactiveSchedule.restore(SEED, store2), channel,

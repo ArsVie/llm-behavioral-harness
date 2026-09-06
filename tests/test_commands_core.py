@@ -15,10 +15,9 @@ from harness.channels.telegram import ControlCommand
 from harness.clock import VirtualClock
 from harness.commands import CommandContext, handle_command
 from harness.store import SQLiteStore
+from tests.helpers import make_store
 
 
-def _store(tmp_path, name="cmd.db"):
-    return SQLiteStore(tmp_path / name)
 
 
 def _cmd(name, args="", sender_id=42):
@@ -58,7 +57,7 @@ def _ctx(store, clock, **overrides):
 
 
 def test_help_lists_every_command(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     ctx, _ = _ctx(store, clock)
     reply = handle_command(_cmd("help"), ctx)
@@ -71,7 +70,7 @@ def test_help_lists_every_command(tmp_path) -> None:
 
 
 def test_ping_reports_alive_with_runtime_facts(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=24.0 * 2 + 8.5)  # day 2, 08:30 local
     ctx, _ = _ctx(store, clock)
     reply = handle_command(_cmd("ping"), ctx)
@@ -81,7 +80,7 @@ def test_ping_reports_alive_with_runtime_facts(tmp_path) -> None:
 
 
 def test_unknown_command_points_to_help(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, _ = _ctx(store, clock=VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("reset"), ctx)
     assert "unknown command '/reset'" in reply
@@ -89,7 +88,7 @@ def test_unknown_command_points_to_help(tmp_path) -> None:
 
 
 def test_leading_slash_in_name_is_tolerated(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, _ = _ctx(store, clock=VirtualClock(t_h=8.0))
     assert handle_command(_cmd("/ping"), ctx).startswith("pong")
 
@@ -99,7 +98,7 @@ def test_leading_slash_in_name_is_tolerated(tmp_path) -> None:
 
 def test_setup_refuses_once_persona_exists(tmp_path) -> None:
     """/setup must refuse after any bootstrap created a persona row."""
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     from harness.bootstrap import OnboardingConfig, ensure_companion_initialized
 
@@ -113,7 +112,7 @@ def test_setup_refuses_once_persona_exists(tmp_path) -> None:
 
 
 def test_setup_runs_the_hook_on_a_blank_db(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     assert store.load_persona() is None
     ctx, recorded = _ctx(store, clock)
@@ -123,14 +122,14 @@ def test_setup_runs_the_hook_on_a_blank_db(tmp_path) -> None:
 
 
 def test_setup_without_hook_gives_launcher_guidance(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx = CommandContext(store=store, clock=VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("setup"), ctx)
     assert "--defer-bootstrap" in reply
 
 
 def test_setup_hook_failure_is_reported_not_raised(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
 
     def _boom():
         raise RuntimeError("disk full")
@@ -147,7 +146,7 @@ def test_setup_hook_failure_is_reported_not_raised(tmp_path) -> None:
 
 
 def test_tz_valid_name_records_the_change(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, recorded = _ctx(store, VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("tz", "America/Mexico_City"), ctx)
     assert recorded["tz"] == [("America/Mexico_City",)]
@@ -156,7 +155,7 @@ def test_tz_valid_name_records_the_change(tmp_path) -> None:
 
 
 def test_tz_invalid_name_is_rejected_without_calling_the_hook(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, recorded = _ctx(store, VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("tz", "Not/AZone"), ctx)
     assert "unknown timezone" in reply
@@ -164,7 +163,7 @@ def test_tz_invalid_name_is_rejected_without_calling_the_hook(tmp_path) -> None:
 
 
 def test_tz_without_args_prints_usage(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, recorded = _ctx(store, VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("tz"), ctx)
     assert reply.startswith("usage: /tz")
@@ -172,7 +171,7 @@ def test_tz_without_args_prints_usage(tmp_path) -> None:
 
 
 def test_tz_without_hook_still_validates_and_reports(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx = CommandContext(store=store, clock=VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("tz", "UTC"), ctx)
     assert "UTC" in reply  # validated; no hook -> informational
@@ -182,7 +181,7 @@ def test_tz_without_hook_still_validates_and_reports(tmp_path) -> None:
 
 
 def test_status_reports_day_local_hour_pending_and_age(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=24.0 * 3 + 20.25)  # day 3, 20:15 local
     store.add_message(role="user", content="hi", t_h=24.0 * 3 + 17.0, day=3)
     ctx, _ = _ctx(store, clock, pending_proactive_count=2)
@@ -194,14 +193,14 @@ def test_status_reports_day_local_hour_pending_and_age(tmp_path) -> None:
 
 
 def test_status_without_exchanges_says_so(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, _ = _ctx(store, VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("status"), ctx)
     assert "no exchanges yet" in reply
 
 
 def test_status_age_under_an_hour_is_in_minutes(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     clock = VirtualClock(t_h=24.0 + 12.0)
     store.add_message(role="user", content="hi", t_h=24.0 + 11.5, day=1)
     ctx, _ = _ctx(store, clock)
@@ -213,7 +212,7 @@ def test_status_age_under_an_hour_is_in_minutes(tmp_path) -> None:
 
 
 def test_state_is_refused_without_the_debug_flag(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_daily_state(
         0,
         {
@@ -229,7 +228,7 @@ def test_state_is_refused_without_the_debug_flag(tmp_path) -> None:
 
 
 def test_state_with_debug_flag_renders_persisted_mood_internals(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     store.save_daily_state(
         0,
         {
@@ -249,7 +248,7 @@ def test_state_with_debug_flag_renders_persisted_mood_internals(tmp_path) -> Non
 def test_state_with_debug_uses_the_session_summary_provider_when_given(
     tmp_path,
 ) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx = CommandContext(
         store=store,
         clock=VirtualClock(t_h=8.0),
@@ -265,7 +264,7 @@ def test_state_with_debug_uses_the_session_summary_provider_when_given(
 
 
 def test_state_debug_on_empty_store_reports_nothing_recorded(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, _ = _ctx(store, VirtualClock(t_h=8.0), flags={"debug": True})
     reply = handle_command(_cmd("state"), ctx)
     assert "no state recorded yet" in reply
@@ -275,7 +274,7 @@ def test_state_debug_on_empty_store_reports_nothing_recorded(tmp_path) -> None:
 
 
 def test_mute_records_hours_and_promises_deferral(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, recorded = _ctx(store, VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("mute", "4"), ctx)
     assert recorded["mute"] == [(4.0,)]
@@ -284,7 +283,7 @@ def test_mute_records_hours_and_promises_deferral(tmp_path) -> None:
 
 
 def test_mute_accepts_fractional_hours(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, recorded = _ctx(store, VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("mute", "2.5"), ctx)
     assert recorded["mute"] == [(2.5,)]
@@ -292,7 +291,7 @@ def test_mute_accepts_fractional_hours(tmp_path) -> None:
 
 
 def test_mute_rejects_garbage_and_non_positive_values(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, recorded = _ctx(store, VirtualClock(t_h=8.0))
     assert "invalid duration" in handle_command(_cmd("mute", "abc"), ctx)
     assert "invalid duration" in handle_command(_cmd("mute", "-3"), ctx)
@@ -301,7 +300,7 @@ def test_mute_rejects_garbage_and_non_positive_values(tmp_path) -> None:
 
 
 def test_mute_without_args_prints_usage(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, recorded = _ctx(store, VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("mute"), ctx)
     assert reply.startswith("usage: /mute")
@@ -312,7 +311,7 @@ def test_mute_without_args_prints_usage(tmp_path) -> None:
 
 
 def test_version_renders_sha_seed_and_flags(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx, _ = _ctx(
         store, VirtualClock(t_h=8.0),
         flags={"debug": True, "typing": False},
@@ -325,7 +324,7 @@ def test_version_renders_sha_seed_and_flags(tmp_path) -> None:
 
 
 def test_version_degrades_gracefully_without_extras(tmp_path) -> None:
-    store = _store(tmp_path)
+    store = make_store(tmp_path)
     ctx = CommandContext(store=store, clock=VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("version"), ctx)
     assert "unknown" in reply  # sha and seed both unknown

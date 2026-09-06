@@ -17,6 +17,7 @@ from harness.domain import UserProfile
 from harness.interests import MAX_ADJACENCY_HOPS, build_catalog
 from harness.persona import _build_core
 from harness.store import SQLiteStore
+from tests.helpers import make_store
 
 SEED_A = 7
 SEED_B = 999
@@ -30,8 +31,6 @@ HOSTILE_INTERESTS = (
 )
 
 
-def _store(tmp_path, name: str) -> SQLiteStore:
-    return SQLiteStore(tmp_path / name)
 
 
 # --------------------------------------------------------------------------- #
@@ -42,7 +41,7 @@ def test_b1a_double_bootstrap_singleton_across_calls(tmp_path):
     DIFFERENT seed AND a DIFFERENT user — must load, never regenerate:
     identical persona (name/core/interest portfolio incl. order), identical
     arcs (same ids, same count, no duplicates), identical day agenda."""
-    store = _store(tmp_path, "b1a.db")
+    store = make_store(tmp_path, "b1a.db")
     r1 = ensure_companion_initialized(
         store, seed=SEED_A, user=UserProfile(name="first", interests=HOSTILE_INTERESTS)
     )
@@ -106,7 +105,7 @@ def test_b1e_partial_initialization_never_regenerates_identity(tmp_path):
     the bootstrap completes the MISSING pieces only — the persona identity is
     never re-derived, and a subsequent bootstrap does not duplicate the
     repaired arcs/agenda."""
-    store = _store(tmp_path, "b1e.db")
+    store = make_store(tmp_path, "b1e.db")
     r1 = ensure_companion_initialized(
         store, seed=SEED_A, user=UserProfile(name="u", interests=("mathematics",))
     )
@@ -154,7 +153,7 @@ def test_b1c_hostile_user_interests_yield_sane_portfolio(tmp_path):
     adjacent node within the configured adjacency hops of a user interest,
     independent outside that region; no duplicate portfolio names; salience
     inside the bucket ranges; identical profile across repeated calls."""
-    store = _store(tmp_path, "b1c.db")
+    store = make_store(tmp_path, "b1c.db")
     r = ensure_companion_initialized(
         store, seed=SEED_A, user=UserProfile(name="attacker", interests=HOSTILE_INTERESTS)
     )

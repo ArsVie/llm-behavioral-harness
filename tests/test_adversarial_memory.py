@@ -23,12 +23,11 @@ from harness.domain import (
 )
 from harness.memory import MAX_CONTEXT_CHARS, MemoryAgent
 from harness.store import SQLiteStore
+from tests.helpers import make_store
 
 SEED = 4242
 
 
-def _store(tmp_path, name: str) -> SQLiteStore:
-    return SQLiteStore(tmp_path / name)
 
 
 def _day_session(store, day: int, user_text: str, *, t_h: float | None = None,
@@ -54,7 +53,7 @@ def test_m1_contradictory_facts_supersede_stale_truth(tmp_path):
     (day 10). The L4 assertion `user:cat` must be superseded (status flip,
     provenance kept), retrieval at day 20 must surface the revised truth, and
     stale 'Luna is alive' must never be returned as current."""
-    store = _store(tmp_path, "m1.db")
+    store = make_store(tmp_path, "m1.db")
     agent = MemoryAgent(store)
     _day_session(store, 2, "I have a cat named Luna", agent=agent)
     _day_session(store, 10, "I don't have Luna anymore", agent=agent)
@@ -87,7 +86,7 @@ def test_m1b_negation_provenance_keeps_both_sources(tmp_path):
     """M-1 (provenance leg): after the contradiction the superseded assertion's
     persisted provenance must include BOTH the original memory and the
     negation memory (provenance chain intact, nothing deleted)."""
-    store = _store(tmp_path, "m1b.db")
+    store = make_store(tmp_path, "m1b.db")
     agent = MemoryAgent(store)
     _day_session(store, 2, "I have a cat named Luna", agent=agent)
     _day_session(store, 10, "I don't have Luna anymore", agent=agent)
@@ -106,7 +105,7 @@ def test_m2_stale_episode_anchored_not_blended_into_current(tmp_path):
     """M-2: the old L3 episode mentioning Luna still exists; retrieval at day
     20 must either exclude it or return it ANCHORED to its verbatim turn —
     never blended into L4 current truth."""
-    store = _store(tmp_path, "m2.db")
+    store = make_store(tmp_path, "m2.db")
     agent = MemoryAgent(store)
     _day_session(store, 2, "I have a cat named Luna", agent=agent)
     _day_session(store, 10, "I don't have Luna anymore", agent=agent)
@@ -159,7 +158,7 @@ def test_m3_relevant_low_salience_not_crowded_out(tmp_path):
     the faithful formula is the documented contrast, which is exactly why the
     experimental variant exists. Both legs are asserted below.
     """
-    store = _store(tmp_path, "m3.db")
+    store = make_store(tmp_path, "m3.db")
     distractors = [
         ("user's dog Bruno is very sick", ("dog", "bruno")),
         ("user went hiking in the rain", ("hiking",)),
@@ -213,7 +212,7 @@ def test_m4_no_sourceless_episodes(tmp_path):
     source_turn_ids must not leave a sourceless L3 row behind."""
     import pytest
 
-    store = _store(tmp_path, "m4.db")
+    store = make_store(tmp_path, "m4.db")
     agent = MemoryAgent(store)
     bad = SessionSummary(
         "day-0", 0.0, 24.0, "summary of nothing", (), (), (), (), (), (),
@@ -237,7 +236,7 @@ def test_m5_summarization_hallucination_blocked_from_l4(tmp_path):
     must never produce an L4 assertion; assertions are created only from
     summary fields backed by existing source turns, with non-empty
     source_memory_ids."""
-    store = _store(tmp_path, "m5.db")
+    store = make_store(tmp_path, "m5.db")
     agent = MemoryAgent(store)
     agent.record_turn("user", "hello", 10.0, "day-0")
     agent.record_turn("assistant", "hi", 10.1, "day-0")
@@ -286,7 +285,7 @@ def test_m7_bruno_recall_across_horizon_and_no_false_recall(tmp_path):
     """M-7: 'My dog's name is Bruno.' (day 2) must be retrievable at day 20
     WITH its verbatim anchor even after 12+ turns and many days; a query about
     something never said must return nothing relevant (false recall = 0)."""
-    store = _store(tmp_path, "m7.db")
+    store = make_store(tmp_path, "m7.db")
     agent = MemoryAgent(store)
     _day_session(store, 2, "My dog's name is Bruno", agent=agent)
     # Many turns and days are added so the transcript horizon cannot carry it.
@@ -318,7 +317,7 @@ def test_m8_memory_wipe_no_crash_no_phantom_continuity(tmp_path):
     from harness.gates import content_gate
     from harness.domain import ProactiveIntent
 
-    store = _store(tmp_path, "m8.db")
+    store = make_store(tmp_path, "m8.db")
     agent = MemoryAgent(store)
     _day_session(store, 2, "I have a cat named Luna", agent=agent)
     _day_session(store, 5, "remind me to water the plants", agent=agent)
@@ -332,7 +331,7 @@ def test_m8_memory_wipe_no_crash_no_phantom_continuity(tmp_path):
     store.conn.commit()
 
     # Restart with a fresh agent over the same file.
-    store2 = _store(tmp_path, "m8.db")
+    store2 = make_store(tmp_path, "m8.db")
     agent2 = MemoryAgent(store2)
     ctx = agent2.retrieve("cat", context={"t_h": 21 * 24.0})
     assert ctx.episodes == ()  # no phantom episodes
@@ -363,7 +362,7 @@ def test_m9_canonical_categories_only_foreign_strings_never_persist(tmp_path):
     string is refused at the write seam, never silently stored."""
     from harness.domain import UserModelCategory
 
-    store = _store(tmp_path, "m9.db")
+    store = make_store(tmp_path, "m9.db")
     agent = MemoryAgent(store)
     try:
         _day_session(store, 2, "I love hiking in the mountains", agent=agent)
@@ -406,7 +405,7 @@ def test_m9b_policy_switch_changes_retrieval_ordering_by_construction(tmp_path):
     from harness.domain import MemoryPolicy
     from harness.memory import deterministic_hash_embedder
 
-    store = _store(tmp_path, "m9b.db")
+    store = make_store(tmp_path, "m9b.db")
     try:
         store.insert_episode(_episode(
             "epA", "user's dog Bruno is very sick", 0.9, ("dog", "bruno")
@@ -457,7 +456,7 @@ def test_m9c_embedder_and_summarizer_deterministic_across_instances(tmp_path):
     from harness.memory import deterministic_hash_embedder
     from harness.summarization import DeterministicSummaryExtractor
 
-    store = _store(tmp_path, "m9c.db")
+    store = make_store(tmp_path, "m9c.db")
     agent_a = MemoryAgent(store)
     agent_b = MemoryAgent(store)
     try:

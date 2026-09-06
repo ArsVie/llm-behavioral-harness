@@ -34,6 +34,7 @@ from harness.scheduler import (
 )
 from harness.session import Session
 from harness.store import SQLiteStore
+from tests.helpers import make_store
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -47,8 +48,6 @@ SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 QUIET_FIN_AWAKE_H = 33.0  # day-1 09:00 in absolute hours
 
 
-def _store(tmp_path, name: str) -> SQLiteStore:
-    return SQLiteStore(tmp_path / name)
 
 
 def _session(store, clock: VirtualClock | None = None):
@@ -117,7 +116,7 @@ def test_r1a_fast_clock_events_near_midnight_fire_not_expire(tmp_path):
     rollover's midnight sleep to complete. The rollover must PARK at the
     pending event: both fire AT THEIR OWN TIMES (fired_t_h == event hour),
     never spuriously expired."""
-    store = _store(tmp_path, "r1a.db")
+    store = make_store(tmp_path, "r1a.db")
     try:
         _ground_agenda(store, 21.0, 22.0, item_id="slot_a", activity="evening a")
         _ground_agenda(store, 22.0, 23.0, item_id="slot_b", activity="evening b")
@@ -158,7 +157,7 @@ def test_r1c_three_events_before_midnight_all_fire_at_own_times(tmp_path):
     at midnight, 3 == the daily proactive cap) under FAST time: EVERY event
     fires at its own hour — the rollover parks at each in turn and never
     jumps the clock past a pending one; the run still crosses midnight."""
-    store = _store(tmp_path, "r1c.db")
+    store = make_store(tmp_path, "r1c.db")
     try:
         _ground_agenda(store, 20.5, 21.5, item_id="s1", activity="evening one")
         _ground_agenda(store, 21.0, 22.0, item_id="s2", activity="evening two")
@@ -205,7 +204,7 @@ def test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers(tmp_path):
     firing loop re-defers forever and the run NEVER terminates. The test
     bounds the wait so the suite fails fast instead of hanging.
     """
-    store = _store(tmp_path, "r1b.db")
+    store = make_store(tmp_path, "r1b.db")
     try:
         store.save_schedule_events(SEED, [
             {"t_h": 23.5, "day": 0, "reason": REASON_SHARED_INTEREST},
@@ -291,7 +290,7 @@ def test_r1d_send_exception_propagates_but_terminates_cleanly(tmp_path):
     owned executor: the run raises (the exception is surfaced, not silently
     swallowed), the executor is shut down, no llh-runtime threads remain,
     and the store stays usable."""
-    store = _store(tmp_path, "r1d.db")
+    store = make_store(tmp_path, "r1d.db")
     try:
         schedule = ProactiveSchedule.plan_and_persist(1, SEED, PERSONA, TIMING,
                                                       store)
@@ -313,7 +312,7 @@ def test_r1e_cancellation_during_sleep_shuts_down_cleanly(tmp_path):
     """Cancelling the runtime while it sleeps (mid-rollover) must unwind
     cleanly: CancelledError propagates, the owned executor shuts down, no
     llh-runtime threads remain, and the store stays usable."""
-    store = _store(tmp_path, "r1e.db")
+    store = make_store(tmp_path, "r1e.db")
     try:
         schedule = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING,
                                                       store)
