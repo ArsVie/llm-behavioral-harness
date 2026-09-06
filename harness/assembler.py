@@ -3,41 +3,28 @@
 Wave 2 (A1 central integration): the system prompt is assembled from a
 ``CompanionSnapshot`` — the single place where the lanes (persona, behavior,
 life, memory, conversation, proactive intent) meet before composition.
-Sections are BOUNDED by construction: persona core; current behavioral
-guidance (prose rendered from the conversation-safe ``BehaviorBrief``, never
-raw channels); current activity; today's agenda (capped); 1-3 active life
-arcs; N relevant memories (hard budget, N = ``MEMORY_EPISODES_MAX``); the
-proactive intent block when present.
+Sections are BOUNDED by construction (persona core, behavioral guidance,
+activity, capped agenda, 1-3 life arcs, N memories with N =
+``MEMORY_EPISODES_MAX``, proactive intent block when present).
 
-Context construction v2 (WS1, design plans/harness-runtime-design-2026-08-14.md
-§2.1, user L393): the assembled prompt is the full THREE-TIER context:
+Context construction v2: the assembled prompt is the full THREE-TIER context:
 
-  1. STABLE system core — ``prompts.SYSTEM_CORE_WITH_TOOLS``: how to read
-     the {state} card, compliance, tool protocol, show-don't-announce,
-     never-name-the-state. Constant, contains NO state.
+  1. STABLE system core — ``prompts.SYSTEM_CORE_WITH_TOOLS`` (constant,
+     contains NO state).
   2. DAY-START block — the PERSONA block, rendered once per day
-     (``render_day_block``; WS4 wires it into ``ensure_day``). WS-D: the
-     pre-WS-D day-plan agenda part moved to the STATE CARD (tier 3) so this
-     tier is fully stable (byte-identical every turn day after day).
-  3. STATE CARD — at every conversation start and refreshable mid-
-     conversation: mood brief (the 'Current bearing' prose from
-     ``BehaviorDirective.prompt_brief`` — the SINGLE source; the divergent
-     local re-renderer is deleted), energy/availability, current activity,
-     pulled memories (quoted evidence), user-model facts, proactive intent
-     if any, and the arriving-event pop-up block when one is injected.
+     (``render_day_block``); the day-plan agenda moved to the STATE CARD
+     (tier 3) so this tier is fully stable (byte-identical every turn).
+  3. STATE CARD — mood brief (``BehaviorDirective.prompt_brief``, the SINGLE
+     source), energy/availability, current activity, pulled memories (quoted
+     evidence), user-model facts, proactive intent if any, arriving-event
+     pop-up when injected.
 
-W2+W3 (time-aware, sectioned card): the state card is restructured into
-named sections in fixed order — ``TEMPORAL FRAME`` (current-time/day line
-from ``anchor.real_at`` + the agenda partition Done earlier / Happening
-now / Later today; rendered ONLY when the run is anchored, never raw
-``t_h``), ``AFFECTIVE BEARING`` (the pre-wave renderer's mood brief +
-availability line VERBATIM — a clean slot the codebook fills later, G5),
-``BEHAVIORAL BEARING`` (initiative / reactivity / persistence-as-
-``1 - closing_tendency`` as band prose, never floats), and ``CURRENT
-INTENT`` (an empty reserved slot until S5). Agenda item statuses
-transition ``planned → completed`` as windows pass (``life.transition_
-past_windows``, persisted per turn by the session) so the render and the
-store agree.
+W2+W3 (time-aware, sectioned card): fixed-order named sections —
+``TEMPORAL FRAME`` (rendered ONLY when anchored, never raw ``t_h``),
+``AFFECTIVE BEARING``, ``BEHAVIORAL BEARING`` (band prose, never floats),
+``CURRENT INTENT`` (reserved slot until S5). Agenda statuses transition
+``planned → completed`` as windows pass (``life.transition_past_windows``,
+persisted per turn by the session) so render and store agree.
 
 Prompt boundary (Iteration-2 A5, invariants 14/15/16): raw recent dialogue
 is NEVER rendered into the system prompt — it lives in the user/assistant
@@ -60,8 +47,9 @@ current intent, activity, arcs, memories, about-you, proactive, closing,
 pop-up + the agenda plan) — rides as the TRAILING user message via the
 ``build_context_messages`` seam. ``assemble_snapshot`` keeps the legacy
 full 3-tier system string byte-identical (aux/experiment callers); the
-session mainline wires ``build_context_messages`` so the state card leaves
-the system message.
+``build_context_messages`` seam exists for this split, but the session
+mainline still uses ``assemble_snapshot`` — WS-D mainline wiring is planned,
+not yet switched (see docs/internal/plan-2026-09-06-deletion-and-wsd-wiring.md).
 
 Leakage invariant (frozen): this module never receives engine state — the
 snapshot carries only domain objects. The rendered behavioral prose and all

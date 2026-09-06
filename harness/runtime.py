@@ -1,71 +1,43 @@
-"""Async runtime — real-time rollover + gated proactive firing (wave 3, seam A-6; A7; it2 A3).
+"""Async runtime — real-time rollover + gated proactive firing.
 
 The deterministic engine path (Session) stays synchronous and replay-exact;
 this module is the ONLY place in the harness allowed to read wall-clock, and
 only to pace the virtual clock (``TimeScale``: real seconds per virtual
 hour). Two loops run concurrently inside :meth:`AsyncRuntime.run`:
 
-- ``_rollover_loop`` — sleeps until the next virtual midnight (paced),
-  advances the clock, calls ``session.ensure_day`` (idempotent: finalizes the
-  previous day, judges it, applies the end-of-day engine update, samples the
-  new day's mood), then re-plans + persists the schedule for the CURRENT day
-  with the previous day's real judge score and today's initiative
-  (``day_scores`` — never ``scores=None`` in live scheduling) and refreshes
-  ``self.schedule`` from the store (restart-safe, INSERT OR IGNORE never
-  resurrects fired/expired rows). CLOCK DISCIPLINE (it2 A3, the E0
-  confounder): the rollover NEVER jumps the virtual clock past a pending
-  opportunity — when the earliest pending event lies before the next
-  midnight it parks AT that event hour and waits for the firing loop, so
-  every event is gated at its own time and accelerated time can never turn a
-  still-valid event into a spurious 'expired' suppression.
-
-- ``_firing_loop`` — waits for the next pending schedule event (short poll
-  when none; overdue events are visible thanks to ``next_pending``'s A7
-  restart fix), advances the clock to it, then GATES before generating:
-  the content gate resolves the OPPORTUNITY to a GROUNDED intent
-  (``IntentResolver(opportunity)`` → ``content_gate(intent, store)``) and the
-  context gate (quiet hours, cooldown, daily cap). No grounded candidate ⇒
-  SUPPRESS (``no_grounded_reason`` is a legitimate outcome). Suppressed
-  events are consumed (marked fired — or expired when the validity window
-  elapsed) and logged as ``proactive_suppressed`` with the failing code;
-  allowed events fire via ``session.fire_proactive(intent.id)`` — the EXACT
-  validated intent id, never a reason (invariant 6/7: two same-reason
-  intents are never interchangeable) — and are sent through the channel as
-  proactive OutboundMessages. During quiet hours a still-valid event whose
-  validity outlives the quiet window is DEFERRED (A9 R-4b), never consumed
-  as fired-without-delivery: the row stays pending until the next awake
-  instant, and only events past ``valid_until`` are expired. The deferral
-  itself ADVANCES the virtual clock to that awake instant (clamped to
-  max_virtual_hours; R1-F1), so a parked event still terminates the run
-  instead of livelocking — the firing loop re-evaluates the event at the
-  awake ``now`` and fires it there.
+- ``_rollover_loop`` — advances the clock to virtual midnight (paced), calls
+  ``session.ensure_day`` (idempotent), then re-plans + persists the schedule
+  for the CURRENT day and refreshes ``self.schedule`` from the store.
+  CLOCK DISCIPLINE: the rollover NEVER jumps past a pending opportunity —
+  it parks AT that event hour so accelerated time can never turn a valid
+  event into a spurious 'expired' suppression.
+- ``_firing_loop`` — advances the clock to the next pending schedule event,
+  then GATES before generating (opportunity → grounded intent via
+  ``IntentResolver`` + ``content_gate``; then quiet-hours/cooldown/cap via
+  ``context_gate``). No grounded candidate ⇒ SUPPRESS (consumed, marked
+  fired-or-expired, logged as ``proactive_suppressed``). Allowed events fire
+  via ``session.fire_proactive(intent.id)`` — the EXACT validated intent id,
+  never a reason (invariant 6/7). During quiet hours a still-valid event is
+  DEFERRED (row stays pending until the next awake instant; only events past
+  ``valid_until`` expire), and the deferral ADVANCES the virtual clock to
+  that awake instant so a parked event terminates instead of livelocking.
 
 Delivery latency (A7): after the LLM returns, the runtime waits the
-requested ``response_delay_s`` (wall-clock seconds — NOT scaled by
-TimeScale) through the injectable ``sleeper`` (default
-``concurrency.default_sleeper``; tests inject a recorder so the suite never
-waits real seconds) and only then calls ``channel.send``.
+requested ``response_delay_s`` (wall-clock, NOT TimeScale-scaled) through
+the injectable ``sleeper`` and only then calls ``channel.send``.
 
 Concurrency (it2 A6): ALL ``session.*`` calls run on an OWNED
-``concurrency.ExecutorOwner`` (``llh-runtime`` workers) under a single
-``asyncio.Lock`` so the event loop never blocks on an LLM/judge call and
-inbound (reactive) and scheduled (proactive) turns never overlap (single
-user, no reentrancy); the executor is shut down explicitly in ``run()``'s
-``finally`` (invariant 17: runtime tests must terminate their Python
-process). Engine steps are never called directly: rollover is driven ONLY
-through ``session.ensure_day`` / ``session.finalize_current``.
+``concurrency.ExecutorOwner`` under a single ``asyncio.Lock`` (no
+reentrancy); the executor is shut down explicitly in ``run()``'s ``finally``
+(invariant 17: runtime tests must terminate their Python process). Engine
+steps are never called directly: rollover is driven ONLY through
+``session.ensure_day`` / ``session.finalize_current``.
 
-Anchor mode (Wave 2, W-runtime; seam S2): when an ``AsyncRuntime`` is
-constructed with an ``anchor: RealTimeAnchor``, the runtime runs in REAL
-time instead of the paced virtual time: target sleeps become ABSOLUTE
-wall-clock sleeps (``anchor.epoch_of(target_t_h) - now()``, self-correcting
-— a late wake re-sleeps the residual instead of accumulating drift), the
-virtual clock resumes at the CURRENT real virtual hour
-(``anchor.t_h_at(now)``) instead of the persisted day's virtual midnight,
-and clock skew (a persisted store that already reached a LATER virtual hour
-than the anchor maps now to — i.e. the system clock moved backwards) raises
-instead of guessing. ``anchor=None`` (the default) keeps today's behavior
-byte-identical — the accelerated fleet never touches the anchor path.
+Anchor mode (Wave 2, W-runtime; seam S2): with ``anchor: RealTimeAnchor``
+the runtime runs in REAL time (absolute wall-clock sleeps, self-correcting;
+virtual clock resumes at the CURRENT real virtual hour; backwards clock
+skew raises instead of guessing). ``anchor=None`` (default) keeps today's
+behavior byte-identical.
 """
 
 from __future__ import annotations
