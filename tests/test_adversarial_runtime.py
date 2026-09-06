@@ -21,10 +21,7 @@ import pytest
 
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.channels.base import FakeChannel, OutboundMessage
-from harness.client import FakeClient
-from harness.clock import VirtualClock
 from harness.domain import DailyAgenda, EpisodicMemory, MemoryKind
-from harness.judge import ScriptedJudge
 from harness.proactive import IntentResolver
 from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import (
@@ -32,9 +29,8 @@ from harness.scheduler import (
     REASON_SHARED_INTEREST,
     ProactiveSchedule,
 )
-from harness.session import Session
 from harness.store import SQLiteStore
-from tests.helpers import make_store
+from tests.helpers import make_session, make_store
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -48,19 +44,6 @@ SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 QUIET_FIN_AWAKE_H = 33.0  # day-1 09:00 in absolute hours
 
 
-
-
-def _session(store, clock: VirtualClock | None = None):
-    return Session(
-        store,
-        persona=PERSONA,
-        timing=TIMING,
-        variant=VARIANT,
-        seed=SEED,
-        client=FakeClient(responses=["ok!"]),
-        clock=clock or VirtualClock(),
-        judge=ScriptedJudge(score=0.5).judge_day,
-    )
 
 
 def _ground_agenda(store, start_t_h, end_t_h, *, item_id="g1", salience=0.8,
@@ -131,7 +114,7 @@ def test_r1a_fast_clock_events_near_midnight_fire_not_expire(tmp_path):
             # (the 24:00 sleep completes during event A's response delay)
             await asyncio.sleep(0.3)
 
-        _run(store, _session(store), ProactiveSchedule.restore(SEED, store),
+        _run(store, make_session(store), ProactiveSchedule.restore(SEED, store),
              channel, max_hours=25.5, scale=FAST, sleeper=blocking_sleeper)
 
         rows = _rows(store)
@@ -172,7 +155,7 @@ def test_r1c_three_events_before_midnight_all_fire_at_own_times(tmp_path):
         async def blocking_sleeper(delay: float) -> None:
             await asyncio.sleep(0.3)
 
-        _run(store, _session(store), ProactiveSchedule.restore(SEED, store),
+        _run(store, make_session(store), ProactiveSchedule.restore(SEED, store),
              channel, max_hours=25.5, scale=FAST, sleeper=blocking_sleeper)
 
         rows = _rows(store)
@@ -226,7 +209,7 @@ def test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers(tmp_path):
             "day-0", (1,), ("pottery class is fun",), ("pottery",),
         ))
         channel = FakeChannel()
-        session = _session(store)
+        session = make_session(store)
         schedule = ProactiveSchedule.restore(SEED, store)
 
         async def noop_sleeper(_delay: float) -> None:
@@ -298,7 +281,7 @@ def test_r1d_send_exception_propagates_but_terminates_cleanly(tmp_path):
         _ground_agenda(store, h - 0.5, h + 0.5)
         channel = _BoomChannel()
         with pytest.raises(RuntimeError, match="send exploded"):
-            _run(store, _session(store), schedule, channel, max_hours=h + 2.0)
+            _run(store, make_session(store), schedule, channel, max_hours=h + 2.0)
         assert channel.raises >= 1
         # no orphan runtime threads survive the exception path
         assert _no_llh_threads(), "orphan llh-runtime thread after send failure"
@@ -316,7 +299,7 @@ def test_r1e_cancellation_during_sleep_shuts_down_cleanly(tmp_path):
     try:
         schedule = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING,
                                                       store)
-        session = _session(store)
+        session = make_session(store)
         runtime = AsyncRuntime(
             session, schedule, FakeChannel(),
             store=store, timing=TIMING, seed=SEED,

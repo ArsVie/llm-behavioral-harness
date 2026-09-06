@@ -20,7 +20,6 @@ import pytest
 
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.channels.base import FakeChannel
-from harness.client import FakeClient
 from harness.clock import VirtualClock
 from harness.domain import (
     ContactOpportunity,
@@ -31,7 +30,6 @@ from harness.domain import (
     UserProfile,
 )
 from harness.gates import content_gate
-from harness.judge import ScriptedJudge
 from harness.proactive import IntentResolver, compose_hook
 from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import (
@@ -44,9 +42,8 @@ from harness.scheduler import (
     ProactiveSchedule,
     build_opportunity,
 )
-from harness.session import Session
 from harness.store import SQLiteStore
-from tests.helpers import make_store
+from tests.helpers import make_session, make_store
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -54,21 +51,6 @@ VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
 
 FAST = TimeScale(seconds_per_virtual_hour=0.02)
-
-
-
-
-def _session(store, clock: VirtualClock | None = None):
-    return Session(
-        store,
-        persona=PERSONA,
-        timing=TIMING,
-        variant=VARIANT,
-        seed=SEED,
-        client=FakeClient(responses=["ok!"]),
-        clock=clock or VirtualClock(),
-        judge=ScriptedJudge(score=0.5).judge_day,
-    )
 
 
 def _ground_agenda(store, start_t_h, end_t_h, *, item_id="g1", salience=0.8,
@@ -233,7 +215,7 @@ def test_p1c_unknown_intent_id_raises_value_error_no_message(tmp_path):
                                "arg": 0.0, "mu": 0.0, "eta": 0.0,
                                "cycle_day": 0.0, "phase_label": "phase_a",
                                "seed": SEED, "score": None})
-    session = _session(store, clock=VirtualClock(t_h=10.0))
+    session = make_session(store, clock=VirtualClock(t_h=10.0))
     try:
         before = len(store.recent_messages())
         with pytest.raises(ValueError):
@@ -259,7 +241,7 @@ def test_p1d_expired_intent_id_raises_value_error_no_message(tmp_path):
     intent = _stored_intent(item, "expired-1", t_h=9.9)
     store.save_proactive_intent(intent)
     # Fire at 20:00, 10h after creation; validity is 3h.
-    session = _session(store, clock=VirtualClock(t_h=20.0))
+    session = make_session(store, clock=VirtualClock(t_h=20.0))
     try:
         assert content_gate(intent, store, now_h=20.0).code == "expired"
         before = len(store.recent_messages())
@@ -321,7 +303,7 @@ def test_p1g_session_fires_exact_id_not_reason_sibling(tmp_path):
                          activity="gym session")
     store.save_proactive_intent(_stored_intent(pottery, "87", t_h=9.9))
     store.save_proactive_intent(_stored_intent(gym, "88", t_h=9.95))
-    session = _session(store, clock=VirtualClock(t_h=10.0))
+    session = make_session(store, clock=VirtualClock(t_h=10.0))
     try:
         result = session.fire_proactive("87")
         assert result.reply == "ok!"
@@ -354,7 +336,7 @@ def test_p1f_opportunity_without_intent_no_message(tmp_path):
     h = float(schedule.event_hours[0])
     opp = schedule.opportunity_for(h)
     assert opp is not None and not hasattr(opp, "reason")
-    session = _session(store)
+    session = make_session(store)
     channel = FakeChannel()
     _run(store, session, schedule, channel, max_hours=h + 2.0)
     assert channel.sent == [], "opportunity without intent produced a message"

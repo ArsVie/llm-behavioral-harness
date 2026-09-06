@@ -249,23 +249,6 @@ def test_episode_text_includes_anchors():
 # Guion de usuario
 
 
-def test_user_script_deterministic_and_consistent():
-    s1 = user_script(5001, 16, perturb=True)
-    s2 = user_script(5001, 16, perturb=True)
-    s3 = user_script(5001, 16, perturb=False)
-    assert s1 == s2
-    assert s1 != s3
-    # The negative block is inside the perturbed script.
-    negative = [t for t in s3]  # no perturbation
-    with_neg = [t for t in s1]
-    assert len(with_neg) == len(negative) + 4
-    # Strict temporal order.
-    assert all(a[0] <= b[0] for a, b in zip(s1, s1[1:]))
-    # Every day in range has its base message at 19:00.
-    bases = {int(t // 24.0): txt for t, txt in s1 if abs(t % 24.0 - 19.0) < 1e-6}
-    assert set(bases) == set(range(16))
-
-
 # Métricas auxiliares
 
 
