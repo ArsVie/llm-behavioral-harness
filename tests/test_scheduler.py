@@ -270,7 +270,7 @@ def test_fire_proactive_creates_proactive_message(tmp_path):
 # message always rides along, so the empty-transcript system-only
 # normalization never triggers on session turns)
     last_call = client.calls[-1]
-    assert last_call["messages"][-1]["role"] == "user"
+    assert last_call["messages"][-1]["role"] == "system"
     assert "reaching out first" in last_call["system"]
 
 

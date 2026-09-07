@@ -205,7 +205,7 @@ def test_stable_system_byte_identical_across_turns():
     tail1 = messages1[-1]["content"]
     tail2 = messages2[-1]["content"]
     assert tail1 != tail2  # volatile tail differs between turns
-    assert messages1[-1]["role"] == "user" and messages2[-1]["role"] == "user"
+    assert messages1[-1]["role"] == "system" and messages2[-1]["role"] == "system"
 
 
 def test_stable_system_byte_identical_across_conversations():
@@ -247,9 +247,10 @@ def test_constant_state_yields_byte_identical_whole_request():
 # --- (b) volatile state differs between turns and appears at the TAIL ---
 
 
-def test_volatile_state_is_the_last_user_message():
-    """The state card (temporal/state-card content) is the LAST user message,
-    never interleaved in the stable prefix."""
+def test_volatile_state_is_the_last_system_message():
+    """The state card (temporal/state-card content) is the LAST message — a
+    system message, never interleaved in the stable prefix and never wearing
+    the user role (roles stay truthful: user-role content is always the user)."""
     snap = _snapshot(rich=True)
     system, messages = build_context_messages(
         snapshot=snap, recent_turns=_recent_turns(3), user_request="hi",
@@ -257,7 +258,7 @@ def test_volatile_state_is_the_last_user_message():
         t_h=27.0, anchor=_anchor(),
     )
     tail = messages[-1]
-    assert tail["role"] == "user"
+    assert tail["role"] == "system"
 # The temporal/state-card content sits at the END of the wire layout.
     assert TEMPORAL_HEADER in tail["content"]
     assert AGENDA_HEADER in tail["content"]
@@ -374,7 +375,7 @@ def test_render_day_block_is_persona_only():
 
 def test_seam_transcript_matches_legacy_build_messages():
     """Task-11 switch gate: the seam carries the SAME transcript bytes as the
-    legacy mainline path — only the state card moves (system → trailing user
+    legacy mainline path — only the state card moves (system → trailing system
     message). After the switch the model sees identical history bytes."""
     snap = _snapshot(rich=True)
     recent = _recent_turns(4)
@@ -393,7 +394,7 @@ def test_seam_transcript_matches_legacy_build_messages():
     )
 # Transcript portion byte-identical; the volatile tail is appended, not interleaved.
     assert messages[:-1] == legacy_messages
-    assert messages[-1]["role"] == "user"
+    assert messages[-1]["role"] == "system"
 # Full-content parity with the legacy request (decomposition property).
     assert legacy_system == system + "\n\n" + messages[-1]["content"]
 # No-request variant: transcript passes through untouched, tail still appended.

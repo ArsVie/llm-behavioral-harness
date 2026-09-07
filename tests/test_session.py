@@ -309,7 +309,7 @@ def test_reactive_turn_persists_snapshot_and_controls(tmp_path):
     assert sum(1 for m in payload if m["content"] == "hello there") == 1
     assert sum(1 for m in payload[:-1] if m["role"] == "user") == 2
     assert payload[-2] == {"role": "user", "content": "how are you"}
-    assert payload[-1]["role"] == "user"  # volatile state-card tail
+    assert payload[-1]["role"] == "system"  # volatile state-card tail
     msgs = store.messages_for_day(0)
     assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
     # Messages are scoped to the conversation's memory session.

@@ -44,10 +44,10 @@ request N+1 is a byte-identical extension of request N (DeepSeek-read
 finding: caching is 100% structural, zero ``cache_control``). The volatile
 tail — the state card (temporal frame / affective / behavioral bearing /
 current intent, activity, arcs, memories, about-you, proactive, closing,
-pop-up + the agenda plan) — rides as the TRAILING user message via the
+pop-up + the agenda plan) — rides as a TRAILING system message via the
 ``build_context_messages`` seam. ``assemble_snapshot`` keeps the legacy
 full 3-tier system string byte-identical: the session mainline wires
-``build_context_messages`` (state card as trailing user message), and the
+``build_context_messages`` (state card as a trailing system message so roles stay truthful: user-role content is always the user), and the
 legacy string is still built per turn for ``_last_system_prompt`` so pop-up
 aux calls replay the mainline prefix.
 
@@ -486,7 +486,7 @@ def assemble_snapshot(
     relocated from the day block into the state card). The session mainline
     uses ``build_context_messages`` instead: the stable prefix (tiers 1+2)
     stays the system message, and ``render_state_card`` (tier 3) rides as
-    the TRAILING user message.
+    a TRAILING system message.
     """
     sections = _state_card_sections(
         snapshot, controls=controls, prompt_brief=prompt_brief,
@@ -633,10 +633,10 @@ def render_state_card(
     t_h: float | None = None,
     anchor=None,
 ) -> str:
-    """The VOLATILE state-card block, standalone (the trailing user message).
+    """The VOLATILE state-card block, standalone (a trailing system message).
 
     WS-D: this is the structural tail of the assembled request — the state
-    card (incl. the day-plan AGENDA section) is appended as the LAST user
+    card (incl. the day-plan AGENDA section) is appended as the LAST system
     message so the stable prefix (system core + persona) stays byte-identical
     every turn and request N+1 is a byte-identical extension of request N.
     Budget: the same whole-section trim as the legacy full prompt, applied
@@ -671,7 +671,7 @@ def build_context_messages(
     ``day_block`` is the session-cached persona block, else rendered here).
 
     Messages: transcript tail (oldest→newest, tail-limited), then the user
-    request when given, then the VOLATILE state card as the TRAILING user
+    request when given, then the VOLATILE state card as a TRAILING system
     message (``render_state_card``: temporal frame / affective / behavioral
     bearing, agenda plan, activity, arcs, memories, about-you, proactive,
     closing, pop-up). The trailing-tail placement makes request N+1 a
@@ -701,5 +701,5 @@ def build_context_messages(
         t_h=t_h, anchor=anchor,
     )
     if tail:
-        messages.append({"role": "user", "content": tail})
+        messages.append({"role": "system", "content": tail})
     return system, messages
