@@ -1,105 +1,98 @@
----
-type: conventions
-title: Repository conventions — Phase 1 (frozen in Wave 0 / W0.1; revised 2026-08-08)
-description: Operating rules for every task (human or subagent) in this repo — working environment (native WSL), git and Conventional Commits, frozen files, wave ownership, code conventions, tests, and experiments.
-tags: [conventions, repo, phase-1, wsl]
-timestamp: 2026-08-08
----
+# Repository conventions
 
-# CONVENTIONS — Phase 1 (frozen in Wave 0 / W0.1; revised 2026-08-08)
+Current contributor rules for the behavioral harness. The living runtime contract
+is in `docs/architecture-overview.md`; dated measurements and experiment records
+are under `results/`. Do not add historical implementation plans to the repo.
 
-Operating rules for every task (human or subagent) in this repo.
-Read together with `engine/types.py` (frozen contract) before writing code.
+## Environment and commands
 
-## 1. Working environment (native WSL)
+- Work from native WSL at `/home/vruizes/.hermes/projects/llm-behavioral-harness`.
+- Use the project interpreter: `.venv/bin/python`.
+- Full suite: `MPLBACKEND=Agg .venv/bin/python -m pytest`.
+- Run one test module with `MPLBACKEND=Agg .venv/bin/python -m pytest tests/<module> -q`.
+- Run experiments as modules; write generated artifacts only to their own
+  `results/<experiment>/` directory.
+- Use Conventional Commits when committing. Never commit secrets or local
+  environment files.
 
-The project lives on the native WSL filesystem and is worked on from
-**native WSL** (Hermes agent): `/home/vruizes/.hermes/projects/llm-behavioral-harness`
-is the real path, and direct bash/python works fine. The old warning about a
-desynced Bash tool view applied to a Windows-side harness view and is
-obsolete. (For reference, the Windows UNC view is
-`\\wsl.localhost\ubuntu\home\vruizes\.hermes\projects\llm-behavioral-harness`.)
+## Code
 
-**Version control:** the repo is under git (`main` branch). Commits follow
-**Conventional Commits** (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, ...).
+- Python 3.11+ with typed public interfaces. Avoid `Any` and `unknown` types.
+- `engine/` is pure: no I/O, real-clock reads, global state, or unseeded
+  production randomness. Randomness enters through the injected RNG utilities.
+- Engine state is immutable from callers' perspective: transitions return new
+  state values.
+- Keep provider, channel, persistence, and orchestration concerns behind their
+  existing interfaces.
+- Internal events are system-level context, not user messages. Decisions are
+  structured tools. Telegram visibility is an explicit delivery concern.
+- Keep the stable persona/rules/tools prompt prefix byte-identical; append
+  volatile internal material at the tail. Never edit, reorder, or re-render a
+  message already sent to the provider — prefix caches match strictly from
+  token 0, so a changed byte anywhere costs everything after it. Front-
+  truncating history is the same violation: it moves the boundary every turn.
+- A verdict's `reason` is audit data, never dialogue. Decisions record why;
+  turns produce words. Pasting a reason into the channel puts third-person
+  machine rationale in the conversation.
+- Any retry of a model call needs a bound. An unbounded requeue re-asks the
+  same question every turn and the cost grows silently.
+- Model calls outside a conversation turn (onboarding, day planning) are
+  opt-in, bounded by an explicit wall-clock budget, and must fall back to a
+  working offline path. The client's own retry policy is ~7 minutes and
+  raises nothing while it waits, so guarding the error is not enough — bound
+  the wait.
+- Interest, activity and arc names must mean ONE thing standing alone. They
+  reach the model verbatim — as interests, as `practice {name}`, as
+  `learning {name}` — so a bare word with two senses gets read as the wrong
+  one. Write `metal music`, not `metal`. `interest_extension` rejects a known
+  ambiguous bare word, and `test_setup_onboarding` guards the catalog.
+- Model-visible time is always a wall clock (`clock.hhmm`) or a plain duration
+  (`clock.duration`). Absolute virtual hours (`t_h`) are an engine coordinate
+  and never reach the prompt; raw values stay in the stored row and convert at
+  the render boundary.
 
-## 2. Verified runtime (W0.1, 2026-07-03)
+## Before a live run
 
-- WSL distro **Ubuntu** · Python **3.12.3** (`/usr/bin/python3`) · `uv 0.x` in `~/.local/bin`.
-- Project venv: `.venv` (created with `uv venv`), dependencies installed
-  with `uv pip install -e ".[dev]"` → numpy 2.5.0, scipy 1.18.0,
-  matplotlib 3.11.0, pyyaml 6.0.3, pytest 9.1.1. Package installed editable
-  (`import engine`, `import sim` work from any cwd).
+- Run the cache gate: `MPLBACKEND=Agg .venv/bin/python -m pytest tests/test_cache_prefix_gate.py -q`.
+  It drives a mixed day (reactive turns, an event pop-up decision, a steer, a
+  proactive fire, a lifecycle check) and asserts that every provider call is a
+  byte-prefix extension of the one before it. A new event kind, steer, tool or
+  card section that writes anywhere but the tail fails here.
+- Any new context-producing path must be added to `_mixed_run` in that file,
+  and to the coverage assertions that keep the gate from going vacuous.
 
-### Canonical commands (native bash)
+## Inspecting a run
 
-Full suite:
+Never read a run database with an ad-hoc query. Two read-only inspectors cover
+the two questions, and a new invariant belongs in one of them rather than in a
+throwaway script:
 
-```bash
-cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m pytest
-```
+- `python -m harness.trace --db <run.db> [view]` — what happened. Views:
+  `timeline` (default; every message, steer, decision, state event and call in
+  one chronological stream), `checks`, `negotiations`, `decisions`, `steers`,
+  `agenda`, `cache`, `memory`, `all`. Filters: `--day`, `--from`, `--to`,
+  `--width`, `--out`.
+- `python -m harness.audit --store <run.db> --call <id>` — what the model saw
+  on one call, rendered with typed headers.
 
-A single test file (the norm for a wave task):
+`python -m harness.trace checks --db <run.db>` exits 1 on any ERROR finding, so
+it is the post-run gate: run it after every live session. The cache prefix gate
+proves the stream is append-only in a synthetic day; `checks` reports what the
+provider actually cached, metered and decided in the real one. A behavior we
+have decided is wrong gets a check here in the same change that fixes it.
 
-```bash
-cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m pytest tests/test_mood.py -q
-```
+## Tests and experiments
 
-Run a module/script:
+- Tests must cover behavior, not implementation trivia. Statistical tests use
+  fixed seeds and document their tolerances.
+- Every experiment record states its seeds, criteria, thresholds, verdict, and
+  concise interpretation. Null results remain recorded.
+- Dated reports are historical evidence, not current status. Current claims
+  belong in the living architecture documents or must link to a fresh result.
 
-```bash
-cd /home/vruizes/.hermes/projects/llm-behavioral-harness && MPLBACKEND=Agg .venv/bin/python -m sim.run_daily --days 90 --seed 12345
-```
+## Documentation
 
-Reinstall deps (only if `pyproject.toml` changes):
-
-```bash
-cd /home/vruizes/.hermes/projects/llm-behavioral-harness && uv pip install --python .venv/bin/python -e ".[dev]"
-```
-
-## 3. File ownership (wave rule)
-
-- **Frozen after Wave 0 (read-only):** `engine/types.py`, `engine/rng.py`,
-  `tests/conftest.py`, `pyproject.toml`, this file.
-- Each task owns **its module + its test** (e.g. W1.1 → `engine/mood.py` +
-  `tests/test_mood.py`) and, in Wave 3, **its folder** `results/<experiment>/`.
-  Nobody touches another task's files, not even to "fix" something: if a
-  foreign file looks wrong, it is reported in the task's final summary.
-- The stubs already define signature + semantics; implement EXACTLY those
-  signatures (additional private helpers in the file itself are allowed).
-
-## 4. Code conventions
-
-- Python 3.11+; type hints in public signatures; **docstrings in English
-  going forward** (the old "docstrings in Spanish" rule is superseded),
-  identifiers in English (as in the stubs).
-- `engine/` is **pure**: no I/O, no reads of the real clock
-  (`time`, `datetime.now` are forbidden — the clock is virtual), no global
-  state. All randomness enters through an injected `numpy.random.Generator`.
-- RNG: only via `engine/rng.py` (hierarchical SeedSequence). Never
-  `np.random.seed` nor an unseeded `default_rng()` in production code.
-- States (`MoodState`, `CycleState`) are not mutated: steps return new
-  instances.
-- Matplotlib only in `sim/plots.py` and experiments, always Agg backend
-  (`matplotlib.use("Agg")` before importing pyplot).
-- Time: whole days for the slow scale; absolute float hours for the fast
-  scale (t_h=0 ⇒ day 0, 00:00; local hour = t_h % 24). See `types.py`.
-
-## 5. Tests
-
-- Plain pytest (no extra plugins). Statistical tests use a fixed seed
-  and tolerances documented in the test itself (generous: they check shape,
-  not decimals — e.g. KS with α=0.01, means with ±3·sem).
-- Each task runs **only its own** test file and reports pass/fail; the full
-  suite is run by the main session at each wave gate.
-- Experiment figures fix the seed and write it in the title and in the
-  report name.
-
-## 6. Experiments (Wave 3)
-
-- One script per experiment in `experiments/` (`w31_baseline.py`, ...),
-  runnable with `.venv/bin/python -m experiments.<name>` or as a script.
-- Outputs ONLY in the own `results/<id>/` folder: `*.png` + **`report.md`**
-  (new reports are named `report.md` in English; old ones keep `reporte.md`)
-  with (a) seeds used, (b) evaluated criterion/criteria with a numeric
-  threshold, (c) pass/fail verdict per criterion, (d) 2–5 lines of reading.
+- Prefer one authoritative description over duplicated summaries.
+- Keep current design, open work, and measured results separate.
+- Remove superseded drafts and plans rather than indexing them as current.
+- Check local Markdown links and run `git diff --check` before finishing.

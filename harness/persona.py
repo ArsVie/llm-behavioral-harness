@@ -109,24 +109,88 @@ def _join_names(names: list[str]) -> str:
     return ", ".join(names[:-1]) + " and " + names[-1]
 
 
-def _build_core(
+#: The built-in voice, used when no persona file is configured.
+DEFAULT_VOICE = (
+    "You are Nova, a warm and attentive companion with your own days and "
+    "rhythms."
+)
+
+
+#: Opening words of the generated interest sentence.
+#:
+#: Also the split point for swapping an authored voice into a STORED core
+#: (:func:`split_core`). The sentence is generated from the portfolio in DRAW
+#: order, while the stored interests are name-sorted, so it cannot be
+#: regenerated from a loaded persona — it has to be carried across verbatim.
+INTEREST_SENTENCE_PREFIX = "These days you are absorbed in"
+
+
+def interest_sentence(
     exacts: list[str], adjacent: list[str], independent: list[str]
 ) -> str:
-    """Deterministic <= 2-sentence core prose over the sampled portfolio.
-
-    Pure function of the portfolio (no LLM, no store): the same seed always
-    yields the same portfolio and therefore the same core.
-    """
+    """The one sentence describing what this cycle's portfolio made her care
+    about. Pure function of the portfolio — no LLM, no store."""
     absorbed = _join_names(exacts[:2]) if exacts else "many small things"
     soft = _join_names(adjacent[:1]) if adjacent else "a few familiar comforts"
     curious = _join_names(independent[:1]) if independent else "things you have not tried yet"
-    second = (
-        f"These days you are absorbed in {absorbed}, with a soft spot for {soft} "
+    return (
+        f"{INTEREST_SENTENCE_PREFIX} {absorbed}, with a soft spot for {soft} "
         f"and a quiet curiosity about {curious}."
     )
-    return (
-        "You are Nova, a warm and attentive companion with your own days and rhythms. "
-        + second
+
+
+def split_core(core: str) -> tuple[str, str] | None:
+    """Split a stored core into ``(voice, interest_sentence)``.
+
+    Returns None when the core has no recognizable interest sentence — an
+    unexpected shape (a hand-edited row, a future format) is left strictly
+    alone rather than rewritten on a guess.
+    """
+    if not core:
+        return None
+    index = core.find(INTEREST_SENTENCE_PREFIX)
+    if index == -1:
+        return None
+    return core[:index].strip(), core[index:].strip()
+
+
+def compose_core(voice: str, interests: str) -> str:
+    """Authored voice first, then the drawn interests.
+
+    The two are COMPOSED, never substituted. An authored persona says who she
+    is and how she talks; the interest sentence says what she happens to be
+    into this cycle, and dropping it would leave the seeded portfolio with no
+    voice in the prompt at all. Separate paragraphs, because the authored
+    prose is written as prose and jamming a generated sentence onto the end of
+    its last line reads as part of it.
+    """
+    voice = (voice or "").strip()
+    interests = (interests or "").strip()
+    if not voice:
+        return interests
+    if not interests:
+        return voice
+    # The default voice is a single sentence written to run straight into the
+    # interest sentence; authored prose gets its own paragraph.
+    joiner = " " if voice == DEFAULT_VOICE else "\n\n"
+    return voice + joiner + interests
+
+
+def _build_core(
+    exacts: list[str], adjacent: list[str], independent: list[str],
+    *, voice: str | None = None,
+) -> str:
+    """Deterministic core prose: the voice plus the sampled portfolio.
+
+    Pure function of (voice, portfolio) — no LLM, no store: the same seed
+    always yields the same portfolio and therefore the same core.
+
+    ``voice`` is the authored persona from the configured persona file (see
+    :mod:`harness.persona_file`); ``None`` uses :data:`DEFAULT_VOICE`.
+    """
+    return compose_core(
+        voice if voice is not None else DEFAULT_VOICE,
+        interest_sentence(exacts, adjacent, independent),
     )
 
 
@@ -140,12 +204,26 @@ def build_persona(
     n_independent: int = 2,
     adjacency_hops: Optional[int] = None,
     rng: Optional[np.random.Generator] = None,
+    routine_catalog: Optional[Sequence[Routine]] = None,
+    voice: Optional[str] = None,
 ) -> PersonaProfile:
     """Build a deterministic ``PersonaProfile`` around the 40/40/20 target.
 
     ``seed`` seeds the persona stream (``stream_rng(seed, PERSONA_STREAM)``)
     unless an explicit ``rng`` is given. The graph is only read, never
     mutated.
+
+    ``voice`` is the authored persona prose that opens the core — who she is
+    and how she talks, loaded from the configured persona file (see
+    :mod:`harness.persona_file`). ``None`` uses :data:`DEFAULT_VOICE`. It is
+    composed with the drawn interest sentence, never substituted for it.
+
+    ``routine_catalog`` is the pool the daily routines are drawn from;
+    ``None`` uses the built-in :data:`ROUTINE_CATALOG`. It is an INPUT to the
+    sampler, never something the sampler decides — ``harness.routine_setup``
+    builds a per-companion catalog at onboarding and passes it here, and the
+    draw itself (count, which ones, their salience) is the same seeded
+    arithmetic either way.
 
     ``user_interests`` selects the bucket semantics: ``None``/empty keeps the
     legacy hub-relative sampling (exact = cluster hubs); a non-empty sequence
@@ -205,16 +283,17 @@ def build_persona(
     )
 
     # 4. Routines: 2-4 from the catalog (catalog order preserved), seeded salience.
-    k_routines = _sample_count(rng, 3, len(ROUTINE_CATALOG))
-    chosen = set(_sample_distinct(rng, [r.name for r in ROUTINE_CATALOG], k_routines))
+    catalog = tuple(routine_catalog) if routine_catalog else ROUTINE_CATALOG
+    k_routines = _sample_count(rng, 3, len(catalog))
+    chosen = set(_sample_distinct(rng, [r.name for r in catalog], k_routines))
     routines = tuple(
         dataclasses.replace(r, salience=float(rng.uniform(*ROUTINE_SALIENCE_RANGE)))
-        for r in ROUTINE_CATALOG
+        for r in catalog
         if r.name in chosen
     )
 
     # 5. Deterministic prose over the portfolio.
-    core = _build_core(exacts, adjacent, independent)
+    core = _build_core(exacts, adjacent, independent, voice=voice)
     return PersonaProfile(
         name=DEFAULT_NAME, core=core, interests=interests, routines=routines
     )

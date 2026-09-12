@@ -41,12 +41,21 @@ import json
 from dataclasses import dataclass, field
 from typing import Protocol
 
+from harness.clock import hhmm
+
 # --------------------------------------------------------------------------- #
 
 #: A user message arrived mid-turn.
 KIND_USER_MESSAGE = "user_message_mid_turn"
+
+#: Rendered when a steer carries no event name. A literal "?" looked like a
+#: question the model was being asked; this says what actually happened.
+NO_ACTIVE_EVENT = "no_active_event"
 #: An event pop-up is due ({Event, State, Time} -> {Initiate, Reason}).
 KIND_EVENT_POPUP = "event_popup"
+#: A grounded proactive intent is due for the initiate/decline decision
+#: (payload -> ``tool_decide_proactive``).
+KIND_PROACTIVE = "proactive_intent"
 #: A scheduled proactive fire is due.
 KIND_SCHEDULE_FIRE = "schedule_fire"
 #: The day rolled over (new day context block).
@@ -56,12 +65,28 @@ KIND_DAY_ROLLOVER = "day_rollover"
 KIND_PRIORITY: dict[str, int] = {
     KIND_USER_MESSAGE: 0,
     KIND_EVENT_POPUP: 1,
-    KIND_SCHEDULE_FIRE: 2,
-    KIND_DAY_ROLLOVER: 3,
+    # The proactive initiate/decline decision sits between the event
+    # pop-up and a plain scheduled fire: both are proactive-boundary
+    # injections, but the grounded intent must be DECIDED before any
+    # plain fire renders.
+    KIND_PROACTIVE: 2,
+    KIND_SCHEDULE_FIRE: 3,
+    KIND_DAY_ROLLOVER: 4,
 }
 
 #: Fallback priority for unknown kinds.
 _KIND_PRIORITY_FALLBACK = 99
+
+#: Retry budget for one steer.
+#:
+#: A steer whose decision fails to parse is requeued and retried at the next
+#: boundary. Unbounded, that is a permanent leak: the same steer is re-asked
+#: on every turn, one model call each, and the per-turn cost GROWS as more
+#: accumulate (observed live 2026-09-07: 4, 4, 5, 7 discarded calls on four
+#: consecutive turns). Three attempts is enough to ride out a transient bad
+#: reply; past that the answer is not coming and the steer is abandoned with
+#: a recorded event, so the gap is explainable instead of invisible.
+MAX_ATTEMPTS = 3
 
 #: Delivery boundaries — moments when the agent is free.
 BOUNDARY_IDLE = "idle"
@@ -117,7 +142,11 @@ class SteerBackend(Protocol):
         ...
 
     def requeue_steer(self, steer_id: int) -> None:
-        """Return a delivered steer to 'pending' (interrupted turn)."""
+        """Return a delivered steer to 'pending' and bump ``attempts``."""
+        ...
+
+    def abandon_steer(self, steer_id: int) -> None:
+        """Terminal status for a steer whose retry budget is exhausted."""
         ...
 
 
@@ -148,6 +177,7 @@ class InMemorySteerBackend:
             "boundary": None,
             "status": "pending",
             "seen_turn_id": None,
+            "attempts": 0,
         }
         return steer_id
 
@@ -183,6 +213,12 @@ class InMemorySteerBackend:
         row["delivered_t_h"] = None
         row["boundary"] = None
         row["seen_turn_id"] = None
+        row["attempts"] = int(row.get("attempts", 0)) + 1
+
+    def abandon_steer(self, steer_id: int) -> None:
+        if steer_id not in self.storage:
+            raise KeyError(f"unknown steer id: {steer_id}")
+        self.storage[steer_id]["status"] = "abandoned"
 
 
 # --------------------------------------------------------------------------- #
@@ -255,6 +291,10 @@ class SteeringQueue:
             # Skip steers this turn already saw.
             if row.get("seen_turn_id") == turn_id:
                 continue
+            # Retry budget exhausted: abandon instead of re-asking forever.
+            if int(row.get("attempts") or 0) >= MAX_ATTEMPTS:
+                self.abandon(int(row["id"]))
+                continue
             eligible.append(row)
         eligible.sort(
             key=lambda row: (
@@ -285,20 +325,45 @@ class SteeringQueue:
     def requeue(self, steer_id: int) -> None:
         """Re-queue a delivered steer after its turn was interrupted.
 
-        The backend returns it to 'pending' (delivery fields cleared), so it
-        is delivered again at the next boundary. Idempotent for the runtime's
-        interrupt handler.
+        The backend returns it to 'pending' (delivery fields cleared) and
+        bumps its attempt count, so it is delivered again at the next
+        boundary until the retry budget runs out. Idempotent for the
+        runtime's interrupt handler.
         """
         self._backend.requeue_steer(steer_id)
+
+    def abandon(self, steer_id: int) -> None:
+        """Stop retrying a steer for good (budget exhausted).
+
+        No-op on a backend without the seam, so an older store keeps
+        working -- it just keeps the old unbounded behaviour.
+        """
+        abandon = getattr(self._backend, "abandon_steer", None)
+        if abandon is not None:
+            abandon(steer_id)
+
+    def attempts(self, steer_id: int) -> int:
+        """Attempt count of one steer (0 when unknown)."""
+        for row in self._backend.pending_steers():
+            if int(row.get("id", -1)) == steer_id:
+                return int(row.get("attempts") or 0)
+        return 0
 
 
 # --------------------------------------------------------------------------- #
 
 
 def _render_time(value: object) -> str:
-    if isinstance(value, float):
-        return f"{value:.2f}".rstrip("0").rstrip(".")
-    return str(value)
+    """HH:MM for the steer block. Raw ``t_h`` is an engine coordinate and
+    never reaches the model; the queue row keeps the raw value."""
+    if isinstance(value, bool) or value is None:
+        return "?"
+    if isinstance(value, (int, float)):
+        return hhmm(float(value))
+    try:
+        return hhmm(float(str(value)))
+    except ValueError:
+        return str(value)
 
 
 def render_steer_block(steer: Steer | dict) -> str:
@@ -319,11 +384,30 @@ def render_steer_block(steer: Steer | dict) -> str:
             payload = {}
         enq_t_h = steer.get("t_h", 0.0)
     time_str = _render_time(payload.get("time", enq_t_h))
-    event = payload.get("event", payload.get("event_id", payload.get("name", "?")))
-    state = payload.get("state", "?")
+    event = payload.get("event", payload.get("event_id",
+                                           payload.get("name", NO_ACTIVE_EVENT)))
+    state = payload.get("state", NO_ACTIVE_EVENT)
     if kind == KIND_EVENT_POPUP:
         return (
             f"System: {{Event: {event}, State: {state}, Time: {time_str}}}\n"
+            '{Initiate: {yes, no}, Reason: " "}'
+        )
+    if kind == KIND_PROACTIVE:
+        hook = str(
+            payload.get("hook", payload.get("reason", payload.get("label", "?")))
+        )
+        reason = str(
+            payload.get("reason", payload.get("intent", payload.get("label", "?")))
+        )
+        source_type = payload.get("source_type", payload.get("source", "?"))
+        source_id = payload.get("source_id", payload.get("source_ref", "?"))
+        validity = payload.get(
+            "valid_until",
+            payload.get("valid_until_t_h", payload.get("validity", "?")),
+        )
+        return (
+            f"System: {{Proactive: {hook}, Reason: {reason}, "
+            f"Source: {source_type}:{source_id}, Validity: {validity}}}\n"
             '{Initiate: {yes, no}, Reason: " "}'
         )
     if kind == KIND_USER_MESSAGE:
@@ -345,8 +429,13 @@ def render_steer_block(steer: Steer | dict) -> str:
     return f"System: {{{kind}: {json.dumps(payload, ensure_ascii=False, sort_keys=True)}}}"
 
 
-#: Trust marker wrapping a rendered steer block. The system prompt treats
-#: only this exact marker as a real arriving event.
+#: Trust marker wrapping a rendered steer block.
+#:
+#: The stable prefix no longer carries a paragraph explaining this marker
+#: (2026-09-07): steer blocks are delivered as ``role="system"`` messages, so
+#: authority comes from the channel and the marker is a DELIMITER — it keeps
+#: the audit view and the parser able to find the block, and it names itself
+#: for a reader that encounters it cold.
 STEER_MARKER_OPEN = (
     "[STEER — a real arriving event from the harness, delivered once at this "
     "position; not conversation text and not a new delivery when replayed "

@@ -24,7 +24,7 @@ import sqlite3
 
 from harness.domain import UserModelCategory
 
-SCHEMA_VERSION = 8
+SCHEMA_VERSION = 11
 
 # --- v1 base schema ---
 _SCHEMA = """
@@ -339,6 +339,7 @@ CREATE TABLE IF NOT EXISTS conversations (
     opened_by TEXT NOT NULL,   -- 'user' | 'companion'
     close_reason TEXT          -- 'closing_tendency' | 'user_left'
                                -- | 'quiet_hours' | 'max_turns'
+                               -- | 'followed_event' (negotiation go verdict)
 );
 CREATE TABLE IF NOT EXISTS conversation_turns (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -460,6 +461,79 @@ def _migrate_v8(conn: sqlite3.Connection) -> None:
         _ensure_column(conn, table, column, decl)
 
 
+# Migration v8 -> v9 (additive): user_profile + interest_relations.
+#
+# The bootstrap has always declared ``load_user_profile``/``save_user_profile``
+# on its store seam, but no table backed them -- so the resolved identity was
+# re-derived from the environment on every start and never recorded. A run
+# therefore had no durable answer to "who does she think she is talking to",
+# and the memory layer had no seed identity to attach user facts to.
+#
+# ``interest_relations`` persists the interest graph the persona was actually
+# sampled against, including any edges added for user interests the built-in
+# catalog does not contain. Without it, an extended graph would be rebuilt
+# (or lost) on the next start and the persona's buckets would stop being
+# reproducible from the store alone.
+_V9_TABLES = """
+CREATE TABLE IF NOT EXISTS user_profile (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    name TEXT NOT NULL,
+    interests_json TEXT NOT NULL DEFAULT '[]'
+);
+CREATE TABLE IF NOT EXISTS interest_relations (
+    from_interest TEXT NOT NULL,
+    to_interest   TEXT NOT NULL,
+    strength      REAL NOT NULL,
+    is_hub        INTEGER NOT NULL DEFAULT 0,  -- from_interest is a cluster hub
+    origin        TEXT NOT NULL DEFAULT 'catalog',  -- 'catalog' | 'extension'
+    PRIMARY KEY (from_interest, to_interest)
+);
+CREATE INDEX IF NOT EXISTS idx_interest_relations_from
+    ON interest_relations(from_interest);
+"""
+
+
+def _migrate_v9(conn: sqlite3.Connection) -> None:
+    """v8 -> v9: additive user_profile + interest_relations tables."""
+    conn.executescript(_V9_TABLES)
+
+
+# Migration v9 -> v10 (additive): agenda_items.outcome.
+#
+# An agenda item resolved to a STATUS and nothing else, so nothing ever
+# happened inside one: no trace to talk about afterwards, arcs with no
+# accumulated content, and proactive hooks as bare as "Finished: practice
+# sketching". This column carries the fact.
+_V10_COLUMNS = (
+    ("agenda_items", "outcome", "TEXT"),
+)
+
+
+def _migrate_v10(conn: sqlite3.Connection) -> None:
+    """v9 -> v10: additive agenda_items.outcome column."""
+    for table, column, decl in _V10_COLUMNS:
+        _ensure_column(conn, table, column, decl)
+
+
+# Migration v10 -> v11 (additive): steering_queue.attempts.
+#
+# A steer whose decision fails to parse is requeued (the default
+# ``decision_on_parse_failure`` policy) and retried at the NEXT boundary --
+# with no bound, so a steer the model consistently answers wrongly is retried
+# on every turn forever, one model call each, growing as more accumulate.
+# Observed live 2026-09-07: 20 discarded calls across four turns, 4 -> 4 -> 5
+# -> 7 per turn and still climbing. This column bounds it.
+_V11_COLUMNS = (
+    ("steering_queue", "attempts", "INTEGER NOT NULL DEFAULT 0"),
+)
+
+
+def _migrate_v11(conn: sqlite3.Connection) -> None:
+    """v10 -> v11: additive steering_queue.attempts column."""
+    for table, column, decl in _V11_COLUMNS:
+        _ensure_column(conn, table, column, decl)
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Bring the schema up to SCHEMA_VERSION with additive migrations only.
 
@@ -484,6 +558,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
         _migrate_v7(conn)
     if version < 8:
         _migrate_v8(conn)
+    if version < 9:
+        _migrate_v9(conn)
+    if version < 10:
+        _migrate_v10(conn)
+    if version < 11:
+        _migrate_v11(conn)
     if version < SCHEMA_VERSION:
         conn.execute("DELETE FROM schema_meta")
         conn.execute(

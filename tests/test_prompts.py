@@ -56,21 +56,36 @@ def test_system_core_contains_no_state():
 
 
 def test_system_core_names_the_state_card_and_rules():
-    """The core is ABOUT how to handle the {state} card (user L393): reading,
-    compliance, show-don't-announce, never-name-the-state, tool protocol."""
+    """The core is ABOUT how to handle the state card, and nothing else.
+
+    Pinned by BEHAVIOUR, not by sentence: the four overlapping paragraphs
+    (comply / show-don't-announce / never-name-state / read-the-card) were
+    condensed into one on 2026-09-07, so asserting their exact wording would
+    only re-pin prose. What must hold is that the core still tells the model
+    the card exists and that its contents never surface verbatim.
+    """
     core = SYSTEM_CORE
-    assert "state card" in core.lower()
-    assert "Show, do not announce" in core
-    assert "Never name the internal state" in core
-    assert "Read the card" in core
-    assert "Comply with the personality" in core
+    low = core.lower()
+    assert "state card" in low
+    # the leakage boundary survives the condensation
+    assert "never quote it" in low
+    assert "no labels, no numbers, no mechanics" in low
     # the tool protocol is a separate paragraph, attached to the core
     assert "decision tool" in TOOL_PROTOCOL
-    # the steer trust rule (WS3 marker contract) is the third paragraph
-    assert "steer" in STEER_TRUST_RULE
-    assert SYSTEM_CORE_WITH_TOOLS == (
-        SYSTEM_CORE + "\n\n" + TOOL_PROTOCOL + "\n\n" + STEER_TRUST_RULE
-    )
+    assert SYSTEM_CORE_WITH_TOOLS == SYSTEM_CORE + "\n\n" + TOOL_PROTOCOL
+
+
+def test_steer_trust_rule_is_disabled():
+    """2026-09-07: the steer trust prose left the stable prefix.
+
+    It explained a marker that names itself, on every turn, for an event that
+    arrives a few times a day. Trust now comes from the CHANNEL — steer
+    blocks render as system-role messages — so the paragraph is empty and no
+    longer composed into the core.
+    """
+    assert STEER_TRUST_RULE == ""
+    assert STEER_TRUST_RULE not in (SYSTEM_CORE, TOOL_PROTOCOL)
+    assert "steer" not in SYSTEM_CORE_WITH_TOOLS.lower()
 
 
 def test_typed_headers_match_l393_sketch():

@@ -35,7 +35,7 @@ from harness.store import SQLiteStore
 
 #: The plan's Gate-2 user (plan §8): mathematics, lifting, movies, metal.
 PLAN_USER = UserProfile(
-    name="Ars", interests=("mathematics", "metal", "lifting", "movies")
+    name="Ars", interests=("mathematics", "metal music", "lifting", "movies")
 )
 
 #: Every catalog hub as the user set: each sample lands on its target

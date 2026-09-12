@@ -100,15 +100,20 @@ def at_t_h(t_h: float, text: str) -> dict:
 
 
 def v_go(reason: str = "ok, going now") -> dict:
-    return {"initiate": True, "reason": reason, "action": "follow"}
+    return {"initiate": "yes", "reason": reason}
 
 
 def v_skip(reason: str = "skipping it after all") -> dict:
-    return {"initiate": False, "reason": reason, "action": "abandon"}
+    return {"initiate": "no", "reason": reason}
 
 
-def v_delay(reason: str = "just a sec") -> dict:
-    return {"initiate": True, "reason": reason, "action": "defer"}
+def v_delay(reason: str = "just a sec", turns: int | None = None) -> dict:
+    """A defer. ``turns`` is the optional N the model may name itself; left
+    out, the server maps it from the reason text."""
+    out: dict = {"initiate": "defer", "reason": reason}
+    if turns is not None:
+        out["turns"] = turns
+    return out
 
 
 # scenario definitions
@@ -175,7 +180,10 @@ SCENARIOS: dict[str, Scenario] = {
         item=_item("release-gym", "gym", 19.0, 21.0),
         user_stream=(
             at_t_h(18.95, "hey! you around?"),
-            at_t_h(19.05, "so anyway, that's the whole story"),
+            # Still BEFORE the window opens: he says his piece and goes
+            # quiet, so no companion turn ever lands inside the window and
+            # the AFK bomb is the only thing left to fire the decide.
+            at_t_h(18.98, "so anyway, that's the whole story"),
         ),
         verdicts=(v_go("ok, going to the gym now"),),
         inform_mention="I've got gym soon — just letting you know",
@@ -286,7 +294,9 @@ class ScriptedClient:
         if self.scenario.always_delay or not self._script:
             return v_delay("just a sec")
         verdict = dict(self._script.pop(0))
-        verdict.pop("defer_turns", None)  # the model does not emit N
+        # The model may name `turns` on a defer, never the server-side
+        # `defer_turns` key that the recorded verdict carries.
+        verdict.pop("defer_turns", None)
         return verdict
 
     def chat_with_meta(

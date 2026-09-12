@@ -13,6 +13,7 @@ import json
 import numpy as np
 import pytest
 
+from harness.steering import NO_ACTIVE_EVENT, render_steer_block
 from harness.store import SQLiteStore
 from harness.tools import (
     Capabilities,
@@ -78,6 +79,25 @@ EVENT_INPUTS = {
 }
 
 # parsing
+
+
+def test_tools_identity_hashes_the_payload_and_names_the_tools():
+    from harness.tools import TOOL_SCHEMAS, tools_identity
+
+    wrapped = [{"type": "function", "function": TOOL_SCHEMAS[0]}]
+    first_hash, first_names = tools_identity(wrapped)
+    again, _ = tools_identity(wrapped)
+    assert first_hash and len(first_hash) == 64
+    assert first_hash == again, "the same payload must hash the same"
+    assert first_names == [TOOL_SCHEMAS[0]["name"]]
+
+    # The raw Hermes shape names itself too: both shapes reach the renderers.
+    assert tools_identity(TOOL_SCHEMAS)[1] == [t["name"] for t in TOOL_SCHEMAS]
+    # A different payload is a different identity.
+    assert tools_identity(TOOL_SCHEMAS)[0] != first_hash
+    # No tools is (None, []): a fact, never an absent key.
+    assert tools_identity(None) == (None, [])
+    assert tools_identity([]) == (None, [])
 
 
 def test_parse_native_reply_event():
@@ -185,14 +205,14 @@ def test_parse_textual_garbage_payload_raises():
 
 def test_render_popup_event_matches_sketch():
     assert render_popup("tool_decide_event", EVENT_INPUTS) == (
-        "{Event: gym, State: start, Time: 19.0}\n"
-        '{Initiate:{yes,no}, Reason: ""}'
+        "{Event: gym, State: start, Time: 19:00}\n"
+        '{Initiate:{yes,no,defer}, Reason: ""}'
     )
 
 
 def test_render_popup_reply_matches_sketch():
     assert render_popup("tool_decide_reply", REPLY_INPUTS) == (
-        "{Event: gym, State: in_progress, Time: 19.5}\n"
+        "{Event: gym, State: in_progress, Time: 19:30}\n"
         '{Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}\n'
         'Latest user message: "are you coming to class?"'
     )
@@ -201,7 +221,7 @@ def test_render_popup_reply_matches_sketch():
 def test_tool_schemas_shape():
 # The tool is the answer form: required params are the verdict fields, not the pop-up inputs.
     assert [t["name"] for t in TOOL_SCHEMAS] == [
-        "tool_decide_event", "tool_decide_reply",
+        "tool_decide_event", "tool_decide_reply", "tool_decide_proactive",
     ]
     for t in TOOL_SCHEMAS:
         assert t["description"]
@@ -209,13 +229,22 @@ def test_tool_schemas_shape():
         assert t["parameters"]["required"]
     event = TOOL_SCHEMAS[0]
     assert set(event["parameters"]["required"]) == {"initiate", "reason"}
+    # One tri-state verdict field, not a bool plus a parallel action.
     assert set(event["parameters"]["properties"]) == {
-        "initiate", "reason", "action",
+        "initiate", "reason", "turns",
     }
+    assert event["parameters"]["properties"]["initiate"]["enum"] == [
+        "yes", "no", "defer",
+    ]
     reply = TOOL_SCHEMAS[1]
     assert set(reply["parameters"]["required"]) == {"reply", "reason"}
     assert set(reply["parameters"]["properties"]) == {
         "reply", "reason", "terminate_event",
+    }
+    proactive = TOOL_SCHEMAS[2]
+    assert set(proactive["parameters"]["required"]) == {"initiate", "reason"}
+    assert set(proactive["parameters"]["properties"]) == {
+        "initiate", "reason",
     }
 
 
@@ -671,3 +700,69 @@ def test_decision_config_validation():
         DecisionConfig(parse_failure_mode="ignore")
     with pytest.raises(ValueError):
         DecisionConfig(decision_source="calculator")
+
+
+# runner: a native completion with neither a tool call nor text
+
+def test_an_empty_native_reply_is_asked_once_more_with_the_requirement(tmp_path):
+    """A thinking-only completion gets ONE re-ask that states the requirement,
+    instead of the retry budget re-sending the prompt the model ignored."""
+    store = _store(tmp_path)
+    runner = DecisionRunner(store)
+    call = _call_from([
+        RawReply(text=None, tool_calls=None),
+        _native_call("tool_decide_reply", {"reply": True, "reason": "ok"}),
+    ])
+    result = runner.execute(
+        "d-empty", "tool_decide_reply", REPLY_INPUTS, Capabilities(True), call
+    )
+    assert len(call.calls) == 2
+    assert call.calls[0].nudge is None
+    assert "tool_decide_reply" in call.calls[1].nudge
+    assert result.verdict["reply"] is True
+    store.close()
+
+
+def test_a_re_ask_carries_the_popup_and_the_requirement_together(tmp_path):
+    store = _store(tmp_path)
+    runner = DecisionRunner(store)
+    call = _call_from([
+        RawReply(text="   ", tool_calls=None),
+        _native_call("tool_decide_reply", {"reply": False, "reason": "busy"}),
+    ])
+    runner.execute("d-ws", "tool_decide_reply", REPLY_INPUTS,
+                   Capabilities(True), call)
+    assert call.calls[1].popup == call.calls[0].popup
+    assert call.calls[1].tools == call.calls[0].tools
+    store.close()
+
+
+def test_a_textual_reply_in_prose_is_not_re_asked(tmp_path):
+    """Textual transport has text to read, so it takes the parse path."""
+    store = _store(tmp_path)
+    runner = DecisionRunner(store)
+    call = _call_from([RawReply(text="I think she should reply, honestly.")])
+    with pytest.raises(DecisionRequeue):
+        runner.execute("d-prose", "tool_decide_reply", REPLY_INPUTS,
+                       Capabilities(False), call)
+    assert len(call.calls) == 1
+    store.close()
+
+
+# rendering: a steer with no event name says so
+
+def test_a_steer_without_an_event_renders_the_sentinel():
+    block = render_steer_block({
+        "kind": "user_message_mid_turn",
+        "payload": {"message": "you there?", "state": "in_progress"},
+        "t_h": 12.0,
+    })
+    assert NO_ACTIVE_EVENT in block
+    assert "?" not in block.replace("you there?", "")
+
+
+def test_a_popup_without_an_event_label_renders_the_sentinel():
+    rendered = render_popup("tool_decide_event", {
+        "time": "12.0", "action": "decide", "delay_count": 0,
+    })
+    assert NO_ACTIVE_EVENT in rendered

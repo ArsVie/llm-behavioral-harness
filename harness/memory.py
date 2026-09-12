@@ -316,6 +316,17 @@ def simple_retrieval(
 # MemoryAgent
 
 
+#: A user fact is recalled as a fact, so a five-word blob ("user has a
+#: duty") is noise in the prompt rather than memory. The extractor's fallback
+#: path drops anything shorter instead of storing it.
+MIN_FACT_WORDS = 6
+
+
+def _states_a_fact(text: str) -> bool:
+    """True when ``text`` reads as a stated fact rather than a keyword."""
+    return len(str(text).split()) >= MIN_FACT_WORDS
+
+
 class MemoryAgent:
     """ZifaMem-style L1/L2/L3/L4 pipeline over the store seam.
 
@@ -551,6 +562,8 @@ class MemoryAgent:
         # Fallbacks use the summary's own fields when no facts were extracted.
         if not episodes:
             for fact_str in summary.user_facts:
+                if not _states_a_fact(fact_str):
+                    continue
                 episodes.append(
                     make_episode(
                         fact_str,

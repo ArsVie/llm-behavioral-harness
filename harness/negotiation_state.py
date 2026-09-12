@@ -1,8 +1,7 @@
 """Availability-event negotiation — phase machine (A1, G0 contract).
 
-The G0 contract (docs/availability-negotiation-contract.md + the frozen
-``harness/negotiation_contract.py``) defines one negotiation per AgendaItem
-that hits its start boundary while a conversation is open:
+The G0 negotiation contract defines one negotiation per AgendaItem that hits
+its start boundary while a conversation is open:
 
     INFORM (once, idempotent) -> DECIDE (recurring, go/skip/delay(N))
         -> BACKSTOP (now >= end_t_h forces a skip; defer never re-arms
@@ -121,9 +120,18 @@ def decide_status_at(
       exact instant (at-most-once per instant);
     * ``"waiting"``  — nothing due; on a companion turn the turn counter is
       decremented (the turn passes without a decide).
+
+    Nothing decides before the window opens. The heads-up leg runs
+    ``HEADS_UP_LEAD_H`` ahead of ``start_t_h`` and moves the phase to
+    DECIDE, so between the heads-up and the window opening this returns
+    ``"waiting"`` WITHOUT consuming a companion turn — the turns the model
+    gets to decide in are the turns inside the window, not the ones it
+    spent being warned.
     """
     if state.resolved:
         return "inactive"
+    if now < state.start_t_h - 1e-12:
+        return "waiting"
     # Backstop check runs before the phase check; a closed window forces
     # a skip regardless of phase.
     if now >= state.end_t_h - 1e-12:
@@ -155,6 +163,9 @@ def next_trigger_t_h(state: NegotiationState, now: float) -> float | None:
     fires at the next wake of any kind)."""
     if state.phase != NegotiationPhase.DECIDE.value or state.resolved:
         return None
+    if now < state.start_t_h - 1e-12:
+        # Informed but not open yet: the window opening is the next wake.
+        return state.start_t_h
     candidates: list[float] = []
     if (
         state.afk_deadline_t_h is not None

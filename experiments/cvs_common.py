@@ -55,7 +55,10 @@ from experiments.cvs_manifest import (
 MODEL = "deepseek/deepseek-v4-flash"
 TIME_SCALE_S_PER_VH = 0.0004  # 30 virtual days ~ <1s of real sleep
 # Bootstrap user interests.
-GATE2_USER_INTERESTS = ("mathematics", "lifting", "movies", "metal")
+# "metal music", not "metal": the catalog node was renamed 2026-09-07 to
+# stop it reading as metalworking. The fixture keeps its meaning only if
+# it follows -- an off-catalog name anchors no adjacency at all.
+GATE2_USER_INTERESTS = ("mathematics", "lifting", "movies", "metal music")
 
 
 # Checkpoint days (1-indexed, end of virtual day).

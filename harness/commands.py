@@ -26,8 +26,13 @@ the launcher):
 
     /help              list + usage
     /ping              alive check
-    /setup             initialize a fresh database — REFUSES once a persona
-                       row exists (pre-bootstrap only)
+    /setup             onboard a fresh database: identity, interest graph
+                       (extended for interests the catalog lacks), persona,
+                       life arcs and today's agenda. REFUSES once a persona
+                       row exists, and requires a launcher that wires
+                       ``request_setup`` (``AsyncRuntime`` does; start it
+                       with ``--defer-bootstrap`` so a blank DB is left for
+                       the command to initialize)
     /tz <IANA>         change timezone via ``request_tz_change`` — applied
                        at the next rollover (the virtual clock never jumps
                        backwards)
@@ -130,7 +135,7 @@ def _cmd_help(cmd: ControlCommand, ctx: CommandContext) -> str:
         "Available commands:",
         "/help — this list",
         "/ping — alive check",
-        "/setup — initialize a fresh database (pre-bootstrap only)",
+        "/setup — onboard a fresh database (pre-bootstrap only)",
         "/tz <IANA> — change timezone, applied at the next rollover",
         "/status — day, local hour, pending proactives, last-exchange age",
         "/state — mood internals (debug-only)",
@@ -155,9 +160,13 @@ def _cmd_setup(cmd: ControlCommand, ctx: CommandContext) -> str:
         )
     hook = getattr(ctx, "request_setup", None)
     if hook is None:
+        # A launcher that did not wire the hook. Naming a specific CLI flag
+        # here was wrong: --defer-bootstrap exists only in sim/run_async.py,
+        # so on any other launcher this message sent the reader after a flag
+        # their entry point does not have.
         return (
-            "/setup is only available on a fresh database — start the "
-            "launcher with --defer-bootstrap to initialize via /setup."
+            "/setup is not available on this launcher — it did not wire the "
+            "setup hook. Initialize at startup instead."
         )
     try:
         detail = hook()

@@ -398,8 +398,13 @@ function envelopeNodes(detail) {
   nodes.push(el("h3", null, "System prompt"));
   nodes.push(el("pre", null, envelope.system || ""));
   nodes.push(el("h3", null, `Tool schemas — ${detail.tools_source}`));
-  nodes.push(el("pre", null, detail.tools.length
-    ? detail.tools.map((tool) => tool.function.name).join("\n")
+  // Two shapes reach here: the OpenAI {type, function} wrapper when the
+  // envelope persisted them, and the plain Hermes schema ({name, ...}) when
+  // they are rebuilt from harness.tools. Reading only `.function` threw for
+  // every rebuilt call and left the drawer stuck on "loading…".
+  const tools = detail.tools || [];
+  nodes.push(el("pre", null, tools.length
+    ? tools.map((tool) => (tool.function || tool).name || "(unnamed)").join("\n")
     : "none"));
   nodes.push(el("h3", null, `Messages (${(envelope.messages || []).length})`));
   let index = 0;

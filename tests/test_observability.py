@@ -543,9 +543,14 @@ def test_call_payload_reads_a_json_meta_blob(tmp_path):
 
 def test_tool_schemas_for_every_role(tmp_path):
     tools, source = reader.tool_schemas_for("chat")
-    assert tools == [] and "no tools" in source
+    # The chat leg sends none AND says where schemas do go: an empty panel on
+    # a chat call must not read as "this harness never sends schemas".
+    assert tools == []
+    assert "none on this call" in source and "prose by design" in source
+    assert "decide legs carry the schema" in source
     tools, source = reader.tool_schemas_for("tool_decide_event")
     assert tools and "harness.tools" in source
+    assert "OpenAI shape" in source and "tool_choice=auto" in source
     assert all(tool["name"] == "tool_decide_event" for tool in tools)
     tools, _ = reader.tool_schemas_for("tool_decide_unknown")
     assert len(tools) > 1
@@ -610,7 +615,8 @@ def test_context_payload_reports_the_latest_call_and_its_provenance(tmp_path):
     assert payload["call"]["id"] == 2
     assert payload["prefix"]["shared_messages"] == len(_MESSAGES) - 1
     assert payload["prefix"]["system_stable"] is True
-    assert payload["tools_source"] == "none — the mainline reply sends no tools"
+    assert payload["tools_source"].startswith("none on this call")
+    assert "prose by design" in payload["tools_source"]
 
 
 def test_context_payload_without_any_call_is_explicit(tmp_path):
@@ -657,10 +663,16 @@ def test_events_payload_filters_by_cursor_and_reports_the_newest(tmp_path):
 
 def test_checks_payload_reports_the_inspector_verdicts(tmp_path):
     store = _store_with_history(tmp_path)
+    # A model id the rate table does not know is a WARN (spend would be
+    # derived from the fallback tier), so the warn bucket has a real row to
+    # count now that a missing raw_cost alone is no longer a warning.
+    store.conn.execute("update llm_calls set model = 'unknown-model' where id = 2")
+    store.conn.commit()
     with reader.open_run(store.path) as conn:
         payload = reader.checks_payload(conn, reader.load_anchor(conn))
     assert payload["counts"]["warn"] >= 1
-    assert any(finding["code"] == "no-cost-recorded" for finding in payload["findings"])
+    assert any(finding["code"] == "cost-rates-unknown"
+               for finding in payload["findings"])
     assert all(finding["severity"] in {"error", "warn", "info"} for finding in payload["findings"])
 
 

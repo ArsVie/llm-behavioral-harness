@@ -52,7 +52,9 @@ routed defect).
 from __future__ import annotations
 
 import inspect
+import json
 import os
+import re
 from dataclasses import dataclass, field, replace
 from typing import Literal
 
@@ -72,13 +74,17 @@ from harness.actuation import controls_from_directive, to_brief
 from harness.assembler import (
     DEFAULT_PERSONA_CORE,
     RECENT_TURNS,
+    append_system,
     assemble_snapshot,
     build_context_messages,
     proactive_block,
     render_day_block,
+    render_day_start_block,
+    wire_message,
 )
 from harness.behavior import BehaviorDirective, derive_behavior
-from harness.clock import VirtualClock
+from harness.clock import VirtualClock, hhmm
+from harness.env import env_bool as _env_bool
 from harness.client import LLMClient
 from harness.domain import (
     BehaviorBrief,
@@ -103,12 +109,14 @@ from harness.negotiation_contract import (
 from harness.negotiation_state import (
     NegotiationState,
 )
-from harness.negotiation_coordinator import NegotiationMixin
+from harness.negotiation_contract import HEADS_UP_LEAD_H
+from harness.negotiation_coordinator import START_NOTE, NegotiationMixin
 from harness.scheduler import VALID_REASONS
 from harness.score import synthetic_score as run_daily_synthetic_score
 from harness.steering import (
     BOUNDARY_IDLE,
     KIND_EVENT_POPUP,
+    KIND_PROACTIVE,
     KIND_USER_MESSAGE,
     Steer,
     SteeringQueue,
@@ -125,6 +133,8 @@ from harness.tools import (
     PopupRequest,
     RawReply,
     load_decision_config,
+    offered_tools,
+    tools_identity,
 )
 
 #: Steer-application outcomes (``_apply_steer`` return codes).
@@ -148,6 +158,16 @@ from harness.tunables import (  # noqa: E402
 #: Two-phase close wind-down guidance rendered through the assembler's
 #: ``closing_guidance`` channel into the next companion turn's state card.
 WIND_DOWN_GUIDANCE = "You're wrapping up, say a natural goodbye."
+
+#: kv_store key holding the context compaction watermark (see
+#: ``Session.context_epoch_id``).
+CONTEXT_EPOCH_KEY = "context.epoch_id"
+
+#: Retained-history size that triggers compaction at a day boundary.
+CONTEXT_COMPACT_AFTER_MESSAGES = 400
+
+#: Messages kept when compaction fires (the newest N).
+CONTEXT_RETAIN_MESSAGES = 200
 
 #: Memory-session ids stay day-shaped (day-<OFFSET+n> for conversation n);
 #: the MemoryAgent seam parses ids as day-<n>.
@@ -228,6 +248,13 @@ class TurnResult:
       lines, the split bubble texts (\\n or \\n\\n count — a run of newlines
       is one separator, WS-B ruling). The runtime sends them as a paced
       multi-send. When the flag is off or no split exists, None (parity).
+    - ``streamed`` — True when ``bubbles`` were parsed INCREMENTALLY off the
+      backend stream (HARNESS_BUBBLE_STREAM + a client with ``chat_stream``)
+      instead of post-hoc at the end of a non-streaming reply. Delivery is
+      unchanged — the runtime's paced multi-send does not care how the
+      split was made (sequential send_message, no SSE/edit). Always False
+      when ``bubbles`` is None, so ``streamed`` implies a paced bubble
+      send.
     """
 
     reply: str
@@ -238,6 +265,9 @@ class TurnResult:
     notices: tuple[str, ...] = ()
     proactive_out: tuple[tuple[str, str], ...] = ()
     bubbles: tuple[str, ...] | None = None
+    #: True when this turn's bubbles arrived via backend streaming (see the
+    #: docstring above). Marker only — the send path is byte-identical.
+    streamed: bool = False
 
 
 class _NoopMemory:
@@ -271,12 +301,115 @@ class _SteerDrain:
 
     Mutable by design: ``_apply_steer`` appends to ``notices`` and
     ``proactive_out`` through the same lists the caller reads back.
+    ``decided_intents`` carries grounded proactive intents whose
+    initiate verdict cleared them for this turn's generation;
+    ``proactive_declined`` marks a decline that suppresses the reply.
     """
 
     notices: list[str] = field(default_factory=list)
     proactive_out: list[tuple[str, str]] = field(default_factory=list)
     injections: list[str] = field(default_factory=list)
     suppress_reply: bool = False
+    decided_intents: list = field(default_factory=list)
+    proactive_declined: bool = False
+    #: Notes about what she just decided, appended to THIS turn's tail so the
+    #: turn generates her words for it. Replaces pasting the verdict's
+    #: ``reason`` into the channel: the reason is machine-facing rationale
+    #: ("I'll send a warm in-character send-off and keep cooking") and reads
+    #: as third-person narration about herself. The reason is still recorded
+    #: in ``decision_records`` -- it is the engine's audit trail -- it just
+    #: no longer doubles as dialogue.
+    decided_notes: list[str] = field(default_factory=list)
+    #: Close reason to apply AFTER the reply is persisted, when a verdict
+    #: ends the conversation. Closing before generation left the user's
+    #: goodbye unanswered (live 2026-09-07).
+    close_after: str | None = None
+
+
+#: Tool-call markup a model may emit as reply CONTENT instead of as a
+#: structured tool call.
+#:
+#: This is not hypothetical. On 2026-09-08 a conversational turn came back as
+#: DeepSeek DSML markup and the harness persisted it as an assistant message
+#: and sent it to the channel verbatim:
+#:
+#:     <｜｜DSML｜｜tool_calls>
+#:     <｜｜DSML｜｜invoke name="tool_decide_reply">
+#:     <｜｜DSML｜｜parameter name="reason" ...
+#:
+#: The decision lane is the mirror image of the same confusion — a pop-up
+#: answered with prose instead of a tool call — and both got likelier once
+#: decisions began replaying into main context AS native tool exchanges
+#: (which is what taught the model that tool calls happen here at all).
+#: Nothing downstream can catch this: it is neither empty nor malformed, just
+#: machinery where her words should be.
+#:
+#: Fullwidth vertical bars (U+FF5C) are DeepSeek's; the ASCII forms cover the
+#: other families. The harness's own textual-fallback marker is included
+#: because a mainline reply that opens with ``tool_decide_reply: {...}`` is
+#: the same mistake in the harness's own notation.
+_TOOL_MARKUP_PATTERNS: tuple[str, ...] = (
+    # <｜｜DSML｜｜tool_calls> AND its </｜｜DSML｜｜parameter> closers — the
+    # optional slash matters: without it the closing tags survive stripping
+    # and the parameter bodies between them read as salvaged "prose".
+    r"</?[｜|]{0,2}\s*DSML\s*[｜|]{0,2}[^>]*>",
+    r"</?[｜|]?\s*tool_calls?(?:_begin|_end)?\s*[｜|]?>",
+    r"</?[｜|]?\s*function_calls?\s*[｜|]?>",
+    r"</?invoke\b[^>]*>",
+    r"</?parameter\b[^>]*>",
+    r"</?antml:\w+\b[^>]*>",
+    # The harness's own textual-fallback notation, marker and payload.
+    r"^\s*tool_decide_(?:event|reply|proactive)\s*:\s*(?:\{.*?\})?",
+)
+_TOOL_MARKUP = re.compile("|".join(_TOOL_MARKUP_PATTERNS),
+                          re.IGNORECASE | re.MULTILINE)
+
+#: State event recorded whenever a mainline reply carried tool-call markup,
+#: whether or not prose was salvaged from it.
+EVENT_TOOL_MARKUP_LEAK = "reply_tool_markup"
+
+
+def looks_like_tool_markup(reply: str) -> bool:
+    """True when a mainline reply carries tool-call machinery."""
+    return bool(_TOOL_MARKUP.search(reply or ""))
+
+
+def strip_tool_markup(reply: str) -> str:
+    """Remove tool-call markup, returning whatever prose is left.
+
+    A model sometimes emits markup AND real prose in one reply; that prose is
+    hers and worth keeping. When the reply is nothing but machinery this
+    returns ``""`` and the caller treats the generation as failed — silence
+    the runtime can retry beats markup the user has already read.
+    """
+    text = reply or ""
+    # When markup OPENS the reply, the whole thing is a tool call and the
+    # text between the tags is argument values — the model's own rationale,
+    # not her words. Salvaging that would put machine reasoning in the
+    # channel as dialogue, which is the exact failure the decided-notes work
+    # removed. Markup that appears AFTER prose is an aside: strip it, keep
+    # what she actually said.
+    head = _TOOL_MARKUP.match(text.lstrip())
+    if head is not None:
+        return ""
+    text = _TOOL_MARKUP.sub("", text)
+    # Parameter/result bodies left behind by the stripped tags are machinery
+    # too: drop any line that is only an attribute-ish fragment or a brace.
+    kept = [
+        line for line in text.splitlines()
+        if line.strip() and not re.fullmatch(
+            r"[\s{}\[\],]*|(?:name|string|type|value)\s*=.*|</?[^>]*>",
+            line.strip(),
+        )
+    ]
+    out = "\n".join(kept).strip()
+    # Belt and braces: if any recognisable machinery token SURVIVED the
+    # stripping, the reply is not something to hand a person. Salvaging half a
+    # tool call is worse than salvaging nothing, so give up rather than guess.
+    if re.search(r"DSML|tool_decide_|tool_call|<\s*/?\s*invoke", out,
+                 re.IGNORECASE):
+        return ""
+    return out
 
 
 def _with_bubble_instruction(system: str) -> str:
@@ -313,6 +446,22 @@ def _split_into_bubbles(reply: str) -> tuple[str, ...] | None:
     except Exception:
         pass
     return None
+
+
+def _bubble_stream_on() -> bool:
+    """Whether backend bubble streaming is enabled for this turn.
+
+    Guarded like _split_into_bubbles: the bubbles module is an optional
+    layer, and a harness built without it must keep the canonical
+    non-streaming path. Requires HARNESS_BUBBLE_STREAM AND HARNESS_BUBBLES
+    (enforced inside bubble_stream_enabled).
+    """
+    try:
+        from harness.bubbles import bubble_stream_enabled
+
+        return bubble_stream_enabled()
+    except Exception:
+        return False
 
 
 class Session(NegotiationMixin):
@@ -440,6 +589,13 @@ class Session(NegotiationMixin):
         self._day_block_day: int | None = None
         #: System prompt of the turn in progress — shared with pop-up calls.
         self._last_system_prompt: str = ""
+        # WS-D cache order: the pop-up aux call must be a byte-identical
+        # EXTENSION of the mainline request, not a request with its own
+        # prefix. These hold the two halves of the turn in progress: the
+        # stable system (core + persona, byte-identical every turn) and the
+        # volatile state card (the trailing system message).
+        self._last_stable_system: str = ""
+        self._last_state_card: str = ""
         #: Steers drained for the turn currently being generated — requeued
         #: if the turn is interrupted (the LLM call is abandoned).
         self._turn_drained: list[int] = []
@@ -593,6 +749,9 @@ class Session(NegotiationMixin):
             },
         )
         self.store.log_event(day, self.clock.now_h(), "day_rollover", f"M={M} phase={phase_label}")
+        # Compaction is a BOUNDARY operation: the epoch may move here and
+        # nowhere else, so within a day the context prefix only grows.
+        self._maybe_compact_context(day, self.clock.now_h())
         self.cycle_state = cycle_next
         self.current_day = day
         self.current_record = record
@@ -724,11 +883,54 @@ class Session(NegotiationMixin):
         )
 
     def _generate_agenda(self, day: int) -> None:
-        """Plan + persist today's agenda via the life lane (LIFE stream)."""
+        """Plan + persist today's agenda via the life lane (LIFE stream).
+
+        Once per day, at rollover, the arc and interest slots go to the day
+        planner for concrete activity text (``HARNESS_DAY_PLANNER=0`` opts
+        out). The engine keeps the seeded selection, windows and ids; the
+        planner only names what she is actually doing. Replay never calls it:
+        a day is only generated when the store has no agenda for it, and the
+        planned text is persisted with the items.
+        """
         if self._profile is None:
             return
         rng = stream_rng(self.seed, LIFE_STREAM, day)
-        life.generate_agenda(day, self._profile, self._life_arcs, self.store, rng)
+        life.generate_agenda(
+            day, self._profile, self._life_arcs, self.store, rng,
+            planner_client=self._planner_client(),
+            weekday=self._weekday_name(day),
+            logger=lambda line: self.store.log_event(
+                day, self.clock.now_h(), "day_planner", line
+            ),
+        )
+
+    def _planner_client(self):
+        """The client the day planner may use, or None to keep templates.
+
+        OPT-IN via ``HARNESS_DAY_PLANNER``, like every other optional layer
+        here (bubbles, two-phase close, the decision lane). Default OFF keeps
+        byte parity: the planner shares the conversation client, so switching
+        it on adds one call per day to that client — which is correct in
+        production and would silently consume a scripted response in every
+        offline run and replay. The live launcher turns it on.
+        """
+        if not _env_bool("HARNESS_DAY_PLANNER", False):
+            return None
+        return self.client
+
+    def _weekday_name(self, day: int) -> str:
+        """Weekday of ``day`` from the real anchor, else a neutral word.
+
+        Whether it is a Tuesday or a Saturday is the single most useful thing
+        a planner can know about a day, and the anchor already resolves it.
+        """
+        anchor = self._real_time_anchor()
+        if anchor is None:
+            return "today"
+        try:
+            return anchor.real_at(day * 24.0 + 12.0).strftime("%A")
+        except Exception:
+            return "today"
 
     def _step_life(self, day: int) -> None:
         """Advance the life lane for the day just ended (LIFE stream)."""
@@ -1305,6 +1507,51 @@ class Session(NegotiationMixin):
 
     # -- conversation --------------------------------------------------- #
 
+    #: State event marking that a day's opening block already reached the
+    #: stream. Read back on restart, so a resume mid-day never re-announces.
+    DAY_START_EMITTED = "day_start_block"
+
+    def _emit_day_start_block(self, snapshot, day: int, t_h: float) -> None:
+        """Put the day's plan into the STREAM once, at the day's first turn.
+
+        Day-scoped state (agenda, arcs, user model) used to ride in the
+        per-turn state card, which re-sent ~270 unchanged characters every
+        turn, and could not move into the system prefix because the agenda
+        mutates as windows pass. The stream is the third option and the right
+        one: appended once, it sits inside the cached prefix for every later
+        turn of the day — sent once, read all day.
+
+        Idempotent through a persisted marker rather than in-memory state, so
+        a restart mid-day resumes without repeating the block. Best-effort: a
+        store without the audit seam simply keeps the old behaviour of never
+        emitting, which is a smaller prompt, not a broken turn.
+        """
+        if not hasattr(self.store, "log_event"):
+            return
+        try:
+            already = any(
+                ev.get("event") == self.DAY_START_EMITTED
+                and int(ev.get("day", -1)) == day
+                for ev in self.store.events_since(0)
+            ) if hasattr(self.store, "events_since") else False
+        except Exception:  # noqa: BLE001 - the audit lane never breaks a turn
+            already = False
+        if already:
+            return
+        block = render_day_start_block(
+            snapshot, t_h=t_h, anchor=self._real_time_anchor()
+        )
+        if not block:
+            return
+        conv = self._conversation
+        self._persist_message(
+            "system", block, t_h, day,
+            proactive=False,
+            session_id=self._memory_session_id(conv.id) if conv else "",
+            conversation_id=conv.id if conv else None,
+        )
+        self.store.log_event(day, t_h, self.DAY_START_EMITTED, f"{len(block)}chars")
+
     def _persist_message(
         self,
         role: str,
@@ -1331,6 +1578,230 @@ class Session(NegotiationMixin):
         if self._accepts_conversation_id:
             kwargs["conversation_id"] = conversation_id
         return self.store.add_message(role, content, t_h, day, **kwargs)
+
+    # -- model context projection (messages + decisions, in order) ----- #
+
+    @staticmethod
+    def _decision_context_messages(row: dict) -> list[dict] | None:
+        """One past decision as a NATIVE tool exchange, or None if unusable.
+
+        Returns the conventional pair: an assistant message carrying
+        ``tool_calls``, then the matching ``role="tool"`` result. Previously
+        this rendered a prose summary, which recorded the decision but taught
+        the model nothing -- the history contained no evidence that tool calls
+        happen here at all, so every pop-up arrived as a first-ever request
+        appended after real dialogue, and the likeliest continuation was to
+        answer the person rather than fill the form. Live 2026-09-07: it
+        answered in prose on three of seven pop-ups and picked the wrong tool
+        on the rest.
+
+        Putting the exchange back in native form does two things at once: it
+        is the append-only decision lane the context contract asks for, and
+        it is the precedent that makes the next pop-up unambiguous.
+
+        A malformed audit row returns None -- context assembly must never
+        break on the audit lane.
+        """
+        try:
+            verdict = json.loads(row.get("verdict_json") or "null")
+        except (TypeError, ValueError):
+            return None
+        if not isinstance(verdict, dict):
+            return None
+        kind = str(row.get("popup_kind") or "")
+        if not kind:
+            return None
+        call_id = Session._decision_call_id(row)
+        arguments = json.dumps(verdict, ensure_ascii=False, sort_keys=True)
+        assistant = {
+            "role": "assistant",
+            "content": "",
+            "tool_calls": [
+                {
+                    "id": call_id,
+                    "type": "function",
+                    "function": {"name": kind, "arguments": arguments},
+                }
+            ],
+        }
+        result = {
+            "role": "tool",
+            "tool_call_id": call_id,
+            "content": Session._decision_tool_result(row, verdict),
+        }
+        return [assistant, result]
+
+    @staticmethod
+    def _decision_call_id(row: dict) -> str:
+        """The tool_call_id for a recorded decision.
+
+        Reuses the provider's own id from the raw reply when it is there, so
+        the replayed exchange is the one that actually happened; falls back to
+        a stable id derived from the row so textual-transport and
+        server-drawn decisions still form a valid pair.
+        """
+        raw = row.get("raw_reply")
+        if isinstance(raw, str) and raw.lstrip().startswith("["):
+            try:
+                calls = json.loads(raw)
+            except ValueError:
+                calls = None
+            if isinstance(calls, list) and calls:
+                first = calls[0]
+                if isinstance(first, dict) and first.get("id"):
+                    return str(first["id"])
+        return f"call_decision_{row.get('id', 0)}"
+
+    @staticmethod
+    def _decision_tool_result(row: dict, verdict: dict) -> str:
+        """What the SERVER did with the verdict — the tool's return value.
+
+        Short and factual. The model's own ``reason`` is already in the call
+        arguments; repeating it here would just spend tokens restating what
+        it said. What it does not otherwise know is whether the verdict was
+        applied, which is the whole point of a tool result.
+        """
+        label = str(
+            row.get("event_label") or row.get("event_id") or "the event"
+        )
+        when = hhmm(float(row.get("t_h") or 0.0))
+        if "reply" in verdict:
+            outcome = "replied" if verdict.get("reply") else "stayed quiet"
+            if verdict.get("terminate_event"):
+                outcome += f"; left {label}"
+        elif "initiate" in verdict:
+            action = verdict.get("action")
+            if action == "follow":
+                outcome = f"went to {label}"
+            elif action == "abandon":
+                outcome = f"skipped {label}"
+            elif action == "defer":
+                outcome = f"stayed a while longer instead of {label}"
+            elif verdict.get("initiate"):
+                outcome = f"started {label}"
+            else:
+                outcome = f"let {label} pass"
+        elif "message" in verdict:
+            outcome = f"mentioned {label}"
+        else:
+            outcome = "recorded"
+        return f"recorded at {when}: {outcome}."
+
+    def context_epoch_id(self) -> int:
+        """The compaction watermark: context starts at the first message
+        AFTER this id. 0 means "the whole history".
+
+        The watermark moves ONLY at an explicit compaction boundary (day
+        rollover, :meth:`_maybe_compact_context`), never per turn. Between
+        boundaries the model's message list can only grow, so request N+1 is
+        request N plus what was appended -- the condition a prefix cache
+        needs to hit past the system message.
+        """
+        if not hasattr(self.store, "get_kv"):
+            return 0
+        raw = self.store.get_kv(CONTEXT_EPOCH_KEY)
+        try:
+            return int(raw) if raw is not None else 0
+        except (TypeError, ValueError):
+            return 0
+
+    def _maybe_compact_context(self, day: int, t_h: float) -> None:
+        """Move the context epoch forward, at a boundary, if history is long.
+
+        Called from the day rollover only. Compaction is a boundary
+        operation on purpose: dropping messages shifts every byte after the
+        drop, so doing it per turn pays a full re-prefill every turn and buys
+        nothing. Doing it once a day pays it once. (Kafka's log compaction
+        makes the same trade, and never compacts the active segment -- here
+        the open conversation is the active segment.)
+
+        The retained span keeps the NEWEST ``CONTEXT_RETAIN_MESSAGES``, so the
+        conversation continuity the user can see is preserved; what is dropped
+        is older material that memory retrieval already covers. The move is
+        recorded as a state event so replay and audit can explain a prefix
+        break.
+        """
+        if not hasattr(self.store, "max_message_id") or not hasattr(self.store, "set_kv"):
+            return
+        epoch = self.context_epoch_id()
+        newest = self.store.max_message_id()
+        retained = newest - epoch
+        if retained <= CONTEXT_COMPACT_AFTER_MESSAGES:
+            return
+        new_epoch = max(epoch, newest - CONTEXT_RETAIN_MESSAGES)
+        if new_epoch <= epoch:
+            return
+        self.store.set_kv(CONTEXT_EPOCH_KEY, str(new_epoch))
+        self.store.log_event(
+            day, t_h, "context_compacted",
+            f"epoch={epoch}->{new_epoch} retained={newest - new_epoch}",
+        )
+
+    def _context_turns(self, limit: int | None = None) -> list[dict]:
+        """The model's context stream: transcript turns AND its own decisions.
+
+        APPEND-ONLY by construction: the transcript is read from the stored
+        compaction epoch (:meth:`context_epoch_id`), not as "the last N rows".
+        The distinction is the whole cache story -- front-truncation moves the
+        first byte of the payload every turn, so nothing after the system
+        message can be reused; an epoch-anchored read only ever appends, so
+        request N+1 is request N plus the new turns.
+
+        Merged by ``(t_h, lane, id)`` so the stream reproduces the real order
+        within a turn: the user's message, then the decisions taken at that
+        boundary, then the reply. Decisions render as ``role="system"`` --
+        internal material carries system authority through the CHANNEL, which
+        is why the stable prefix no longer needs prose explaining it.
+
+        ``limit`` is a safety cap for callers that want one (the legacy
+        transcript peek); the mainline passes None and lets the epoch bound
+        the span.
+        """
+        epoch = self.context_epoch_id()
+        if hasattr(self.store, "messages_since"):
+            messages = self.store.messages_since(epoch, limit=limit)
+        else:  # minimal stores (tests/fakes) keep working
+            messages = self.store.recent_messages(limit=limit or RECENT_TURNS)
+        floor = float(messages[0].get("t_h", 0.0)) if messages else 0.0
+        decisions: list[dict] = []
+        try:
+            if hasattr(self.store, "decisions_since"):
+                decisions = self.store.decisions_since(floor)
+            elif hasattr(self.store, "recent_decisions"):
+                decisions = self.store.recent_decisions(limit=RECENT_TURNS)
+        except Exception:  # the audit lane must never break a turn
+            decisions = []
+        if not decisions:
+            return list(messages)
+        rows: list[tuple[float, int, int, dict]] = []
+        for m in messages:
+            role = m.get("role")
+            # Lanes order what happens AT one instant: stored context first,
+            # then the user's message, then the decisions taken at that
+            # boundary, then the reply.
+            #
+            # A stored system message (the day-start block) needs lane -1, not
+            # the assistant's. It is persisted at the same t_h as the user
+            # message that triggered it, and this sort only runs when
+            # decisions exist — so sharing the assistant lane put it AFTER the
+            # user message on turns with a decision and BEFORE it on turns
+            # without, reordering the supposedly append-only stream between
+            # consecutive calls and costing the whole cached prefix.
+            lane = -1 if role == "system" else (0 if role == "user" else 2)
+            rows.append((float(m.get("t_h", 0.0)), lane, int(m.get("id", 0)), m))
+        for d in decisions:
+            t = float(d.get("t_h") or 0.0)
+            if t < floor:
+                continue
+            pair = self._decision_context_messages(d)
+            if pair is None:
+                continue
+            # The pair must stay adjacent and in order: a provider rejects an
+            # assistant tool_calls message that is not followed by its result.
+            for offset, message in enumerate(pair):
+                rows.append((t, 1, int(d.get("id", 0)) * 2 + offset, message))
+        rows.sort(key=lambda r: (r[0], r[1], r[2]))
+        return [r[3] for r in rows]
 
     def _drain_steers(self, day: int, t_h: float, turn_id: str) -> _SteerDrain:
         """Apply every steer pending at this turn's idle boundary.
@@ -1360,11 +1831,15 @@ class Session(NegotiationMixin):
         }
         drained = self._steering.drain_pending(BOUNDARY_IDLE, turn_id, t_h)
         self._turn_drained = [s.steer_id for s in drained]
+        # A verdict resolving during this drain needs the turn to speak for
+        # it (see NegotiationMixin._active_drain / GO_NOTE).
+        self._active_drain = drain
         try:
             for steer in drained:
                 outcome = self._apply_steer(
                     steer, day=day, t_h=t_h,
                     notices=drain.notices, proactive_out=drain.proactive_out,
+                    drain=drain,
                 )
                 if outcome == _STEER_SUPPRESS:
                     drain.suppress_reply = True
@@ -1374,6 +1849,9 @@ class Session(NegotiationMixin):
                     )
                 else:
                     self._turn_drained.remove(steer.steer_id)
+            # NOTE: proactive_declined does NOT promote to suppress_reply
+            # here: _chat decides that with user_text in scope (a stray
+            # decline never kills a reactive turn).
             # The decide loop fires for every already-deciding
             # negotiation; a go verdict suppresses the ordinary reply.
             if self._run_turn_decides(
@@ -1385,6 +1863,8 @@ class Session(NegotiationMixin):
                 self._steering.requeue(steer_id)
             self._turn_drained = []
             raise
+        finally:
+            self._active_drain = None
         return drain
 
     def _generate(self, messages: list, system: str,
@@ -1397,6 +1877,12 @@ class Session(NegotiationMixin):
         raises rather than persisting: the client has already retried empties
         with bounded backoff, so one that reaches here is a real failure and
         a blank assistant message would corrupt the transcript.
+
+        A reply carrying TOOL-CALL MARKUP is treated the same way. Any real
+        prose alongside it is kept and the machinery stripped; a reply that is
+        nothing but machinery raises, because the alternative is what happened
+        live on 2026-09-08 — ``<｜｜DSML｜｜tool_calls>...`` persisted as her
+        message and delivered to the user.
         """
         chat_with_meta = getattr(self.client, "chat_with_meta", None)
         if chat_with_meta is None:
@@ -1420,7 +1906,97 @@ class Session(NegotiationMixin):
                 "refusing to persist empty assistant reply (client returned "
                 "empty/whitespace-only content)"
             )
+        reply = self._reject_tool_markup(reply)
         return reply, reasoning, usage, raw_cost
+
+    def _reject_tool_markup(self, reply: str) -> str:
+        """Keep her prose, drop the machinery, refuse a reply that is only
+        machinery. Recorded loudly either way — a leak the user never saw is
+        still a leak worth counting."""
+        if not looks_like_tool_markup(reply):
+            return reply
+        cleaned = strip_tool_markup(reply)
+        if hasattr(self.store, "log_event"):
+            self.store.log_event(
+                self.current_day, self.clock.now_h(), EVENT_TOOL_MARKUP_LEAK,
+                f"salvaged={len(cleaned)}chars raw={reply[:120]!r}",
+            )
+        if not cleaned:
+            raise RuntimeError(
+                "refusing to persist tool-call markup as an assistant reply "
+                f"(model returned machinery, not prose): {reply[:200]!r}"
+            )
+        return cleaned
+
+    def _generate_stream(self, messages: list, system: str,
+                         max_tokens: int | None):
+        """Streamed generation: (reply, reasoning, usage, raw_cost, bubbles).
+
+        Used ONLY when HARNESS_BUBBLE_STREAM is on AND the client exposes
+        ``chat_stream`` — the bubble backend-streaming path (2026-09-07):
+        the client yields the reply text in wire-order chunks and each
+        completed bubble is released by a :class:`BubbleStreamer` as soon
+        as its boundary parses (sentence-complete pieces only; mid-sentence
+        wraps are held). The joined reply is the canonical record —
+        ``bubbles`` re-join to EXACTLY it, byte for byte.
+
+        Streamed replies carry NO usage accounting: ``chat_stream`` yields
+        text only, so the streamed path degrades to ``usage=None,
+        raw_cost=None, reasoning=None`` — the same graceful degradation as
+        gateways without a usage object — and the ledger row stores NULLs
+        (spend reporting treats those rows as unpriced). ``meta`` therefore
+        has no reasoning, exactly like a non-reasoning gateway. The joined
+        reply is still the one persisted row; the single-persist invariant
+        is unchanged.
+
+        Returns ``(reply, reasoning, usage, raw_cost, streamed_bubbles)``
+        where ``streamed_bubbles`` is a tuple when at least two bubbles
+        parsed, else None (parity with ``_split_into_bubbles`` semantics:
+        a single part is sent as one message either way).
+        """
+        from harness.bubbles import BubbleStreamer, bubble_stream_enabled
+
+        if not bubble_stream_enabled():
+            # Flags changed between _chat's gate and here (or a direct
+            # caller): fall back to the canonical non-streaming path.
+            reply, reasoning, usage, raw_cost = self._generate(
+                messages, system, max_tokens
+            )
+            return reply, reasoning, usage, raw_cost, None
+        chat_stream = getattr(self.client, "chat_stream", None)
+        if chat_stream is None:
+            # No streaming surface: same fallback, byte-identical reply.
+            reply, reasoning, usage, raw_cost = self._generate(
+                messages, system, max_tokens
+            )
+            return reply, reasoning, usage, raw_cost, None
+        streamer = BubbleStreamer()
+        parts: list[str] = []
+        raw_chunks: list[str] = []
+        # The generator is lazy: the request fires on the first next() and
+        # must be drained to completion before the client makes another
+        # call, so the turn always consumes the full stream.
+        for piece in chat_stream(
+            messages, system=system, max_tokens=max_tokens,
+            reasoning_effort=self._thinking_effort,
+        ):
+            raw_chunks.append(piece)
+            parts.extend(streamer.feed(piece))
+        parts.extend(streamer.flush())
+        # The canonical reply is the raw stream joined — byte-identical to
+        # what a non-streaming call returns for the same wire content.
+        # ``parts`` are the trimmed bubble texts (separators consumed), so
+        # they never re-join to the reply with "".join; the single persisted
+        # row keeps the joined text and parse_bubbles(reply) == parts.
+        reply = "".join(raw_chunks)
+        if not reply.strip():
+            raise RuntimeError(
+                "refusing to persist empty assistant reply (stream carried "
+                "no content)"
+            )
+        if len(parts) >= 2:
+            return reply, None, None, None, tuple(parts)
+        return reply, None, None, None, None
 
     def _repro_kwargs(self, system: str, messages: list,
                       max_tokens: int | None, controls, intent,
@@ -1439,6 +2015,12 @@ class Session(NegotiationMixin):
             "max_tokens": max_tokens,
             "temperature": 0.8,
             "json_mode": False,
+            # Wire identity of the request beyond the prompt text: without
+            # these, a stored call and a replay of it were only assumed equal.
+            "reasoning_effort": self._thinking_effort,
+            "tools_hash": None,
+            "tool_names": [],
+            "tool_choice": None,
             "controls": {
                 "response_delay_s": controls.response_delay_s,
                 "closing_tendency": controls.closing_tendency,
@@ -1485,9 +2067,14 @@ class Session(NegotiationMixin):
         decision pop-ups run through the DecisionRunner (native or textual
         transport), no-reply verdicts suppress the ordinary reply (single
         reply-path invariant), and non-decision steers are rendered into the
-        next LLM call's messages wrapped in the steer trust marker. The
-        three-tier context assembly (WS1) is unchanged; the day-start block
-        is rendered once per day and cached.
+        next LLM call's messages as ``role="system"`` blocks wrapped in the
+        steer marker. The day-start block is rendered once per day and cached.
+
+        Context read (2026-09-07): the transcript comes from
+        ``_context_turns`` — the merged stream of messages AND past decisions
+        — not from ``recent_messages`` alone, so the model reads verdicts it
+        gave on earlier turns. The stream is anchored to the compaction epoch,
+        so it only ever grows between boundaries.
         """
         t_h = self.clock.now_h()
         day = self.clock.day()
@@ -1527,6 +2114,9 @@ class Session(NegotiationMixin):
         if self._day_block is None or self._day_block_day != day:
             self._day_block = render_day_block(snapshot)
             self._day_block_day = day
+        # Day-scoped state enters the STREAM once, before the context is read
+        # below, so it rides inside the cached prefix for the rest of the day.
+        self._emit_day_start_block(snapshot, day, t_h)
         system = assemble_snapshot(
             snapshot, controls=controls, prompt_brief=directive.prompt_brief,
             day_block=self._day_block,
@@ -1542,16 +2132,21 @@ class Session(NegotiationMixin):
         # WS4: pop-up calls (decision layer) share the turn's system prompt.
         self._last_system_prompt = system
 
-        recent = self.store.recent_messages()
-        # WS-D mainline: stable system + transcript + volatile state card as
-        # the trailing user message. The legacy full 3-tier `system` above
-        # stays for `_last_system_prompt` (pop-up aux calls replay it).
+        recent = self._context_turns()
+        # Mainline: stable system + context stream + the volatile state card
+        # as a TRAILING SYSTEM message (never user-role: user-role content is
+        # always what the user said). The legacy full 3-tier `system` above
+        # stays for `_last_system_prompt`, which aux callers that never ran a
+        # mainline turn still fall back to.
         if user_text is not None:
             stable, messages = build_context_messages(
                 snapshot, recent, user_text,
                 controls=controls, prompt_brief=directive.prompt_brief,
                 t_h=t_h, anchor=self._real_time_anchor(),
                 day_block=self._day_block,
+                # The epoch already bounds the span; a tail limit here would
+                # re-impose the sliding window the epoch exists to remove.
+                limit=None,
             )
             mid = self._persist_message(
                 "user", user_text, t_h, day,
@@ -1565,18 +2160,26 @@ class Session(NegotiationMixin):
             # content:null and 400s the request.
             stable, messages = build_context_messages(
                 snapshot,
-                [{"role": m["role"], "content": m["content"] or ""}
-                 for m in recent],
+                [wire_message(m) for m in recent],
                 None,
                 controls=controls, prompt_brief=directive.prompt_brief,
                 t_h=t_h, anchor=self._real_time_anchor(),
                 day_block=self._day_block,
+                limit=None,
             )
         stable = _with_bubble_instruction(stable)
         if user_text is None and intent is None:
             # Legacy ungrounded proactive call (pre-slice callers/tests):
             # generic opening without any invented source claim.
             stable += "\n\n" + proactive_block()
+        # Capture the two halves for the pop-up aux calls: same stable
+        # prefix, same card, pop-up appended after it.
+        self._last_stable_system = stable
+        self._last_state_card = (
+            messages[-1]["content"]
+            if messages and messages[-1].get("role") == "system"
+            else ""
+        )
 
         # Drain pending steers into this turn; no-reply verdicts
         # suppress the reply, and delivered steers re-queue on error.
@@ -1589,6 +2192,23 @@ class Session(NegotiationMixin):
         # Agenda status transitions as windows pass, persisted via the
         # store; runs after the steering drain.
         self._transition_agenda_windows(day, t_h)
+
+        if drain.proactive_declined and user_text is None:
+            # A declined proactive fire: the decide verdict said no.
+            # Nothing is generated or persisted — only the decision
+            # record (written by the runner) and the suppressed intent
+            # status remain. Reactive turns ignore the decline: a stray
+            # proactive steer never kills a user's own message.
+            self._turn_drained = []
+            self.store.log_event(
+                day, t_h, "proactive_declined_turn",
+                f"turn={turn_id}",
+            )
+            return TurnResult(
+                reply="", directive=directive, day=day,
+                hour=self.clock.local_hour(), controls=controls,
+                notices=tuple(notices), proactive_out=tuple(proactive_out),
+            )
 
         if suppress_reply:
             # A no-reply verdict means no ordinary reply; the server
@@ -1604,17 +2224,41 @@ class Session(NegotiationMixin):
                 notices=tuple(notices), proactive_out=tuple(proactive_out),
             )
 
+        # Internal events are system-level context, never user messages
+        # (design: events=system, decisions=tools). Both blocks FOLD into the
+        # trailing state card rather than stacking behind it — see
+        # assembler.append_system for why adjacency is the bug.
         if injections:
-            messages.append({"role": "user", "content": "\n".join(injections)})
+            messages = append_system(messages, "\n".join(injections))
+
+        if drain.decided_notes:
+            # Something she decided during this drain needs saying. The note
+            # states WHAT she decided; the generation supplies her words.
+            messages = append_system(messages, "\n".join(drain.decided_notes))
 
         # reasoning_effort passes through HARNESS_THINKING_EFFORT when
         # set; the max_tokens cap is dropped then.
         max_tokens = (
             None if self._thinking_effort is not None else controls.max_tokens
         )
-        reply, reasoning, usage, raw_cost = self._generate(
-            messages, stable, max_tokens
-        )
+        # Backend bubble streaming: when HARNESS_BUBBLE_STREAM is on AND
+        # the client exposes chat_stream, the reply is consumed off the
+        # wire and its bubbles parsed incrementally (_generate_stream).
+        # Otherwise the EXACT canonical path runs (_generate +
+        # _split_into_bubbles post-hoc) — byte parity, no prompt changes.
+        # The TurnResult.streamed flag marks the streamed origin; the
+        # runtime's paced multi-send is identical either way.
+        stream_chat = getattr(self.client, "chat_stream", None)
+        if stream_chat is not None and _bubble_stream_on():
+            reply, reasoning, usage, raw_cost, streamed_bubbles = (
+                self._generate_stream(messages, stable, max_tokens)
+            )
+        else:
+            reply, reasoning, usage, raw_cost = self._generate(
+                messages, stable, max_tokens
+            )
+            streamed_bubbles = None
+        streamed = streamed_bubbles is not None
         mid = self._persist_message(
             "assistant", reply, t_h, day,
             proactive=proactive, session_id=session_id, conversation_id=conv_id,
@@ -1623,9 +2267,15 @@ class Session(NegotiationMixin):
         conv = self._record_turn(
             conv, "companion", reply, t_h, message_id=mid
         )
-        # Companion-turn close checks: the closing_tendency draw and
-        # the max_turns cap; a close persists close_reason.
-        self._maybe_close_conversation(conv, t_h, controls.closing_tendency)
+        if drain.close_after is not None:
+            # A verdict ended the conversation, but only AFTER she spoke:
+            # closing first suppressed the reply and left a goodbye
+            # unanswered (live 2026-09-07).
+            self._close_conversation(conv, t_h, drain.close_after)
+        else:
+            # Companion-turn close checks: the closing_tendency draw and
+            # the max_turns cap; a close persists close_reason.
+            self._maybe_close_conversation(conv, t_h, controls.closing_tendency)
         repro_kwargs = self._repro_kwargs(
             stable, messages, max_tokens, controls, intent, day, t_h
         )
@@ -1646,7 +2296,12 @@ class Session(NegotiationMixin):
         )
         self.store.log_event(day, t_h, "assistant_reply", f"len={len(reply)}")
         self._turn_drained = []
-        bubbles = _split_into_bubbles(reply)
+        # Post-hoc split on the canonical path; the streamed path already
+        # parsed incrementally (its bubbles came back from _generate_stream).
+        if streamed_bubbles is None:
+            bubbles = _split_into_bubbles(reply)
+        else:
+            bubbles = streamed_bubbles
         return TurnResult(
             reply=reply,
             directive=directive,
@@ -1656,6 +2311,7 @@ class Session(NegotiationMixin):
             notices=tuple(notices),
             proactive_out=tuple(proactive_out),
             bubbles=bubbles,
+            streamed=streamed,
         )
 
     # -- steering + decision layer (idle boundary, pop-up execution) --- #
@@ -1683,22 +2339,27 @@ class Session(NegotiationMixin):
         The runtime calls this from its inbound path (WS4): when a turn is
         in flight the message is steered into the next safe boundary instead
         of being lost. At the boundary it becomes a ``tool_decide_reply``
-        pop-up when an event is in progress (user L356); otherwise it is
-        consumed silently (the message is already in the transcript).
-        Returns the steer id, or None when the layer is off.
+        pop-up when an event is in progress (user L356).
+
+        With NOTHING in progress there is nothing to gate: the message is
+        already in the transcript and ``_steer_user_message`` consumes the
+        steer without a model call. So no steer is queued at all. Queuing
+        one wrote a row whose event name was the literal ``"?"`` — a
+        placeholder that reached the rendered steer block on every ordinary
+        turn outside an activity (7 of them on the first live day).
+
+        Returns the steer id, None when the layer is off or she is free.
         """
         if self._steering is None or not self._decision_enabled:
             return None
         day = int(t_h // 24.0)
         activity = self._current_activity(day, t_h)
-        event = (
-            activity.item.activity
-            if activity is not None and activity.item is not None
-            else "?"
-        )
+        if activity is None or activity.item is None:
+            return None
         return self._steering.enqueue(
             KIND_USER_MESSAGE,
-            {"message": text, "event": event, "state": "in_progress", "time": t_h},
+            {"message": text, "event": activity.item.activity,
+             "state": "in_progress", "time": t_h},
             day,
             t_h,
         )
@@ -1715,6 +2376,17 @@ class Session(NegotiationMixin):
         the steering_queue table). On a fresh store the first check covers
         the whole current day — a resume mid-day notices items that started
         (or ended) earlier, which is the restart-recovery intent.
+
+        REPLAY (2026-09-08): a boundary is enqueued AT ITS OWN INSTANT, not
+        at ``now``, and the whole batch is sorted by that instant. Her day
+        runs even when nobody watched it, so a mid-day resume replays the
+        morning in the order the morning happened: each pop-up reaches the
+        model carrying the time the event actually arrived (``Time:`` is
+        already the boundary), and the pop-ups queue behind one another in
+        that same order instead of landing as a pile of stale questions
+        stamped with the current hour. The steer's own ``t_h`` is what
+        ``_omit_backlog_send`` reads, so a reach-out about a window that
+        closed hours ago is correctly dropped rather than sent late.
         """
         if self._steering is None or not hasattr(self.store, "events_since"):
             return
@@ -1728,25 +2400,32 @@ class Session(NegotiationMixin):
             else ()
         )
         now = t_h
+        crossed: list[tuple[float, dict]] = []
         for it in items:
             if it.status != "planned":
                 continue
-            if (prev is None or it.start_t_h > prev) and it.start_t_h <= now:
-                self._steering.enqueue(
-                    KIND_EVENT_POPUP,
-                    {"event_id": it.id, "event": it.activity, "state": "start",
-                     "time": it.start_t_h, "item_id": it.id},
-                    day,
-                    now,
-                )
-            if (prev is None or it.end_t_h > prev) and it.end_t_h <= now:
-                self._steering.enqueue(
-                    KIND_EVENT_POPUP,
-                    {"event_id": it.id, "event": it.activity, "state": "end",
-                     "time": it.end_t_h, "item_id": it.id},
-                    day,
-                    now,
-                )
+            boundaries = [("start", it.start_t_h), ("end", it.end_t_h)]
+            if it.start_t_h > now:
+                # The "incoming event" heads-up, HEADS_UP_LEAD_H ahead of
+                # the window: she can get ready and say so. No verdict.
+                # Only while the window is still genuinely ahead — a lead
+                # instant for an event that already started is nothing to
+                # warn about, so it is never queued (a replayed morning
+                # gets its decisions, not stale warnings).
+                boundaries.insert(0, (
+                    "heads_up", it.start_t_h - HEADS_UP_LEAD_H,
+                ))
+            for state, at in boundaries:
+                if (prev is None or at > prev) and at <= now:
+                    crossed.append((at, {
+                        "event_id": it.id, "event": it.activity,
+                        "state": state, "time": at, "item_id": it.id,
+                    }))
+        # Chronological across items, not per-item: two overlapping windows
+        # must not interleave as A-start, A-end, B-start.
+        crossed.sort(key=lambda pair: pair[0])
+        for at, payload in crossed:
+            self._steering.enqueue(KIND_EVENT_POPUP, payload, day, at)
         self.store.log_event(day, now, "popup_boundary_check", f"items={len(items)}")
 
     def _steer_user_message(self, steer: Steer, payload: dict, *,
@@ -1784,7 +2463,9 @@ class Session(NegotiationMixin):
             notices.append(result.notice or "")
             return _STEER_SUPPRESS
         if result.verdict.get("terminate_event"):
-            self._mark_event_closed(activity.item.id)
+            self._mark_event_closed(
+                activity.item.id, str(result.verdict.get("reason") or "")
+            )
         return _STEER_CONSUMED
 
     def _omit_backlog_send(self, steer: Steer) -> bool:
@@ -1803,24 +2484,41 @@ class Session(NegotiationMixin):
 
     def _steer_event_popup(self, steer: Steer, payload: dict, *,
                            day: int, t_h: float,
-                           proactive_out: list[tuple[str, str]]) -> str:
+                           proactive_out: list[tuple[str, str]],
+                           drain: "_SteerDrain | None" = None) -> str:
         """An agenda event starting or ending.
 
-        A negotiation, once it owns the item, owns both ends of its
-        lifecycle — the START pop-up becomes Inform-then-Decide and the END
-        pop-up is consumed with no model call. Otherwise the model decides:
-        ``initiate`` on a start sends a proactive message in her own words,
-        ``abandon`` on an end closes the event.
+        Three boundaries, one decision. HEADS_UP (``HEADS_UP_LEAD_H`` ahead
+        of the window) is the "incoming event" steer: she learns something
+        is about to start, with no verdict attached, and only while a
+        conversation is open. The decision is offered ONCE, at the START
+        boundary (a negotiation re-offers it only when the model itself
+        deferred, which is his window to talk her out of going). The END
+        boundary
+        is NOT a decision and never calls the model: a window that fully
+        passes resolves server-side and deterministically in
+        ``life.transition_past_windows`` (planned -> completed), while an
+        explicit skip already closed the item at its start. Asking the model
+        anything at the end produced a second verdict per event whose
+        ``reason`` was rationale for a choice that had already been made.
         """
         state = str(payload.get("state", "start"))
         item_id = str(payload.get("item_id") or payload.get("event_id") or "")
-        if item_id:
-            if state == "start" and self._maybe_start_negotiation(
-                item_id, day, t_h, steer, proactive_out
-            ):
-                return _STEER_CONSUMED
-            if state == "end" and item_id in self._negotiations:
-                return _STEER_CONSUMED
+        if state == "heads_up":
+            if item_id:
+                self._maybe_heads_up(item_id, day, t_h, steer, proactive_out)
+            return _STEER_CONSUMED
+        if state == "end":
+            return _STEER_CONSUMED
+        if item_id and self._maybe_start_negotiation(
+            item_id, day, t_h, steer, proactive_out
+        ):
+            return _STEER_CONSUMED
+        # The decision is stamped with the boundary, not the drain instant:
+        # the pop-up shows the model `Time: 07:28` and the tool result says
+        # "recorded at 07:28", so a replayed morning does not contradict
+        # itself. The drain instant is kept as the steer's delivered_t_h.
+        at = float(payload.get("time", t_h))
         result = self._execute_decision(
             decision_id=f"steer-{steer.steer_id}",
             popup_kind="tool_decide_event",
@@ -1828,18 +2526,21 @@ class Session(NegotiationMixin):
                 "event_id": item_id,
                 "event_label": str(payload.get("event") or "?"),
                 "state_label": state,
-                "time": str(payload.get("time", t_h)),
+                "time": str(at),
             },
             steer=steer,
             day=day,
-            t_h=t_h,
+            t_h=at,
         )
         if result is None:
             return _STEER_CONSUMED  # re-queued: next boundary
         verdict = result.verdict
-        if state == "start" and verdict.get("initiate"):
-            label = str(payload.get("event") or "?")
-            text = str(verdict.get("reason") or "").strip() or f"Starting {label}."
+        label = str(payload.get("event") or "?")
+        if verdict.get("action") == "abandon" and item_id:
+            # An explicit no resolves the item HERE, at the one decision
+            # point; nothing asks again at the end boundary.
+            self._mark_event_closed(item_id, "")
+        if verdict.get("initiate"):
             if self._omit_backlog_send(steer):
                 if hasattr(self.store, "log_event"):
                     self.store.log_event(
@@ -1847,10 +2548,21 @@ class Session(NegotiationMixin):
                         f"steer={steer.steer_id} event={label} "
                         f"enqueued={steer.t_h:.2f}",
                     )
-            else:
-                proactive_out.append(("event_popup", text))
-        elif state == "end" and verdict.get("action") == "abandon":
-            self._mark_event_closed(item_id)
+            elif drain is not None:
+                # The TURN speaks for it. This used to paste the verdict's
+                # `reason` into the channel, which put machine rationale in
+                # the conversation; the reason stays in decision_records.
+                drain.decided_notes.append(START_NOTE.format(activity=label))
+            elif hasattr(self.store, "log_event"):
+                # No turn to speak for it, and nothing here may write the
+                # channel: the verdict's `reason` is engine rationale, not
+                # dialogue, and START_NOTE is an instruction to her, not a
+                # message to him. The activity still starts; the reach-out
+                # is dropped and recorded as dropped.
+                self.store.log_event(
+                    day, t_h, "decision_start_no_turn",
+                    f"steer={steer.steer_id} event={label}",
+                )
         return _STEER_CONSUMED
 
     def _apply_steer(
@@ -1861,6 +2573,7 @@ class Session(NegotiationMixin):
         t_h: float,
         notices: list[str],
         proactive_out: list[tuple[str, str]],
+        drain: _SteerDrain | None = None,
     ) -> str:
         """Apply one delivered steer at a boundary.
 
@@ -1874,6 +2587,10 @@ class Session(NegotiationMixin):
         - ``_STEER_SUPPRESS`` — a no-reply verdict: the ordinary reply for
           this user message must be suppressed (single reply-path
           invariant); the notice is appended to ``notices``.
+
+        ``drain`` is the turn's drain object: proactive initiate verdicts
+        stash their resolved intent on ``drain.decided_intents`` and
+        declines set ``drain.proactive_declined`` through it.
         """
         if self._decision is None:
             return _STEER_INJECT
@@ -1886,11 +2603,99 @@ class Session(NegotiationMixin):
         if kind == KIND_EVENT_POPUP:
             return self._steer_event_popup(
                 steer, payload, day=day, t_h=t_h,
-                proactive_out=proactive_out,
+                proactive_out=proactive_out, drain=drain,
+            )
+        if kind == KIND_PROACTIVE:
+            return self._steer_proactive(
+                steer, payload, day=day, t_h=t_h, drain=drain,
             )
         # schedule_fire / day_rollover (or unknown kinds): the harness's own
         # paths own those flows; the block is still rendered as context.
         return _STEER_INJECT
+
+    def _latest_user_text(self) -> str:
+        """Most recent user message text, or '' when none exists."""
+        recent = self.store.recent_messages(limit=12)
+        for m in reversed(recent):
+            if m.get("role") == "user":
+                return str(m.get("content") or "")
+        return ""
+
+    def _silence_hours(self, t_h: float) -> float | None:
+        """Hours since the last user turn, or None when unknown."""
+        conv = self._conversation
+        anchor = self._last_user_turn_t_h(conv) if conv is not None else None
+        if anchor is None:
+            recent = self.store.recent_messages(limit=12)
+            for m in reversed(recent):
+                if m.get("role") == "user":
+                    anchor = float(m.get("t_h", t_h))
+                    break
+        if anchor is None:
+            return None
+        return max(0.0, t_h - anchor)
+
+    def _steer_proactive(
+        self,
+        steer: Steer,
+        payload: dict,
+        *,
+        day: int,
+        t_h: float,
+        drain: _SteerDrain | None = None,
+    ) -> str:
+        """A grounded proactive intent awaiting its initiate/decline verdict.
+
+        The model decides via ``tool_decide_proactive`` whether the fire
+        goes out now. ``initiate=true`` stashes the resolved intent on the
+        drain (the turn's own generation IS the proactive message — nothing
+        is sent here). ``initiate=false`` declines quietly: the intent is
+        marked suppressed and the turn's reply is suppressed. Either way
+        the decision record persists (dual persistence + replay).
+        """
+        intent_id = payload.get("intent_id")
+        intent = self._lookup_intent(intent_id) if intent_id else None
+        if intent is None:
+            if hasattr(self.store, "log_event"):
+                self.store.log_event(
+                    day, t_h, "proactive_no_intent",
+                    f"steer={steer.steer_id} intent={intent_id!r}",
+                )
+            return _STEER_CONSUMED
+        inputs = {
+            "hook": intent.hook,
+            "reason": intent.reason,
+            "source_type": intent.source_type,
+            "source_id": intent.source_id,
+            "valid_until": intent.valid_until_t_h,
+            "latest_user_message": self._latest_user_text(),
+            "silence_h": self._silence_hours(t_h),
+            "time": str(t_h),
+        }
+        result = self._execute_decision(
+            decision_id=f"proactive-{steer.steer_id}",
+            popup_kind="tool_decide_proactive",
+            inputs=inputs,
+            steer=steer,
+            day=day,
+            t_h=t_h,
+        )
+        if result is None:
+            return _STEER_CONSUMED  # re-queued: next boundary
+        if result.verdict.get("initiate"):
+            if drain is not None:
+                drain.decided_intents.append(intent)
+            return _STEER_CONSUMED
+        if hasattr(self.store, "update_proactive_intent_status"):
+            self.store.update_proactive_intent_status(intent.id, "suppressed")
+        if hasattr(self.store, "log_event"):
+            self.store.log_event(
+                day, t_h, "proactive_declined",
+                f"steer={steer.steer_id} intent={intent.id}",
+            )
+        if drain is not None:
+            drain.proactive_declined = True
+        return _STEER_CONSUMED
 
     def _execute_decision(
         self,
@@ -1932,44 +2737,110 @@ class Session(NegotiationMixin):
                 self._steering.requeue(steer.steer_id)
             return None
 
+    def _popup_repro(self, request: PopupRequest, messages: list,
+                     day: int, t_h: float) -> dict:
+        """The decide leg's stored request identity, wire-exact.
+
+        The ledger used to record the request WITHOUT ``tools``, so a stored
+        call could never be proven identical to what went out — which is how a
+        cache reading survived three wrong explanations. Tools ride as a hash
+        plus their names (the schemas rebuild from ``harness.tools``); the
+        decode controls ride by value.
+        """
+        wire_tools = ([{"type": "function", "function": t}
+                       for t in offered_tools(request)] if request.native else None)
+        tools_hash, tool_names = tools_identity(wire_tools)
+        return {"repro": {
+            "model": getattr(self.client, "model", None),
+            "system": self._last_stable_system or self._last_system_prompt,
+            "messages": messages,
+            "max_tokens": None,
+            "temperature": 0.8,
+            "json_mode": False,
+            "reasoning_effort": self._thinking_effort,
+            "tools_hash": tools_hash,
+            "tool_names": tool_names,
+            "tool_choice": "auto" if (request.native and request.tools) else None,
+            "popup_kind": request.popup_kind,
+            "timestamp": {"day": day, "t_h": t_h},
+        }}
+
     def _popup_request_call(self, request: PopupRequest) -> RawReply:
         """One pop-up model call (the callable injected into the runner).
 
-        Builds the real request from the ``PopupRequest``: the current
-        three-tier system prompt (stable core + day-start block + state
-        card, as assembled for the turn in progress), the recent transcript,
-        and the pop-up block wrapped in the steer trust marker as the final
-        user message. Native transport offers the tool schemas
-        (``tool_choice=auto``); textual transport relies on the model's
-        ``tool_decide_*: {...}`` marker reply. The returned ``RawReply``
-        carries the model's raw output for the runner to parse and persist
-        (dual persistence). ``max_tokens`` stays None on pop-up calls (they
-        are short verdicts and a cap must never starve a reasoning model —
-        repo pitfall 3af0a5a).
+        Transport (2026-09-08): the requested function is the ONLY one
+        offered. ``tool_choice`` stays "auto" because this model rejects a
+        forced choice in thinking mode -- see the inline note below.
+
+        Cache order (2026-09-07): the pop-up call is a byte-identical
+        EXTENSION of the mainline call, not a request with its own prefix.
+        It replays the turn's stable system (core + persona) and the same
+        context stream, then appends the turn's state card and the pop-up
+        block. Previously it passed the LEGACY full three-tier string as
+        ``system`` — state card inside the system message, minute-resolution
+        clock line and all — so every decision call presented a prefix no
+        other call had ever sent and missed the cache in full. DeepSeek
+        matches strictly from token 0 in 64-token units, so a differing
+        system message costs the whole prefix, on a call that fires at every
+        event boundary.
+
+        The pop-up block rides as ``role="system"``: it is harness input,
+        not something the user said. Native transport offers the tool
+        schemas (``tool_choice=auto``); textual transport relies on the
+        model's ``tool_decide_*: {...}`` marker reply. The returned
+        ``RawReply`` carries the model's raw output for the runner to parse
+        and persist (dual persistence). ``max_tokens`` stays None on pop-up
+        calls (they are short verdicts and a cap must never starve a
+        reasoning model — repo pitfall 3af0a5a).
         """
-        recent = self.store.recent_messages()
         # WS-E: never pass None content into the client (a stored
         # reasoning-only turn must serialize as "", never null).
-        messages = [
-            {"role": m["role"], "content": m["content"] or ""} for m in recent
-        ]
-        messages.append(
-            {"role": "user", "content": wrap_steer_marker(request.popup)}
-        )
+        messages = [wire_message(m) for m in self._context_turns()]
+        messages = append_system(messages, self._last_state_card)
+        messages = append_system(messages, wrap_steer_marker(request.popup))
+        # A re-ask restates the requirement; append_system folds it into the
+        # block above, so the request still ends with ONE system message.
+        messages = append_system(messages, request.nudge or "")
         # Native transport wraps Hermes-style schemas in the OpenAI
         # {"type": "function", "function": ...} form at the boundary.
+        # Offer ONLY the requested function. A pop-up asks one named
+        # question, and putting the other schemas on the table let the model
+        # answer an event pop-up with tool_decide_reply -- reproduced against
+        # the live gateway at 1-in-3 with all three offered, 0-in-3 with one.
+        #
+        # tool_choice stays "auto" and CANNOT be narrowed further on this
+        # model: it is always in thinking mode (``reasoning_effort`` accepts
+        # only low..max, and omitting it still reports thinking), and
+        # thinking mode rejects a forced choice --
+        #   tool_choice="required"  -> 400 "Thinking mode does not support
+        #   tool_choice={name:...}  ->      this tool_choice"
+        # So requiring the call is not available here; narrowing the menu is.
+        # Do not "fix" this back to a named tool_choice without re-testing
+        # the gateway, it 400s every decision call.
+        #
+        # A prose reply with no tool call therefore remains possible. It is
+        # bounded rather than prevented: the retry budget
+        # (``steering.MAX_ATTEMPTS``) abandons a steer the model will not
+        # answer usably, and the replayed native tool exchanges in context
+        # give it the precedent that these calls are answered with a tool.
         native_tools = None
+        native_choice = None
         if request.native and request.tools:
-            native_tools = [
-                {"type": "function", "function": t} for t in request.tools
-            ]
+            # An unknown kind falls back to the full set rather than sending
+            # none: a wrong-tool verdict is recoverable, no tool is not.
+            offered = offered_tools(request)
+            native_tools = [{"type": "function", "function": t} for t in offered]
+            native_choice = "auto"
         result = self.client.chat_with_meta(
             messages,
-            system=self._last_system_prompt,
+            # The mainline stable prefix, so this call extends it. Falls
+            # back to the legacy full prompt only for callers that never
+            # ran a mainline turn (pre-slice tests).
+            system=self._last_stable_system or self._last_system_prompt,
             temperature=0.8,
             max_tokens=None,
             tools=native_tools,
-            tool_choice="auto" if request.native else None,
+            tool_choice=native_choice,
             reasoning_effort=self._thinking_effort,
         )
         raw_tool_calls = None
@@ -1987,7 +2858,46 @@ class Session(NegotiationMixin):
                 }
                 for tc in result.tool_calls
             ]
+        self._log_decision_call(request, messages, result)
         return RawReply(text=result.content or None, tool_calls=raw_tool_calls)
+
+    def _log_decision_call(self, request: PopupRequest, messages: list[dict],
+                           result) -> None:
+        """Meter this pop-up call into the same ledger as a mainline turn.
+
+        A decision is the SAME model on the SAME lane as everything else —
+        only the question differs — so its tokens, cache split and cost
+        belong in ``llm_calls`` like any other call. Until 2026-09-09 this
+        write simply did not exist: ``decision_records`` held the verdict
+        and nothing held the spend, so every pop-up and every parse-failure
+        retry was invisible to token and cost accounting (more than half
+        the evening's traffic in the first live day).
+
+        ``role`` is the pop-up kind rather than "chat" so the two lanes can
+        be told apart in the ledger; ``harness.audit`` selects
+        ``role='chat'`` and is unaffected.
+        """
+        day = int(self.clock.now_h() // 24.0)
+        t_h = self.clock.now_h()
+        meta: dict = {"popup_kind": request.popup_kind,
+                      "transport": "native" if request.native else "text",
+                      "tool_calls": [tc.get("name")
+                                     for tc in (result.tool_calls or [])]}
+        if result.reasoning:
+            meta["reasoning"] = result.reasoning
+        repro_kwargs = (self._popup_repro(request, messages, day, t_h)
+                        if self._accepts_repro else {})
+        self.store.log_llm_call(
+            day,
+            t_h,
+            request.popup_kind,
+            (self._last_stable_system or "") + "\n" + repr(messages),
+            result.content or "",
+            getattr(self.client, "model", None),
+            meta,
+            **repro_kwargs,
+            **self._usage_kwargs(result.usage, result.raw_cost),
+        )
 
     def _conversation_context(self, limit: int = 4) -> str:
         """Condensed recent transcript for decide_reply pop-up inputs."""
@@ -1996,13 +2906,35 @@ class Session(NegotiationMixin):
             f"{m['role']}: {str(m['content'])[:200]}" for m in recent
         )
 
-    def _mark_event_closed(self, item_id: str) -> None:
+    def _mark_event_closed(self, item_id: str, outcome: str | None = None) -> None:
         """Server-side event close (``terminate_event`` verdict / ``abandon``
         action): the agenda item is no longer in progress — marked skipped so
-        the NOW-semantics state card stops showing it."""
+        the NOW-semantics state card stops showing it.
+
+        ``outcome`` is the model's own reason for closing it, recorded as
+        what came of the item. Nothing is invented here: an item whose window
+        merely elapsed gets a status and no outcome.
+        """
         if not item_id or not hasattr(self.store, "update_agenda_item_status"):
             return
         self.store.update_agenda_item_status(item_id, "skipped")
+        self._record_outcome(item_id, outcome)
+
+    def _record_outcome(self, item_id: str, outcome: str | None) -> None:
+        """Persist what came of an agenda item, when there is something real.
+
+        The ONLY source is something the companion actually decided or said —
+        a decide_event verdict's reason. Feeding the day planner invented
+        outcomes would defeat the point of having them: the continuity has to
+        be true, or the next day follows on from a fiction.
+        """
+        text = (outcome or "").strip()
+        if not text or not item_id:
+            return
+        setter = getattr(self.store, "set_agenda_item_outcome", None)
+        if setter is None:
+            return
+        setter(item_id, text)
 
     # -- availability negotiation (Inform-once -> Decide loop) ---------- #
 
@@ -2010,6 +2942,35 @@ class Session(NegotiationMixin):
     def on_message(self, user_text: str) -> TurnResult:
         """Process one user message: directive → snapshot → assemble → LLM."""
         return self._chat(user_text, proactive=False)
+
+    def enqueue_proactive_decision(self, intent_id: str) -> int | None:
+        """Queue the initiate/decline decision for one grounded intent.
+
+        The steer payload carries the intent id plus its grounded hook so
+        the decision pop-up renders without a second store lookup. Returns
+        the steer id, or None when the steering seam is unavailable (the
+        fire then proceeds undecided, today's behavior).
+        """
+        if self._steering is None:
+            return None
+        intent = self._lookup_intent(intent_id)
+        if intent is None:
+            return None
+        day = self.clock.day()
+        t_h = self.clock.now_h()
+        return self._steering.enqueue(
+            KIND_PROACTIVE,
+            {
+                "intent_id": intent.id,
+                "hook": intent.hook,
+                "reason": intent.reason,
+                "source_type": intent.source_type,
+                "source_id": intent.source_id,
+                "valid_until": intent.valid_until_t_h,
+            },
+            day,
+            t_h,
+        )
 
     def fire_proactive(
         self,
@@ -2051,6 +3012,12 @@ class Session(NegotiationMixin):
                         f"(now {self.clock.now_h():.2f})"
                     )
                 intent = found
+                # Proactive-as-decision: the grounded fire is decided at
+                # the turn's idle boundary before generation. The drain
+                # executes tool_decide_proactive; a decline suppresses
+                # the reply before any message is persisted.
+                if self._decision is not None:
+                    self.enqueue_proactive_decision(intent.id)
             elif intent_id in VALID_REASONS:
                 intent = self._resolve_intent(intent_id)
             else:

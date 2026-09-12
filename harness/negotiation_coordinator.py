@@ -14,9 +14,9 @@ WHAT THIS IS NOT: a decoupling. A mixin reaches into Session's attributes
 (``_negotiations``, ``_conversation``, ``_steering``, ``_decision``,
 ``store``, ``client``, the clock helpers) as freely as the methods did when
 they were inline — it moves the code, it does not untangle it. That was the
-deliberate trade: the entanglement listed in
-``docs/thermo-review-followup-2026-08-28.md`` §4a is real, and plumbing it
-through a constructor is a separate, riskier change that wants its own pass.
+deliberate trade: the entanglement identified in the 2026-08-28 code-quality review is real,
+and plumbing it through a constructor is a separate, riskier change that wants
+its own pass.
 What this buys is a 2523-line module becoming two readable ones, with the
 parity tests proving nothing moved but the text.
 
@@ -55,7 +55,29 @@ except ImportError:  # pragma: no cover — A3 not merged in this checkout
     emit_negotiation_episode = None
 
 
+#: The departure note appended to a turn when a go verdict resolves.
+#:
+#: Says WHAT she decided and leaves the wording to her. The alternative --
+#: pasting the verdict's ``reason`` -- put machine rationale in the channel.
+GO_NOTE = (
+    "You have decided to go to {activity} now. Say what you would say as you "
+    "leave, in your own words, and then go."
+)
+
+#: The note appended when an event-start verdict says she initiates.
+START_NOTE = (
+    "You have just started {activity}, and you are the one reaching out about "
+    "it. Open in your own words."
+)
+
+
 class NegotiationMixin:
+    #: The drain of the turn currently being generated, when a turn is in
+    #: flight. A verdict that resolves during a turn writes its note here so
+    #: the turn speaks for it; None means a clock-driven path with no turn to
+    #: carry the words, and the channel fallback applies.
+    _active_drain = None
+
     """Session's availability-negotiation half. Never instantiated alone."""
 
     def _restore_negotiations(self) -> dict[str, NegotiationState]:
@@ -150,6 +172,51 @@ class NegotiationMixin:
                 self._run_decide_leg(st, day, now, outs, afk_path=True)
         return tuple(outs)
 
+    def _maybe_heads_up(
+        self,
+        item_id: str,
+        day: int,
+        t_h: float,
+        steer: Steer,
+        proactive_out: list[tuple[str, str]],
+    ) -> None:
+        """The "incoming event" steer: fire INFORM ``HEADS_UP_LEAD_H`` ahead.
+
+        She learns something is about to start so she can get ready for it,
+        and mention it if he is there. NO verdict — the one decision waits
+        for the window to actually open (``decide_status_at`` returns
+        ``"waiting"`` until then, without spending companion turns).
+
+        Requires an OPEN conversation: a heads-up nobody hears is a model
+        call for nothing, so an unobserved stretch of her day skips it and
+        the window's own boundary carries the decision instead. Idempotent
+        through the same responded-bool marker Inform always used, so a
+        re-delivered steer never announces twice (G0 no-nag floor).
+        """
+        if self._decision is None or self._steering is None:
+            return
+        conv = self._conversation
+        if conv is None:
+            return
+        if item_id in self._negotiations:
+            return                      # already informed (or deciding)
+        item = self._find_agenda_item(item_id, day)
+        if item is None or item.status != "planned":
+            return
+        if t_h >= item.start_t_h - 1e-12 or t_h >= item.end_t_h - 1e-12:
+            return                      # not a lead-time instant any more
+        st = NegotiationState(
+            item_id=item.id,
+            activity=item.activity,
+            source_type=item.source_type,
+            start_t_h=item.start_t_h,
+            end_t_h=item.end_t_h,
+            salience=item.salience,
+        )
+        self._negotiations[item.id] = st
+        self._persist_negotiation(st, t_h)
+        self._run_inform(st, day, t_h, steer, proactive_out)
+
     def _maybe_start_negotiation(
         self,
         item_id: str,
@@ -235,7 +302,7 @@ class NegotiationMixin:
             "event_id": st.item_id,
             "event_label": st.activity,
             "state_label": "inform",
-            "time": str(t_h),
+            "time": str(st.start_t_h),
             "phase": NegotiationPhase.INFORM.value,
             "skippable": is_skippable(st.source_type),
             "conversation_context": self._conversation_context(),
@@ -248,13 +315,16 @@ class NegotiationMixin:
             # Parse failure: the steer re-queues; the state stays
             # INFORM and the pop-up re-runs the same decision id.
             return
-        mention = str(
-            (result.verdict or {}).get("message")
-            or (result.verdict or {}).get("reason")
-            or ""
-        ).strip()
+        # ONLY the ``message`` key reaches the channel. The parser already
+        # normalizes a legacy ``{initiate, reason}`` inform verdict onto
+        # ``message`` (tools._normalize_verdict, phase="inform"), so reading
+        # ``reason`` here added nothing except the one case that must never
+        # happen: a genuine audit reason — third-person machine rationale —
+        # sent to the user as her own words.
+        mention = str((result.verdict or {}).get("message") or "").strip()
         if not mention:
             mention = f"I've got {st.activity} coming up soon."
+
         proactive_out.append(("event_popup", mention))
         # Responded-bool idempotency marker: checked as VALUE True
         # (``informed is True``), never key presence.
@@ -296,7 +366,14 @@ class NegotiationMixin:
                 self._resolve_forced(st, t_h)
             elif status == "due":
                 self._run_decide_leg(st, day, t_h, proactive_out)
-                if st.phase == NegotiationPhase.RESOLVED_GO.value:
+                if (
+                    st.phase == NegotiationPhase.RESOLVED_GO.value
+                    and self._active_drain is None
+                ):
+                    # Only the clock-driven path still suppresses: there is
+                    # no turn to carry the departure, so the channel text is
+                    # the only message. On a real turn the reply IS her
+                    # leaving, so suppressing it produced silence.
                     suppress = True
         return suppress
 
@@ -385,17 +462,41 @@ class NegotiationMixin:
         reason: str,
         proactive_out: list[tuple[str, str]],
     ) -> None:
-        """go (follow): her natural close rides out through the channel,
-        the conversation closes gracefully (close_reason
-        ``followed_event``), the agenda item completes, and the episode
-        hook fires (A3's module; no emission when it has not landed)."""
-        text = (reason or "").strip() or f"Time to go to {st.activity}."
-        proactive_out.append(("event_popup", text))
+        """go (follow): the TURN generates her leaving, then the conversation
+        closes gracefully (close_reason ``followed_event``), the agenda item
+        completes, and the episode hook fires (A3's module; no emission when
+        it has not landed).
+
+        Changed 2026-09-08. This used to push the verdict's ``reason`` into
+        ``proactive_out`` as her message and close the conversation
+        immediately. Two things were wrong with that. The reason is
+        machine-facing rationale, so what reached the channel was
+        "Evening cooking is still in progress and he's heading off — I'll
+        send a warm in-character send-off and keep cooking": third person,
+        describing an intention instead of acting on it. And closing before
+        generation meant the ordinary reply was suppressed, so a user
+        goodbye got silence.
+
+        Now the departure is a NOTE on the turn (``drain.decided_notes``) and
+        the close is deferred to after the reply is persisted
+        (``drain.close_after``). The reason keeps being recorded in
+        ``decision_records`` — the engine study reads it there.
+        """
+        drain = self._active_drain
+        if drain is not None:
+            drain.decided_notes.append(GO_NOTE.format(activity=st.activity))
+            drain.close_after = "followed_event"
+        else:
+            # No turn to carry it (clock-driven AFK path): fall back to the
+            # channel so the departure is not silently dropped.
+            text = (reason or "").strip() or f"Time to go to {st.activity}."
+            proactive_out.append(("event_popup", text))
         conv = self._conversation
         source_session_id = ""
         if conv is not None:
             source_session_id = self._memory_session_id(conv.id)
-            self._close_conversation(conv, t_h, "followed_event")
+            if drain is None:
+                self._close_conversation(conv, t_h, "followed_event")
         if hasattr(self.store, "update_agenda_item_status"):
             self.store.update_agenda_item_status(st.item_id, "completed")
         st.phase = NegotiationPhase.RESOLVED_GO.value

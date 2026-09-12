@@ -37,25 +37,42 @@ def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
+#: Closing guidance is DISABLED (2026-09-07, user directive).
+#:
+#: The band prose told the model how to end every reply, on every turn, from
+#: a per-turn draw. That is the kind of instruction that flattens a reply
+#: into an assistant's sign-off, and the closing behaviour it actuates is
+#: itself unspecified (see the "Closing behavior" backlog entry). The
+#: channel stays wired end to end -- ``GenerationControls.closing_guidance``
+#: still exists, the assembler still renders a non-empty value -- so
+#: re-enabling is a one-line change once the behaviour is specified.
+CLOSING_GUIDANCE_ENABLED = False
+
+#: The band prose, retained verbatim for the day the channel is re-enabled.
+_CLOSING_BANDS: tuple[tuple[float, str], ...] = (
+    (0.20, "The companion may naturally invite continuation; leaving the door open is fine."),
+    (0.40, "The companion is still open; a natural follow-up is welcome if the moment calls for it."),
+    (0.60, "End the reply naturally, without forcing either a question or a closing."),
+    (0.80, "A settled ending is welcome; do not manufacture extra turns."),
+    (float("inf"), "Do not force a follow-up question; a settled ending is welcome."),
+)
+
+
 def _closing_guidance(closing_tendency: float) -> str:
-    """Continuation policy that makes closing tendency observable.
+    """Continuation policy for the prompt -- currently the empty string.
 
-    Five bands across the widened [0.04, 0.85] range (B4): a very low
-    closing tendency invites continuation, a very high one asks for a
-    settled ending, and the middle bands leave the choice to the moment.
-    The 0.40–0.60 band is the flat-controls string, so NO_ACTUATORS pins a
-    real band of the mapping instead of a value no directive can produce.
+    With ``CLOSING_GUIDANCE_ENABLED`` false this returns "" for every
+    tendency, so the assembler's ``if controls.closing_guidance`` guard drops
+    the CLOSING section from the state card entirely. ``closing_tendency``
+    itself is untouched: it still drives the conversation-close draw, it just
+    no longer speaks to the model.
     """
-
-    if closing_tendency < 0.20:
-        return "The companion may naturally invite continuation; leaving the door open is fine."
-    if closing_tendency < 0.40:
-        return "The companion is still open; a natural follow-up is welcome if the moment calls for it."
-    if closing_tendency < 0.60:
-        return "End the reply naturally, without forcing either a question or a closing."
-    if closing_tendency < 0.80:
-        return "A settled ending is welcome; do not manufacture extra turns."
-    return "Do not force a follow-up question; a settled ending is welcome."
+    if not CLOSING_GUIDANCE_ENABLED:
+        return ""
+    for threshold, text in _CLOSING_BANDS:
+        if closing_tendency < threshold:
+            return text
+    return _CLOSING_BANDS[-1][1]
 
 
 def controls_from_directive(

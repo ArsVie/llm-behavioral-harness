@@ -7,16 +7,29 @@ next to the reason (audit: reason shows the user, inputs debug the draw).
 Replay reads the recorded verdict and NEVER re-rolls (deterministic replay
 is sacred — see ``DecisionRunner.execute``).
 
-- ``tool_decide_event`` — fired at event boundaries (event start/end).
-  Verdict: ``{initiate: bool, reason: str, action?: 'follow'|'abandon'|'defer'}``.
+- ``tool_decide_event`` — fired ONCE at an event's start boundary (and
+  again only when the model itself deferred). The model answers one
+  tri-state field: ``{initiate: 'yes'|'no'|'defer', reason: str,
+  turns?: int}``. It normalizes onto the canonical internal shape
+  ``{initiate: bool, reason: str, action: 'follow'|'abandon'|'defer'}``.
+  The END boundary is NOT a decision — no model call: a window that fully
+  passes resolves server-side (``life.transition_past_windows``).
 - ``tool_decide_reply`` — fired when a user message arrives while an event
   is in progress (L356). Verdict:
   ``{reply: bool, reason: str, terminate_event: bool}``. A no-reply verdict
   triggers a server-side notice per the verbose flag; optionally the event
   is terminated and the user intent followed.
+- ``tool_decide_proactive`` — fired when a grounded proactive intent is due
+  (proactive-as-decision, WS2): the pop-up inputs ``{Proactive: hook,
+  Reason: ..., Source: type:id, Validity: ...}`` and the verdict is whether
+  to initiate the proactive message now
+  ``{initiate: bool, reason: str}``. ``initiate: false`` declines the fire
+  WITHOUT a server notice — the intent is simply consumed (decline is the
+  everyday no-go verdict, unlike a decide_reply no-reply which the user
+  must never mistake for silence). No action/follow/defer dimension and no
+  negotiation: the proactive decision is one-shot.
 
-Availability-event negotiation (G0 contract,
-docs/availability-negotiation-contract.md): the ``tool_decide_event``
+Availability-event negotiation (G0 contract): the ``tool_decide_event``
 request/inputs gain ``phase`` ("inform" | "decide") and ``skippable``
 (bool), plus ``delay_count`` (int) and ``window_ending`` (bool) on decide
 legs; :func:`render_popup` draws them so the model sees the negotiation
@@ -31,15 +44,15 @@ state. Verdict rules:
   model-supplied ``reason`` is preserved alongside the canonical
   ``message`` (records written by either transport keep the mention).
 - **Decide phase** (phase == "decide", the default when absent): the
-  legacy ``{initiate, reason, action?}`` shape, unchanged. A verdict with
-  ``action == 'defer'`` gains the SERVER-FILLED ``defer_turns`` key
-  (``negotiation_contract.DEFER_TURNS_KEY``): the runtime maps the reason
-  text through ``negotiation_contract.DEFER_N_PATTERNS`` deterministically
-  (see :func:`map_defer_turns`). The MODEL never emits N — a
-  model-supplied ``defer_turns`` in the raw call is dropped by verdict
-  normalization and replaced by the server mapping. The recorded decision
-  verdict carries the final ``defer_turns`` (back-filled on replay too, so
-  every defer verdict carries its N).
+  tri-state ``{initiate, reason, turns?}`` above. A verdict with
+  ``action == 'defer'`` always carries a ``defer_turns``
+  (``negotiation_contract.DEFER_TURNS_KEY``): the model's own ``turns``
+  when it named one (clamped to [DEFER_N_MIN, DEFER_N_MAX]), else the
+  runtime maps the reason text through
+  ``negotiation_contract.DEFER_N_PATTERNS`` deterministically (see
+  :func:`map_defer_turns`) so a vague "a bit longer" still lands on a
+  number. The recorded decision verdict carries the final ``defer_turns``
+  (back-filled on replay too, so every defer verdict carries its N).
 - **Backward compatibility**: pop-ups without the new input keys render
   exactly as before, and legacy verdicts parse exactly as before (phase
   defaults to "decide" when absent). ``tool_decide_reply`` is untouched.
@@ -82,17 +95,22 @@ HARNESS_TOOL_MODE       auto          auto | native | textual
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, Callable, Protocol
 
 from harness.negotiation_contract import (
+    DEFER_N_MAX,
+    DEFER_N_MIN,
     DEFER_TURNS_KEY,
 )
+from harness.clock import duration, hhmm
 from harness.negotiation_state import map_defer_n
 from harness.env import env_bool as _env_bool
+from harness.steering import NO_ACTIVE_EVENT
 
 # Tool schemas (Hermes-style {name, description, parameters})
 
@@ -100,39 +118,27 @@ TOOL_SCHEMAS: list[dict] = [
     {
         "name": "tool_decide_event",
         "description": (
-            "Pop-up decision fired at an event boundary (event start or "
-            "end). The pop-up block already carries the context (Event, "
-            "State, Time, Phase, Skippable, ...) — do NOT echo it back. "
-            "Phase inform: the event is coming up — just mention it "
-            "naturally (put the mention in reason), NO verdict, do not "
-            "choose an action, do not leave. Phase decide: choose your "
-            "verdict — whether to initiate (or stay with) the event, with "
-            "a prose reason, and optionally an action: follow (go to the "
-            "event now), abandon (skip it), or defer (stay a bit longer — "
-            "the runtime will ask again in a few turns; you never pick a "
-            "number). Skippable yes: the event is discretionary — you may "
-            "follow, abandon or defer freely. Skippable no: the event is a "
-            "commitment — a heads-up only; stay with it."
+            "Your call on the event in the pop-up block above. The block "
+            "carries the context (Event, State, Time, ...) — do NOT echo it "
+            "back. Skippable no means the event is a commitment: go."
         ),
         "parameters": {
             "type": "object",
             "properties": {
                 "initiate": {
-                    "type": "boolean",
-                    "description": "Whether to initiate (or stay with) the "
-                                   "event: true = yes, false = no.",
+                    "type": "string",
+                    "enum": ["yes", "no", "defer"],
+                    "description": "yes = go now, no = skip it, defer = stay "
+                                   "where you are and be asked again later.",
                 },
                 "reason": {
                     "type": "string",
-                    "description": "Short plain-language reason for the "
-                                   "verdict (in Phase inform: your natural "
-                                   "mention of the event).",
+                    "description": "Why you chose that.",
                 },
-                "action": {
-                    "type": "string",
-                    "enum": ["follow", "abandon", "defer"],
-                    "description": "Optional, only when the pop-up closes an "
-                                   "event in progress. Never in Phase inform.",
+                "turns": {
+                    "type": "integer",
+                    "description": "Only with defer: how many more turns you "
+                                   "want. Omit and the runtime picks.",
                 },
             },
             "required": ["initiate", "reason"],
@@ -172,10 +178,73 @@ TOOL_SCHEMAS: list[dict] = [
             "required": ["reply", "reason"],
         },
     },
+    {
+        "name": "tool_decide_proactive",
+        "description": (
+            "Pop-up decision fired when a grounded proactive intent is "
+            "due (the companion considering reaching out first). The "
+            "pop-up block already carries the intent context (Proactive "
+            "hook, Reason, Source, Validity, and the Latest user message "
+            "when one exists) — do NOT echo it back. Fill ONLY the "
+            "verdict: whether to initiate the proactive message now, "
+            "with a prose reason. initiate=false declines this fire — "
+            "the opportunity is consumed quietly and no message goes "
+            "out; nothing else happens."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "initiate": {
+                    "type": "boolean",
+                    "description": "Whether to send the proactive message "
+                                   "now: true = initiate, false = decline "
+                                   "this fire.",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Short plain-language reason for the "
+                                   "verdict.",
+                },
+            },
+            "required": ["initiate", "reason"],
+        },
+    },
 ]
 
 #: Inform-phase variant of ``tool_decide_event``: the verdict is the
 #: natural mention only (``{message: str}``, no go/skip/delay action).
+def offered_tools(request: PopupRequest) -> list[dict]:
+    """The schemas a pop-up offers: exactly the function it asks about.
+
+    A pop-up asks one named question, and offering the rest let the model answer
+    an event pop-up with ``tool_decide_reply`` (1-in-3 with three offered,
+    0-in-3 with one). An unknown kind falls back to the full set — a wrong-tool
+    verdict is recoverable, no tool is not. One definition, used by the request
+    builder AND by the ledger's wire-identity record.
+    """
+    wanted = [t for t in request.tools if t.get("name") == request.popup_kind]
+    return wanted or list(request.tools)
+
+
+def tools_identity(tools: list[dict] | None) -> tuple[str | None, list[str]]:
+    """The wire identity of a ``tools`` payload: a stable hash and the names.
+
+    A replayed call is only a replay if its tool payload matches too, and the
+    ledger used to record the request WITHOUT ``tools`` — so a stored call could
+    never be proven identical to what went out. The schemas rebuild from this
+    module, so the hash (not the full payload) is what rides with each call.
+
+    ``None`` / empty means the request carried no tools at all, which is a fact
+    worth storing: the mainline reply leg sends none by design.
+    """
+    if not tools:
+        return None, []
+    canonical = json.dumps(tools, sort_keys=True, ensure_ascii=False,
+                           separators=(",", ":"))
+    names = [((t.get("function") or t).get("name") or "") for t in tools]
+    return hashlib.sha256(canonical.encode()).hexdigest(), names
+
+
 TOOL_SCHEMAS_INFORM: list[dict] = [
     {
         "name": "tool_decide_event",
@@ -204,6 +273,8 @@ TOOL_SCHEMAS_INFORM: list[dict] = [
 EVENT_VERDICT_KEYS = ("initiate", "reason")
 #: Verdict keys for a ``tool_decide_reply`` call.
 REPLY_VERDICT_KEYS = ("reply", "reason")
+#: Verdict keys for a ``tool_decide_proactive`` call.
+PROACTIVE_VERDICT_KEYS = ("initiate", "reason")
 
 #: Canonical state-event names recorded by the decision layer.
 EVENT_DECISION_PARSE_FAILED = "decision_parse_failed"
@@ -274,7 +345,21 @@ class PopupRequest:
     tools: list[dict]
     native: bool
     inputs: dict
+    #: Restated requirement for a re-ask (see ``NATIVE_REASK``); None on a
+    #: first attempt, so every existing caller keeps its exact request.
+    nudge: str | None = None
 
+
+#: Appended to a native pop-up whose reply carried no tool call AND no text.
+#: The model runs in thinking mode, where the gateway rejects a forced
+#: ``tool_choice`` with a 400, so the requirement is restated instead. The
+#: re-ask is bounded to one extra call: an unchanged prompt that produced
+#: nothing once is not worth sending twice (10 of 27 decision calls on the
+#: last live run came back as an empty completion).
+NATIVE_REASK = (
+    "Your previous reply carried no tool call. Call {tool} now, with the "
+    "verdict object as its arguments -- no prose, no explanation."
+)
 
 #: Callable returning the raw model reply for a pop-up request.
 ModelCall = Callable[[PopupRequest], RawReply]
@@ -304,22 +389,48 @@ class DecisionResult:
 
 # Pop-up rendering
 
+def _clock(value) -> str:
+    """Render a pop-up time input as HH:MM.
+
+    Inputs are PERSISTED RAW (``decision_records.inputs_json`` keeps the
+    absolute ``t_h`` for replay and audit); the conversion to wall-clock
+    happens here, at the render boundary, so the model never reads an engine
+    coordinate. Non-numeric values (already-formatted strings, "?") pass
+    through untouched.
+    """
+    if isinstance(value, bool) or value is None:
+        return "?"
+    if isinstance(value, (int, float)):
+        return hhmm(float(value))
+    text = str(value)
+    try:
+        return hhmm(float(text))
+    except ValueError:
+        return text
+
+
 def render_popup(popup_kind: str, inputs: dict) -> str:
     """Render the pop-up block exactly per the user's L369 sketch.
 
     decide_event::
 
-        {Event: gym, State: start, Time: 19.5}
-        {Initiate:{yes,no}, Reason: ""}
+        {Event: gym, State: start, Time: 19:30}
+        {Initiate:{yes,no,defer}, Reason: ""}
 
     decide_reply::
 
-        {Event: gym, State: in_progress, Time: 19.5}
+        {Event: gym, State: in_progress, Time: 19:30}
         {Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}
         Latest user message: "are you coming to class?"
 
     ``inputs`` keys used: event_id/event_label -> Event, state_label ->
     State, time -> Time, latest_user_message (decide_reply only).
+
+    TIME (2026-09-07): ``time`` and ``valid_until`` render as HH:MM and
+    ``silence_h`` as a plain duration. The inputs dict is NOT mutated -- the
+    raw ``t_h`` is what ``decision_records.inputs_json`` persists, so replay
+    and audit keep the engine coordinate while the model reads a clock. The
+    live run showed ``Time: 78.96`` in front of the model; that was the bug.
 
     Negotiation context (G0 contract, decide_event only): when the caller
     supplies the keys, extra lines are drawn so the model sees the phase
@@ -330,9 +441,9 @@ def render_popup(popup_kind: str, inputs: dict) -> str:
     sketch. Pop-ups WITHOUT these keys render byte-identically to the
     legacy sketch (backward compatible).
     """
-    event = inputs.get("event_label") or inputs.get("event_id") or "?"
-    state = inputs.get("state_label") or "?"
-    time = inputs.get("time") or "?"
+    event = inputs.get("event_label") or inputs.get("event_id") or NO_ACTIVE_EVENT
+    state = inputs.get("state_label") or NO_ACTIVE_EVENT
+    time = _clock(inputs.get("time"))
     if popup_kind == "tool_decide_event":
         lines = [
             f"{{Event: {event}, State: {state}, Time: {time}}}",
@@ -340,7 +451,7 @@ def render_popup(popup_kind: str, inputs: dict) -> str:
             (
                 '{Message: ""}'
                 if inputs.get("phase") == "inform"
-                else '{Initiate:{yes,no}, Reason: ""}'
+                else '{Initiate:{yes,no,defer}, Reason: ""}'
             ),
         ]
         # Negotiation lines render only when the caller supplies the keys.
@@ -364,6 +475,29 @@ def render_popup(popup_kind: str, inputs: dict) -> str:
         latest = inputs.get("latest_user_message")
         if latest:
             lines.append(f'Latest user message: "{latest}"')
+        return "\n".join(lines)
+    if popup_kind == "tool_decide_proactive":
+        hook = (
+            inputs.get("hook") or inputs.get("intent")
+            or inputs.get("event_label") or "?"
+        )
+        reason = inputs.get("reason") or inputs.get("intent_reason") or "?"
+        source_type = inputs.get("source_type") or inputs.get("source") or "?"
+        source_id = inputs.get("source_id") or inputs.get("source_ref") or "?"
+        validity = _clock(
+            inputs.get("valid_until") or inputs.get("validity")
+        )
+        lines = [
+            f"{{Proactive: {hook}, Reason: {reason}, "
+            f"Source: {source_type}:{source_id}, Validity: {validity}}}",
+            '{Initiate:{yes,no}, Reason: ""}',
+        ]
+        latest = inputs.get("latest_user_message")
+        if latest:
+            lines.append(f'Latest user message: "{latest}"')
+        silence_h = inputs.get("silence_h")
+        if isinstance(silence_h, (int, float)):
+            lines.append(f"User silence: {duration(float(silence_h))}")
         return "\n".join(lines)
     raise ValueError(f"unknown popup_kind: {popup_kind!r}")
 
@@ -402,7 +536,7 @@ def _brace_payload(text: str, start: int) -> str | None:
 
 #: Textual marker per tool, tolerant of quotes/whitespace/linebreaks.
 _TEXTUAL_MARKER = re.compile(
-    r"tool_(decide_event|decide_reply)\s*:\s*(\{)",
+    r"tool_(decide_event|decide_reply|decide_proactive)\s*:\s*(\{)",
     re.IGNORECASE,
 )
 
@@ -473,7 +607,7 @@ def parse_verdict(popup_kind: str, payload: str, phase: str | None = None) -> di
 
 
 def _verdict_key(popup_kind: str) -> str:
-    if popup_kind == "tool_decide_event":
+    if popup_kind in ("tool_decide_event", "tool_decide_proactive"):
         return "initiate"
     if popup_kind == "tool_decide_reply":
         return "reply"
@@ -502,6 +636,10 @@ def _normalize_verdict(
         if phase == "inform":
             return _inform_verdict(obj)
         return _event_verdict(obj)
+    if popup_kind == "tool_decide_proactive":
+        # Proactive intents are one-shot decisions: no inform phase, no
+        # action/defer dimension. Conservative default: decline.
+        return _proactive_verdict(obj)
     if popup_kind == "tool_decide_reply":
         return _reply_verdict(obj)
     raise ValueError(f"unknown popup_kind: {popup_kind!r}")
@@ -523,21 +661,82 @@ def _inform_verdict(obj: dict) -> dict:
     return verdict
 
 
+#: The model-facing tri-state ``initiate`` mapped onto the canonical
+#: ``(initiate, action)`` pair every consumer and every recorded row speaks.
+_INITIATE_TRISTATE: dict[str, tuple[bool, str]] = {
+    "yes": (True, "follow"),
+    "no": (False, "abandon"),
+    "defer": (False, "defer"),
+}
+
+
 def _event_verdict(obj: dict) -> dict:
     """The decide leg for an agenda event.
+
+    The model answers ONE tri-state field: ``initiate`` in
+    {yes, no, defer}, plus a ``reason`` and — only on a defer — an
+    optional ``turns``. That collapses onto the canonical internal shape
+    ``{initiate: bool, reason: str, action: follow|abandon|defer}``, which
+    is what the negotiation machine, the session and every persisted
+    ``verdict_json`` row already speak; ``defer`` is not an initiation, so
+    it carries ``initiate: False``.
+
+    The pre-tri-state form (boolean ``initiate`` with a separate ``action``)
+    still parses unchanged, so recorded verdicts keep replaying: a bool
+    leaves ``action`` alone rather than deriving one.
 
     Defaults are the conservative ones: she does not initiate unless the
     model actually said so, and an unrecognised ``action`` is dropped rather
     than passed through.
     """
     verdict: dict = {"initiate": False, "reason": "", "action": None}
+    raw = obj.get("initiate", obj.get("verdict"))
+    if isinstance(raw, str) and raw.strip().lower() in _INITIATE_TRISTATE:
+        verdict["initiate"], verdict["action"] = (
+            _INITIATE_TRISTATE[raw.strip().lower()]
+        )
+    else:
+        flag = _as_bool(raw)
+        if flag is not None:
+            verdict["initiate"] = flag
+    if isinstance(obj.get("reason"), str):
+        verdict["reason"] = obj["reason"]
+    if obj.get("action") in ("follow", "abandon", "defer"):
+        verdict["action"] = obj["action"]
+    if verdict["action"] == "defer":
+        turns = _as_turns(obj.get("turns"))
+        if turns is not None:
+            verdict[DEFER_TURNS_KEY] = turns
+    return verdict
+
+
+def _as_turns(value: Any) -> int | None:
+    """A model-supplied defer N, clamped, or None when it said nothing.
+
+    Bools are rejected before ints (``True`` is an ``int`` in Python and
+    would otherwise read as one turn).
+    """
+    if isinstance(value, bool) or value is None:
+        return None
+    try:
+        n = int(value)
+    except (TypeError, ValueError):
+        return None
+    return min(max(n, DEFER_N_MIN), DEFER_N_MAX)
+
+
+def _proactive_verdict(obj: dict) -> dict:
+    """The decide leg for a grounded proactive intent.
+
+    One-shot: ``{initiate: bool, reason: str}`` only. Conservative default:
+    decline (``initiate: false``) unless the model actually said to fire.
+    """
+    verdict: dict = {"initiate": False, "reason": ""}
     flag = _as_bool(obj.get("initiate", obj.get("verdict")))
     if flag is not None:
         verdict["initiate"] = flag
     if isinstance(obj.get("reason"), str):
         verdict["reason"] = obj["reason"]
-    if obj.get("action") in ("follow", "abandon", "defer"):
-        verdict["action"] = obj["action"]
     return verdict
 
 
@@ -632,16 +831,19 @@ def fill_defer_turns(verdict: dict) -> dict:
     """Server-fill ``defer_turns`` on a defer verdict (G0 contract).
 
     Only when ``action == 'defer'``; all other verdicts pass through
-    untouched. The N is mapped deterministically from the reason text (see
-    :func:`map_defer_turns`). The MODEL never emits N: any model-supplied
-    ``defer_turns`` is overridden by the server mapping (and dropped by
-    verdict normalization anyway). Callers must treat the returned verdict
-    as the final recorded shape.
+    untouched. The model MAY name its own N (``turns`` on the call, clamped
+    to [DEFER_N_MIN, DEFER_N_MAX] by verdict normalization and carried here
+    as ``defer_turns``) — that wins, since it asked for it. When it named
+    none, N is mapped deterministically from the reason text (see
+    :func:`map_defer_turns`), so a vague "just a bit longer" still lands on
+    a concrete number. Callers must treat the returned verdict as the final
+    recorded shape.
     """
     if verdict.get("action") != "defer":
         return verdict
     out = dict(verdict)
-    out[DEFER_TURNS_KEY] = map_defer_turns(str(verdict.get("reason", "")))
+    if not isinstance(out.get(DEFER_TURNS_KEY), int):
+        out[DEFER_TURNS_KEY] = map_defer_turns(str(verdict.get("reason", "")))
     return out
 
 
@@ -825,6 +1027,14 @@ class DecisionRunner:
             inputs=inputs,
         )
         raw = call(request)
+        if (transport == "native" and not raw.tool_calls
+                and not (raw.text or "").strip()):
+            # Nothing to parse and nothing to repair: the model thought and
+            # answered with neither a tool call nor text. Ask once more with
+            # the requirement stated, rather than spending the retry budget
+            # re-sending the prompt it just ignored.
+            raw = call(replace(request, nudge=NATIVE_REASK.format(
+                tool=popup_kind)))
         raw_reply = self._raw_to_text(raw, transport)
         try:
             verdict = self._parse_raw(popup_kind, raw, transport, phase=phase)
@@ -854,7 +1064,9 @@ class DecisionRunner:
         is gone the verdict is REPLACED by a forced reply — the companion
         may decline to answer, but not indefinitely, or a user could be
         silently ignored all day. The override is logged with the budget
-        that triggered it.
+        that triggered it. Proactive decisions never touch the budget: a
+        declined fire is consumed quietly, and no-reply slots belong to
+        decide_reply alone.
         """
         if popup_kind != "tool_decide_reply" or verdict.get("reply") is not False:
             return verdict, False, 0
@@ -896,7 +1108,9 @@ class DecisionRunner:
         ``capabilities`` gates native vs textual transport. ``day``/``t_h``
         default to the pop-up ``time`` input (``day = int(t_h // 24)``).
         """
-        if popup_kind not in ("tool_decide_event", "tool_decide_reply"):
+        if popup_kind not in (
+            "tool_decide_event", "tool_decide_reply", "tool_decide_proactive",
+        ):
             raise ValueError(f"unknown popup_kind: {popup_kind!r}")
         # Phase: "inform" = mention-only verdict; "decide" = full verdict.
         phase = inputs.get("phase", "decide")
@@ -1069,6 +1283,11 @@ class DecisionRunner:
                 "initiate": affirmative,
                 "reason": SERVER_DRAW_REASON,
                 "action": None,
+            }
+        if popup_kind == "tool_decide_proactive":
+            return {
+                "initiate": affirmative,
+                "reason": SERVER_DRAW_REASON,
             }
         return {
             "reply": affirmative,

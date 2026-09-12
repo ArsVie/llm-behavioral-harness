@@ -63,7 +63,13 @@ def _forced_records(result) -> list[dict]:
 
 def test_retain_repeated_delay_then_go(tmp_path):
     """User keeps actively talking past the boundary -> repeated delay, she
-    stays past start_t_h, then pauses -> the AFK bomb resolves to go."""
+    stays past start_t_h, then goes on a companion turn.
+
+    The heads-up fires at 18.95 (HEADS_UP_LEAD_H ahead of the 19.0 window),
+    so every turn from 19.05 on is INSIDE the window and carries a decide
+    leg. He is present throughout, which is the whole point: the delay loop
+    is his window to keep her, and it only runs while he is talking.
+    """
     result, store = _run(tmp_path, "retain")
     try:
         assert result.agenda_status == "completed"
@@ -72,7 +78,10 @@ def test_retain_repeated_delay_then_go(tmp_path):
         informs = _inform_records(result)
         decides = _decide_records(result)
         assert len(informs) == 1
-        assert len(decides) == 4  # 3 delays + go
+        assert len(decides) == 4  # 3 delays + go, one per companion turn
+        # The heads-up landed BEFORE the window opened; nothing decided there.
+        assert informs[0]["t_h"] == pytest.approx(18.95, abs=1e-6)
+        assert all(d["t_h"] >= 19.0 for d in decides)
 
         # Inform: one tool_decide_event record, phase=inform, mention
         inform = informs[0]
@@ -98,11 +107,12 @@ def test_retain_repeated_delay_then_go(tmp_path):
             assert d["t_h"] > 19.0
             assert d["replay_id"] == f"neg-retain-gym-decide-{i}"
 
-        # The pause resolves at the AFK bomb (last user turn + SHORT_AFK_H).
+        # The go lands on the last companion turn, not on a bomb: he was
+        # still there, so the decision came round on his turn.
         go = decides[-1]
         assert go["verdict"]["action"] == "follow"
         assert go["replay_id"] == "neg-retain-gym-decide-3"
-        assert go["t_h"] == pytest.approx(19.26 + SHORT_AFK_H, abs=1e-6)
+        assert go["t_h"] == pytest.approx(19.26, abs=1e-6)
 
         # Graceful close via the existing close path with the distinct reason
         convs = result.conversations
@@ -113,15 +123,25 @@ def test_retain_repeated_delay_then_go(tmp_path):
                   if e["event"] == "conversation_closed"]
         assert len(closes) == 1
         assert "reason=followed_event" in closes[0]["detail"]
-        # the natural close went through the channel
-        assert any("gym" not in t and t.strip() for _, t, _ in result.channel_out)
+        # The go landed on a companion turn, so the TURN says her goodbye
+        # (GO_NOTE on the drain) and nothing extra rides the channel. The
+        # only channel entry is the heads-up mention. Pasting the verdict's
+        # `reason` there is what this used to assert.
+        assert [t for _, t, _ in result.channel_out] == [
+            "I've got gym soon — just letting you know"
+        ]
     finally:
         store.close()
 
 
 def test_release_afk_bomb_fires_decide_go(tmp_path):
-    """User goes quiet right after the Inform turn -> silence > SHORT_AFK_H
-    fires the AFK bomb -> Decide -> scripted go."""
+    """User goes quiet before the window even opens -> silence >
+    SHORT_AFK_H fires the AFK bomb -> Decide -> scripted go.
+
+    No companion turn ever lands inside the window, so the bomb is the only
+    trigger left. She is still the one who decides — the bomb fires a real
+    decide leg and the model answers it.
+    """
     result, store = _run(tmp_path, "release")
     try:
         assert result.agenda_status == "completed"
@@ -129,10 +149,13 @@ def test_release_afk_bomb_fires_decide_go(tmp_path):
         decides = _decide_records(result)
         assert len(informs) == 1
         assert len(decides) == 1
+        # the heads-up ran ahead of the window and decided nothing
+        assert informs[0]["t_h"] == pytest.approx(18.95, abs=1e-6)
         go = decides[0]
         assert go["verdict"]["action"] == "follow"
-        # the AFK bomb instant after the last user turn, not a user turn
-        assert go["t_h"] == pytest.approx(19.05 + SHORT_AFK_H, abs=1e-6)
+        # the AFK bomb instant, armed at the heads-up, not a user turn
+        assert go["t_h"] == pytest.approx(18.95 + SHORT_AFK_H, abs=1e-6)
+        assert go["t_h"] > 19.0                     # inside the window
         assert go["replay_id"] == "neg-release-gym-decide-0"
         assert go["inputs"]["delay_count"] == 0
         assert len(result.model_calls) == 2  # inform + the decide leg
@@ -151,16 +174,17 @@ def test_window_close_forced_skip_recorded(tmp_path):
     try:
         assert result.agenda_status == "skipped"
         recs = result.decision_records
-        # inform + one decide leg + the backstop record (store seam)
+        # heads-up + two decide legs + the backstop record (store seam)
         assert recs[0]["inputs"]["phase"] == "inform"
         assert recs[1]["inputs"]["phase"] == "decide"
-        assert recs[2]["source"] == "backstop"
+        assert recs[2]["inputs"]["phase"] == "decide"
+        assert recs[3]["source"] == "backstop"
 
-        # the one scripted delay ran at the AFK bomb, then the backstop
-        delay = recs[1]
-        assert delay["verdict"]["action"] == "defer"
-        assert delay["verdict"]["defer_turns"] == 1
-        assert delay["t_h"] == pytest.approx(19.05 + SHORT_AFK_H, abs=1e-6)
+        # a delay on his in-window turn, then another at the AFK bomb
+        assert all(r["verdict"]["action"] == "defer" for r in recs[1:3])
+        assert all(r["verdict"]["defer_turns"] == 1 for r in recs[1:3])
+        assert recs[1]["t_h"] == pytest.approx(19.05, abs=1e-6)
+        assert recs[2]["t_h"] == pytest.approx(19.05 + SHORT_AFK_H, abs=1e-6)
 
         forced = recs[-1]
         assert forced["source"] == "backstop"
@@ -170,10 +194,10 @@ def test_window_close_forced_skip_recorded(tmp_path):
         assert "missed it entirely" in forced["verdict"]["reason"]
         assert forced["verdict"]["action"] == "abandon"
         assert forced["t_h"] == pytest.approx(19.5, abs=1e-6)  # end_t_h
-        assert forced["replay_id"] == "neg-window-gym-decide-1"
+        assert forced["replay_id"] == "neg-window-gym-decide-2"
 
-        # no model call at/after end_t_h; exactly inform + 1 decide leg
-        assert len(result.model_calls) == 2
+        # no model call at/after end_t_h; heads-up + the two decide legs
+        assert len(result.model_calls) == 3
         assert len(_forced_records(result)) == 1
 
         # skip: the conversation continues (no close)
@@ -230,10 +254,14 @@ def test_no_nag_inform_exactly_once_across_delays(tmp_path):
         # exactly one channel message contains the mention
         mention_hits = [t for _, t, _ in result.channel_out if "gym" in t]
         assert len(mention_hits) == 1
-        assert len(result.channel_out) == 2  # mention + the natural close
+        # 2026-09-08: the inform mention still rides the channel (it IS her
+        # words -- the inform verdict's field is the mention itself), but the
+        # go verdict no longer does: the TURN says her goodbye, so the close
+        # is an ordinary reply rather than a second channel_out entry. Was 2.
+        assert len(result.channel_out) == 1  # the mention only
 
         # 3 delays with rising delay_count, then the go at the 4th decide leg
-        # (19.33) — the natural close replaces the reply and closes
+        # (19.26) — the natural close replaces the reply and closes
         delays = [r for r in decides if r["verdict"].get("action") == "defer"]
         assert len(delays) == 3
         assert [d["inputs"]["delay_count"] for d in delays] == [0, 1, 2]
@@ -244,10 +272,10 @@ def test_no_nag_inform_exactly_once_across_delays(tmp_path):
         go = [r for r in decides if r["verdict"].get("action") == "follow"]
         assert len(go) == 1
         assert go[0]["replay_id"] == "neg-no-nag-gym-decide-3"
-        assert go[0]["t_h"] == pytest.approx(19.33, abs=1e-6)
+        assert go[0]["t_h"] == pytest.approx(19.26, abs=1e-6)
         convs = result.conversations
         assert convs[0].close_reason == CLOSE_REASON_FOLLOWED
-        assert convs[0].closed_t_h == pytest.approx(19.33, abs=1e-6)
+        assert convs[0].closed_t_h == pytest.approx(19.26, abs=1e-6)
     finally:
         store.close()
 
@@ -260,11 +288,11 @@ def test_termination_always_delay_resolves_by_end(tmp_path):
         assert result.agenda_status == "skipped"
         decides = _decide_records(result)
         # bounded: decide legs ran while the model delayed, then the backstop
-        assert len(decides) == 4  # 4 delay legs
+        assert len(decides) == 5  # 5 delay legs
         assert all(r["verdict"]["action"] == "defer" for r in decides)
         assert all(r["verdict"]["defer_turns"] == 1 for r in decides)
         assert all(r["t_h"] < 20.0 for r in decides)
-        assert [d["inputs"]["delay_count"] for d in decides] == [0, 1, 2, 3]
+        assert [d["inputs"]["delay_count"] for d in decides] == [0, 1, 2, 3, 4]
 
         forced = _forced_records(result)
         assert len(forced) == 1
@@ -274,10 +302,10 @@ def test_termination_always_delay_resolves_by_end(tmp_path):
         assert "missed it entirely" in forced["verdict"]["reason"]
         assert forced["verdict"]["action"] == "abandon"
         assert forced["raw_reply"] is None
-        assert forced["replay_id"] == "neg-term-gym-decide-4"
+        assert forced["replay_id"] == "neg-term-gym-decide-5"
 
         # the model was consulted once per decide leg, all before end_t_h
-        assert len(result.model_calls) == 5  # inform + 4 decide legs
+        assert len(result.model_calls) == 6  # heads-up + 5 decide legs
         resolved = [e for e in result.audit_events
                     if e["event"] == "negotiation_resolved"]
         assert len(resolved) == 1
@@ -295,16 +323,17 @@ def test_termination_delay_rearm_past_end_resolves_immediately(tmp_path):
         recs = result.decision_records
         assert recs[0]["inputs"]["phase"] == "inform"
         assert recs[1]["inputs"]["phase"] == "decide"
-        assert recs[2]["source"] == "backstop"
+        assert recs[2]["inputs"]["phase"] == "decide"
+        assert recs[3]["source"] == "backstop"
 
-        delay = recs[1]
+        delay = recs[2]
         assert delay["verdict"]["action"] == "defer"
         assert delay["verdict"]["defer_turns"] == 1
         # the delay itself happened inside the ending window
         assert delay["inputs"]["window_ending"] is True
         assert delay["t_h"] == pytest.approx(19.15, abs=1e-6)
 
-        forced = recs[2]
+        forced = recs[3]
         assert forced["source"] == "backstop"
         # the delay's re-arm (19.15 + SHORT_AFK_H) lands at/after end 19.3
         assert forced["t_h"] == pytest.approx(19.15, abs=1e-6)
@@ -313,10 +342,10 @@ def test_termination_delay_rearm_past_end_resolves_immediately(tmp_path):
         assert forced["verdict"]["action"] == "abandon"
         assert forced["raw_reply"] is None
         # the clamp resolves under the current delay index; the forced row shares its id
-        assert forced["replay_id"] == "neg-clamp-gym-decide-0"
+        assert forced["replay_id"] == "neg-clamp-gym-decide-1"
 
-        # no decide at/after end_t_h; exactly inform + the single decide leg
-        assert len(result.model_calls) == 2
+        # no decide at/after end_t_h; heads-up + the two decide legs
+        assert len(result.model_calls) == 3
         resolved = [e for e in result.audit_events
                     if e["event"] == "negotiation_resolved"]
         assert len(resolved) == 1

@@ -54,11 +54,11 @@ import sys
 import time
 from pathlib import Path
 
+from harness.bootstrap import DEFAULT_USER_INTERESTS, DEFAULT_USER_NAME
 from harness.domain import UserProfile
 from harness.store import SQLiteStore
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from experiments.cvs_common import (
-    GATE2_USER_INTERESTS,
     REASON_SCHEDULE,
     DeterministicJudge,
     TimeScale,
@@ -75,6 +75,11 @@ from harness.credentials import load_env_file
 from harness.env import env_bool as _env_bool
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+
+#: Held poller locks (one fd per telegram profile): the OS releases an
+#: flock when its fd closes, so the references must live as long as the
+#: process. See acquire_poller_lock.
+_POLLER_LOCKS: list = []
 
 # One virtual hour equals one real hour (live mode; the matrix cells use 0.0004).
 LIVE_TIME_SCALE_S_PER_VH = 3600.0
@@ -157,10 +162,14 @@ def owner_profile() -> UserProfile:
     ``LILY_OWNER_INTERESTS`` is a comma-separated list; blank entries are
     dropped so a trailing comma is harmless.
     """
-    name = (os.environ.get(OWNER_NAME_ENV) or "").strip() or "User"
+    name = (os.environ.get(OWNER_NAME_ENV) or "").strip() or DEFAULT_USER_NAME
     raw = os.environ.get(OWNER_INTERESTS_ENV) or ""
     interests = tuple(x.strip() for x in raw.split(",") if x.strip())
-    return UserProfile(name=name, interests=interests or GATE2_USER_INTERESTS)
+    # Falls back to the PRODUCT default, not the ablation matrix fixture.
+    # This used to end at GATE2_USER_INTERESTS, so a live trial with the env
+    # vars unset (they were) built the companion's whole interest portfolio
+    # around an experiment's example user.
+    return UserProfile(name=name, interests=interests or DEFAULT_USER_INTERESTS)
 
 
 def rename_companion(store: SQLiteStore, new_name: str) -> bool:
@@ -187,14 +196,21 @@ def rename_companion(store: SQLiteStore, new_name: str) -> bool:
 
 
 def bootstrap(store: SQLiteStore, seed: int, user: UserProfile | None = None,
-              companion_name: str | None = None) -> None:
-    """Initialise identity once (idempotent), with the owner's real profile."""
+              companion_name: str | None = None, client=None) -> None:
+    """Initialise identity once (idempotent), with the owner's real profile.
+
+    ``client`` is used ONCE, on a cold start, to place the owner's
+    off-catalog interests into the interest graph; without it onboarding
+    stays offline and falls back to the heuristic extension.
+    """
     from harness.bootstrap import ensure_companion_initialized
 
     ensure_companion_initialized(
         store, seed=seed,
         user=user if user is not None else owner_profile(),
         day=0,
+        client=client,
+        logger=lambda line: print(f"[setup] {line}", flush=True),
     )
     name = companion_name if companion_name is not None else (
         os.environ.get(COMPANION_NAME_ENV) or ""
@@ -263,7 +279,9 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
 async def _amain(channel_name: str, db_path: Path, seed: int,
                  condition: str, check_only: bool, tz: str | None = None,
                  enable_commands: bool = False,
-                 accept_resume_gap: bool = False) -> int:
+                 accept_resume_gap: bool = False,
+                 defer_bootstrap: bool = False,
+                 day_planner: bool | None = None) -> int:
     from harness.config import select_channel
 
     if check_only:
@@ -277,9 +295,30 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
         print("--check only applies to the telegram channel")
         return 2
 
+    # The planner is opt-in in the session (it shares the conversation
+    # client, so it must never surprise an offline run); the live launcher
+    # is exactly the place to turn it on.
+    if day_planner is not None:
+        os.environ["HARNESS_DAY_PLANNER"] = "1" if day_planner else "0"
+
     log_path = configure_logging(db_path)
     store = build_store(db_path)
-    bootstrap(store, seed)
+    if channel_name == "telegram" and os.environ.get("TELEGRAM_BOT_TOKEN"):
+        from harness.channels.telegram import acquire_poller_lock
+        try:
+            _POLLER_LOCKS.append(
+                acquire_poller_lock(os.environ["TELEGRAM_BOT_TOKEN"]))
+        except RuntimeError as exc:
+            print(f"[live] {exc}", flush=True)
+            return 4
+    if defer_bootstrap and store.load_persona() is None:
+        # Blank DB and the operator asked to onboard interactively: leave
+        # identity uninitialized so /setup has something to do. The runtime
+        # wires the setup hook, so the command can actually succeed.
+        print("[live] defer-bootstrap: companion NOT initialized — send "
+              "/setup on the channel to onboard.", flush=True)
+    else:
+        bootstrap(store, seed, client=OpenAICompatibleClient(lane="product"))
     # Real-time anchor: a persisted (resume) anchor wins; otherwise a fresh
     # one is drawn from --tz/HARNESS_TZ and persisted.
     anchor = load_anchor(store)
@@ -357,6 +396,19 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--condition", type=str, default="FULL")
     parser.add_argument("--check", action="store_true",
                         help="validate the telegram token via getMe (no message sent)")
+    parser.add_argument(
+        "--day-planner", dest="day_planner", action="store_true", default=None,
+        help="plan each day's activities with one model call at rollover "
+             "(sets HARNESS_DAY_PLANNER=1). Without it the agenda uses the "
+             "verb-template pool. --no-day-planner forces it off.")
+    parser.add_argument(
+        "--no-day-planner", dest="day_planner", action="store_false",
+        help=argparse.SUPPRESS)
+    parser.add_argument(
+        "--defer-bootstrap", action="store_true",
+        help="on a BLANK database, do NOT initialize at startup — send "
+             "/setup on the channel to onboard instead (requires "
+             "--enable-commands). Ignored once a persona row exists.")
     parser.add_argument("--tz", type=str, default=None,
                         help="IANA timezone for the real-time anchor (e.g. "
                              "America/Mexico_City); default HARNESS_TZ env; "
@@ -384,7 +436,9 @@ def main(argv: list[str] | None = None) -> int:
         return asyncio.run(_amain(args.channel, Path(args.db), args.seed,
                                   args.condition, args.check, tz,
                                   args.enable_commands,
-                                  args.accept_resume_gap))
+                                  args.accept_resume_gap,
+                                  args.defer_bootstrap,
+                                  args.day_planner))
     except KeyboardInterrupt:
         return 0
 

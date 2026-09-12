@@ -83,7 +83,9 @@ def test_event_popup_initiate_fires_proactive_out(tmp_path):
     result = session.on_message("hello")
 
     assert result.reply == "main reply"
-    assert result.proactive_out == (("event_popup", "ready to go"),)
+    # 2026-09-08: the turn speaks for an initiate verdict; the verdict's
+    # `reason` stays in decision_records and out of the conversation.
+    assert result.proactive_out == ()
     assert result.notices == ()
     # the pop-up was a real second model call whose message payload carried
     # the steer-marker-wrapped pop-up block
@@ -159,32 +161,32 @@ def test_backlog_initiate_omits_channel_send(tmp_path):
     store.close()
 
 
-def test_event_popup_end_abandon_marks_item_skipped(tmp_path):
-    """An END pop-up with action=abandon closes the event server-side: the
-    agenda item is marked skipped (the NOW-semantics state card stops
-    showing it). The start pop-up is consumed by an earlier turn so the end
-    pop-up is the only one in play at 12:00."""
+def test_start_no_marks_item_skipped_and_end_asks_nothing(tmp_path):
+    """The decision is offered ONCE, at the start. A `no` closes the event
+    server-side right there (the NOW-semantics state card stops showing
+    it), and the END boundary makes NO model call — the client is scripted
+    with a reply only, so a second pop-up would consume it and break.
+    """
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": false, "reason": "later"}',
+        'tool_decide_event: {"initiate": "no", "reason": "later"}',
         "morning reply",
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
-    session.on_message("morning")  # consumes the START pop-up
+    session.on_message("morning")  # the ONE decision, at the start
     assert store.pending_steers() == []
+    items = store.list_agenda_items(day=0)
+    assert [it.status for it in items] == ["skipped"]
 
-    clock.advance_hours(2.5)  # 12:00 — the item ended
-    client.responses.extend([
-        'tool_decide_event: {"initiate": false, "reason": "done", '
-        '"action": "abandon"}',
-        "main reply",
-    ])
+    clock.advance_hours(2.5)  # 12:00 — the window ended
+    client.responses.append("main reply")
     result = session.on_message("hello")
 
-    assert result.reply == "main reply"
+    assert result.reply == "main reply"   # no end-boundary pop-up ate it
+    assert not client.responses   # nothing left unconsumed
     items = store.list_agenda_items(day=0)
     assert [it.status for it in items] == ["skipped"]
     store.close()
@@ -229,7 +231,10 @@ def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
     assert result.proactive_out == ()
     assert len(client.calls) == 3  # three calls total: pop-ups + main reply
     msgs = store.messages_for_day(0)
-    assert [m["role"] for m in msgs] == ["user", "assistant", "user"]
+    # The leading system row is the day-start block (plan + arcs), emitted
+    # once at the day's first turn into the stream instead of being re-sent
+    # in every per-turn state card.
+    assert [m["role"] for m in msgs] == ["system", "user", "assistant", "user"]
     records = store.decisions_for_day(0)
     assert len(records) == 2
     assert records[-1]["popup_kind"] == "tool_decide_reply"
@@ -428,14 +433,16 @@ def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
     session = _session(store, client=client, clock=clock)
 
     def _agenda_segment(call) -> str:
-        # Pull the tail's agenda segment (WS-D: the day-plan agenda rides
-        # the volatile state card) so the cached-day comparison is
-        # independent of state-card section ordering.
-        tail = call["messages"][-1]["content"]
-        _, sep, rest = tail.partition("Today's agenda:")
-        if not sep:
-            return ""
-        return rest.split("\n\n", 1)[0]
+        # The day plan is emitted ONCE into the message stream at the day's
+        # first turn, not re-sent in the per-turn card. Read the LAST one:
+        # on day 1 the stream still carries day 0's block as history, so the
+        # newest is the one describing today.
+        found = ""
+        for m in call["messages"]:
+            _, sep, rest = (m.get("content") or "").partition("Today's agenda:")
+            if sep:
+                found = rest.split("\n\n", 1)[0]
+        return found
 
     session.on_message("morning")
     session.on_message("still here")
@@ -443,6 +450,15 @@ def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
     block0b = _agenda_segment(client.calls[1])
     assert block0a == block0b, "day-start block must be stable within the day"
     assert "pottery" in block0a
+
+    # Emitted ONCE: the second turn re-reads the same stream message rather
+    # than appending a fresh copy. That is the saving — sent once, read all
+    # day, and inside the cached prefix from then on.
+    def _plan_messages(call) -> int:
+        return sum(1 for m in call["messages"]
+                   if "Today's agenda:" in (m.get("content") or ""))
+
+    assert _plan_messages(client.calls[1]) == 1
 
     clock.advance_to_day(1)
     clock.advance_hours(10.0)

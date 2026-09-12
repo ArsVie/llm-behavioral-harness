@@ -209,7 +209,7 @@ def test_render_event_popup_block():
         payload={"event": "gym", "state": "start", "time": 14.0},
     )
     assert render_steer_block(steer) == (
-        "System: {Event: gym, State: start, Time: 14}\n"
+        "System: {Event: gym, State: start, Time: 14:00}\n"
         '{Initiate: {yes, no}, Reason: " "}'
     )
 
@@ -232,7 +232,9 @@ def test_render_other_kinds():
 
 def test_render_accepts_dict_and_never_raises_on_foreign_payload():
     block = render_steer_block({"kind": KIND_EVENT_POPUP, "payload": {"weird": True}, "t_h": 5.0})
-    assert block.startswith("System: {Event: ?")
+    # A payload with no event name renders the explicit sentinel: a literal
+    # "?" read like a question the model was being asked.
+    assert block.startswith("System: {Event: no_active_event")
     # Unknown kind degrades to a JSON fallback, never an exception.
     assert render_steer_block({"kind": "something_new", "payload": {"x": 1}, "t_h": 5.0}).startswith(
         "System: {something_new:"
@@ -241,7 +243,8 @@ def test_render_accepts_dict_and_never_raises_on_foreign_payload():
 
 def test_render_uses_enqueue_time_when_payload_has_no_time():
     steer = Steer(steer_id=5, day=7, t_h=9.25, kind=KIND_EVENT_POPUP, payload={"event": "x"})
-    assert "Time: 9.25" in render_steer_block(steer)
+    # Enqueue time renders as a wall clock, never as absolute virtual hours.
+    assert "Time: 09:15" in render_steer_block(steer)
 
 
 def test_wrap_steer_marker_format():

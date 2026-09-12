@@ -278,7 +278,11 @@ def test_inform_once_then_decide_loop_delay_then_go(tmp_path):
     agenda = DailyAgenda(0, (_item(9.0, 11.0),))
     clock = VirtualClock(t_h=8.0)
     session, store, runner = _session(tmp_path, clock=clock, agenda=agenda, verdicts=[
-        {"initiate": False, "reason": "I've got gym soon"},          # inform
+        # Inform legs carry the mention as ``message``: that is what the
+        # real parser produces (tools._normalize_verdict maps a legacy
+        # ``reason`` onto it), and ONLY ``message`` reaches the channel —
+        # a verdict's reason is audit data, never her words.
+        {"message": "I've got gym soon"},                            # inform
         {"initiate": False, "reason": "a bit longer",
          "action": "defer"},                                         # decide 0
         {"initiate": True, "reason": "ok heading out",
@@ -319,9 +323,13 @@ def test_inform_once_then_decide_loop_delay_then_go(tmp_path):
 
     clock.advance_hours(0.3)                      # 10.3 > afk bomb 10.167
     r4 = session.on_message("?")                  # decide leg 1 -> go
-    assert r4.reply == ""                         # her close is the ONLY msg
-    assert r4.proactive_out == (("event_popup", "ok heading out"),)
-    assert session.open_conversation_id() is None
+    # 2026-09-08: the TURN says her goodbye. This used to assert
+    # reply == "" and the verdict's `reason` in proactive_out -- machine
+    # rationale as dialogue, and a suppressed reply that left a user
+    # goodbye unanswered. The reason is still recorded in decision_records.
+    assert r4.reply == "ok"                       # she actually speaks
+    assert r4.proactive_out == ()                 # no rationale in the channel
+    assert session.open_conversation_id() is None  # ... and then leaves
     assert [it.status for it in store.list_agenda_items(0)] == ["completed"]
     assert runner.calls[2]["decision_id"] == "neg-ag1-decide-1"
     assert runner.calls[2]["inputs"]["delay_count"] == 1
@@ -479,7 +487,11 @@ def test_no_conversation_at_boundary_plain_start_popup(tmp_path):
     r = session.on_message("hello")           # conversation opens NOW
     # The negotiation did not activate: the conversation opened after the boundary.
     assert "ag1" not in session._negotiations
-    assert r.proactive_out == (("event_popup", "ready to go"),)
+    # 2026-09-08: an initiate verdict makes the TURN open about the event
+    # (START_NOTE on the tail) instead of pasting the verdict's `reason`
+    # into the channel as her words.
+    assert r.proactive_out == ()
+    assert r.reply == "ok"
     assert runner.calls[0]["decision_id"].startswith("steer-")
     store.close()
 
@@ -525,7 +537,8 @@ def test_restart_resumes_negotiation_and_never_re_informs(tmp_path):
     assert session2.open_conversation_id() == "conv-0"
 
     r = session2.on_message("ok go")          # decide leg 1 -> go
-    assert r.reply == "" and r.proactive_out == (("event_popup", "going now"),)
+    # The turn speaks (see the note in the delay-then-go test).
+    assert r.reply == "ok" and r.proactive_out == ()
     # Only the decide-1 leg ran; the restart did not re-run inform or decide-0
     assert [c["decision_id"] for c in runner2.calls] == [
         "neg-ag1-decide-1"

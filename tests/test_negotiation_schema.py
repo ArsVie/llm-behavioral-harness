@@ -1,7 +1,7 @@
 """A2 — G0 negotiation verdict/request schema tests (harness/tools.py).
 
-Covers the availability-negotiation contract deltas (docs/
-availability-negotiation-contract.md): the SERVER-filled ``defer_turns``
+Covers the availability-negotiation contract deltas (the frozen
+``harness/negotiation_contract.py``): the SERVER-filled ``defer_turns``
 mapping from reason phrases (DEFER_N_PATTERNS, clamped, fallback), the
 inform-phase mention verdict ``{message: str}`` (native + textual +
 legacy-shape normalization), the backward compatibility of legacy decide
@@ -136,13 +136,24 @@ def test_fill_defer_turns_adds_server_n():
     assert verdict[DEFER_TURNS_KEY] == 1
 
 
-def test_fill_defer_turns_overrides_model_emitted_n():
-    # Server mapping overrides any model-emitted N.
+def test_fill_defer_turns_keeps_the_n_the_model_asked_for():
+    # The model MAY name its own N on a defer; it asked, so it wins. The
+    # value reaching fill_defer_turns is already clamped by verdict
+    # normalization (see the tri-state tests below).
     verdict = fill_defer_turns({"initiate": False,
                                 "reason": "a bit longer",
-                                "action": "defer", "defer_turns": 99})
-    assert verdict[DEFER_TURNS_KEY] == DEFAULT_DEFER_TURNS
+                                "action": "defer", "defer_turns": 4})
+    assert verdict[DEFER_TURNS_KEY] == 4
     assert verdict["reason"] == "a bit longer"
+
+
+def test_fill_defer_turns_maps_the_reason_when_the_model_named_none():
+    # No turns on the call: the server mapping still lands on a number, so
+    # a vague "a bit longer" is never left without an N.
+    verdict = fill_defer_turns({"initiate": False,
+                                "reason": "a bit longer",
+                                "action": "defer"})
+    assert verdict[DEFER_TURNS_KEY] == DEFAULT_DEFER_TURNS
 
 
 # backward compatibility: legacy verdicts parse exactly as before
@@ -315,10 +326,12 @@ def test_inform_plain_prose_is_the_mention():
 # popup rendering: negotiation context lines, legacy byte-identical
 
 
-def test_render_popup_legacy_inputs_byte_identical():
+def test_render_popup_legacy_inputs_render_the_tristate():
+    # Pop-ups without the negotiation keys still render the plain sketch;
+    # the verdict line now offers all three choices the model can make.
     assert render_popup("tool_decide_event", EVENT_INPUTS) == (
-        "{Event: gym, State: start, Time: 19.0}\n"
-        '{Initiate:{yes,no}, Reason: ""}'
+        "{Event: gym, State: start, Time: 19:00}\n"
+        '{Initiate:{yes,no,defer}, Reason: ""}'
     )
 
 
@@ -331,8 +344,8 @@ def test_render_popup_decide_phase_context():
         "window_ending": True,
     })
     assert popup == (
-        "{Event: gym, State: start, Time: 19.0}\n"
-        '{Initiate:{yes,no}, Reason: ""}\n'
+        "{Event: gym, State: start, Time: 19:00}\n"
+        '{Initiate:{yes,no,defer}, Reason: ""}\n'
         "Phase: decide\n"
         "Skippable: no\n"
         "Delays so far: 2\n"
@@ -347,7 +360,7 @@ def test_render_popup_inform_phase_context():
         "skippable": True,
     })
     assert popup == (
-        "{Event: gym, State: start, Time: 19.0}\n"
+        "{Event: gym, State: start, Time: 19:00}\n"
         '{Message: ""}\n'
         "Phase: inform\n"
         "Skippable: yes"
@@ -361,13 +374,20 @@ def test_inform_schema_is_mention_only():
     assert params["required"] == ["message"]
 
 
-def test_decide_schema_stays_pinned():
-    # The runtime verdict schema is unchanged; only the description text gained phase guidance.
+def test_decide_schema_is_one_tristate_field():
+    # The model answers ONE field: initiate in {yes, no, defer}, plus the
+    # reason and an optional turns it may name on a defer. The old bool +
+    # parallel `action` pair is gone from the model's view; it survives only
+    # as the internal canonical shape the verdict normalizes onto.
     event = TOOL_SCHEMAS[0]
     assert set(event["parameters"]["required"]) == {"initiate", "reason"}
     assert set(event["parameters"]["properties"]) == {
-        "initiate", "reason", "action",
+        "initiate", "reason", "turns",
     }
+    assert event["parameters"]["properties"]["initiate"]["enum"] == [
+        "yes", "no", "defer",
+    ]
+    assert event["parameters"]["properties"]["turns"]["type"] == "integer"
 
 
 # runner plumbing: phase-aware request, defer_turns on the recorded verdict

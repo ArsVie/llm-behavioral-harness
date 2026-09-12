@@ -22,6 +22,23 @@ Distance queries: ``distance(a, b)`` returns the shortest path length (or
 ``None``) and ``reachable_within(name, hops)`` the adjacency region — the
 primitives behind the user-relative 40/40/20 sampler (``harness.persona``).
 
+Naming (2026-09-07)
+-------------------
+A node name must mean ONE thing standing alone. Node names are not internal
+identifiers: they reach the model verbatim as the companion's interests, as
+agenda activities (``practice {name}``), as life-arc names (``learning
+{name}``), and as the "already known" list handed to the onboarding graph
+extension. ``metal`` produced the live life-arc "learning metal" — music, or
+metalworking? — and ``rock`` shares this graph with ``hiking`` and
+``camping``, where rock climbing is a live misreading. Both are qualified now,
+along with ``fantasy``, ``coffee`` and ``puzzles``.
+
+The cluster HUBS ``art``, ``food``, ``outdoors`` and ``literature`` are still
+category labels rather than things a person does, so they render awkwardly
+("practice food"). They are unambiguous, so they are left alone here; the fix
+belongs in activity generation, which should not be formatting a bare noun
+into a fixed verb template at all (see the backlog).
+
 All randomness enters through an injected ``numpy.random.Generator`` (see
 ``engine.rng``); there is no global RNG state and no real-clock read here.
 """
@@ -33,22 +50,32 @@ MAX_ADJACENCY_HOPS = 3
 
 #: Cluster hubs (exact-interest candidates) -> their members; each
 #: member connects to its hub (strength 0.6).
+#: Naming rule (2026-09-07): a node name must mean ONE thing on its own.
+#: These strings reach the model verbatim -- as the companion's interests, as
+#: agenda activities ("practice {name}"), as life-arc names ("learning
+#: {name}"), and as the "already known" list handed to the onboarding graph
+#: extension. A bare word that means two things gets read as the wrong one and
+#: the mistake is then persisted into the graph. ``metal`` produced the live
+#: arc "learning metal" (music, or metalworking?); ``rock`` sits in the same
+#: graph as ``hiking`` and ``camping``, where rock climbing is a live
+#: misreading. Renamed here rather than disambiguated at the render site,
+#: because every consumer renders the raw name.
 CLUSTERS: dict[str, tuple[str, ...]] = {
-    "mathematics": ("physics", "statistics", "puzzles", "programming"),
-    "metal": ("rock", "live music", "guitar", "alternative music"),
-    "literature": ("poetry", "fantasy", "book clubs"),
+    "mathematics": ("physics", "statistics", "logic puzzles", "programming"),
+    "metal music": ("rock music", "live music", "guitar", "alternative music"),
+    "literature": ("poetry", "fantasy novels", "book clubs"),
     "outdoors": ("hiking", "running", "camping"),
-    "food": ("cooking", "baking", "coffee"),
+    "food": ("cooking", "baking", "coffee brewing"),
     "art": ("drawing", "photography", "pottery"),
 }
 
 #: Sparse leaf-to-leaf cross edges (from, to, strength); never hub-to-hub
 #: and at most one per leaf.
 CROSS_EDGES: tuple[tuple[str, str, float], ...] = (
-    ("programming", "guitar", 0.20),  # mathematics x metal
-    ("puzzles", "poetry", 0.15),  # mathematics x literature
+    ("programming", "guitar", 0.20),  # mathematics x metal music
+    ("logic puzzles", "poetry", 0.15),  # mathematics x literature
     ("hiking", "photography", 0.25),  # outdoors x art
-    ("coffee", "book clubs", 0.20),  # food x literature
+    ("coffee brewing", "book clubs", 0.20),  # food x literature
     ("running", "cooking", 0.20),  # outdoors x food
 )
 
@@ -89,6 +116,14 @@ class InterestGraph:
         self._adj.setdefault(name, {})
         self._hubs.add(name)
 
+    def add_node(self, name: str) -> None:
+        """Register a node with no edges (an isolated interest).
+
+        Needed to round-trip a persisted graph: a node whose only record is
+        its own existence must come back as a node, not vanish.
+        """
+        self._adj.setdefault(name, {})
+
     # -- queries ---------------------------------------------------------
 
     def nodes(self) -> list[str]:
@@ -102,6 +137,24 @@ class InterestGraph:
     def neighbors(self, name: str) -> list[str]:
         """Neighbor names of ``name``, sorted; empty list for unknown nodes."""
         return sorted(self._adj.get(name, {}))
+
+    def edges(self) -> list[tuple[str, str, float]]:
+        """Every edge as ``(from, to, strength)``, each pair once, sorted.
+
+        The graph is undirected and stored symmetrically; this emits the
+        canonical ``from < to`` direction only, so persisting and reloading
+        cannot double the edge set.
+        """
+        out: list[tuple[str, str, float]] = []
+        for src in sorted(self._adj):
+            for dst, strength in sorted(self._adj[src].items()):
+                if src < dst:
+                    out.append((src, dst, float(strength)))
+        return out
+
+    def isolated(self) -> list[str]:
+        """Nodes with no edges, sorted (they still belong to the graph)."""
+        return sorted(n for n, adj in self._adj.items() if not adj)
 
     def path_exists(self, a: str, b: str, max_hops: int = 3) -> bool:
         """True if ``b`` is reachable from ``a`` in <= ``max_hops`` edges.

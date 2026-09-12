@@ -53,6 +53,7 @@ from harness.assembler import (
     build_context_messages,
     build_messages,
     render_day_block,
+    render_day_start_block,
     render_state_card,
 )
 from harness.behavior import _render_brief
@@ -76,11 +77,19 @@ from harness.prompts import render_popup_block
 #: (UTC-6 in August) → t_h 27.0 is 03:00 local, Sunday, virtual day 1.
 G3_EPOCH0_S = datetime(2026, 8, 15, 13, 30, 0, tzinfo=timezone.utc).timestamp()
 
-#: Pinned sha256 of the pre-reorder assembled prompts on this fixture,
-#: reproduced byte-for-byte by the post-reorder run.
-PINNED_PRE_ANCHORED_FULL = "5cfa689a6e93185ece52c433a924bedb3c5644b644e05855f3d404fd6de1d87c"
-PINNED_PRE_UNANCHORED_FULL = "c5cf7cb0edb0f1822389d7ff60b41578d1022f5446bd946ad0ef282aabfd4e3e"
-PINNED_PRE_BARE_FULL = "7f6411963780cfaf849a85081105aea2ec6c5a72db6ddc2a5751081f19dca5a2"
+#: Pinned sha256 of the assembled prompts on this fixture.
+#:
+#: RE-BASELINED 2026-09-07. The pre-reorder pins
+#: (5cfa689a.../c5cf7cb0.../7f641196...) proved that the WS-D relocation of
+#: the agenda block changed no bytes. The prompt-content pass DELIBERATELY
+#: changed them: the persona now leads the stable prefix, the four
+#: overlapping card rules were condensed into one, the steer trust
+#: paragraph left the prefix, and the closing-guidance section no longer
+#: renders. These hashes are the new byte gate -- an UNLABELLED change to
+#: the assembled prompt still fails here.
+PINNED_ANCHORED_FULL = "27aca53bbada58d07d6ad8da809251877d5e61db3c1fc071fcdf5ef072ac149e"
+PINNED_UNANCHORED_FULL = "cca6001093a16c7b9a171b8f9edba5fa52e50cc99b133843a65a214091b29e5a"
+PINNED_BARE_FULL = "424ab524ead4949ba899a6e5b860a18893365012ca94cef9c53a017420b21cc9"
 
 
 def _anchor() -> RealTimeAnchor:
@@ -223,7 +232,7 @@ def test_stable_system_byte_identical_across_conversations():
         t_h=28.0, anchor=_anchor(),
     )
     assert system_a == system_b == "\n\n".join(
-        [SYSTEM_CORE_WITH_TOOLS, render_day_block(snap)]
+        [render_day_block(snap), SYSTEM_CORE_WITH_TOOLS]
     )
 # Different conversation + different turn → different volatile tail.
     assert messages_a[-1]["content"] != messages_b[-1]["content"]
@@ -261,8 +270,12 @@ def test_volatile_state_is_the_last_system_message():
     assert tail["role"] == "system"
 # The temporal/state-card content sits at the END of the wire layout.
     assert TEMPORAL_HEADER in tail["content"]
-    assert AGENDA_HEADER in tail["content"]
-    assert tail["content"].startswith(AGENDA_HEADER)  # agenda opens the card
+# DAY-scoped material is NOT in the per-turn card: the plan changes a few
+# times a day, so re-sending it every turn was ~270 wasted chars a turn on
+# the live store. It goes out once at rollover, into the message stream
+# (render_day_start_block), where the append-only history keeps it cached.
+    assert AGENDA_HEADER not in tail["content"]
+    assert tail["content"].startswith(TEMPORAL_HEADER)
 # Volatile markers stay out of the stable prefix (system message).
     for volatile_marker in (
         TEMPORAL_HEADER, AFFECTIVE_HEADER, BEHAVIORAL_HEADER,
@@ -279,19 +292,26 @@ def test_volatile_state_is_the_last_system_message():
     assert system == system2
 
 
-def test_unanchored_replay_tail_still_carries_agenda():
-    """Unanchored (replay/test) runs omit the temporal section entirely (G2)
-    but the day-plan AGENDA section still rides in the tail — the pre-WS-D
-    day-block agenda is not lost for unanchored runs."""
+def test_unanchored_replay_omits_temporal_and_the_agenda_moved_to_day_start():
+    """Unanchored (replay/test) runs omit the temporal section entirely (G2).
+
+    The day-plan AGENDA is not lost — it moved OUT of the per-turn tail and
+    into the once-a-day stream block, so it must be absent here and present
+    there.
+    """
+    snap = _snapshot(rich=True)
     system, messages = build_context_messages(
-        snapshot=_snapshot(rich=True), recent_turns=[], user_request="hi",
+        snapshot=snap, recent_turns=[], user_request="hi",
         controls=_controls(), prompt_brief=_prompt_brief(),
     )
     tail = messages[-1]["content"]
     assert TEMPORAL_HEADER not in tail  # unanchored: not raw t_h
-    assert AGENDA_HEADER in tail  # the moved day-plan view survives
-    assert "agenda item 0" in tail
+    assert AGENDA_HEADER not in tail
     assert TEMPORAL_HEADER not in system and AGENDA_HEADER not in system
+
+    day_start = render_day_start_block(snap)
+    assert AGENDA_HEADER in day_start
+    assert "agenda item 0" in day_start
 
 
 # --- (c) replay parity: byte identity vs the pre-reorder layout ---
@@ -301,11 +321,13 @@ def _sha256(text: str) -> str:
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
-def test_assemble_snapshot_bytes_unchanged_vs_pre_reorder():
-    """The legacy/aux full 3-tier string is BYTE-IDENTICAL to the pre-reorder
-    layout on this fixture (hashes pinned from the pre-change run at
-    e2b830d). Labeled change: the agenda block relocated from the day-start
-    block into the state card; the composed bytes did not change."""
+def test_assemble_snapshot_bytes_match_the_pinned_layout():
+    """The legacy/aux full 3-tier string matches the pinned bytes.
+
+    The gate is unchanged in purpose -- an unlabelled edit to the assembled
+    prompt fails here -- but the baseline moved on 2026-09-07 with the
+    prompt-content pass (see the pin constants above).
+    """
     snap = _snapshot(rich=True)
     anchored = assemble_snapshot(
         snap, controls=_controls(), prompt_brief=_prompt_brief(),
@@ -316,16 +338,28 @@ def test_assemble_snapshot_bytes_unchanged_vs_pre_reorder():
         snap, controls=_controls(), prompt_brief=_prompt_brief(),
     )
     bare = assemble_snapshot(_snapshot(rich=False))
-    assert _sha256(anchored) == PINNED_PRE_ANCHORED_FULL
-    assert _sha256(unanchored) == PINNED_PRE_UNANCHORED_FULL
-    assert _sha256(bare) == PINNED_PRE_BARE_FULL
+    assert _sha256(anchored) == PINNED_ANCHORED_FULL
+    assert _sha256(unanchored) == PINNED_UNANCHORED_FULL
+    assert _sha256(bare) == PINNED_BARE_FULL
 
 
-def test_new_layout_is_exact_decomposition_of_legacy_prompt():
-    """The WS-D layout does not re-word or re-order content: the legacy full
-    prompt decomposes EXACTLY into (stable system) + '\\n\\n' + (volatile
-    tail). The stable system is a byte-identical PREFIX of the legacy prompt
-    — nothing in the stable prefix changed."""
+#: Every section header the assembled request can carry.
+_ALL_HEADERS = (
+    AGENDA_HEADER, TEMPORAL_HEADER, AFFECTIVE_HEADER, BEHAVIORAL_HEADER,
+    CURRENT_INTENT_HEADER, MEMORIES_HEADER,
+)
+
+
+def test_the_layout_loses_no_content_and_duplicates_none():
+    """Content preservation across the THREE scopes, with no overlap.
+
+    This replaces a byte-decomposition assertion (``legacy == system + tail``)
+    that is deliberately no longer true. Day-scoped state stopped being prompt
+    text and became a MESSAGE emitted once at rollover, so the request is no
+    longer a concatenation of the pre-WS-D prompt. What must still hold is
+    that nothing was dropped and nothing is sent twice: every section lives in
+    exactly one scope.
+    """
     snap = _snapshot(rich=True)
     controls = _controls()
     brief = _prompt_brief()
@@ -339,28 +373,50 @@ def test_new_layout_is_exact_decomposition_of_legacy_prompt():
         controls=controls, prompt_brief=brief, popup=popup,
         t_h=27.0, anchor=_anchor(),
     )
-    tail = messages[-1]["content"]
-# Exact decomposition: stable prefix + one separator + volatile tail.
-    assert legacy == system + "\n\n" + tail
-# The stable system is the byte-identical prefix of the legacy prompt.
+    scopes = {
+        "system": system,
+        "day_start": render_day_start_block(snap),
+        "card": messages[-1]["content"],
+    }
+    for header in _ALL_HEADERS:
+        if header not in legacy:
+            continue
+        holders = [name for name, text in scopes.items() if header in text]
+        assert holders, f"{header!r} was dropped entirely"
+        assert len(holders) == 1, f"{header!r} is sent twice: {holders}"
+# The stable system is still the byte-identical prefix of the legacy prompt:
+# nothing in the persona/rules core moved.
     assert legacy.startswith(system)
-    assert legacy[: len(system)] == system
-# The volatile tail is the byte-identical suffix (after the separator).
-    assert legacy.endswith(tail)
-    assert legacy[len(system) + 2:] == tail
 
 
-def test_render_day_block_is_persona_only():
-    """Labeled WS-D change: the day-start block is the STABLE persona only;
-    the agenda plan lives in the volatile tail (AGENDA section)."""
+def test_the_three_scopes_are_disjoint():
+    """Each piece of state sits in exactly one place, by how often it changes.
+
+    * STABLE prefix (``render_day_block``) — the persona, byte-identical
+      forever for a fixed profile.
+    * DAY stream block (``render_day_start_block``) — the plan, her arcs, the
+      user model: emitted once at rollover, then inside the cached prefix.
+    * PER-TURN card (``render_state_card``) — only what actually moves.
+
+    The agenda used to be in the card, re-sent every turn; the previous
+    layout comment said day-scoped material did not belong there, and it was
+    there anyway.
+    """
     snap = _snapshot(rich=True)
-    block = render_day_block(snap)
-    assert block == "CORE TEXT."
-    assert AGENDA_HEADER not in block  # agenda moved to the tail
-    tail = render_state_card(snap)
-    assert AGENDA_HEADER in tail
-    assert "agenda item 0" in tail
-# Skipped and past items are not planned (NOW semantics), as before.
+    stable = render_day_block(snap)
+    day_start = render_day_start_block(snap)
+    card = render_state_card(snap)
+
+    assert stable == "CORE TEXT."
+    assert AGENDA_HEADER not in stable
+    assert AGENDA_HEADER in day_start        # the plan is day-scoped
+    assert AGENDA_HEADER not in card         # and no longer per-turn
+    # The card keeps what genuinely moves.
+    assert CURRENT_INTENT_HEADER in card
+    assert AGENDA_HEADER not in card
+    assert "agenda item 0" in day_start
+# Skipped and past items are not planned (NOW semantics), as before — the
+# filter moved with the section, so it is asserted where the section now is.
     skipped = dataclasses.replace(
         _snapshot(rich=True),
         agenda=(
@@ -368,9 +424,9 @@ def test_render_day_block_is_persona_only():
             AgendaItem("ag_p", 30.0, 31.0, "planned thing", "routine", "r2", 0.3, "planned"),
         ),
     )
-    tail_skip = render_state_card(skipped)
-    assert "skipped thing" not in tail_skip
-    assert "planned thing" in tail_skip
+    day_start_skip = render_day_start_block(skipped)
+    assert "skipped thing" not in day_start_skip
+    assert "planned thing" in day_start_skip
 
 
 def test_seam_transcript_matches_legacy_build_messages():
@@ -395,8 +451,14 @@ def test_seam_transcript_matches_legacy_build_messages():
 # Transcript portion byte-identical; the volatile tail is appended, not interleaved.
     assert messages[:-1] == legacy_messages
     assert messages[-1]["role"] == "system"
-# Full-content parity with the legacy request (decomposition property).
-    assert legacy_system == system + "\n\n" + messages[-1]["content"]
+# Content parity with the legacy request, across the three scopes. Byte
+# concatenation no longer holds: day-scoped state left the prompt entirely
+# and became a message emitted once at rollover.
+    covered = system + "\n\n" + render_day_start_block(snap) \
+        + "\n\n" + messages[-1]["content"]
+    for header in _ALL_HEADERS:
+        if header in legacy_system:
+            assert header in covered, f"{header!r} was dropped"
 # No-request variant: transcript passes through untouched, tail still appended.
     system2, messages2 = build_context_messages(
         snapshot=snap, recent_turns=recent, user_request=None,

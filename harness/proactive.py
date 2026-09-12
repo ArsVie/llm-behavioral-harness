@@ -28,6 +28,7 @@ from dataclasses import dataclass
 import numpy as np
 
 import engine.rng as rng_mod
+from harness.clock import hhmm
 from harness.domain import (
     AgendaItem,
     ContactOpportunity,
@@ -79,7 +80,12 @@ def compose_hook(source, reason: str) -> str:
     if isinstance(source, AgendaItem):
         if reason == REASON_EVENT:
             return f"Finished: {source.activity}"
-        return f"Agenda: {source.activity} ({source.start_t_h:.1f}-{source.end_t_h:.1f}h)"
+        # HH:MM, never raw t_h: the hook renders VERBATIM into the state
+        # card's proactive block, so it is a model-visible surface.
+        return (
+            f"Agenda: {source.activity} "
+            f"({hhmm(source.start_t_h)}\u2013{hhmm(source.end_t_h)})"
+        )
     if isinstance(source, LifeArc):
         return f"Arc: {source.name} — {source.next_intention}"
     if isinstance(source, EpisodicMemory):

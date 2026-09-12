@@ -92,7 +92,10 @@ def test_prompt_brief_shows_state_without_exposing_numbers_or_hormones() -> None
     assert "hormon" not in brief
     assert "luteal" not in brief
     assert not any(character.isdigit() for character in brief)
-    assert "show it through" in brief
+    # The never-name-the-state rule moved to the stable core (2026-09-07):
+    # the per-turn brief no longer repeats it.
+    assert "show it through" not in brief
+    assert brief.startswith("current bearing:")  # lowercased above
 
 
 # B4 (F4): widened actuator amplitude — extreme days are visibly different

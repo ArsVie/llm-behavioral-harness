@@ -52,28 +52,12 @@ model never sees numbers). Reproduce with `python -m experiments.week_showcase`.
 
 ![35-cell ablation matrix](docs/ablation-matrix-summary.png)
 
-*35-cell ablation matrix (7 conditions × 5 seeds). Removing the timing-feedback
-channel measurably changes proactive behavior; removing internal state does not
-— a clean negative result, reported with controls.*
-
-</details>
-
-<details>
-<summary>Ablation evidence</summary>
-
-![35-cell ablation matrix](docs/ablation-matrix-summary.png)
-
 *Proactive contact and conversation volume across the 35-cell ablation matrix
 (7 conditions × 5 seeds). Removing the timing-feedback channel measurably changes
 proactive behavior; removing internal state does not — a clean negative result,
 reported with controls. Chart: `docs/ablation-matrix-summary.png`.*
 
 </details>
-
-*Proactive contact and conversation volume across the 35-cell ablation matrix
-(7 conditions × 5 seeds). Removing the timing-feedback channel measurably changes
-proactive behavior; removing internal state does not — a clean negative result,
-reported with controls.*
 
 ## What it is
 
@@ -114,22 +98,35 @@ than quietly dropped.
 engine/      frozen contracts: mood (beta-binomial in logit space, AR(1)
              event memory), ~28-day cycle, circadian energy, Weibull
              hazard contact timing, seed-keyed RNG, validation
-harness/     41 modules / ~16K lines: three-tier prompt assembly
-             (system core → state card → volatile tail), steering,
-             scheduler, judge, spend ledger, negotiation, memory,
- summarization, proactive decisions, actuation
-experiments/ 36 preregistered experiment scripts under experiments/
+harness/     prompt assembly, steering, scheduling, judge, spend ledger,
+             negotiation, memory, summarization, proactive decisions, actuation
+experiments/ experiment drivers and reproducibility helpers
 ```
 
-Scale: 311 commits, 1,371 tests collected on the current tree, single-file
-SQLite (WAL, 8 migrations) with append-only `state_events` + `llm_calls` so
-`audit.py` reconstructs exactly "what the model saw" per call.
+Scale: single-file SQLite with WAL, an additive migration chain, and append-only
+`state_events` + `llm_calls` so `audit.py` can reconstruct what the model saw per
+call. Exact counts belong to dated result records, not this overview.
+
+Every run is inspectable read-only, without a query of your own:
+
+```bash
+python -m harness.trace  --db results/live-companion/companion.db        # timeline
+python -m harness.trace  --db results/live-companion/companion.db checks # invariants
+python -m harness.audit  --store results/live-companion/companion.db --call 12
+```
+
+`trace` merges messages, steers, decisions, negotiations, agenda boundaries and
+provider calls into one stream against the real local clock, and its `checks`
+view asserts the run's invariants — a decision offered and never answered, a
+prefix re-sent but not cached, an unmetered model lane, a skipped activity the
+card reports as done. It exits 1 on any error, so it doubles as the post-run
+gate. `audit` renders one call's exact prompt.
 
 ## Design docs
 
 - [`DESIGN.md`](DESIGN.md) — architecture and mathematics of the system.
-- [`docs/design-note-cognition-principle-2026-08-15.md`](docs/design-note-cognition-principle-2026-08-15.md) — the engine owns timing, the model owns the decision.
-- [`docs/context-flow-2026-08-14.md`](docs/context-flow-2026-08-14.md) — prompt assembly flow diagram.
+- [`docs/architecture-overview.md`](docs/architecture-overview.md) — current runtime and context contract.
+- [`docs/context-flow-2026-08-14.md`](docs/context-flow-2026-08-14.md) — operational context flow.
 
 ## Honest caveats
 
@@ -149,6 +146,6 @@ MPLBACKEND=Agg .venv/bin/python -m experiments.behavior_showcase
 #          phase-summary.json, behavior-trace.json}
 ```
 
-Test suite: `.venv/bin/python -m pytest -q` (1,371 tests collected).
+Test suite: `.venv/bin/python -m pytest -q`.
 
 </details>

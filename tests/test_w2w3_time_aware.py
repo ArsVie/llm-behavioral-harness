@@ -247,7 +247,7 @@ def test_current_intent_reserved_slot():
 def test_g5_affective_bearing_verbatim_across_bands():
     """Across a battery of channel bands, the AFFECTIVE section is the
     pre-wave renderer's output byte-identically: the mood line
-    ('Current behavioral guidance: <prompt_brief>') and the availability
+    (the prompt_brief verbatim, under AFFECTIVE BEARING) and the availability
     line, contiguous under the new header — nothing re-rendered."""
     cases = (
         # (brief overrides, expected availability line)
@@ -261,8 +261,8 @@ def test_g5_affective_bearing_verbatim_across_bands():
                               momentum=0.1, warmth=0.8, playfulness=0.5,
                               reflectiveness=0.4)
         prompt = assemble_snapshot(_snapshot(brief=brief), prompt_brief=prose)
-        mood_line = f"{MOOD_BRIEF_HEADER} {prose}"
-# the lines are contiguous inside the section, verbatim
+        mood_line = prose
+        # the lines are contiguous inside the section, verbatim
         assert mood_line in prompt
         assert availability in prompt
         assert f"{AFFECTIVE_HEADER}\n{mood_line}\n{availability}" in prompt

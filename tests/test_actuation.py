@@ -114,7 +114,24 @@ def test_response_delay_is_clamped_and_closing_tendency_passes_through() -> None
     assert slow.closing_tendency == 0.77
 
 
-def test_closing_guidance_differs_by_closing_tendency() -> None:
+def test_closing_guidance_is_disabled_by_default() -> None:
+    """2026-09-07: the closing channel no longer speaks to the model.
+
+    Every tendency renders the empty string, so the assembler drops the
+    CLOSING section entirely. ``closing_tendency`` itself is untouched — it
+    still drives the conversation-close draw.
+    """
+    assert actuation.CLOSING_GUIDANCE_ENABLED is False
+    for tendency in (0.05, 0.5, 0.9):
+        controls = actuation.controls_from_directive(
+            _directive(closing_tendency=tendency)
+        )
+        assert controls.closing_guidance == ""
+
+
+def test_closing_bands_still_map_when_re_enabled(monkeypatch) -> None:
+    """The band prose is retained verbatim for the day the channel returns."""
+    monkeypatch.setattr(actuation, "CLOSING_GUIDANCE_ENABLED", True)
     low = actuation.controls_from_directive(_directive(closing_tendency=0.1))
     mid = actuation.controls_from_directive(_directive(closing_tendency=0.5))
     high = actuation.controls_from_directive(_directive(closing_tendency=0.9))
@@ -336,12 +353,21 @@ def test_30day_realized_ranges_cover_frozen_band(tmp_path) -> None:
     assert len({b for b in budgets}) >= 40, "degenerate clustering in max_tokens"
     assert min(delays) <= 8.0 and max(delays) >= 26.0, f"{min(delays)=} {max(delays)=}"
     assert min(closings) <= 0.25 and max(closings) >= 0.80, f"{min(closings)=} {max(closings)=}"
-    assert len({g for g in guidances}) >= 4, "fewer than 4 distinct guidance strings"
+    # The closing GUIDANCE channel is disabled (2026-09-07), so every turn
+    # renders "". The underlying closing_tendency band is asserted above;
+    # the band-to-prose mapping has its own test.
+    assert set(guidances) == {""}
 
 
-def test_closing_guidance_yields_at_least_four_distinct_strings() -> None:
+def test_closing_guidance_yields_at_least_four_distinct_strings(monkeypatch) -> None:
     """B4 acceptance 3: five bands across the widened closing range; a sweep
-    over [0.04, 0.85] yields >= 4 distinct guidance strings (F4: 2)."""
+    over [0.04, 0.85] yields >= 4 distinct guidance strings (F4: 2).
+
+    Asserted with the channel force-enabled: the MAPPING is still the frozen
+    B4 one, it just no longer reaches the prompt (see
+    ``test_closing_guidance_is_disabled_by_default``).
+    """
+    monkeypatch.setattr(actuation, "CLOSING_GUIDANCE_ENABLED", True)
     strings = {
         actuation.controls_from_directive(_directive(closing_tendency=t)).closing_guidance
         for t in (0.05, 0.15, 0.30, 0.50, 0.70, 0.90)

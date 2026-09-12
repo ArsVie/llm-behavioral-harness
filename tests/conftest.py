@@ -14,6 +14,14 @@ import os
 # still ask for FULL.
 os.environ.setdefault("HARNESS_SQLITE_SYNCHRONOUS", "OFF")
 
+# The cold-start setup proposals (interest graph, routine catalog) cache to
+# the real user cache by default. No test may write there: it pollutes the
+# developer's home directory and makes tests order-dependent, since the first
+# test to cache a stub's answer makes every later one resolve from cache
+# instead of exercising its own path. Empty disables the cache outright; a
+# test that wants to exercise caching sets its own tmp path via monkeypatch.
+os.environ.setdefault("HARNESS_PROPOSAL_CACHE", "")
+
 import numpy as np  # noqa: E402 - must follow the pragma default above
 import pytest  # noqa: E402
 

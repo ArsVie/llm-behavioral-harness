@@ -148,7 +148,18 @@ class AgendaItem:
     source_id: str
     salience: float
     status: str  # "planned" | "completed" | "skipped" | "shifted"
+    outcome: str | None = None
+    """What actually came of it, once the window has passed.
 
+    An agenda item used to resolve to a STATUS and nothing else, so nothing
+    ever happened inside one: the day left no trace to talk about, arcs could
+    not accumulate content, and a proactive hook fired as bare as
+    "Finished: practice sketching". This carries the fact instead.
+
+    Only ever written from something the companion actually decided or said
+    (a decide_event verdict at the closing boundary) — never invented ahead
+    of time, and never filled in just because a window elapsed.
+    """
 
 @dataclass(frozen=True)
 class DailyAgenda:

@@ -43,6 +43,8 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+from harness.pricing import DEFAULT_MODEL_PRICING, MODELS, price_for
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 VIEWS = (
@@ -770,12 +772,36 @@ def _check_metering(ctx: Ctx) -> list[Finding]:
         ))
     # ``raw_cost`` can be missing entirely on a run written before the column
     # existed, and sqlite3.Row raises on indexing an absent column.
+    # A null raw_cost is normal: this gateway does not report a cost on every
+    # lane, and harness.spend reconstructs spend from the token counts and the
+    # pricing table. A run is only unpriceable when no call names a model with
+    # rates -- that is worth a warning. A model missing from the table is
+    # priced by the fallback tier, which silently over-states a cheap model,
+    # so it gets its own.
     if all(("raw_cost" not in r.keys()) or (r["raw_cost"] is None) for r in calls):
+        if all(price_for(_model_of(r)) is None for r in calls):
+            found.append(Finding(
+                WARN, "no-cost-recorded",
+                "no call names a model with rates and raw_cost is null on "
+                "every call: spend cannot be reconstructed from this run",
+            ))
+    unknown = sorted({_model_of(r) for r in calls
+                      if _model_of(r) and _model_of(r) not in MODELS})
+    if unknown:
         found.append(Finding(
-            WARN, "no-cost-recorded",
-            "raw_cost is null on every call: spend cannot be reconstructed "
-            "from this run",
+            WARN, "cost-rates-unknown",
+            f"{len(unknown)} model id(s) are missing from harness.pricing, so "
+            f"their cost comes from the fallback tier: {unknown}",
+            [f"fallback rates: {DEFAULT_MODEL_PRICING} per 1M tokens"],
         ))
+    return found
+
+
+def _model_of(row: Any) -> str:
+    """The row's model id, or "" when the column is absent (old runs)."""
+    if "model" not in row.keys():
+        return ""
+    return str(row["model"] or "").strip()
     return found
 
 

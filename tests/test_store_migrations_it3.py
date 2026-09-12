@@ -386,10 +386,14 @@ def test_v4_to_v5_migration_preserves_everything(tmp_path):
             "PRAGMA table_info(steering_queue)"
         )
     }
-    assert sq_cols == {
+    # "attempts" arrived with v11 (the steer retry budget). The v5 shape is
+    # still asserted as a SUBSET so this test keeps guarding what v5 created
+    # without failing on every later additive migration.
+    assert {
         "id", "day", "t_h", "kind", "payload_json", "delivered_t_h",
         "boundary", "status", "seen_turn_id",
-    }
+    } <= sq_cols
+    assert "attempts" in sq_cols
 
     # --- legacy data fully intact -----------------------------------------
     msgs = store.recent_messages()

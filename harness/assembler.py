@@ -7,17 +7,19 @@ Sections are BOUNDED by construction (persona core, behavioral guidance,
 activity, capped agenda, 1-3 life arcs, N memories with N =
 ``MEMORY_EPISODES_MAX``, proactive intent block when present).
 
-Context construction v2: the assembled prompt is the full THREE-TIER context:
+Context construction v2: the assembled prompt is the full THREE-TIER context.
+Order changed 2026-09-07 — the PERSONA now leads, so the model reads who it is
+before it reads how to handle its state card:
 
-  1. STABLE system core — ``prompts.SYSTEM_CORE_WITH_TOOLS`` (constant,
-     contains NO state).
-  2. DAY-START block — the PERSONA block, rendered once per day
-     (``render_day_block``); the day-plan agenda moved to the STATE CARD
+  1. DAY-START block — the PERSONA block, rendered once per day
+     (``render_day_block``); the day-plan agenda lives in the STATE CARD
      (tier 3) so this tier is fully stable (byte-identical every turn).
+  2. STABLE rules core — ``prompts.SYSTEM_CORE_WITH_TOOLS`` (constant,
+     contains NO state): how to hold the state card, plus the tool protocol.
   3. STATE CARD — mood brief (``BehaviorDirective.prompt_brief``, the SINGLE
-     source), energy/availability, current activity, pulled memories (quoted
-     evidence), user-model facts, proactive intent if any, arriving-event
-     pop-up when injected.
+     source, rendered VERBATIM with no label of its own), energy/availability,
+     current activity, pulled memories (quoted evidence), user-model facts,
+     proactive intent if any, arriving-event pop-up when injected.
 
 W2+W3 (time-aware, sectioned card): fixed-order named sections —
 ``TEMPORAL FRAME`` (rendered ONLY when anchored, never raw ``t_h``),
@@ -35,21 +37,31 @@ as memory can never silently gain system-level instruction authority. The
 assembler never receives engine state: the snapshot carries only domain
 objects, and no section renders cycle/phase/hormone internals.
 
-WS-D (structural prompt cache, reduced 2026-08-19): the assembled request is
-split into a STABLE prefix and a VOLATILE tail. The stable prefix — the
-``SYSTEM_CORE_WITH_TOOLS`` core + the day-start PERSONA block (rendered
-persona only; the agenda is day-plan state and moved to the tail) — is
-byte-identical every turn and across conversations for a fixed profile, so
-request N+1 is a byte-identical extension of request N (DeepSeek-read
-finding: caching is 100% structural, zero ``cache_control``). The volatile
-tail — the state card (temporal frame / affective / behavioral bearing /
-current intent, activity, arcs, memories, about-you, proactive, closing,
-pop-up + the agenda plan) — rides as a TRAILING system message via the
-``build_context_messages`` seam. ``assemble_snapshot`` keeps the legacy
-full 3-tier system string byte-identical: the session mainline wires
-``build_context_messages`` (state card as a trailing system message so roles stay truthful: user-role content is always the user), and the
-legacy string is still built per turn for ``_last_system_prompt`` so pop-up
-aux calls replay the mainline prefix.
+Structural prompt cache: the assembled request is split into a STABLE prefix
+and a VOLATILE tail. The stable prefix — the day-start PERSONA block plus the
+``SYSTEM_CORE_WITH_TOOLS`` rules core — is byte-identical every turn and across
+conversations for a fixed profile. The volatile tail — the state card
+(temporal frame / affective / behavioral bearing / current intent, activity,
+arcs, memories, about-you, proactive, pop-up + the agenda plan) — rides as a
+TRAILING system message via ``build_context_messages``. Caching is purely
+structural; no ``cache_control`` field exists on this provider.
+
+Request N+1 is an extension of request N, and that is ASSERTED rather than
+asserted-in-prose: ``tests/test_cache_prefix_gate.py`` walks every provider
+call of a mixed day and fails if any one of them is not a byte-prefix
+extension of the previous. It holds because the session reads its transcript
+from a stored compaction epoch (``Session._context_turns``), not from a
+rolling tail — front-truncation would move the first byte after the system
+message every turn. Two provider facts make that the load-bearing choice
+rather than a refinement: matching is strict from token 0, and the storage
+unit is 64 tokens with reliable hits only around a ~1024-token shared prefix,
+which the ~180-token stable prefix cannot reach alone.
+
+``assemble_snapshot`` builds the same three tiers as one string, for aux
+callers and tests. It is no longer byte-identical to the pre-2026-09-07
+layout (persona/rules order swapped, rules condensed, closing section and
+mood-brief label dropped); ``tests/test_prompt_cache_order.py`` pins the
+current bytes so an unlabelled change still fails.
 
 Leakage invariant (frozen): this module never receives engine state — the
 snapshot carries only domain objects. The rendered behavioral prose and all
@@ -70,6 +82,7 @@ request) is preserved verbatim for pre-slice callers.
 
 from __future__ import annotations
 
+from harness.clock import hhmm
 from harness.domain import BehaviorBrief, CompanionSnapshot, GenerationControls
 from harness.prompts import (
     ABOUT_YOU_HEADER,
@@ -82,16 +95,20 @@ from harness.prompts import (
     CLOSING_HEADER,
     MEMORIES_HEADER,
     MEMORY_EVIDENCE_HEADER,
-    MOOD_BRIEF_HEADER,
     SYSTEM_CORE_WITH_TOOLS,
 )
 
 #: Default persona core used when the caller provides none.
+#:
+#: A persona says what someone IS and how they behave. It does not define
+#: itself by negation ("you are not an assistant") and does not list generic
+#: companion traits -- both read as hedging to the model and produce the safe,
+#: middle-of-the-road voice they were meant to prevent. Real personas live in
+#: ``persona.core`` (per-profile data); this is the stand-in for callers that
+#: supply none.
 DEFAULT_PERSONA_CORE = (
-    "You are Nova, a warm and attentive companion. You have your own days, "
-    "your own rhythms, and a genuine interest in the person you talk to. You "
-    "are not a customer-service assistant: you speak like a close friend "
-    "would — with your own cadence, your own quirks, your own silences."
+    "You are Nova. You keep odd hours, hold opinions you did not check with "
+    "anyone first, and pay close attention to the person in front of you."
 )
 
 #: How many recent transcript turns to carry into the prompt.
@@ -178,6 +195,26 @@ _PRIO_POPUP = 11
 #: Pinned sections are exempt from budget eviction.
 _PINNED = True
 
+#: Sections that are DAY-scoped, not per-moment.
+#:
+#: These change at most a few times a day — the plan itself, her arcs, what
+#: the memory system concluded about him — yet the state card re-sent all of
+#: them on every single turn. Measured on the live store, the card at 10:00
+#: and at 18:42 differed by ONE line (``Current activity``); everything else
+#: was byte-identical and re-transmitted ~270 chars per turn.
+#:
+#: They cannot live in the stable system prefix either — that must be
+#: byte-identical all day, and the agenda mutates as windows pass (which is
+#: exactly why ``render_day_block`` pushed the agenda out to the tail). The
+#: place that satisfies both constraints is the message STREAM: emitted once
+#: when the day rolls over, then inside the cached prefix for every
+#: subsequent turn of that day, because the stream is append-only.
+_DAY_SCOPED_PRIOS: frozenset[int] = frozenset({
+    _PRIO_AGENDA,       # today's plan
+    _PRIO_ARCS,         # active life arcs
+    _PRIO_USER_MODEL,   # L4 conclusions about him
+})
+
 
 def proactive_block(hook: str | None = None) -> str:
     """The proactive system-prompt block: opening + grounded hook verbatim.
@@ -188,20 +225,89 @@ def proactive_block(hook: str | None = None) -> str:
     return PROACTIVE_OPENING.format(hook=(hook or DEFAULT_PROACTIVE_HOOK).strip())
 
 
+#: Message keys carried through to the provider beyond role/content.
+#:
+#: A recorded decision replays as a NATIVE tool exchange (assistant
+#: ``tool_calls`` + ``role="tool"`` result). Copying only role and content --
+#: which every call site here used to do -- silently drops the pairing and
+#: the provider rejects an assistant tool_calls message with no result, so
+#: the keys have to survive the copy.
+#: Separator between blocks folded into one trailing system message.
+SYSTEM_BLOCK_SEPARATOR = "\n\n"
+
+
+def append_system(messages: list[dict], content: str | None) -> list[dict]:
+    """Append a system block, FOLDING it into a trailing system message.
+
+    Two adjacent ``role="system"`` messages are the bug behind the 2026-09-08
+    live leak. The turn's tail could stack up to four of them — state card,
+    injections, decided-notes, and on an aux call the pop-up — with the last
+    assistant turn far behind. The model reads a run of system blocks as one
+    undifferentiated instruction block and answers whichever question it
+    latches onto: a pop-up as prose, or a conversational turn as a tool call
+    (``<｜｜DSML｜｜tool_calls>`` reached the channel verbatim).
+
+    So the wire never carries two system messages in a row. Blocks fold into
+    one, separated by a blank line, and the shape stays
+    ``... -> assistant -> system -> (reply)``: exactly one place where the
+    model is being addressed, immediately before it answers.
+
+    Folding rather than interleaving a synthetic assistant turn is deliberate
+    — an assistant message the model never produced is a lie in its own
+    history. Replayed DECISIONS keep their real
+    ``assistant tool_calls -> role="tool"`` exchange (see
+    ``session._decision_context_messages``); this is only about the live tail.
+    """
+    text = (content or "").strip()
+    if not text:
+        return messages
+    if messages and messages[-1].get("role") == "system":
+        merged = dict(messages[-1])
+        merged["content"] = (
+            (merged.get("content") or "").rstrip()
+            + SYSTEM_BLOCK_SEPARATOR + text
+        )
+        return messages[:-1] + [merged]
+    return messages + [{"role": "system", "content": text}]
+
+
+_WIRE_EXTRA_KEYS = ("tool_calls", "tool_call_id", "name")
+
+
+def wire_message(turn: dict) -> dict:
+    """One store/context row as a provider message.
+
+    Keeps role and content (``None`` normalized to ``""``) plus any tool
+    keys the row carries, and nothing else -- store rows also hold ids,
+    timestamps and day indices that must never reach the wire.
+    """
+    out: dict = {"role": turn["role"], "content": turn.get("content") or ""}
+    for key in _WIRE_EXTRA_KEYS:
+        if turn.get(key) is not None:
+            out[key] = turn[key]
+    return out
+
+
 def build_messages(
     recent_turns: list[dict],
     user_request: str,
-    limit: int = RECENT_TURNS,
+    limit: int | None = RECENT_TURNS,
 ) -> list[dict]:
-    """Transcript (tail-limited, oldest→newest) + current user request.
+    """Transcript (oldest→newest) + current user request.
 
     `recent_turns` are store message rows ({role, content, ...}); only role
     and content are used. Assistant turns are included so the model keeps
     style continuity; the user request is always last.
+
+    ``limit=None`` takes the turns AS GIVEN -- the caller has already bounded
+    the span (the session's compaction epoch). A numeric limit keeps the
+    legacy tail slice for pre-epoch callers; note that slicing from the FRONT
+    is what breaks prefix reuse, so the mainline passes None.
     """
-    messages: list[dict] = []
-    for turn in recent_turns[-limit:]:
-        messages.append({"role": turn["role"], "content": turn["content"]})
+    messages: list[dict] = [
+        wire_message(turn)
+        for turn in (recent_turns if limit is None else recent_turns[-limit:])
+    ]
     messages.append({"role": "user", "content": user_request})
     return messages
 
@@ -210,11 +316,8 @@ def build_messages(
 
 
 def _local_hour(t_h: float) -> str:
-    """HH:MM of the local hour for an absolute t_h."""
-    local = t_h % 24.0
-    hh = int(local)
-    mm = int(round((local - hh) * 60.0)) % 60
-    return f"{hh:02d}:{mm:02d}"
+    """HH:MM of the local hour for an absolute t_h (see ``clock.hhmm``)."""
+    return hhmm(t_h)
 
 
 def _agenda_lines(items) -> list[str]:
@@ -337,24 +440,33 @@ def _day_period(hour: int) -> str:
 
 def _partition_agenda(
     items, t_h: float
-) -> tuple[list, list, list]:
-    """(done earlier, happening now, later today) — the state-card agenda
-    partition (S2 decision 3: past items kept, labeled).
+) -> tuple[list, list, list, list]:
+    """(done earlier, missed, happening now, later today) — the state-card
+    agenda partition (S2 decision 3: past items kept, labeled).
 
-    Bucket rule per item: ``completed``/``skipped`` → done earlier (the
-    slot is finished either way); ``shifted`` → later today (the slot is
-    not happening at its window — it was moved); anything else falls to the
-    window comparison ``end_t_h <= t_h`` → done, ``start_t_h <= t_h`` →
-    now, else later. The status transition (``life.transition_past_windows``)
-    keys off the same comparison, so the render and the persisted status
-    agree by construction. Pure function of (item window/status, t_h).
+    Bucket rule per item: ``completed`` → done earlier; ``skipped`` →
+    MISSED; ``shifted`` → later today (the slot is not happening at its
+    window — it was moved); anything else falls to the window comparison
+    ``end_t_h <= t_h`` → done, ``start_t_h <= t_h`` → now, else later. The
+    status transition (``life.transition_past_windows``) keys off the same
+    comparison, so the render and the persisted status agree by
+    construction. Pure function of (item window/status, t_h).
+
+    Skipped is its own bucket because a finished slot is not the same fact
+    as a done one. Live 2026-09-08: ``read history`` was force-skipped and
+    the card still listed it under "Done earlier", so her own context said
+    she had read while the recalled memory said she missed it. She happened
+    to believe the memory.
     """
     done: list = []
+    missed: list = []
     now: list = []
     later: list = []
     for it in items:
-        if it.status in ("completed", "skipped"):
+        if it.status == "completed":
             done.append(it)
+        elif it.status == "skipped":
+            missed.append(it)
         elif it.status == "shifted":
             later.append(it)
         elif t_h >= it.end_t_h:
@@ -363,7 +475,7 @@ def _partition_agenda(
             now.append(it)
         else:
             later.append(it)
-    return done, now, later
+    return done, missed, now, later
 
 
 def render_temporal_section(snapshot: CompanionSnapshot, t_h: float, anchor) -> str | None:
@@ -388,10 +500,11 @@ def render_temporal_section(snapshot: CompanionSnapshot, t_h: float, anchor) -> 
         f"It is {real.hour:02d}:{real.minute:02d}, "
         f"{real.strftime('%A')} {_day_period(real.hour)} — day {int(t_h // 24)}."
     )
-    done, now, later = _partition_agenda(snapshot.agenda, t_h)
+    done, missed, now, later = _partition_agenda(snapshot.agenda, t_h)
     parts = [line]
     for label, items in (
         ("Done earlier", done),
+        ("Did not happen", missed),
         ("Happening now", now),
         ("Later today", later),
     ):
@@ -493,8 +606,8 @@ def assemble_snapshot(
         popup=popup, t_h=t_h, anchor=anchor,
     )
     # Stable parts first, then the budget-trimmed state card.
-    parts = [SYSTEM_CORE_WITH_TOOLS]
-    parts.append(day_block if day_block is not None else render_day_block(snapshot))
+    parts = [day_block if day_block is not None else render_day_block(snapshot)]
+    parts.append(SYSTEM_CORE_WITH_TOOLS)
     return _join_stable_plus_sections(parts, sections)
 
 
@@ -537,7 +650,10 @@ def _state_card_sections(
     # AFFECTIVE BEARING: mood brief line plus availability line.
     affective: list[str] = []
     if prompt_brief:
-        affective.append(f"{MOOD_BRIEF_HEADER} {prompt_brief.strip()}")
+        # The AFFECTIVE BEARING section header already names this block and
+        # the brief opens with its own "Current bearing:", so the extra
+        # MOOD_BRIEF_HEADER read as a third label on one line.
+        affective.append(prompt_brief.strip())
     if snapshot.current_behavior is not None:
         availability = _availability_line(snapshot.current_behavior)
         if availability:
@@ -633,21 +749,94 @@ def render_state_card(
     t_h: float | None = None,
     anchor=None,
 ) -> str:
-    """The VOLATILE state-card block, standalone (a trailing system message).
+    """The PER-MOMENT state card — what is true right now and nothing else.
 
-    WS-D: this is the structural tail of the assembled request — the state
-    card (incl. the day-plan AGENDA section) is appended as the LAST system
-    message so the stable prefix (system core + persona) stays byte-identical
-    every turn and request N+1 is a byte-identical extension of request N.
-    Budget: the same whole-section trim as the legacy full prompt, applied
-    to the tail on its own (the system message carries no state, so
+    Day-scoped material (the plan, her arcs, the user model) is NOT here: it
+    goes out once at rollover through :func:`render_day_start_block`. This
+    card carries only what actually changes turn to turn — the temporal
+    frame, her bearing, what she is doing, what memory retrieved for THIS
+    query, a proactive hook, a pop-up.
+
+    Budget: the same whole-section trim as the full prompt, applied to the
+    tail on its own (the system message carries no state, so
     ``MAX_PROMPT_CHARS`` bounds the JOINED prompt; the tail alone is far
     smaller). Returns "" when no section survives (empty snapshot).
+
+    The tail is EPHEMERAL: rebuilt each turn, never carried forward, which is
+    what keeps the history append-only in shape. It also FOLDS into whatever
+    system block the turn already has (see :func:`append_system`) rather than
+    standing alone in the position that means "the thing you are answering" —
+    the card asks for no reaction, and putting it there is what let a pop-up
+    appended behind it read as one instruction blob.
     """
-    sections = _state_card_sections(
-        snapshot, controls=controls, prompt_brief=prompt_brief,
-        popup=popup, t_h=t_h, anchor=anchor,
-    )
+    sections = [
+        s for s in _state_card_sections(
+            snapshot, controls=controls, prompt_brief=prompt_brief,
+            popup=popup, t_h=t_h, anchor=anchor,
+        )
+        if s[0] not in _DAY_SCOPED_PRIOS
+    ]
+    return _join_stable_plus_sections([], sections)
+
+
+def _day_plan_header(t_h: float | None, anchor) -> str:
+    """Header for a day's plan, naming WHICH day it describes.
+
+    The block is emitted once and then lives in the stream as history, so on
+    day 1 the model sees yesterday's block and today's, both of which used to
+    open "Today's agenda:". Two blocks claiming to be today is ambiguous;
+    dating them is not.
+
+    Falls back to the undated header when the run is unanchored (replay and
+    most tests), where there is no real calendar to name and a day index would
+    be the raw engine coordinate this module never renders.
+    """
+    if t_h is None or anchor is None:
+        return AGENDA_HEADER
+    try:
+        return f"{anchor.real_at(t_h).strftime('%A')}'s plan:"
+    except Exception:  # noqa: BLE001 - a broken anchor must not lose the plan
+        return AGENDA_HEADER
+
+
+def render_day_start_block(
+    snapshot: CompanionSnapshot, *, t_h: float | None = None, anchor=None,
+) -> str:
+    """The DAY-scoped block, emitted once when the day rolls over.
+
+    Her plan for the day, her active arcs, and what the memory system has
+    concluded about him. It goes into the message STREAM as a single system
+    message, not into the system prompt and not into the per-turn card:
+
+    * the system prefix must be byte-identical all day, and the agenda
+      mutates as windows pass, so it cannot go there;
+    * the per-turn card is re-sent every turn, so day-stable text there is
+      pure waste — ~270 chars a turn on the live store.
+
+    The stream is append-only, so a block emitted once at rollover sits
+    inside the cached prefix for every later turn of that day: sent once,
+    read all day. Returns "" when the day has nothing worth stating.
+
+    ``t_h``/``anchor`` only date the plan header (see
+    :func:`_day_plan_header`) — yesterday's block stays in the stream as
+    history, so each needs to say which day it describes. They do not add any
+    per-moment content: this block must stay constant for the whole day, or
+    the "written once" property that makes it cache-free is a lie.
+    """
+    sections = [
+        s for s in _state_card_sections(
+            snapshot, controls=None, prompt_brief=None, popup=None,
+            t_h=None, anchor=None,
+        )
+        if s[0] in _DAY_SCOPED_PRIOS
+    ]
+    header = _day_plan_header(t_h, anchor)
+    if header != AGENDA_HEADER:
+        sections = [
+            (prio, pinned, text.replace(AGENDA_HEADER, header, 1)
+             if prio == _PRIO_AGENDA else text)
+            for prio, pinned, text in sections
+        ]
     return _join_stable_plus_sections([], sections)
 
 
@@ -662,44 +851,48 @@ def build_context_messages(
     t_h: float | None = None,
     anchor=None,
     day_block: str | None = None,
-    limit: int = RECENT_TURNS,
+    limit: int | None = RECENT_TURNS,
 ) -> tuple[str, list[dict]]:
-    """(stable system, messages) — the WS-D cache-ordered request pair.
+    """(stable system, messages) — the cache-ordered request pair.
 
-    STABLE system: ``SYSTEM_CORE_WITH_TOOLS`` + the day-start PERSONA block
-    (byte-identical every turn and across conversations for a fixed profile;
-    ``day_block`` is the session-cached persona block, else rendered here).
+    STABLE system: the day-start PERSONA block + ``SYSTEM_CORE_WITH_TOOLS``,
+    in that order (byte-identical every turn and across conversations for a
+    fixed profile; ``day_block`` is the session-cached persona block, else
+    rendered here).
 
-    Messages: transcript tail (oldest→newest, tail-limited), then the user
+    Messages: the context stream (oldest→newest, tail-limited), then the user
     request when given, then the VOLATILE state card as a TRAILING system
     message (``render_state_card``: temporal frame / affective / behavioral
     bearing, agenda plan, activity, arcs, memories, about-you, proactive,
-    closing, pop-up). The trailing-tail placement makes request N+1 a
-    byte-identical extension of request N up to the tail — the DeepSeek-read
-    structural-cache contract (no ``cache_control`` needed).
+    pop-up).
 
-    WS-D session wiring: ``_chat`` calls this for the mainline model call and
-    keeps ``assemble_snapshot`` (the full 3-tier string) for
-    ``_last_system_prompt`` so pop-up aux calls replay the mainline prefix.
+    The trailing-tail placement is what MAKES a byte-identical extension
+    possible; it delivers one only when ``recent_turns`` grows rather than
+    slides, which is why the session passes ``limit=None`` over an
+    epoch-anchored read. Caching is structural on this provider; there is no
+    ``cache_control``.
+
+    Session wiring: ``_chat`` calls this for the mainline model call and
+    hands the returned halves to ``_popup_request_call``, so a decision call
+    extends the mainline request instead of sending a prefix of its own.
     """
     system = "\n\n".join(
         [
-            SYSTEM_CORE_WITH_TOOLS,
             day_block if day_block is not None else render_day_block(snapshot),
+            SYSTEM_CORE_WITH_TOOLS,
         ]
     )
     if user_request is not None:
         messages = build_messages(recent_turns, user_request, limit=limit)
     else:
         messages = [
-            {"role": turn["role"], "content": turn["content"]}
-            for turn in recent_turns[-limit:]
+            wire_message(turn)
+            for turn in (recent_turns if limit is None else recent_turns[-limit:])
         ]
     tail = render_state_card(
         snapshot,
         controls=controls, prompt_brief=prompt_brief, popup=popup,
         t_h=t_h, anchor=anchor,
     )
-    if tail:
-        messages.append({"role": "system", "content": tail})
+    messages = append_system(messages, tail)
     return system, messages

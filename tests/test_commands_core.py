@@ -122,10 +122,17 @@ def test_setup_runs_the_hook_on_a_blank_db(tmp_path) -> None:
 
 
 def test_setup_without_hook_gives_launcher_guidance(tmp_path) -> None:
+    """A launcher that did not wire the hook says so, and names no flag.
+
+    The message used to point at ``--defer-bootstrap``, which exists only in
+    sim/run_async.py — so on the live runtime (which had not wired the hook
+    at all) it sent the reader after a flag their entry point does not have.
+    """
     store = make_store(tmp_path)
     ctx = CommandContext(store=store, clock=VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("setup"), ctx)
-    assert "--defer-bootstrap" in reply
+    assert "not available on this launcher" in reply
+    assert "--defer-bootstrap" not in reply
 
 
 def test_setup_hook_failure_is_reported_not_raised(tmp_path) -> None:

@@ -1,7 +1,6 @@
 """Idempotent clean-start bootstrap — blank DB → coherent companion (A1, Iteration-2).
 
-``ensure_companion_initialized`` walks the plan's clean-start chain (§0 of
-plans/iteration-2-integration-2026-08-09.md, §5-A1 task 1):
+``ensure_companion_initialized`` walks the clean-start chain:
 
     DB has persona?
     ├─ yes → load it
@@ -10,7 +9,7 @@ plans/iteration-2-integration-2026-08-09.md, §5-A1 task 1):
         resolve a UserProfile (stored profile seam > supplied ``user`` >
         ``OnboardingConfig`` > onboarding defaults)
         ↓
-        build a USER-relative Companion Persona (40/40/20, plan §16 invariant 2)
+        build a USER-relative Companion Persona (40/40/20, a frozen persona invariant)
         ↓
         persist persona + interests
         ↓
@@ -54,17 +53,38 @@ from typing import Optional
 from engine.rng import stream_rng
 
 from harness.domain import DailyAgenda, LifeArc, PersonaProfile, UserProfile
+from harness.interest_extension import extend_graph_for_user
 from harness.interests import InterestGraph, MAX_ADJACENCY_HOPS, build_catalog
 from harness.life import LIFE_STREAM, generate_agenda, init_life
-from harness.persona import build_persona
+from harness.persona import (
+    DEFAULT_NAME,
+    DEFAULT_VOICE,
+    ROUTINE_CATALOG,
+    build_persona,
+    compose_core,
+    split_core,
+)
+from harness.persona_file import load_authored_core
+from harness.routine_setup import build_routine_catalog
 
-#: Onboarding defaults (plan §8 Gate-2 example user).
+#: Onboarding defaults — the PRODUCT fallback identity.
+#:
+#: Deliberately NOT the ablation matrix's fixture
+#: (``experiments.cvs_common.GATE2_USER_INTERESTS``). Those two were the same
+#: list, and the live launcher fell back to the research fixture, so a real
+#: trial built its 40/40/20 portfolio against an experiment's example user.
+#: Keep them separate: this list is what a person gets, the fixture is what a
+#: sweep gets.
+#:
+#: Several of these have no node in the built-in catalog. That is expected —
+#: ``harness.interest_extension`` places them into the graph at onboarding, so
+#: they carry a real adjacency region instead of being exact-only names.
 DEFAULT_USER_NAME = "User"
 DEFAULT_USER_INTERESTS: tuple[str, ...] = (
     "mathematics",
-    "metal",
     "lifting",
-    "movies",
+    "anime",
+    "history",
 )
 
 
@@ -115,6 +135,45 @@ class BootstrapStore:
     def save_user_profile(self, profile: UserProfile) -> None: ...
 
 
+def _apply_authored_voice(store, persona, voice, logger):
+    """Re-open a stored persona's core against the current persona file.
+
+    Warm-start half of "the file is authoritative". The stored core is
+    ``voice + interest sentence``: the voice is swapped and the interest
+    sentence carried across VERBATIM, so not a single drawn interest, routine
+    or seed is disturbed.
+
+    The sentence is never regenerated. It is built from the portfolio in DRAW
+    order while the stored interests are name-sorted, so recomputing it from a
+    loaded persona silently rewrites which interests she is "absorbed in" —
+    which is what the idempotency tests caught.
+
+    Returns the persona to use — the stored one untouched when the composed
+    core already matches, so an unchanged file is a no-op and the row is not
+    rewritten on every start.
+    """
+    parts = split_core(persona.core)
+    if parts is None:
+        return persona  # unrecognized shape: leave it strictly alone
+    _, sentence = parts
+    desired = compose_core(voice if voice is not None else DEFAULT_VOICE, sentence)
+    # The companion's display name is applied over the core downstream (the
+    # live runner rewrites "Nova" to her configured name), so compare against
+    # the same substitution rather than fighting it back and forth.
+    if persona.name and persona.name != DEFAULT_NAME:
+        desired = desired.replace(DEFAULT_NAME, persona.name)
+    if desired == persona.core:
+        return persona
+    updated = dataclasses.replace(persona, core=desired)
+    store.save_persona(updated)
+    if logger is not None:
+        logger(
+            "persona voice refreshed from the persona file "
+            f"({len(desired)} chars)"
+        )
+    return updated
+
+
 def _resolve_user_profile(
     store,
     user: Optional[UserProfile],
@@ -140,6 +199,8 @@ def ensure_companion_initialized(
     config: Optional[OnboardingConfig] = None,
     graph: Optional[InterestGraph] = None,
     day: int = 1,
+    client=None,
+    logger=None,
 ) -> BootstrapResult:
     """Idempotent clean-start initialization (plan §5-A1 task 1).
 
@@ -150,17 +211,72 @@ def ensure_companion_initialized(
         falls back to the stored profile seam, then ``config``, then the
         module defaults (task 3 onboarding fallback).
     :param config: minimal structured onboarding configuration.
-    :param graph: interest catalog; defaults to ``build_catalog()``.
+    :param graph: interest catalog; defaults to the graph persisted by a
+        previous bootstrap, else ``build_catalog()``.
     :param day: the day whose agenda must exist on return (the caller owns
         the clock — no real-clock reads here).
+    :param client: optional LLM client used ONCE, on a cold start, to place
+        the user's off-catalog interests into the interest graph
+        (``harness.interest_extension``). None keeps onboarding fully offline
+        and falls back to the heuristic extension.
+    :param logger: optional ``callable(str)`` for onboarding progress lines.
     """
-    graph = graph if graph is not None else build_catalog()
+    # A stored graph wins: the persona's buckets must stay reproducible from
+    # the store alone, so a resumed run samples against the SAME graph the
+    # persona was built on -- including any onboarding extension.
+    if graph is None:
+        loader = getattr(store, "load_interest_graph", None)
+        graph = loader() if loader is not None else None
+    if graph is None:
+        graph = build_catalog()
 
     # 1. Identity: the persona row is the bootstrap-complete marker.
+    #
+    # The authored voice comes from the configured persona file, and the FILE
+    # IS AUTHORITATIVE — on a warm start too, not just a cold one. Editing it
+    # and restarting is the whole workflow. Before this, the voice existed
+    # only as a hand-edited `persona.core` row, so a DB reset silently
+    # replaced the companion with the generic default and nothing recorded
+    # that anything had been lost (2026-09-08).
+    voice = load_authored_core(logger=logger)
     persona = store.load_persona() if hasattr(store, "load_persona") else None
     if persona is None:
         profile = _resolve_user_profile(store, user, config)
         cfg = config if config is not None else OnboardingConfig()
+        # Place the user's off-catalog interests INTO the graph before
+        # sampling. Without this an unknown interest is exact-only with an
+        # adjacency region of itself, so it contributes nothing to the 40%
+        # adjacent bucket and the portfolio collapses onto whichever
+        # interests the hand-built catalog happens to contain.
+        extension = extend_graph_for_user(
+            graph, profile.interests, client=client, logger=logger
+        )
+        graph = extension.graph
+        graph_saver = getattr(store, "save_interest_graph", None)
+        if graph_saver is not None:
+            graph_saver(graph)
+        if logger is not None and extension.extended:
+            logger(
+                f"interest graph extended ({extension.source}): "
+                f"+{len(extension.added_nodes)} nodes, "
+                f"+{extension.added_edges} edges "
+                f"({', '.join(extension.added_nodes) or 'none'})"
+            )
+        # Her daily rhythm, built for THESE interests rather than drawn from
+        # six hardcoded rows every companion shared. The catalog is only the
+        # pool: build_persona still makes the seeded draw over it, so the
+        # portfolio invariants and replay determinism are untouched.
+        routines = build_routine_catalog(
+            profile.interests,
+            default=ROUTINE_CATALOG,
+            client=client,
+            logger=logger,
+        )
+        if logger is not None:
+            logger(
+                f"routine catalog ({routines.source}): "
+                f"{', '.join(r.name for r in routines.routines)}"
+            )
         persona = build_persona(
             seed,
             graph=graph,
@@ -169,6 +285,8 @@ def ensure_companion_initialized(
             n_adjacent=cfg.n_adjacent,
             n_independent=cfg.n_independent,
             adjacency_hops=cfg.adjacency_hops,
+            routine_catalog=routines.routines,
+            voice=voice,
         )
         # Canonical interest order (name-sorted): the store reloads in name
         # order, keeping a loaded persona byte-identical to a fresh one.
@@ -181,6 +299,7 @@ def ensure_companion_initialized(
             saver(profile)
     else:
         profile = _resolve_user_profile(store, user, config)
+        persona = _apply_authored_voice(store, persona, voice, logger)
 
     # 2. Life arcs: ensure initial arcs only when none exist (A2's init_life).
     arcs = store.list_life_arcs() if hasattr(store, "list_life_arcs") else []

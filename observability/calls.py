@@ -200,11 +200,16 @@ def tool_schemas_for(role: str | None) -> tuple[list[dict[str, Any]], str]:
     """
     kind = str(role or "")
     if kind == "chat":
-        return [], "none — the mainline reply sends no tools"
+        # "none" alone read as "the harness never sends schemas". It does —
+        # on the decide legs. Say where they go, so an empty tool panel on a
+        # chat call is not mistaken for a harness-wide omission.
+        return [], ("none on this call — the mainline reply is prose by design; "
+                    "the decide legs carry the schema")
     if kind.startswith("tool_decide"):
         wanted = [t for t in TOOL_SCHEMAS if t.get("name") == kind]
         chosen = wanted or list(TOOL_SCHEMAS)
-        return chosen, "rebuilt from harness.tools (not persisted in the envelope)"
+        return chosen, (f"rebuilt from harness.tools — {len(chosen)} function"
+                        " in the OpenAI shape, tool_choice=auto (not persisted in the envelope)")
     return [], "unknown role — tool payload not reconstructable"
 
 

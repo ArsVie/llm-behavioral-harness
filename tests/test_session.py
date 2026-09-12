@@ -61,7 +61,9 @@ def test_first_message_rolls_over_day_zero(tmp_path):
     msgs = store.messages_for_day(0)
     assert [m["role"] for m in msgs] == ["user", "assistant"]
     # directive exists and the client saw guidance (WS-D: state card tail)
-    assert "Current behavioral guidance" in client.calls[0]["messages"][-1]["content"]
+    # The doubled label is gone; AFFECTIVE BEARING names the block.
+    assert "AFFECTIVE BEARING:" in client.calls[0]["messages"][-1]["content"]
+    assert "Current bearing:" in client.calls[0]["messages"][-1]["content"]
     store.close()
 
 
@@ -301,7 +303,7 @@ def test_reactive_turn_persists_snapshot_and_controls(tmp_path):
     assert call["max_tokens"] == result.controls.max_tokens
     system = call["system"]
     tail = call["messages"][-1]["content"]
-    assert "Current behavioral guidance:" in tail
+    assert "AFFECTIVE BEARING:" in tail
     # Recent dialogue appears once, in the message payload.
     assert "Recent conversation:" not in system
     assert "user: hello there" not in system

@@ -96,11 +96,11 @@ def test_b2_adjacency_boundary_not_gameable_via_duplicate_edges():
     assert before == after, "duplicate edges changed graph distances"
     assert len(graph.hubs()) == len(set(graph.hubs())), "duplicate hubs in the pool"
     # A 4-hop pair stays outside the 3-hop adjacency boundary.
-    assert graph.distance("rock", "mathematics") == 4  # path: metal->guitar->programming
-    assert not graph.path_exists("rock", "mathematics", MAX_ADJACENCY_HOPS)
+    assert graph.distance("rock music", "mathematics") == 4  # rock music->guitar->programming
+    assert not graph.path_exists("rock music", "mathematics", MAX_ADJACENCY_HOPS)
     for _ in range(5):
         graph.add_relation("guitar", "programming", 0.2)
-    assert graph.distance("rock", "mathematics") == 4, (
+    assert graph.distance("rock music", "mathematics") == 4, (
         "duplicating a path edge shortened the adjacency distance"
     )
 

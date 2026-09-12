@@ -77,6 +77,12 @@ from harness.env import env_bool as _env_bool
 #: Poll cadence with no pending schedule event, in virtual hours.
 POLL_INTERVAL_H = 0.05
 
+#: Longest single sleep the rollover PARK takes before re-checking whether a
+#: nearer wake was armed (real seconds; anchor mode only). One minute is well
+#: inside the negotiation's own granularity — the AFK bomb is ten minutes out
+#: — and bounds how late a deadline armed mid-park can fire.
+RETARGET_SLICE_S = 60.0
+
 #: Store kv keys that persist the RealTimeAnchor.
 ANCHOR_KV_KEYS = ("anchor.epoch0_s", "anchor.t_h0", "anchor.tz")
 
@@ -200,6 +206,9 @@ class AsyncRuntime:
         self._lock = asyncio.Lock()
         #: Set when the firing loop exits; the rollover stops parking events.
         self._firing_done = False
+        #: Raised by :meth:`request_retarget` when a turn may have armed a
+        #: nearer wake instant; cuts the rollover park short so it re-surveys.
+        self._retarget = asyncio.Event()
         self._ensure_thread_safe_store()
 
     def _ensure_thread_safe_store(self) -> None:
@@ -286,8 +295,33 @@ class AsyncRuntime:
         else:
             await self.sleeper(self._poll_sleep())
 
-    async def _sleep_until_t_h(self, target_t_h: float, now_h: float) -> None:
+    def request_retarget(self) -> None:
+        """Announce that the set of future wake instants may have changed.
+
+        The rollover loop picks its park target once and then sleeps the
+        whole interval. Anything that arms a NEARER wake while it sleeps —
+        an availability heads-up arming its AFK deadline inside a turn, for
+        instance — would otherwise be invisible until the old target came
+        round. Live 2026-09-08: a bomb armed for 21:52 was never fired
+        because the loop had already committed to sleeping to 23:00, so the
+        window closed and the item was force-skipped unanswered.
+
+        Setting this cuts the park short; the loop re-surveys and parks
+        again at whichever instant is now earliest. It is a hint, never a
+        wake in its own right: nothing fires because of it, the loop simply
+        looks again.
+        """
+        self._retarget.set()
+
+    async def _sleep_until_t_h(self, target_t_h: float, now_h: float,
+                               *, interruptible: bool = False) -> bool:
         """Sleep until the virtual clock reaches ``target_t_h``.
+
+        Returns True when the target was reached and False when an
+        ``interruptible`` sleep was cut short by :meth:`request_retarget`
+        (the caller must then re-survey instead of landing on the stale
+        target). Only the rollover PARK is interruptible — a firing-loop
+        sleep that returned early would gate an event at the wrong instant.
 
         Anchor mode (S2): ABSOLUTE wall-clock sleep — the target's epoch is
         computed once (``anchor.epoch_of``) and the sleeper waits for the
@@ -303,16 +337,32 @@ class AsyncRuntime:
         is byte-identical.
         """
         if self.anchor is None:
+            # Accelerated runs are never interrupted: there is no live user
+            # arming a deadline mid-sleep, and a plain paced sleep keeps the
+            # unanchored path byte-identical.
             await asyncio.sleep(
                 (target_t_h - now_h) * self.time_scale.seconds_per_virtual_hour
             )
-            return
+            return True
         deadline = self.anchor.epoch_of(target_t_h)
         while True:
             remaining = deadline - self._now()
             if remaining <= 0:
-                return
-            await self.sleeper(remaining)
+                return True
+            if not interruptible:
+                await self.sleeper(remaining)
+                continue
+            if self._retarget.is_set():
+                self._retarget.clear()
+                return False
+            # SLICED, not raced. Racing the sleep against an asyncio.Event
+            # deadlocked the anchor tests: the injected wall-clock sleeper
+            # does not yield to the event loop, so the whole run advances
+            # inside this call, and adding a real yield let the firing loop
+            # spin on its poll cadence while the fake clock stood still.
+            # Slicing keeps the sleeper the only thing that moves time and
+            # still notices a retarget within one slice.
+            await self.sleeper(min(remaining, RETARGET_SLICE_S))
 
     # anchor resume
 
@@ -472,6 +522,12 @@ class AsyncRuntime:
                 )
                 if not self.survive_turn_failures:
                     raise
+        # A turn can arm a nearer wake than the rollover is parked at — the
+        # availability heads-up arms its AFK deadline minutes out, inside
+        # the turn. Announce it OUTSIDE the lock, after the reply went out,
+        # so the loop re-surveys and parks at the deadline instead of
+        # sleeping past it.
+        self.request_retarget()
 
     async def _generate_with_typing(self, generation):
         """S4 typing wrap: run ``generation()`` (the LLM call) and the
@@ -506,7 +562,24 @@ class AsyncRuntime:
         out as a paced multi-send (blank line = one boundary, both \\n and
         \\n\\n count), with a short gap between bubbles; the persisted
         reply stays the single joined text.
+
+        Backend bubble streaming (HARNESS_BUBBLE_STREAM, 2026-09-07): the
+        send path is IDENTICAL whether the bubbles were split post-hoc at
+        the end of a non-streaming reply or parsed incrementally off the
+        wire (``TurnResult.streamed`` is a data-origin marker the session
+        sets; it changes nothing here). Telegram delivery is unchanged —
+        sequential send_message per bubble, no SSE/editing — and the pacing
+        gap heuristic below is the same either way.
         """
+        # A turn can arm a NEARER wake than the rollover is parked at: the
+        # availability heads-up runs inside whatever turn the boundary lands
+        # on and arms the AFK bomb minutes out. On the last live run the
+        # heads-up ran inside a PROACTIVE turn, nothing announced the new
+        # deadline, and the rollover slept past it to the window close, where
+        # the backstop force-skipped a decide leg that had been due 0.7
+        # virtual hours earlier. Announced for every turn, reactive or not,
+        # and before the sends so the bubbling early-return cannot skip it.
+        self.request_retarget()
         for out_reason, text in getattr(result, "proactive_out", ()):
             await self.channel.send(
                 OutboundMessage(text=text, proactive=True, reason=out_reason)
@@ -561,7 +634,11 @@ class AsyncRuntime:
                 # Yield to the firing loop without advancing past the parked event hour.
                 await self._poll_wait()
                 continue
-            await self._sleep_until_t_h(target, now)
+            if not await self._sleep_until_t_h(target, now,
+                                               interruptible=True):
+                # A turn armed a nearer wake mid-sleep: re-survey rather
+                # than land on a target that is no longer the earliest.
+                continue
             now = self.session.clock.now_h()
             if self._max_reached(now):
                 return
@@ -981,10 +1058,50 @@ class AsyncRuntime:
                 flags=self._command_flags(),
                 request_tz_change=self._request_tz_change,
                 request_mute=self._request_mute,
+                request_setup=self._request_setup,
             )
             reply = await self._executor.run_in_thread(handle_command, cmd, ctx)
         if reply:
             await self.channel.send(OutboundMessage(text=reply, proactive=False))
+
+    def _request_setup(self) -> str:
+        """The /setup hook: initialize identity on a blank database.
+
+        Wired 2026-09-07. Before that the live runtime built its
+        ``CommandContext`` without this hook, so ``/setup`` had no reachable
+        success path on Telegram at all: with a persona it refused as
+        "already initialized", and without one it refused with the
+        ``--defer-bootstrap`` message — a flag only ``sim/run_async.py`` has.
+        It was advertised in ``/help`` and could not work.
+
+        ``handle_command`` guarantees this is only called pre-bootstrap (it
+        refuses once a persona row exists), so this never regenerates an
+        existing identity. The onboarding LLM call for the interest-graph
+        extension goes through the session's own client, and falls back to
+        the offline heuristic when there is none.
+        """
+        from harness.bootstrap import ensure_companion_initialized
+
+        lines: list[str] = []
+        boot = ensure_companion_initialized(
+            self.store,
+            seed=self.seed,
+            day=self.session.clock.day(),
+            client=getattr(self.session, "client", None),
+            logger=lines.append,
+        )
+        for line in lines:
+            _logger.info("setup: %s", line)
+        agenda = boot.today_agenda
+        detail = (
+            f"{boot.persona.name} is ready for {boot.user_profile.name} — "
+            f"{len(boot.persona.interests)} interests, "
+            f"{len(boot.life_arcs)} life arcs, "
+            f"{len(agenda.items) if agenda else 0} things on today."
+        )
+        if lines:
+            detail += " (" + "; ".join(lines) + ")"
+        return detail
 
     def _persona_exists(self) -> bool:
         """CommandContext fact: whether a persona row is persisted (the

@@ -156,10 +156,31 @@ def test_a2_delay_reaches_runtime_before_send(tmp_path):
 # --------------------------------------------------------------------------- #
 
 
-def test_a3_closing_tendency_changes_observable_signal():
-    """A-3: closing_tendency 0.1 vs 0.9 must change an observable mechanical
-    signal — the continuation-policy guidance in the request — so the two
-    directives produce measurably different requests."""
+def test_a3_closing_tendency_is_silent_in_the_prompt():
+    """A-3, inverted (2026-09-07): closing_tendency must NOT reach the prompt.
+
+    The channel used to be asserted the other way round — 0.1 vs 0.9 had to
+    produce measurably different requests. It now must produce IDENTICAL
+    ones: the per-turn continuation policy was telling the model how to end
+    every reply, and the behaviour it actuated is still unspecified (backlog:
+    "Closing behavior"). ``closing_tendency`` keeps driving the
+    conversation-close draw; it just no longer speaks.
+    """
+    low = _controls(_directive(closing_tendency=0.1))
+    high = _controls(_directive(closing_tendency=0.9))
+    assert low.closing_guidance == "" and high.closing_guidance == ""
+
+    profile = build_persona(SEED, graph=build_catalog())
+    p_low = assemble_snapshot(_snapshot(profile), controls=low)
+    p_high = assemble_snapshot(_snapshot(profile), controls=high)
+    assert p_low == p_high, "closing tendency still leaks into the request"
+
+
+def test_a3_closing_signal_returns_when_the_channel_is_re_enabled(monkeypatch):
+    """The original A-3 guard, held for the day the channel comes back: with
+    ``CLOSING_GUIDANCE_ENABLED`` the two tendencies must again produce
+    measurably different requests."""
+    monkeypatch.setattr(actuation, "CLOSING_GUIDANCE_ENABLED", True)
     low = _controls(_directive(closing_tendency=0.1))
     high = _controls(_directive(closing_tendency=0.9))
     assert low.closing_guidance != high.closing_guidance
@@ -301,7 +322,7 @@ def test_a7_raw_engine_state_never_reaches_conversation_context(tmp_path):
             )
         # The guidance present is the rendered prose brief (WS-D: tail).
         tail = call["messages"][-1]["content"]
-        assert "Current behavioral guidance:" in tail
+        assert "AFFECTIVE BEARING:" in tail
         assert "You are Nova" in system
     finally:
         store.close()

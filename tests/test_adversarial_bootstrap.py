@@ -65,8 +65,14 @@ def test_b1a_double_bootstrap_singleton_across_calls(tmp_path):
         loaded = store.load_persona()
         assert loaded is not None
         assert [i.name for i in loaded.interests] == [i.name for i in r1.persona.interests]
-        # The new caller identity is reported; the companion identity is unchanged.
-        assert r2.user_profile.name == "impostor"
+        # The STORED identity wins over a second caller's claim (2026-09-07:
+        # schema v9 gave `load_user_profile` a table, so the documented
+        # precedence -- stored > supplied > config > defaults -- finally has
+        # something to load). This is the stronger adversarial property: once
+        # onboarding has recorded who she is talking to, a later caller
+        # cannot rewrite it by passing a different user.
+        assert r2.user_profile.name == "first"
+        assert store.load_user_profile().name == "first"
         assert r1.persona == store.load_persona()
     finally:
         store.close()
@@ -80,7 +86,7 @@ def test_b1b_double_bootstrap_singleton_across_stores(tmp_path):
     db = tmp_path / "b1b.db"
     s1 = SQLiteStore(db)
     r1 = ensure_companion_initialized(
-        s1, seed=SEED_A, user=UserProfile(name="first", interests=("mathematics", "metal"))
+        s1, seed=SEED_A, user=UserProfile(name="first", interests=("mathematics", "metal music"))
     )
     s1.close()
 

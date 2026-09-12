@@ -12,6 +12,12 @@ timestamp: 2026-06-24
 **Date:** 2026-06-24
 **Basis:** initial project prompt + Phase −1 results ([synthesis](research/00-sintesis-fase-menos-1.md))
 
+**Scope:** This document is the engine design and parameterization record. The
+current runtime, context, event, and delivery contract is maintained in
+[`docs/architecture-overview.md`](docs/architecture-overview.md); dated
+measurements belong under `results/`. Parameters here are design starting points,
+not a claim that every item remains implemented or current.
+
 ---
 
 ## Initial inspiration

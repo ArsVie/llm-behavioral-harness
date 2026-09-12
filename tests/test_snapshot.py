@@ -166,12 +166,18 @@ def _check_prompt(call, *, seed: int, day: int) -> None:
         )
     # The budget bound applies to the system prompt, not the transcript.
     assert len(system) <= MAX_PROMPT_CHARS
-    # Persona core + life content present across the whole request.
-    whole = system + "\n\n" + tail
+    # Persona core + life content present across the whole request. This must
+    # read EVERY message, not system+tail: day-scoped state (the plan, her
+    # arcs, the user model) is emitted once at rollover as its own stream
+    # message rather than re-sent in the per-turn card.
+    whole = _whole_request(call)
     assert "Nova" in whole
     assert "Current activity:" in whole
     assert "Active life arcs:" in whole
-    assert "Today's agenda:" in whole
+    # The plan header is DATED on anchored runs ("Tuesday's plan:") so that
+    # yesterday's block, still in the stream as history, cannot be mistaken
+    # for today's. Unanchored runs keep the undated header.
+    assert re.search(r"(Today's agenda:|\b\w+day's plan:)", whole), whole[:400]
 
 
 def test_forbidden_tokens_never_reach_assembled_prompt(tmp_path):

@@ -109,13 +109,15 @@ def _render_brief(
         if warmth < 0.62
         else "Keep the affection natural, specific, and free of exaggerated sweetness."
     )
+    # The never-name-the-state rule lives in the STABLE core, once. Repeating
+    # it here re-instructed the model on every single turn -- volatile tokens
+    # spent restating a constant, and a second voice telling it how to speak.
     return " ".join(
         (
             f"Current bearing: {bearing}, {pace}.",
             continuity,
             texture,
             care,
-            "Do not name or explain the internal state; show it through cadence, word choice, initiative, and conversational length.",
         )
     )
 

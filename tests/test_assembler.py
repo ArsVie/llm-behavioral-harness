@@ -14,6 +14,7 @@ import re
 
 from engine.types import PHASE_FRACTIONS
 from harness.assembler import (
+    AFFECTIVE_HEADER,
     AGENDA_ITEMS_MAX,
     DEFAULT_PROACTIVE_HOOK,
     LIFE_ARCS_MAX,
@@ -237,9 +238,13 @@ def _prompt_brief() -> str:
 
 def test_snapshot_assembly_has_all_sections():
     prompt = assemble_snapshot(_snapshot(), prompt_brief=_prompt_brief())
-    # v2 tier 1: the STABLE system core opens the prompt (contains no state).
-    assert prompt.startswith(SYSTEM_CORE_WITH_TOOLS)
-    assert MOOD_BRIEF_HEADER in prompt
+    # 2026-09-07: the PERSONA opens the prompt and the card rules follow it.
+    # Both halves are stable; putting the persona first means the model reads
+    # who it is before it reads how to handle its state card.
+    assert prompt.startswith("CORE TEXT.")
+    assert SYSTEM_CORE_WITH_TOOLS in prompt
+    assert AFFECTIVE_HEADER in prompt
+    assert "Current bearing:" in prompt
     assert f"{ACTIVITY_HEADER} practice pottery" in prompt
     assert ARCS_HEADER in prompt
     assert MEMORIES_HEADER in prompt
@@ -253,13 +258,18 @@ def test_snapshot_assembly_has_all_sections():
 
 
 def test_three_tier_structure_order():
-    """Stable core (tier 1) < day block (tier 2) < state card (tier 3)."""
+    """Persona (tier 2) < card rules (tier 1) < state card (tier 3).
+
+    The two stable halves swapped on 2026-09-07: the persona leads, the
+    card-handling rules follow it. Both are still in the stable prefix, so
+    the cache contract is unchanged; only the reading order moved.
+    """
     prompt = assemble_snapshot(_snapshot(), prompt_brief=_prompt_brief())
-    core_pos = prompt.index(SYSTEM_CORE_WITH_TOOLS)
     persona_pos = prompt.index("CORE TEXT.")
+    core_pos = prompt.index(SYSTEM_CORE_WITH_TOOLS)
     agenda_pos = prompt.index(AGENDA_HEADER)
     activity_pos = prompt.index(ACTIVITY_HEADER)
-    assert core_pos < persona_pos < agenda_pos < activity_pos
+    assert persona_pos < core_pos < agenda_pos < activity_pos
 
 
 def test_stable_core_identical_across_snapshots():
@@ -275,9 +285,12 @@ def test_stable_core_identical_across_snapshots():
             memory_context=_memory_context(0),
         ),
     )
-    assert a.startswith(SYSTEM_CORE_WITH_TOOLS)
-    assert bare.startswith(SYSTEM_CORE_WITH_TOOLS)
-    assert a[: len(SYSTEM_CORE_WITH_TOOLS)] == bare[: len(SYSTEM_CORE_WITH_TOOLS)]
+    # The stable prefix is persona + card rules, in that order, and is
+    # byte-identical across snapshots.
+    prefix = "CORE TEXT.\n\n" + SYSTEM_CORE_WITH_TOOLS
+    assert a.startswith(prefix)
+    assert bare.startswith(prefix)
+    assert a[: len(prefix)] == bare[: len(prefix)]
 
 
 def test_prompt_brief_consumed_verbatim_as_single_source():
@@ -285,13 +298,17 @@ def test_prompt_brief_consumed_verbatim_as_single_source():
     assembler never re-renders the brief from channels (v2 unify)."""
     prose = "Current bearing: quietly bright, lively and readily engaged."
     prompt = assemble_snapshot(_snapshot(), prompt_brief=prose)
-    assert f"{MOOD_BRIEF_HEADER} {prose}" in prompt
+    # Verbatim, and with no label in front of it: the AFFECTIVE BEARING
+    # section header already names the block (the old MOOD_BRIEF_HEADER made
+    # it read "Current behavioral guidance: Current bearing: ...").
+    assert f"{AFFECTIVE_HEADER}\n{prose}" in prompt
+    assert MOOD_BRIEF_HEADER not in prompt
 
 
 def test_no_prompt_brief_no_mood_section():
-    """No prose → no mood section at all (no local re-render fallback)."""
+    """No prose → no bearing line at all (no local re-render fallback)."""
     prompt = assemble_snapshot(_snapshot())
-    assert MOOD_BRIEF_HEADER not in prompt
+    assert "Current bearing:" not in prompt
 
 
 def test_availability_rendered_from_brief_channels():

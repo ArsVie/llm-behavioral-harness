@@ -237,7 +237,14 @@ def test_live_companion_db_migrates_additively(tmp_path):
     # spot data
     convs = store.list_conversations()
     assert len(convs) == counts0["conversations"]
-    assert all(c.close_reason in ("closing_tendency", "user_left", "quiet_hours", "max_turns") or c.close_reason is None for c in convs)
+    # 'followed_event' is the negotiation go-verdict close; it predates this
+    # allowlist and was simply never added to it.
+    assert all(
+        c.close_reason in ("closing_tendency", "user_left", "quiet_hours",
+                           "max_turns", "followed_event")
+        or c.close_reason is None
+        for c in convs
+    )
     store.close()
 
     # the ORIGINAL is byte-identical

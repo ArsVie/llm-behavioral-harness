@@ -433,6 +433,51 @@ class SQLiteStore:
         self.conn.commit()
         return int(row_id)
 
+    def repair_placeholder_steers(self) -> int:
+        """Rewrite the legacy literal ``"?"`` event name; rows changed.
+
+        A steer enqueued with no active event used to store ``"?"`` as its
+        event name, which rendered as if the model were being asked a
+        question. The enqueue path no longer does that, so the rows left
+        behind are the only ones left to fix; the new name says what
+        happened.
+        """
+        import json as _json
+
+        from harness.steering import NO_ACTIVE_EVENT
+
+        changed = 0
+        for row in list(self.conn.execute(
+                "SELECT id, payload_json FROM steering_queue")):
+            payload = _json.loads(row[1] or "{}")
+            if not isinstance(payload, dict) or payload.get("event") != "?":
+                continue
+            payload["event"] = NO_ACTIVE_EVENT
+            self.conn.execute(
+                "UPDATE steering_queue SET payload_json = ? WHERE id = ?",
+                (_json.dumps(payload, sort_keys=True), row[0]),
+            )
+            changed += 1
+        self.conn.commit()
+        return changed
+
+    def prune_thin_user_facts(self, max_words: int = 5) -> int:
+        """Delete keyword-shaped user facts; rows removed.
+
+        A user fact is recalled as a fact, so a five-word blob ("user has a
+        duty") is noise in the prompt, not memory. The writer refuses them
+        now; this clears the ones already stored.
+        """
+        rows = list(self.conn.execute(
+            "SELECT id, summary FROM memory_episodes WHERE category = ?",
+            ("user_fact",)))
+        thin = [r[0] for r in rows if len(str(r[1]).split()) <= max_words]
+        for row_id in thin:
+            self.conn.execute("DELETE FROM memory_episodes WHERE id = ?",
+                              (row_id,))
+        self.conn.commit()
+        return len(thin)
+
     def fold_system_history(self) -> int:
         """Fold adjacent system rows already in the stream; rows removed.
 

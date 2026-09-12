@@ -6,9 +6,8 @@ sim/run_daily.py, sim/metrics.py, sim/plots.py (Olas 1–2).
 
 Diseño: 90 días, `PersonaParams()` por defecto, variante
 `MoodVariant.DECOUPLED_OFFSETS`, 5 semillas fijas [101, 202, 303, 404, 505].
-Evalúa los criterios (1),(2),(3),(4),(6) del plan (ver `plans/fase-1-tareas.md`
-fila W3.1 y research/05 §6) con umbral numérico y veredicto pass/fail por
-semilla + agregado. Escribe figuras (sim.plots para la semilla 101 + una
+Evalúa los criterios (1),(2),(3),(4),(6) del baseline registrado en resultados
+con umbral numérico y veredicto pass/fail por semilla + agregado. Escribe figuras (sim.plots para la semilla 101 + una
 figura propia de M medio por día entre semillas) y `reporte.md` en
 `results/w31-baseline/`.
 

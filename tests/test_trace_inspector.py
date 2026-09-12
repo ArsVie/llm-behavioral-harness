@@ -84,10 +84,11 @@ def _codes(path):
 
 
 def _call(env: dict, **kw) -> tuple:
-    base = {"prompt": 1000, "cached": 900, "lane": "product", "cost": 0.01}
+    base = {"prompt": 1000, "cached": 900, "lane": "product", "cost": 0.01,
+            "model": "deepseek/deepseek-v4-flash"}
     base.update(kw)
     return (
-        0, 1.0, "chat", "m", "h", "r", None, json.dumps(env),
+        0, 1.0, "chat", base["model"], "h", "r", None, json.dumps(env),
         base["prompt"], 10, base["prompt"] + 10, base["cached"], 0,
         base["lane"], base["cost"],
     )
@@ -390,7 +391,22 @@ def test_a_changed_system_prefix_is_an_error(tmp_path):
     assert _codes(path)["stable-prefix-changed"].severity == trace.ERROR
 
 
-def test_missing_cost_is_only_a_warning(tmp_path):
+def test_a_run_with_no_pricable_model_is_only_a_warning(tmp_path):
+    """A null raw_cost is normal (the gateway need not report one). Only a
+    model with no rates at all makes the spend unreconstructable."""
+    conn, path = _db(tmp_path)
+    conn.execute(
+        "insert into llm_calls (day,t_h,role,model,prompt_hash,response,meta,"
+        "repro_json,prompt_tokens,completion_tokens,total_tokens,"
+        "cached_tokens,cache_miss_tokens,lane,raw_cost) "
+        "values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)", _call({}, cost=None, model=""),
+    )
+    conn.commit()
+    conn.close()
+    assert _codes(path)["no-cost-recorded"].severity == trace.WARN
+
+
+def test_a_priced_run_with_no_reported_cost_is_quiet(tmp_path):
     conn, path = _db(tmp_path)
     conn.execute(
         "insert into llm_calls (day,t_h,role,model,prompt_hash,response,meta,"
@@ -400,7 +416,25 @@ def test_missing_cost_is_only_a_warning(tmp_path):
     )
     conn.commit()
     conn.close()
-    assert _codes(path)["no-cost-recorded"].severity == trace.WARN
+    assert "no-cost-recorded" not in _codes(path)   # spend derives from rates
+
+
+def test_a_model_missing_from_the_rate_table_is_flagged(tmp_path):
+    """A new model id is priced by the fallback tier, which over-states a
+    cheap model instead of saying it does not know."""
+    conn, path = _db(tmp_path)
+    conn.execute(
+        "insert into llm_calls (day,t_h,role,model,prompt_hash,response,meta,"
+        "repro_json,prompt_tokens,completion_tokens,total_tokens,"
+        "cached_tokens,cache_miss_tokens,lane,raw_cost) "
+        "values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        _call({}, cost=None, model="deepseek/deepseek-v4.1-flash"),
+    )
+    conn.commit()
+    conn.close()
+    codes = _codes(path)
+    assert codes["cost-rates-unknown"].severity == trace.WARN
+    assert "deepseek/deepseek-v4.1-flash" in codes["cost-rates-unknown"].message
 
 
 # memory

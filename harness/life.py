@@ -1,9 +1,8 @@
 """Persistent life simulation — life arcs, daily agenda, current activity (A4).
 
-Owned by track A4 (vertical-slice Wave 1). Binding API shapes: §7 (A4) and
-§15 (life seam + store seam) of plans/companion-vertical-slice-2026-08.md.
-The three public entry points are ``init_life``, ``generate_agenda`` and
-``step_life``; all take the injected store (persistence) and a seeded rng.
+Owned by the life-simulation module. The public entry points are
+``init_life``, ``generate_agenda`` and ``step_life``; all take the injected
+store (persistence) and a seeded rng.
 
 RNG contract (CRITICAL)
 -----------------------
@@ -140,7 +139,30 @@ _NEXT_INTENTIONS = (
     "reflect on how it is going",
 )
 
+#: Per-bucket multiplier on an interest's salience when drawing the day's
+#: standalone interest items.
+#:
+#: ``Interest.bucket`` was read in exactly ONE place in this module (arc
+#: spawning) and never here, so the daily agenda drew on salience alone: the
+#: 40/40/20 portfolio was real in the data and invisible in behaviour, and an
+#: interest that is hers alone surfaced no differently from one they share.
+#: The independent slice is the smallest of the three by construction, so it
+#: needs a nudge to be observable at all — this is the whole mechanism by
+#: which the mix reaches the day.
+BUCKET_WEIGHT: dict[str, float] = {
+    "exact": 1.0,
+    "adjacent": 1.0,
+    "independent": 1.5,
+}
+
 #: Standalone interest-activity templates; one draw per interest item.
+#:
+#: FALLBACK ONLY since 2026-09-07: when a day planner is available
+#: (``harness.day_planner``) it supplies the activity text and these are not
+#: used. They stay for offline runs, replay of pre-planner days, and any
+#: failure of the planner — a boring day beats no day. See the planner module
+#: for why templates cannot do the job: they name no object and have no
+#: memory between days.
 _INTEREST_ACTIVITIES = (
     "read about {interest}",
     "practice {interest}",
@@ -257,6 +279,10 @@ def generate_agenda(
     arcs: list[LifeArc],
     store: LifeStore,
     rng: np.random.Generator,
+    *,
+    planner_client=None,
+    weekday: str = "today",
+    logger=None,
 ) -> DailyAgenda:
     """Build and persist the day's agenda, predominantly from persona sources.
 
@@ -272,6 +298,17 @@ def generate_agenda(
     are sorted by start time, carry status "planned", and are persisted via
     ``store.save_agenda``. All draws come from the passed ``rng`` — callers
     must hand in ``stream_rng(seed, LIFE_STREAM, day)`` (never ``day_rng``).
+
+    Interest items are drawn by ``salience * BUCKET_WEIGHT[bucket]``, so the
+    portfolio's independent slice — the interests that are hers rather than
+    shared — actually reaches the day.
+
+    ``planner_client`` (optional) hands the arc and interest slots to
+    ``harness.day_planner`` for CONCRETE activity text; the engine keeps
+    selection, windows, salience and ids either way, and any planner failure
+    silently keeps the template text. Routines are never planned: they are
+    the same thing every day by definition. The RNG draw order is identical
+    with and without a planner, so the seeded schedule is unchanged.
     """
     items: list[AgendaItem] = []
     day_start = day * DAY_HOURS
@@ -322,7 +359,10 @@ def generate_agenda(
         store.save_agenda(day, agenda)
         return agenda
     n_interest = min(2, len(pool))
-    weights = [max(float(i.salience), 1e-3) for i in pool]
+    weights = [
+        max(float(i.salience), 1e-3) * BUCKET_WEIGHT.get(i.bucket, 1.0)
+        for i in pool
+    ]
     total = sum(weights)
     picks = rng.choice(
         len(pool), size=n_interest, replace=False, p=[w / total for w in weights]
@@ -347,10 +387,94 @@ def generate_agenda(
             )
         )
 
+    items = _apply_plan(
+        day, persona, arcs, items, store,
+        planner_client=planner_client, weekday=weekday, logger=logger,
+    )
     items.sort(key=lambda it: it.start_t_h)
     agenda = DailyAgenda(day=day, items=tuple(items))
     store.save_agenda(day, agenda)
     return agenda
+
+
+def _apply_plan(
+    day: int,
+    persona: PersonaProfile,
+    arcs: list[LifeArc],
+    items: list[AgendaItem],
+    store: LifeStore,
+    *,
+    planner_client,
+    weekday: str,
+    logger,
+) -> list[AgendaItem]:
+    """Replace template activity text with planned text, where available.
+
+    Only arc and interest items are planned. Routines are excluded on
+    purpose: "morning coffee" is the same thing every day, which is what
+    makes it a routine, and a planner inventing a new object for it every
+    morning would be inventing a different life, not describing one.
+
+    Returns the items unchanged whenever planning does not happen. This runs
+    AFTER every RNG draw, so a planner never perturbs the seeded schedule.
+    """
+    if planner_client is None:
+        return items
+    from harness import day_planner as planner
+
+    slots: list[planner.PlanSlot] = []
+    indices: list[int] = []
+    by_name = {i.name: i for i in persona.interests}
+    arc_by_id = {a.id: a for a in arcs}
+    for index, item in enumerate(items):
+        if item.source_type == "arc":
+            arc = arc_by_id.get(item.source_id)
+            label = (
+                f"her project '{arc.name}' (next: {arc.next_intention})"
+                if arc is not None else f"her project {item.source_id}"
+            )
+            slots.append(planner.PlanSlot(
+                source_type="arc", source_id=item.source_id,
+                fallback=item.activity, label=label,
+            ))
+            indices.append(index)
+        elif item.source_type == "interest":
+            interest = by_name.get(item.source_id)
+            bucket = interest.bucket if interest is not None else None
+            tag = "HERS" if bucket == "independent" else "SHARED"
+            slots.append(planner.PlanSlot(
+                source_type="interest", source_id=item.source_id,
+                fallback=item.activity,
+                label=f"her interest in {item.source_id} ({tag})",
+                bucket=bucket,
+            ))
+            indices.append(index)
+    if not slots:
+        return items
+
+    outcomes = []
+    getter = getattr(store, "recent_outcomes", None)
+    if getter is not None:
+        try:
+            outcomes = getter(before_day=day, limit=planner.OUTCOME_CONTEXT)
+        except Exception:  # continuity is a nicety, never a blocker
+            outcomes = []
+
+    planned = planner.plan_day(
+        name=persona.name, weekday=weekday, arcs=arcs, slots=slots,
+        outcomes=outcomes, client=planner_client, logger=logger,
+    )
+    if planned is None:
+        return items
+    out = list(items)
+    filled = 0
+    for index, text in zip(indices, planned):
+        if text:
+            out[index] = replace(out[index], activity=text)
+            filled += 1
+    if logger is not None:
+        logger(f"day planner: {filled}/{len(slots)} activities planned")
+    return out
 
 
 def _step_arc(arc: LifeArc, day: int, store: LifeStore,

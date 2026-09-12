@@ -1,155 +1,244 @@
-# BACKLOG — repo backlog
+# Backlog
 
-Convention (set by Ars, 2026-08-15): each entry is the user's ask
-VERBATIM, followed by a short description (max 2 sentences) written by
-the agent. New asks get appended here as they are spoken.
+Unresolved implementation work only. Experiment records and completed work live
+under `results/`; this file is not a project history.
 
 ## Open
 
-### Clear the live-trial blockers (review 2026-09-02)
-- Status 2026-09-02: DONE — all six cleared in 8d23e7a, covered by
-  tests/test_live_trial_hardening.py (16 tests). Two follow-ups left,
-  both noted below: the judge's v2 rubric still owes a monthly-separation
-  re-check before its scores are trusted, and the systemd unit is
-  installed but NOT enabled (starting it messages a real person).
-- Date: 2026-09-02
-- Verbatim: "Clear the hard blockers and the things that will degrade badly."
-- Summary: A review of the live entry found six items standing between the repo
-  and a week-long Telegram trial (four that stop it outright, two that would
-  make the data worthless). Work them in the order below; the first two decide
-  whether the week produces meaningful data at all.
+### Code reduction and WS-D mainline wiring
+Planned in [plan-2026-09-06-deletion-and-wsd-wiring.md](plan-2026-09-06-deletion-and-wsd-wiring.md):
+pure-removal deletion phases (stray artifacts, dead modules/queries, duplicated
+test fakes and migration scaffolding), then switching the session mainline onto
+the `build_context_messages` seam behind a byte-parity gate. The plan's
+"explicitly out" list enumerates what stays on this backlog.
 
-  1. **Fake feedback loop (hard).** `live_companion.build_runtime` leaves
-     `judge=None`, falling back to `DeterministicJudge` (a seed-keyed sinusoid
-     with a scripted bad-mood block on days 11-14) while the session is built
-     `feedback=True`. Scripted scores drive `mu`; nothing the real user says
-     moves her mood. Wire `harness/judge.py` on the research lane — and note
-     judge.py's own docstring still calls for re-verifying the v2 rubric's
-     monthly separation before feedback is trusted.
-  2. **Stale clock anchor in the trial DB (hard).** `results/live-companion/companion.db`
-     holds an anchor from 2026-08-16 with only day 0 in `daily_state`. Verified
-     on a copy: resume puts the clock at t_h 427 (day 17) while
-     `session.current_day` stays 0, and the first midnight `ensure_day(18)`
-     fast-forwards 18 days through the scripted judge in 1.5 s. Start the trial
-     on a fresh DB; archive this one.
-  3. **Unguarded LLM call kills the process (hard).** `runtime.py` has two
-     `except` clauses in the whole file, neither around a turn.
-     `_firing_loop` -> `_fire_exact_intent` -> `session.fire_proactive` is
-     unguarded and `client.py` raises once retries are exhausted; the exception
-     unwinds `asyncio.gather` in `run()` and the bot exits. Inbound fails
-     silently instead: no error handler is registered on the telegram
-     application. Guard both paths; register the handler.
-  4. **Nothing keeps it alive for a week (hard).** No systemd unit, supervisor,
-     or restart wrapper — `live_telegram.sh` ends in a bare `exec python` — and
-     no log file anywhere (`logging.basicConfig` is never called). A Windows
-     sleep ends the run unnoticed.
-  5. **She does not know the user, and her name is seed-drawn (degrades).**
-     `bootstrap()` hardcodes `UserProfile(name="User", interests=("mathematics",
-     "lifting", "movies", "metal"))` — the ablation fixture. The persona row in
-     the live DB is "Nova" (seed 5001) while the bot is @Lily_Vie_bot;
-     `DEFAULT_PERSONA = "Ana"` in live_companion.py is dead. This is the open
-     "setup window for themes" ask.
-  6. **Every slash command is off (degrades).** The launcher never passes
-     `--enable-commands`, so `/help /ping /setup /tz /status /mute` are dropped
-     — including `/mute`, the only way to stop proactive messages short of
-     killing the process, and `/setup`, the fix for (5).
+### Complete the global typed context
+The canonical context is intended to be one append-only stream, with lifecycle
+markers, system-level events, structured decisions, and provider-native tool
+results.
 
+Landed 2026-09-07:
 
-### Bot time anchored to a real timezone
-- Date: 2026-08-15
-- Verbatim: "another thing for the backlog, bot time is not real time. we should have a command to set the timezone of the bot too"
-- Summary: The bot's virtual clock starts at 0.0 at launch and is not anchored to any real timezone, so day rollover, quiet hours, and proactive scheduling drift from the user's local time. Core ask: bot time should run on a real timezone; a command to set/change the timezone is a bonus, not the requirement.
-- Status 2026-08-15 (overnight): RealTimeAnchor seam on wip/tier1-masking (NOT on main; main is 653de09); flag-off, pure module; runtime wiring (absolute sleeps + resume fix) and /tz command in Wave 2. NOTE: wiring lives in sim/run_async.py — the live entry experiments/live_companion.py does NOT yet wire the anchor.
+- **Append-only context read.** `Session._context_turns()` reads from a stored
+  compaction epoch (`kv_store` key `context.epoch_id`) instead of
+  `recent_messages`' 12-row tail, so between boundaries the message list only
+  grows. The epoch moves at day rollover only (`_maybe_compact_context`) and
+  records a `context_compacted` event. `tests/test_cache_prefix_gate.py`
+  asserts the extension property over every provider call in a mixed run and
+  is verified against three sabotage cases.
+- The model-visible decision lane. `Session._context_turns()` merges
+  `messages` with `decision_records` by `(t_h, lane, id)` and renders each
+  past verdict as a `role="system"` block, so a decision the model made is
+  readable by the model on later turns instead of only by the auditor.
+- Pop-up aux calls extend the mainline request instead of carrying their own
+  prefix, and their pop-up block rides as `role="system"`.
 
-### Closing tendency as inform-then-decide (like events)
-- Date: 2026-08-15
-- Verbatim: "backlog, closing tendency should work the same as events (one turn inform, next turn decide)"
-- Summary: Closing tendency currently fires as a silent per-turn draw that ends the conversation abruptly. It should work like the event mechanism: one turn informs (the companion signals the conversation is winding down), the next turn decides the close.
-- Status 2026-08-15 (overnight): IMPLEMENTED + MERGED on wip/tier1-masking (NOT on main), flag-gated HARNESS_TWO_PHASE_CLOSE — closing draw persists a pending marker, wind-down guidance renders, user reply closes deterministically, 1vh silence grace, 12h backstop unchanged; replay parity pinned by test.
+Still open:
 
-### Setup window for themes / common settings
-- Date: 2026-08-15
-- Verbatim: "I didn't have a window to set the common themes and things like that"
-- Summary: There was no step where the owner could configure the companion's common themes, interests, and similar profile settings before or after launch. Provide a configuration window (setup flow or command) so the bot can run with user-chosen themes instead of defaults.
-- Status 2026-08-15 (overnight): /setup command (refuses after persona exists) + --defer-bootstrap in Wave 2, in flight.
+- Lifecycle and day markers as typed events rather than re-rendered card
+  sections; day-scoped material (agenda plan, arcs) should be appended once at
+  rollover, not rebuilt into the volatile tail every turn.
+- Provider-native tool-result serialization for the decision lane (the
+  projection currently renders prose, not `tool_calls` + `tool` results).
+- Drain outstanding steers before day finalize and conversation close. There
+  is no equivalent of Temporal's `all_handlers_finished`: a day can currently
+  be finalized with steers still pending.
 
-### Bot command set (beyond init/setup)
-- Date: 2026-08-15
-- Verbatim: "what kind of commands should we have for the bot, besides initializing and maybe the setup"
-- Summary: Define the command set the bot should expose to its owner beyond initialization/setup (e.g., status, themes, interests, reset, help). Deliverable is a proposed command list with semantics and scope.
-- Status 2026-08-15 (overnight): command set defined and implemented in Wave 2 (in flight): /help /ping /setup /tz /status /state /mute /version — NO /reset (destructive ops stay at the launcher); --enable-commands default off.
+### Telegram delivery consistency
+Add a durable outbox for model-generated Telegram messages. Stage the outbound
+intent and message before dispatch, track pending/sent/failed/ambiguous states,
+append delivery confirmation to canonical context only after Telegram success,
+and support retry/reconciliation without assuming exactly-once delivery.
 
-### Consecutive user messages — spike (debounce window?)
-- Date: 2026-08-15
-- Verbatim: "spike how consecutive user messages affect the output fo the model and whether we should have a small window for users to keep writting, backlog too"
-- Summary: Spike how rapid consecutive user messages change the model's replies, and whether the channel should hold a small window for the user to finish writing before replying (debounce). Deliverable is a recommendation, including window size if adopted.
-- Result (spike 2026-08-15): recommendation YES — 2s trailing-edge debounce at the Telegram channel (max-wait cap ~8s), turning N-message bursts into one reply; verified vs recorded probe DBs, caveat n=2 seeds, single model.
-- Status 2026-08-15 (overnight): IMPLEMENTED + MERGED on wip/tier1-masking (NOT on main), flag-gated HARNESS_DEBOUNCE (2s trailing / 8s cap, command flush). NOTE: verify the live entry (live_companion.py) constructs the telegram channel with debounce; wave wiring targeted sim/run_async.py.
+### Real-time event integration
+Finish the wall-clock/agenda integration and verify that event negotiation,
+away presence, and proactive landing use the same authoritative time and safe
+boundary rules. Preserve virtual-clock replay determinism.
 
-### Typing / processing feedback
-- Date: 2026-08-15
-- Verbatim: "add to backlog, add feedback, meaning, user should know when the agent is replying to him"
-- Summary: The Telegram channel should signal the user that the companion is working on a reply (typing indicator) while the LLM generation runs, so silence is not mistaken for a dead bot. Carded on kanban as `ars-telegram-typing-feedback` (t_0b54451a).
-- Status 2026-08-15 (overnight): IMPLEMENTED + MERGED on wip/tier1-masking (NOT on main), flag-gated HARNESS_TYPING (~4.5s refresh chat action during generation). NOTE: verify live_companion.py wires typing; wave wiring targeted sim/run_async.py.
+### Partial availability — an event is not a wall
+Every event is currently all-or-nothing: the window is open, so she is *in* it,
+and the only question a user message raises is `tool_decide_reply`'s
+reply/no-reply. But activities differ in how much of her they take. The gym is
+close to unreachable; drawing at home is barely an interruption; a class is
+unreachable for a fixed block and fine either side of it. The decision lane has
+no vocabulary for that, so the model has to infer reachability from the activity
+name alone every time it is asked.
 
-### Define an affection / closeness score
-- Date: 2026-08-16
-- Verbatim: "Add to the repo backlog that we need to define affection score"
-- Summary: There is no scalar affection/closeness/love level per user — the DB stores only qualitative relationship memory (`relationship_events_json`, `relationship_patterns`). Define a per-user 0-1 score, stored with the relationship memory (NOT in the frozen engine), updated by a recorded judgment at conversation close (slow EMA), masked like mood; it gates behaviors such as the AFK double-text (see design-note-afk-presence-2026-08-16.md). Needs a short design: what moves it up/down, decay when ignored, and the minimum threshold per feature.
+This is the same gap as the fine-grained availability windows the negotiation
+contract deferred out of v1 — "Fine per-activity availability windows (gym
+gaps, class blocks) — the AgendaItem window is the only window in v1" — so the
+two want designing together rather than separately. Prior art to read first:
+the G0 contract's Explicitly-deferred section, and the spike-4 AFK/presence
+design note, which already separates the negotiation's decide bomb from the
+away/presence signal and warns against collapsing thresholds that measure the
+same silence. Note both documents are currently deleted in the working tree and
+live only in git history.
 
-### Redefine closing_tendency (conversation end feels mechanical)
-- Date: 2026-08-16
-- Verbatim: "we may not need to dispose of closing tendence but we may pair it with user_left ... No, still too mechanical, I can't really define a proper when to close conversation that feels natural, natural conversations don't have set rules like this ... Let's set user left to 15 minutes and later define what closing tendency does or how it does it."
-- Summary: The abrupt closing_tendency draw fires right after the MODEL's turn — she ends the conversation with the last word and no goodbye (Lily leaves the user on read), which reads as unnatural. Two-phase close softens it to a wind-down goodbye but it's still a rule firing on a schedule. DONE part: user_left lowered 12 h → 15 min (0.25 vh), wind-down grace 1 h → ~5 min to keep the ordering. OPEN: define what closing_tendency should actually do so ending feels natural (people drop mid-convo, or give notice, or never leave on read — no single rule captures it).
+Open questions: does reachability belong on the AgendaItem (a per-activity
+attribute the generator sets), on the interest/arc it came from, or is it a
+judgement the model makes from the pop-up each time? Does it change what
+`tool_decide_reply` is asked, or only what the state card says she is doing?
 
-### Repurpose max_turns toward context limit + compaction
-- Status 2026-08-20 (lifecycle-away): DONE on wip/lifecycle-away — MAX_TURNS=None in harness/tunables.py; turn cap removed, compaction is the future concern (see plan OUT).
-- Date: 2026-08-16
-- Verbatim: "This too, makes no sense, if anything it should probably be used by the model once we're arriving at context limit to give us a chance to naturally run compression."
-- Summary: MAX_TURNS is an arbitrary hard cap (12 turns) that closes a conversation for no user-facing reason. Instead, watch the context/token budget and, as it fills, use a natural wind-down as the moment to run memory compression/compaction (ties to the DeepSeek-harness compaction pattern: prefix-replay + a fixed checkpoint summary) rather than ending on turn count.
+### Context budget and compaction
+Define a token-budget trigger and a compaction format that keeps the stable
+prefix and recent raw continuity while summarizing only older material. Record
+what was compacted so replay and audit remain explainable.
 
-### Real token/context numbers for conversation-length tuning
-- Date: 2026-08-16
-- Verbatim: "To the backlog that we still real numbers for this, for now, assume average conversation is how I made my real turns on the first experiment, doble and triple message lenght to see different behaviors, sytem usage should stay fixed and dependend of duration"
-- Summary: Conversation-length + token math (2026-08-16) used approximations — tokens ≈ chars/4, system prompt = 684 tok from a single rendered call, no prompt-cache modeled, retrieved memory (S4) not counted. Once WS-D usage capture is live on the OpenRouter lane, replace these with measured per-turn prompt/completion/cached tokens, the real system-prompt size (and how it grows with agenda/memory), and actual context growth including retrieved memory. Then re-tune closing_tendency and the context-based compaction trigger against real numbers.
+### Relationship state for inactivity behavior
+Define the per-user affection/closeness score and its recorded update rule before
+using it to gate double-text or related presence behavior. Keep the score out of
+the frozen engine and mask it from prompts like other internal state.
 
-### Conversation close is a checkpoint, not a reset (continuity + cache)
-- Status 2026-08-20 (lifecycle-away): DONE on wip/lifecycle-away — close promotes memory (L1->L4), raw continuity via recent_messages (no summary substitution), WS-D stable-prefix/volatile-tail cache order, 6h backstop + is_user_away. Reframing score/proactive/life around the checkpoint remains future work.
-- Date: 2026-08-16
-- Verbatim: "We should never reset conversation unless it's necessary. we should leverage cache hits as much as we can. ... closing conversations should not be 'here's where we start a new chat', they should be opportunities to update scores / update memory / start proactive behavior / run life in the background — not for saying ok here's where the character dies and another is rebuild entirely from a summary of its memories"
-- Summary: Lily is continuous. A conversation close is a housekeeping checkpoint (promote memory, update scores incl. affection, arm proactive/inactivity, tick background life), NOT a teardown that reincarnates her from a summary. Two hard rules: (1) never reset/rebuild context unless the token window forces it — carry raw continuity across conversations; (2) keep the prompt prefix stable so provider cache hits survive across turns AND conversations (stable persona/system prefix first, volatile state-card last). The anti-"reincarnation" work is in CONTEXT ASSEMBLY (S4) and COMPACTION, not the close mechanic: compact only when necessary, and even then preserve as much raw continuity and cacheable prefix as possible (ties to the DeepSeek compaction pattern: prefix-replay + fixed checkpoint summary). Today: memory promotion already fires on close; score/proactive/life run on other clocks (day rollover, timing loop) and could be reframed around the close checkpoint.
+### Decision lane — fixed 2026-09-08
+A live evening discarded 20 of 25 aux model calls and left a user's goodbye
+unanswered. Four causes, all fixed, all with guards in
+`tests/test_decision_transport_2026_09_08.py` (six sabotage cases verified):
 
-### Closing tendency OFF behind a flag, redesign later
-- Status 2026-08-20 (lifecycle-away): DONE on wip/lifecycle-away — CLOSING_TENDENCY_ENABLED=False in harness/tunables.py; draw gated behind the flag (keyed RNG, skipping is replay-safe). Redesign (flat vs fatigue) remains OUT per plan.
-- Date: 2026-08-16
-- Verbatim: "For now, I think we should leave closing tendency off behind a feature flag and then decide what do to do with that."
-- Summary: The closing_tendency draw currently fires by default and closes conversations too aggressively (uncapped great-mood mean ~12 turns; target ~30). Gate the draw behind a flag defaulting OFF — with it off, a conversation ends only on user_left (now 15 min) or quiet hours. Redesign is open: flat per-turn probability gives std≈mean (unreliable length); a fatigue curve (close prob rising with length) lands conversations near a target. Decide flat-vs-fatigue and whether close stays a soft wind-down before re-enabling. Related: [[remove-max-turns]] direction (repurpose the cap toward context-based compaction, not a turn count).
+- **Only the requested schema is offered.** All three went out before, so an
+  event pop-up could come back as `tool_decide_reply`. Measured against the
+  live gateway: 1-in-3 wrong tool with three offered, 0-in-3 with one.
+- **`tool_choice` stays "auto" — it cannot be narrowed on this model.**
+  `deepseek-v4-flash` is always in thinking mode (`reasoning_effort` accepts
+  only low..max; omitting it still reports thinking) and thinking mode 400s
+  both `"required"` and a named function: *"Thinking mode does not support
+  this tool_choice"*. A named choice would break every decision call. Do not
+  reintroduce one without re-testing the gateway.
+- **Retry budget** (`steering.MAX_ATTEMPTS = 3`, schema v11
+  `steering_queue.attempts`). A failed decision was requeued unbounded and
+  re-asked every turn, one call each, growing as more accumulated (4, 4, 5,
+  7 across four consecutive turns). Exhausted steers are `abandoned`, a
+  terminal status so the gap stays explainable.
+- **Decisions replay as a native tool exchange** (assistant `tool_calls` +
+  matching `role="tool"` result) instead of a prose summary. The prose form
+  recorded the decision but left no evidence in history that tool calls
+  happen here, so every pop-up was a first-ever ask appended after real
+  dialogue. `assembler.wire_message` carries the tool keys through — copying
+  role/content only stranded the pair, which providers reject.
+- **A go/initiate verdict drives a real generated turn.** It used to paste
+  the verdict's `reason` into the channel as her words (third-person machine
+  rationale: *"...I'll send a warm in-character send-off and keep cooking"*)
+  and close the conversation BEFORE generating, so the reply was suppressed
+  and a goodbye got silence. The turn now speaks (`GO_NOTE`/`START_NOTE` on
+  the tail) and the close is deferred until after the reply is persisted.
+  **`reason` is unchanged and still recorded** in `decision_records` — it is
+  the engine's audit trail; it just stopped being dialogue.
 
-### Compaction / memory-continuity spec (deferred)
-- Date: 2026-08-16
-- Verbatim: "Backlog it, we won't need this in a week of testing I think"
-- Summary: When context eventually fills, compact by keeping the stable prefix + recent raw turns verbatim and summarizing only the OLDEST turns — so the cacheable head never moves and recent continuity is intact (no reincarnation-from-summary). Not needed for near-term testing (a single conversation doesn't fill 160k until ~2,750 exchanges at real message sizes). Spec it before conversations get long enough to matter. Depends on [[conversation-close-is-a-checkpoint]] continuity rules.
+Verified end to end on the real provider: 0 parse failures, 0 pending steers,
+a generated goodbye plus the inform mention.
 
-### user_left as a presence ("away") signal, not just a close
-- Status 2026-08-20 (lifecycle-away): DONE on wip/lifecycle-away — USER_AWAY_THRESHOLD_H=0.25 (presence, no close) + USER_LEFT_THRESHOLD_H=6.0 (backstop) in tunables.py; Session.is_user_away(t_h) derived from _last_user_turn_t_h+clock (no RNG). Wiring into proactive/double-text/skip-inform is OUT per plan (next campaign).
-- Date: 2026-08-16
-- Verbatim: "This is for the system to be able to say 'okay, user is not here, I don't need to inform them that I'm going to start an event' or 'ok, user left, this is where I could send a second message', or, 'okay, this is where proactive messages can land'"
-- Summary: Reframe user_left (15 min of silence) as a presence signal meaning "user is away," which GATES three behaviors rather than tearing down the character: (1) event negotiation can skip the INFORM step and just act (no one present to inform); (2) the AFK double-text window opens (see design-note-afk-presence); (3) proactive messages may land. Per never-reset, the conversation need not hard-close on this signal — it goes dormant while presence is tracked. Wiring this into the negotiation inform/decide split, the AFK arm, and the proactive gate is the work.
+Still open:
 
-## Done
+- A prose reply with no tool call is BOUNDED, not prevented — the provider
+  will not let us require a tool. If it recurs often, the next lever is
+  putting the aux pop-up back as the last `user` message (0 failures in 27
+  decisions before the role change) rather than a trailing system block.
+- **Outcome capture is polluted.** Any end-boundary verdict reason is stored
+  as `agenda_items.outcome`, so a decline rationale ("Nothing to initiate;
+  I'm mid-storyboard") became what came of morning coffee — and that feeds
+  the day planner. Only `abandon`/`follow` reasons are actually about the
+  item.
+- **A fresh evening start replays the whole day.** A DB born at 18:40
+  enqueued pop-ups for 06:58, 11:00 and 17:00 at once. Restart recovery and
+  first-boot need different rules.
+- **Aux calls are absent from `llm_calls`**, so spend accounting missed ~25
+  calls and could not show the leak.
 
-### Wire the full harness instance as a live Telegram bot
-- Date: 2026-08-15
-- Verbatim: "Ok, I think it's time to wire the telegram over then. Full instance fully running as a bot"
-- Summary: The full harness instance (FULL, seed 5001, resume-safe DB) runs live as @Lily_Vie_bot on its own token. Round-trip verified end-to-end with a real model reply; launcher at ~/.hermes/scripts/live_telegram.sh.
+### Onboarding and event content
+Landed 2026-09-07 (the setup side):
 
-### Launcher not in /tmp
-- Date: 2026-08-15
-- Verbatim: "I'm sure this is obvious, but the launch file should not be in a tmp"
-- Summary: The live-companion launcher was moved out of /tmp to a durable location outside the repo (~/.hermes/scripts/live_telegram.sh). The launcher also gained the LLM credential mapping needed for real replies.
+- `/setup` works on the live runtime. `AsyncRuntime` now wires
+  `request_setup`, so the command has a reachable success path; before this
+  it refused either as "already initialized" or with a `--defer-bootstrap`
+  message naming a flag only `sim/run_async.py` had. `live_companion.py`
+  gained `--defer-bootstrap` so a blank DB can be onboarded from the channel.
+- Identity is persisted. Schema v9 added `user_profile` and
+  `interest_relations`; `BootstrapStore` had declared
+  `load_user_profile`/`save_user_profile` for months with no table behind
+  them, so the profile was re-derived from the environment every start.
+- The product default identity is no longer the ablation fixture.
+  `live_companion.owner_profile()` fell back to
+  `cvs_common.GATE2_USER_INTERESTS` with the owner env vars unset, so a real
+  trial built its whole 40/40/20 portfolio around an experiment's example
+  user. `bootstrap.DEFAULT_USER_INTERESTS` is now a separate product list.
+- `harness/interest_extension.py` places off-catalog user interests into the
+  graph with one model call at onboarding, persisted and never repeated on a
+  warm start. Buckets stay structural — the model proposes names, distances
+  decide membership. Measured on the real provider: adjacency pool 8 -> 33.
+  Offline and error paths fall back to a heuristic extension.
 
-### UX feature enablement, delimiter spike, token split, spend accounting
-- Date: 2026-08-16
-- Verbatim: plans/plan-ux-tokens-spend-2026-08-16.md — the full orchestration contract, committed verbatim.
-- Summary: Four workstreams. WS-A: enable env-gated UX through the live entry (slash commands + setMyCommands, /state stays OFF; debounce env-configurable at ~4-5 s trailing / ~12 s cap; sent_at stamped from real arrival with the clock advancing mid-conversation; mid-reply-folding separability discovery). WS-B: model-driven delimiter naturalness spike on DeepSeek-V4-Flash (last attempt after the mechanical splitter failed; pre-committed ship/no-ship decision). WS-C: two-lane token split — LILY_TOKEN for the product lane, JUDGE_GENERATOR_TOKEN for research, resolver fails loudly, repo-root .env provisioning, launcher drops the opencode-key mapping. WS-D: spend accounting — usage+cache capture, additive v7→v8 migration, pricing config with cached tier, spend report by lane/model/window.
-- Status 2026-08-16: orchestrating wave 1 (WS-A + WS-C in parallel; WS-D and WS-B follow after WS-C lands).
+Landed 2026-09-07 (the event-content side):
+
+- **`harness/day_planner.py`** — one model call at day rollover turns arcs,
+  interests and recorded outcomes into concrete activities with real objects.
+  The engine keeps selection, windows, salience and ids; the planner supplies
+  activity TEXT only, applied after every RNG draw, so the seeded schedule is
+  byte-identical with and without it. Opt-in (`HARNESS_DAY_PLANNER`,
+  `--day-planner`) because it shares the conversation client. Never called on
+  replay: a day is only generated when the store has no agenda for it, and
+  the planned text persists with the items.
+- **`agenda_items.outcome`** (schema v10) — what actually came of an item,
+  written only from a decide_event verdict's reason. A window merely elapsing
+  records nothing: the planner's continuity has to be true or the next day
+  follows on from a fiction.
+- **`life.BUCKET_WEIGHT`** — interest draws are now
+  `salience * bucket_weight`, so the portfolio's independent slice reaches
+  the day. Measured over 300 days on a low-salience independent interest:
+  12.5% of interest items unweighted, 18.3% weighted. The planner also
+  receives HERS/SHARED per interest, so a thing she does alone reads
+  differently from a thing they share.
+
+Verified on the real provider across two consecutive days: day 1 followed on
+from day 0's thread and answered a recorded outcome
+("throw the fourth stoneware bottle, widening its foot to stop collapse").
+Six sabotage cases confirmed the guards catch their regressions.
+
+Still open:
+
+- **Long generations are slow on this gateway, and the budget's tail is not
+  covered.** Measured 2026-09-07: a short prompt returns in 1.2-3.4s (three
+  consecutive raw calls, all HTTP 200 — it is not rate limiting), while the
+  extension's ~400-character JSON took 20s, 41s and twice overran 90s. The
+  fallback fired correctly both times, but a cold start then samples the
+  persona against the bare catalog, which is the exact collapse the extension
+  exists to prevent. Fix by splitting the request per interest — three ~130
+  character outputs instead of one ~400 — so each call sits well inside
+  budget and partial success still helps. Same applies to the day planner.
+- Start times are still whole hours (`rng.integers(9, 21)`), so the minute
+  field takes three values across a fortnight while END times are random
+  floats — precise endings, robotic beginnings.
+- Outcomes are only captured at decide_event boundaries, so most items still
+  resolve to a status with no outcome. Broadening that (without inventing
+  anything) is what would make arcs accumulate properly.
+- `art`, `food`, `outdoors` and `literature` are category hubs rather than
+  pursuits, so the FALLBACK templates still render "practice food". Harmless
+  while the planner runs; it is the fallback that reads wrong.
+
+### Prompt channels disabled 2026-09-07 (re-enable or delete)
+Three prompt channels were turned off in the content pass. Each is still wired
+end to end so re-enabling is a one-line change; each needs a decision before it
+comes back or gets deleted outright.
+
+- **Closing guidance** (`actuation.CLOSING_GUIDANCE_ENABLED`). The per-turn
+  continuation policy told the model how to end every reply, from a per-turn
+  draw, and the behavior it actuates is itself unspecified (see below). The
+  band prose is retained in `actuation._CLOSING_BANDS` and its mapping still
+  has a test behind the flag. `closing_tendency` is untouched: it still drives
+  the conversation-close draw, it just no longer speaks.
+- **Steer trust rule** (`prompts.STEER_TRUST_RULE`, now `""`). It rode the
+  stable prefix on every turn to explain a marker that already names itself,
+  for an event that arrives a few times a day. Trust now comes from the
+  channel: steer blocks render as `role="system"`. If a future transport
+  drops role fidelity, this needs a replacement rather than a revert.
+- **Mood-brief label** (`prompts.MOOD_BRIEF_HEADER`, no longer rendered). It
+  prefixed a brief that opens with "Current bearing:", inside a section headed
+  AFFECTIVE BEARING. Kept as a constant so audit tooling reading old rows
+  still resolves it.
+
+Also removed, with no flag: the per-turn brief's trailing "Do not name or
+explain the internal state" sentence, which restated a stable-core rule on
+every turn in a second voice.
+
+### Closing behavior
+Keep `closing_tendency` disabled until its behavior is specified and tested as a
+natural conversation boundary rather than an arbitrary per-turn cutoff. Any
+replacement must preserve replay parity and the away-is-not-close lifecycle.

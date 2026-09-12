@@ -494,3 +494,43 @@ def test_fold_system_history_repairs_rows_written_before_the_fold(tmp_path):
     ]
     assert store.fold_system_history() == 0     # idempotent
     store.close()
+
+
+def test_repair_placeholder_steers_rewrites_the_legacy_question_mark(tmp_path):
+    import json as _json
+
+    store = SQLiteStore(tmp_path / "s.db")
+    store.enqueue_steer(0, 12.0, "user_message_mid_turn",
+                        {"message": "hi", "event": "?"})
+    store.enqueue_steer(0, 13.0, "event_popup",
+                        {"message": "hi", "event": "gym"})
+    assert store.repair_placeholder_steers() == 1
+    payloads = [_json.loads(r["payload_json"])
+                for r in store.conn.execute(
+                    "SELECT payload_json FROM steering_queue ORDER BY id")]
+    assert payloads[0]["event"] == "no_active_event"
+    assert payloads[1]["event"] == "gym"
+    assert store.repair_placeholder_steers() == 0     # idempotent
+    store.close()
+
+
+def test_prune_thin_user_facts_drops_keyword_blobs(tmp_path):
+    store = SQLiteStore(tmp_path / "s.db")
+    def _fact(episode_id: str, summary: str, t_h: float) -> EpisodicMemory:
+        return EpisodicMemory(
+            id=episode_id, summary=summary, category=MemoryKind.USER_FACT,
+            occurred_at_t_h=t_h, created_at_t_h=t_h, importance=0.4,
+            access_count=0, last_accessed_t_h=t_h, affect=None,
+            source_session_id="s1", source_turn_ids=(1,),
+            verbatim_anchors=(), tags=("user_fact",))
+
+    store.insert_episode(_fact("ep1", "user has a duty", 1.0))
+    store.insert_episode(_fact("ep2",
+                               "user is training for a powerlifting meet in March",
+                               2.0))
+    assert store.prune_thin_user_facts() == 1
+    left = [r["id"] for r in store.conn.execute(
+        "SELECT id FROM memory_episodes ORDER BY id")]
+    assert left == ["ep2"]
+    store.close()
+

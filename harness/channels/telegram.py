@@ -42,9 +42,12 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import hashlib
 import logging
 import math
 import os
+import re
+import tempfile
 import time
 from collections.abc import Callable
 from contextlib import asynccontextmanager
@@ -76,6 +79,96 @@ DEFAULT_DEBOUNCE_TRAILING_S = 4.5
 DEFAULT_DEBOUNCE_MAX_WAIT_S = 12.0
 #: Typing refresh cadence; the typing indicator expires after ~5 s.
 _TYPING_INTERVAL_S = 4.5
+
+#: Telegram hard limit per message (set just under, to leave room for entities).
+_TELEGRAM_MAX_LEN = 4000
+
+#: MarkdownV2 metacharacters escaped outside entity spans.
+_MDV2_ESCAPE = re.compile(r'([_*\[\]()~`>#+\-=|{}.!\\])')
+
+#: RP emphasis span: *...* (no newlines, no nesting; paragraphs are split
+#: first, so a span never crosses a send).
+_ITALIC_SPAN = re.compile(r'\*([^\n*]+)\*')
+
+
+def _escape_mdv2(text: str) -> str:
+    """Escape MarkdownV2 metacharacters in a literal run."""
+    return _MDV2_ESCAPE.sub(r'\\\1', text)
+
+
+def render_markdown(text: str) -> str:
+    """Render one paragraph as MarkdownV2: RP ``*span*`` becomes italics.
+
+    Everything else is escaped, so stray asterisks or underscores can
+    never break parsing. An unmatched ``*`` stays literal (escaped).
+    """
+    parts: list[str] = []
+    pos = 0
+    for match in _ITALIC_SPAN.finditer(text):
+        parts.append(_escape_mdv2(text[pos:match.start()]))
+        parts.append('_' + _escape_mdv2(match.group(1)) + '_')
+        pos = match.end()
+    parts.append(_escape_mdv2(text[pos:]))
+    return ''.join(parts)
+
+
+def split_sends(text: str) -> list[str]:
+    """Split a reply into one send per paragraph (blank-line runs).
+
+    Single paragraph in -> single send out. Empties dropped: no blank
+    message ever reaches the wire.
+    """
+    return [p.strip() for p in re.split(r'\n\s*\n', text) if p.strip()]
+
+
+def chunk_send(text: str, limit: int = _TELEGRAM_MAX_LEN) -> list[str]:
+    """Hard-split an oversized paragraph under the Telegram limit.
+
+    Prefer a newline, else a space, else a hard cut. Replies are far
+    shorter in practice — this is the guardrail, not the path.
+    """
+    if len(text) <= limit:
+        return [text]
+    parts: list[str] = []
+    rest = text
+    while len(rest) > limit:
+        cut = rest.rfind('\n', 0, limit)
+        if cut < 0:
+            cut = rest.rfind(' ', 0, limit)
+        if cut < 0:
+            cut = limit
+        parts.append(rest[:cut])
+        rest = rest[cut:].lstrip()
+    if rest:
+        parts.append(rest)
+    return parts
+
+
+def acquire_poller_lock(token: str):
+    """Claim the single-poller lock for one bot token (multi-profile guard).
+
+    Telegram delivers each update to exactly one getUpdates consumer: a
+    second poller on the same token does not load-balance, it
+    Conflict-loops both. The lock is an OS-held flock on a token-scoped
+    file, so it dies with the process and can never go stale — a refused
+    second instance exits LOUDLY instead of storming. Returns the open
+    file object; the caller must keep it referenced for the process
+    lifetime (see ``_POLLER_LOCKS`` in experiments/live_companion.py).
+    """
+    import fcntl  # lazy: posix-only, and this module stays importable without it
+
+    digest = hashlib.sha256(token.encode()).hexdigest()[:12]
+    path = os.path.join(tempfile.gettempdir(), f"lily-poller-{digest}.lock")
+    fh = open(path, "w")
+    try:
+        fcntl.flock(fh.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except OSError:
+        fh.close()
+        raise RuntimeError(
+            "another live poller already holds this bot token — refusing "
+            "a second getUpdates consumer (one telegram profile per token)"
+        )
+    return fh
 
 #: User-facing command menu registered via setMyCommands when commands
 #: are enabled; /state is not included.
@@ -310,7 +403,13 @@ class TelegramChannel:
         )
 
     async def send(self, message: OutboundMessage) -> None:
-        """Post an outbound (reactive or proactive) message to the owner chat."""
+        """Post an outbound (reactive or proactive) message to the owner chat.
+
+        One send per paragraph (``\\n\\n`` separated) with RP ``*span*``
+        rendered as MarkdownV2 italics. A failed Markdown send retries
+        once as plain text (logged); if plain fails too the error
+        propagates — no silent drops.
+        """
         if self.owner_chat_id is None:
             raise RuntimeError(
                 "TELEGRAM_CHAT_ID is not set — cannot determine the owner "
@@ -322,7 +421,18 @@ class TelegramChannel:
                 "TelegramChannel has no application — build it via "
                 "from_env() or inject one in the constructor."
             )
-        await app.bot.send_message(chat_id=self.owner_chat_id, text=message.text)
+        for paragraph in split_sends(message.text):
+            for chunk in chunk_send(paragraph):
+                try:
+                    await app.bot.send_message(
+                        chat_id=self.owner_chat_id,
+                        text=render_markdown(chunk),
+                        parse_mode='MarkdownV2',
+                    )
+                except Exception:
+                    _logger.warning('markdown send failed, retrying plain')
+                    await app.bot.send_message(
+                        chat_id=self.owner_chat_id, text=chunk)
 
     @asynccontextmanager
     async def typing_context(self):
