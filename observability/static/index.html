@@ -25,9 +25,13 @@
       </label>
       <div class="chiprow">
         <span class="chip" id="liveness" data-state="unknown">checking</span>
-        <span class="chip chip-quiet" id="clock-chip">—</span>
+        <span class="chip chip-quiet" id="wall-chip" title="your clock">—</span>
+        <span class="chip chip-quiet" id="clock-chip" title="the bot's own clock">—</span>
         <span class="chip chip-quiet" id="model-chip">—</span>
       </div>
+      <label class="check" title="Experiment and probe databases are hidden by default">
+        <input type="checkbox" id="show-all"> show probe runs
+      </label>
       <button type="button" class="btn" id="refresh">Refresh</button>
     </div>
   </header>

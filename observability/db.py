@@ -7,6 +7,8 @@ right now (WAL included) and never able to migrate or repair anything.
 
 from __future__ import annotations
 
+import fnmatch
+import re
 import sqlite3
 import subprocess
 from contextlib import contextmanager
@@ -100,6 +102,96 @@ def live_processes(pattern: str = "live_companion") -> dict[str, int]:
         path = Path(raw) if raw.startswith("/") else repo_root() / raw
         found[str(path.resolve())] = int(pid_text) if pid_text.isdigit() else 0
     return found
+
+
+#: Where the launchers that deploy a run for real live.
+LAUNCHER_DIR: Path = Path.home() / ".hermes" / "scripts"
+
+_DB_ASSIGN = re.compile(r'^\s*([A-Z_]+)="([^"]*)"', re.MULTILINE)
+_DB_ARG = re.compile(r'--db\s+(?:"([^"]+)"|(\S+))')
+_CHANNEL_ARG = re.compile(r"--channel\s+(\w+)")
+_VARIABLE = re.compile(r"\$\{?(\w+)\}?")
+
+
+@dataclass(frozen=True)
+class Deployment:
+    """One launcher script and the run database it points at."""
+
+    channel: str
+    script: str
+    pattern: str
+
+    def matches(self, path: Path | str) -> bool:
+        return fnmatch.fnmatch(str(path), self.pattern)
+
+
+def _expand(value: str, variables: dict[str, str], root: Path) -> str:
+    """Resolve $REPO and friends; anything still unknown becomes a wildcard."""
+    out = value
+    for name, replacement in variables.items():
+        out = out.replace(f"${{{name}}}", replacement).replace(f"${name}", replacement)
+    out = _VARIABLE.sub("*", out)
+    # Launchers cd into the checkout, so a relative --db is repo-relative.
+    return out if out.startswith("/") else str(root / out)
+
+
+def deployments(scripts_dir: Path | None = None,
+                root: Path | None = None) -> list[Deployment]:
+    """Every ``live_*.sh`` launcher, as a channel plus a run-path pattern.
+
+    A deployed run is one a launcher points at, which is the only honest
+    definition available: the run database itself records no channel. The
+    launcher's ``--db`` value is read directly, and a value that comes from a
+    shell variable is resolved when the script assigns it, otherwise the
+    variable becomes a wildcard (the CLI launcher keeps its db under
+    ``results/profiles/$PROFILE/``).
+    """
+    base = root or repo_root()
+    where = scripts_dir or LAUNCHER_DIR
+    found: list[Deployment] = []
+    # Path.glob swallows filesystem errors, so the only failure left is a
+    # script that cannot be read — guarded per script below.
+    scripts = sorted(path for path in where.glob("live_*.sh")
+                     if ".bak" not in path.name)
+    for script in scripts:
+        try:
+            text = script.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        channel = (_CHANNEL_ARG.search(text) or [None, "unknown"])[1]
+        # The checkout the launcher runs from always wins for $REPO.
+        variables = {name: value for name, value in _DB_ASSIGN.findall(text)}
+        variables["REPO"] = str(base)
+        arg = _DB_ARG.search(text)
+        if arg is None:
+            continue
+        value = arg.group(1) or arg.group(2)
+        found.append(Deployment(channel=str(channel), script=script.name,
+                                pattern=_expand(value, variables, base)))
+    return found
+
+
+def deployed_runs(scripts_dir: Path | None = None,
+                  root: Path | None = None) -> dict[str, Deployment]:
+    """Run-database paths (as written by the launchers) to their deployment."""
+    listed = deployments(scripts_dir=scripts_dir, root=root)
+    base = root or repo_root()
+    candidates = [path for path in base.glob("**/*.db")
+                  if not any(part in SKIP_DIRS for part in path.parts)]
+    resolved: dict[str, Deployment] = {}
+    for path in candidates:
+        for deployment in listed:
+            if deployment.matches(path):
+                resolved[str(path.resolve())] = deployment
+                break
+    return resolved
+
+
+def deployment_for(path: Path | str, known: dict[str, Deployment] | None = None,
+                   ) -> Deployment | None:
+    """The deployment a run belongs to, or None when it is not deployed."""
+    table = known if known is not None else deployed_runs()
+    return table.get(str(Path(path).resolve()))
 
 
 @contextmanager

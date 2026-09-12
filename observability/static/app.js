@@ -73,14 +73,19 @@ function renderRuns(payload) {
   const picker = $("run-picker");
   picker.replaceChildren();
   if (payload.runs.length === 0) {
-    picker.append(el("option", null, "no run databases found"));
+    picker.append(el("option", null, "no deployed run found"));
     return;
   }
   for (const run of payload.runs) {
     const mark = run.active ? "■ live" : "□ idle";
-    picker.append(el("option", null, `${mark} · ${run.label} · ${run.calls} calls`));
+    const where = run.deployed || "probe";
+    picker.append(el("option", null, `${mark} · ${run.label} · ${run.calls} calls · ${where}`));
   }
-  $("root-line").textContent = `${payload.runs.length} runs under ${payload.root}`;
+  const hidden = (payload.total || 0) - (payload.deployed || 0);
+  $("root-line").textContent =
+    `${payload.deployed} deployed run${payload.deployed === 1 ? "" : "s"}`
+    + (hidden > 0 ? ` · ${hidden} probe/experiment hidden` : "")
+    + ` · ${payload.total} databases under ${payload.root}`;
 }
 
 function renderHeader(detail) {
@@ -105,8 +110,39 @@ function renderHeader(detail) {
     ? `pid ${summary.pid} is running; the database is opened read-only`
     : "no live_companion process serves this database";
   const clock = detail.clock;
-  $("clock-chip").textContent = clock.real_now ? clock.real_now.slice(11, 19) : clock.local_now;
+  const runTime = clock.real_now ? clock.real_now.slice(11, 19) : "—";
+  const day = clock.virtual_day === null || clock.virtual_day === undefined ? "?" : clock.virtual_day;
+  // Two different clocks, labelled: the bot's own (frozen between actions —
+  // it only moves when the run does) and the wall clock, which ticks here in
+  // the browser, in the run's timezone, and cannot be stale or unreachable.
+  $("clock-chip").textContent = `bot day ${day} · ${runTime}`;
+  $("clock-chip").title = `the run's own clock at its last action: `
+    + `${clock.real_now || "unknown"} (${clock.tz || "timezone unknown"})`;
+  startWallClock(clock.tz);
   $("model-chip").textContent = summary.model || "model unknown";
+}
+
+let wallTimer = null;
+
+function startWallClock(timeZone) {
+  let formatter = null;
+  try {
+    formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: timeZone || undefined, hour: "2-digit", minute: "2-digit", second: "2-digit",
+    });
+  } catch (error) {
+    formatter = null;
+  }
+  if (wallTimer) clearInterval(wallTimer);
+  const tick = () => {
+    const now = new Date();
+    $("wall-chip").textContent = formatter
+      ? `${formatter.format(now)} now`
+      : `${now.toLocaleTimeString()} now`;
+    $("wall-chip").title = `your clock${timeZone ? `, shown in the run's timezone (${timeZone})` : ""}`;
+  };
+  tick();
+  wallTimer = setInterval(tick, 1000);
 }
 
 /* ------------------------------------------------------------- statsline */
@@ -415,7 +451,12 @@ function openStream(runId) {
   state.source = new EventSource(`/api/run/stream?id=${encodeURIComponent(runId)}`);
   state.source.onmessage = async (message) => {
     const probe = JSON.parse(message.data);
-    $("clock-chip").textContent = probe.now;
+    // A reconnect or a long quiet spell must not leave the chip looking dead.
+    const summary = state.detail && state.detail.summary;
+    if (summary) {
+      $("liveness").dataset.state = summary.active ? "live"
+        : (summary.process_up ? "idle" : "stale");
+    }
     try {
       const fresh = await getJSON(
         `/api/run/events?id=${encodeURIComponent(runId)}&after=${state.cursor}`);
@@ -438,9 +479,23 @@ function openStream(runId) {
   state.source.onerror = () => { $("liveness").dataset.state = "stale"; };
 }
 
-async function boot() {
-  const payload = await getJSON("/api/runs");
+async function loadRuns() {
+  const query = $("show-all").checked ? "?all=1" : "";
+  const payload = await getJSON(`/api/runs${query}`);
   renderRuns(payload);
+  return payload;
+}
+
+async function boot() {
+  let payload = await loadRuns();
+  $("show-all").addEventListener("change", async () => {
+    const next = await loadRuns();
+    const keep = next.runs.find((run) => run.path === state.runId) || next.runs[0];
+    if (keep) {
+      $("run-picker").selectedIndex = next.runs.indexOf(keep);
+      await loadRun(keep.path);
+    }
+  });
   $("run-picker").addEventListener("change", (event) => {
     const index = event.target.selectedIndex;
     loadRun(payload.runs[index].path);
@@ -462,7 +517,12 @@ async function boot() {
     ]);
   });
   // A deep link wins over the newest run; an unknown path falls back to it.
+  // A link to a probe run widens the list rather than silently ignoring it.
   const wanted = LINKED.get("run");
+  if (wanted && !payload.runs.some((run) => run.path === wanted)) {
+    $("show-all").checked = true;
+    payload = await loadRuns();
+  }
   const index = payload.runs.findIndex((run) => run.path === wanted);
   const initial = index >= 0 ? payload.runs[index] : payload.runs[0];
   if (!initial) return;

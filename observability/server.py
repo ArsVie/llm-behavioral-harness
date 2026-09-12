@@ -144,11 +144,11 @@ class Handler(BaseHTTPRequestHandler):
         return ref
 
     def _runs(self, params: dict[str, str]) -> None:
-        now = time.time()
-        runs = [reader.run_summary(ref, now=now, context_window=self.state.context_window)
-                for ref in reader.find_runs(self.state.root)]
-        self._send_json({"runs": runs, "root": str(self.state.root),
-                         "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%S%z")})
+        self._send_json(reader.runs_payload(
+            self.state.root,
+            context_window=self.state.context_window,
+            include_all=params.get("all") == "1",
+        ))
 
     def _run(self, params: dict[str, str]) -> None:
         ref = self._run_or_404(params)
@@ -226,8 +226,9 @@ class Handler(BaseHTTPRequestHandler):
         with reader.open_run(ref.path) as conn:
             payload = reader.latest_ids(conn)
         stat = ref.path.stat()
-        payload.update({"mtime": stat.st_mtime, "size": stat.st_size,
-                        "now": time.strftime("%H:%M:%S")})
+        # No clock here: the page ticks its own, so the probe only reports
+        # what moved (emitting on change keeps an idle run nearly free).
+        payload.update({"mtime": stat.st_mtime, "size": stat.st_size})
         return payload
 
 

@@ -35,7 +35,10 @@ from observability.calls import (
     usage_payload,
 )
 from observability.db import (
+    Deployment,
     RunRef,
+    deployed_runs,
+    deployment_for,
     count as _count,
     find_runs,
     live_processes,
@@ -131,19 +134,48 @@ def checks_payload(conn: sqlite3.Connection, anchor: Any) -> dict[str, Any]:
     return {"counts": counts, "findings": raw}
 
 
-def run_summary(ref: RunRef, *, now: float, context_window: int) -> dict[str, Any]:
+def runs_payload(root: Path, *, context_window: int, include_all: bool = False) -> dict[str, Any]:
+    """Every run the launchers deploy, or every discovered run with include_all.
+
+    Probe and experiment databases are noise on a live dashboard, so the list
+    defaults to the runs a launcher (``~/.hermes/scripts/live_*.sh``) points
+    at; the rest stay one query parameter away.
+    """
+    now = time.time()
+    known = deployed_runs(root=root)
+    processes = live_processes()
+    listed = [run_summary(ref, now=now, context_window=context_window,
+                          deployments=known, processes=processes)
+              for ref in find_runs(root)]
+    deployed = [item for item in listed if item["deployed"]]
+    return {
+        "runs": listed if include_all else deployed,
+        "deployed": len(deployed),
+        "total": len(listed),
+        "root": str(root),
+        "scanned_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    }
+
+
+def run_summary(ref: RunRef, *, now: float, context_window: int,
+                deployments: dict[str, Deployment] | None = None,
+                processes: dict[str, int] | None = None) -> dict[str, Any]:
     """Headline facts about one run, without loading its history."""
+    deployed = deployment_for(ref.path, deployments)
     with open_run(ref.path) as conn:
         latest = _rows(conn, "select day, t_h, model, lane from llm_calls "
                              "order by id desc limit 1")
         head = latest[0] if latest else {}
         seeds = _rows(conn, "select seed from daily_state order by day desc limit 1")
         calls = _rows(conn, "select * from llm_calls order by id")
-        pid = live_processes().get(str(ref.path.resolve()))
+        table = live_processes() if processes is None else processes
+        pid = table.get(str(ref.path.resolve()))
         return {
             "id": str(ref.path),
             "label": ref.label,
             "path": str(ref.path),
+            "deployed": None if deployed is None else deployed.channel,
+            "deployed_by": None if deployed is None else deployed.script,
             "mtime": ref.mtime,
             "wal_mtime": ref.wal_mtime,
             "idle_s": round(ref.idle_seconds(now), 1),
@@ -163,13 +195,15 @@ def run_summary(ref: RunRef, *, now: float, context_window: int) -> dict[str, An
 
 
 def run_detail(ref: RunRef, *, context_window: int, call_id: int | None = None,
-               limit: int = DEFAULT_LIMIT) -> dict[str, Any]:
+               limit: int = DEFAULT_LIMIT,
+               deployments: dict[str, Deployment] | None = None) -> dict[str, Any]:
     """Everything the overview screen needs for one run."""
     with open_run(ref.path) as conn:
         anchor = load_anchor(conn)
         rows = call_rows(conn)
         return {
-            "summary": run_summary(ref, now=time.time(), context_window=context_window),
+            "summary": run_summary(ref, now=time.time(), context_window=context_window,
+                                   deployments=deployments),
             "clock": clock_payload(conn, anchor),
             "usage": usage_payload(rows),
             "counters": counters(conn),

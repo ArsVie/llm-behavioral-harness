@@ -8,6 +8,7 @@ actually writes (not to a hand-built fixture that can drift).
 from __future__ import annotations
 
 import json
+from pathlib import Path
 import http.client
 import sqlite3
 import threading
@@ -679,6 +680,81 @@ def test_latest_ids_and_run_summary(tmp_path):
     assert summary["usage"]["calls"] == 2
 
 
+
+def test_deployments_parse_launchers_and_match_only_their_databases(tmp_path):
+    scripts = tmp_path / "scripts"
+    scripts.mkdir()
+    root = tmp_path / "repo"
+    (root / "results" / "live-companion").mkdir(parents=True)
+    (root / "results" / "profiles" / "smoke").mkdir(parents=True)
+    (root / "results" / "decision-probe").mkdir(parents=True)
+    telegram_db = root / "results" / "live-companion" / "companion.db"
+    cli_db = root / "results" / "profiles" / "smoke" / "companion.db"
+    probe_db = root / "results" / "decision-probe" / "decision_probe.db"
+    for path in (telegram_db, cli_db, probe_db):
+        path.write_bytes(b"")
+
+    (scripts / "live_telegram.sh").write_text(
+        "exec .venv/bin/python -m experiments.live_companion --channel telegram "
+        "--db results/live-companion/companion.db --condition FULL\n")
+    (scripts / "live_cli.sh").write_text(
+        'DB="$REPO/results/profiles/$PROFILE/companion.db"\n'
+        "exec .venv/bin/python -m experiments.live_companion --channel cli "
+        '--db "$DB" --enable-commands\n')
+    (scripts / "live_old.sh.bak").write_text("--db results/retired/companion.db\n")
+
+    found = db.deployments(scripts_dir=scripts, root=root)
+    assert sorted(item.channel for item in found) == ["cli", "telegram"]
+    assert all(item.pattern.startswith(str(root)) for item in found)
+    assert db.deployments(scripts_dir=tmp_path / "missing", root=root) == []
+    (scripts / "live_nodb.sh").write_text("echo nothing to deploy\n")
+    assert sorted(item.channel for item in db.deployments(scripts_dir=scripts, root=root)) \
+        == ["cli", "telegram"]  # a launcher without --db is skipped
+    blocked = scripts / "live_blocked.sh"
+    blocked.write_text('--db "results/x/companion.db"\n')
+    blocked.chmod(0o000)
+    assert db.deployments(scripts_dir=scripts, root=root) is not None  # unreadable: skipped
+    blocked.chmod(0o644)
+    not_a_dir = tmp_path / "plain-file"
+    not_a_dir.write_text("x")
+    assert db.deployments(scripts_dir=not_a_dir, root=root) == []
+    closed = tmp_path / "closed-dir"
+    closed.mkdir()
+    closed.chmod(0o000)
+    assert db.deployments(scripts_dir=closed, root=root) == []  # unreadable dir
+    closed.chmod(0o755)
+
+    table = db.deployed_runs(scripts_dir=scripts, root=root)
+    assert table[str(telegram_db.resolve())].channel == "telegram"
+    assert table[str(cli_db.resolve())].channel == "cli"
+    assert str(probe_db.resolve()) not in table
+    assert db.deployment_for(probe_db, table) is None
+    assert db.deployment_for(telegram_db, table) is not None
+
+
+def test_runs_payload_hides_probe_runs_unless_asked(tmp_path, monkeypatch):
+    _store_with_history(tmp_path)
+    monkeypatch.setattr(reader, "deployed_runs", lambda root=None: {})
+    monkeypatch.setattr(reader, "live_processes", lambda pattern="live_companion": {})
+    hidden = reader.runs_payload(tmp_path, context_window=100)
+    assert hidden["runs"] == []
+    assert (hidden["deployed"], hidden["total"]) == (0, 1)
+    full = reader.runs_payload(tmp_path, context_window=100, include_all=True)
+    assert len(full["runs"]) == 1
+    assert full["runs"][0]["deployed"] is None
+
+
+def test_runs_payload_marks_a_deployed_run(tmp_path, monkeypatch):
+    store = _store_with_history(tmp_path)
+    deployment = db.Deployment(channel="telegram", script="live_telegram.sh", pattern="*")
+    monkeypatch.setattr(
+        reader, "deployed_runs",
+        lambda root=None: {str(Path(store.path).resolve()): deployment})
+    monkeypatch.setattr(reader, "live_processes", lambda pattern="live_companion": {})
+    payload = reader.runs_payload(tmp_path, context_window=100)
+    assert [run["deployed"] for run in payload["runs"]] == ["telegram"]
+    assert payload["runs"][0]["deployed_by"] == "live_telegram.sh"
+
 def test_live_processes_map_databases_to_pids(monkeypatch, tmp_path):
     class Completed:
         returncode = 0
@@ -785,6 +861,10 @@ def test_server_serves_the_page_and_the_run_list(live_server):
     assert status == 200 and b"--lav" in css
     runs = _json(f"{base}/api/runs")
     assert runs["root"] == str(tmp_path)
+    # A fixture database is nobody's deployment, so the default list hides it.
+    assert runs["runs"] == [] and runs["total"] == 1 and runs["deployed"] == 0
+    runs = _json(f"{base}/api/runs?all=1")
+    assert runs["root"] == str(tmp_path)
     assert len(runs["runs"]) == 1
     assert runs["runs"][0]["label"] == "runs/companion"
     assert runs["runs"][0]["context_window"] == 1234
@@ -795,7 +875,7 @@ def test_server_serves_the_page_and_the_run_list(live_server):
 
 def test_server_run_endpoints(live_server):
     app, base, tmp_path = live_server
-    run_id = _json(f"{base}/api/runs")["runs"][0]["path"]
+    run_id = urllib.parse.quote(_json(f"{base}/api/runs?all=1")["runs"][0]["path"])
     quoted = urllib.parse.quote(run_id)
     detail = _json(f"{base}/api/run?id={quoted}")
     assert detail["summary"]["calls"] == 2
@@ -825,7 +905,10 @@ def test_server_rejects_unknown_endpoints_runs_and_paths(live_server):
 
 def test_server_params_survive_garbage(live_server):
     app, base, tmp_path = live_server
-    run_id = urllib.parse.quote(_json(f"{base}/api/runs")["runs"][0]["path"])
+    runs = _json(f"{base}/api/runs")
+    assert runs["runs"] == [] and runs["deployed"] == 0  # not deployed
+    runs = _json(f"{base}/api/runs?all=1")
+    run_id = urllib.parse.quote(runs["runs"][0]["path"])
     payload = _json(f"{base}/api/run/events?id={run_id}&after=abc&limit=xyz")
     assert payload["returned"] > 0
     handler = server_mod.Handler
@@ -835,14 +918,18 @@ def test_server_params_survive_garbage(live_server):
 
 def test_stream_emits_a_probe_frame(live_server):
     app, base, tmp_path = live_server
-    run_id = urllib.parse.quote(_json(f"{base}/api/runs")["runs"][0]["path"])
+    runs = _json(f"{base}/api/runs")
+    assert runs["runs"] == [] and runs["deployed"] == 0  # not deployed
+    runs = _json(f"{base}/api/runs?all=1")
+    run_id = urllib.parse.quote(runs["runs"][0]["path"])
     with urllib.request.urlopen(f"{base}/api/run/stream?id={run_id}", timeout=15) as stream:
         chunk = stream.readline() + stream.readline()
     assert b"data:" in chunk
     payload = json.loads(chunk.split(b"data: ", 1)[1].strip())
     assert payload["call_id"] == 2
     assert payload["size"] > 0
-    assert payload["now"]
+    assert "mtime" in payload and "call_id" in payload
+    assert "now" not in payload  # the page ticks its own clock
 
 
 def test_stream_rejects_an_unknown_run(live_server):
@@ -915,5 +1002,6 @@ def test_resolve_run_accepts_only_discovered_paths(tmp_path):
     newest = state.resolve_run("")
     assert newest is not None and str(newest.path) == store.path
     assert state.resolve_run(str(tmp_path / "elsewhere.db")) is None
+
 
 

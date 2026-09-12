@@ -91,6 +91,11 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
 .chip-quiet { font-family: var(--mono); font-size: 12px; }
 .chip-quiet::before { display: none; }
 
+.check { display: inline-flex; align-items: center; gap: 7px; font-size: 13px;
+  color: var(--ink-soft); background: var(--paper-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer; }
+.check input { accent-color: var(--lav); margin: 0; }
+
 /* ------------------------------------------------------------- statsline */
 .statsline {
   display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
