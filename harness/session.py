@@ -76,6 +76,7 @@ from harness.assembler import (
     RECENT_TURNS,
     append_system,
     assemble_snapshot,
+    prefix_break,
     build_context_messages,
     proactive_block,
     render_day_block,
@@ -595,6 +596,11 @@ class Session(NegotiationMixin):
         # stable system (core + persona, byte-identical every turn) and the
         # volatile state card (the trailing system message).
         self._last_stable_system: str = ""
+        #: Per-lane requests already sent this run: the prefix invariant
+        #: compares within a lane (the decide leg legitimately EXTENDS the
+        #: mainline array rather than matching it, so a global check would
+        #: report a violation on every turn).
+        self._last_request_pairs: dict[str, list] = {}
         self._last_state_card: str = ""
         #: Steers drained for the turn currently being generated — requeued
         #: if the turn is interrupted (the LLM call is abandoned).
@@ -2259,6 +2265,7 @@ class Session(NegotiationMixin):
             )
             streamed_bubbles = None
         streamed = streamed_bubbles is not None
+        self._note_request_prefix("chat", messages)
         mid = self._persist_message(
             "assistant", reply, t_h, day,
             proactive=proactive, session_id=session_id, conversation_id=conv_id,
@@ -2737,6 +2744,29 @@ class Session(NegotiationMixin):
                 self._steering.requeue(steer.steer_id)
             return None
 
+    def _note_request_prefix(self, lane: str, messages: list) -> None:
+        """Witness the append-only property while the bot runs.
+
+        Off by default (``HARNESS_PREFIX_INVARIANT=1``); a violation is logged
+        as a state event instead of raising, because a diagnostic sensor must
+        never kill a live run. It is the runtime twin of the test that pins the
+        pop-up extending the mainline request, and the reason to keep it is
+        measured: a rewritten head costs the whole prefix.
+        """
+        previous = self._last_request_pairs.get(lane)
+        self._last_request_pairs[lane] = list(messages)
+        if previous is None or not _env_bool("HARNESS_PREFIX_INVARIANT", False):
+            return
+        broke = prefix_break(previous, messages)
+        if broke is not None:
+            self.store.log_event(
+                int(self.clock.now_h() // 24.0), self.clock.now_h(),
+                "prefix_invariant_violation",
+                json.dumps({"lane": lane, "index": broke,
+                            "was": len(previous), "now": len(messages)},
+                           sort_keys=True),
+            )
+
     def _popup_repro(self, request: PopupRequest, messages: list,
                      day: int, t_h: float) -> dict:
         """The decide leg's stored request identity, wire-exact.
@@ -2760,7 +2790,7 @@ class Session(NegotiationMixin):
             "reasoning_effort": self._thinking_effort,
             "tools_hash": tools_hash,
             "tool_names": tool_names,
-            "tool_choice": "auto" if (request.native and request.tools) else None,
+            "tool_choice": None,   # never sent: see _popup_request_call
             "popup_kind": request.popup_kind,
             "timestamp": {"day": day, "t_h": t_h},
         }}
@@ -2808,15 +2838,17 @@ class Session(NegotiationMixin):
         # answer an event pop-up with tool_decide_reply -- reproduced against
         # the live gateway at 1-in-3 with all three offered, 0-in-3 with one.
         #
-        # tool_choice stays "auto" and CANNOT be narrowed further on this
-        # model: it is always in thinking mode (``reasoning_effort`` accepts
-        # only low..max, and omitting it still reports thinking), and
-        # thinking mode rejects a forced choice --
+        # tool_choice is NOT SENT. A forced choice is unavailable on this
+        # model -- it always thinks, and thinking mode 400s both
         #   tool_choice="required"  -> 400 "Thinking mode does not support
         #   tool_choice={name:...}  ->      this tool_choice"
-        # So requiring the call is not available here; narrowing the menu is.
-        # Do not "fix" this back to a named tool_choice without re-testing
-        # the gateway, it 400s every decision call.
+        # -- and sending the only remaining value buys nothing: measured
+        # against the live gateway on the real decide body (6 requests per arm,
+        # interleaved), OMITTED parsed 6/6 tool calls while "auto" parsed 5/6,
+        # with identical 97.2% cache and no latency penalty (4.8 s vs 6.8 s
+        # mean). DeepSeek-Harness never sends the field either (its README
+        # calls it unmapped vocabulary), so omitting it is also one less
+        # divergence. Do not add a named choice back: that 400s every call.
         #
         # A prose reply with no tool call therefore remains possible. It is
         # bounded rather than prevented: the retry budget
@@ -2830,7 +2862,7 @@ class Session(NegotiationMixin):
             # none: a wrong-tool verdict is recoverable, no tool is not.
             offered = offered_tools(request)
             native_tools = [{"type": "function", "function": t} for t in offered]
-            native_choice = "auto"
+            native_choice = None
         result = self.client.chat_with_meta(
             messages,
             # The mainline stable prefix, so this call extends it. Falls
@@ -2843,6 +2875,7 @@ class Session(NegotiationMixin):
             tool_choice=native_choice,
             reasoning_effort=self._thinking_effort,
         )
+        self._note_request_prefix(request.popup_kind, messages)
         raw_tool_calls = None
         if result.tool_calls:
             # ChatResult tool calls are {id, name, arguments_json}; the

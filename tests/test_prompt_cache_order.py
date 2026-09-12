@@ -56,6 +56,7 @@ from harness.assembler import (
     render_day_start_block,
     render_state_card,
 )
+from harness.assembler import prefix_break, wire_pair
 from harness.behavior import _render_brief
 from harness.domain import (
     AgendaItem,
@@ -90,6 +91,30 @@ G3_EPOCH0_S = datetime(2026, 8, 15, 13, 30, 0, tzinfo=timezone.utc).timestamp()
 PINNED_ANCHORED_FULL = "27aca53bbada58d07d6ad8da809251877d5e61db3c1fc071fcdf5ef072ac149e"
 PINNED_UNANCHORED_FULL = "cca6001093a16c7b9a171b8f9edba5fa52e50cc99b133843a65a214091b29e5a"
 PINNED_BARE_FULL = "424ab524ead4949ba899a6e5b860a18893365012ca94cef9c53a017420b21cc9"
+
+
+def test_prefix_break_is_none_when_the_request_only_appends():
+    previous = [{"role": "system", "content": "core"},
+                {"role": "user", "content": "hi"}]
+    assert prefix_break(previous, previous + [{"role": "assistant", "content": "yo"}]) is None
+
+
+def test_prefix_break_reports_the_first_rewritten_message():
+    previous = [{"role": "system", "content": "core"},
+                {"role": "user", "content": "hi"}]
+    edited = [{"role": "system", "content": "core EDITED"},
+              {"role": "user", "content": "hi"}]
+    assert prefix_break(previous, edited) == 0
+    # A request that SHRANK stops extending at the index it no longer covers.
+    assert prefix_break(previous, previous[:1]) == 1
+
+
+def test_wire_pair_compares_text_not_object_identity():
+    # A rebuilt message carrying identical text is not a change: the provider
+    # sees bytes, not Python object identity.
+    assert prefix_break([{"role": "user", "content": "hi"}],
+                        [{"role": "user", "content": "hi"}]) is None
+    assert wire_pair({"role": "user", "content": "hi", "extra": 1}) == ("user", "hi")
 
 
 def _anchor() -> RealTimeAnchor:

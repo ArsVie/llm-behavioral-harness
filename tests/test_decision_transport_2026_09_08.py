@@ -91,11 +91,61 @@ def test_logged_decide_call_records_the_payload_that_went_out(tmp_path):
     store.close()
 
     assert repro["tool_names"] == ["tool_decide_event"]
-    assert repro["tool_choice"] == "auto"
+    assert repro["tool_choice"] is None, "the identity records what went out"
     assert repro["tools_hash"] == tools_identity(
         [{"type": "function", "function": {"name": "tool_decide_event"}}]
     )[0]
     assert repro["reasoning_effort"] == session._thinking_effort
+
+
+def _prefix_events(store) -> list[str]:
+    rows = store.conn.execute(
+        "SELECT detail FROM state_events WHERE event='prefix_invariant_violation'"
+    ).fetchall()
+    return [row[0] for row in rows]
+
+
+def test_the_prefix_invariant_logs_a_rewrite_and_is_silent_otherwise(tmp_path, monkeypatch):
+    """Witness the append-only property at runtime, per lane.
+
+    A rewrite at the head costs the entire prefix (measured), so the check has
+    to exist — but it must never raise in a live run, and it must stay off
+    unless asked for.
+    """
+    session, client, store = _session(tmp_path)
+    lane = "chat"
+    first = [{"role": "system", "content": "core"}, {"role": "user", "content": "hi"}]
+
+    # Off by default: even a rewrite logs nothing.
+    session._note_request_prefix(lane, first)
+    session._note_request_prefix(lane, [{"role": "system", "content": "EDITED"}])
+    assert _prefix_events(store) == []
+
+    monkeypatch.setenv("HARNESS_PREFIX_INVARIANT", "1")
+    session._last_request_pairs.clear()   # a fresh witness: the off-phase left state
+    session._note_request_prefix(lane, first)
+    session._note_request_prefix(lane, first + [{"role": "assistant", "content": "yo"}])
+    assert _prefix_events(store) == [], "an append is not a violation"
+
+    session._note_request_prefix(lane, [{"role": "system", "content": "EDITED"}])
+    events = _prefix_events(store)
+    store.close()
+    assert len(events) == 1, "a rewritten head must be recorded exactly once"
+    assert json.loads(events[0]) == {"lane": lane, "index": 0, "was": 3, "now": 1}
+
+
+def test_the_prefix_invariant_is_scoped_per_lane(tmp_path, monkeypatch):
+    """Legs legitimately differ: the decide leg EXTENDS the mainline array."""
+    session, client, store = _session(tmp_path)
+    monkeypatch.setenv("HARNESS_PREFIX_INVARIANT", "1")
+    mainline = [{"role": "system", "content": "core"}, {"role": "user", "content": "hi"}]
+    popup = mainline + [{"role": "system", "content": "card + popup"}]
+    session._note_request_prefix("chat", mainline)
+    session._note_request_prefix("tool_decide_event", popup)
+    session._note_request_prefix("chat", mainline + [{"role": "user", "content": "more"}])
+    events = _prefix_events(store)
+    store.close()
+    assert events == [], "different lanes are not compared with each other"
 
 
 def test_the_chat_leg_stores_its_wire_identity(tmp_path):
@@ -163,12 +213,13 @@ def test_popup_call_requires_exactly_the_requested_tool(tmp_path):
         f"offered {offered} — a pop-up asks ONE named question, so the other "
         "schemas must not be on the table"
     )
-    # tool_choice CANNOT be narrowed on this model: it is always in thinking
-    # mode and thinking mode 400s both tool_choice="required" and a named
-    # function ("Thinking mode does not support this tool_choice", verified
-    # against the live gateway 2026-09-08). Narrowing the MENU is the fix
-    # that is actually available; a named choice here breaks every call.
-    assert call["tool_choice"] == "auto"
+    # tool_choice is not sent at all. It cannot be narrowed on this model
+    # (always thinking; a forced choice 400s, verified against the live
+    # gateway 2026-09-08), and sending the only remaining value buys nothing:
+    # on the real decide body, omitted parsed 6/6 while "auto" parsed 5/6,
+    # same cache, no latency penalty (n=6 per arm, interleaved). Narrowing the
+    # MENU is the fix that is actually available; a named choice breaks calls.
+    assert call["tool_choice"] is None
 
 
 def test_unknown_kind_falls_back_rather_than_offering_nothing(tmp_path):
@@ -184,7 +235,7 @@ def test_unknown_kind_falls_back_rather_than_offering_nothing(tmp_path):
     call = client.calls[-1]
     store.close()
     assert call["tools"], "no tools offered for an unknown kind"
-    assert call["tool_choice"] == "auto"
+    assert call["tool_choice"] is None, "the field is never sent"
 
 
 # -- 2. the retry budget is bounded --------------------------------------- #

@@ -236,6 +236,29 @@ def proactive_block(hook: str | None = None) -> str:
 SYSTEM_BLOCK_SEPARATOR = "\n\n"
 
 
+def wire_pair(message: dict) -> tuple:
+    """The cache-relevant identity of one message: role + content.
+
+    Compared as pairs so a rebuilt message object carrying identical text is
+    not mistaken for a change (the provider sees bytes, not object identity).
+    """
+    return (message.get("role"), message.get("content"))
+
+
+def prefix_break(previous: list, current: list) -> int | None:
+    """The first index at which ``current`` stops extending ``previous``.
+
+    Port of DeepSeek-Harness's derivation invariant (``invariant.ts``: the
+    request must equal the derived surface): the prefix cache only ever pays
+    for a byte-identical HEAD, so a request that rewrites an earlier message
+    silently re-bills the whole prompt. ``None`` means append-only.
+    """
+    for index, message in enumerate(previous):
+        if index >= len(current) or wire_pair(current[index]) != wire_pair(message):
+            return index
+    return None
+
+
 def append_system(messages: list[dict], content: str | None) -> list[dict]:
     """Append a system block, FOLDING it into a trailing system message.
 

@@ -791,6 +791,24 @@ def parse_textual_reply(
     return parse_verdict(found_kind, payload, phase=phase)
 
 
+def _salvage_arguments(popup_kind: str, text: str, phase: str | None) -> dict:
+    """Read a verdict out of non-JSON native arguments.
+
+    Two shapes reach here: the marker payload the model likes to nest inside
+    ``arguments`` (``tool_decide_event: {...}``), and a bare brace object that
+    only fails strict JSON (e.g. an unquoted reason). Neither is a reason to
+    spend a re-ask; only text with no payload at all still raises.
+    """
+    try:
+        return parse_textual_reply(popup_kind, text, phase=phase)
+    except ValueError:
+        start = text.find("{")
+        payload = _brace_payload(text, start) if start >= 0 else None
+        if payload is None:
+            raise
+        return parse_verdict(popup_kind, payload, phase=phase)
+
+
 def parse_native_reply(
     popup_kind: str, tool_calls: list[dict], phase: str | None = None,
 ) -> dict:
@@ -809,7 +827,19 @@ def parse_native_reply(
             continue
         args = fn.get("arguments")
         if isinstance(args, str):
-            args = json.loads(args) if args.strip() else {}
+            text = args.strip()
+            if text:
+                try:
+                    args = json.loads(text)
+                except ValueError:
+                    # MALFORMED ARGUMENTS ARE SALVAGED, NOT REJECTED — the port
+                    # of DeepSeek-Harness ``tool-calls.ts`` (``catch { return
+                    # raw }``). The model here often emits its marker payload
+                    # inside the arguments string, so the raw text is re-read
+                    # as a textual reply before anything is called a failure.
+                    return _salvage_arguments(popup_kind, text, phase)
+            else:
+                args = {}
         if not isinstance(args, dict):
             raise ValueError(
                 f"native {popup_kind} arguments are not an object: {args!r}"

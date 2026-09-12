@@ -81,6 +81,38 @@ EVENT_INPUTS = {
 # parsing
 
 
+def test_malformed_native_arguments_are_salvaged_not_rejected():
+    """Port of DeepSeek-Harness ``catch { return raw }`` (tool-calls.ts).
+
+    The model nests its marker payload inside ``arguments``; a strict JSON
+    parse used to spend a re-ask on a reply that was perfectly parsable. Only
+    text with no payload at all is still a failure — and it stays loud.
+    """
+    from harness.tools import parse_native_reply
+
+    def call(arguments: str) -> list[dict]:
+        return [{"id": "c1", "type": "function",
+                 "function": {"name": "tool_decide_event", "arguments": arguments}}]
+
+    # 1. the marker payload nested in a non-JSON arguments string
+    verdict = parse_native_reply(
+        "tool_decide_event",
+        call('tool_decide_event: {"initiate": "yes", "reason": "reading"}'),
+    )
+    assert verdict["initiate"] is True and verdict["reason"] == "reading"
+
+    # 2. a bare brace payload in the L369 shorthand the model also uses
+    shorthand = parse_native_reply("tool_decide_event", call('{yes, "reading"}'))
+    assert shorthand["initiate"] is True and shorthand["reason"] == "reading"
+
+    # 3. genuinely empty arguments are an empty object, not a failure
+    assert parse_native_reply("tool_decide_event", call(""))["initiate"] is False
+
+    # 4. no payload at all still raises: tolerance must not invent a verdict
+    with pytest.raises(ValueError):
+        parse_native_reply("tool_decide_event", call("just prose, no payload"))
+
+
 def test_tools_identity_hashes_the_payload_and_names_the_tools():
     from harness.tools import TOOL_SCHEMAS, tools_identity
 
