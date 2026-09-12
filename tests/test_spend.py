@@ -106,8 +106,41 @@ def test_client_anthropic_read_and_creation_variant():
         }},
     ])
     result = client.chat_with_meta([{"role": "user", "content": "hi"}])
-    # reads are cache-served; creation writes are full-price -> miss bucket
-    assert result.usage == Usage(100, 25, 125, 60, 10)
+    # Reads are cache-served; creation writes are full-price and belong in the
+    # miss bucket — together with the fresh input the dialect does not itemize.
+    # The split must sum to the prompt total (100), so miss is the remainder.
+    assert result.usage == Usage(100, 25, 125, 60, 40)
+
+
+def test_client_zero_creation_counter_does_not_claim_a_full_cache_hit():
+    """commandcode always emits ``cache_creation_input_tokens: 0``.
+
+    Trusting that zero left every mostly-fresh request looking 100% cached
+    (found 2026-09-12 through the observability cache panel): the miss bucket
+    is the prompt remainder whenever the prompt total is known.
+    """
+    client = FakeClient(responses=[
+        {"content": "ok", "usage": {
+            "prompt_tokens": 800, "completion_tokens": 25, "total_tokens": 825,
+            "prompt_tokens_details": {"cached_tokens": 256},
+            "cache_creation_input_tokens": 0,
+        }},
+    ])
+    result = client.chat_with_meta([{"role": "user", "content": "hi"}])
+    assert result.usage is not None
+    assert result.usage.cached_tokens == 256
+    assert result.usage.cache_miss_tokens == 544
+    assert result.usage.cached_tokens + result.usage.cache_miss_tokens == 800
+
+
+def test_client_keeps_an_explicit_split_when_no_prompt_total_arrives():
+    client = FakeClient(responses=[
+        {"content": "ok", "usage": {
+            "prompt_cache_hit_tokens": 60, "prompt_cache_miss_tokens": 10,
+        }},
+    ])
+    result = client.chat_with_meta([{"role": "user", "content": "hi"}])
+    assert result.usage == Usage(None, None, None, 60, 10)
 
 
 def test_client_absent_usage_tolerated():
@@ -230,10 +263,18 @@ def _seed_v7_llm_calls(path) -> int:
     return n
 
 
-def test_fresh_db_reaches_v8_with_one_version_row(tmp_path):
+def test_fresh_db_reaches_current_version_with_one_version_row(tmp_path):
+    """One version row at ``SCHEMA_VERSION``, plus the v8 usage columns.
+
+    The version is read from the constant rather than pinned to a literal:
+    this test guards the ONE-ROW bookkeeping invariant and the v8 columns,
+    not the version number, and pinning the number made every later additive
+    migration fail here for no reason. (v9 added user_profile and
+    interest_relations; test_store_migrations_v9 covers those.)
+    """
     store = SQLiteStore(tmp_path / "fresh.db")
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION == 8
+    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
     cols = {r["name"] for r in store.conn.execute("PRAGMA table_info(llm_calls)")}
     for col in ("prompt_tokens", "completion_tokens", "total_tokens",
                 "cached_tokens", "cache_miss_tokens", "lane", "raw_cost"):

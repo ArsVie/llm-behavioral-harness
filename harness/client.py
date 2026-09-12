@@ -39,14 +39,26 @@ opencode gateway uses the OpenAI variant, surfacing `cached_tokens` only
 when a prompt prefix is actually cached); the gateway's top-level `cost`
 is captured as `ChatResult.raw_cost`. `FakeClient` scripts both. Absent
 usage degrades to `None` — nothing new is required of any caller.
+
+Streaming surface (2026-09-07): both clients add an OPTIONAL
+`chat_stream` iterator — SSE `delta.content` pieces on the real client,
+`chunk_size` slices on FakeClient — while `chat()` / `chat_with_meta()`
+stay byte-identical (the stream request only adds `stream: true` to the
+usual payload). The surface is duck-typed (`getattr(client,
+"chat_stream", None)`), never required: `LLMClient` declares it, but a
+client or fake without the method still conforms. Endpoints that do not
+speak SSE (non-2xx, or a 2xx body with no content deltas) degrade to one
+non-streaming `chat_with_meta` call, yielding its content once.
 """
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import time
 from collections import deque
+from collections.abc import Iterator
 from dataclasses import dataclass, field
 from typing import Protocol
 
@@ -61,6 +73,12 @@ DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 #: failures and empty completions; raises when the budget is exhausted.
 _MAX_RETRIES = 6
 _RETRY_BASE_DELAY_S = 2.0
+#: SSE stream parsing (chat_stream): the 2xx retry budget on the initial
+#: connection only, the line prefix for data events, and the sentinel the
+#: OpenAI-compatible gateways emit at end of stream.
+_STREAM_MAX_RETRIES = 2
+_SSE_DATA_PREFIX = "data:"
+_STREAM_END = "[DONE]"
 
 _logger = logging.getLogger(__name__)
 
@@ -134,7 +152,15 @@ class ChatResult:
 
 
 class LLMClient(Protocol):
-    """Minimal client contract used by the harness."""
+    """Minimal client contract used by the harness.
+
+    ``chat_stream`` is an OPTIONAL streaming surface (2026-09-07): the
+    harness gates on ``getattr(client, \"chat_stream\", None)`` and never
+    requires it, so older clients and test fakes without the method still
+    conform. Clients that DO offer it must also keep ``chat_with_meta``
+    behaviour identical — streaming is an extra surface, not a
+    replacement.
+    """
 
     supports_json: bool
     supports_tools: bool
@@ -164,6 +190,27 @@ class LLMClient(Protocol):
         reasoning_effort: str | None = None,
     ) -> ChatResult:
         """Complete a chat and return the structured result (WS3)."""
+        ...
+
+    def chat_stream(
+        self,
+        messages: list[dict],
+        *,
+        system: str | None = None,
+        temperature: float = 0.8,
+        json_mode: bool = False,
+        max_tokens: int | None = None,
+        tools: list[dict] | None = None,
+        tool_choice: dict | str | None = None,
+        reasoning_effort: str | None = None,
+        chunk_size: int = 64,
+    ) -> Iterator[str]:
+        """Yield the reply in pieces as they arrive (OPTIONAL, 2026-09-07).
+
+        Not required for protocol conformance — the harness gates on
+        ``getattr(client, "chat_stream", None)`` so clients/fakes without
+        it remain valid.
+        """
         ...
 
     def close(self) -> None:
@@ -276,6 +323,14 @@ def _parse_cache_split(raw: dict,
         creation = _int_or_none(raw.get("cache_creation_input_tokens"))
         if creation is not None:
             miss = creation if miss is None else miss + creation
+    if prompt is not None and cached is not None and 0 <= cached <= prompt:
+        # The split MUST sum to the prompt total. Gateways that always emit a
+        # zero ``cache_creation_input_tokens`` (observed on commandcode,
+        # 2026-09-12) would otherwise report miss=0 for a mostly-fresh
+        # request: the ledger then claims a 100% cache hit and inflates the
+        # reported savings. An explicit miss count is only trusted when no
+        # prompt total came with it.
+        return cached, prompt - cached
     if prompt is not None:
         if cached is not None and miss is None:
             miss = max(prompt - cached, 0)
@@ -357,18 +412,38 @@ class OpenAICompatibleClient:
     def close(self) -> None:
         self._client.close()
 
-    def _post(self, payload: dict) -> httpx.Response:
+    def _post(self, payload: dict, stream: bool = False) -> httpx.Response:
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
-                resp = self._client.post(
-                    f"{self.base_url}/chat/completions",
-                    headers={"Authorization": f"Bearer {self.api_key}"},
-                    json=payload,
-                )
+                if stream:
+                    # post() buffers the whole body; a streamed request
+                    # goes through send(build_request(...), stream=True).
+                    resp = self._client.send(
+                        self._client.build_request(
+                            "POST",
+                            f"{self.base_url}/chat/completions",
+                            headers={"Authorization": f"Bearer {self.api_key}"},
+                            json=payload,
+                        ),
+                        stream=True,
+                    )
+                else:
+                    resp = self._client.post(
+                        f"{self.base_url}/chat/completions",
+                        headers={"Authorization": f"Bearer {self.api_key}"},
+                        json=payload,
+                    )
                 if resp.status_code in (429, 500, 502, 503, 504) and attempt < self.max_retries:
                     time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
+                    if stream:
+                        resp.close()
                     continue
+                if stream and resp.status_code != 200:
+                    # A streamed non-2xx body would otherwise be left
+                    # unread on the connection; release it before the
+                    # raise below.
+                    resp.close()
                 resp.raise_for_status()
                 return resp
             except httpx.HTTPError as exc:
@@ -554,11 +629,139 @@ class OpenAICompatibleClient:
             )
         raise RuntimeError(f"LLM call failed after {self.max_retries + 1} attempts")
 
+    def chat_stream(
+        self,
+        messages: list[dict],
+        *,
+        system: str | None = None,
+        temperature: float = 0.8,
+        json_mode: bool = False,
+        max_tokens: int | None = None,
+        tools: list[dict] | None = None,
+        tool_choice: dict | str | None = None,
+        reasoning_effort: str | None = None,
+        chunk_size: int = 64,
+    ) -> Iterator[str]:
+        """Yield the reply text in pieces as they arrive (streaming).
+
+        The request body is the non-streaming payload plus ``stream:
+        true`` — ``chat()`` / ``chat_with_meta()`` are untouched — and the
+        response is parsed as Server-Sent Events: each ``data:`` line's
+        ``choices[0].delta.content`` is yielded as it arrives (empty
+        deltas, role-only deltas and the ``[DONE]`` sentinel are
+        skipped). Pieces are the raw wire deltas — NOT padded or grouped
+        to ``chunk_size``: the parameter exists so FakeClient and the
+        real client share one signature (FakeClient slices its queued
+        reply with it), and it is ignored here.
+
+        Retry/backoff applies to the INITIAL connection only, with the
+        same bounded budget as :meth:`_post`; once the first SSE event
+        arrives the response is streamed to completion. This is a lazy
+        generator: the request fires on the first ``next()`` and the
+        connection stays open while the caller consumes the iterator, so
+        it must be drained (or dropped) before the client makes another
+        call.
+
+        Fallback: an endpoint that does not speak SSE — a non-2xx status
+        after the retry budget, or a 2xx body with no content deltas
+        (e.g. a JSON completion body) — degrades to ONE non-streaming
+        :meth:`chat_with_meta` call whose content is yielded once, so a
+        caller can always drain the iterator to the full reply. Transport
+        errors (connection failures) are not caught: they mean the
+        endpoint is unreachable, and the non-streaming call would fail
+        the same way.
+        """
+        payload = self._build_payload(
+            messages, system=system, temperature=temperature,
+            json_mode=json_mode, max_tokens=max_tokens, tools=tools,
+            tool_choice=tool_choice, reasoning_effort=reasoning_effort,
+        )
+        payload["stream"] = True
+        try:
+            resp = self._post(payload, stream=True)
+        except httpx.HTTPStatusError as exc:
+            _logger.warning(
+                "LLM stream failed (HTTP %s) — falling back to a single "
+                "non-streaming completion",
+                exc.response.status_code,
+            )
+            yield self.chat_with_meta(
+                messages, system=system, temperature=temperature,
+                json_mode=json_mode, max_tokens=max_tokens, tools=tools,
+                tool_choice=tool_choice,
+                reasoning_effort=reasoning_effort,
+            ).content
+            return
+        saw_content = False
+        for piece in self._iter_stream_events(resp):
+            saw_content = True
+            yield piece
+        if not saw_content:
+            # 2xx but no content deltas: the endpoint may not speak SSE
+            # (e.g. it ignored `stream: true` and returned a JSON body).
+            _logger.warning(
+                "LLM stream carried no content deltas — falling back to "
+                "a single non-streaming completion"
+            )
+            yield self.chat_with_meta(
+                messages, system=system, temperature=temperature,
+                json_mode=json_mode, max_tokens=max_tokens, tools=tools,
+                tool_choice=tool_choice,
+                reasoning_effort=reasoning_effort,
+            ).content
+
+    def _iter_stream_events(self, resp: httpx.Response) -> Iterator[str]:
+        """Yield non-empty content deltas from an SSE stream response.
+
+        Each ``data:`` line is parsed as JSON and its
+        ``choices[0].delta.content`` is yielded when present; the
+        ``[DONE]`` sentinel, empty/whitespace deltas and role-only deltas
+        are skipped. Malformed lines (keep-alive comments, partial JSON)
+        are skipped with the line logged at debug level — a streaming
+        endpoint must never take down the turn over one stray line.
+        """
+        try:
+            for line in resp.iter_lines():
+                if not line.startswith(_SSE_DATA_PREFIX):
+                    continue
+                data = line[len(_SSE_DATA_PREFIX):].strip()
+                if not data or data == _STREAM_END:
+                    continue
+                try:
+                    event = json.loads(data)
+                    delta = event["choices"][0]["delta"]
+                    piece = delta.get("content")
+                except (ValueError, KeyError, IndexError, TypeError,
+                        AttributeError) as exc:
+                    _logger.debug("skipping malformed SSE line: %s", exc)
+                    continue
+                if isinstance(piece, str) and piece:
+                    yield piece
+        finally:
+            resp.close()
+
     def _retry_post(self, payload: dict, attempt: int) -> httpx.Response:
         """Backoff + repost for one retryable failure (shared by the
         malformed/null/empty retry branches)."""
         time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
         return self._post(payload)
+
+
+def _chunk_text(text: str, chunk_size: int) -> Iterator[str]:
+    """Yield ``text`` in pieces of at most ``chunk_size`` characters.
+
+    Pieces are yielded as soon as they fill, so a partial trailing chunk
+    is still delivered (a short reply with a large ``chunk_size`` yields
+    the whole reply once, never nothing).
+    """
+    if not text:
+        return
+    start = 0
+    end = chunk_size
+    while start < len(text):
+        yield text[start:end]
+        start = end
+        end += chunk_size
 
 
 class FakeClient:
@@ -574,7 +777,8 @@ class FakeClient:
     message wrapped. Records every call (including tools/tool_choice/
     reasoning_effort) for assertions. Faithful to the LLMClient protocol:
     system-only payload on empty transcripts, `supports_json`,
-    `supports_tools`, no-op `close`.
+    `supports_tools`, no-op `close`. Also offers the optional
+    `chat_stream` surface (chunked slicing of the same queued replies).
     """
 
     supports_json: bool = True
@@ -650,6 +854,40 @@ class FakeClient:
         if scripted is not None:
             return ChatResult(content=scripted)
         return ChatResult(content="FakeClient reply.")
+
+    def chat_stream(
+        self,
+        messages: list[dict],
+        *,
+        system: str | None = None,
+        temperature: float = 0.8,
+        json_mode: bool = False,
+        max_tokens: int | None = None,
+        tools: list[dict] | None = None,
+        tool_choice: dict | str | None = None,
+        reasoning_effort: str | None = None,
+        chunk_size: int = 64,
+    ) -> Iterator[str]:
+        """Yield the next queued response's content in ``chunk_size`` slices.
+
+        Scripting parity with :meth:`chat_with_meta`: ONE call entry is
+        recorded with the identical wire shape (messages/system/
+        temperature/json_mode/max_tokens/tools/tool_choice/
+        reasoning_effort), one queued response is consumed, and echo mode
+        chunks ``echo: <last content>``. Dict responses yield their
+        ``content`` field; plain-string responses yield the string; the
+        default reply yields ``FakeClient reply.``. A reply shorter than
+        ``chunk_size`` is yielded whole — the caller always receives the
+        full text. Consuming the returned iterator fully is equivalent to
+        one ``chat_with_meta`` call, so existing calls-log assertions on
+        length and shapes keep holding.
+        """
+        result = self.chat_with_meta(
+            messages, system=system, temperature=temperature,
+            json_mode=json_mode, max_tokens=max_tokens, tools=tools,
+            tool_choice=tool_choice, reasoning_effort=reasoning_effort,
+        )
+        yield from _chunk_text(result.content, chunk_size)
 
     def close(self) -> None:
         pass
