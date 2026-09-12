@@ -2799,8 +2799,9 @@ class Session(NegotiationMixin):
         """One pop-up model call (the callable injected into the runner).
 
         Transport (2026-09-08): the requested function is the ONLY one
-        offered. ``tool_choice`` stays "auto" because this model rejects a
-        forced choice in thinking mode -- see the inline note below.
+        offered. ``tool_choice`` is not sent at all: a forced choice is
+        rejected in thinking mode, and the remaining value buys nothing
+        (measured 2026-09-12 -- see the inline note below).
 
         Cache order (2026-09-07): the pop-up call is a byte-identical
         EXTENSION of the mainline call, not a request with its own prefix.

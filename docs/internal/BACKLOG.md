@@ -97,12 +97,16 @@ unanswered. Four causes, all fixed, all with guards in
 - **Only the requested schema is offered.** All three went out before, so an
   event pop-up could come back as `tool_decide_reply`. Measured against the
   live gateway: 1-in-3 wrong tool with three offered, 0-in-3 with one.
-- **`tool_choice` stays "auto" — it cannot be narrowed on this model.**
-  `deepseek-v4-flash` is always in thinking mode (`reasoning_effort` accepts
-  only low..max; omitting it still reports thinking) and thinking mode 400s
-  both `"required"` and a named function: *"Thinking mode does not support
-  this tool_choice"*. A named choice would break every decision call. Do not
-  reintroduce one without re-testing the gateway.
+- **`tool_choice` is not sent — and a NAMED choice must never be.** The
+  model is always in thinking mode (`reasoning_effort` accepts only low..max;
+  omitting it still reports thinking) and thinking mode 400s both `"required"`
+  and a named function: *"Thinking mode does not support this tool_choice"*.
+  **Revised 2026-09-12:** the field used to go out as `"auto"`; on the real
+  decide body (6 requests per arm, interleaved) omitting it parsed 6/6 tool
+  calls against 5/6 with `"auto"`, at identical 97.2% cache and no latency
+  penalty (mean 4.8 s vs 6.8 s), so it is dropped — `"auto"` is the provider
+  default anyway and DeepSeek-Harness never sends the field. Do not
+  reintroduce a named choice without re-testing the gateway.
 - **Retry budget** (`steering.MAX_ATTEMPTS = 3`, schema v11
   `steering_queue.attempts`). A failed decision was requeued unbounded and
   re-asked every turn, one call each, growing as more accumulated (4, 4, 5,
