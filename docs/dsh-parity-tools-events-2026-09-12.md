@@ -56,6 +56,11 @@ arguments; we raise) and choice policy (they never send `tool_choice`; we send `
    (`[STEER — a real arriving event from the harness…] … [/STEER]`, `steering.py:439-444`).
    So we are not on the refuted family. Whether our JSON-ish `System: {Event: …}` block
    reads better than prose is still an open probe, not a settled win.
+   **The role divergence stands by decision (2026-09-12):** dsh forces `user`,
+   we keep `system` because CONVENTIONS:27 says events are system-level inputs
+   that are never user messages. Their `user`-message funnel is therefore NOT a
+   gap to close — and the earlier "0 failures in 27 decisions as a user message"
+   observation does not buy the rule either. Do not "align" this one to dsh.
 
 4. **Event/trigger system — PARTIAL MATCH.** Both persist and dedup: ours via
    `state_events` + replay-by-`decision_id` ("a record already present for it is replayed

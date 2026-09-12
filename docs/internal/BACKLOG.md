@@ -133,9 +133,17 @@ a generated goodbye plus the inform mention.
 Still open:
 
 - A prose reply with no tool call is BOUNDED, not prevented — the provider
-  will not let us require a tool. If it recurs often, the next lever is
-  putting the aux pop-up back as the last `user` message (0 failures in 27
-  decisions before the role change) rather than a trailing system block.
+  will not let us require a tool. Containment is the one bounded re-ask plus
+  the retry budget; if the class recurs, the levers to try are the pop-up's
+  WORDING and the re-ask's, not its channel. **Decided against (2026-09-12):**
+  the lever previously listed here — delivering the aux pop-up as the last
+  `user` message, where an earlier shape measured 0 failures in 27 decisions —
+  is CLOSED. CONVENTIONS:27 and architecture-overview.md:33 make internal
+  events system-level context that is never a user message, and a parse-rate
+  gain does not buy that rule. `build_context_messages` enforces it
+  structurally: when the user said nothing, no user message is appended at
+  all, and the card rides as the trailing system block (pinned by
+  `test_a_turn_the_user_did_not_speak_has_no_user_message_at_all`).
 - **Outcome capture is polluted.** Any end-boundary verdict reason is stored
   as `agenda_items.outcome`, so a decline rationale ("Nothing to initiate;
   I'm mid-storyboard") became what came of morning coffee — and that feeds

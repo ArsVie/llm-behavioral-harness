@@ -281,6 +281,34 @@ def test_constant_state_yields_byte_identical_whole_request():
 # --- (b) volatile state differs between turns and appears at the TAIL ---
 
 
+def test_a_turn_the_user_did_not_speak_has_no_user_message_at_all():
+    """The convention, pinned (CONVENTIONS:27, architecture-overview.md:33).
+
+    Internal events are system-level context, NEVER user messages: a proactive
+    turn carries no user-role message, and the volatile card rides as the
+    trailing system block. An empty or null user line would both break the rule
+    ("user-role content is always what the user said") and 400 on dialects that
+    reject null content.
+    """
+    _, silent = build_context_messages(
+        _snapshot(), _recent_turns(3), None, controls=_controls(),
+        prompt_brief=_prompt_brief(), t_h=27.0, anchor=_anchor(),
+    )
+    assert [m["role"] for m in silent] == ["user", "assistant", "user", "system"]
+    assert silent[-1]["role"] == "system"
+    assert all(m["content"] for m in silent if m["role"] == "user"), (
+        "no user message may carry empty content or harness text"
+    )
+
+    # With a real user turn nothing changes about the tail: system card last.
+    _, spoken = build_context_messages(
+        _snapshot(), _recent_turns(3), "hey", controls=_controls(),
+        prompt_brief=_prompt_brief(), t_h=27.0, anchor=_anchor(),
+    )
+    assert spoken[-1]["role"] == "system"
+    assert spoken[-2]["role"] == "user" and spoken[-2]["content"] == "hey"
+
+
 def test_volatile_state_is_the_last_system_message():
     """The state card (temporal/state-card content) is the LAST message — a
     system message, never interleaved in the stable prefix and never wearing
