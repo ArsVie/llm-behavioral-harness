@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Harness observability</title>
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="page">
+
+  <header class="topbar card">
+    <div class="brand">
+      <span class="mark" aria-hidden="true"></span>
+      <div>
+        <h1>Harness observability</h1>
+        <p class="sub" id="root-line">scanning…</p>
+      </div>
+    </div>
+
+    <div class="topbar-controls">
+      <label class="field">
+        <span class="field-label">Active bot</span>
+        <select id="run-picker" aria-label="Select a run"></select>
+      </label>
+      <div class="chiprow">
+        <span class="chip" id="liveness" data-state="unknown">checking</span>
+        <span class="chip chip-quiet" id="clock-chip">—</span>
+        <span class="chip chip-quiet" id="model-chip">—</span>
+      </div>
+      <button type="button" class="btn" id="refresh">Refresh</button>
+    </div>
+  </header>
+
+  <section class="statsline card" aria-label="Run statistics">
+    <div class="stat" id="stat-tokens"><span class="stat-label">tokens</span><span class="stat-value">—</span></div>
+    <div class="stat" id="stat-cache"><span class="stat-label">cache hit</span><span class="stat-value">—</span></div>
+    <div class="stat" id="stat-savings"><span class="stat-label">cache savings</span><span class="stat-value">—</span></div>
+    <div class="stat" id="stat-calls"><span class="stat-label">calls</span><span class="stat-value">—</span></div>
+    <div class="stat" id="stat-turns"><span class="stat-label">turns</span><span class="stat-value">—</span></div>
+    <div class="stat" id="stat-events"><span class="stat-label">events</span><span class="stat-value">—</span></div>
+    <div class="stat" id="stat-checks"><span class="stat-label">invariants</span><span class="stat-value">—</span></div>
+  </section>
+
+  <main class="grid">
+
+    <section class="card context-card">
+      <div class="card-head">
+        <h2>Context on the model</h2>
+        <span class="hint" id="context-call-hint">latest call</span>
+      </div>
+
+      <div class="meter">
+        <div class="ring-wrap">
+          <svg viewBox="0 0 42 42" class="ring" role="img" aria-label="context occupancy">
+            <circle class="ring-track" cx="21" cy="21" r="16"></circle>
+            <circle class="ring-fill" id="ring-fill" cx="21" cy="21" r="16"></circle>
+          </svg>
+          <div class="ring-center"><strong id="ring-percent">—</strong><span>used</span></div>
+        </div>
+        <div class="meter-figures">
+          <p class="big" id="pressure-line">no model call yet</p>
+          <p class="sub" id="pressure-sub">waiting for the first request</p>
+          <div class="bar" id="context-bar" aria-hidden="true"></div>
+          <dl class="legend" id="context-legend"></dl>
+        </div>
+      </div>
+
+      <div class="split">
+        <div>
+          <h3>System prompt blocks</h3>
+          <ul class="list dense" id="system-parts"><li class="empty">—</li></ul>
+        </div>
+        <div>
+          <h3>Tool schemas <span class="hint" id="tools-source"></span></h3>
+          <ul class="list dense" id="tool-list"><li class="empty">—</li></ul>
+        </div>
+      </div>
+
+      <h3>Ordered surface <span class="hint">oldest → newest, price per node</span></h3>
+      <ol class="list surface" id="surface"></ol>
+    </section>
+
+    <section class="card calls-card">
+      <div class="card-head">
+        <h2>Calls &amp; prefix cache</h2>
+        <span class="hint">cached% is the provider's; shared% is measured from the envelopes</span>
+      </div>
+      <div class="table-wrap">
+        <table class="table" id="calls-table">
+          <thead>
+            <tr><th>#</th><th>when</th><th>leg</th><th>prompt</th><th>cached</th>
+                <th>hit</th><th>shared</th><th>out</th><th>note</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card events-card">
+      <div class="card-head">
+        <h2>Event flow</h2>
+        <span class="hint"><span class="sq live"></span> live tail</span>
+      </div>
+      <ul class="stream" id="stream"></ul>
+    </section>
+
+  </main>
+
+  <aside class="drawer" id="drawer" hidden>
+    <div class="drawer-head">
+      <h2 id="drawer-title">Details</h2>
+      <button type="button" class="btn btn-quiet" id="drawer-close">Close</button>
+    </div>
+    <div class="drawer-body" id="drawer-body"></div>
+  </aside>
+
+</div>
+<script src="/static/app.js"></script>
+</body>
+</html>
