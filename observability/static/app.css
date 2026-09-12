@@ -62,7 +62,7 @@ body {
   box-shadow: inset 0 0 0 2px #fff;
 }
 h1 { font-size: 19px; margin: 0; letter-spacing: .2px; }
-.sub { margin: 2px 0 0; color: var(--ink-soft); font-size: 13px; }
+.sub { margin: 2px 0 0; color: var(--ink-soft); font-size: 13px; overflow-wrap: anywhere; }
 
 .topbar-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
 .field { display: flex; flex-direction: column; gap: 3px; }
@@ -93,10 +93,10 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
 
 /* ------------------------------------------------------------- statsline */
 .statsline {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
   gap: 8px; padding: 14px 18px; margin-bottom: 18px;
 }
-.stat { padding: 6px 10px; border-radius: var(--radius-sm); background: var(--paper-2); }
+.stat { padding: 6px 10px; border-radius: var(--radius-sm); background: var(--paper-2); min-width: 0; }
 .stat-label { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); }
 .stat-value { display: block; font-family: var(--mono); font-size: 17px; margin-top: 2px; }
 .stat[data-state="warn"] { background: var(--peach-soft); }
@@ -104,7 +104,9 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
 .stat[data-state="good"] { background: var(--mint-soft); }
 
 /* ------------------------------------------------------------------ grid */
-.grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); }
+/* Cards size to their own content: a stretched card leaves a dead white
+   block under a short table. */
+.grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; }
 /* The event tail owns the full width: its rows carry long labels. */
 .events-card { grid-column: 1 / -1; }
 @media (max-width: 1100px) {
@@ -134,7 +136,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .seg-system { background: var(--lav); }
 .seg-tools { background: var(--mint); }
 .seg-messages { background: var(--peach); }
-.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 2px 14px; margin: 0; }
+.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 2px 14px; margin: 0; }
 .legend div { display: flex; align-items: baseline; gap: 8px; }
 .legend dt { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-soft); }
 .legend dd { margin: 0; font-family: var(--mono); font-size: 13px; }
@@ -168,15 +170,22 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 
 /* ------------------------------------------------------------------ list */
 .list { list-style: none; margin: 0; padding: 0 20px 0; }
+/* A grid row with an explicitly shrinkable first column: a flex row of
+   nowrap badges plus a nowrap preview refuses to go below its min-content
+   width, which drags the whole page sideways on a narrow window. */
 .list li {
-  display: flex; gap: 10px; align-items: baseline; justify-content: space-between;
+  display: grid; grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px; align-items: baseline;
   padding: 7px 0; border-bottom: 1px dashed var(--line); font-size: 13px;
 }
 .list li:last-child { border-bottom: 0; }
-.list .name { display: flex; align-items: baseline; gap: 8px; min-width: 0; }
-.list .name b { font-weight: 500; color: var(--ink); }
+.list .name { display: flex; align-items: baseline; gap: 8px; min-width: 0; overflow: hidden; }
+.list .name b { font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .list .tokens { font-family: var(--mono); color: var(--ink-soft); flex: none; }
-.list .preview { color: var(--ink-faint); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.list .preview {
+  color: var(--ink-faint); font-size: 12px; min-width: 0; flex: 1 1 auto;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 .empty { color: var(--ink-faint); font-style: italic; }
 
 .surface { max-height: 420px; overflow: auto; }
@@ -191,7 +200,10 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .fresh { font-size: 11px; color: #97506c; background: var(--rose-soft); border-radius: 6px; padding: 1px 6px; flex: none; }
 
 /* ----------------------------------------------------------------- table */
+/* The table scrolls inside its own card at any width: a 9-column ledger
+   cannot wrap, so it gets an intentional scroll region instead of spilling. */
 .table-wrap { overflow: auto; padding: 6px 12px 18px; max-height: 560px; }
+.table { min-width: 620px; }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .table th {
   text-align: left; font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
@@ -233,6 +245,11 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .sq.live { background: #4caf8f; }
 
 /* --------------------------------------------------------------- drawer */
+.scrim {
+  position: fixed; inset: 0; z-index: 15;
+  background: rgba(74, 66, 87, 0.14);
+}
+.scrim[hidden] { display: none; }
 .drawer {
   position: fixed; inset: auto 22px 22px 22px; max-height: 74vh;
   background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
@@ -244,13 +261,18 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 @media (min-width: 1200px) { .drawer { left: auto; width: 720px; } }
 .drawer-head { display: flex; justify-content: space-between; align-items: center; padding: 16px 20px 8px; }
 .drawer-body { overflow: auto; padding: 0 20px 20px; }
+/* One scroll for the whole inspector: a nested scrollbar inside the drawer
+   makes a long system prompt harder to read, not easier. */
+.drawer-body pre { max-height: none; }
 pre {
   background: var(--paper-2); border-radius: var(--radius-sm); padding: 12px;
   font-family: var(--mono); font-size: 12px; line-height: 1.5; overflow: auto;
   max-height: 320px; margin: 0 0 12px; white-space: pre-wrap; word-break: break-word;
 }
-.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 4px 14px; margin: 0 0 14px; }
+.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 4px 14px; margin: 0 0 14px; }
 .kv div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; border-bottom: 1px dashed var(--line); padding: 4px 0; }
+/* A long model id must not break mid-token in a narrow column. */
+.kv div.wide { grid-column: 1 / -1; }
 .kv dt { color: var(--ink-soft); }
 .kv dd { margin: 0; font-family: var(--mono); }
 .bubble { border-radius: var(--radius-sm); padding: 10px 12px; margin: 0 0 8px; font-size: 13px; }
@@ -263,4 +285,34 @@ pre {
 .bubble.role-assistant { background: var(--lav-soft); }
 .bubble.role-tool { background: var(--mint-soft); }
 .bubble.role-system { background: var(--peach-soft); }
+
+
+
+/* ------------------------------------------------------------ responsive */
+/* Grid/flex children default to min-width:auto, so a child holding a wide
+   table or a long identifier drags the whole page sideways. */
+.card, .grid > *, .meter-figures, .legend div, .kv div, .list li, .stream li,
+.bubble, .stat { min-width: 0; }
+.stat-value { overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  .page { padding: 16px 14px 48px; }
+  .topbar { padding: 14px 16px; gap: 12px; }
+  .brand { flex: 1 1 100%; }
+  .topbar-controls { flex: 1 1 100%; }
+  select { min-width: 0; width: 100%; }
+  .field { flex: 1 1 220px; }
+  .meter { flex-wrap: wrap; gap: 14px; padding: 8px 16px 4px; }
+  .ring-wrap { width: 108px; height: 108px; }
+  h3 { margin: 14px 16px 6px; }
+  .card-head, .list, .split { padding-left: 16px; padding-right: 16px; }
+  .stream li { grid-template-columns: 62px 1fr; }
+  /* Drop the preview to its own line on a phone, so a block's label is never
+     squeezed into "pr..." just to keep the preview beside it. */
+  .list .name { flex-wrap: wrap; }
+  .list .preview { flex-basis: 100%; }
+  .drawer { inset: auto 10px 10px 10px; left: 10px; width: auto; max-height: 80vh; }
+}
+
+
 

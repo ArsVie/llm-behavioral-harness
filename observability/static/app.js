@@ -12,9 +12,12 @@ const state = {
   selectedCall: null,
   // `?nostream=1` renders one static frame: no EventSource, so the page
   // reaches network idle (headless capture, tests, no-SSE environments).
+  // `?run=<path>&call=<id>` deep-links a run and opens one call's inspector.
   streaming: typeof EventSource !== "undefined"
     && new URLSearchParams(window.location.search).get("nostream") !== "1",
 };
+
+const LINKED = new URLSearchParams(window.location.search);
 
 const $ = (id) => document.getElementById(id);
 
@@ -128,6 +131,11 @@ function renderStats(detail) {
   setStat("stat-checks",
     checks.counts.error ? `${checks.counts.error} error` : `${checks.counts.warn} warn`,
     checks.counts.error ? "bad" : (checks.counts.warn ? "warn" : "good"));
+  // Say what the number is made of, so a bare "2 warn" is never a mystery.
+  const codes = checks.findings.map((finding) => finding.code);
+  $("stat-checks").title = codes.length
+    ? `click to read the full verdicts: ${codes.join(", ")}`
+    : "click to read: all clear";
 }
 
 /* ---------------------------------------------------------------- context */
@@ -231,6 +239,15 @@ function renderContext(payload) {
 function renderCalls(calls, selectedId) {
   const body = $("calls-table").querySelector("tbody");
   body.replaceChildren();
+  if (!calls.length) {
+    const row = el("tr");
+    const cell = el("td", "empty", "no model calls recorded in this run — "
+      + "the table fills as soon as the bot makes one");
+    cell.colSpan = 9;
+    row.append(cell);
+    body.append(row);
+    return;
+  }
   for (const call of [...calls].reverse()) {
     const row = el("tr");
     row.dataset.call = String(call.id);
@@ -281,6 +298,7 @@ function renderStream(events, replace) {
 
 /* ----------------------------------------------------------------- drawer */
 function showDrawer(title, nodes) {
+  $("scrim").hidden = false;
   $("drawer").hidden = false;
   $("drawer-title").textContent = title;
   const body = $("drawer-body");
@@ -288,10 +306,31 @@ function showDrawer(title, nodes) {
   for (const node of nodes) body.append(node);
 }
 
+function closeDrawer() {
+  $("drawer").hidden = true;
+  $("scrim").hidden = true;
+  state.selectedCall = null;
+}
+
+function stableText(value) {
+  if (value === null || value === undefined) return "not compared (first call)";
+  return value ? "yes" : "NO — system changed";
+}
+
+function sharedText(value) {
+  if (value === null || value === undefined) return "not comparable (no previous envelope)";
+  return fmtPct(value);
+}
+
+function verdictText(value) {
+  return value || "no cache anomaly flagged";
+}
+
 function kvList(pairs) {
   const list = el("dl", "kv");
+  const wide = new Set(["model", "when"]);
   for (const [key, value] of pairs) {
-    const row = el("div");
+    const row = el("div", wide.has(key) ? "wide" : null);
     row.append(el("dt", null, key), el("dd", null, value));
     list.append(row);
   }
@@ -311,9 +350,9 @@ function envelopeNodes(detail) {
     ["model", call.model || "—"],
     ["prompt / cached", `${call.prompt_tokens} / ${call.cached_tokens}`],
     ["cache hit", fmtPct(call.cache_hit_pct)],
-    ["shared prefix", fmtPct(call.prefix_share_pct)],
-    ["system stable", String(call.system_stable)],
-    ["verdict", call.verdict || "—"],
+    ["shared prefix", sharedText(call.prefix_share_pct)],
+    ["system stable", stableText(call.system_stable)],
+    ["verdict", verdictText(call.verdict)],
   ]));
   if (!detail.envelope_available) {
     nodes.push(el("pre", null, "No persisted request envelope for this call\n(hash-only row, invariant 19)."));
@@ -407,7 +446,11 @@ async function boot() {
     loadRun(payload.runs[index].path);
   });
   $("refresh").addEventListener("click", () => loadRun(state.runId));
-  $("drawer-close").addEventListener("click", () => { $("drawer").hidden = true; state.selectedCall = null; });
+  $("drawer-close").addEventListener("click", closeDrawer);
+  $("scrim").addEventListener("click", closeDrawer);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeDrawer();
+  });
   $("stat-checks").addEventListener("click", () => {
     if (!state.detail) return;
     const findings = state.detail.checks.findings;
@@ -418,7 +461,15 @@ async function boot() {
         : el("p", null, "all clear"),
     ]);
   });
-  if (payload.runs.length) await loadRun(payload.runs[0].path);
+  // A deep link wins over the newest run; an unknown path falls back to it.
+  const wanted = LINKED.get("run");
+  const index = payload.runs.findIndex((run) => run.path === wanted);
+  const initial = index >= 0 ? payload.runs[index] : payload.runs[0];
+  if (!initial) return;
+  $("run-picker").selectedIndex = index >= 0 ? index : 0;
+  await loadRun(initial.path);
+  const linked = Number(LINKED.get("call"));
+  if (Number.isInteger(linked) && linked > 0) await selectCall(linked);
 }
 
 boot().catch((error) => {
