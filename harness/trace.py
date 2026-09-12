@@ -741,15 +741,32 @@ def _check_metering(ctx: Ctx) -> list[Finding]:
     # The decision lane is the SAME model on the same lane as the mainline —
     # what tells them apart in the ledger is the row's role (the pop-up kind).
     metered = {str(r["role"]) for r in calls}
+    instants = [float(r["t_h"]) for r in calls if r["t_h"] is not None]
     model_recs = [r for r in recs if r["source"] == "model"]
-    unmetered = {str(r["popup_kind"]) for r in model_recs} - metered
-    if unmetered:
+    unmet: list[Any] = []
+    for rec in model_recs:
+        if str(rec["popup_kind"]) in metered:
+            continue
+        # A native pop-up rides INSIDE the mainline call: the model answers
+        # the pop-up with a tool call in the turn it was already running, so
+        # its tokens are metered under ``role='chat'`` at the same instant
+        # (live run: 3 of 4 reply decisions share a chat row's t_h exactly).
+        # A textual-transport verdict is its own call and must be its own row.
+        native = ("transport" in rec.keys()
+                  and str(rec["transport"] or "").startswith("native"))
+        if native and any(abs(t - float(rec["t_h"])) < 1e-9 for t in instants):
+            continue
+        unmet.append(rec)
+    if unmet:
+        kinds = sorted({str(r["popup_kind"]) for r in unmet})
         found.append(Finding(
             ERROR, "decision-calls-unmetered",
-            f"{len(model_recs)} model decision call(s) happened but "
-            f"llm_calls holds no row for {sorted(unmetered)} — those "
-            "tokens and that cost are not being recorded at all",
-            [f"llm_calls roles present: {sorted(metered)}"],
+            f"{len(unmet)} of {len(model_recs)} model decision call(s) have "
+            f"neither a ledger row of their own nor a mainline call at their "
+            f"instant ({kinds}) — those tokens and that cost are not recorded",
+            [f"llm_calls roles present: {sorted(metered)}",
+             f"unmetered decision ids: "
+             f"{[r['id'] for r in unmet][:12]}"],
         ))
     # ``raw_cost`` can be missing entirely on a run written before the column
     # existed, and sqlite3.Row raises on indexing an absent column.

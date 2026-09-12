@@ -424,3 +424,73 @@ def test_add_message_session_id_optional_and_backward_compatible(tmp_path):
     assert store.recent_messages()[0]["session_id"] == "sx"
     assert store.recent_messages()[1]["session_id"] is None
     store.close()
+
+
+def test_a_system_block_folds_into_the_trailing_system_row(tmp_path):
+    """Two system blocks in a row are ONE stored row (the request path folds
+    them too — a run of adjacent system rows is a shape no request sent)."""
+    store = SQLiteStore(tmp_path / "s.db")
+    store.add_message("user", "hi", t_h=1.0, day=0)
+    first = store.add_message("system", "card A", t_h=1.1, day=0)
+    second = store.add_message("system", "popup B", t_h=1.2, day=0)
+    assert first == second                      # the same row absorbed both
+    rows = store.messages_since(0)
+    assert [r["role"] for r in rows] == ["user", "system"]
+    assert rows[-1]["content"] == "card A\n\npopup B"
+    store.close()
+
+
+def test_a_repeated_system_block_is_not_stored_twice(tmp_path):
+    store = SQLiteStore(tmp_path / "s.db")
+    store.add_message("system", "card", t_h=1.0, day=0)
+    store.add_message("system", "card", t_h=1.1, day=0)
+    rows = store.messages_since(0)
+    assert len(rows) == 1 and rows[0]["content"] == "card"
+    store.close()
+
+
+def test_a_system_block_after_a_user_turn_is_its_own_row(tmp_path):
+    store = SQLiteStore(tmp_path / "s.db")
+    store.add_message("system", "card A", t_h=1.0, day=0)
+    store.add_message("user", "hi", t_h=1.1, day=0)
+    store.add_message("system", "card B", t_h=1.2, day=0)
+    rows = store.messages_since(0)
+    assert [r["role"] for r in rows] == ["system", "user", "system"]
+    assert rows[-1]["content"] == "card B"
+    store.close()
+
+
+def test_an_empty_system_block_is_dropped(tmp_path):
+    store = SQLiteStore(tmp_path / "s.db")
+    store.add_message("system", "card", t_h=1.0, day=0)
+    store.add_message("system", "   \n ", t_h=1.1, day=0)
+    rows = store.messages_since(0)
+    assert len(rows) == 1 and rows[0]["content"] == "card"
+    store.close()
+
+
+def test_fold_system_history_repairs_rows_written_before_the_fold(tmp_path):
+    """A run stored before this rule keeps the unfolded shape until repaired."""
+    import sqlite3
+
+    path = tmp_path / "s.db"
+    store = SQLiteStore(path)
+    store.close()
+    raw = sqlite3.connect(path)
+    for row in (("system", "card A", 1.0), ("system", "popup B", 1.1),
+                ("system", "card C", 1.2), ("user", "hi", 1.3),
+                ("system", "card D", 1.4), ("system", "card D", 1.5)):
+        raw.execute("INSERT INTO messages (role, content, t_h, day) VALUES (?,?,?,0)",
+                    row)
+    raw.commit()
+    raw.close()
+    store = SQLiteStore(path)
+    assert store.fold_system_history() == 3
+    rows = store.messages_since(0)
+    assert [(r["role"], r["content"]) for r in rows] == [
+        ("system", "card A\n\npopup B\n\ncard C"),
+        ("user", "hi"),
+        ("system", "card D"),          # the repeat folded away, not duplicated
+    ]
+    assert store.fold_system_history() == 0     # idempotent
+    store.close()

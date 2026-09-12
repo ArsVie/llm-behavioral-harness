@@ -156,6 +156,7 @@ from harness.domain import (
     UserModel,
     UserModelAssertion,
     UserModelCategory,
+    UserProfile,
 )
 
 #: PRAGMA synchronous level for every connection this module opens. Production
@@ -382,6 +383,13 @@ class SQLiteStore:
         keep it None) and ``conversation_id`` (it3 B2 conversation linkage,
         module invariant 8) are optional and backward compatible with all
         pre-slice callers."""
+        if role == "system":
+            # Fold at write time, exactly as the request path folds
+            # (assembler.append_system): a stored run of adjacent system rows
+            # is a shape no request ever sent.
+            folded = self._fold_into_system_tail(content)
+            if folded is not None:
+                return folded
         cur = self.conn.execute(
             "INSERT INTO messages (role, content, t_h, day, proactive, "
             "session_id, intent_id, conversation_id, sent_at) "
@@ -393,11 +401,117 @@ class SQLiteStore:
         last_id = cur.lastrowid
         return int(last_id) if last_id is not None else -1
 
+    def _fold_into_system_tail(self, content: str) -> int | None:
+        """Merge a system block into the system row it would sit next to.
+
+        The request path already folds consecutive system blocks, so keeping
+        them apart in the stream stores a transcript shape no request ever
+        sent (the 2026-09-08 markup-leak run). Returns the surviving row id
+        when it merged, or None when the insert should proceed.
+        """
+        from harness.assembler import SYSTEM_BLOCK_SEPARATOR
+
+        last = self.conn.execute(
+            "SELECT id, role, content FROM messages ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if last is None:
+            return None
+        row_id, row_role, row_content = last[0], last[1], last[2]
+        text = str(content or "").strip()
+        if not text:
+            # The request path drops an empty block, so the stream must too:
+            # storing it would put an empty system row next to a real one.
+            return int(row_id)
+        if row_role != "system":
+            return None
+        if text in str(row_content or ""):
+            return int(row_id)  # already the tail: do not store it twice
+        self.conn.execute(
+            "UPDATE messages SET content = ? WHERE id = ?",
+            (f"{row_content}{SYSTEM_BLOCK_SEPARATOR}{text}", row_id),
+        )
+        self.conn.commit()
+        return int(row_id)
+
+    def fold_system_history(self) -> int:
+        """Fold adjacent system rows already in the stream; rows removed.
+
+        The invariant belongs to the stream, not to new writes only, so older
+        runs are repaired in place: the first row of each run keeps its id and
+        timestamp and absorbs the text of the rows after it.
+        """
+        from harness.assembler import SYSTEM_BLOCK_SEPARATOR
+
+        rows = list(self.conn.execute(
+            "SELECT id, role, content FROM messages ORDER BY id"))
+        runs: list[list[tuple]] = []
+        current: list[tuple] = []
+        for row in rows:
+            if row[1] == "system":
+                current.append(row)
+                continue
+            if current:
+                runs.append(current)
+            current = []
+        if current:
+            runs.append(current)
+        removed = 0
+        for run in runs:
+            head_id, _, head_content = run[0][0], run[0][1], run[0][2]
+            parts = [str(head_content or "").strip()]
+            for row_id, _, content in run[1:]:
+                text = str(content or "").strip()
+                if text and text not in parts[-1]:
+                    parts.append(text)
+                self.conn.execute("DELETE FROM messages WHERE id = ?", (row_id,))
+                removed += 1
+            merged = SYSTEM_BLOCK_SEPARATOR.join(part for part in parts if part)
+            if merged != str(head_content or ""):
+                self.conn.execute("UPDATE messages SET content = ? WHERE id = ?",
+                                  (merged, head_id))
+        self.conn.commit()
+        return removed
+
     def recent_messages(self, limit: int = 12) -> list[dict]:
         rows = self.conn.execute(
             "SELECT * FROM messages ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()
         return [dict(r) for r in reversed(rows)]
+
+    def messages_since(self, since_id: int = 0, limit: int | None = None) -> list[dict]:
+        """Messages with ``id > since_id``, OLDEST FIRST (the context read).
+
+        This is the append-only counterpart to :meth:`recent_messages`. The
+        window is anchored to a stored watermark that moves only at explicit
+        compaction boundaries, so between boundaries request N+1's message
+        list is request N's list plus whatever was appended -- which is the
+        whole requirement for a prefix cache to hit past the system message.
+
+        ``recent_messages`` front-truncates instead ("the last 12 rows"),
+        which moves the first byte of the payload on every turn once history
+        passes the window. It stays for callers that genuinely want a recency
+        peek (last user text, silence measurement, decide_reply context) and
+        must not be used to build the model's context.
+
+        ``limit`` is a SAFETY CAP, not a window: it bounds a runaway epoch
+        (the caller keeps the OLDEST rows, so the prefix still only grows
+        until the next boundary moves the watermark).
+        """
+        if limit is None:
+            rows = self.conn.execute(
+                "SELECT * FROM messages WHERE id > ? ORDER BY id", (since_id,)
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM messages WHERE id > ? ORDER BY id LIMIT ?",
+                (since_id, limit),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def max_message_id(self) -> int:
+        """Highest message id, or 0 on an empty store (epoch watermark)."""
+        row = self.conn.execute("SELECT MAX(id) AS m FROM messages").fetchone()
+        return int(row["m"] or 0)
 
     def messages_for_day(self, day: int) -> list[dict]:
         rows = self.conn.execute(
@@ -537,6 +651,96 @@ class SQLiteStore:
             self._row_to_conversation(dict(r), self._turns_for_conversation(r["id"]))
             for r in rows
         ]
+
+    # -- user profile (the onboarding identity) ------------------------------
+
+    def save_user_profile(self, profile: UserProfile) -> None:
+        """Persist the owner's identity (single row, replaced in place).
+
+        The bootstrap seam has always named this method; before schema v9 no
+        table backed it, so the identity was re-derived from the environment
+        on every start and a run had no durable record of who the companion
+        thinks she is talking to.
+        """
+        self.conn.execute(
+            "INSERT OR REPLACE INTO user_profile (id, name, interests_json) "
+            "VALUES (1, ?, ?)",
+            (profile.name, json.dumps(list(profile.interests))),
+        )
+        self.conn.commit()
+
+    def load_user_profile(self) -> UserProfile | None:
+        """The stored owner identity, or None on a store that never saw one."""
+        row = self.conn.execute(
+            "SELECT name, interests_json FROM user_profile WHERE id = 1"
+        ).fetchone()
+        if row is None:
+            return None
+        try:
+            interests = tuple(json.loads(row["interests_json"]))
+        except (TypeError, ValueError):
+            interests = ()
+        return UserProfile(name=row["name"], interests=interests)
+
+    # -- interest graph (the graph the persona was sampled against) ----------
+
+    def save_interest_graph(self, graph, *, origin: str = "catalog") -> None:
+        """Persist a graph's edges and hub flags.
+
+        Rows carry ``origin`` so a later reader can tell the built-in catalog
+        apart from edges added for user interests the catalog did not contain
+        (see ``harness.interest_extension``). Existing rows for the same pair
+        are replaced, so re-saving an extended graph is idempotent.
+        """
+        hubs = set(graph.hubs())
+        rows = [
+            (src, dst, strength, 1 if src in hubs else 0, origin)
+            for src, dst, strength in graph.edges()
+        ]
+        # An isolated node still has to survive the round trip; a self-edge
+        # is the marker, and load_interest_graph restores it as a bare node.
+        rows.extend(
+            (node, node, 0.0, 1 if node in hubs else 0, origin)
+            for node in graph.isolated()
+        )
+        # Hubs that only ever appear on the RIGHT of a canonical edge would
+        # otherwise lose their hub flag, so record them explicitly.
+        recorded = {r[0] for r in rows}
+        rows.extend(
+            (hub, hub, 0.0, 1, origin) for hub in hubs if hub not in recorded
+        )
+        self.conn.executemany(
+            "INSERT OR REPLACE INTO interest_relations "
+            "(from_interest, to_interest, strength, is_hub, origin) "
+            "VALUES (?, ?, ?, ?, ?)",
+            rows,
+        )
+        self.conn.commit()
+
+    def load_interest_graph(self):
+        """Rebuild the persisted graph, or None when nothing was stored.
+
+        Returns a ``harness.interests.InterestGraph``; self-edges written for
+        isolated nodes are restored as bare nodes, not as real edges.
+        """
+        rows = self.conn.execute(
+            "SELECT from_interest, to_interest, strength, is_hub "
+            "FROM interest_relations"
+        ).fetchall()
+        if not rows:
+            return None
+        from harness.interests import InterestGraph
+
+        graph = InterestGraph()
+        for row in rows:
+            src, dst = row["from_interest"], row["to_interest"]
+            if src == dst:
+                graph.add_node(src)
+            else:
+                graph.add_relation(src, dst, float(row["strength"]))
+            if int(row["is_hub"]):
+                graph.add_hub(src)
+        return graph
 
     # -- kv_store -----------------------------------------------------------
 
@@ -944,6 +1148,9 @@ class SQLiteStore:
             source_id=row["source_id"],
             salience=float(row["salience"]),
             status=row["status"],
+            outcome=(
+                row["outcome"] if "outcome" in row.keys() else None
+            ),
         )
 
     def save_agenda(self, day: int, agenda: DailyAgenda) -> None:
@@ -952,12 +1159,13 @@ class SQLiteStore:
         self.conn.execute("DELETE FROM agenda_items WHERE day = ?", (day,))
         self.conn.executemany(
             "INSERT INTO agenda_items (id, day, start_t_h, end_t_h, activity, "
-            "source_type, source_id, salience, status, start_at, end_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "source_type, source_id, salience, status, start_at, end_at, "
+            "outcome) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (item.id, day, item.start_t_h, item.end_t_h, item.activity,
                  item.source_type, item.source_id, item.salience, item.status,
-                 self._real_at(item.start_t_h), self._real_at(item.end_t_h))
+                 self._real_at(item.start_t_h), self._real_at(item.end_t_h),
+                 item.outcome)
                 for item in agenda.items
             ],
         )
@@ -970,6 +1178,33 @@ class SQLiteStore:
         if not rows:
             return None
         return DailyAgenda(day=day, items=tuple(self._row_to_agenda_item(r) for r in rows))
+
+    def set_agenda_item_outcome(self, item_id: str, outcome: str) -> None:
+        """Record what came of an item (see ``AgendaItem.outcome``).
+
+        Only ever called with something the companion actually decided or
+        said; a window merely elapsing is a status change, not an outcome.
+        """
+        self.conn.execute(
+            "UPDATE agenda_items SET outcome = ? WHERE id = ?",
+            (outcome, item_id),
+        )
+        self.conn.commit()
+
+    def recent_outcomes(self, *, before_day: int, limit: int = 8) -> list[dict]:
+        """Recorded outcomes from days before ``before_day``, newest first.
+
+        The day planner's continuity input: what actually came of recent
+        activities, so a plan can follow on from it instead of re-drawing
+        from a template pool with no memory.
+        """
+        rows = self.conn.execute(
+            "SELECT id, day, activity, source_type, source_id, status, outcome "
+            "FROM agenda_items WHERE day < ? AND outcome IS NOT NULL "
+            "AND TRIM(outcome) <> '' ORDER BY day DESC, start_t_h DESC LIMIT ?",
+            (before_day, limit),
+        ).fetchall()
+        return [dict(r) for r in rows]
 
     def update_agenda_item_status(self, item_id: str, status: str) -> None:
         self.conn.execute(
@@ -1585,10 +1820,28 @@ class SQLiteStore:
     def requeue_steer(self, steer_id: int) -> None:
         """Return a steer to 'pending' (interrupted delivery: the turn it
         was appended to did not complete). Delivery fields are cleared so a
-        pending row always means undelivered."""
+        pending row always means undelivered.
+
+        ``attempts`` increments on every requeue so the queue can stop
+        retrying a steer forever (see ``SteeringQueue.MAX_ATTEMPTS``).
+        """
         self.conn.execute(
             "UPDATE steering_queue SET status = 'pending', delivered_t_h = "
-            "NULL, boundary = NULL, seen_turn_id = NULL WHERE id = ?",
+            "NULL, boundary = NULL, seen_turn_id = NULL, "
+            "attempts = attempts + 1 WHERE id = ?",
+            (steer_id,),
+        )
+        self.conn.commit()
+
+    def abandon_steer(self, steer_id: int) -> None:
+        """Give up on a steer permanently (retry budget exhausted).
+
+        A terminal status rather than a delete: the row is the record of a
+        decision the model never answered usably, and an audit that silently
+        loses those cannot explain the gap.
+        """
+        self.conn.execute(
+            "UPDATE steering_queue SET status = 'abandoned' WHERE id = ?",
             (steer_id,),
         )
         self.conn.commit()
@@ -1648,6 +1901,31 @@ class SQLiteStore:
         out["inputs"] = _unjson(out["inputs_json"], {})
         out["verdict"] = _unjson(out["verdict_json"], {})
         return out
+
+    def decisions_since(self, since_t_h: float) -> list[dict]:
+        """Decision rows at or after ``since_t_h``, oldest first.
+
+        The context projection merges these with :meth:`messages_since`; the
+        floor is a TIME rather than an id because the two tables have
+        independent id sequences.
+        """
+        rows = self.conn.execute(
+            "SELECT * FROM decision_records WHERE t_h >= ? ORDER BY id",
+            (since_t_h,),
+        ).fetchall()
+        return [dict(r) for r in rows]
+
+    def recent_decisions(self, limit: int = 12) -> list[dict]:
+        """The most recent decision rows, oldest-first (context projection).
+
+        The model-context reader merges these with ``recent_messages`` by
+        ``t_h`` so a decision the model made appears in later turns at the
+        position it was made -- the decision lane stops being write-only.
+        """
+        rows = self.conn.execute(
+            "SELECT * FROM decision_records ORDER BY id DESC LIMIT ?", (limit,)
+        ).fetchall()
+        return [dict(r) for r in reversed(rows)]
 
     def decisions_for_day(self, day: int) -> list[dict]:
         """All decision records for one day, oldest first, with ``inputs``
