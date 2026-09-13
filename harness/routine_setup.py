@@ -240,6 +240,9 @@ def _make_call(client):
     if hasattr(client, "chat_with_meta"):
         def call(prompt: str) -> str:
             result = client.chat_with_meta(
+                # Aux task prompt, not an event in her conversation: the
+                # system-not-user rule governs HER context (CONVENTIONS,
+                # ratified 2026-09-12). A one-off call keeps role=user.
                 [{"role": "user", "content": prompt}],
                 json_mode=True,
                 reasoning_effort=SETUP_REASONING_EFFORT,

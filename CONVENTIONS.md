@@ -26,6 +26,13 @@ are under `results/`. Do not add historical implementation plans to the repo.
   existing interfaces.
 - Internal events are system-level context, not user messages. Decisions are
   structured tools. Telegram visibility is an explicit delivery concern.
+  Scope: that governs HER conversation. Auxiliary one-shot calls (day planner,
+  interest extension, routine setup, judge) are task prompts, not events in her
+  context, and pass their instruction as a single `user` message — ratified
+  2026-09-12; a system-only single message also risks dialects that require a
+  user turn. Her own conversation never carries harness text in a user slot: a
+  proactive turn has NO user message at all, and `harness_text_in_user_roles`
+  scans every request.
 - Keep the stable persona/rules/tools prompt prefix byte-identical; append
   volatile internal material at the tail. Never edit, reorder, or re-render a
   message already sent to the provider — prefix caches match strictly from

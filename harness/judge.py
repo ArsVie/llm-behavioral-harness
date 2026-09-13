@@ -108,6 +108,9 @@ def judge_day(
         json_mode = bool(getattr(client, "supports_json", True))
     raw = client.chat(
         [
+            # Aux task prompt, not an event in her conversation: the
+            # system-not-user rule governs HER context (CONVENTIONS,
+            # ratified 2026-09-12). A one-off call keeps role=user.
             {
                 "role": "user",
                 "content": f"{rubric}\n\nTranscript:\n{transcript}",

@@ -233,6 +233,9 @@ def _call_within_budget(client, prompt: str, budget_s: float) -> str:
     if rich is not None:
         def _run():
             result = rich(
+                # Aux task prompt, not an event in her conversation: the
+                # system-not-user rule governs HER context (CONVENTIONS,
+                # ratified 2026-09-12). A one-off call keeps role=user.
                 [{"role": "user", "content": prompt}],
                 system="You return JSON only.",
                 temperature=0.9,  # invention: the point is variety

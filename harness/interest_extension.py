@@ -371,6 +371,9 @@ def _make_call(client):
     if rich is not None:
         def _call(prompt: str):
             result = rich(
+                # Aux task prompt, not an event in her conversation: the
+                # system-not-user rule governs HER context (CONVENTIONS,
+                # ratified 2026-09-12). A one-off call keeps role=user.
                 [{"role": "user", "content": prompt}],
                 system="You return JSON only.",
                 temperature=0.3,
