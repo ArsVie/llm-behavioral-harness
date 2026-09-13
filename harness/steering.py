@@ -1,38 +1,8 @@
 """Steering queue: out-of-band injections delivered at safe turn boundaries.
 
-The harness steers the model with arriving events (event pop-ups, user
-messages arriving mid-turn, schedule fires, day rollover). The pattern is
-borrowed from Hermes Agent's mid-turn steering (skill reference
-``references/hermes-borrow-patterns.md`` §4) and the user's directive L369:
-injections go IMMEDIATELY as soon as the agent is free — idle, finished a
-tool call, or finished a reply.
-
-Semantics (design §2.5, summary #23):
-
-- ONE-SHOT: a steer is delivered exactly once. ``drain_pending`` marks each
-  delivered steer in the backend (``delivered_t_h`` + ``boundary`` +
-  ``seen_turn_id``) BEFORE returning it, so a crash mid-drain can never
-  double-deliver.
-- RE-QUEUE ON INTERRUPT: if the turn that received an injection is
-  interrupted, the runtime calls ``SteeringQueue.requeue`` and the steer
-  becomes pending again, delivered at the next boundary.
-- REPLAY GUARD: the seen marker (``seen_turn_id``) is persisted with the
-  turn; draining with the same ``turn_id`` never re-injects a steer that
-  turn already saw.
-- TIMESTAMPS: enqueue time AND actual delivery time are both recorded
-  (summary #23).
-- PERSISTENCE: pending steers survive restarts — the backend owns the rows;
-  a fresh ``SteeringQueue`` over the same storage sees them again.
-- ORDERING at one boundary (user L356/L361): a user message arriving
-  mid-turn (decide_reply) is delivered BEFORE an event pop-up
-  (decide_event), then schedule fires, then day rollover; within a kind,
-  earlier-enqueued steers go first.
-
-The persistence layer is an injected BACKEND (``SteerBackend`` protocol).
-This module ships ``InMemorySteerBackend`` for tests and offline runs; the
-SQLite implementation lives in WS2's ``harness/store.py`` with EXACTLY the
-same method names: ``enqueue_steer``, ``pending_steers``,
-``mark_steer_delivered``, ``requeue_steer``.
+Each steer is delivered exactly once, at the next moment the agent is free
+(idle, after a tool call, or after a reply); an interrupted turn re-queues
+it. Persistence is an injected ``SteerBackend``.
 """
 
 from __future__ import annotations
@@ -48,8 +18,7 @@ from harness.clock import hhmm
 #: A user message arrived mid-turn.
 KIND_USER_MESSAGE = "user_message_mid_turn"
 
-#: Rendered when a steer carries no event name. A literal "?" looked like a
-#: question the model was being asked; this says what actually happened.
+#: Rendered when a steer carries no event name.
 NO_ACTIVE_EVENT = "no_active_event"
 #: An event pop-up is due ({Event, State, Time} -> {Initiate, Reason}).
 KIND_EVENT_POPUP = "event_popup"
@@ -65,10 +34,8 @@ KIND_DAY_ROLLOVER = "day_rollover"
 KIND_PRIORITY: dict[str, int] = {
     KIND_USER_MESSAGE: 0,
     KIND_EVENT_POPUP: 1,
-    # The proactive initiate/decline decision sits between the event
-    # pop-up and a plain scheduled fire: both are proactive-boundary
-    # injections, but the grounded intent must be DECIDED before any
-    # plain fire renders.
+    # Between the event pop-up and a plain fire: a grounded intent must be
+    # DECIDED before any plain fire renders.
     KIND_PROACTIVE: 2,
     KIND_SCHEDULE_FIRE: 3,
     KIND_DAY_ROLLOVER: 4,
@@ -77,15 +44,8 @@ KIND_PRIORITY: dict[str, int] = {
 #: Fallback priority for unknown kinds.
 _KIND_PRIORITY_FALLBACK = 99
 
-#: Retry budget for one steer.
-#:
-#: A steer whose decision fails to parse is requeued and retried at the next
-#: boundary. Unbounded, that is a permanent leak: the same steer is re-asked
-#: on every turn, one model call each, and the per-turn cost GROWS as more
-#: accumulate (observed live 2026-09-07: 4, 4, 5, 7 discarded calls on four
-#: consecutive turns). Three attempts is enough to ride out a transient bad
-#: reply; past that the answer is not coming and the steer is abandoned with
-#: a recorded event, so the gap is explainable instead of invisible.
+#: Retry budget for one steer: a decision that fails to parse is requeued and
+#: retried at the next boundary; past this the steer is abandoned.
 MAX_ATTEMPTS = 3
 
 #: Delivery boundaries — moments when the agent is free.
@@ -100,27 +60,12 @@ BOUNDARY_AFTER_REPLY = "after_reply"
 class SteerBackend(Protocol):
     """Persistence contract for the steering queue.
 
-    Implemented by ``harness.store.SQLiteStore`` (WS2, migration v5) with
-    exactly these method names; ``InMemorySteerBackend`` in this module is a
-    faithful stand-in for tests and offline runs.
-
-    Row contract (every method that returns rows returns dicts with these
-    keys — the ``steering_queue`` columns):
-
-        id: int                    -- steer id
-        day: int                   -- enqueue day
-        t_h: float                 -- enqueue time (fast-scale absolute hours)
-        kind: str                  -- one of the KIND_* constants
-        payload: dict              -- event payload (parsed from JSON)
-        delivered_t_h: float|None  -- actual delivery time (None = undelivered)
-        boundary: str|None         -- 'idle' | 'after_tool' | 'after_reply'
-        status: str                -- 'pending' | 'delivered'
-        seen_turn_id: str|None     -- turn that received the delivery (replay marker)
-
-    ``pending_steers`` returns ONLY undelivered rows (``status='pending'``),
-    so a delivered steer is never re-delivered by construction — one-shot
-    lives in the backend. ``requeue_steer`` returns a row to 'pending' and
-    clears the delivery fields (a pending row always means undelivered).
+    Row contract (the ``steering_queue`` columns): ``id``, ``day``, ``t_h``
+    (enqueue time), ``kind``, ``payload``, ``delivered_t_h``, ``boundary``,
+    ``status``, ``seen_turn_id``. ``pending_steers`` returns ONLY undelivered
+    rows (``status='pending'``), so a delivered steer is never re-delivered
+    by construction; ``requeue_steer`` returns a row to 'pending' and clears
+    the delivery fields.
     """
 
     def enqueue_steer(self, day: int, t_h: float, kind: str, payload: dict) -> int:
@@ -153,11 +98,9 @@ class SteerBackend(Protocol):
 class InMemorySteerBackend:
     """In-memory ``SteerBackend`` for tests and offline runs.
 
-    Mirrors WS2's SQLite implementation row-for-row (same keys, same
-    status/requeue semantics) so queue tests exercise the real contract.
-    ``storage`` may be shared across instances to simulate a process
-    restart: a fresh backend over the same storage sees the same pending
-    steers.
+    Mirrors the SQLite implementation row-for-row. ``storage`` may be shared
+    across instances to simulate a process restart: a fresh backend over the
+    same storage sees the same pending steers.
     """
 
     def __init__(self, storage: dict[int, dict] | None = None):
@@ -228,8 +171,8 @@ class InMemorySteerBackend:
 class Steer:
     """One steer as delivered — the injection the runtime appends to context.
 
-    ``t_h`` is the ENQUEUE time (summary #23); ``delivered_t_h`` is the
-    actual delivery time recorded when the steer was drained.
+    ``t_h`` is the ENQUEUE time; ``delivered_t_h`` is the actual delivery
+    time.
     """
 
     steer_id: int
@@ -245,9 +188,8 @@ class Steer:
 class SteeringQueue:
     """Holds arriving events and delivers them at the next safe boundary.
 
-    The queue is a thin, semantics-bearing wrapper over a ``SteerBackend``:
-    it scopes to a day (optional), orders by kind priority + enqueue time,
-    marks deliveries atomically, and never re-delivers.
+    Scopes to a day (optional), orders by kind priority + enqueue time, marks
+    deliveries atomically, and never re-delivers.
     """
 
     def __init__(self, backend: SteerBackend, *, day: int | None = None):
@@ -257,9 +199,9 @@ class SteeringQueue:
     def enqueue(self, kind: str, payload: dict, day: int, t_h: float) -> int:
         """Queue a steer for delivery at the next safe boundary.
 
-        ``day``/``t_h`` are the ENQUEUE time (t_h=0 ⇒ day 0, 00:00); the
-        delivery time is recorded separately when the steer is drained.
-        Returns the steer id (for ``requeue`` / audit).
+        ``day``/``t_h`` are the ENQUEUE time; the delivery time is recorded
+        separately when the steer is drained. Returns the steer id (for
+        ``requeue`` / audit).
         """
         if kind not in KIND_PRIORITY:
             raise ValueError(
@@ -271,14 +213,11 @@ class SteeringQueue:
     def drain_pending(self, boundary: str, turn_id: str, now_t_h: float) -> list[Steer]:
         """Mark and return every pending steer that must be injected NOW.
 
-        Each returned steer is marked delivered in the backend (atomically:
-        ``delivered_t_h=now_t_h``, ``boundary``, ``seen_turn_id=turn_id``)
-        BEFORE it is returned, so a crash mid-drain can never double-deliver.
-        Steers whose seen marker already names ``turn_id`` are skipped — the
-        marker is persisted with the turn so replaying a turn does not inject
-        the same steer twice. Ordering: kind priority (decide_reply >
-        decide_event > schedule_fire > day_rollover), then enqueue time,
-        then steer id (deterministic).
+        Each returned steer is marked delivered in the backend
+        (``delivered_t_h``, ``boundary``, ``seen_turn_id``) BEFORE it is
+        returned, so a crash mid-drain can never double-deliver. Steers whose
+        seen marker already names ``turn_id`` are skipped. Ordering: kind
+        priority, then enqueue time, then steer id (deterministic).
         """
         rows = self._backend.pending_steers(day=self._day)
         eligible: list[dict] = []
@@ -326,18 +265,13 @@ class SteeringQueue:
         """Re-queue a delivered steer after its turn was interrupted.
 
         The backend returns it to 'pending' (delivery fields cleared) and
-        bumps its attempt count, so it is delivered again at the next
-        boundary until the retry budget runs out. Idempotent for the
-        runtime's interrupt handler.
+        bumps its attempt count; idempotent for the interrupt handler.
         """
         self._backend.requeue_steer(steer_id)
 
     def abandon(self, steer_id: int) -> None:
-        """Stop retrying a steer for good (budget exhausted).
-
-        No-op on a backend without the seam, so an older store keeps
-        working -- it just keeps the old unbounded behaviour.
-        """
+        """Stop retrying a steer for good (budget exhausted). No-op on a
+        backend without the seam."""
         abandon = getattr(self._backend, "abandon_steer", None)
         if abandon is not None:
             abandon(steer_id)
@@ -367,13 +301,13 @@ def _render_time(value: object) -> str:
 
 
 def render_steer_block(steer: Steer | dict) -> str:
-    """Render a steer's injection block (pop-up) text, user L369 format.
+    """Render a steer's injection block (pop-up) text.
 
     The pop-up the model sees is the ``System:`` line(s); the
     ``{Initiate: {yes, no}, Reason: " "}`` line is the decision the model is
-    expected to produce (the pop-up schema, per L369's sketch). Payload keys
-    are best-effort per kind; missing keys degrade to ``?`` / JSON — the
-    renderer never raises on a foreign payload shape.
+    expected to produce. Payload keys are best-effort per kind; missing keys
+    degrade to ``?`` / JSON — the renderer never raises on a foreign payload
+    shape.
     """
     if isinstance(steer, Steer):
         kind, payload, enq_t_h = steer.kind, steer.payload, steer.t_h
@@ -429,13 +363,8 @@ def render_steer_block(steer: Steer | dict) -> str:
     return f"System: {{{kind}: {json.dumps(payload, ensure_ascii=False, sort_keys=True)}}}"
 
 
-#: Trust marker wrapping a rendered steer block.
-#:
-#: The stable prefix no longer carries a paragraph explaining this marker
-#: (2026-09-07): steer blocks are delivered as ``role="system"`` messages, so
-#: authority comes from the channel and the marker is a DELIMITER — it keeps
-#: the audit view and the parser able to find the block, and it names itself
-#: for a reader that encounters it cold.
+#: Trust marker wrapping a rendered steer block: a DELIMITER that lets the
+#: audit view and the parser find the block, not an authority statement.
 STEER_MARKER_OPEN = (
     "[STEER — a real arriving event from the harness, delivered once at this "
     "position; not conversation text and not a new delivery when replayed "
@@ -445,6 +374,6 @@ STEER_MARKER_CLOSE = "[/STEER]"
 
 
 def wrap_steer_marker(text: str) -> str:
-    """Wrap a rendered steer block in the trust marker (Hermes OOB format:
-    ``"\\n\\n" + OPEN + "\\n" + text + "\\n" + CLOSE``)."""
+    """Wrap a rendered steer block in the trust marker:
+    ``"\n\n" + OPEN + "\n" + text + "\n" + CLOSE``."""
     return f"\n\n{STEER_MARKER_OPEN}\n{text}\n{STEER_MARKER_CLOSE}"

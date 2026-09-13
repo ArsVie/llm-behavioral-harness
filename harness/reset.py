@@ -1,35 +1,20 @@
 """Reset a live run without losing the onboarding it paid for.
 
-A run database holds two very different things at once:
-
-- the TRIAL's own record — messages, decisions, steering, state events, calls,
-  mood, memories, the anchor. This is what a reset is FOR.
-- the ONBOARDING results — who the user is, the interest graph with their
-  off-catalog interests placed into it, the built persona (which carries the
-  routine catalog in ``routines_json``). Those cost model calls, and losing
-  them means re-asking the provider and letting a second roll of the dice
-  decide the user's hobbies.
-
-Nothing could tell them apart, so resetting a run meant hand-editing the DB or
-throwing the onboarding away with it. This module keeps the second list and
-clears the first.
+A reset KEEPS the onboarding results (user profile, interest graph, persona
+with its routine catalog) and clears the trial's own record (messages,
+decisions, steering, state events, calls, memories, anchor).
 
 Guarantees:
 
-- **Nothing is deleted.** The old database and its WAL sidecars are MOVED to
+- Nothing is deleted: the old database and its WAL sidecars are MOVED to
   ``<db_dir>/archive/pre-reset-<stamp>/``; the fresh database is built beside
-  them and swapped in only after it is complete, so a failure mid-reset leaves
-  the old run where it was.
-- **A live writer is refused.** If a process has the database open (the bot
-  service), the reset stops and says so unless ``force`` is set. Stopping the
-  service is the caller's job (``reset_lily.sh`` does it).
-- **Older databases still copy.** Only the columns both schemas share are
-  carried over, so ageless tables do not break the move.
-- ``--dry-run`` prints the whole plan and touches nothing.
+  them and swapped in only after it is complete.
+- A live writer is refused unless ``force`` is set (stopping the service is
+  the caller's job).
+- Only the columns both schemas share are carried over.
+- ``--dry-run`` prints the plan and touches nothing.
 
-The proposal cache the extension and the routine setup use is a FILE cache
-(``~/.cache/harness/setup-proposals``), outside the database, so it survives a
-reset by construction.
+The proposal cache is a FILE cache outside the database, so it survives.
 """
 
 from __future__ import annotations
@@ -62,19 +47,15 @@ PRESERVE_TABLES: tuple[str, ...] = (
     "persona",              # name, authored core, routines_json (the catalog)
     "user_profile",         # who the user is, their stated interests
     "interests",            # the portfolio: bucket + salience per interest
-    "interest_relations",   # the graph, incl. off-catalog interests placed by
-                            # the onboarding model call (origin='model')
+    "interest_relations",   # the graph, incl. off-catalog interests (origin='model')
 )
 
 #: Learned during DIALOGUE rather than onboarding, and pointing at memory rows
 #: the reset removes. Cleared by default; ``--keep-learned-facts`` keeps them.
 LEARNED_TABLES: tuple[str, ...] = ("user_model_assertions",)
 
-#: Every table the reset clears. Listed rather than inferred so a new table is
-#: a visible decision instead of a silent survivor: anything the schema grows
-#: that is on NEITHER list still gets cleared (a reset means a clean run) but it
-#: is printed as unlisted, and ``tests/test_reset.py`` fails when the schema
-#: grows a table this list does not know about.
+#: Every table the reset clears; anything on NEITHER list still gets cleared
+#: and is printed as unlisted. ``test_reset.py`` fails when this list lags.
 CLEAR_TABLES: tuple[str, ...] = (
     "messages", "conversation_turns", "conversations", "decision_records",
     "steering_queue", "state_events", "schedule_events", "judgements",
@@ -146,9 +127,8 @@ def file_columns(conn: sqlite3.Connection, table: str) -> list[str]:
 def common_columns(old: list[str], new: list[str]) -> list[str]:
     """Columns present on BOTH sides, in the new table's order.
 
-    A reset can meet a database written by an older schema; carrying a column
-    the target does not have would abort the whole move, and dropping one the
-    source lacks is the same. Copy the intersection.
+    Copying only the intersection lets a reset meet a database written by an
+    older schema.
     """
     keep = set(old)
     return [name for name in new if name in keep]
@@ -157,16 +137,9 @@ def common_columns(old: list[str], new: list[str]) -> list[str]:
 def active_writer(db_path: Path) -> str | None:
     """A live process holding this database, as its command line, or None.
 
-    Two signals, because either alone is blind to a real case:
-
-    - **Open file descriptors** (``/proc/<pid>/fd``) — the truth. The service
-      launches the bot with a RELATIVE ``--db results/live-companion/...``, so a
-      command-line comparison sees nothing while the bot has the file open.
-      Matching the sidecars too catches a WAL writer between checkpoints.
-    - **Command line** — names a database that is not open yet (a just-started
-      process), which the fd scan would miss.
-
-    The store takes no advisory lock, so there is nothing cheaper to ask.
+    Two signals: open file descriptors (``/proc/<pid>/fd``, sidecars included)
+    and command lines — either alone misses a real case. The store takes no
+    advisory lock, so there is nothing cheaper to ask.
     """
     try:
         target = db_path.resolve()
@@ -316,16 +289,11 @@ def apply_reset(plan: ResetPlan, *, force: bool = False, writer: str | None = No
 def verify_reset(db_path: str | Path, *, expect_fresh: bool = False) -> dict:
     """Check that a reset did what it claimed, and report what it found.
 
-    ``expect_fresh`` asserts the TRIAL is empty, so it is only meaningful
-    BEFORE the service starts: the bot writes its anchor and its day-0 rows
-    within seconds, and a check that runs after the start reports the new run's
-    own rows as residue. That is exactly how the first version of
-    ``reset_lily.sh`` failed -- it started the service, then looked for an empty
-    database and called the run's own anchor "the old trial's record".
-
-    Both modes require the onboarding cache to be non-empty: a reset that loses
-    the persona or the interest graph while clearing the trial is not a reset,
-    it is a wipe.
+    ``expect_fresh`` asserts the TRIAL is empty, so run it BEFORE the service
+    starts: the bot writes its anchor within seconds, and a later check reports
+    the new run's own rows as residue. Both modes report a problem when an
+    onboarding table is empty — losing the persona or the interest graph while
+    clearing the trial is a wipe, not a reset.
     """
     db = Path(db_path)
     if not db.exists():

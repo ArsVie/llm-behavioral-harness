@@ -267,6 +267,11 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
   font-size: 11px; border-radius: 6px; padding: 1px 7px;
   background: var(--mint-soft); color: var(--mint);
 }
+.full-text {
+  white-space: pre-wrap; font-size: 13px; line-height: 1.55; color: var(--ink);
+  background: var(--paper-2); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); padding: 10px 12px; margin: 0 0 12px;
+}
 .stream .chip-verdict {
   font-family: var(--mono); font-size: 11px; border-radius: 6px;
   padding: 1px 7px; background: var(--sky-soft); color: #46688f;

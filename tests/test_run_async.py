@@ -1,9 +1,7 @@
-"""The async runtime launcher — helpers, wiring and whole in-process runs.
+"""The async runtime launcher -- helpers, wiring and whole in-process runs.
 
-``tests/test_commands_channel.py`` already drives this module as a
-SUBPROCESS, which proves the CLI contract but records no coverage and pays
-a real ~17 s humanising delay per run. These tests call ``main`` in-process
-with the sleeper stubbed, so the same wiring is exercised in milliseconds.
+Called in-process with the sleeper stubbed, so the wiring is exercised in
+milliseconds.
 """
 
 from __future__ import annotations

@@ -1,25 +1,12 @@
 """WS-D batteries: usage capture (client), v8 migration, pricing/report.
 
-Covers the brief's verification batteries:
-
-- Client battery: usage parsed and attached for every cache-field variant
-  (DeepSeek flat hit/miss, OpenAI prompt_tokens_details.cached_tokens,
-  Anthropic cache_read/creation), absent usage tolerated (None, no crash),
-  lane attribution carried, gateway raw_cost captured.
-- Migration battery: fresh DB reaches v8 with exactly one version row;
-  a genuine v7 database (built with the store's own v1..v7 chain, stamped
-  7) migrates additively — legacy llm_calls rows stay NULL, no data loss,
-  idempotent re-open.
-- Session end-to-end: a scripted FakeClient usage object + lane rides
-  through Session._chat into the llm_calls row (lane attribution).
-- Pricing/report battery: a hand-constructed few-call table priced by
-  hand equals aggregate()/render_report() output — tiered cost math,
-  cache-hit rate, cache savings, per-lane/model/day grouping, unpriced
-  rows, pricing-pending banner, gateway raw_cost cross-check.
-
-Uses placeholder rates from harness.pricing (PRICING_PENDING) — the math
-is verified against those numbers, which is exactly what the user will
-re-verify when they fill real rates.
+Client: usage parsed and attached for every cache-field variant, absent usage
+tolerated, lane attribution carried. Migration: fresh DB reaches the current
+version with one version row; a genuine v7 DB migrates additively. Session
+end-to-end: a scripted FakeClient usage object + lane rides into the llm_calls
+row. Pricing/report: a hand-constructed table priced by hand equals
+aggregate()/render_report() output. Numbers are verified against the
+placeholder rates in harness.pricing (PRICING_PENDING).
 """
 
 from __future__ import annotations
@@ -86,8 +73,8 @@ def test_client_openai_details_cached_tokens():
 
 
 def test_client_openai_empty_details_is_all_miss():
-    """The real gateway surfaces cached_tokens ONLY when a prefix is
-    cached; an empty prompt_tokens_details means all-miss (probe 2026-08-16)."""
+    """An empty prompt_tokens_details means all-miss: the real gateway surfaces
+    cached_tokens only when a prefix is cached."""
     client = FakeClient(responses=[
         {"content": "ok", "usage": {
             "prompt_tokens": 100, "completion_tokens": 25, "total_tokens": 125,
@@ -106,19 +93,14 @@ def test_client_anthropic_read_and_creation_variant():
         }},
     ])
     result = client.chat_with_meta([{"role": "user", "content": "hi"}])
-    # Reads are cache-served; creation writes are full-price and belong in the
-    # miss bucket — together with the fresh input the dialect does not itemize.
-    # The split must sum to the prompt total (100), so miss is the remainder.
+    # Cache reads are cache-served; creation writes are full-price, so the miss
+    # bucket is the prompt total (100) minus the reads.
     assert result.usage == Usage(100, 25, 125, 60, 40)
 
 
 def test_client_zero_creation_counter_does_not_claim_a_full_cache_hit():
-    """commandcode always emits ``cache_creation_input_tokens: 0``.
-
-    Trusting that zero left every mostly-fresh request looking 100% cached
-    (found 2026-09-12 through the observability cache panel): the miss bucket
-    is the prompt remainder whenever the prompt total is known.
-    """
+    """A zero ``cache_creation_input_tokens`` never claims a full cache hit: the
+    miss bucket is the prompt remainder whenever the prompt total is known."""
     client = FakeClient(responses=[
         {"content": "ok", "usage": {
             "prompt_tokens": 800, "completion_tokens": 25, "total_tokens": 825,
@@ -264,14 +246,9 @@ def _seed_v7_llm_calls(path) -> int:
 
 
 def test_fresh_db_reaches_current_version_with_one_version_row(tmp_path):
-    """One version row at ``SCHEMA_VERSION``, plus the v8 usage columns.
-
-    The version is read from the constant rather than pinned to a literal:
-    this test guards the ONE-ROW bookkeeping invariant and the v8 columns,
-    not the version number, and pinning the number made every later additive
-    migration fail here for no reason. (v9 added user_profile and
-    interest_relations; test_store_migrations_v9 covers those.)
-    """
+    """One version row at ``SCHEMA_VERSION`` plus the v8 usage columns; the
+    version is read from the constant, so later additive migrations don't fail
+    here."""
     store = SQLiteStore(tmp_path / "fresh.db")
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
     assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
@@ -433,7 +410,7 @@ def test_render_report_contains_math_and_pending_banner(capsys):
 
 
 def test_price_for_behavior():
-    # PRICING_PENDING is now False (real OpenRouter rates filled 2026-08-20)
+    # PRICING_PENDING is False (real OpenRouter rates are filled in)
     rates = price_for("deepseek-v4-flash")
     assert rates is not None
     assert rates["cached_input_per_mtok"] == pytest.approx(rates["input_per_mtok"] / 5)

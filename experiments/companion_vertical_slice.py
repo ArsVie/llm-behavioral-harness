@@ -1,23 +1,22 @@
-"""Driver del harness de evaluación (Iteración 2, A8) — companion vertical slice.
+"""Driver del harness de evaluación — companion vertical slice.
 
-Reconstruye el prototipo E0 (congelado en eval-exploratory-2026-08-08) como el
-harness de preregistro de la Iteración 2:
+Subcomandos:
 
-    manifest   emite el manifest de preregistro (Gate 4)
+    manifest   emite el manifest de preregistro
     vertical   Track vertical completo: clean start -> bootstrap -> días
                acelerados -> 5 checkpoints/restarts -> auditoría mecánica ->
                reporte OKF + trace.json (validado con validate_okf.py)
     memory     Track memoria: mismas conversaciones en RAW_CONTEXT /
                VERBATIM_RAG / STRUCTURED_MEMORY + métricas de cadena de
-               eventos (§17.2)
+               eventos
     state      Track estado: observabilidad estructurada + dinámica a nivel
                mensaje (NO_STATE / PROMPT_ONLY_STATE / MECHANICALLY_ACTUATED)
     replay     replay exacto de un escenario grabado (semillas + filas M3)
     judge      pasadas de juez (v2 por defecto: comparación pareada forzada,
                ciega/barajada dentro de semilla, 5 dimensiones, sonda de
                atención con transcript corrupto, agregación Bradley-Terry/Elo;
-               v1 absoluto 1-9 con --v1), con >=2 familias (§17.4)
-    matrix     célula de la matriz real (Gate 4/6 — el runner carga
+               v1 absoluto 1-9 con --v1), con >=2 familias
+    matrix     célula de la matriz real (el runner carga
                JUDGE_GENERATOR_TOKEN desde el .env de la raíz del repo,
                NUNCA la imprime)
     report     regenera el reporte OKF de un run
@@ -860,8 +859,7 @@ def cmd_matrix(args) -> int:
 
     Sin ``--fake`` exige la lane research (JUDGE_GENERATOR_TOKEN, cargada
     desde el .env de la raíz del repo por el runner; la clave NUNCA se
-    imprime). Este comando es el paso Gate 4/6 del orquestador — el
-    harness CI usa --fake.
+    imprime); el harness CI usa --fake.
     """
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)

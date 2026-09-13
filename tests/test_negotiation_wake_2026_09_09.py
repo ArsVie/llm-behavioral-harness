@@ -1,30 +1,6 @@
-"""The AFK bomb has to actually fire.
+"""The AFK bomb must actually fire: a wake armed mid-park cuts the park short.
 
-Live, 2026-09-08: she was told at 21:42 that ``read history`` started at
-21:50, the AFK bomb armed for 21:52, and he stopped replying at 21:48. The
-bomb never fired. The next wake of any kind was the 23:00 quiet-hours
-conversation close, by which time the window had shut, so the backstop
-force-skipped the item with a server-drawn reason. She was informed of an
-event and then never asked about it.
-
-The cause: the rollover loop surveys its park instants ONCE and then sleeps
-the whole interval. The heads-up armed the 21:52 deadline AFTER the loop had
-already committed to sleeping to 23:00, and nothing re-surveyed. In anchor
-mode — paced against real wall-clock time — that means the bomb can
-essentially never fire during a conversation, because every deadline it arms
-is created mid-sleep. ``next_negotiation_trigger_t_h`` computed the right
-instant all along; nobody was listening.
-
-So a turn now announces that the wake set may have changed
-(``request_retarget``), which cuts the park short; the loop re-surveys and
-parks at whichever instant is earliest.
-
-DELIBERATELY NOT CHANGED: the window-close backstop still wins when the
-runtime arrives after ``end_t_h`` (``test_the_backstop_still_wins_...``).
-Running the missed leg retroactively would give her the decision she was
-owed, but it reverses the documented G0 backstop and the eight tests that
-pin it, and it would fire a model call for every window an offline stretch
-skipped. That is a contract decision, not a bug fix.
+Covers ``request_retarget`` and the sliced park in harness/runtime.py.
 """
 
 from __future__ import annotations
@@ -139,8 +115,7 @@ def _armed_runtime(max_hours=24.0, t_h=21.7, arm_after=None):
 
 
 def test_the_park_sleep_returns_early_when_a_nearer_wake_is_armed():
-    """The whole defect in one assertion: something armed mid-park must be
-    able to cut it short, or the loop cannot re-survey in time."""
+    """Something armed mid-park must be able to cut the sleep short."""
     _store, _session, runtime = _armed_runtime(arm_after=2)
 
     async def scenario():
@@ -153,8 +128,7 @@ def test_the_park_sleep_returns_early_when_a_nearer_wake_is_armed():
 
 
 def test_the_park_is_sliced_so_a_retarget_is_noticed_within_a_slice():
-    """A long park must not be one uninterruptible sleep — that is exactly
-    how the live 23:00 wake happened."""
+    """A long park must be sliced, not one uninterruptible sleep."""
     from harness.runtime import RETARGET_SLICE_S
 
     _store, _session, runtime = _armed_runtime()

@@ -1,9 +1,7 @@
-"""Virtual clock — the only time source for the harness (W-E1).
+"""Virtual clock — the only time source for the harness.
 
-The engine is pure (no real-time reads); every driver, scheduler and
-persistence layer reads time from a Clock so accelerated days are possible.
-Time convention (frozen in engine/types.py): absolute hours since simulation
-start, t_h = 0.0 is day 0 at 00:00; local hour = t_h % 24; day = int(t_h // 24).
+Time convention: absolute hours since simulation start, t_h = 0.0 is day 0
+at 00:00; local hour = t_h % 24; day = int(t_h // 24).
 """
 
 from __future__ import annotations
@@ -14,11 +12,8 @@ from dataclasses import dataclass
 def hhmm(t_h: float) -> str:
     """Local wall-clock ``HH:MM`` (24h) of an absolute ``t_h``.
 
-    The ONLY model-visible rendering of harness time. Absolute virtual hours
-    (``80.98``) are an engine coordinate and must never reach the prompt --
-    every surface the model reads (state card, agenda windows, pop-up
-    inputs, steer blocks, proactive hooks) goes through this function.
-    Minutes round to the nearest minute and wrap at the hour.
+    The only model-visible rendering of harness time: absolute virtual hours
+    must never reach the prompt. Minutes round and wrap at the hour.
     """
     local = t_h % 24.0
     hh = int(local)
@@ -31,8 +26,7 @@ def hhmm(t_h: float) -> str:
 def duration(hours: float) -> str:
     """Plain-language elapsed time: ``2h 05m`` / ``20m`` / ``just now``.
 
-    Used where a DURATION rather than a clock time reaches the model (user
-    silence, remaining window). Never a decimal hour count.
+    Used where a DURATION reaches the model — never a decimal hour count.
     """
     minutes = int(round(max(0.0, hours) * 60.0))
     if minutes < 1:

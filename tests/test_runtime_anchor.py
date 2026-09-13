@@ -1,30 +1,12 @@
 """AsyncRuntime anchor-mode tests (Wave 2, worker W-runtime; seam S2/S3/S4).
 
-Covers the anchor-mode additions to harness/runtime.py — ALL default-off:
+Covers the anchor-mode additions to harness/runtime.py -- ALL default-off: the
+accelerated path stays byte-identical, target sleeps are wall-clock-derived and
+self-correcting, the resume path resumes at the current real virtual hour and
+raises on clock skew, ControlCommand routes to harness.commands, and generation
+runs inside the channel's typing_context() when the channel has one.
 
-- anchor=None parity: the accelerated path is byte-identical (paced REAL
-  sleeps; the injectable sleeper stays reserved for response_delay_s, so
-  latency traces are unchanged).
-- absolute-sleep correctness: with an anchor, target sleeps are
-  ``anchor.epoch_of(target) - now()`` — wall-clock-derived, ignoring
-  TimeScale, and self-correcting (a late wake re-sleeps the residual).
-- the resume fix: on startup with an anchor the clock resumes at the CURRENT
-  real virtual hour (``anchor.t_h_at(now)``) — pinning "restart at real
-  18:00 → local_hour ≈ 18" — and clock skew (persisted state already past
-  the anchor's now) RAISES instead of guessing.
-- S3 command dispatch: ControlCommand routes to harness.commands.
-  handle_command under the runtime lock (lazy import — commands.py lands
-  with W-commands AFTER this file), never session.on_message.
-- S4 typing: generation + response_delay_s run inside the channel's
-  typing_context() when the channel has one (duck-typed probe, no-op
-  otherwise).
-- the CommandContext narrow hooks: /tz applied at the next rollover (the
-  epoch→t_h mapping never jumps), /mute defers (never consumes) pending
-  events until the window ends.
-
-Anchor-mode runs pace in REAL time, so every anchor test injects a
-ManualClock wall-clock source + a sleeper that advances it — no test ever
-waits real seconds.
+Every anchor test injects a ManualClock plus a sleeper that advances it.
 """
 
 import asyncio
@@ -267,10 +249,9 @@ def test_anchor_absolute_sleep_no_drift_single_request():
 
 
 def test_anchor_resume_at_real_1800_pins_local_hour(tmp_path):
-    """THE resume pin: restart with an anchor at real 18:00 on day 1 (t_h
-    42.0) after the store already persisted day 1 — the clock must resume at
-    42.0 (local_hour ≈ 18), NOT at the persisted day's virtual midnight
-    (24.0 → local_hour 0, the pre-fix land-at-midnight behavior)."""
+    """Restart with an anchor at real 18:00 must resume at t_h 42.0
+    (local_hour ~= 18), not at the persisted day's virtual midnight.
+    """
     store = SQLiteStore(tmp_path / "resume.db")
     _, _, session = _session(store)
     ground_agenda(store, 20.0, 30.0, item_id="g1")
@@ -416,13 +397,9 @@ async def _noop_sleeper(delay):
 
 
 def test_command_dispatch_lazy_import_before_commands_lands():
-    """runtime.py must NOT import harness.commands at module scope (the
-    import is function-level, so dispatch works even before W-commands
-    merges). Verified in a fresh interpreter — in-session sys.modules is
-    polluted by other tests, so the property is pinned process-isolated.
-    (With commands.py now on main, dispatch itself is covered by
-    test_run_wires_command_callback_only_when_enabled and the status
-    dispatch test above.)"""
+    """runtime.py must NOT import harness.commands at module scope, so dispatch
+    works even before W-commands merges; pinned in a fresh interpreter.
+    """
     import subprocess
     import sys
 

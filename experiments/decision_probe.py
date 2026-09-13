@@ -1,13 +1,13 @@
 """#22 decision probe — pop-up decision behavior on a fixed test set.
 
-The user's test set (directive L361, session item #22): ``{past turns,
-state, event}`` x ~15 samples, ~100 calls. Question: what does the model
-decide when a pop-up fires mid-activity — does it reply in context ("I'm in
-class, what do you want"), not reply (server notifies), terminate the event,
+Test set: ``{past turns, state, event}`` x ~15 samples, ~100 calls. Question:
+what does the model decide when a pop-up fires mid-activity — does it reply
+in context ("I'm in class, what do you want"), not reply (server notifies),
+terminate the event,
 or skip initiating? And does the server-drawn verdict (decision_source
 comparison) behave differently?
 
-Design (WS2):
+Design:
 - 15 hand-built samples covering the {past turns, state, event} space:
   event starts, event-in-progress interruptions, event closes, urgent
   follow-through, work/class boundaries, quiet hours, and the required
@@ -346,9 +346,9 @@ class _CallContext:
 def make_real_callable() -> tuple:
     """Build the injected model callable for REAL mode (httpx, OpenAI-compatible
     /chat/completions). Returns (callable, ctx). The probe speaks the current
-    client protocol directly (WS3 wires the real client into the runtime).
+    client protocol directly.
 
-    RESEARCH lane (WS-C): the token resolves from JUDGE_GENERATOR_TOKEN via
+    RESEARCH lane: the token resolves from JUDGE_GENERATOR_TOKEN via
     harness.credentials and fails loudly if missing; the value is never
     logged or printed.
     """
@@ -460,13 +460,13 @@ def _brief_for(state: str) -> BehaviorBrief:
 
 
 def _system_for(request) -> str:
-    """NEW ARCHITECTURE system prompt: 3-tier via ``assemble_snapshot``.
+    """System prompt, 3-tier via ``assemble_snapshot``.
 
     Tier 1 stable core + Tier 2 day-start block (persona + today's agenda
     carrying the sample's event) + Tier 3 state card (mood brief from the
     state variant, availability, current activity for in-progress samples).
-    The pop-up itself stays in the user message (steer-wrapped), exactly as
-    the runtime delivers it at a safe boundary.
+    The pop-up itself stays in the user message (steer-wrapped), as the
+    runtime delivers it at a safe boundary.
     """
     state = request.inputs.get("state_variant", "neutral")
     t_h = float(request.inputs.get("time", "12.0"))

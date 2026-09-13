@@ -1,31 +1,6 @@
 """Pre-run cache gate: every provider call must extend the previous one.
 
-This is the check to run BEFORE a live run, and the one a new event kind,
-steer, tool or card section has to pass. It does not inspect any particular
-feature -- it drives a mixed sequence (reactive turns, an event pop-up
-decision, a mid-turn user-message steer, a grounded proactive fire, a
-conversation close) and asserts a single property over EVERY call the client
-received, in order:
-
-    the durable part of call N is a byte-prefix of the durable part of call N+1
-
-"Durable" is everything except the trailing run of system messages -- the
-state card and, on a decision call, the pop-up block. Those are rebuilt each
-turn by design and cost only their own tokens; everything before them must
-never move.
-
-Why this is the property that matters: prefix caches match strictly from
-token 0 and in fixed-size units, so a single byte inserted, removed or
-reordered anywhere earlier discards the cache for everything after it. A
-feature that appends at the tail is free. A feature that edits history, or
-that truncates it from the front, silently costs a full re-prefill on every
-subsequent turn -- with no error and no failing test, which is exactly how
-the sliding-window read survived as long as it did.
-
-If this test fails, the new code is writing into the middle of the context.
-Move it to the tail, or -- if it genuinely must rewrite history -- make it a
-compaction at an explicit boundary and record the event (see
-``test_compaction_is_the_only_sanctioned_break``).
+The durable part of call N must be a byte-prefix of the durable part of call N+1.
 """
 
 from __future__ import annotations
@@ -50,19 +25,13 @@ from tests.helpers.store import make_session, make_store
 SEED = 4242
 
 #: Separators that cannot occur in prompt text, so the joined form is an
-#: injective encoding of (system, [(role, content)]) -- two different message
-#: lists can never render to the same string.
+#: injective encoding of (system, [(role, content)]).
 _FIELD = "\x01"
 _RECORD = "\x00"
 
 
 def _wire(system: str | None, messages: list[dict]) -> str:
-    """The ordered bytes of a request, as a prefix cache sees them.
-
-    Tool keys are part of the payload: a replayed decision carries its
-    verdict in ``tool_calls`` and nothing in ``content``, so encoding only
-    role and content would make two different exchanges look identical.
-    """
+    """The ordered bytes of a request, as a prefix cache sees them."""
     import json as _json
 
     parts = [system or ""]
@@ -77,13 +46,7 @@ def _wire(system: str | None, messages: list[dict]) -> str:
 
 
 def _durable(call: dict) -> str:
-    """The reusable part: everything before the trailing volatile block.
-
-    The trailing block is the run of system messages at the end -- the state
-    card, plus the pop-up block on a decision call. System messages EARLIER in
-    the list (delivered steers, projected past decisions) are durable history
-    and stay in.
-    """
+    """The reusable part: everything before the trailing volatile block."""
     messages = call["messages"]
     end = len(messages)
     while end > 0 and messages[end - 1].get("role") == "system":
@@ -123,23 +86,14 @@ def _intent(item: AgendaItem, intent_id: str, t_h: float) -> ProactiveIntent:
 
 
 def _mixed_run(store, session, client) -> dict:
-    """Drive one day through every context-producing path we have.
-
-    ADD NEW EVENT KINDS HERE. A steer, tool, card section or lifecycle hook
-    that is not exercised by this sequence is not covered by the gate.
-
-    Returns a coverage summary the caller asserts on, so the gate cannot go
-    quietly vacuous: a change that stops pop-ups firing must fail here rather
-    than make the run trivially pass.
-    """
-    # 1. plain reactive turns (this also triggers the day rollover, which
-    #    regenerates the agenda -- so agenda fixtures go in AFTER it)
+    """Drive one day through every context-producing path; add new event kinds here.
+    Returns a coverage summary the caller asserts on."""
+    # 1. plain reactive turns (also triggers the day rollover)
     for i in range(3):
         session.clock.advance_hours(0.05)
         session.on_message(f"reactive {i}")
 
-    # 2. an agenda window that opens between the last boundary check and the
-    #    next turn, so the event pop-up actually fires a decision
+    # 2. an agenda window opening before the next turn (fires the event pop-up)
     now = session.clock.now_h()
     item = _agenda_item(store, start=now + 0.01, end=now + 0.5)
     store.save_proactive_intent(_intent(item, "pi_1", t_h=now))
@@ -164,8 +118,7 @@ def _mixed_run(store, session, client) -> dict:
     session.check_conversation_lifecycle(session.clock.now_h())
 
     messages = store.recent_messages(limit=200)
-    # A replayed decision is a NATIVE tool exchange (2026-09-08), not a
-    # prose system block.
+    # A replayed decision is a native tool exchange, not a prose system block.
     projected = sum(
         1
         for call in client.calls
@@ -197,24 +150,8 @@ def test_every_call_extends_the_previous_one(tmp_path, decision_env):
     store.save_persona(profile)
     client = FakeClient(
         responses=[
-            # Mainline replies and pop-up verdicts are drawn from the same
-            # queue, and since the pop-ups ride turns and steers (owner
-            # ruling 2026-09-12) the deferral machinery consumes calls in an
-            # order that mixes the two -- so EVERY response has to answer
-            # EVERY lane, whatever slot it lands in:
-            #   * prose left after the markers are stripped ("reply i.") is
-            #     sayable as an ordinary turn (`_reject_tool_markup` keeps
-            #     it; a bare marker as a whole reply is machinery and is
-            #     refused, 2026-09-08: DSML tool markup reached the live
-            #     channel);
-            #   * the FIRST marker must be the event one: the textual parser
-            #     resolves the first marker it finds, and `initiate: "yes"`
-            #     is the verdict every event/proactive consumer reads as a
-            #     go (`message` <- reason for an inform, follow for a
-            #     decide, fire for a proactive -- a `false`/`defer` payload
-            #     would read as a conservative decline);
-            #   * the reply/proactive markers ride along so `_served_for`
-            #     matches whatever kind the turn's own output must answer.
+            # Mainline replies and pop-up verdicts share one queue, so every
+            # response answers every lane whatever slot it lands in.
             f"reply {i}.\n"
             'tool_decide_event: {"initiate": "yes", "reason": "heading over"}\n'
             'tool_decide_reply: {"reply": true, "reason": "sure"}\n'
@@ -231,8 +168,7 @@ def test_every_call_extends_the_previous_one(tmp_path, decision_env):
     finally:
         store.close()
 
-    # The gate must not go vacuous: assert the run really exercised the
-    # paths it claims before asserting anything about their bytes.
+    # The gate must not go vacuous.
     assert coverage["calls"] >= 8, coverage
     assert coverage["decisions"], "no pop-up decision fired — the decision lane is not covered"
     assert coverage["steers"] >= 1, "no steer was queued — the steer lane is not covered"
@@ -261,11 +197,7 @@ def test_every_call_extends_the_previous_one(tmp_path, decision_env):
 
 
 def test_the_volatile_block_is_actually_last(tmp_path, decision_env):
-    """The card (and pop-up) must be the FINAL messages, not embedded.
-
-    A card rendered anywhere but the tail invalidates every token after it,
-    every turn -- the single most expensive mistake available here.
-    """
+    """The card (and pop-up) must be the FINAL messages, not embedded."""
     store = make_store(tmp_path, "tail.db")
     profile = _persona()
     store.save_persona(profile)
@@ -294,13 +226,7 @@ def test_the_volatile_block_is_actually_last(tmp_path, decision_env):
 
 
 def test_compaction_is_the_only_sanctioned_break(tmp_path):
-    """History may shrink exactly once per boundary, and it must be logged.
-
-    Compaction is the one operation allowed to break the chain, because it
-    pays the re-prefill once instead of every turn. It must leave a
-    ``context_compacted`` event so a prefix break is explainable after the
-    fact rather than mysterious.
-    """
+    """History may shrink exactly once per boundary, and it must be logged."""
     import harness.session as session_mod
 
     store = make_store(tmp_path, "compact.db")

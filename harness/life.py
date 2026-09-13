@@ -1,54 +1,8 @@
-"""Persistent life simulation — life arcs, daily agenda, current activity (A4).
+"""Persistent life simulation — life arcs, daily agenda, current activity.
 
-Owned by the life-simulation module. The public entry points are
-``init_life``, ``generate_agenda`` and ``step_life``; all take the injected
-store (persistence) and a seeded rng.
-
-RNG contract (CRITICAL)
------------------------
-All stochastic draws come from ``engine.rng`` seeded streams. The LIFE stream
-uses the reserved stream key 4 (plan §15: 4 = LIFE, 5 = PERSONA; the key
-cannot live in engine/rng.py because that module is frozen, so the convention
-is documented here):
-
-* ``stream_rng(seed, 4)``        — init draws (arc selection in ``init_life``).
-* ``stream_rng(seed, 4, day)``   — per-day draws (``generate_agenda`` and
-                                   ``step_life``; the caller passes this
-                                   generator in as ``rng``).
-
-This stream NEVER draws from ``day_rng(seed, t)`` (DAILY_STREAM 0): the Session
-holds the SAME day generator object across a day, so any extra draw would
-desync the end-of-day draws and break ``test_replay_matches_run_daily``.
-No ``random`` module, no real clocks — determinism is per (seed, day).
-
-Persistence
------------
-Every mutation goes through the §15 store seam subset (injected): life arcs
-via ``upsert_life_arc`` / ``get_life_arc`` / ``list_life_arcs`` /
-``update_life_arc_status``, agendas via ``save_agenda`` / ``load_agenda`` /
-``update_agenda_item_status`` / ``list_agenda_items``. The store is the source
-of truth: after a restart, ``list_life_arcs`` + ``load_agenda`` reproduce the
-same persistent state, so the life trajectory is continuous, not 30
-independent calendars.
-
-Time semantics
---------------
-``t_h`` is absolute hours since simulation start; ``day = int(t_h // 24)``;
-local hour = ``t_h % 24``. Agenda items live inside the awake window
-08:00-23:00 (``AWAKE_START_H``..``AWAKE_END_H``). Arcs only act from their
-``started_day`` onward (no activities and no progress before the start), and
-``CurrentActivity`` means active NOW — ``current_activity_now`` resolves the
-item in progress at a given ``t_h`` and returns ``None`` when nothing is
-active; future plans stay in the DailyAgenda.
-
-Replenishment (Iteration 2, plan §5-A2 T3)
-------------------------------------------
-Active life must never permanently die: while ``N_active < N_MIN_ACTIVE``
-``step_life`` rolls a replacement-arc spawn with probability > 0 (certain
-when nothing is active). Spawn candidates originate from prior completed
-arcs (descendants), the persona's adjacent interests, the persona's own
-interests, and meaningful recent companion events (audit-log day scores);
-not every completed arc creates another. See ``_maybe_spawn_arc``.
+Public entry points: ``init_life``, ``generate_agenda``, ``step_life`` (injected
+store + seeded rng). Draws come from ``stream_rng(seed, LIFE_STREAM)`` for init
+and ``stream_rng(seed, LIFE_STREAM, day)`` per day — never ``day_rng``.
 """
 
 from __future__ import annotations
@@ -140,15 +94,7 @@ _NEXT_INTENTIONS = (
 )
 
 #: Per-bucket multiplier on an interest's salience when drawing the day's
-#: standalone interest items.
-#:
-#: ``Interest.bucket`` was read in exactly ONE place in this module (arc
-#: spawning) and never here, so the daily agenda drew on salience alone: the
-#: 40/40/20 portfolio was real in the data and invisible in behaviour, and an
-#: interest that is hers alone surfaced no differently from one they share.
-#: The independent slice is the smallest of the three by construction, so it
-#: needs a nudge to be observable at all — this is the whole mechanism by
-#: which the mix reaches the day.
+#: standalone interest items; the independent slice is nudged up to be visible.
 BUCKET_WEIGHT: dict[str, float] = {
     "exact": 1.0,
     "adjacent": 1.0,
@@ -156,13 +102,7 @@ BUCKET_WEIGHT: dict[str, float] = {
 }
 
 #: Standalone interest-activity templates; one draw per interest item.
-#:
-#: FALLBACK ONLY since 2026-09-07: when a day planner is available
-#: (``harness.day_planner``) it supplies the activity text and these are not
-#: used. They stay for offline runs, replay of pre-planner days, and any
-#: failure of the planner — a boring day beats no day. See the planner module
-#: for why templates cannot do the job: they name no object and have no
-#: memory between days.
+#: FALLBACK ONLY: ``harness.day_planner`` supplies the text when available.
 _INTEREST_ACTIVITIES = (
     "read about {interest}",
     "practice {interest}",
@@ -173,10 +113,9 @@ _INTEREST_ACTIVITIES = (
 
 
 class LifeStore(Protocol):
-    """Store seam subset used by life.py (orchestrator-frozen shapes, §15).
+    """Store seam subset used by life.py.
 
-    Implemented by A2's ``SQLiteStore``; the A4 module tests use a
-    seam-faithful fake because ``wip/vslice-a2`` had not landed when A4 ran.
+    Implemented by the SQLite store; tests use a seam-faithful fake.
     """
 
     def upsert_life_arc(self, arc: LifeArc) -> None: ...
@@ -193,16 +132,13 @@ class LifeStore(Protocol):
 
 @dataclass(frozen=True)
 class LifeStepResult:
-    """Outcome of one day's life step (§15 life seam).
+    """Outcome of one day's life step.
 
-    ``updated_arcs``: arcs after progress/status updates and any
-    replenishment spawn (persisted).
-    ``agenda``: the day's agenda with item statuses updated (persisted).
-    ``current_activity``: with ``t_h`` (NOW semantics) the item active at
-    ``t_h``, ``None`` when nothing is active; without ``t_h`` the day-level
-    MAIN activity — the highest-salience completed item, or the
-    highest-salience item when nothing completed; ``None`` for an empty
-    agenda.
+    ``updated_arcs`` and ``agenda`` are the persisted post-step state. With
+    ``t_h`` (NOW semantics), ``current_activity`` is the item active at
+    ``t_h``, ``None`` when nothing is active; without it, the day-level MAIN
+    activity — the highest-salience completed item, falling back to the
+    highest-salience item when nothing completed; ``None`` for an empty agenda.
     """
 
     updated_arcs: list[LifeArc]
@@ -219,21 +155,15 @@ def init_life(
 ) -> list[LifeArc]:
     """Seed 2-4 active life arcs from the persona's interests and persist them.
 
-    Deterministic per ``seed``: all draws come from ``stream_rng(seed, 4)``
-    (the init sub-stream of the reserved LIFE stream — never ``day_rng``).
-    Arc interests are drawn without replacement, weighted by salience, so every
-    arc is tied to a real persona interest. The first arc starts nearer
-    completion (progress 0.70-0.85) so the complete transition is reachable
-    within a month; the others start at 0.00-0.35. Each arc is persisted via
-    ``store.upsert_life_arc`` before being returned (creation order:
-    arc_1, arc_2, ...).
+    Deterministic per ``seed`` (draws from ``stream_rng(seed, LIFE_STREAM)``,
+    never ``day_rng``). Arc interests are drawn without replacement, weighted
+    by salience, so every arc is tied to a real persona interest; the first arc
+    starts nearer completion (progress 0.70-0.85), the others at 0.00-0.35.
+    Each arc is persisted via ``store.upsert_life_arc`` before being returned.
 
-    ``epoch`` (default 0) is the life-generation counter: the first seeding
-    uses the legacy bare ids (``arc_1``, ``arc_2``, ...); every later seeding
-    (a documented cold start after the store's life arcs were wiped) prefixes
-    the epoch so ids are never reused from a previous generation
-    (``arc_<epoch>_<i>``) — each epoch is a fresh id namespace. Callers
-    derive the epoch from the store's persisted state (see Session).
+    ``epoch`` (default 0) prefixes arc ids (``arc_<epoch>_<i>``) so a later
+    seeding never reuses an id from a wiped generation; callers derive it from
+    the store's persisted state.
     """
     rng = stream_rng(seed, LIFE_STREAM)
     interests = persona.interests
@@ -287,29 +217,20 @@ def generate_agenda(
 ) -> DailyAgenda:
     """Build and persist the day's agenda, predominantly from persona sources.
 
-    Sources, in order of drawing:
-    * routines — each routine whose cadence draw succeeds (prob = cadence);
-    * arcs — each ACTIVE arc that has already STARTED (``started_day <= day``)
-      contributes its ``next_intention`` with probability 0.8 — an arc with a
-      future ``started_day`` must NOT generate activities before its start;
-    * interests — exactly 2 standalone interest items drawn weighted by
-      salience (guarantees a non-empty, interest-grounded agenda every day).
+    Sources in draw order: each routine whose cadence draw succeeds; each
+    ACTIVE arc that has already STARTED (``started_day <= day``), with
+    probability 0.8 — a future ``started_day`` must NOT generate activities
+    before its start; then exactly 2 standalone interest items, weighted by
+    ``salience * BUCKET_WEIGHT[bucket]``.
 
-    Items live inside the awake window (t_h = day*24 + local hour, 08:00-23:00),
-    are sorted by start time, carry status "planned", and are persisted via
-    ``store.save_agenda``. All draws come from the passed ``rng`` — callers
-    must hand in ``stream_rng(seed, LIFE_STREAM, day)`` (never ``day_rng``).
-
-    Interest items are drawn by ``salience * BUCKET_WEIGHT[bucket]``, so the
-    portfolio's independent slice — the interests that are hers rather than
-    shared — actually reaches the day.
-
-    ``planner_client`` (optional) hands the arc and interest slots to
-    ``harness.day_planner`` for CONCRETE activity text; the engine keeps
-    selection, windows, salience and ids either way, and any planner failure
-    silently keeps the template text. Routines are never planned: they are
-    the same thing every day by definition. The RNG draw order is identical
-    with and without a planner, so the seeded schedule is unchanged.
+    Items live inside the awake window, are sorted by start time, carry status
+    "planned" and are persisted via ``store.save_agenda``. All draws come from
+    the passed ``rng`` — callers must hand in ``stream_rng(seed, LIFE_STREAM,
+    day)``, never ``day_rng``. ``planner_client`` (optional) hands the arc and
+    interest slots to ``harness.day_planner`` for concrete activity text; the
+    engine keeps selection, windows, salience and ids either way, any planner
+    failure keeps the template text, and the RNG draw order is identical with
+    and without a planner.
     """
     items: list[AgendaItem] = []
     day_start = day * DAY_HOURS
@@ -413,13 +334,10 @@ def _apply_plan(
 ) -> list[AgendaItem]:
     """Replace template activity text with planned text, where available.
 
-    Only arc and interest items are planned. Routines are excluded on
-    purpose: "morning coffee" is the same thing every day, which is what
-    makes it a routine, and a planner inventing a new object for it every
-    morning would be inventing a different life, not describing one.
-
-    Returns the items unchanged whenever planning does not happen. This runs
-    AFTER every RNG draw, so a planner never perturbs the seeded schedule.
+    Only arc and interest items are planned; a routine is the same thing every
+    day by definition. Returns the items unchanged whenever planning does not
+    happen. Runs AFTER every RNG draw, so a planner never perturbs the seeded
+    schedule.
     """
     if planner_client is None:
         return items
@@ -460,7 +378,7 @@ def _apply_plan(
     if getter is not None:
         try:
             outcomes = getter(before_day=day, limit=planner.OUTCOME_CONTEXT)
-        except Exception:  # continuity is a nicety, never a blocker
+        except Exception:  # never block on continuity
             outcomes = []
 
     planned = planner.plan_day(
@@ -484,11 +402,9 @@ def _step_arc(arc: LifeArc, day: int, store: LifeStore,
               rng: np.random.Generator) -> LifeArc:
     """One day of progress for one arc.
 
-    An arc whose ``started_day`` is still in the future is returned
-    untouched and — critically — consumes NO draws, which is what keeps a
-    day byte-identical across runs that differ only in future plans.
-    Reaching 1.0 completes the arc; an active arc is then abandoned with
-    ``_ABANDON_PROB``.
+    An arc that is not active or has not started yet is returned untouched and
+    consumes NO draws. Reaching 1.0 completes the arc; an active arc is then
+    abandoned with ``_ABANDON_PROB``.
     """
     if arc.status != "active" or arc.started_day > day:
         return arc
@@ -526,11 +442,11 @@ def _current_activity_for(agenda: DailyAgenda, items: list[AgendaItem],
                           t_h: float | None) -> "CurrentActivity | None":
     """What she is doing, under whichever of the two semantics applies.
 
-    With ``t_h`` (NOW semantics, invariant 8) only an item actually in
-    progress counts — a plan for later today is not what she is doing now.
-    Without it (legacy seam callers) the answer is the day's MAIN activity:
-    the highest-salience completed item, falling back to the
-    highest-salience item when nothing completed.
+    With ``t_h`` (NOW semantics) only an item actually in progress counts — a
+    plan for later today is not what she is doing now. Without it (legacy seam
+    callers) the answer is the day's MAIN activity: the highest-salience
+    completed item, falling back to the highest-salience item when nothing
+    completed.
     """
     if t_h is not None:
         return current_activity_now(agenda, t_h)
@@ -556,30 +472,17 @@ def step_life(
 ) -> LifeStepResult:
     """Advance one day: arc progress/status, item statuses, replenishment.
 
-    * Arc progress: each ACTIVE arc that has already STARTED (``started_day
-      <= day``) gains ``0.01 + rng.random() * 0.04``; an arc reaching 1.0
-      completes; a 2% daily chance abandons it. Arcs with a future
-      ``started_day`` are untouched (no progress, no status change, no draws).
-      Updated arcs are persisted via ``store.upsert_life_arc``.
-    * Item statuses: planned items deviate modestly — ~80% completed, ~10%
-      skipped, ~10% shifted — persisted via
-      ``store.update_agenda_item_status``.
-    * Replenishment (plan §5-A2 T3): when ``N_active < N_MIN_ACTIVE`` the
-      policy may spawn a replacement arc — probability ``_SPAWN_PROB`` (with
-      a boost from meaningful recent companion events), certain when nothing
-      is active, so active life never permanently dies. Spawn candidates
-      originate from prior completed arcs (descendants), the persona's
-      adjacent interests, the persona's own interests, and meaningful recent
-      companion events. The spawn roll and its draws happen AFTER all other
-      draws of the day, so when ``N_active >= N_MIN_ACTIVE`` the day is
-      byte-identical to the pre-replenishment behaviour.
-    * ``current_activity``: when ``t_h`` is given (NOW semantics, plan
-      §5-A2 T2, invariant 8) it is the item actually in progress at ``t_h``,
-      or ``None`` when nothing is active — a future plan never becomes the
-      current activity. Without ``t_h`` (legacy seam callers) it is the
-      day-level MAIN activity: the highest-salience completed item, or the
-      highest-salience item when nothing completed; ``None`` for an empty
-      agenda.
+    * Arcs: each ACTIVE, already-STARTED arc gains ``0.01 + rng.random() *
+      0.04``, completing at 1.0; a small daily chance abandons it. Arcs with a
+      future ``started_day`` are untouched (no progress, no status change, no
+      draws). Persisted via ``store.upsert_life_arc``.
+    * Items: planned items deviate modestly — ~80% completed, ~10% skipped,
+      ~10% shifted — persisted via ``store.update_agenda_item_status``.
+    * Replenishment: see ``_maybe_spawn_arc``; the spawn roll and its draws
+      happen AFTER all other draws of the day, so a day with enough active
+      arcs is byte-identical to the pre-replenishment behaviour.
+    * ``current_activity`` follows the ``t_h`` / no-``t_h`` semantics of
+      ``_current_activity_for``.
 
     Draw order is fixed (started arcs in given order, then items in agenda
     order, then the optional replenishment roll), so the outcome is
@@ -601,13 +504,12 @@ def step_life(
 
 
 def current_activity_now(agenda: DailyAgenda, t_h: float) -> CurrentActivity | None:
-    """NOW semantics (plan §5-A2 T2, orchestrator invariant 8).
+    """NOW semantics: the item actually in progress at ``t_h``.
 
-    The item actually in progress at ``t_h`` (``start_t_h <= t_h < end_t_h``
-    and not skipped/shifted — those are not happening at their planned slot),
-    choosing the highest salience when several overlap; ``None`` when nothing
-    is active. Future plans never become the current activity: a 7 PM plan
-    is not what she is doing at 10 AM. Pure function: no rng, no persistence.
+    In progress means ``start_t_h <= t_h < end_t_h`` and not skipped/shifted;
+    the highest salience wins when several overlap. ``None`` when nothing is
+    active — a future plan never becomes the current activity. Pure function:
+    no rng, no persistence.
     """
     in_progress = [
         it
@@ -623,22 +525,16 @@ def current_activity_now(agenda: DailyAgenda, t_h: float) -> CurrentActivity | N
 def transition_past_windows(
     agenda: DailyAgenda, t_h: float, day: int
 ) -> list[AgendaItem]:
-    """Deterministic planned→completed transition as windows pass (S2/W2).
+    """Deterministic planned→completed transition as windows pass.
 
     Pure function of (item window, t_h, day) — no wall clock, no rng, no
     store. Every item of ``day``'s agenda whose window has FULLY passed
-    (``end_t_h <= t_h``) while still ``planned`` becomes ``completed``: the
-    slot came and went on the plan with no recorded deviation, so the day's
-    plan is treated as fulfilled (``done``; ``skipped``/``shifted`` stay
-    reserved for ``step_life``'s recorded deviations at rollover). Items
-    still in their window or upcoming stay ``planned``; non-planned items
-    are never touched — ``step_life``'s rollover draw still applies to
-    whatever is left planned at day end.
+    (``end_t_h <= t_h``) while still ``planned`` becomes ``completed``;
+    ``skipped``/``shifted`` stay reserved for ``step_life``'s recorded
+    rollover deviations, and non-planned items are never touched.
 
     Returns ONLY the changed items; the caller persists each via
-    ``store.update_agenda_item_status`` so the rendered state-card
-    partition (which keys off the same window comparison) and the
-    persisted status agree.
+    ``store.update_agenda_item_status``.
     """
     changed: list[AgendaItem] = []
     for item in agenda.items:
@@ -652,13 +548,9 @@ def transition_past_windows(
 
 
 def _recent_good_days(store: LifeStore, day: int) -> int:
-    """Count meaningful recent companion events (plan §5-A2 T3 source 4).
-
-    A ``day_finalized`` audit event inside the last ``_EVENT_WINDOW_DAYS``
-    days with score >= ``_GOOD_DAY_SCORE`` counts as meaningful — a good
-    recent day is an inspiration to start something new. Stores without the
-    audit-log seam (``events_since``) contribute 0; the value is derived from
-    persisted state only, so it is deterministic across restarts.
+    """Count ``day_finalized`` audit events in the last ``_EVENT_WINDOW_DAYS``
+    days with score >= ``_GOOD_DAY_SCORE``. Stores without the audit-log seam
+    (``events_since``) contribute 0; derived from persisted state only.
     """
     if not hasattr(store, "events_since"):
         return 0
@@ -686,22 +578,17 @@ def _maybe_spawn_arc(
     store: LifeStore,
     rng: np.random.Generator,
 ) -> LifeArc | None:
-    """Replenishment policy (plan §5-A2 T3, orchestrator invariant 9).
+    """Replenishment policy: never let active life permanently die.
 
-    ``N_active < N_MIN_ACTIVE`` -> P(spawn) > 0, evaluated on the POST-step
-    state (the ``arcs`` argument is the day's updated list, so a day that
-    completes its last arc spawns a replacement with certainty); with zero
-    active arcs the spawn is certain, so active life never permanently dies.
-    ``_SPAWN_PROB < 1`` keeps "not every completed arc creates another".
-    Candidate interests, in pool order: descendants of prior COMPLETED arcs
-    (the finished thread's interest, e.g. ``learn basic photography`` ->
-    ``practice portrait photography``), the persona's ADJACENT interests,
-    then the persona's own interests (any bucket); an arc whose interest
-    already has an active arc is never duplicated. Meaningful recent
-    companion events (``_recent_good_days``) raise the spawn probability.
-    All draws come from the passed ``rng`` and happen after the day's other
-    draws; ``None`` is returned (and NO draws are consumed) whenever the
-    policy does not fire. The new arc is persisted before being returned.
+    While ``N_active < N_MIN_ACTIVE`` the policy spawns a replacement arc with
+    probability ``_SPAWN_PROB`` (certain when nothing is active, higher after
+    recent good days), evaluated on the POST-step ``arcs`` list. Candidate
+    interests, in pool order: descendants of prior COMPLETED arcs, the
+    persona's ADJACENT interests, then its remaining interests — one already
+    carried by an active arc is never duplicated. All draws come from the
+    passed ``rng`` and happen after the day's other draws; ``None`` is
+    returned (and NO draws consumed) whenever the policy does not fire. The
+    new arc is persisted before being returned.
     """
     active = [a for a in arcs if a.status == "active"]
     if len(active) >= _N_MIN_ACTIVE:
@@ -743,14 +630,12 @@ def _spawn_pool(persona: PersonaProfile, store: LifeStore,
                 active_interests: set) -> list[tuple[str, str]]:
     """Interests a replacement arc could come from, as (name, origin).
 
-    Three sources in a fixed order — a completed arc's interest
-    ("descendant", so an old thread can be picked back up), then the
-    persona's ADJACENT interests, then any remaining persona interest.
-    Order matters twice over: it decides which origin an interest is tagged
-    with when it appears in more than one source, and the pool is indexed by
-    a keyed draw, so reordering it would change every future spawn.
-    Interests already carried by an active arc are excluded — she does not
-    start a second arc on something she is already doing.
+    Fixed source order — descendants of completed arcs, then the persona's
+    ADJACENT interests, then any remaining persona interest. Order matters
+    twice over: it decides which origin an interest is tagged with when it
+    appears in more than one source, and the pool is indexed by a keyed draw,
+    so reordering it changes every future spawn. Interests already carried by
+    an active arc are excluded.
     """
     seen: set[str] = set()
     pool: list[tuple[str, str]] = []

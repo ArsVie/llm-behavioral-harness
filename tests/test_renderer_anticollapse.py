@@ -1,13 +1,7 @@
 """Propiedad anti-colapso del renderizador de briefs.
 
-Todo vector de ánimo *intencionado como estado distinto* debe renderizar un
-brief distinto: el modelo solo puede percibir el ánimo a la resolución del
-renderizador, así que dos estados colapsados son indistinguibles para él.
-
-Hoy (base 653de09) el renderizador cuantiza valencia en 3 bandas (umbral
-+-0.35) y energía en 3 bandas (0.35/0.7): solo ~9 estados efectivos. Estas
-pruebas documentan el colapso (ROJO); la ampliación a ~6 bandas por eje
-hará que pasen en verde.
+Todo vector de animo intencionado como estado distinto debe renderizar un
+brief distinto: dos estados colapsados son indistinguibles para el modelo.
 """
 
 from __future__ import annotations

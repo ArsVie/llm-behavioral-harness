@@ -1,21 +1,4 @@
-"""Tests for harness/life.py — A4 persistent life simulation (vertical-slice Wave 1).
-
-Covers: deterministic arc seeding tied to the persona's real interests and
-persisted through the store seam; daily agenda generation predominantly from
-persona sources inside the awake window; step_life arc progress/status and
-item-status deviation with persistence; the 30-day core simulation (arcs
-survive day boundaries, progress happens, activities recur, days differ,
-interests dominate, statuses stay valid); restart/reload reproducing the same
-persistent state (including a deterministic continuation); and the CRITICAL
-RNG rule — life.py never draws from day_rng(seed, t), only from the reserved
-LIFE stream stream_rng(seed, 4[, day]).
-
-A2's real SQLite store seam (wip/vslice-a2) had not landed when A4 ran, so the
-module tests use ``FakeLifeStore``: an in-memory store implementing exactly the
-§15 store subset life.py uses, persisted to a JSON file on every write so a
-reopened instance reproduces the same state (the behaviour A2's store will
-provide). Reported to the orchestrator.
-"""
+"""Tests for harness/life.py: arc seeding, agenda generation, step_life and replenishment."""
 
 from __future__ import annotations
 
@@ -47,12 +30,7 @@ CORE_SEED = 14
 # Seam-faithful fake store (JSON-persisted so reopen reproduces state)
 
 class FakeLifeStore:
-    """§15 store-seam subset for life.py, flushed to a JSON file per write.
-
-    ``list_life_arcs`` / ``load_agenda`` on a reopened instance (same file)
-    reproduce the same persistent state — the behaviour A2's SQLiteStore will
-    provide. No business logic lives here (seam rule).
-    """
+    """§15 store-seam subset for life.py, flushed to a JSON file per write."""
 
     def __init__(self, path: str | Path):
         self.path = Path(path)
@@ -384,12 +362,7 @@ def test_step_life_arcs_can_complete_or_abandon(tmp_path):
 # Core 30-day simulation
 
 def test_30_day_simulation_core(tmp_path):
-    """Core test: 30 days, fixed seed, real persistence semantics.
-
-    Active arcs survive day boundaries, progress happens, activities recur,
-    days differ, activities come predominantly from the persona's actual
-    interests, and item statuses stay valid with modest deviation.
-    """
+    """Core test: 30 days, fixed seed, real persistence semantics."""
     persona = _persona()
     store = _store(tmp_path)
     arcs, agendas, _ = _simulate(CORE_SEED, persona, store, days=30)
@@ -503,11 +476,7 @@ def test_reload_reproduces_persistent_state(tmp_path):
 
 
 def test_reload_reproduces_persistent_state_real_store(tmp_path):
-    """Gate check: the SAME restart/reload contract against A2's real SQLiteStore.
-
-    The fake-store variant above proves semantics; this one proves the seam against
-    the production persistence layer (schema v2, migrations, WAL reopen).
-    """
+    """The same restart/reload contract against the real SQLiteStore."""
     from harness.store import SQLiteStore
 
     persona = _persona()
@@ -574,14 +543,7 @@ def test_life_stream_does_not_touch_daily_stream(tmp_path):
 
 
 def test_module_uses_no_random_or_clock():
-    """No `random` module, no real clocks, no unseeded numpy rng in life.py.
-
-    The determinism this guards is pinned behaviorally by
-    ``test_init_life_deterministic_and_persisted`` and the replay tests;
-    this source-text scan is a belt-and-suspenders lint that the seed-
-    parity tests make redundant. Keep it cheap and comment-tolerant:
-    it scans only import/assignment lines, never docstrings.
-    """
+    """No `random` module, no real clocks, no unseeded numpy rng in life.py."""
     src = Path(__file__).resolve().parent.parent / "harness" / "life.py"
     text = src.read_text()
     # Only real import/call sites, not docstring negations.
@@ -743,9 +705,7 @@ def test_current_activity_now_overlap_single():
 
 
 def test_step_life_current_activity_with_t_h(tmp_path):
-    """step_life(t_h=...) resolves the NOW activity (item in progress at t_h,
-    None in gaps); the legacy no-t_h call keeps the day-level main-activity
-    contract."""
+    """step_life(t_h=...) resolves the NOW activity; the no-t_h call keeps the day-level contract."""
     persona = _persona()
     store = _store(tmp_path)
     arcs = init_life(CORE_SEED, persona, store)
@@ -784,9 +744,7 @@ def _transition_fixture(day: int = 0):
 
 
 def test_transition_past_windows_planned_to_completed():
-    """Before the window: nothing changes; inside: still planned; after the
-    window has fully passed: planned -> completed (the day's plan is treated
-    as fulfilled — 'done'; the render partition labels it 'Done earlier')."""
+    """Before the window: nothing changes; after it has passed: planned -> completed."""
     agenda = _transition_fixture()
 
     # t_h before the first window (06:00): nothing has passed
@@ -928,9 +886,8 @@ def test_replenishment_not_every_completion_spawns(tmp_path):
 
 
 def test_replenishment_candidates_descendant_and_fresh(tmp_path):
-    """Replacement arcs originate from the persona's world: some are
-    descendants of prior completed arcs (same interest), some are fresh
-    interests; an interest with an active arc is never duplicated."""
+    """Replacement arcs come from completed arcs or fresh interests; an
+    interest with an active arc is never duplicated."""
     persona = _persona()
     store = _store(tmp_path)
     arcs = init_life(999, persona, store)
@@ -980,9 +937,8 @@ def test_replenishment_spawn_survives_reload(tmp_path):
 
 
 def test_recent_good_days_counts_meaningful_events(tmp_path):
-    """Source-4 helper: meaningful recent companion events (day_finalized
-    with score >= 0.7 inside the look-back window) count; low scores, other
-    event kinds and stale events do not; seam-less stores contribute 0."""
+    """Source-4 helper: meaningful recent companion events count; low scores,
+    other kinds, stale events and seam-less stores do not."""
     from harness.life import _recent_good_days
     from harness.store import SQLiteStore
 
@@ -1001,9 +957,7 @@ def test_recent_good_days_counts_meaningful_events(tmp_path):
 
 
 def test_replenishment_meaningful_events_change_trajectory(tmp_path):
-    """Meaningful recent companion events (plan §5-A2 T3 source 4) raise the
-    spawn probability: the same seed with a streak of good recent days lands
-    a different spawn trajectory than without."""
+    """Meaningful recent companion events raise the spawn probability."""
     from harness.store import SQLiteStore
 
     persona = _persona()

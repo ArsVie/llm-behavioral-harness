@@ -1,9 +1,6 @@
 """Lane credential resolution, the dotenv loader and the auth probe.
 
-The load-bearing property throughout is that a credential VALUE never
-appears anywhere — not in an exception, not in a log line, not on stdout.
-Only env var NAMES are ever printed, and there is no silent fallback to a
-generic key when a lane token is missing.
+A credential VALUE never appears in output; only env var NAMES are printed.
 """
 
 from __future__ import annotations
@@ -86,11 +83,7 @@ def test_resolve_credentials_base_url_is_none_when_nothing_is_configured():
 
 
 def test_missing_lane_token_names_the_var_but_never_a_value():
-    """The error must be actionable and leak nothing.
-
-    There is deliberately no fallback to LLM_API_KEY: a missing product
-    token must fail loudly rather than quietly spending on another key.
-    """
+    """The error must be actionable and leak nothing."""
     env = {"LLM_API_KEY": "some-other-secret"}
     with pytest.raises(RuntimeError) as exc:
         resolve_credentials("product", env)
@@ -127,11 +120,7 @@ class _Resp:
 
 
 def test_probe_lane_sends_no_content_and_returns_the_base(monkeypatch):
-    """The probe is a bare GET /models with a bearer header — no payload.
-
-    That is the whole point: auth is confirmed without sending any user
-    text to the provider.
-    """
+    """The probe is a bare GET /models with a bearer header — no payload."""
     import httpx
 
     seen: dict = {}

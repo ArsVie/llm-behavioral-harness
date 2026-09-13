@@ -1,17 +1,8 @@
 """Run-level read model: the overview payload the dashboard's page starts from.
 
-This module owns the *run* questions (how old, how live, how much happened,
-which invariants broke, what the clock says) and re-exports the call/event
-read model so the HTTP layer has one import. Everything below is read-only.
-
-Reused rather than re-implemented, so the app can never disagree with the CLI
-inspectors:
-
-* ``harness.trace.load_anchor`` / ``Anchor`` — virtual hour to local clock;
-* ``harness.trace.collect_findings`` — the ``checks`` verdicts;
-* ``harness.trace.CACHE_FLOOR`` — the "shared prefix should have cached" line;
-* ``harness.spend.GroupStats`` — the spend formula and cache-hit rate;
-* ``harness.tools.TOOL_SCHEMAS`` — the decide-leg schemas the store omits.
+Owns the run questions (age, liveness, activity, broken invariants, clock) and
+re-exports the call/event read model. Read-only. Reuses ``harness.trace``,
+``harness.spend`` and ``harness.tools`` rather than re-implementing them.
 """
 
 from __future__ import annotations
@@ -113,9 +104,7 @@ def latest_ids(conn: sqlite3.Connection) -> dict[str, Any]:
 def checks_payload(conn: sqlite3.Connection, anchor: Any) -> dict[str, Any]:
     """The ``harness.trace checks`` verdicts, as data.
 
-    A crashing invariant is reported as a finding instead of a 500: an
-    observability page must still show the run it was asked about, and the
-    crashed check is itself the most interesting thing about such a run.
+    A crashing invariant is reported as a finding, not a 500.
     """
     try:
         findings = collect_findings(Ctx(conn=conn, anchor=anchor))

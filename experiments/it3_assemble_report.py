@@ -2,8 +2,7 @@
 
 Toma results/it3-report-data.json (cvs_report) + g6_report.json y
 rellena las secciones numéricas del esqueleto del reporte. La sección 0
-(headline / respuesta declarada al DoD §11) la escribe el orquestador al
-revisar — este script solo mecaniza los números.
+(headline) la escribe el orquestador; este script solo mecaniza los números.
 
 Uso: .venv/bin/python -m experiments.it3_assemble_report
 """

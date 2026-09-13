@@ -1,19 +1,4 @@
-"""Hardening for the week-long live trial (review 2026-09-02).
-
-Four separate ways the live entry could not have survived a week, each
-pinned here:
-
-* a failed turn ending the whole run (``survive_turn_failures``),
-* a stale real-time anchor manufacturing days on resume
-  (``check_resume_gap``),
-* the owner and the companion both being ablation-matrix fixtures
-  (``owner_profile`` / ``rename_companion``),
-* an fsync-per-commit default with no way to say otherwise
-  (``sqlite_synchronous``).
-
-Convención del repo: docstrings en español para experiments/, inglés aquí
-(el resto de tests/ está en inglés); identificadores siempre en inglés.
-"""
+"""Hardening tests for the live trial entry point (experiments/live_companion)."""
 
 from __future__ import annotations
 
@@ -50,12 +35,7 @@ FAST = TimeScale(seconds_per_virtual_hour=0.002)
 
 
 class BoomChannel(FakeChannel):
-    """Channel whose proactive delivery always fails.
-
-    Stands in for the real failure this guards: the LLM call inside the turn
-    raising after the client exhausts its retries. Delivery is the easiest
-    place to inject it and takes the same path out of ``_firing_loop``.
-    """
+    """Channel whose proactive delivery always fails."""
 
     def __init__(self) -> None:
         super().__init__()
@@ -91,13 +71,7 @@ def _armed_run(tmp_path, name: str, *, survive: bool):
 
 
 def test_failed_proactive_turn_ends_an_experiment_cell(tmp_path):
-    """Default policy is fail-fast, and stays that way.
-
-    A bounded ablation cell that kept running after a broken turn would
-    report a corrupt result as a clean one, so the exception must reach the
-    caller. This pins the pre-existing contract that the live policy opts
-    out of, NOT a new behaviour.
-    """
+    """Default policy is fail-fast."""
     store, channel, runtime = _armed_run(tmp_path, "cell.db", survive=False)
     try:
         with pytest.raises(RuntimeError, match="send exploded"):
@@ -108,12 +82,7 @@ def test_failed_proactive_turn_ends_an_experiment_cell(tmp_path):
 
 
 def test_failed_proactive_turn_does_not_end_a_live_run(tmp_path):
-    """With the live policy the run completes, and the failure is on record.
-
-    Before this, one exception unwound ``_firing_loop`` through the
-    ``asyncio.gather`` in ``run()`` and the process exited — a week-long
-    trial ended by a single bad provider response.
-    """
+    """With the live policy the run completes, and the failure is on record."""
     store, channel, runtime = _armed_run(tmp_path, "live.db", survive=True)
     try:
         asyncio.run(runtime.run())  # completes instead of raising
@@ -127,12 +96,7 @@ def test_failed_proactive_turn_does_not_end_a_live_run(tmp_path):
 
 
 def test_failed_proactive_turn_consumes_its_schedule_row(tmp_path):
-    """A failed event is consumed, never left pending.
-
-    An overdue pending row is re-evaluated on the next pass, so leaving it
-    would spin the firing loop against a provider that is already failing.
-    One proactive message is lost; the run and the provider are not.
-    """
+    """A failed event is consumed, never left pending."""
     store, _channel, runtime = _armed_run(tmp_path, "consume.db", survive=True)
     try:
         asyncio.run(runtime.run())
@@ -142,11 +106,7 @@ def test_failed_proactive_turn_consumes_its_schedule_row(tmp_path):
 
 
 def test_failed_reactive_turn_does_not_end_a_live_run(tmp_path):
-    """An inbound turn that raises is logged and the runtime stays up.
-
-    python-telegram-bot swallows handler exceptions, so before this the user
-    got silence and the operator got nothing at all.
-    """
+    """An inbound turn that raises is logged and the runtime stays up."""
     store = build_store(tmp_path / "reactive.db")
 
     class Boom:
@@ -201,12 +161,7 @@ def test_fresh_anchor_resume_is_allowed(tmp_path):
 
 
 def test_stale_anchor_resume_is_refused(tmp_path):
-    """An anchor parked for weeks is refused, naming both days.
-
-    ``Session.ensure_day`` rolls every missing day forward at the next
-    midnight, finalising each through the judge — so resuming here would
-    start the trial on top of days that never happened.
-    """
+    """An anchor parked for weeks is refused, naming both days."""
     store = build_store(tmp_path / "stale.db")
     try:
         bootstrap(store, SEED)
@@ -262,12 +217,7 @@ def test_owner_profile_falls_back_without_the_environment(monkeypatch):
 
 def test_bootstrap_names_the_companion_and_rewrites_the_core(tmp_path,
                                                              monkeypatch):
-    """The persona name reaches the prose core, not just the row.
-
-    ``build_persona`` hard-codes "Nova" and writes it into the core ("You
-    are Nova, ..."), so renaming only the column would leave her
-    introducing herself by the old name on turn one.
-    """
+    """The persona name reaches the prose core, not just the row."""
     monkeypatch.setenv("LILY_COMPANION_NAME", "Lily")
     monkeypatch.setenv("LILY_OWNER_NAME", "Ars")
     monkeypatch.setenv("LILY_OWNER_INTERESTS", "lifting,sketching")
@@ -334,12 +284,7 @@ def test_store_applies_the_configured_level(tmp_path, monkeypatch):
 
 
 def test_telegram_handler_error_is_reported(caplog):
-    """A handler exception is logged instead of vanishing.
-
-    python-telegram-bot discards handler exceptions when no error handler is
-    registered, which is why a failing turn used to look exactly like a user
-    who simply got no reply.
-    """
+    """A handler exception is logged instead of vanishing."""
     from harness.channels.telegram import TelegramChannel
 
     channel = TelegramChannel(application=object(), owner_chat_id=1)
@@ -442,8 +387,7 @@ def test_check_token_false_on_transport_failure(monkeypatch):
 
 
 def test_check_token_warns_when_no_owner_chat_is_set(monkeypatch, capsys):
-    """Outbound still works without TELEGRAM_CHAT_ID, but owner-only inbound
-    filtering is off — that has to be said out loud, not discovered."""
+    """Without TELEGRAM_CHAT_ID owner-only inbound filtering is off, so the channel warns."""
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "123:abc")
     _patch_async_client(
         monkeypatch, _FakeAsyncClient(_FakeResp(200, {"ok": True}))
@@ -454,8 +398,7 @@ def test_check_token_warns_when_no_owner_chat_is_set(monkeypatch, capsys):
 
 
 def test_life_step_done_is_true_without_an_agenda(tmp_path):
-    """No agenda means _step_life would no-op, so the day counts as done —
-    this is what makes the crash-window completion idempotent."""
+    """No agenda means _step_life would no-op, so the day counts as done."""
     store = build_store(tmp_path / "life-none.db")
     try:
         session = make_session(store, clock=VirtualClock())
@@ -465,12 +408,7 @@ def test_life_step_done_is_true_without_an_agenda(tmp_path):
 
 
 def test_life_step_done_tracks_the_persisted_marker(tmp_path):
-    """With an agenda present the answer is the persisted life_step event.
-
-    An agenda but no marker means the step has NOT run — which is the case
-    the crash-window completion exists to finish. Logging the marker flips
-    it, so completing twice is a no-op.
-    """
+    """With an agenda present the answer is the persisted life_step event."""
     store = build_store(tmp_path / "life-marker.db")
     try:
         bootstrap(store, SEED)
@@ -484,12 +422,7 @@ def test_life_step_done_tracks_the_persisted_marker(tmp_path):
 
 
 def test_life_step_done_is_keyed_on_the_event_row_day(tmp_path):
-    """The marker matches the event ROW's day column, not its detail text.
-
-    Both days here have an agenda, so neither short-circuits: marking day 0
-    must leave day 1 unstepped. (The detail string is free-form and is
-    deliberately not what the lookup keys on.)
-    """
+    """The marker matches the event ROW's day column, not its detail text."""
     store = build_store(tmp_path / "life-otherday.db")
     try:
         bootstrap(store, SEED)

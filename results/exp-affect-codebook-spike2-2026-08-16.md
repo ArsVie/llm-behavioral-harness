@@ -3,7 +3,7 @@
 Date: 2026-08-16
 Mode: orchestrator (subagents)
 Precedent: spike 1 (`exp-affect-codebook-pipeline-2026-08-15.md`) → **NO-GO**;
-memo `experiments/emotion-codebook-spike/docs/go-nogo-memo-2026-08-16.md`.
+memo [`go-nogo-memo-2026-08-16.md`](../../emotion-codebook/emotion-codebook-spike/docs/go-nogo-memo-2026-08-16.md).
 Status: PRE-REGISTERED. Gates fixed before any run; reported against, never moved.
 
 ## Why a second spike, and why the gate changes

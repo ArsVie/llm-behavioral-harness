@@ -2,14 +2,12 @@
 efectos diarios (tarea ad-hoc, fuera de las olas de Fase 1).
 
 PROPIEDAD: este archivo + la carpeta `engine_simulation/` EN LA RAIZ del
-proyecto (no bajo results/ — pedido explicito). No tocar nada mas del arbol.
+proyecto. No tocar nada mas del arbol.
 
 Variante fija DECOUPLED_OFFSETS, 30 dias, semilla 3001 COMPARTIDA entre los
-seis escenarios principales (asi las diferencias entre figuras vienen de los
-overrides de PersonaParams / shocks, no del azar). Persona base =
-PersonaParams() (defaults adoptados en Fase 1: rho_e=0.7, sigma_e=0.45 — no
-se tocan aqui, solo se sobreescriben campos puntuales por escenario via
-dataclasses.replace).
+seis escenarios principales. Persona base = PersonaParams() (rho_e=0.7,
+sigma_e=0.45 — no se tocan aqui, solo se sobreescriben campos puntuales por
+escenario via dataclasses.replace).
 
 Escenarios (ver SCENARIOS mas abajo para los overrides exactos):
     01_baseline       — todos los efectos activos (m/g + eta + mu).
@@ -17,8 +15,7 @@ Escenarios (ver SCENARIOS mas abajo para los overrides exactos):
     03_solo_endogeno  — B=0, A=0, sigma_eps=0, k=0: solo las rachas eta.
     04_racha_negativa — defaults + shocks dias 10..14 = -1.0 (via mu).
     05_alta_volatilidad — nu=4.0: sobredispersion beta-binomial.
-    06_ciclo_fuerte   — A=0.4, B=0.3: fase "perceptible" (riesgo R2 del
-                        informe de Fase 1, results/fase-1-informe.md).
+    06_ciclo_fuerte   — A=0.4, B=0.3: fase "perceptible".
 
 Figuras adicionales:
     00_comparativa.png — small multiples 2x3 de M(t) para los 6 escenarios.

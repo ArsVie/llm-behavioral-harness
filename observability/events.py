@@ -1,20 +1,13 @@
 """The unified event stream: every durable row a run produced, in one order.
 
-The run DB keeps its history in eight tables written by different layers
-(messages, state_events, schedule_events, decision_records, steering_queue,
-proactive_intents, judgements, conversation_turns). ``harness.trace`` renders
-them per view; this module folds them into ONE chronological stream so a live
-front-end can tail the run the way DeepSeek Harness' trajectory view tails a
-session.
-
 Ordering is a composite sequence number, monotonic in virtual time and stable
 across polls:
 
-    seq = round(t_h * 1e6) * 10 + rank
+seq = round(t_h * 1e6) * 10 + rank
 
 ``rank`` breaks ties inside one virtual instant by lane, and each row's own id
-breaks the remaining ties. The same row therefore keeps the same seq on every
-poll, which is what makes ``?after=<seq>`` safe for incremental fetching.
+breaks the remaining ties; the same row keeps the same seq on every poll, which
+is what makes ``?after=<seq>`` safe for incremental fetching.
 """
 
 from __future__ import annotations
@@ -52,10 +45,8 @@ _WARN_MARKERS = ("requeue", "omit", "suppress", "expired", "degraded")
 def seq_of(t_h: float, rank: str, row_id: int) -> int:
     """The composite cursor for one row: stable across polls, ordered by time.
 
-    Virtual time dominates, then the lane rank, then the row's own id — so two
-    calls at the same instant (routine: a chat leg and its decide legs share
-    one timestamp) keep distinct, stable cursors and ``?after=<seq>`` never
-    swallows a sibling.
+    Virtual time dominates, then lane rank, then the row's own id; two calls at
+    one instant keep distinct, stable cursors.
     """
     rank_value = RANK.get(rank, len(RANK))
     return (int(round(t_h * 1_000_000)) * 1_000_000
@@ -107,10 +98,8 @@ class Event:
     def stamp(self) -> str:
         """Date AND clock for the stream row.
 
-        A bare ``HH:MM:SS`` repeats on every day of a multi-day run (this run
-        shows five such strings on more than one date), so a time-only column
-        reads as if the log ran backwards. Unanchored runs fall back to the
-        virtual day and hour.
+        A bare ``HH:MM:SS`` repeats on every day of a multi-day run. Unanchored runs
+        fall back to the virtual day and hour.
         """
         if self.real:
             return f"{self.real[5:10]} {self.real[11:19]}"     # MM-DD HH:MM:SS
@@ -278,11 +267,8 @@ def from_conversations(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Even
         detail = f"opened by {row.get('opened_by')}"
         if closed is not None:
             detail += f" · closed ({row.get('close_reason')})"
-        # A lifecycle row marks its LAST state change, and its sort time must BE
-        # the time it shows: sorting by the close while displaying the open put
-        # all six of this run's conversation rows after later events, each one
-        # reading as a clock running backwards. Nothing is lost -- the open
-        # instant is its own `conversation_opened` state event.
+        # A lifecycle row marks its LAST state change, so its sort time must BE
+        # the time it shows; the open instant is its own state event.
         at = float(closed) if closed is not None else opened
         out.append(Event(
             seq=seq_of(at, "conversation", abs(hash(str(row.get("id")))) % 10_000),

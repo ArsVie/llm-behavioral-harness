@@ -1,58 +1,12 @@
-"""Slash-command semantics for the live companion (Wave 2, worker W-commands, seam S3).
+"""Slash-command semantics for the live companion.
 
-This module is the S3 command seam's semantics side: it owns what every
-command MEANS and what it replies, nothing else. The channel side
-(``harness.channels.telegram``) parses updates into :class:`ControlCommand`
-objects; the runtime (W-runtime) or the launcher dispatches them here.
-
-Purity contract
----------------
-``handle_command(cmd, ctx)`` is a PURE function of its two arguments:
-
-- it performs NO I/O of its own — every fact it renders comes from the
-  injected ``CommandContext`` (store reads, clock reads, pre-computed
-  counts) and every EFFECT flows through the context's narrow hooks
-  (``request_tz_change`` / ``request_mute`` / ``request_setup``);
-- it NEVER touches ``Session`` — no ``session.on_message``, no closing
-  draws, no memory writes. The runtime's ``_on_command`` dispatch calls it
-  under the runtime lock; the launcher's interim dispatch calls it on the
-  event loop. Both are safe because this module is inert by construction;
-- it always returns a reply string and never raises: hook failures are
-  caught and reported in the reply (a command reply is a string, no
-  exceptions escape).
-
-Command set (the plan's list; NO /reset — destructive operations stay at
-the launcher):
-
-    /help              list + usage
-    /ping              alive check
-    /setup             onboard a fresh database: identity, interest graph
-                       (extended for interests the catalog lacks), persona,
-                       life arcs and today's agenda. REFUSES once a persona
-                       row exists, and requires a launcher that wires
-                       ``request_setup`` (``AsyncRuntime`` does; start it
-                       with ``--defer-bootstrap`` so a blank DB is left for
-                       the command to initialize)
-    /tz <IANA>         change timezone via ``request_tz_change`` — applied
-                       at the next rollover (the virtual clock never jumps
-                       backwards)
-    /status            day, local hour, pending-proactive count,
-                       last-exchange age — runtime facts only, no internals
-    /state             mood internals — BEHIND a debug flag: it would
-                       contaminate the perceptual experiment otherwise
-    /mute <hours>      pause proactive messages via ``request_mute`` —
-                       deferred, never consumed
-    /version           commit sha, seed, active flags
-
-Unknown commands get a pointer to /help (the channel routes every
-slash-command here; rejecting unknown names is this module's job).
-
-Debug gating (/state)
----------------------
-``/state`` renders when the context's ``flags`` dict has ``debug`` (or the
-alias ``debug_commands``) set. The launcher maps the new env var
-``HARNESS_DEBUG_COMMANDS`` (default OFF) onto ``flags["debug"]``; the
-W-runtime dispatch may pass any of its own flags the same way.
+``handle_command(cmd, ctx)`` is PURE in its two arguments: no I/O of its own,
+every fact comes from the injected context, every effect flows through its
+narrow hooks, and it always returns a reply string (never raises). It never
+touches ``Session``. The channel (``harness.channels.telegram``) parses updates
+into :class:`ControlCommand` objects; the runtime or the launcher dispatches
+them here. Commands: /help, /ping, /setup, /tz, /status, /state (debug-only),
+/mute, /version; unknown names get a pointer to /help.
 """
 
 from __future__ import annotations
@@ -72,11 +26,10 @@ if TYPE_CHECKING:  # typing-only: the anchor is a pure value, never touched
 class CommandContext:
     """Read-only session facts + narrow hooks handed to ``handle_command``.
 
-    The first five fields are the frozen S3 seam contract (the W-runtime
-    dispatch constructs exactly these); every other field is an OPTIONAL
-    extension with a safe default, so a seam-faithful context works
-    unchanged. ``handle_command`` never mutates the context and never
-    reaches past it into the session.
+    The first five fields are the frozen seam contract; every other field is an
+    OPTIONAL extension with a safe default, so a seam-faithful context works
+    unchanged. ``handle_command`` never mutates the context and never reaches
+    past it into the session.
     """
 
     store: Any  # read-only store facts (load_persona, latest_interaction_t_h, latest_daily_state, kv)
@@ -160,10 +113,6 @@ def _cmd_setup(cmd: ControlCommand, ctx: CommandContext) -> str:
         )
     hook = getattr(ctx, "request_setup", None)
     if hook is None:
-        # A launcher that did not wire the hook. Naming a specific CLI flag
-        # here was wrong: --defer-bootstrap exists only in sim/run_async.py,
-        # so on any other launcher this message sent the reader after a flag
-        # their entry point does not have.
         return (
             "/setup is not available on this launcher — it did not wire the "
             "setup hook. Initialize at startup instead."
@@ -316,9 +265,8 @@ _COMMANDS: dict[str, Callable[[ControlCommand, CommandContext], str]] = {
 def handle_command(cmd: ControlCommand, ctx: CommandContext) -> str:
     """Dispatch one parsed command to its handler and return the reply.
 
-    Pure by construction (see the module docstring): all effects flow
-    through the context's hooks, the reply is always a string, and nothing
-    here touches ``Session``. ``cmd.name`` carries no leading slash (the
+    All effects flow through the context's hooks; the reply is always a string and
+    nothing here touches ``Session``. ``cmd.name`` carries no leading slash (the
     channel strips it); a stray slash is tolerated defensively.
     """
     name = cmd.name[1:] if cmd.name.startswith("/") else cmd.name

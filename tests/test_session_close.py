@@ -1,27 +1,12 @@
 """W-close: two-phase close behavior (seam S1, flag ``two_phase_close``).
 
-Covers the two-phase lifecycle end to end, all with the flag ON (or env-
-driven), against the v6 store:
-
-* seeded 3-turn goodbye path — the closing draw (stream 6, keys
-  ``(conv_seq, turn_index)`` UNCHANGED) persists ``closing_pending_t_h``
-  instead of closing; the next companion turn's state card renders the
-  wind-down guidance through the assembler's existing ``closing_guidance``
-  channel; the user's reply triggers the deterministic goodbye close with
-  reason ``closing_tendency`` (taxonomy unchanged);
-* user-silent expiry — the grace candidate
-  ``closing_pending_t_h + WIND_DOWN_GRACE_H`` (1.0 vh) surfaces from
-  ``next_conversation_close_t_h`` and the ``check_conversation_lifecycle``
-  branch closes with reason ``closing_tendency`` (NOT ``user_left``, which
-  stays the 12 h outer backstop);
-* resume — the persisted wind-down marker rides along a session restart;
-* flag plumbing — OFF by default, ON via the constructor kwarg or the
-  ``HARNESS_TWO_PHASE_CLOSE`` env var.
-
-Draw discipline under test: with ``closing_tendency = 1.0`` forced via
-``harness.session.controls_from_directive`` (the same injection the it3 B2
-suite uses), the draw at the FIRST eligible companion turn (turn index 3 —
-the first companion turn is exempt by design) always fires.
+Covers, with the flag ON (or env-driven) against the v6 store: the seeded
+goodbye path (draw -> ``closing_pending_t_h`` -> wind-down guidance in the next
+companion turn -> deterministic close with reason ``closing_tendency``),
+user-silent expiry at ``closing_pending_t_h + WIND_DOWN_GRACE_H``, resume of the
+persisted wind-down marker, and flag plumbing (OFF by default; constructor
+kwarg or ``HARNESS_TWO_PHASE_CLOSE``). The draw is made deterministic by
+forcing ``closing_tendency = 1.0``.
 """
 
 import pytest
@@ -170,10 +155,8 @@ def test_guidance_only_while_wind_down_pending(tmp_path, forced_close):
 
 
 def test_user_silent_expiry_via_virtual_clock(tmp_path, forced_close):
-    """A user who never replies: the conversation stays open through the
-    grace window, the grace deadline is the next close instant, and the
-    wind-down EXPIRES with reason ``closing_tendency`` (not ``user_left``,
-    the 6 h outer backstop)."""
+    """A user who never replies: the grace deadline is the next close instant
+    and the wind-down expires with reason ``closing_tendency``."""
     forced_close(1.0)
     store, clock, client, session = _session(tmp_path, two_phase=True)
     clock.advance_hours(8.5)
@@ -241,9 +224,8 @@ def test_wind_down_pending_survives_restart(tmp_path, forced_close):
 
 
 def test_flag_defaults_off_and_env_enables(tmp_path, monkeypatch):
-    """``two_phase_close`` defaults to False; the HARNESS_TWO_PHASE_CLOSE
-    env var (any non-empty value) turns it on; flag-off runs never touch
-    the wind-down machinery."""
+    """``two_phase_close`` defaults to False; ``HARNESS_TWO_PHASE_CLOSE`` (any
+    non-empty value) turns it on; flag-off runs never touch wind-down."""
     store, clock, client, session = _session(tmp_path, two_phase=False)
     assert session.two_phase_close is False
     assert session._closing_pending_t_h is None

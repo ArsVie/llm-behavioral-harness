@@ -1,10 +1,5 @@
 """A9 adversarial wave — ACTUATOR attack class (plan §9, cases A-1..A-6).
-
-Attacks plan §9's claim: mechanical controls still work when the client
-completely ignores prompt wording. A FakeClient that only records request
-mechanics must observe different max_tokens / delay / continuation policy /
-initiative-derived plans for different directives.
-"""
+Mechanical controls must still work when the client ignores prompt wording."""
 
 from __future__ import annotations
 
@@ -87,9 +82,8 @@ def _snapshot(profile: PersonaProfile, brief=None) -> CompanionSnapshot:
 
 
 def test_a1_length_actuator_reaches_max_tokens_budget():
-    """A-1: identical prompt wording, low (0.3) vs high (1.8)
-    response_length_scale → FakeClient records measurably different
-    max_tokens, both inside [96, 1500]."""
+    """A-1: low (0.3) vs high (1.8) response_length_scale yields measurably
+    different max_tokens, both inside [96, 1500]."""
     low = _controls(_directive(response_length_scale=0.3))
     high = _controls(_directive(response_length_scale=1.8))
     assert low.max_tokens == 180 and high.max_tokens == 1080
@@ -108,9 +102,8 @@ def test_a1_length_actuator_reaches_max_tokens_budget():
 
 
 def test_a2_delay_reaches_runtime_before_send(tmp_path):
-    """A-2: response_delay_s=7.0 flows through the runtime's delivery path —
-    the injectable sleeper is called with ~7.0s BEFORE channel.send, and the
-    runtime module contains no literal time.sleep."""
+    """A-2: response_delay_s=7.0 reaches the injectable sleeper before channel.send;
+    the runtime module contains no literal time.sleep."""
     import harness.runtime as rt_mod
 
     store = SQLiteStore(tmp_path / "a2.db")
@@ -157,15 +150,8 @@ def test_a2_delay_reaches_runtime_before_send(tmp_path):
 
 
 def test_a3_closing_tendency_is_silent_in_the_prompt():
-    """A-3, inverted (2026-09-07): closing_tendency must NOT reach the prompt.
-
-    The channel used to be asserted the other way round — 0.1 vs 0.9 had to
-    produce measurably different requests. It now must produce IDENTICAL
-    ones: the per-turn continuation policy was telling the model how to end
-    every reply, and the behaviour it actuated is still unspecified (backlog:
-    "Closing behavior"). ``closing_tendency`` keeps driving the
-    conversation-close draw; it just no longer speaks.
-    """
+    """A-3, inverted: closing_tendency must NOT reach the prompt — 0.1 and 0.9 must
+    produce identical requests (it still drives the conversation-close draw)."""
     low = _controls(_directive(closing_tendency=0.1))
     high = _controls(_directive(closing_tendency=0.9))
     assert low.closing_guidance == "" and high.closing_guidance == ""
@@ -177,8 +163,7 @@ def test_a3_closing_tendency_is_silent_in_the_prompt():
 
 
 def test_a3_closing_signal_returns_when_the_channel_is_re_enabled(monkeypatch):
-    """The original A-3 guard, held for the day the channel comes back: with
-    ``CLOSING_GUIDANCE_ENABLED`` the two tendencies must again produce
+    """With ``CLOSING_GUIDANCE_ENABLED`` the two tendencies must again produce
     measurably different requests."""
     monkeypatch.setattr(actuation, "CLOSING_GUIDANCE_ENABLED", True)
     low = _controls(_directive(closing_tendency=0.1))
@@ -201,9 +186,8 @@ def test_a3_closing_signal_returns_when_the_channel_is_re_enabled(monkeypatch):
 
 
 def test_a4_initiative_reaches_scheduler_hazard():
-    """A-4: same seed/persona/timing, initiative I=1.0 vs 0.0 (r_I =
-    exp(beta(I-0.5))) — the planned-event count is measurably higher for high
-    initiative, bounded, deterministic per seed; I=0.5 is neutral."""
+    """A-4: initiative I=1.0 vs 0.0 — the planned-event count is measurably higher
+    for high initiative, bounded and deterministic per seed."""
     import numpy as np
 
     assert initiative_factor(0.5) == 1.0
@@ -224,9 +208,8 @@ def test_a4_initiative_reaches_scheduler_hazard():
 
 
 def test_a5_extreme_values_clamp_safely():
-    """A-5: response_length_scale 0.001/100, response_delay_s −1/1e6, NaN
-    initiative: max_tokens clamped to [96, 1500], delay clamped to [0, 60],
-    no negative/zero/NaN values ever reach the client or the sleeper."""
+    """A-5: extreme/NaN controls clamp — max_tokens to [96, 1500], delay to [0, 60];
+    no negative/zero/NaN value reaches the client or the sleeper."""
     tiny = _controls(_directive(response_length_scale=0.001))
     huge = _controls(_directive(response_length_scale=100.0))
     assert tiny.max_tokens == 96 and huge.max_tokens == 1500
@@ -252,10 +235,8 @@ def test_a5_extreme_values_clamp_safely():
 
 
 def test_a6_actuators_off_neutral_and_text_clean():
-    """A-6: NO_ACTUATORS condition — neutral controls (scale=1.0, delay=0,
-    closing neutral, initiative=0.5) stay valid (max_tokens in bounds);
-    behavior-channel values never appear as literal strings in the prompt and
-    raw engine/cycle state never reaches conversational context."""
+    """A-6: NO_ACTUATORS — neutral controls stay valid and behavior-channel values
+    never appear as literal strings in the prompt."""
     neutral = _directive(
         response_length_scale=1.0, response_delay_s=0.0,
         closing_tendency=0.5, initiative=0.5,
@@ -290,10 +271,8 @@ def test_a6_actuators_off_neutral_and_text_clean():
 # --------------------------------------------------------------------------- #
 
 def test_a7_raw_engine_state_never_reaches_conversation_context(tmp_path):
-    """Invariant 16: no raw cycle/hormonal internal variable (phase label,
-    cycle_day, mu, eta, M/g channels, hormonal wording) ever reaches the
-    conversational context — the system prompt renders only the persona core
-    and the behavior brief PROSE; the message payload carries only dialogue."""
+    """Invariant 16: no raw cycle/hormonal internal variable ever reaches the
+    conversational context."""
     store = SQLiteStore(tmp_path / "a7.db")
     try:
         store.save_daily_state(0, {"day": 0, "M": 6, "m": 0.0, "g": 0.7,
@@ -329,11 +308,8 @@ def test_a7_raw_engine_state_never_reaches_conversation_context(tmp_path):
 
 
 def test_a8_behavioral_derivation_deterministic_and_stateless():
-    """The mechanical derivation chain (derive_behavior → controls_from_
-    directive → to_brief) is a pure function: identical (record, timing,
-    hour) inputs yield byte-identical directives, controls and briefs across
-    repeated calls — no hidden RNG, no instance state (invariant 20's
-    reproducibility precondition)."""
+    """The derivation chain (derive_behavior → controls_from_directive → to_brief) is
+    a pure function: identical inputs yield byte-identical outputs."""
     from harness.behavior import derive_behavior
     from engine.types import DayRecord
 

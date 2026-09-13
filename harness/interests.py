@@ -1,46 +1,7 @@
-"""Typed interest graph and the hand-built companion catalog (A6).
+"""Typed interest graph and the hand-built companion catalog.
 
-The graph is an undirected, weighted adjacency structure over interest names.
-Cluster hubs (e.g. ``mathematics``) are the *exact* interests a companion can
-be absorbed in; every other node of a cluster is tied to its hub by an edge.
-
-Bucket semantics (structural, never LLM-decided)
-------------------------------------------------
-* exact       — a cluster hub (``sample_exact``).
-* adjacent    — within ``MAX_ADJACENCY_HOPS`` (3) edges of at least one hub
-                (``sample_adjacent``).
-* independent — no path of <= ``MAX_ADJACENCY_HOPS`` edges to any hub
-                (``sample_independent``).
-
-The default catalog (``build_catalog``) contains the six required clusters, a
-handful of sparse leaf-to-leaf cross edges (strength <= 0.25) that never touch
-a hub, and a hubless island (``ISLAND``) whose nodes have no path to any hub —
-they guarantee the independent bucket is always fillable, for both
-profile-relative sampling and the graph-level ``sample_independent``.
-
-Distance queries: ``distance(a, b)`` returns the shortest path length (or
-``None``) and ``reachable_within(name, hops)`` the adjacency region — the
-primitives behind the user-relative 40/40/20 sampler (``harness.persona``).
-
-Naming (2026-09-07)
--------------------
-A node name must mean ONE thing standing alone. Node names are not internal
-identifiers: they reach the model verbatim as the companion's interests, as
-agenda activities (``practice {name}``), as life-arc names (``learning
-{name}``), and as the "already known" list handed to the onboarding graph
-extension. ``metal`` produced the live life-arc "learning metal" — music, or
-metalworking? — and ``rock`` shares this graph with ``hiking`` and
-``camping``, where rock climbing is a live misreading. Both are qualified now,
-along with ``fantasy``, ``coffee`` and ``puzzles``.
-
-The cluster HUBS ``art``, ``food``, ``outdoors`` and ``literature`` are still
-category labels rather than things a person does, so they render awkwardly
-("practice food"). They are unambiguous, so they are left alone here; the fix
-belongs in activity generation, which should not be formatting a bare noun
-into a fixed verb template at all (see the backlog).
-
-All randomness enters through an injected ``numpy.random.Generator`` (see
-``engine.rng``); there is no global RNG state and no real-clock read here.
+Buckets are structural: ``exact`` = a cluster hub, ``adjacent`` = within
+``MAX_ADJACENCY_HOPS`` edges of one, ``independent`` = beyond that.
 """
 
 from __future__ import annotations
@@ -48,18 +9,8 @@ from __future__ import annotations
 #: Maximum number of edges that still counts as "adjacent" to an exact interest.
 MAX_ADJACENCY_HOPS = 3
 
-#: Cluster hubs (exact-interest candidates) -> their members; each
-#: member connects to its hub (strength 0.6).
-#: Naming rule (2026-09-07): a node name must mean ONE thing on its own.
-#: These strings reach the model verbatim -- as the companion's interests, as
-#: agenda activities ("practice {name}"), as life-arc names ("learning
-#: {name}"), and as the "already known" list handed to the onboarding graph
-#: extension. A bare word that means two things gets read as the wrong one and
-#: the mistake is then persisted into the graph. ``metal`` produced the live
-#: arc "learning metal" (music, or metalworking?); ``rock`` sits in the same
-#: graph as ``hiking`` and ``camping``, where rock climbing is a live
-#: misreading. Renamed here rather than disambiguated at the render site,
-#: because every consumer renders the raw name.
+#: Cluster hubs (exact-interest candidates) -> their members (strength 0.6).
+#: A node name must mean ONE thing alone: every consumer renders it verbatim.
 CLUSTERS: dict[str, tuple[str, ...]] = {
     "mathematics": ("physics", "statistics", "logic puzzles", "programming"),
     "metal music": ("rock music", "live music", "guitar", "alternative music"),
@@ -94,8 +45,8 @@ ISLAND_EDGES: tuple[tuple[str, str, float], ...] = (
 class InterestGraph:
     """Undirected weighted graph of interest names.
 
-    Nodes are created implicitly by ``add_relation``/``add_hub``; edges are
-    symmetric (``add_relation(a, b, s)`` connects both directions).
+    Nodes are created implicitly by ``add_relation``/``add_hub``/``add_node``;
+    edges are symmetric (``add_relation(a, b, s)`` connects both directions).
     """
 
     def __init__(self) -> None:
@@ -117,11 +68,7 @@ class InterestGraph:
         self._hubs.add(name)
 
     def add_node(self, name: str) -> None:
-        """Register a node with no edges (an isolated interest).
-
-        Needed to round-trip a persisted graph: a node whose only record is
-        its own existence must come back as a node, not vanish.
-        """
+        """Register a node with no edges (an isolated interest)."""
         self._adj.setdefault(name, {})
 
     # -- queries ---------------------------------------------------------
@@ -139,11 +86,8 @@ class InterestGraph:
         return sorted(self._adj.get(name, {}))
 
     def edges(self) -> list[tuple[str, str, float]]:
-        """Every edge as ``(from, to, strength)``, each pair once, sorted.
-
-        The graph is undirected and stored symmetrically; this emits the
-        canonical ``from < to`` direction only, so persisting and reloading
-        cannot double the edge set.
+        """Every edge as ``(from, to, strength)``, each pair once (``from < to``),
+        sorted.
         """
         out: list[tuple[str, str, float]] = []
         for src in sorted(self._adj):
@@ -159,8 +103,7 @@ class InterestGraph:
     def path_exists(self, a: str, b: str, max_hops: int = 3) -> bool:
         """True if ``b`` is reachable from ``a`` in <= ``max_hops`` edges.
 
-        ``a == b`` counts as a path of zero hops (returns True). Unknown
-        nodes simply have no edges, so they are unreachable unless equal.
+        ``a == b`` counts as zero hops; unknown nodes are unreachable unless equal.
         """
         if a == b:
             return True
@@ -195,20 +138,16 @@ class InterestGraph:
         return seen
 
     def reachable_within(self, name: str, max_hops: int) -> set[str]:
-        """Public distance query: every node within ``max_hops`` edges of ``name``.
+        """Every node within ``max_hops`` edges of ``name``, ``name`` included.
 
-        The returned set always includes ``name`` itself (zero hops). Unknown
-        nodes have no edges, so the set is ``{name}`` for them. This is the
-        adjacency-region primitive the user-relative 40/40/20 sampler uses
-        (Iteration-2 A1b).
+        Unknown nodes have no edges, so the set is ``{name}`` for them.
         """
         return self._reachable_within(name, max_hops)
 
     def distance(self, a: str, b: str) -> int | None:
         """Shortest path length between ``a`` and ``b``; ``None`` if unreachable.
 
-        ``distance(a, a) == 0``. Unknown nodes are only reachable from
-        themselves. The graph is undirected, so the result is symmetric.
+        ``distance(a, a) == 0``; unknown nodes are only reachable from themselves.
         """
         if a == b:
             return 0
@@ -240,11 +179,7 @@ class InterestGraph:
         return hubs[int(rng.integers(0, len(hubs)))]
 
     def sample_adjacent(self, rng) -> str:
-        """Uniform random node within ``MAX_ADJACENCY_HOPS`` of a hub.
-
-        The returned node is never a hub itself and always has a path of
-        <= ``MAX_ADJACENCY_HOPS`` edges to at least one hub.
-        """
+        """Uniform random node within ``MAX_ADJACENCY_HOPS`` of a hub (never a hub)."""
         reachable: set[str] = set()
         for hub in self.hubs():
             reachable |= self._reachable_within(hub, MAX_ADJACENCY_HOPS)
@@ -265,10 +200,8 @@ class InterestGraph:
 
 
 def build_catalog() -> InterestGraph:
-    """Hand-built default catalog: six clusters + sparse cross edges + island.
+    """Hand-built default catalog: six clusters, sparse cross edges, an island.
 
-    Cluster members connect to their hub with strength 0.6; cross-cluster
-    edges and island edges use the strengths in ``CROSS_EDGES``/``ISLAND_EDGES``.
     Returns a fresh graph on every call (the caller owns it).
     """
     graph = InterestGraph()

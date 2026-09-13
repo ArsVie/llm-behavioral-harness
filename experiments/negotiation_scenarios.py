@@ -1,6 +1,6 @@
-"""A4 — scripted scenarios + offline driver for availability negotiation (G0).
+"""Scripted scenarios + offline driver for availability negotiation.
 
-Deterministic, offline (no LLM, no network) scripted runs of the six G0
+Deterministic, offline (no LLM, no network) scripted runs of the six
 scenarios (docs/availability-negotiation-contract.md +
 harness/negotiation_contract.py — frozen, import only):
 
@@ -28,9 +28,9 @@ experiments/decision_probe.py) + a one-item agenda (AgendaItem with
 start_t_h / end_t_h / source_type / salience).
 
 The driver (:func:`run_scenario`) drives the REAL harness mechanics end to
-end — SQLiteStore + Session (the G0 A1 negotiation state machine wired into
+end — SQLiteStore + Session (the negotiation state machine wired into
 _apply_steer/_run_turn_decides/check_negotiation) + the REAL DecisionRunner
-(harness.tools, A2: phase-aware verdict parsing, server-filled defer_turns,
+(harness.tools: phase-aware verdict parsing, server-filled defer_turns,
 replay by decision id) — with the scripted client answering pop-up calls
 (native transport, exactly like the runtime's _popup_request_call path).
 The wake discipline mirrors the runtime: turns at scripted instants, parks
@@ -38,18 +38,17 @@ at Session.next_negotiation_trigger_t_h (AFK bomb / window-close backstop)
 with Session.check_negotiation at each park, exactly like the rollover loop.
 
 Every observable asserted by tests/test_availability_negotiation.py is
-store/contract-level (agenda status, decision_records rows, audit events,
-channel output, conversation close reasons), so the tests hold against the
-merged A1/A2 implementation without redesign.
+store/contract-level: agenda status, decision_records rows, audit events,
+channel output, conversation close reasons.
 
-The real implementation's seam choices (this module adapts to them):
+The real implementation's seam choices:
 
 * Decision ids: ``neg-<item_id>-inform`` and ``neg-<item_id>-decide-<n>``
   (n = delays already taken) — deterministic per (item, phase, delay_index).
 * Inform: fires at the first TURN at/after start_t_h (the start pop-up is
   drained into the negotiation by ``_maybe_start_negotiation``); the Inform
   turn itself never decides (the loop fires from the next companion turn
-  on). The mention verdict shape is ``{message: str}`` (A2); the session
+  on). The mention verdict shape is ``{message: str}``; the session
   reads ``reason`` for the channel text with a deterministic fallback.
 * Forced skip: recorded via store.record_decision with source="backstop",
   verdict {action: abandon, forced_skip: true, reason: "missed it entirely
@@ -154,7 +153,7 @@ def _item(
     )
 
 
-# The six G0 scenarios; times are virtual hours of day 0. Inform fires at the
+# The six scenarios; times are virtual hours of day 0. Inform fires at the
 # first turn at/after start_t_h; Decide fires at companion turns and AFK-bomb parks.
 SCENARIOS: dict[str, Scenario] = {
     # 1. Retain: active talk past the boundary, then a pause fires the AFK bomb -> go.
@@ -181,8 +180,7 @@ SCENARIOS: dict[str, Scenario] = {
         user_stream=(
             at_t_h(18.95, "hey! you around?"),
             # Still BEFORE the window opens: he says his piece and goes
-            # quiet, so no companion turn ever lands inside the window and
-            # the AFK bomb is the only thing left to fire the decide.
+            # quiet, so the AFK bomb is the only thing left to fire.
             at_t_h(18.98, "so anyway, that's the whole story"),
         ),
         verdicts=(v_go("ok, going to the gym now"),),
@@ -273,10 +271,10 @@ class ScriptedClient:
 
     Pop-up calls are the session's native-transport calls (``tools`` is
     not None, exactly like ``_popup_request_call``): the FIRST pop-up call
-    of a run is the Inform mention (``{message: ...}``, the A2 canonical
-    shape), the rest are Decide legs consuming the per-scenario verdict
-    script in order (or always delay). The model never emits ``defer_turns``
-    — the server fills it (contract floor 1). Records every call.
+    of a run is the Inform mention (``{message: ...}``), the rest are
+    Decide legs consuming the per-scenario verdict script in order (or
+    always delay). The model never emits ``defer_turns`` — the server
+    fills it. Records every call.
     """
 
     supports_json: bool = True
@@ -364,9 +362,9 @@ class ScenarioResult:
     """Observable outcome of one scripted negotiation run.
 
     Every field is a contract-level observable: the agenda item's final
-    status, the decision_records rows (with parsed inputs/verdict), the
-    store's audit events, the channel output (inform mention / natural
-    close), the model calls, and the final conversation states.
+    status, the decision_records rows (parsed inputs/verdict), the store's
+    audit events, the channel output (inform mention / natural close), the
+    model calls, and the final conversation states.
     """
 
     scenario_id: str
@@ -390,11 +388,10 @@ def run_scenario(
     """Run one scripted scenario end to end on the real harness mechanics.
 
     ``store`` must be an OPEN SQLiteStore (tmp_path in tests); the caller
-    owns its lifecycle. The conversation is driven through a real Session
-    (decision layer enabled, real DecisionRunner, scripted client, virtual
-    clock) with the runtime's wake discipline: user turns at scripted
-    instants, parks at ``next_negotiation_trigger_t_h`` (AFK bomb /
-    window-close backstop) with ``check_negotiation`` at each park.
+    owns its lifecycle. The conversation runs through a real Session (real
+    DecisionRunner, scripted client, virtual clock) with the runtime's wake
+    discipline: user turns at scripted instants, parks at
+    ``next_negotiation_trigger_t_h`` with ``check_negotiation`` at each park.
     """
     seed = scenario.seed if seed is None else seed
     clock = VirtualClock()

@@ -111,7 +111,7 @@ def test_event_chain_tokens_are_distinctive_per_event():
 
 def test_judge_families_declared_globally():
     assert len(JUDGE_FAMILIES) >= 2
-    # WS-C: judges live on the research lane — JUDGE_GENERATOR_TOKEN.
+    # Judges live on the research lane — JUDGE_GENERATOR_TOKEN.
     assert JUDGE_FAMILIES[0]["env_key"] == "JUDGE_GENERATOR_TOKEN"
     assert JUDGE_FAMILIES[1]["env_key"] == "JUDGE_GENERATOR_TOKEN"
     assert THRESHOLDS["soft_bars"]["M1_grounded_rate"]["value"] == 0.9

@@ -132,15 +132,13 @@ Artifacts: judge_pass{1,2}_opencode-{flash,luna}.json + judge_order{1,2}.json + 
 - results/it2-g6-matrix/traces.md: 5 machine-generated provenance walks from FULL/seed5001 (message → ProactiveIntent → AgendaItem → LifeArc → IndependentInterest + timing/behavior/memory context + persisted intent_id).
 - Generator: experiments/cvs_traces.py (committed, smoke-tested).
 
-## 9. Artifacts (10-item package)
+## 9. Experiment artifacts
 
-1. plans/iteration-2-integration-2026-08-09.md — authoritative plan (committed).
-2. eval-exploratory-2026-08-08 — E0 frozen at 230a9e0 + results/it2-g5-e0-review/report.md (G5).
-3. results/companion-vertical-slice/manifest.json — G4 preregistration (5a758ed).
-4. results/it2-g2-vertical/ — G2 records, 5 seeds.
-5. results/it2-g3-soak/ — G3 records, 2 seeds × 5 restarts.
-6. results/it2-g6-matrix/ — 35 cells (DBs, records, transcripts) + audits + matrix_audit_summary.json.
-7. results/it2-g6-matrix/judge_pass*.json + judge_order*.json — judge passes.
-8. results/it2-g6-matrix/traces.md + experiments/cvs_traces.py — causal traces.
-9. This report.
-10. plans/handoff-2026-08-09-iteration2.md + skill llm-behavioral-harness — ops record.
+1. eval-exploratory-2026-08-08 — E0 frozen at 230a9e0 + results/it2-g5-e0-review/report.md (G5).
+2. results/companion-vertical-slice/manifest.json — G4 preregistration (5a758ed).
+3. results/it2-g2-vertical/ — G2 records, 5 seeds.
+4. results/it2-g3-soak/ — G3 records, 2 seeds × 5 restarts.
+5. results/it2-g6-matrix/ — 35 cells (DBs, records, transcripts) + audits + matrix_audit_summary.json.
+6. results/it2-g6-matrix/judge_pass*.json + judge_order*.json — judge passes.
+7. results/it2-g6-matrix/traces.md + experiments/cvs_traces.py — causal traces.
+8. This report.

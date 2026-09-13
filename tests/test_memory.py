@@ -1,19 +1,7 @@
-"""Memory pipeline tests — A4 (L1/L2/L3/L4, ZifaMem-style, Iteration 2).
+"""Memory pipeline tests: the L1/L2/L3/L4 memory contract and the A4 tasks.
 
-Covers the memory contract (L1/L2/L3/L4) and the Iteration-2 A4 tasks:
-consumption (T1), the research-faithful 0.35/0.30/0.35 reranker with the
-topicality boost confined to the separately named experiment (T2), the
-embedder interfaces (T3), the summarization interfaces (T4), the
-L4->L3->L2->raw-turns provenance chain (T5) and the metal preference
-revision across 78 days (T6).
-
-``FakeStore`` below is a seam-faithful in-memory mirror of the A7
-Iteration-2 store contract: ``upsert_assertion`` accepts the canonical
-``category`` kwarg and stores it on the row; ``load_user_model`` buckets
-current assertions by their STORED category (keys are never parsed);
-``get_assertion`` returns the most recent row of a key regardless of status
-(full history). The same scenarios run against the real ``SQLiteStore`` in
-the ``*_sqlite`` tests.
+``FakeStore`` is an in-memory mirror of the store contract; the same
+scenarios run against the real ``SQLiteStore`` in the ``*_sqlite`` tests.
 """
 
 from __future__ import annotations
@@ -128,11 +116,7 @@ def make_episode(
 
 
 class VocabEmbedder:
-    """One-hot unit vectors over a fixed vocab — exact cosine control.
-
-    A vocab word contributes whenever it appears as a substring (works for
-    controlled single-token test vocabularies like "xxx" -> "x").
-    """
+    """One-hot unit vectors over a fixed vocab; a word counts on substring match."""
 
     def __init__(self, vocab: list[str]) -> None:
         self._words = vocab
@@ -334,9 +318,7 @@ def test_l4_contradiction_supersedes_keeps_provenance():
 
 
 def test_negation_supersedes_stale_fact_across_keys():
-    """M-1b gate fix (A9 Gate 3): "I don't have Luna anymore" must kill the
-    stale "user has a cat named Luna" assertion even though the keys differ
-    (user:luna vs user:cat) — the L4 projection must not surface stale truth."""
+    """A negation must kill the stale assertion even though the keys differ."""
     store = FakeStore()
     agent = MemoryAgent(store)
 
@@ -829,9 +811,7 @@ def test_t3_embedder_interfaces_deterministic_and_real():
 
 
 def test_t3_verbatim_rag_and_structured_share_same_semantic_backend():
-    """Invariant 13: during comparison, VERBATIM_RAG and STRUCTURED_MEMORY
-    use the SAME semantic backend — the injected embedder instance is shared
-    by both policy paths; a policy change never swaps the embedder."""
+    """VERBATIM_RAG and STRUCTURED_MEMORY share the same injected embedder."""
     store = FakeStore()
     shared = RecordingEmbedder(["dog", "weather", "pottery"])
     agent_s = MemoryAgent(store, embedder=shared)  # STRUCTURED_MEMORY (default)

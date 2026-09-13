@@ -1,16 +1,8 @@
 """Guards for the 2026-09-07 prompt-content pass.
 
-Four changes, each with a guard that fails if it silently regresses:
-
-1. No absolute virtual hour (``t_h``) reaches any model-visible surface --
-   the state card, agenda windows, pop-up inputs, steer blocks and proactive
-   hooks all render HH:MM.
-2. The pop-up aux call is a byte-identical EXTENSION of the mainline call,
-   not a request carrying its own prefix (DeepSeek matches strictly from
-   token 0, in 64-token units, so a differing system message costs the whole
-   prefix on a call that fires at every event boundary).
-3. Decisions the model made are projected back into its context, so the
-   decision lane stops being write-only.
+1. No absolute virtual hour (``t_h``) reaches any model-visible surface.
+2. The pop-up aux call is a byte-identical EXTENSION of the mainline call.
+3. Decisions the model made are projected back into its context.
 4. The stable prefix leads with the persona and carries neither the closing
    guidance nor the steer trust prose.
 """
@@ -121,8 +113,8 @@ def test_steer_block_renders_hhmm():
 
 
 def test_proactive_hook_window_is_a_wall_clock():
-    """The hook renders VERBATIM into the state card, so it is a
-    model-visible surface -- the live run showed ``(80.0-80.7h)``."""
+    """The hook renders VERBATIM into the state card, so it is a model-visible
+    surface: no absolute virtual hour (``80.0``) may reach it."""
     item = AgendaItem(
         "ag_3_i_music", 80.0, 80.74, "watch a video on alternative music",
         "interest", "alternative music", 0.8, "planned",
@@ -149,12 +141,7 @@ def test_no_raw_hour_anywhere_in_a_live_turn(tmp_path):
 
 
 def test_popup_call_reuses_the_mainline_stable_prefix(tmp_path):
-    """The aux call must send the SAME system message as the mainline call.
-
-    Before this pass it sent the legacy full three-tier string -- state card
-    inside the system message, minute-resolution clock line and all -- so
-    every decision call presented a prefix no other call had ever sent.
-    """
+    """The aux call must send the SAME system message as the mainline call."""
     session, client, store = _session(tmp_path)
     session.on_message("hey")
     mainline_system = client.calls[-1]["system"]
@@ -214,10 +201,7 @@ def test_recorded_decision_reappears_in_later_context(tmp_path):
     turns = session._context_turns()
     store.close()
 
-    # 2026-09-08: the decision replays as a NATIVE tool exchange, not a prose
-    # block. The prose form recorded the decision but taught the model
-    # nothing, so a pop-up arrived with no precedent that tool calls happen
-    # here and the likeliest continuation was to answer the person instead.
+    # The decision replays as a NATIVE tool exchange, not a prose block.
     calls = [t for t in turns if t.get("tool_calls")]
     assert calls, "no assistant tool_calls message in the replayed context"
     call = calls[0]["tool_calls"][0]
@@ -295,12 +279,8 @@ def _payload(call) -> str:
 
 
 def test_request_n_plus_1_extends_request_n(tmp_path):
-    """The cache contract, asserted directly.
-
-    Every turn's payload must START WITH the previous turn's payload minus
-    its volatile tail. A sliding window fails this the moment history passes
-    the window: front-truncation moves the first byte after the system
-    message, and a prefix cache matches strictly from token 0.
+    """The cache contract, asserted directly: every turn's payload must START
+    WITH the previous turn's payload minus its volatile tail.
     """
     session, client, store = _session(
         tmp_path, responses=[f"reply {i}." for i in range(30)]
@@ -341,11 +321,7 @@ def test_context_read_is_anchored_to_the_epoch_not_the_tail(tmp_path):
 
 
 def test_compaction_moves_the_epoch_only_at_a_day_boundary(tmp_path):
-    """The epoch is a boundary operation: it must not move mid-day.
-
-    Dropping messages shifts every byte after the drop, so doing it per turn
-    pays a full re-prefill every turn and buys nothing.
-    """
+    """The epoch is a boundary operation: it must not move mid-day."""
     import harness.session as session_mod
 
     session, client, store = _session(

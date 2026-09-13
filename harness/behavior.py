@@ -1,9 +1,7 @@
 """Traducción del estado latente a comportamiento observable y sutil.
 
-El motor decide el estado; este módulo decide cómo puede notarse. La fase del
-ciclo se conserva solo en la traza de depuración. El brief describe la
-experiencia resultante y nunca pide al modelo anunciar números, hormonas ni una
-etiqueta de ánimo.
+El motor decide el estado; este módulo decide cómo puede notarse. El brief
+nunca pide al modelo anunciar números, hormonas ni una etiqueta de ánimo.
 """
 
 from __future__ import annotations
@@ -109,9 +107,6 @@ def _render_brief(
         if warmth < 0.62
         else "Keep the affection natural, specific, and free of exaggerated sweetness."
     )
-    # The never-name-the-state rule lives in the STABLE core, once. Repeating
-    # it here re-instructed the model on every single turn -- volatile tokens
-    # spent restating a constant, and a second voice telling it how to speak.
     return " ".join(
         (
             f"Current bearing: {bearing}, {pace}.",
@@ -132,9 +127,8 @@ def derive_behavior(
 ) -> BehaviorDirective:
     """Deriva una directiva determinista desde estado diario, hora e historia.
 
-    Valencia y energía son ortogonales. ``g`` modula la sensibilidad al cambio,
-    no el afecto base; así una fase reactiva se nota en expresividad sin convertir
-    una etiqueta hormonal en un estereotipo de personalidad.
+    Valencia y energía son ortogonales; ``g`` modula la sensibilidad al cambio,
+    no el afecto base.
     """
 
     if mood_scale <= 0:

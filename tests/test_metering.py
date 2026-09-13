@@ -1,11 +1,7 @@
 """Auxiliary calls reach the ledger without changing the call.
 
-The four auxiliary callers — day planner, interest extension, routine setup and
-judge — built their own provider calls and left no ``llm_calls`` row, so their
-spend was invisible (BACKLOG, "Aux calls are absent from ``llm_calls``").
-``MeteredClient`` records them; these tests pin the recording AND the
-non-interference: same result, same capability gates, same exceptions, and no
-row for a call that never completed.
+``MeteredClient`` records them; these tests pin the recording and the
+non-interference: same result, same gates, same exceptions.
 """
 
 from __future__ import annotations
@@ -155,12 +151,7 @@ def test_render_prompt_names_roles_and_the_system_line():
 
 
 def test_a_call_from_a_worker_thread_still_lands(tmp_path):
-    """The aux modules run their bounded wait in a WORKER thread.
-
-    The store's own connection belongs to the thread that opened it (the runtime
-    only re-opens it thread-safe on start), so this is exactly the shape the live
-    onboarding has: the row must survive it, and the call must not notice.
-    """
+    """The row must land even when the call runs in a worker thread."""
     import concurrent.futures
 
     store = make_store(tmp_path)

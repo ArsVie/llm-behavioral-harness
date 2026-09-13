@@ -2,8 +2,7 @@
 
 Commands NEVER become InboundMessage: they reach the start(on_command=...)
 callback as parsed ControlCommand values — and only when that callback was
-given. Default None -> commands are dropped, matching the TEXT & ~COMMAND
-registration (the live bot is unchanged).
+given. Default None -> commands are dropped.
 """
 
 import asyncio
@@ -134,8 +133,8 @@ def test_set_my_commands_registered_when_commands_enabled() -> None:
 
 
 def test_set_my_commands_never_registers_state() -> None:
-    """The standing decision: /state is NOT user-visible — it is absent from
-    both the registered menu and the USER_COMMANDS contract itself."""
+    """/state is NOT user-visible: it is absent from both the registered menu and
+    the USER_COMMANDS contract itself."""
     names = [c for c, _ in USER_COMMANDS]
     assert "state" not in names
     app = FakeApplication()

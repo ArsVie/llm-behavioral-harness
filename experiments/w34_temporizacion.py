@@ -12,9 +12,8 @@ Tres sub-experimentos:
   1. Baseline (k_w=2, defaults): envelope_violations==0, media diaria en
      [1,3], moda de gaps > 1.0 h, % de días con daily_cap alcanzado.
   2. Barrido k_w in {1.0, 1.5, 2.0, 3.0} (theta_h=13.5 fijo = default): tabla
-     de media diaria, mode_h, cv, burstiness. Esto valida el STREAM completo
-     (con guards: min_gap, daily_cap, quiet hours), no la Weibull pura (esa ya
-     se validó en tests de W1.4).
+     de media diaria, mode_h, cv, burstiness — valida el STREAM completo (con
+     guards: min_gap, daily_cap, quiet hours), no la Weibull pura.
   3. Efecto de fase: agrupa los eventos del baseline por fase del día (misma
      semilla via sim.run_events._precompute_phase_labels), tasa media por
      fase agregada entre semillas; verifica tasa(ovulatory) > tasa(menstrual)
@@ -70,13 +69,10 @@ PHASE_ORDER = ["menstrual", "follicular", "ovulatory", "luteal_early", "luteal_l
 
 def _gap_dist_stats(gaps_h: np.ndarray, bin_width_h: float = 1.0) -> dict[str, float]:
     """Igual que sim.metrics.gap_stats pero recibe gaps YA calculados (no
-    tiempos absolutos), para poder agregar los gaps de varias semillas
-    independientes antes de estimar mode_h/cv/burstiness (necesario: con
-    ~110-140 eventos por semilla el histograma de gaps de una sola semilla es
-    demasiado ruidoso para una moda estable; gap_stats en cambio espera
-    tiempos y haría diff() de gaps ya calculados, dando un resultado
-    incorrecto). Misma fórmula que gap_stats, solo sin el paso diff/sort
-    inicial."""
+    tiempos absolutos; gap_stats haría diff() de gaps ya calculados, dando un
+    resultado incorrecto), para poder agregar los gaps de varias semillas
+    antes de estimar mode_h/cv/burstiness. Misma fórmula que gap_stats, solo
+    sin el paso diff/sort inicial."""
     gaps = np.asarray(gaps_h, dtype=float)
     mean_h = float(np.mean(gaps))
     median_h = float(np.median(gaps))
@@ -165,12 +161,8 @@ def run_kw_sweep() -> dict:
     daily_rate se promedia por semilla (media de medias, válida). mode_h/cv/
     burstiness se calculan sobre los gaps CONCATENADOS de las 5 semillas
     (~550-650 gaps por k_w), no promediando 5 estimaciones individuales del
-    modo por semilla: con ~110-140 eventos por semilla el histograma de gaps
-    de una sola semilla es demasiado ruidoso para que el bin modal sea
-    estable (verificado: promediar 5 mode_h por semilla da valores erráticos
-    que rompen cualquier lectura de tendencia en k_w). Aun agregando, mode_h
-    sigue siendo ruidoso con bins de 1h sobre un rango de ~35-48h — cv es la
-    métrica robusta de este barrido (ver lectura del reporte)."""
+    modo por semilla (con ~110-140 eventos por semilla el histograma de gaps
+    es demasiado ruidoso para que el bin modal sea estable)."""
     rows = []
     gaps_by_kw: dict[float, np.ndarray] = {}
 

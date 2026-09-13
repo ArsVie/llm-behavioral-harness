@@ -443,7 +443,21 @@ function kvList(pairs) {
 }
 
 function showRawPayload(title, payload) {
-  showDrawer(title, [el("pre", null, JSON.stringify(payload, null, 2))]);
+  const nodes = [];
+  if (payload && typeof payload.content === "string" && payload.content) {
+    // The row in the list carries a CLIPPED preview; this is the whole node,
+    // which is what the drawer is for. A JSON dump alone showed the ellipsis
+    // and nothing else, so the reply could not be read anywhere in the app.
+    nodes.push(el("h3", null, `Full text (${payload.content.length} chars)`));
+    nodes.push(el("div", "full-text", payload.content));
+    const rest = { ...payload };
+    delete rest.content;
+    nodes.push(el("h3", null, "Node"));
+    nodes.push(el("pre", null, JSON.stringify(rest, null, 2)));
+  } else {
+    nodes.push(el("pre", null, JSON.stringify(payload, null, 2)));
+  }
+  showDrawer(title, nodes);
 }
 
 function envelopeNodes(detail) {

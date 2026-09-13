@@ -1,27 +1,14 @@
-"""Per-call context reconstruction + typed-header markdown export (WS1).
+"""Per-call context reconstruction + typed-header markdown export.
 
-Rebuilds "what the model saw" for one ``llm_call`` (or a whole conversation)
-from the persisted audit payload and renders it as markdown with the typed
-headers from user L393:
-
-    #System prompt / #User / #Tool / ##{tool name} / #Thinking / #Reply
-
-Prompt persistence is VERIFIED, not rebuilt: audit-mode stores already
-persist the exact per-call payload as ``llm_calls.repro_json`` (invariant 19;
-``store.rebuild_call`` reconstructs the request envelope byte-for-byte).
-This module only reads and renders. Hash-only rows (non-eval runs persist no
-payload by design) raise a clear error for ``--call`` and are reported
-honestly per turn inside conversation exports — never faked coverage.
+Renders "what the model saw" for one ``llm_call`` or a full conversation from
+the persisted audit payload: system/messages/reasoning/reply under the typed
+headers in ``harness.prompts``. Hash-only rows are never faked — ``--call``
+raises, conversation exports note them per turn.
 
 CLI::
 
     python -m harness.audit --store <path> --call <id>
     python -m harness.audit --store <path> --conversation <id> [<id> ...]
-    python -m harness.audit --store <path> --conversation <id> --out <file>
-
-Reasoning (the future ``#Thinking`` content, WS3) is read from the call
-row's ``meta`` or ``repro`` ``"reasoning"`` key when present; non-reasoning
-runs store nothing and render nothing.
 """
 
 from __future__ import annotations
@@ -43,15 +30,14 @@ from harness.prompts import (
 )
 from harness.store import SQLiteStore
 
-#: Error message for hash-only rows (invariant 19: no faked coverage).
+#: Error message for hash-only rows (no persisted payload).
 _HASH_ONLY_MSG = (
     "llm_call {call_id} is a hash-only row (non-eval run): no persisted "
     "payload to reconstruct (invariant 19). Re-run with audit_mode=True "
     "to persist exact per-call repro payloads."
 )
 
-#: Tolerance for matching a conversation turn to its llm_call row by t_h
-#: (both come from the same clock read; the comparison is exact in practice).
+#: Tolerance for matching a conversation turn to its llm_call row by t_h.
 _T_H_EPS = 1e-9
 
 
@@ -65,11 +51,10 @@ def _reasoning_of(row: dict[str, Any]) -> str | None:
 
 
 def _message_headers(message: dict[str, Any]) -> list[str]:
-    """Typed headers for one payload message (rendering only).
+    """Typed headers for one payload message.
 
-    user → ``#User``; tool → ``##{tool name}`` + ``#Tool`` (the name key is
-    the tool-call name the decision layer records); assistant (and any
-    unknown role) → ``#Reply`` (prior replies the model saw).
+    user → ``#User``; tool → ``##{tool name}`` + ``#Tool`` (name from the
+    message's ``name``/``tool_name``); any other role → ``#Reply``.
     """
     role = message.get("role", "")
     if role == "user":
@@ -86,7 +71,7 @@ def render_call_extract(store: SQLiteStore, call_id: int) -> str:
     """Markdown extract of ONE call: 'what the model saw' + what it replied.
 
     Raises ``KeyError`` for an unknown call id and ``ValueError`` for
-    hash-only rows (invariant 19).
+    hash-only rows.
     """
     row = store.get_llm_call(call_id)
     if row is None:
@@ -135,8 +120,8 @@ def render_call_extract(store: SQLiteStore, call_id: int) -> str:
 
 
 def _calls_by_moment(store: SQLiteStore) -> dict[tuple[int, float], list[int]]:
-    """chat llm_call ids indexed by (day, t_h) — the assistant reply message
-    of a turn is persisted at the same (day, t_h) as its call row."""
+    """chat llm_call ids indexed by (day, t_h) — a turn's reply message is
+    persisted at the same moment as its call row."""
     rows = store.conn.execute(
         "SELECT id, day, t_h FROM llm_calls WHERE role = 'chat' ORDER BY id"
     ).fetchall()
@@ -155,11 +140,9 @@ def _call_id_for_turn(
 ) -> int | None:
     """The llm_call row whose (day, t_h) matches the turn's reply message.
 
-    The call's persisted ``response`` is the companion reply text itself, so
-    a candidate whose response equals ``turn_text`` is the exact call (the
-    reply message is persisted before its call row, so the first id at that
-    moment is the tiebreaker). None when no chat call was logged at the
-    turn's moment.
+    Prefers a candidate whose ``response`` equals ``turn_text``, then the
+    first id at that moment; None when no chat call was logged at the turn's
+    moment.
     """
     candidates: list[int] = []
     for (c_day, c_t_h), ids in index.items():
@@ -179,10 +162,9 @@ def render_conversation_export(store: SQLiteStore, conversation_id: str) -> str:
     """One FULL conversation as markdown with typed headers.
 
     Each user turn renders under ``#User``; each companion turn renders the
-    ``#System prompt`` + ``#Thinking`` that produced it followed by the
-    reply under ``#Reply``. Turns whose call row is hash-only (non-eval run)
-    render an honest note instead of a faked system prompt (invariant 19).
-    Raises ``KeyError`` for an unknown conversation id.
+    system prompt + thinking that produced it, then the reply under
+    ``#Reply``. Raises ``KeyError`` for an unknown conversation id; hash-only
+    turns render a note instead of a faked system prompt.
     """
     conv = store.load_conversation(conversation_id)
     if conv is None:
@@ -205,7 +187,6 @@ def render_conversation_export(store: SQLiteStore, conversation_id: str) -> str:
             lines.append(turn.text)
             lines.append("")
             continue
-        # companion turn: attach the call payload that produced it
         day = int(turn.t_h // 24.0)
         call_id = _call_id_for_turn(store, index, day, turn.t_h, turn.text)
         if call_id is None:

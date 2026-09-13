@@ -1,35 +1,10 @@
-"""LLM-as-judge — daily interaction score feeding the event-memory loop (W-E1).
+"""LLM-as-judge — daily interaction score feeding the event-memory loop.
 
-Construct (per research/06 §6b + advisor review 2026-08-08): the rubric
-defines what `mu` measures — "quality of the interaction from the COMPANION's
-perspective" (connection quality + authenticity + relational progression),
-NOT raw user satisfaction. The judge is a NOISY SENSOR in the only closed
-loop of the system, so:
-
-  - anchored scale, JSON output, temperature 0;
-  - `score_neutral` stays 0.0 (checkpoint decision 2026-07-03: mild positive
-    bias is desirable);
-  - SHADOW MODE by default: scores are recorded but do NOT touch `mu` until
-    the judge is calibrated (advisor ordering: shadow → calibrate → enable);
-  - the feedback judge is NEVER used as the ablation evaluator (separate
-    evaluation path in experiments/e2e_ablation.py).
-
-CALIBRATION v2 (2026-08-08, live-ablation finding): the first live run
-showed the v1 rubric REWARDED companion grace under a cold user — the
-horrible-month cells averaged +0.04 instead of negative, so `mu` never went
-negative. v2 anchors the score on the USER's treatment of the companion
-(score = user behavior, hard rule: a cold user scores negative regardless of
-how gracefully the companion reacted). Re-verify monthly separation on the
-next ablation run before enabling feedback.
-
-Scores are clipped to [-1, 1]; the rubric output is parsed leniently
-(JSON object with `score` and `justification`).
-
-LANE (WS-C, 2026-08-16): the judge itself never constructs clients — it
-receives one. Every runner that builds a client for a judge must construct
-it on the RESEARCH lane (``OpenAICompatibleClient(lane="research")``, token
-JUDGE_GENERATOR_TOKEN) so judge spend is attributed to research, never to
-the product lane.
+The rubric scores how the USER treated the companion, not the companion's
+performance: a cold user scores negative no matter how gracefully the companion
+reacted. Scores are clipped to [-1, 1] and parsed leniently. The judge never
+constructs clients — the caller builds one on the RESEARCH lane, so judge spend
+is never product spend.
 """
 
 from __future__ import annotations
@@ -67,9 +42,8 @@ class JudgeResult:
 def _parse_score(raw: str) -> JudgeResult:
     """Lenient parse of judge JSON output; falls back to 0.0 on failure.
 
-    Review fix #2: json.loads can succeed with non-object payloads
-    (strings, arrays, bare numbers) and `score` can be null/non-numeric —
-    every shape must land on a sane score, never raise.
+    json.loads can succeed with non-object payloads, and ``score`` can be
+    null/non-numeric — every shape must land on a sane score, never raise.
     """
     text = raw.strip()
     try:
@@ -102,16 +76,13 @@ def judge_day(
 ) -> JudgeResult:
     """Score one day's exchange. `model` is informational (client owns model).
 
-    JSON mode is gated on the client's capability (review fix #4): the
-    harness never assumes an endpoint accepts `response_format`.
+    JSON mode is gated on the client's capability: the harness never assumes an
+    endpoint accepts ``response_format``.
 
-    ``fork`` (owner ruling, 2026-09-13): a callable(rubric) -> (system,
-    messages) | None that extends the mainline request — the judge reads the
-    exact context the companion's last turn sent, so the whole prefix banks
-    on the provider cache. None (a fork that could not build, or a direct
-    caller) keeps the standalone one-shot prompt below. Either way the
-    verdict is a judgement row and nothing about the call re-enters the
-    conversation.
+    ``fork``: a callable(rubric) -> (system, messages) | None that extends the
+    mainline request — the judge reads the exact context the companion's last turn
+    sent, so the whole prefix banks on the provider cache. None (a fork that could
+    not build, or a direct caller) keeps the standalone one-shot prompt.
     """
     if json_mode is None:
         json_mode = bool(getattr(client, "supports_json", True))
@@ -131,8 +102,7 @@ def judge_day(
         raw = client.chat(
             [
                 # Aux task prompt, not an event in her conversation: the
-                # system-not-user rule governs HER context (CONVENTIONS,
-                # ratified 2026-09-12). A one-off call keeps role=user.
+                # system-not-user rule governs HER context, not this call.
                 {
                     "role": "user",
                     "content": f"{rubric}\n\nTranscript:\n{transcript}",

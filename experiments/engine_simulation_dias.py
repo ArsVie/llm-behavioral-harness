@@ -5,18 +5,16 @@ y `engine_simulation/14_dias_buenos_malos_promedio.png` EN LA RAIZ del
 proyecto. No modifica engine_simulation.py ni engine_simulation_promedio.py;
 solo anade filas a la seccion existente "## Lecturas adicionales" del README.
 
-Motivacion: la memoria de eventos mu seharia hacia un equilibrio
+La memoria de eventos mu seharia hacia un equilibrio
 mu_inf = k*(s - score_neutral)/(1-rho) cuando el score del juez es constante.
 Con los defaults de Fase 1 (k=0.15, rho=0.70) y s=+-1.0, score_neutral=0.0:
     mu_inf = 0.15*(+-1.0)/(1-0.70) = +-0.5
-y la vida media de mu es ln(2)/-ln(rho) ~= 1.9 dias, por lo que el equilibrio
-se alcanza en ~5-7 dias (aprox 3 vidas medias). Esta figura compara ese
+y la vida media de mu es ln(2)/-ln(rho) ~= 1.9 dias. La figura compara ese
 regimen extremo (shocks<=+1.0 o -1.0 TODOS los dias) contra el baseline
-endogeno (score sintetico normal, sin shocks) para ver cuanto separan el
-animo observable M(t) los "dias siempre buenos" de los "dias siempre malos".
+endogeno (score sintetico normal, sin shocks).
 
 30 dias, variante DECOUPLED_OFFSETS, persona base = PersonaParams() (defaults
-de Fase 1 + B=0.5 post-Fase 1 — no se tocan).
++ B=0.5 — no se tocan).
 
 Reproducir:
     wsl.exe -d Ubuntu -- bash -lc \

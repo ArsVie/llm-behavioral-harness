@@ -266,9 +266,8 @@ def test_fire_proactive_creates_proactive_message(tmp_path):
     assert len(msgs) == 1
     assert msgs[0]["role"] == "assistant"
     assert msgs[0]["proactive"] == 1
-# fresh transcript → stable system + state-card tail (WS-D: the tail user
-# message always rides along, so the empty-transcript system-only
-# normalization never triggers on session turns)
+# fresh transcript → stable system + state-card tail (the tail user message
+# always rides along, so the system-only normalization never triggers)
     last_call = client.calls[-1]
     assert last_call["messages"][-1]["role"] == "system"
     assert "reaching out first" in last_call["system"]
@@ -386,14 +385,8 @@ def _engine_store(days: int, seed: int):
 
 
 def _plan_condition(days: int, seed: int, store, *, neutral: bool) -> np.ndarray:
-    """Plan with the B5 coupling under FULL or under STRUCTURED_NO_STATE.
-
-    Mirrors the runtime path exactly: effective scores from ``day_scores``
-    (whose initiative fold resolves through the PATCHABLE session seam) plus
-    the state factors from ``state_factors_for_plan`` (same seam). Under
-    ``neutral`` the eval harness's neutral-directive patch is applied, so
-    both the state vector AND the A·I fold collapse to their neutral values.
-    """
+    """Plan with the B5 coupling under FULL or STRUCTURED_NO_STATE, via the
+    same seams the runtime path uses (day_scores + state_factors_for_plan)."""
     from experiments.cvs_common import _neutral_behavior
     import harness.session as session_mod
 

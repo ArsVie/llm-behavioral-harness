@@ -24,8 +24,7 @@ def test_add_message_intent_id_roundtrip(tmp_path):
     ]
     assert recent[0]["intent_id"] == "intent-87"
     # add_message returns the new row id for EVERY message, not just the
-    # proactive one — the reactive and in-session ids were captured here but
-    # never checked.
+    # proactive one.
     assert [m["id"] for m in recent] == [proactive, reactive, session]
     assert recent[1]["intent_id"] is None   # a user turn carries no intent
     assert recent[2]["intent_id"] is None   # nor an explicit intent_id=None

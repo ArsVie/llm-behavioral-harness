@@ -1,10 +1,9 @@
 """Typing capability (S4, HARNESS_TYPING) for the Telegram channel — Wave 1,
 W-channel.
 
-TelegramChannel.typing_context() sends periodic send_chat_action('typing')
-while inside the context; the capability is duck-typed (the runtime probes
-``getattr(channel, 'typing_context', None)``), so channels that lack the
-method — CLI, FakeChannel — are a no-op. All waits are virtual (GateSleeper).
+``typing_context()`` sends periodic send_chat_action('typing'); the capability
+is duck-typed, so channels that lack the method (CLI, FakeChannel) are a no-op.
+All waits are virtual (GateSleeper).
 """
 
 import asyncio

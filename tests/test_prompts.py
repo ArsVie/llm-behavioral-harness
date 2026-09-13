@@ -1,6 +1,5 @@
 """prompts module tests (WS1): the stable system core contains NO state, the
-typed audit headers match the L393 sketch, and the pinned decision/steering
-payload sections survive the assembler's budget trim.
+typed audit headers, and the pinned decision/steering payload sections.
 """
 
 import re
@@ -58,10 +57,7 @@ def test_system_core_contains_no_state():
 def test_system_core_names_the_state_card_and_rules():
     """The core is ABOUT how to handle the state card, and nothing else.
 
-    Pinned by BEHAVIOUR, not by sentence: the four overlapping paragraphs
-    (comply / show-don't-announce / never-name-state / read-the-card) were
-    condensed into one on 2026-09-07, so asserting their exact wording would
-    only re-pin prose. What must hold is that the core still tells the model
+    Pinned by behaviour, not by sentence: the core must still tell the model
     the card exists and that its contents never surface verbatim.
     """
     core = SYSTEM_CORE
@@ -76,12 +72,8 @@ def test_system_core_names_the_state_card_and_rules():
 
 
 def test_steer_trust_rule_is_disabled():
-    """2026-09-07: the steer trust prose left the stable prefix.
-
-    It explained a marker that names itself, on every turn, for an event that
-    arrives a few times a day. Trust now comes from the CHANNEL — steer
-    blocks render as system-role messages — so the paragraph is empty and no
-    longer composed into the core.
+    """The steer trust prose left the stable prefix: the paragraph is empty and
+    no longer composed into the core.
     """
     assert STEER_TRUST_RULE == ""
     assert STEER_TRUST_RULE not in (SYSTEM_CORE, TOOL_PROTOCOL)
@@ -142,9 +134,9 @@ def _snapshot(memory: MemoryContext | None = None) -> CompanionSnapshot:
 
 
 def test_pinned_sections_protected_under_budget_drop():
-    """Pinned-section protection: with the memory section oversized past the
-    cap, the whole memory section is evicted but the pinned decision/steering
-    payload (current activity + event/pop-up block) is NEVER dropped."""
+    """With the memory section oversized past the cap, the whole memory section
+    is evicted but the pinned decision/steering payload is NEVER dropped.
+    """
     huge = tuple(
         EpisodicMemory(
             id=f"ep_{i}",

@@ -1,63 +1,11 @@
 """Daily activity planner — concrete days instead of verb x noun.
 
-The problem
------------
-``life.generate_agenda`` built every activity by formatting an interest NAME
-into one of five verb templates: ``practice {interest}``, ``read about
-{interest}``, ``watch a video on {interest}``. Arc items were worse — an
-arc's ``next_intention`` is drawn once at creation from a pool of eight and
-then FROZEN, so the same arc says "finish the current piece" every time it
-surfaces, for its whole life, and there is no piece.
-
-Measured over fourteen simulated days on a real profile: 58 agenda items,
-25 distinct activity strings, and the four most common ("morning coffee",
-"weekend market", "prepare the materials", "finish the current piece")
-accounted for 52% of them.
-
-Two properties are missing and no template can supply either:
-
-* an OBJECT. "watch a video on alternative music" names no video. Nothing in
-  a day has a proper noun, so nothing can be referred to later, and every
-  reference has to stay vague.
-* CONTINUITY. Templates have no memory, so day 3 repeats day 0 with a
-  different verb and nothing ever follows on from anything.
-
-What this module does
----------------------
-Once per day, one model call turns the persona's arcs, interests and the
-outcomes actually recorded on previous days into a handful of CONCRETE
-activities. The engine keeps everything it was already good at -- which
-sources are eligible, how many items a day gets, when their windows fall,
-their salience and their ids. The planner supplies only the activity TEXT.
-
-That split is deliberate: scheduling stays seeded and reproducible, and the
-model is used for the one thing a seeded process cannot do, which is invent a
-specific, plausible thing to have done.
-
-Determinism and cost
---------------------
-The plan is not a separate artefact -- the text lands in ``agenda_items`` via
-the normal ``save_agenda`` path. Since every caller only generates a day when
-``load_agenda(day)`` is None, a replayed or resumed day reads the stored text
-and never calls the model again. One call per day, none on replay.
-
-Opt-in via ``HARNESS_DAY_PLANNER`` (default OFF), because the planner shares
-the conversation client: enabling it adds one call per day on that client,
-which is right in production and would silently consume a scripted response
-in offline runs and replays.
-
-Failure is never fatal: no client, an error, an overrun budget, or an
-unparseable reply all leave ``plan_day`` returning None, and the caller keeps
-the existing template behaviour. A day with a boring agenda is much better
-than a day that does not happen.
-
-Interest buckets
-----------------
-The plan request labels each interest as SHARED (the user is into it too) or
-HERS (the companion's own). ``Interest.bucket`` carried that all along and
-nothing read it outside arc spawning, so the 40/40/20 portfolio was real in
-the data and invisible in behaviour. A thing she does alone should not read
-like a thing they do together.
+One model call per day turns the persona's arcs, interests and the outcomes
+recorded on previous days into concrete activity text; the engine keeps all
+scheduling (sources, counts, windows, salience, ids). Opt-in via
+``HARNESS_DAY_PLANNER`` (default OFF — the planner shares the conversation
+client). Failure is never fatal: ``plan_day`` returns None and the caller keeps
+the template behaviour.
 """
 
 from __future__ import annotations
@@ -66,9 +14,8 @@ import concurrent.futures
 import json
 from dataclasses import dataclass
 
-#: Longest accepted activity string. Long enough for "reread the chapter on
-#: bootstrap resampling", short enough that a paragraph cannot land in the
-#: agenda and from there into the state card.
+#: Longest accepted activity string. Bounds an activity well below paragraph
+#: length so no paragraph can reach the agenda or the state card.
 MAX_ACTIVITY_CHARS = 90
 
 #: Most activities one plan may supply, whatever the reply contains.
@@ -77,13 +24,11 @@ MAX_PLANNED = 8
 #: Recorded outcomes handed to the planner as continuity material.
 OUTCOME_CONTEXT = 6
 
-#: Reasoning effort: this is invention, not deduction, and it sits on the
-#: day-rollover path. Same rationale as the onboarding extension.
+#: Reasoning effort for the plan call (invention, not deduction).
 PLANNER_REASONING_EFFORT = "low"
 
-#: Wall-clock budget, seconds. Sized like the onboarding extension against
-#: measured free-lane latency; the point of the bound is the client's own
-#: ~7-minute retry policy, which raises nothing while it waits.
+#: Wall-clock budget, seconds: the client's own retry policy raises nothing
+#: while it waits, so the wait itself must be bounded.
 PLANNER_BUDGET_S = 90.0
 
 PLANNER_PROMPT = """\
@@ -200,9 +145,9 @@ def build_request(name: str, weekday: str, arcs, slots: list[PlanSlot],
 def parse_plan(reply: str, expected: int) -> list[str] | None:
     """Activities from a model reply, or None when unusable.
 
-    Accepts the documented ``{"activities": [...]}`` shape and a bare list.
-    A reply with FEWER activities than slots is accepted and the caller keeps
-    its template text for the rest; more are truncated.
+    Accepts the ``{"activities": [...]}`` shape and a bare list. Fewer activities
+    than slots is accepted (the caller keeps its templates for the rest); more
+    are truncated.
     """
     if not reply:
         return None
@@ -230,18 +175,14 @@ def parse_plan(reply: str, expected: int) -> list[str] | None:
 
 
 def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
-    """One bounded model call. See ``interest_extension._call_within_budget``
-    for why the wait itself has to be bounded rather than merely guarded.
+    """One bounded model call. The wait itself has to be bounded, not merely
+    guarded (see ``interest_extension._call_within_budget``).
 
-    ``fork`` (owner ruling, 2026-09-13): a callable(task) -> (system,
-    messages) | None that extends the mainline request — the exact pair the
-    companion's last turn sent — instead of a standalone one-shot prompt, so
-    the whole prefix banks on the provider cache. It is CALLED ON THIS THREAD
-    (the store reads behind it belong to it); only the client call moves to
-    the budget worker. None — a fork that could not build, or a direct
-    caller — keeps the standalone shape; the session's own fork never
-    returns None, carrying the system prompt as its base prefix even before
-    the first turn.
+    ``fork``: a callable(task) -> (system, messages) | None that extends the
+    mainline request instead of a standalone prompt, so the whole prefix banks on
+    the provider cache. It is CALLED ON THIS THREAD (the store reads behind it
+    belong to it); only the client call moves to the budget worker. None — a fork
+    that could not build, or a direct caller — keeps the standalone shape.
     """
     pair = None
     if fork is not None:
@@ -253,8 +194,7 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
         system, messages = pair
     else:
         # Aux task prompt, not an event in her conversation: the
-        # system-not-user rule governs HER context (CONVENTIONS, ratified
-        # 2026-09-12). A one-off call keeps role=user.
+        # system-not-user rule governs HER context, not this call.
         messages = [{"role": "user", "content": prompt}]
         system = "You return JSON only."
     rich = getattr(client, "chat_with_meta", None)
@@ -281,8 +221,7 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
                 temperature=0.9,
             ) or ""
 
-    # Not a `with` block: ThreadPoolExecutor.__exit__ waits for the worker
-    # and would silently undo the deadline.
+    # not a with block: __exit__ waits for the worker and would undo the deadline.
     pool = concurrent.futures.ThreadPoolExecutor(
         max_workers=1, thread_name_prefix="day-planner"
     )
@@ -306,9 +245,9 @@ def plan_day(
 ) -> list[str] | None:
     """Concrete activity text for each slot, or None to keep the templates.
 
-    Returns a list the same length as ``slots``; an entry may be "" when the
-    model supplied nothing usable for that slot, and the caller keeps that
-    slot's fallback. None means planning did not happen at all.
+    Returns a list the same length as ``slots``; an entry may be "" when the model
+    supplied nothing usable for that slot (the caller keeps that slot's fallback).
+    None means planning did not happen at all.
 
     ``fork`` (optional) routes the call through the session's mainline-request
     extension instead of a standalone prompt — see ``_call_within_budget``.

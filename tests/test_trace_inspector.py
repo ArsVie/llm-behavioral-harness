@@ -1,10 +1,8 @@
-"""The run inspector: every check fires on the shape it names, and stays
-quiet on a clean run.
+"""The run inspector: every check fires on the shape it names, and stays quiet
+on a clean run.
 
-The fixtures build the tables with raw SQL rather than through
-``SQLiteStore`` on purpose — the inspector's whole value is reading runs
-whose schema does not match the current code, so its tests must not depend
-on the current schema either.
+The fixtures build the tables with raw SQL rather than through ``SQLiteStore``,
+so the tests do not depend on the current schema either.
 """
 
 from __future__ import annotations
@@ -311,8 +309,8 @@ def test_a_skipped_item_listed_as_done_is_an_error(tmp_path):
 
 
 def test_a_skipped_item_under_its_own_heading_is_not_reported(tmp_path):
-    """The fix: the card now says "Did not happen". The check must read the
-    heading, not just look for the activity anywhere in the card."""
+    """The check reads the heading ("Did not happen"), not just whether the
+    activity appears anywhere in the card."""
     conn, path = _db(tmp_path)
     conn.execute(
         "insert into agenda_items (id,day,start_t_h,end_t_h,activity,"
@@ -558,9 +556,8 @@ def test_the_timeline_orders_a_replayed_decision_at_its_own_boundary(tmp_path):
 
 
 def test_a_native_popup_metered_by_its_mainline_call_is_not_reported(tmp_path):
-    """A native pop-up is answered INSIDE the mainline call the model was
-    already making, so its tokens are that call's tokens. A ledger row at the
-    same instant is the metering; the check must not call it missing."""
+    """A native pop-up is metered by the mainline call's own ledger row; a row at
+    the same instant must not be reported as missing."""
     conn, path = _db(tmp_path)
     conn.execute(
         "insert into decision_records (day,t_h,popup_kind,event_id,"

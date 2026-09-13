@@ -1,14 +1,6 @@
-"""A9 Iteration-2 adversarial wave — PROACTIVITY attack class (plan §5-A9 P1).
-
-Attacks on the contact-opportunity → grounded-intent seam (plan §16
-invariants 3-7): ContactOpportunity has NO semantic reason field; every
-ProactiveIntent always resolves to a real persisted source (intent ⇒ source);
-an opportunity without a grounded intent produces NO message (suppression is
-normal, never an error); expired/unknown intent ids raise ValueError with no
-message; and two same-reason intents are never interchangeable (exact-id
-isolation at the store and session level).
-
-Every test is deterministic: fixed seeds, injected clock/sleeper, no LLM.
+"""Adversarial tests of the PROACTIVITY attack class (A9): the
+contact-opportunity → grounded-intent seam and exact-id isolation.
+Deterministic: fixed seeds, injected clock/sleeper, no LLM.
 """
 
 from __future__ import annotations
@@ -65,8 +57,7 @@ def _ground_agenda(store, start_t_h, end_t_h, *, item_id="g1", salience=0.8,
 
 def _stored_intent(item, intent_id: str, t_h: float, *,
                    reason: str = REASON_SCHEDULE) -> ProactiveIntent:
-    """A fully-grounded ProactiveIntent exactly as the resolver would build
-    it, with a caller-chosen id (the #87/#88 adversarial setup)."""
+    """A fully-grounded ProactiveIntent with a caller-chosen id (#87/#88 setup)."""
     return ProactiveIntent(
         id=intent_id, reason=reason, source_type="agenda_item",
         source_id=item.id, hook=compose_hook(item, reason),
@@ -90,13 +81,11 @@ def _run(store, session, schedule, channel, *, max_hours, resolver=None):
     return runtime
 
 
-# ContactOpportunity has no semantic reason field
+
 
 
 def test_p1_contact_opportunity_has_no_semantic_reason_field():
-    """The dataclass itself carries no semantic reason: no field named
-    reason/justification/motivation/source, and a real opportunity's
-    dataclass fields stay within the timing vocabulary."""
+    """ContactOpportunity carries no semantic reason field; fields stay timing-only."""
     forbidden = {"reason", "justification", "motivation", "source", "source_id"}
     fields = {f.name for f in dataclasses.fields(ContactOpportunity)}
     assert forbidden.isdisjoint(fields), (
@@ -113,20 +102,12 @@ def test_p1_contact_opportunity_has_no_semantic_reason_field():
     }
 
 
-# Intent implies a real source for every reason type
+
 
 
 def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
-    """For every reason the resolver can produce (schedule/event/callback/
-    shared_interest/check_in), the built intent's source_type/source_id/
-    evidence/hook are consistent and resolve_intent_source(intent) is NOT
-    None — a ProactiveIntent always implies a real persisted source.
-
-    Each reason gets its OWN store so the candidates cannot crowd each other
-    out (shared-interest outranks callback, check-in needs a 12h silence
-    gap); the resolver must return exactly the expected reason and the
-    intent must be resolvable back to a real row.
-    """
+    """Every reason the resolver can produce yields a consistent intent that
+    resolves back to a real persisted source."""
     from harness.bootstrap import ensure_companion_initialized
 
     # Schedule: a planned agenda item around now.
@@ -203,13 +184,11 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
         s5.close()
 
 
-# Unknown and expired intent ids raise ValueError
+
 
 
 def test_p1c_unknown_intent_id_raises_value_error_no_message(tmp_path):
-    """fire_proactive('does-not-exist') raises ValueError and produces NO
-    message row and NO client call — an unknown id can never become a
-    message."""
+    """An unknown intent id raises ValueError with no message row and no client call."""
     store = make_store(tmp_path, "p1c.db")
     store.save_daily_state(0, {"day": 0, "M": 6, "m": 0.0, "g": 0.7, "p": 0.5,
                                "arg": 0.0, "mu": 0.0, "eta": 0.0,
@@ -229,9 +208,7 @@ def test_p1c_unknown_intent_id_raises_value_error_no_message(tmp_path):
 
 
 def test_p1d_expired_intent_id_raises_value_error_no_message(tmp_path):
-    """fire_proactive on a STORED but EXPIRED intent raises ValueError (the
-    intent's validity window has closed) and produces no message — an
-    expired intent is never deliverable."""
+    """An expired stored intent raises ValueError and produces no message."""
     store = make_store(tmp_path, "p1d.db")
     store.save_daily_state(0, {"day": 0, "M": 6, "m": 0.0, "g": 0.7, "p": 0.5,
                                "arg": 0.0, "mu": 0.0, "eta": 0.0,
@@ -255,13 +232,12 @@ def test_p1d_expired_intent_id_raises_value_error_no_message(tmp_path):
         store.close()
 
 
-# Exact-id isolation between same-reason intents
+
 
 
 def test_p1e_exact_id_isolation_between_same_reason_siblings(tmp_path):
-    """Store-level isolation (invariant 7): two intents with the SAME reason
-    and the SAME hook are distinct rows; loading by exact id returns the
-    exact one; lifecycle updates of one never touch the sibling."""
+    """Two intents with the same reason and hook are distinct rows; updates
+    never touch the sibling."""
     store = make_store(tmp_path, "p1e.db")
     try:
         pottery = _ground_agenda(store, 9.5, 10.5, item_id="pottery",
@@ -288,10 +264,8 @@ def test_p1e_exact_id_isolation_between_same_reason_siblings(tmp_path):
 
 
 def test_p1g_session_fires_exact_id_not_reason_sibling(tmp_path):
-    """Session-level (A5 seam, invariant 6/7): with #87 and #88 stored, the
-    outgoing message persists EXACTLY the id passed to fire_proactive — the
-    sibling is never substituted, even though a reason-only lookup would
-    return the most recent sibling."""
+    """The outgoing message persists exactly the id passed to fire_proactive,
+    never a same-reason sibling."""
     store = make_store(tmp_path, "p1g.db")
     store.save_daily_state(0, {"day": 0, "M": 6, "m": 0.0, "g": 0.7, "p": 0.5,
                                "arg": 0.0, "mu": 0.0, "eta": 0.0,
@@ -314,7 +288,7 @@ def test_p1g_session_fires_exact_id_not_reason_sibling(tmp_path):
         assert last["proactive"] == 1
         # The sibling's lifecycle is untouched.
         assert "88" not in {i.id for i in store.list_proactive_intents(status="fired")}
-        # The prompt renders #87's hook (WS-D: state card tail).
+        # The prompt renders #87's hook (state card tail).
         tail = session.client.calls[-1]["messages"][-1]["content"]
         assert "Agenda: pottery class" in tail
         assert "Agenda: gym session" not in tail
@@ -322,14 +296,12 @@ def test_p1g_session_fires_exact_id_not_reason_sibling(tmp_path):
         store.close()
 
 
-# An opportunity without an intent produces no message
+
 
 
 def test_p1f_opportunity_without_intent_no_message(tmp_path):
-    """A planned ContactOpportunity with NO grounded source anywhere in the
-    store must flow through the runtime as a SUPPRESSION: no message, no
-    persisted intent, suppression logged as no_grounded_reason (a normal
-    outcome, never an error) and the event row consumed, not stranded."""
+    """An opportunity with no grounded source is suppressed: no message, no
+    persisted intent, suppression logged and the event row consumed."""
     store = make_store(tmp_path, "p1f.db")
     schedule = ProactiveSchedule.plan_and_persist(1, SEED, PERSONA, TIMING, store)
     assert schedule.event_hours, "precondition: at least one opportunity today"

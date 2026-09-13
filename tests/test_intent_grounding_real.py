@@ -1,11 +1,5 @@
-"""MAJOR-1 gate-fix integration tests (orchestrator, 2026-08-08).
-
-Every source_type harness.proactive emits must resolve against the REAL
-SQLiteStore and pass the content gate — previously only `agenda_item`
-resolved in production (A2 mapped 3 types, A7 emits 5), so all
-life-event/callback/shared-interest/check-in hooks suppressed with
-`no_source`. These tests drive the REAL store end to end through the public
-IntentResolver API: each scenario isolates exactly one candidate kind.
+"""Every source_type harness.proactive emits must resolve against the REAL
+SQLiteStore and pass the content gate, through the public IntentResolver API.
 """
 
 from engine.rng import stream_rng

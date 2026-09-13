@@ -1,29 +1,9 @@
-"""L2 summarization interfaces (Iteration-2 A4, plan §5-A4 Task 4).
+"""L2 summarization interfaces.
 
 Two implementations of one callable contract (``Summarizer``):
-
-* ``DeterministicSummaryExtractor`` — the heuristic regex/judge-sign
-  extractor (the historic ``deterministic_summarizer``). Fully deterministic,
-  no LLM required. This is the TESTING path: useful for tests and offline
-  runs, but NOT presented as the research-quality production path.
-* ``SemanticSummaryExtractor`` — the research-quality LLM-backed extractor
-  for the real eval/live condition. An injectable OpenAI-compatible client
-  produces the prose summary; structured fields and — critically — the
-  provenance (``source_turn_ids``) always come from the REAL messages,
-  never from the model.
-
-Callable contract::
-
-    (session_id, messages, judgement, started_at_t_h, ended_at_t_h)
-        -> SessionSummary
-
-Provenance invariant (plan §5-A4 Task 5): no summarization-generated user
-fact becomes authoritative without source turns. ``MemoryAgent`` creates L4
-assertions only from facts re-extracted from the RAW messages of a session
-whose summary carries ``source_turn_ids`` — never from summary prose. The
-deterministic extractor is also the source of the fact->``UserModelCategory``
-assignment consumed by the L4 layer (plan §5-A4 Task 1): the canonical enum
-is consumed HERE, and the store persists the category next to the assertion.
+``DeterministicSummaryExtractor`` is the heuristic testing path;
+``SemanticSummaryExtractor`` is the LLM-backed path, where only the prose
+summary can come from the model.
 """
 
 from __future__ import annotations
@@ -41,8 +21,7 @@ __all__ = [
     "deterministic_summarizer",
 ]
 
-# Deterministic fact extraction lives in harness.summarization_facts; every
-# name is re-exported here so existing imports keep working unchanged.
+# Fact extraction lives in harness.summarization_facts; its names are re-exported here.
 from harness.summarization_facts import (  # noqa: E402
     Callback,
     _callbacks,
@@ -53,10 +32,8 @@ from harness.summarization_facts import (  # noqa: E402
 def _affect_observation(msg: dict, score: float | None) -> AffectMetadata:
     """Deterministic affect metadata for one user turn.
 
-    Valence comes from the day's judge score sign/magnitude (the judge
-    consumes no RNG); arousal and intensity come from surface text signals
-    (exclamation/questions/ellipsis). This is metadata ON the memory — there
-    is no separate emotional store.
+    Valence comes from the judge score; arousal and intensity from surface
+    text signals (exclamation/questions/ellipsis).
     """
     text = str(msg.get("content", ""))
     exclaim = text.count("!")
@@ -157,9 +134,8 @@ def _session_importance(
 def _judgement_score(judgement: dict | None) -> float | None:
     """The judge's score as a float, or None when there isn't a usable one.
 
-    The judge is a noisy sensor: a missing judgement, a missing score, or a
-    score that will not parse all mean "no affect signal from the judge",
-    never a crash and never a fabricated 0.0.
+    A missing judgement, a missing score or a score that will not parse all
+    mean "no affect signal" — never a crash, never a fabricated 0.0.
     """
     if judgement is None:
         return None
@@ -175,9 +151,8 @@ def _judgement_score(judgement: dict | None) -> float | None:
 def _companion_events(messages: list[dict]) -> tuple[str, ...]:
     """Companion turns worth remembering, truncated to 120 chars.
 
-    A turn qualifies if it was proactive (she chose to send it) or if it
-    reads as her reporting her own life — the "I will / I'll / I started /
-    I finished" forms that carry an event the user may refer back to.
+    A turn qualifies if it was proactive, or if it reports her own life
+    ("I will / I'll / I started / I finished").
     """
     pattern = r"\b(i will|i'll|i started|i finished)\b"
     return tuple(
@@ -221,12 +196,10 @@ def deterministic_summarizer(
 ) -> SessionSummary:
     """Default L2 summarizer: fully deterministic, never requires an LLM.
 
-    * topics      — content-word frequency across all turns
-    * user_facts  — conservative regex extraction (name/possessive/have)
-    * preferences — like/dislike patterns
-    * callbacks   — reminder-style requests (exact excerpts)
-    * affect      — judge score sign/magnitude + surface text signals
-    * importance  — disclosure + affect + engagement (see ``_session_importance``)
+    Field sources: topics from content-word frequency; user_facts and
+    preferences from regex extraction; callbacks from reminder-style requests;
+    affect from judge score + surface signals; importance from disclosure +
+    affect + engagement.
     """
     facts = _extract_facts(messages)
     cbs = _callbacks(messages)
@@ -263,9 +236,7 @@ class DeterministicSummaryExtractor:
     """Heuristic L2 extractor — the TESTING path (deterministic, no LLM).
 
     Identical behavior to the module function ``deterministic_summarizer``;
-    the class form exists so the testing path and the research-quality path
-    share one callable interface. This is deliberately NOT presented as the
-    research-quality production path (plan §5-A4 Task 4).
+    the class form exists so both paths share one callable interface.
     """
 
     def __call__(
@@ -284,16 +255,10 @@ class DeterministicSummaryExtractor:
 class SemanticSummaryExtractor:
     """LLM-backed L2 extractor — the research-quality path.
 
-    Constructor takes an injectable client ``Callable[[str], str]``
-    (prompt -> completion text; an OpenAI-compatible completion call). The
-    model writes the prose summary; the deterministic extractor supplies the
-    structured fields (topics, facts, affect, importance).
-
-    PROVENANCE GUARD (plan §5-A4 Task 5): ``source_turn_ids`` and all
-    fact-derived fields come from the REAL messages — the model's output can
-    only replace the free-text ``summary``. A model never invents source
-    turns, and no model-generated fact can become an L4 assertion (L4 facts
-    are re-extracted from raw messages by ``MemoryAgent``).
+    Takes an injectable client ``Callable[[str], str]`` (prompt -> completion
+    text). The model writes only the free-text ``summary``: ``source_turn_ids``
+    and every fact-derived field come from the REAL messages, so no
+    model-generated fact can become an L4 assertion.
 
     On client failure or empty output the deterministic summary is returned
     unchanged (degradation, never fabrication).

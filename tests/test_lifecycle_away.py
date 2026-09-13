@@ -1,10 +1,6 @@
-"""WS-A: away-as-presence, close-as-checkpoint.
-
-15 min of silence marks the user "away" (presence signal) - conversation
-stays OPEN. Only the 6 h backstop or quiet-hours/day boundary actually
-closes it. Return within the backstop continues the SAME conversation
-with full raw continuity (no rebuild from summary). Replay parity holds
-(no new RNG consumed for the derived away signal).
+"""Away-as-presence, close-as-checkpoint: 15 min of silence marks the user away but
+keeps the conversation OPEN; only the 6 h backstop or a day boundary closes it, and
+a return within the backstop continues the same conversation with raw continuity.
 """
 
 from engine.types import MoodVariant, PersonaParams, TimingParams
@@ -140,7 +136,7 @@ def test_no_rebuild_on_return_raw_continuity(tmp_path):
 
 
 def test_intermittent_texting_stays_one_conversation(tmp_path):
-    """20-40 min gaps stay ONE conversation (the WS-A done-when)."""
+    """20-40 min gaps stay ONE conversation."""
     store = SQLiteStore(tmp_path / "g.db")
     clock = VirtualClock(t_h=10.0)
     session = _session(store, clock)
@@ -181,7 +177,7 @@ def test_replay_parity_no_new_rng(tmp_path):
 
 
 def test_tunables_values():
-    """Pin the tuned values so drift is caught immediately."""
+    """Pin the tuned values."""
     assert USER_AWAY_THRESHOLD_H == 0.25
     assert USER_LEFT_THRESHOLD_H == 6.0
     assert WIND_DOWN_GRACE_H < USER_LEFT_THRESHOLD_H

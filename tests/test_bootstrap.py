@@ -1,20 +1,5 @@
 """A1b acceptance tests (Iteration-2): idempotent clean-start bootstrap,
-user-relative 40/40/20 interests, onboarding fallback, distance queries.
-
-Acceptance criteria (brief /tmp/llh-vslice/it2-a1b.md):
-* Blank DB → profile != None, interests > 0, life_arcs > 0, today_agenda != None.
-* bootstrap() x3 → no duplicated persona/interests/arcs.
-* Population: across many seeds the bucket-fraction means approach 40/40/20
-  RELATIVE to the user's interests.
-
-Stated population tolerance: mean bucket fractions within +-5 percentage
-points of the 40/40/20 targets (``FRACTION_TOL``), and — where no pool is
-clamped — mean bucket counts within +-0.5 of the 4/4/2 targets
-(``COUNT_TOL``). The plan's Gate-2 user (mathematics, lifting, movies, metal)
-clamps the exact pool to its 4 interests (counts {3,4}), which pulls the exact
-fraction to ~0.37 — still inside the +-5-point band; the all-hubs user has no
-clamping and lands exactly on 0.40/0.40/0.20.
-"""
+user-relative 40/40/20 interests, onboarding fallback, distance queries."""
 
 import numpy as np
 

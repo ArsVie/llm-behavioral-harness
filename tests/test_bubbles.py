@@ -63,8 +63,7 @@ def test_flag_on_splits_and_injects_prompt(tmp_path):
         sess._profile = PROF
         r = sess.on_message("hi")
         assert r.bubbles == ("Hello there.", "How are you?")
-        # The instruction no longer uses the word "bubbles" (jargon to the
-        # model); the blank-line contract is what matters.
+        # The blank-line contract is what matters, not the word "bubbles".
         assert BUBBLE_INSTRUCTION in cli.calls[0]["system"]
         # single newline also counts
         cli2 = FakeClient(responses=["a\nb"])

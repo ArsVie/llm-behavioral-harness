@@ -2,25 +2,15 @@
 
 PROPIEDAD: tarea W3.2 (este archivo + carpeta results/w32-variantes/). Corre
 las 3 variantes de engine.types.MoodVariant (ORIGINAL, DECOUPLED,
-DECOUPLED_OFFSETS) con las mismas semillas y PersonaParams por defecto, y
-documenta cuantitativamente las diferencias estructurales esperadas
-(research/05-reevaluacion-diseno.md §2.1-2.2):
+DECOUPLED_OFFSETS) con las mismas semillas y PersonaParams por defecto.
 
-  1. Acoplamiento media-ganancia del ORIGINAL: en ORIGINAL la ganancia g(t)
-     multiplica también (logit λ + μ), así que el ciclo desplaza el NIVEL de
-     M además de su varianza. En DECOUPLED (B=0, g solo sobre μ+η) ese
-     desplazamiento de nivel debe ser mucho menor. Métrica: Δmedia =
-     mean(M | g alto) − mean(M | g bajo) (cuartil superior vs inferior de g)
-     y correlación de Pearson corr(g, M).
-  2. Autocorrelación con/sin η: ORIGINAL no tiene término η (arg no depende
-     de η) así que su autocorr lag-1 de M debe acercarse al piso que da μ
-     solamente; DECOUPLED y DECOUPLED_OFFSETS sí tienen η y deberían mostrar
-     autocorrelación mayor.
-  3. Efecto de B (offset de media): DECOUPLED_OFFSETS añade m(t) al argumento
-     (DECOUPLED no). Métrica: correlación de la media móvil de M (ventana de
-     7 días) con m(t) — se espera mayor en DECOUPLED_OFFSETS que en
-     DECOUPLED.
-  4. Recomendación razonada de variante para el POC.
+Métricas por variante x semilla:
+  1. Acoplamiento media-ganancia: Δmedia = mean(M | g alto) − mean(M | g bajo)
+     (cuartil superior vs inferior de g) y correlación de Pearson corr(g, M).
+  2. Autocorrelación con/sin η: autocorr lag-1 de M.
+  3. Efecto de B (offset de media): correlación de la media móvil de M
+     (ventana de 7 días) con m(t).
+  4. Recomendación de variante para el POC.
 
 CLI:
     python -m experiments.w32_variantes
@@ -66,10 +56,7 @@ OUT_DIR = Path(__file__).resolve().parents[1] / "results" / "w32-variantes"
 def delta_media_by_gain(M: np.ndarray, g: np.ndarray, q: float = QUARTILE_Q) -> float:
     """mean(M | g >= Q(1-q)) − mean(M | g <= Q(q)): desplazamiento de NIVEL.
 
-    Distinto de sim.metrics.var_ratio_by_gain (que mide razón de VARIANZA):
-    aquí medimos si el ciclo mueve la media de M, no solo su dispersión —
-    exactamente el acoplamiento media-ganancia que research/05 §2.1(a)
-    describe para ORIGINAL.
+    Distinto de sim.metrics.var_ratio_by_gain, que mide razón de VARIANZA.
     """
     M = np.asarray(M, dtype=float)
     g = np.asarray(g, dtype=float)
@@ -138,11 +125,7 @@ def compute_metrics_table(
 
     Estructura: {variant: {metric_name: {seed: value}}}. metric_name en
     {"delta_media", "corr_g_M", "autocorr_lag1", "offset_corr_ma"}.
-    `offset_corr_ma` se calcula para las 3 variantes por uniformidad de tabla,
-    aunque el criterio (3) solo contrasta DECOUPLED vs DECOUPLED_OFFSETS (en
-    ORIGINAL y DECOUPLED m(t)=0 idénticamente vía B=0 salvo que DECOUPLED
-    ignora m por fórmula y ORIGINAL no lo usa tampoco -> se espera ~NaN o
-    ruido puro en ambos, documentado en el reporte).
+    `offset_corr_ma` se calcula para las 3 variantes.
     """
     metrics: dict[MoodVariant, dict[str, dict[int, float]]] = {
         variant: {
@@ -291,10 +274,9 @@ def write_report(
     """Escribe reporte.md con tabla, veredicto (8a) y recomendación."""
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # --- Per-criterion verdicts from the measured numbers ---
+    # --- Per-criterion verdicts ---
 
-    # (1) Mean-gain coupling: ORIGINAL also amplifies the constant logit(lam);
-    # DECOUPLED only amplifies mu+eta, which fluctuates around 0.
+    # (1) Mean-gain coupling: ORIGINAL vs DECOUPLED.
     delta_original = agg[MoodVariant.ORIGINAL]["delta_media"][0]
     delta_decoupled = agg[MoodVariant.DECOUPLED]["delta_media"][0]
     corr_g_M_original = agg[MoodVariant.ORIGINAL]["corr_g_M"][0]
@@ -444,7 +426,6 @@ def write_report(
     lines.append("## 4. Recomendación de variante para el POC")
     lines.append("")
 
-    # Recommendation text is written below, conditioned on the measured results.
     lines.append(RECOMENDACION_PLACEHOLDER)
     lines.append("")
 
@@ -467,16 +448,7 @@ RECOMENDACION_PLACEHOLDER = "__RECOMENDACION__"
 def build_recomendacion(
     agg: dict[MoodVariant, dict[str, tuple[float, float]]],
 ) -> str:
-    """Texto de recomendación (3-8 líneas) condicionado a los números medidos.
-
-    Lógica: DECOUPLED_OFFSETS es la recomendación por diseño (research/05
-    §2.2) SALVO que los datos muestren que m(t) no aporta señal distinguible
-    de DECOUPLED (criterio 3 en FAIL) Y que el knob adicional (B) no separe
-    fase de nivel de forma útil — en ese caso se recomienda DECOUPLED por
-    parsimonia. ORIGINAL nunca se recomienda para Fase 2 porque el
-    acoplamiento media-ganancia impide tunear amplitud del ciclo y
-    temperamento por separado (un solo knob, dos efectos, research/05 §2.1a).
-    """
+    """Texto de recomendación (3-8 líneas) condicionado a los números medidos."""
     offset_decoupled = agg[MoodVariant.DECOUPLED]["offset_corr_ma"][0]
     offset_decoupled_offsets = agg[MoodVariant.DECOUPLED_OFFSETS]["offset_corr_ma"][0]
     b_effect_visible = abs(offset_decoupled_offsets) > abs(offset_decoupled)

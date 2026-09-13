@@ -1,11 +1,9 @@
 """Legacy (v1) -> v2 migration tests (vertical slice A2).
 
-Builds a database with the PRE-migration schema (the legacy CREATE TABLE
-statements embedded VERBATIM below — deliberately NOT imported from
-harness.store), seeds it with existing state/messages/judgements/schedules,
-then instantiates the new store: the migration must succeed, every piece of
-legacy data must remain present and interpretable, and re-opening the same
-database (migration runs twice) must be a no-op. No destructive migration.
+Builds a database with the PRE-migration schema (legacy CREATE TABLE statements
+embedded VERBATIM below, not imported), seeds it, then opens it with the new
+store: the migration succeeds, legacy data stays present and interpretable, and
+re-opening is a no-op (no destructive step).
 """
 
 import sqlite3

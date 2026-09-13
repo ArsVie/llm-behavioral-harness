@@ -1,7 +1,6 @@
-"""Channel protocol, message shapes, and the shared FakeChannel (Part B).
+"""Channel protocol, message shapes, and the shared FakeChannel.
 
-`from harness.channels import ...` exposes the base types; concrete channels
-(CLI, Telegram) live here.
+Concrete channels (CLI, Telegram) live here.
 """
 
 from harness.channels.base import (

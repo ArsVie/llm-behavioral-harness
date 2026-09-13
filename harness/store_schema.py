@@ -1,21 +1,10 @@
-"""SQLite schema, DDL and the versioned migration chain (§4b of the
-thermo-review follow-up).
+"""SQLite schema, DDL and the versioned migration chain.
 
-Lifted VERBATIM out of ``harness.store``. Two properties make this a
-contract rather than ordinary code, and both are why the strings below must
-not be "tidied":
-
-* The migration chain is ADDITIVE and ORDER-DEPENDENT. ``_migrate`` walks
-  v1 -> v8 in sequence; each step assumes exactly what the previous one
-  left. Reordering or merging steps changes what an existing database
-  becomes.
-* The DDL strings are byte-significant. A live database was created by THIS
-  text; a reformatted CREATE TABLE can silently produce a different column
-  order or affinity, which the migration tests
-  (test_store_migrations*.py) exist to catch.
-
-``SCHEMA_VERSION`` lives here and ``harness.store`` re-exports it, so
-``harness.store.SCHEMA_VERSION`` keeps working.
+The migration chain is ADDITIVE and ORDER-DEPENDENT (``_migrate`` walks the
+chain in sequence; reordering or merging steps changes what an existing
+database becomes), and the DDL strings are byte-significant — a reformatted
+CREATE TABLE can silently change column order or affinity. ``SCHEMA_VERSION``
+lives here and ``harness.store`` re-exports it.
 """
 
 from __future__ import annotations
@@ -103,11 +92,8 @@ CREATE TABLE IF NOT EXISTS schema_meta (
 def schema_meta(version: int) -> str:
     """Return the DDL for the ``schema_meta`` bookkeeping table.
 
-    ``version`` is the schema version the store targets (``SCHEMA_VERSION``);
-    the migration framework records it as a row in this table once the
-    database has been brought up to it. A fresh database starts with the v1
-    base tables only (effective version 1), so the version row is never
-    written ahead of the migration.
+    ``version`` is the schema version the store targets; the migration
+    framework records it once the database has been brought up to it.
     """
     if version < 1:
         raise ValueError(f"schema version must be >= 1, got {version}")
@@ -235,7 +221,7 @@ WHERE session_id IS NOT NULL;
 
 def _current_version(conn: sqlite3.Connection) -> int:
     """Highest recorded schema version; 1 when the meta table is absent or
-    empty (the legacy base schema)."""
+    empty."""
     try:
         row = conn.execute("SELECT MAX(version) AS v FROM schema_meta").fetchone()
     except sqlite3.OperationalError:
@@ -292,11 +278,10 @@ _LEGACY_PREFIX_CATEGORIES = (
 def _category_from_key(key: str) -> UserModelCategory:
     """Canonical category for a legacy key (documented prefixes only).
 
-    Compatibility derivation for rows written before v3 and for callers that
-    do not pass ``category`` explicitly. Keys without a documented prefix
-    surface under ``IMPORTANT_ENTITY`` (the legacy load default). This is a
-    WRITE-time / migration-time mapping; the load path reads the stored
-    ``category`` column and never parses keys.
+    Compatibility derivation: rows written before v3 and callers that do not
+    pass ``category``. Keys without a documented prefix surface under
+    ``IMPORTANT_ENTITY``. Write- and migration-time only — the load path
+    reads the stored column and never parses keys.
     """
     head, _, _ = key.partition(":")
     if key == "identity" or head == "identity":
@@ -308,7 +293,7 @@ def _category_from_key(key: str) -> UserModelCategory:
 
 
 def _migrate_v3(conn: sqlite3.Connection) -> None:
-    """v2 -> v3: additive A7 columns + canonical L4 backfill + view rebuild."""
+    """v2 -> v3: additive columns + category backfill + view rebuild."""
     _ensure_column(conn, "messages", "intent_id", "TEXT")
     _ensure_column(conn, "user_model_assertions", "category", "TEXT")
     _ensure_column(conn, "llm_calls", "repro_json", "TEXT")
@@ -438,7 +423,7 @@ _V7_COLUMNS = (
 
 
 def _migrate_v7(conn: sqlite3.Connection) -> None:
-    """v6 -> v7: additive nullable REAL timestamp columns (S1 real time)."""
+    """v6 -> v7: additive nullable REAL timestamp columns."""
     for table, column, decl in _V7_COLUMNS:
         _ensure_column(conn, table, column, decl)
 
@@ -456,24 +441,13 @@ _V8_COLUMNS = (
 
 
 def _migrate_v8(conn: sqlite3.Connection) -> None:
-    """v7 -> v8: additive llm_calls usage/lane/raw_cost columns (WS-D)."""
+    """v7 -> v8: additive llm_calls usage/lane/raw_cost columns."""
     for table, column, decl in _V8_COLUMNS:
         _ensure_column(conn, table, column, decl)
 
 
 # Migration v8 -> v9 (additive): user_profile + interest_relations.
-#
-# The bootstrap has always declared ``load_user_profile``/``save_user_profile``
-# on its store seam, but no table backed them -- so the resolved identity was
-# re-derived from the environment on every start and never recorded. A run
-# therefore had no durable answer to "who does she think she is talking to",
-# and the memory layer had no seed identity to attach user facts to.
-#
-# ``interest_relations`` persists the interest graph the persona was actually
-# sampled against, including any edges added for user interests the built-in
-# catalog does not contain. Without it, an extended graph would be rebuilt
-# (or lost) on the next start and the persona's buckets would stop being
-# reproducible from the store alone.
+# Persists the owner identity and the sampled interest graph.
 _V9_TABLES = """
 CREATE TABLE IF NOT EXISTS user_profile (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -499,11 +473,7 @@ def _migrate_v9(conn: sqlite3.Connection) -> None:
 
 
 # Migration v9 -> v10 (additive): agenda_items.outcome.
-#
-# An agenda item resolved to a STATUS and nothing else, so nothing ever
-# happened inside one: no trace to talk about afterwards, arcs with no
-# accumulated content, and proactive hooks as bare as "Finished: practice
-# sketching". This column carries the fact.
+# Records what came of an item, not just its status.
 _V10_COLUMNS = (
     ("agenda_items", "outcome", "TEXT"),
 )
@@ -516,13 +486,7 @@ def _migrate_v10(conn: sqlite3.Connection) -> None:
 
 
 # Migration v10 -> v11 (additive): steering_queue.attempts.
-#
-# A steer whose decision fails to parse is requeued (the default
-# ``decision_on_parse_failure`` policy) and retried at the NEXT boundary --
-# with no bound, so a steer the model consistently answers wrongly is retried
-# on every turn forever, one model call each, growing as more accumulate.
-# Observed live 2026-09-07: 20 discarded calls across four turns, 4 -> 4 -> 5
-# -> 7 per turn and still climbing. This column bounds it.
+# Bounds how often a requeued steer is retried.
 _V11_COLUMNS = (
     ("steering_queue", "attempts", "INTEGER NOT NULL DEFAULT 0"),
 )
@@ -537,11 +501,9 @@ def _migrate_v11(conn: sqlite3.Connection) -> None:
 def _migrate(conn: sqlite3.Connection) -> None:
     """Bring the schema up to SCHEMA_VERSION with additive migrations only.
 
-    Version-gated: each migration runs at most once per database (the
-    bookkeeping row is written only after the migration completes, so a crash
-    mid-migration re-runs it safely — every step is idempotent). After the
-    chain completes, bookkeeping collapses to a single row at the current
-    version (the pre-slice invariant: exactly one version row).
+    Version-gated: each migration runs at most once per database (a crash
+    mid-migration re-runs safely — every step is idempotent). Bookkeeping
+    collapses to a single row at the current version.
     """
     version = _current_version(conn)
     if version < 2:

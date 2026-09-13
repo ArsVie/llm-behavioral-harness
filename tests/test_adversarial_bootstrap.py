@@ -1,14 +1,5 @@
 """A9 Iteration-2 adversarial wave — BOOTSTRAP attack class (plan §5-A9 B1).
-
-Attacks on the clean-start chain (plan §16 invariants 1-2): double-bootstrap
-must never regenerate identity (persona / interests / arcs singleton across
-calls AND across stores), a hostile user_interests set must still yield a
-structurally sane portfolio, and user interests must never leak into the
-persona as instructions (they are data the companion shares, rendered only
-inside the fixed core template).
-
-Every test is deterministic: fixed seeds, no real clock, no LLM.
-"""
+Double-bootstrap never regenerates identity; hostile user interests stay data."""
 
 from __future__ import annotations
 
@@ -37,10 +28,8 @@ HOSTILE_INTERESTS = (
 
 
 def test_b1a_double_bootstrap_singleton_across_calls(tmp_path):
-    """Two consecutive bootstraps on the SAME store — the second with a
-    DIFFERENT seed AND a DIFFERENT user — must load, never regenerate:
-    identical persona (name/core/interest portfolio incl. order), identical
-    arcs (same ids, same count, no duplicates), identical day agenda."""
+    """Two consecutive bootstraps on the SAME store (different seed and user) must
+    load, never regenerate: identical persona, arcs and day agenda."""
     store = make_store(tmp_path, "b1a.db")
     r1 = ensure_companion_initialized(
         store, seed=SEED_A, user=UserProfile(name="first", interests=HOSTILE_INTERESTS)
@@ -65,12 +54,7 @@ def test_b1a_double_bootstrap_singleton_across_calls(tmp_path):
         loaded = store.load_persona()
         assert loaded is not None
         assert [i.name for i in loaded.interests] == [i.name for i in r1.persona.interests]
-        # The STORED identity wins over a second caller's claim (2026-09-07:
-        # schema v9 gave `load_user_profile` a table, so the documented
-        # precedence -- stored > supplied > config > defaults -- finally has
-        # something to load). This is the stronger adversarial property: once
-        # onboarding has recorded who she is talking to, a later caller
-        # cannot rewrite it by passing a different user.
+        # The STORED identity wins over a second caller's claim.
         assert r2.user_profile.name == "first"
         assert store.load_user_profile().name == "first"
         assert r1.persona == store.load_persona()
@@ -79,10 +63,8 @@ def test_b1a_double_bootstrap_singleton_across_calls(tmp_path):
 
 
 def test_b1b_double_bootstrap_singleton_across_stores(tmp_path):
-    """The persona row is the bootstrap-complete marker: a FRESH store over
-    the SAME db file (restart) with a different seed and user must load the
-    stored identity byte-identically — no regeneration, no extra arcs, no
-    duplicated agenda."""
+    """A FRESH store over the SAME db file (restart) with a different seed and user
+    must load the stored identity byte-identically."""
     db = tmp_path / "b1b.db"
     s1 = SQLiteStore(db)
     r1 = ensure_companion_initialized(
@@ -107,10 +89,8 @@ def test_b1b_double_bootstrap_singleton_across_stores(tmp_path):
 
 
 def test_b1e_partial_initialization_never_regenerates_identity(tmp_path):
-    """Partially initialized DB (persona present, arcs wiped, agenda missing):
-    the bootstrap completes the MISSING pieces only — the persona identity is
-    never re-derived, and a subsequent bootstrap does not duplicate the
-    repaired arcs/agenda."""
+    """Partially initialized DB (persona present, arcs wiped, agenda missing): the
+    bootstrap completes the MISSING pieces only, never re-deriving the persona."""
     store = make_store(tmp_path, "b1e.db")
     r1 = ensure_companion_initialized(
         store, seed=SEED_A, user=UserProfile(name="u", interests=("mathematics",))
@@ -153,12 +133,8 @@ def test_b1e_partial_initialization_never_regenerates_identity(tmp_path):
 
 
 def test_b1c_hostile_user_interests_yield_sane_portfolio(tmp_path):
-    """A hostile/duplicated/empty user_interests set must not break the
-    clean-start chain: bootstrap completes, and the portfolio is structurally
-    valid — exact ⊆ user interests (dedup'd), adjacent ∩ exact == ∅ and every
-    adjacent node within the configured adjacency hops of a user interest,
-    independent outside that region; no duplicate portfolio names; salience
-    inside the bucket ranges; identical profile across repeated calls."""
+    """A hostile/duplicated/empty user_interests set must still complete the chain,
+    with a structurally valid, duplicate-free portfolio."""
     store = make_store(tmp_path, "b1c.db")
     r = ensure_companion_initialized(
         store, seed=SEED_A, user=UserProfile(name="attacker", interests=HOSTILE_INTERESTS)
@@ -201,12 +177,8 @@ def test_b1c_hostile_user_interests_yield_sane_portfolio(tmp_path):
 
 
 def test_b1d_interests_never_leak_into_persona_as_instructions():
-    """Interests are DATA, never instructions: even when hostile strings are
-    the ONLY exact candidates (they are sampled into the portfolio), the
-    persona core stays the fixed template — hostile text can only appear
-    inside the prose sentence as a shared-interest noun, never as a
-    standalone line, never before the identity sentence, and the core is
-    byte-identical to the pure template function of the buckets."""
+    """Interests are DATA, never instructions: the persona core stays the fixed
+    template even when hostile strings are the only exact candidates."""
     from harness.persona import build_persona
 
     graph = build_catalog()

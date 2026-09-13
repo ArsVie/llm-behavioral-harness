@@ -1,67 +1,6 @@
-"""Companion domain contracts — vertical slice Wave 0 (A1).
-
-Owns the higher-order companion concepts that live ABOVE the stochastic engine:
-interests, routines, persona, life arcs, agendas, memory tiers, proactive
-intents, generation controls, and the integration contract ``CompanionSnapshot``.
-
-Scope and conventions
----------------------
-* Stdlib only (``dataclasses``, ``enum``, ``typing``). No imports from sqlite,
-  httpx, engine, or other harness modules — persistence and LLM concerns belong
-  to their own layers.
-* All timestamps are absolute float hours ``t_h`` (t_h = 0.0 is day 0 at 00:00;
-  local hour = t_h % 24; the day of an event is ``int(t_h // 24)``).
-* Every type below is a frozen dataclass (or an Enum); instances are immutable
-  values, never mutated in place.
-
-Invariants (binding)
---------------------
-1. ``UserAffectObservation`` and ``CompanionBehaviorState`` are DISTINCT types:
-   they share no field names and there is NO implicit conversion between them,
-   ever. Observing the companion's behavior state never implies anything about
-   the user's affect (and vice versa); any mapping between the two must be an
-   explicit, documented transformation elsewhere — never inside these types.
-
-2. ``MemoryContext`` carries all four memory tiers plus evidence anchors:
-   L1 ``recent_turns``, L2 ``session_context``, L3 ``episodes``,
-   L4 ``user_model`` (a consolidated projection; ``None`` only while no
-   consolidated model exists yet), and ``evidence_anchors`` (exact verbatim
-   excerpts that ground the context).
-
-3. ``ProactiveIntent`` has NO optional source fields: ``source_type``,
-   ``source_id``, ``hook`` and ``evidence`` are all required and non-empty.
-   There can be no proactive reason without a source — a schedule event points
-   at ``agenda_item:pottery_2026_08_08``, never at ``reason="schedule"``.
-
-4. No cycle-phase labels and no raw engine state (internal phase labels,
-   hormone variables, mood parameters, or cycle-day indices) appear in any
-   domain object or conversation-visible string.
-
-5. ``ContactOpportunity`` carries NO semantic reason: it means only that the
-   stochastic scheduling process indicates a plausible time to consider
-   initiating contact. Semantic motivation is resolved afterward into a
-   ``ProactiveIntent``, which MUST be grounded in a real source.
-
-6. The L4 memory taxonomy is defined exactly once, as the canonical enum
-   ``UserModelCategory`` (8 categories). Stores consume this single enum and
-   never infer categories from string prefixes or free-form keys.
-
-7. ``MemoryPolicy`` distinguishes the research-faithful structured-memory
-   condition (``STRUCTURED_MEMORY``) from the explicitly experimental
-   topicality-boosted variant (``STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT``,
-   flagged by ``is_experimental``).
-
-8. The ``Conversation`` is the unit of dialogue: every turn belongs to
-   exactly one conversation, conversations are opened by either party and
-   closed with a recorded ``close_reason``, and ``closing_tendency`` is a
-   real actuator whose effect is observable in turn counts and close
-   reasons — never a bare prompt string. Memory sessions, judge sampling
-   and relational metrics all key off the conversation boundary.
-
-9. ``AblationClaim`` is the effectiveness contract of the ablation matrix:
-   every non-FULL condition declares at least one claim, and a condition
-   whose claim fails its pre-flight check is a NULL ablation — fixed or
-   dropped from the matrix BEFORE any generation runs.
+"""Companion domain contracts — the higher-order companion concepts above the
+stochastic engine. Stdlib only; every type is a frozen dataclass (or Enum) and
+timestamps are absolute float hours ``t_h``.
 """
 
 from __future__ import annotations
@@ -103,10 +42,7 @@ class Routine:
 class UserProfile:
     """The user's onboarding identity: a display name plus their interests.
 
-    Interest names are plain strings; they may or may not exist in the
-    interest catalog. The companion's EXACT-shared interests are drawn from
-    this set regardless of catalog membership, while adjacency is computed
-    against the catalog for the names that do exist (see ``harness.persona``).
+    Interest names are plain strings and may not exist in the catalog.
     """
 
     name: str
@@ -185,8 +121,7 @@ class CompanionBehaviorState:
     """The companion's own behavioral state, derived from a BehaviorDirective.
 
     Distinct from ``UserAffectObservation``: no shared fields, no implicit
-    conversion between the two (module invariant 1). ``directive_ref`` is an
-    opaque id of the BehaviorDirective that produced this state.
+    conversion. ``directive_ref`` identifies the directive that produced it.
     """
 
     directive_ref: str
@@ -212,15 +147,13 @@ from harness.domain_memory import (  # noqa: F401 - compat re-export
     UserModelCategory,
 )
 
-# MemoryContext stays here: it references Turn, which lives in this module,
-# and moving either one would make the two modules import each other.
 @dataclass(frozen=True)
 class MemoryContext:
-    """The bounded memory slice handed to composition (module invariant 2).
+    """The bounded memory slice handed to composition.
 
     L1 ``recent_turns`` + L2 ``session_context`` + L3 ``episodes`` +
-    L4 ``user_model`` (``None`` only before any consolidation) +
-    ``evidence_anchors`` (exact verbatim excerpts).
+    L4 ``user_model`` (``None`` before any consolidation) + ``evidence_anchors``
+    (exact verbatim excerpts).
     """
 
     recent_turns: tuple[Turn, ...]
@@ -235,16 +168,9 @@ class MemoryContext:
 class ContactOpportunity:
     """A plausible time to consider initiating contact — and nothing more.
 
-    Produced by the stochastic scheduling process (module invariant 5); it
-    carries NO semantic reason such as ``"schedule"``. Semantic motivation
-    is resolved afterward into a grounded ``ProactiveIntent``, which links
-    back to this opportunity via ``opportunity_id``.
-
-    ``hazard_components`` maps hazard-source names to their contributions
-    (e.g. ``{"base": 0.041, "circadian": 1.32, "initiative": 1.18,
-    "prior_score": 0.91}``); ``initiative_multiplier`` and
-    ``previous_score_multiplier`` are the multiplier values applied to the
-    hazard at this opportunity.
+    It carries NO semantic reason; motivation is resolved separately into a
+    grounded ``ProactiveIntent`` linked back via ``opportunity_id``.
+    ``hazard_components`` maps hazard-source names to their contributions.
     """
 
     id: str
@@ -258,15 +184,12 @@ class ContactOpportunity:
 
 @dataclass(frozen=True)
 class ProactiveIntent:
-    """A grounded reason to contact the user (module invariant 3).
+    """A grounded reason to contact the user.
 
-    Every field except ``opportunity_id`` is REQUIRED and non-empty —
-    especially ``source_type`` / ``source_id`` / ``hook`` / ``evidence``.
-    There is no proactive reason without a source; ``evidence`` is the
-    provenance chain. ``opportunity_id`` links to the ``ContactOpportunity``
-    that made this a plausible moment (default ``None`` for additive
-    compatibility while schedulers still create intents directly; it becomes
-    required once real opportunities flow).
+    Every field except ``opportunity_id`` is REQUIRED and non-empty: there is
+    no proactive reason without a source. ``evidence`` is the provenance
+    chain; ``opportunity_id`` links to the ``ContactOpportunity`` that made
+    this a plausible moment.
     """
 
     id: str
@@ -290,8 +213,7 @@ class GenerationControls:
     closing_tendency: float
     initiative_factor: float
     closing_guidance: str = ""
-    # assembler-visible continuation policy derived from closing_tendency;
-    # never an unused number (plan §15 seam).
+    # assembler-visible continuation policy derived from closing_tendency.
 
 
 @dataclass(frozen=True)
@@ -322,13 +244,11 @@ class Turn:
 
 @dataclass(frozen=True)
 class ConversationTurn:
-    """One turn inside a ``Conversation`` (module invariant 8).
+    """One turn inside a ``Conversation``.
 
-    ``speaker`` is the party that produced the turn — ``"user"`` or
-    ``"companion"`` (the ``role`` strings persisted on ``messages`` rows are
-    ``"user"``/``"assistant"``; this type uses the dialogue-level wording).
-    ``turn_index`` is 0-based within its conversation and ``conversation_id``
-    links the turn to its parent ``Conversation``.
+    ``speaker`` is ``"user"`` or ``"companion"`` — the ``role`` strings on
+    persisted ``messages`` rows are ``"user"``/``"assistant"`` instead.
+    ``turn_index`` is 0-based within the conversation.
     """
 
     speaker: Literal["user", "companion"]
@@ -340,15 +260,14 @@ class ConversationTurn:
 
 @dataclass(frozen=True)
 class Conversation:
-    """One sustained multi-turn dialogue (module invariant 8).
+    """One sustained multi-turn dialogue.
 
-    A conversation is opened by the first message of either party and closed
-    by exactly one of the four ``close_reason`` values (or left open while it
-    is still running: ``closed_t_h is None`` and ``close_reason is None``).
-    ``closing_tendency`` becomes mechanically observable here: a high closing
-    tendency raises the probability that ``close_reason == "closing_tendency"``
-    and that the conversation has fewer turns. Memory sessions, judge
-    sampling and relational metrics all key off this boundary.
+    Opened by the first message of either party, closed by exactly one
+    ``close_reason`` value, or still open (``closed_t_h`` and ``close_reason``
+    both ``None``). ``closing_tendency`` is mechanically observable: a high
+    value raises the probability of ``close_reason == "closing_tendency"`` and
+    shortens the conversation. Sessions, judge sampling and relational metrics
+    key off this boundary.
     """
 
     id: str
@@ -365,10 +284,9 @@ class Conversation:
 class CompanionSnapshot:
     """Integration contract: the single place lanes meet before composition.
 
-    Persona, behavior, activity, agenda, life arcs, memory context, recent
-    conversation and (optionally) the proactive intent that justifies a
-    spontaneous message. Optional slots are ``None`` when not applicable —
-    but a present ``ProactiveIntent`` is always fully grounded.
+    Persona, behavior, activity, agenda, life arcs, memory context and the
+    recent conversation; optional slots are ``None`` when not applicable, but
+    a present ``ProactiveIntent`` is always fully grounded.
     """
 
     persona: PersonaProfile
@@ -383,32 +301,15 @@ class CompanionSnapshot:
 
 @dataclass(frozen=True)
 class AblationClaim:
-    """Effectiveness contract of one matrix condition (module invariant 9).
+    """Effectiveness contract of one matrix condition.
 
-    Every non-FULL condition declares at least one claim about the channel it
-    ablates. ``check(cell_records, full_records)`` is evaluated by the
-    pre-flight against the condition's own run records vs FULL's; a claim
-    that fails marks the condition a NULL ablation, which BLOCKS the matrix
-    until the condition is fixed or dropped.
-
-    ``channel`` is one of the four ablatable channels: ``"timing"`` (the
-    contact-timing hazard), ``"memory_store"`` (which memory mechanism is
-    used), ``"generation_controls"`` (the mechanical actuation: token
-    budget / latency / closing policy) or ``"life_state"`` (the life arcs
-    and agenda lanes).
-
-    ``min_days`` is the horizon at which the ablated mechanism can have
-    ACTED — the earliest a real divergence can materialize (e.g. score
-    feedback can't land before day 2-3, so timing claims carry
-    ``min_days >= 4``). The pre-flight reports a below-horizon claim as
-    NOT EVALUABLE, never FAIL: asserting divergence before the cause can
-    have acted is testing an effect before its mechanism exists. ``1``
-    means evaluable at any horizon.
-
-    Records shape (documented by convention, like ``ContactOpportunity``
-    hazard keys): ``cell_records``/``full_records`` are per-condition summary
-    dicts produced by the pre-flight driver, carrying AT LEAST
-    ``n_proactive``, ``n_reactive``, ``n_assistant_turns``,
+    ``check(cell_records, full_records)`` is evaluated by the pre-flight
+    against the condition's own run records vs FULL's; a failing claim marks
+    the condition a NULL ablation. ``channel`` is one of the four ablatable
+    channels; ``min_days`` is the horizon before which the ablated mechanism
+    cannot have acted (a below-horizon claim is NOT EVALUABLE, never FAIL;
+    ``1`` means evaluable at any horizon). ``cell_records``/``full_records``
+    carry at least ``n_proactive``, ``n_reactive``, ``n_assistant_turns``,
     ``n_blank_assistant_turns``, ``n_conversations`` and
     ``mean_turns_per_conversation``.
     """

@@ -1,14 +1,6 @@
-"""A9 Iteration-2 adversarial wave — PROMPT-BOUNDARY attack class (plan §5-A9
-PR1, plan §16 invariants 14-15).
+"""Adversarial prompt-boundary tests (PR1): retrieved memories are quoted data, not instructions.
 
-Attacks on the system-prompt boundary: a RETRIEVED memory containing
-"ignore all previous instructions" must be rendered as QUOTED DATA strictly
-after the MEMORY_EVIDENCE_HEADER marker — never as an instruction; recent
-turns appear exactly once (never duplicated into the system prompt); raw
-user text never becomes an unbounded system instruction.
-
-Deterministic only: no LLM (FakeClient), no real clock.
-"""
+Deterministic only: FakeClient, no real clock."""
 
 from __future__ import annotations
 
@@ -77,10 +69,7 @@ def _snapshot(*, episodes=(), anchors=(), proactive_intent=None) -> CompanionSna
 
 
 def test_pr1_injection_memory_rendered_quoted_after_header():
-    """The injection text inside a RETRIEVED memory (episode summary AND
-    verbatim anchor) appears strictly AFTER the MEMORY_EVIDENCE_HEADER, in
-    the 'Relevant memories:' section — the header must precede every byte of
-    user-authored text."""
+    """Injection text inside a retrieved memory renders strictly after MEMORY_EVIDENCE_HEADER."""
     ep = _episode_with_anchor("ep_evil", f"user said: {INJECTION}", INJECTION)
     prompt = assemble_snapshot(_snapshot(episodes=(ep,), anchors=(INJECTION,)))
     assert MEMORY_EVIDENCE_HEADER in prompt
@@ -97,9 +86,7 @@ def test_pr1_injection_memory_rendered_quoted_after_header():
 
 
 def test_pr1b_injection_never_gains_system_instruction_authority():
-    """The persona identity/core section comes FIRST; the injection never
-    precedes it, never appears as its own line, and no imperative wrapper
-    ('You must…') is derived from it."""
+    """The persona core comes first; the injection never gains instruction authority."""
     ep = _episode_with_anchor("ep_evil", INJECTION, INJECTION)
     prompt = assemble_snapshot(_snapshot(episodes=(ep,), anchors=(INJECTION,)))
     # identity sentence first, hostile text follows it
@@ -132,9 +119,7 @@ def test_pr1c_empty_memory_slice_never_renders_header():
 
 
 def test_pr2_recent_turns_appear_exactly_once(tmp_path):
-    """End-to-end through the real Session: each recent turn's text appears
-    EXACTLY ONCE across the system prompt + message payload of the next
-    call — raw dialogue is never duplicated into the system prompt."""
+    """Each recent turn appears exactly once across system prompt + payload of the next call."""
     store = SQLiteStore(tmp_path / "pr2.db")
     try:
         store.save_daily_state(0, {"day": 0, "M": 6, "m": 0.0, "g": 0.7,
@@ -179,10 +164,7 @@ def test_pr2_recent_turns_appear_exactly_once(tmp_path):
 
 
 def test_pr3_raw_user_text_never_becomes_unbounded_system_instruction(tmp_path):
-    """A huge raw user message (an attempted prompt injection) must NOT be
-    absorbed into the system prompt: the system prompt stays bounded and
-    contains NONE of the payload — the payload lives once in the user
-    message only."""
+    """A huge raw user message stays bounded, never absorbed into the system prompt."""
     store = SQLiteStore(tmp_path / "pr3.db")
     try:
         store.save_daily_state(0, {"day": 0, "M": 6, "m": 0.0, "g": 0.7,
@@ -221,9 +203,7 @@ def test_pr3_raw_user_text_never_becomes_unbounded_system_instruction(tmp_path):
 
 
 def test_pr4_sections_stay_bounded_under_adversarial_snapshots():
-    """A hostile snapshot (many agenda items, many arcs, many memories) still
-    assembles a bounded prompt: whole sections are capped by construction
-    and the total never exceeds MAX_PROMPT_CHARS."""
+    """A hostile snapshot still assembles a bounded prompt within MAX_PROMPT_CHARS."""
     from harness.assembler import (
         AGENDA_ITEMS_MAX,
         LIFE_ARCS_MAX,

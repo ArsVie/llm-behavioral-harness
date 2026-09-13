@@ -1,13 +1,10 @@
 """v4 -> v5 migration tests (runtime redesign WS2: decisions + steering).
 
-Builds a database with the PRE-v5 schema (the CURRENT repo schema at the WS2
-base commit 3af0a5a — v4 DDL embedded VERBATIM below, deliberately NOT
-imported from harness.store), seeds it across the table families, then
-instantiates the new store: the v4 -> v5 migration must add the
-``decision_records`` and ``steering_queue`` tables, every piece of legacy
-data must remain present and interpretable, re-opening the same database
-(migration runs twice) must be a no-op, and the new steer/decision APIs must
-work on a fresh database. No destructive migration.
+Builds a database with the PRE-v5 schema (v4 DDL embedded VERBATIM below, not
+imported), seeds it across the table families, then opens it with the new store:
+the migration adds ``decision_records`` and ``steering_queue``, legacy data
+stays present and interpretable, re-opening is a no-op, and the new
+steer/decision APIs work on a fresh database.
 """
 
 import sqlite3
@@ -386,9 +383,8 @@ def test_v4_to_v5_migration_preserves_everything(tmp_path):
             "PRAGMA table_info(steering_queue)"
         )
     }
-    # "attempts" arrived with v11 (the steer retry budget). The v5 shape is
-    # still asserted as a SUBSET so this test keeps guarding what v5 created
-    # without failing on every later additive migration.
+    # The v5 shape is asserted as a SUBSET, so later additive columns (e.g. the
+    # v11 "attempts") do not fail this test.
     assert {
         "id", "day", "t_h", "kind", "payload_json", "delivered_t_h",
         "boundary", "status", "seen_turn_id",

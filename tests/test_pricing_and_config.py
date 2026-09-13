@@ -1,9 +1,7 @@
 """Pricing-table lookup and channel selection.
 
-Both are small, both are load-bearing: the pricing table is the only thing
-turning the token ledger into dollars (this gateway reports no cost field),
-and channel selection is what keeps `import harness.config` from requiring
-python-telegram-bot to be installed.
+The pricing table turns the token ledger into dollars; channel selection
+keeps ``import harness.config`` free of python-telegram-bot.
 """
 
 from __future__ import annotations

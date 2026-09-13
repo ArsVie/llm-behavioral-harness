@@ -1,33 +1,18 @@
-"""Two-lane credential resolution (WS-C, 2026-08-16).
+"""Two-lane credential resolution.
 
-LANES and their env contract:
+Lane env contract:
 
-    product  — the live companion actor (live_companion, sim/run_*)
-        token:    LILY_TOKEN
-        base_url: LILY_BASE_URL (optional)
-    research — judges + ALL experiment-generated replies
-        token:    JUDGE_GENERATOR_TOKEN
-        base_url: JUDGE_GENERATOR_BASE_URL (optional)
+    product  — live companion actor: LILY_TOKEN, LILY_BASE_URL (optional)
+    research — judges + experiment replies: JUDGE_GENERATOR_TOKEN,
+               JUDGE_GENERATOR_BASE_URL (optional)
 
-Rules (contract docs/plan-ux-tokens-spend-2026-08-16.md §WS-C):
+Rules:
 
 - The lane token is REQUIRED for live calls: :func:`resolve_credentials`
-  raises RuntimeError naming the lane and the env var — never the value —
-  and never falls back to ``LLM_API_KEY`` / ``OPENCODE_GO_API_KEY``.
-- Base URL precedence: lane-specific var -> ``LLM_BASE_URL`` (generic
-  fallback that keeps un-laned call sites working) -> ``None`` (caller
-  applies the client's DEFAULT_BASE_URL = the current gateway). Lane-specific
-  URLs are opt-in; whether lanes eventually target different providers is a
-  user decision, not assumed here.
-- Values are never logged or printed: only the lane + the env var NAME
-  (redacted label), e.g. ``credentials: product lane — token present
-  (LILY_TOKEN)``.
-- :func:`load_env_file` is the Python-side twin of the shell recipe
-  ``set -a; . "$REPO/.env"; set +a``: a minimal dotenv-style loader that
-  never prints values and never overrides values already present in the
-  environment.
-- :func:`probe_lane` is a content-free auth probe (GET ``{base}/models``)
-  used by the live smoke on each lane.
+  raises RuntimeError naming the lane and the env var — never the value.
+- Base URL precedence: lane-specific var -> ``LLM_BASE_URL`` -> ``None``
+  (caller applies the client's DEFAULT_BASE_URL).
+- Values are never logged or printed: only the lane + the env var NAME.
 """
 
 from __future__ import annotations
@@ -53,10 +38,8 @@ _logger = logging.getLogger(__name__)
 def load_env_file(path: str | Path, env: dict[str, str] | None = None) -> None:
     """Load a dotenv-style file into the environment (values never printed).
 
-    Missing files are a no-op. Keys already present in the environment are
-    never overridden (same contract as the pre-WS-C runners). The shell
-    equivalent is ``set -a; . "$REPO/.env"; set +a`` — this loader exists so
-    Python runners can source the repo-root .env programmatically.
+    Missing files are a no-op; keys already present are never overridden.
+    Shell equivalent: ``set -a; . "$REPO/.env"; set +a``.
     """
     target = env if env is not None else os.environ
     p = Path(path)
@@ -79,9 +62,9 @@ def resolve_credentials(
     """Resolve (api_key, base_url) for the lane.
 
     Raises RuntimeError naming the lane and the required env var when the
-    lane token is missing — the value is never mentioned, and there is no
-    silent fallback to ``LLM_API_KEY`` / ``OPENCODE_GO_API_KEY``. The logged
-    redacted label carries the env var NAME only.
+    lane token is missing — never the value, and with no fallback to
+    ``LLM_API_KEY`` / ``OPENCODE_GO_API_KEY``. Logged labels carry the env
+    var NAME only.
     """
     if lane not in _LANE_ENV:
         raise ValueError(f"unknown lane {lane!r} — expected one of {LANES}")
@@ -100,8 +83,7 @@ def resolve_credentials(
     if base_url_var and src.get(base_url_var):
         base_url = src[base_url_var]
     elif src.get("LLM_BASE_URL"):
-        # Generic fallback: keeps un-laned call sites and the current gateway
-        # behavior when no lane-specific URL is configured.
+        # Generic fallback for un-laned call sites.
         base_url = src["LLM_BASE_URL"]
     return token, base_url
 
@@ -109,9 +91,8 @@ def resolve_credentials(
 def probe_lane(lane: str, *, timeout_s: float = 15.0, env: Mapping[str, str] | None = None) -> str:
     """Content-free auth probe for a lane: GET ``{base}/models``.
 
-    Sends NO content (no chat payload, no user text) — the smoke confirms
-    auth by presence of a 200 on the models endpoint. Returns the base URL
-    that authenticated. Raises RuntimeError on auth/transport failure.
+    Sends no content; confirms auth by a 200 on the models endpoint. Returns
+    the base URL that authenticated; raises RuntimeError otherwise.
     """
     import httpx
 

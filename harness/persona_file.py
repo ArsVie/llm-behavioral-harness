@@ -1,37 +1,7 @@
 """The authored persona core, loaded from a file named by config.
 
-Why this exists
----------------
-The companion's voice — who she is, how she talks, what she calls him — is
-authored prose, not something the engine can derive. It used to have nowhere
-to live. ``harness.persona._build_core`` writes a generated sentence over the
-sampled portfolio ("You are Nova, a warm and attentive companion with your
-own days and rhythms..."), and ``assembler`` prefers the stored core over its
-own ``DEFAULT_PERSONA_CORE``, so the authored voice could only ever get into
-a prompt by hand-editing ``persona.core`` in the database.
-
-That is exactly what happened, and on 2026-09-08 a DB reset erased it. Two
-runs then talked to the owner as "a warm and attentive companion", closing
-every turn with a question, and nothing in the tree recorded that anything
-was missing — because nothing in the tree ever held the persona.
-
-The contract
-------------
-* ``HARNESS_PERSONA_FILE`` names a file whose CONTENT IS THE PROMPT. It is
-  read verbatim apart from stripped whitespace, an optional YAML frontmatter
-  block, and markdown headings (a persona kept as ``SOUL.md`` should not
-  inject "# SOUL.md — Lily Agent Personality" into a system prompt).
-* Unset, empty, missing, unreadable or blank all fall back to the built-in
-  Nova default. A persona file is an override, never a requirement, and a
-  typo in the path must not take the companion down.
-* The file is AUTHORITATIVE on every start, not just a cold one
-  (:func:`harness.bootstrap.ensure_companion_initialized` recomposes the
-  stored core from it). Editing the file and restarting is the whole
-  workflow: no reset, no hand-patching, and no way for a reset to silently
-  revert the voice.
-* The authored prose does NOT replace the drawn interest sentence — the two
-  are composed, authored voice first, so she still knows what this cycle's
-  portfolio made her care about.
+The file is authoritative on every start; unset, empty, missing, unreadable or
+blank all fall back to the built-in default.
 """
 
 from __future__ import annotations
@@ -43,10 +13,8 @@ from pathlib import Path
 #: Config key naming the persona file. Unset -> the Nova default.
 PERSONA_FILE_ENV = "HARNESS_PERSONA_FILE"
 
-#: Upper bound on the authored core. The whole assembled system prompt is
-#: capped at ``assembler.MAX_PROMPT_CHARS`` (12000) and the persona is one
-#: section of it; a file past this is a mistake (a whole design doc pasted
-#: in), so it is refused rather than silently eating the budget.
+#: Upper bound on the authored core. The whole assembled prompt is capped at
+#: ``assembler.MAX_PROMPT_CHARS``; a file past this is refused, not truncated.
 MAX_CORE_CHARS = 4000
 
 #: YAML frontmatter block at the very start of the file.
@@ -66,8 +34,7 @@ def clean_core(text: str) -> str:
     """Reduce raw file content to the prose that belongs in a prompt."""
     body = _FRONTMATTER.sub("", text or "")
     body = _HEADING.sub("", body)
-    # Collapse the blank runs that stripping headings leaves behind, but keep
-    # paragraph breaks: the authored voice is written in paragraphs.
+    # Collapse the blank runs left by heading stripping; keep paragraph breaks.
     body = re.sub(r"\n{3,}", "\n\n", body)
     return body.strip()
 
@@ -75,8 +42,8 @@ def clean_core(text: str) -> str:
 def load_authored_core(path: Path | None = None, *, logger=None) -> str | None:
     """The authored persona core, or None to use the built-in default.
 
-    Never raises. A configured-but-broken file logs and falls back, because a
-    bad path must not be the difference between a companion and no companion.
+    Never raises: a configured-but-unreadable, blank or oversized file logs and
+    falls back.
     """
     target = path if path is not None else persona_file_path()
     if target is None:

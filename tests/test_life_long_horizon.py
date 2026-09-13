@@ -1,22 +1,6 @@
-"""Iteration-2 (A2) long-horizon life tests (plan §5-A2 T4, §16 acceptance).
-
-Deterministic seeded runs at 30/60/120 days over the real persistence lane
-(SQLite for the restart-trajectory check, a seam-faithful in-memory fake for
-the property runs), verifying:
-
-* active life does not permanently die — no day ever ends with zero active
-  arcs (post-step replenishment is certain);
-* not every arc remains forever — completions/abandonments happen;
-* not every arc completes — some arcs are abandoned or still active;
-* new arcs appear — replenishment spawns replacements;
-* schedules are not identical across days;
-* no impossible overlapping current activities — CurrentActivity is always
-  single-valued, in-progress at its t_h, and never a future plan;
-* persistence/restart does not alter the seeded trajectory — a 120-day run
-  split by a day-60 restart reproduces the straight run exactly.
-
-All runs are deterministic per (seed, day): draws come only from
-``stream_rng(seed, LIFE_STREAM, day)``, never from real clocks.
+"""Seeded 30/60/120-day life runs over the real persistence lane: active life never
+dies, arcs end but not all complete, new arcs appear, agendas vary, CurrentActivity
+is never ambiguous, and a day-60 restart reproduces the straight run exactly.
 """
 
 from __future__ import annotations
@@ -71,8 +55,7 @@ def _persona() -> domain.PersonaProfile:
 
 
 class _MemoryStore:
-    """Seam-faithful in-memory store (no persistence, no audit log): the
-    property runs below exercise the replenishment policy's base path."""
+    """Seam-faithful in-memory store (no persistence, no audit log)."""
 
     def __init__(self) -> None:
         self._arcs: dict[str, domain.LifeArc] = {}
@@ -217,10 +200,8 @@ def test_horizon_schedules_not_identical(days, seed):
 
 @pytest.mark.parametrize("days,seed", HORIZONS)
 def test_horizon_no_overlapping_current_activities(days, seed):
-    """At any moment CurrentActivity is single-valued and actually in
-    progress: resolve over a fine t_h grid inside the awake window and check
-    None-in-gaps, interval containment, never a future plan, never a skipped
-    item."""
+    """CurrentActivity is single-valued and in progress across a fine t_h grid inside
+    the awake window."""
     persona = _persona()
     store = _MemoryStore()
     _, _, agendas = _run_days(seed, persona, store, days)
@@ -265,9 +246,8 @@ def _arc_state(store) -> dict:
 
 
 def test_restart_preserves_seeded_trajectory_120(tmp_path):
-    """A 120-day run split by a day-60 restart (real SQLite persistence lane)
-    reproduces the straight run exactly: same day-60 persisted state, same
-    final arcs, same day-61..120 agendas, same per-day active counts."""
+    """A 120-day run split by a day-60 restart on the real SQLite lane reproduces the
+    straight run exactly: same persisted state, arcs, agendas and active counts."""
     from harness.store import SQLiteStore
 
     persona = _persona()

@@ -1,11 +1,9 @@
-"""Active-channel selection for the harness (Part B, seam B-3).
+"""Active-channel selection for the harness: one channel per process.
 
-One active channel per process. ``select_channel`` is the factory the async
-runtime (``sim/run_async.py``) calls with its ``--channel`` flag (default
-DEFAULT_CHANNEL). The env var ``HARNESS_CHANNEL`` may override that flag — it
-is read by run_async, NOT here: ``select_channel`` takes the name as a
-parameter. Concrete CLI/Telegram channels live in harness/channels; their imports
-are lazy so importing this module never requires optional dependencies.
+``select_channel`` is the factory (the caller passes the name; the
+``HARNESS_CHANNEL`` env var is read by the caller, not here). Concrete
+channels live in harness/channels and are imported lazily so this module
+never requires optional dependencies.
 """
 
 from __future__ import annotations
@@ -16,13 +14,14 @@ DEFAULT_CHANNEL = "cli"
 
 
 def select_channel(name: str, *, inbound: list[str] | None = None) -> Channel:
-    """Factory for the single active channel (one per process).
+    """Factory for the single active channel.
+
       name=='cli'      -> harness.channels.cli.CLIChannel()
       name=='telegram' -> harness.channels.telegram.TelegramChannel.from_env()
       name=='fake'     -> harness.channels.base.FakeChannel(inbound=inbound)
-    Import the telegram module LAZILY inside the branch so importing config
-    never requires python-telegram-bot to be installed. Unknown names raise
-    ValueError listing the valid names."""
+
+    Channel modules are imported lazily inside the branch; unknown names
+    raise ValueError listing the valid names."""
     if name == "cli":
         from harness.channels.cli import CLIChannel
 

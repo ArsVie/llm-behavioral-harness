@@ -1,14 +1,9 @@
-"""Deterministic fact extraction from user turns (extracted from
-``harness.summarization``, behaviour unchanged).
+"""Deterministic, conservative fact extraction from user turns.
 
-Conservative and regex-based by design: this is the layer whose output can
-become an authoritative L4 assertion, so it must never guess. Every fact
-carries its canonical ``UserModelCategory`` and the exact source excerpt,
-and ``MemoryAgent`` re-extracts from the RAW messages rather than trusting
-summary prose (provenance invariant, plan §5-A4 Task 5).
-
-``harness.summarization`` re-exports every name here, so existing imports
-are unaffected.
+Regex-based, and never guesses: this is the layer whose output can become an
+authoritative L4 assertion. Every fact carries its canonical
+``UserModelCategory`` and the exact source excerpt; ``harness.summarization``
+re-exports every name here.
 """
 
 from __future__ import annotations
@@ -22,12 +17,9 @@ from harness.domain import UserModelCategory
 class _Fact:
     """One structured fact extracted from a user turn (provenanced).
 
-    ``category`` is the CANONICAL L4 category (``UserModelCategory``) — the
-    enum is consumed here, never inferred from store conventions or string
-    prefixes. ``key`` stays a stable, human-readable provenance identifier
-    under the documented legacy prefixes (``user:`` / ``preference:`` /
-    ``relationship:``); the canonical category rides alongside it and is
-    persisted directly on the assertion row by the store.
+    ``key`` is a stable human-readable provenance identifier under the
+    ``user:`` / ``preference:`` / ``relationship:`` prefixes; ``category`` is
+    the canonical ``UserModelCategory``.
     """
 
     key: str          # stable assertion key, e.g. "user:dog:name"
@@ -79,12 +71,9 @@ def _clean(value: str) -> str:
 def _match_user_turn(text: str) -> tuple[str, str, str] | None:
     """First matching rule for one user turn, as ``(key, value, kind)``.
 
-    Order is load-bearing and unchanged: negation and retraction are tried
-    BEFORE the positive rules, so "I don't have a dog any more" never
-    registers as owning a dog. A rule whose regex matches but whose captured
-    subject is junk (or empties under ``_clean``) falls through to the next
-    rule rather than swallowing the turn — which is why each positive rule
-    re-checks its own capture instead of relying on the match alone.
+    Order is load-bearing: negation and retraction are tried BEFORE the
+    positive rules, so "I don't have a dog any more" never registers as
+    owning a dog.
     """
     m = _NEGATION_RE.search(text)
     if m and m.group(1).lower() not in _JUNK_NOUNS:
@@ -135,9 +124,7 @@ def _match_user_turn(text: str) -> tuple[str, str, str] | None:
 def _extract_facts(messages: list[dict]) -> list[_Fact]:
     """Conservative, deterministic fact extraction over USER turns only.
 
-    Returns facts deduplicated by (key, value) — first occurrence wins, so
-    repeated disclosures never create duplicate assertions downstream. Every
-    fact carries its canonical ``UserModelCategory`` (``_FACT_CATEGORY``).
+    Deduplicated by (key, value) — first occurrence wins.
     """
     facts: list[_Fact] = []
     seen: set[tuple[str, str]] = set()

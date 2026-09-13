@@ -9,7 +9,7 @@ manifiesto de la it2 (cvs_manifest) allí donde el diseño no cambió.
 
 El output JSON se congela en results/it3-g4-manifest/manifest.json y se
 commitea; ninguna hipótesis ni umbral cambia tras observar resultados sin
-crear un experimento nuevo (invariante 19/20 del plan).
+crear un experimento nuevo.
 
 Convención del repo: docstrings en español, identificadores en inglés.
 """
@@ -40,7 +40,7 @@ EXPERIMENT_NAME = "it3-perceptual-validity"
 SCHEMA_VERSION = "2.0"
 DAYS = 30
 
-# Margin decision 2026-08-10: count leg 14.4%, gap leg 12.5%, margin 0.15.
+# Count leg 14.4%, gap leg 12.5%, margin 0.15.
 RECONCILIATION = {
     "record": "results/it3-g2-horizon-split-reconciliation-2026-08-10.md",
     "three_flags_two_causes": {

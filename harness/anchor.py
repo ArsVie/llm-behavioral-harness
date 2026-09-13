@@ -1,9 +1,7 @@
-"""Real-time anchor — maps wall-clock epoch seconds to virtual hours (W-anchor, seam S2).
+"""Real-time anchor — maps wall-clock epoch seconds to virtual hours.
 
-Pure module: no I/O, no store dependency, no runtime wiring (W-runtime owns
-persistence and wiring later via seam S1 keys "anchor.epoch0_s" /
-"anchor.t_h0" / "anchor.tz"). A RealTimeAnchor freezes one point of the
-epoch -> virtual-hour line; t_h_at/epoch_of are exact inverses.
+Pure module (no I/O, no store); a RealTimeAnchor freezes one point of the
+epoch -> virtual-hour line and t_h_at/epoch_of are exact inverses.
 """
 
 from __future__ import annotations
@@ -38,27 +36,18 @@ class RealTimeAnchor:
         return self.epoch0_s + (t_h - self.t_h0) * SECONDS_PER_HOUR
 
     def real_at(self, t_h: float) -> datetime:
-        """The aware datetime of virtual hour ``t_h`` (UTC instant + tz name).
-
-        ``datetime.fromtimestamp(self.epoch_of(t_h), tz=ZoneInfo(self.tz))``:
-        pure epoch math, so the returned instant is exact and DST-invariant;
-        only its LOCAL rendering depends on the zone's offset history.
-        """
+        """The aware datetime of virtual hour ``t_h`` (UTC instant + tz name)."""
         return datetime.fromtimestamp(self.epoch_of(t_h), tz=ZoneInfo(self.tz))
 
 
 def anchor_for_fresh_start(now_epoch_s: float, tz: str = "America/Mexico_City") -> RealTimeAnchor:
-    """Anchor a fresh start: t_h0 = hours since local midnight in `tz`.
+    """Anchor a fresh start: t_h0 = absolute hours since local midnight in `tz`.
 
-    DST-safe: t_h0 is computed as absolute elapsed time since the local
-    midnight of `now_epoch_s` (epochs of UTC instants), so a spring-forward
-    day reads 2.5 at 03:30 and a fall-back day reads 2.5 at the repeated
-    01:30 — never the naive wall-clock hour.
+    DST-safe: elapsed time is measured on UTC instants, never the naive
+    wall-clock hour.
     """
     zone = ZoneInfo(tz)
     now_local = datetime.fromtimestamp(now_epoch_s, tz=zone)
     midnight = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    # Elapsed time since local midnight, computed on UTC instants so DST
-    # transitions do not skew the difference.
     t_h0 = (now_epoch_s - midnight.timestamp()) / SECONDS_PER_HOUR
     return RealTimeAnchor(epoch0_s=now_epoch_s, t_h0=t_h0, tz=tz)

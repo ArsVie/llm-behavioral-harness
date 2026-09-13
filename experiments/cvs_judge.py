@@ -1,6 +1,4 @@
-"""Judge protocol v2 — forced pairwise comparison (iteration-3 B9, closes F2/F3).
-
-Replaces the absolute 1-9 rating (v1, legacy) with FORCED PAIRWISE COMPARISON:
+"""Judge protocol v2 — forced pairwise comparison.
 
 - pairs are sampled WITHIN seed (never across seeds), blind labels
   "Transcript A"/"Transcript B", display order randomised per pass, condition
@@ -11,19 +9,17 @@ Replaces the absolute 1-9 rating (v1, legacy) with FORCED PAIRWISE COMPARISON:
 - aggregation: Bradley-Terry (MM algorithm) and Elo recover a per-condition
   scale from pairwise outcomes; judge identity (family + pass) is attached to
   every outcome;
-- attention probe (instruments F2): every pass includes a deliberately
-  corrupted transcript (40% of companion turns blanked, derived
-  deterministically from FULL_seed5001) paired against healthy references
-  (control pairs). A judge that prefers the corrupted transcript on any
-  control pair is DISQUALIFIED for that pass; its outcomes are excluded and
-  flagged in the report;
+- attention probe: every pass includes a deliberately corrupted transcript
+  (40% of companion turns blanked, derived deterministically from
+  FULL_seed5001) paired against healthy references (control pairs). A judge
+  that prefers the corrupted transcript on any control pair is DISQUALIFIED
+  for that pass; its outcomes are excluded and flagged in the report;
 - dimensions: the four v1 dimensions plus a fifth — calibrated challenge /
-  anti-sycophancy — which one-shot transcripts could not support;
-- §17.4 preserved: per-family scales and inter-family agreement are reported
-  explicitly; an effect seen by only one family is not established.
+  anti-sycophancy;
+- per-family scales and inter-family agreement are reported explicitly; an
+  effect seen by only one family is not established.
 
-The constants in this module are the preregistration (verbatim in the B9
-report, consumed by B10/G4).
+The constants in this module are the preregistration.
 """
 
 from __future__ import annotations
@@ -35,8 +31,6 @@ from pathlib import Path
 import numpy as np
 
 from experiments.cvs_manifest import DIMENSIONS
-
-# Protocol constants
 
 # Fifth dimension: calibrated challenge / anti-sycophancy.
 CALIBRATED_CHALLENGE = {
@@ -128,7 +122,7 @@ def _parse_stem(stem: str) -> tuple[str, int]:
 
 
 def blank_turn_stats(text: str) -> dict:
-    """Count companion turns and blank ones (the F2 instrument).
+    """Count companion turns and blank ones.
 
     A companion turn is a line starting with ``COMPANION_PREFIX``; it is
     blank when the content after the prefix is empty/whitespace.
@@ -147,8 +141,7 @@ def corrupt_transcript(text: str, rng: np.random.Generator, *,
                        blank_ratio: float = PROBE_BLANK_RATIO) -> str:
     """Blank ``blank_ratio`` of companion turns (deterministic given ``rng``).
 
-    Reproduces the F1 pattern (empty companion replies) on a healthy
-    transcript. User turns are never touched.
+    User turns are never touched.
     """
     lines = text.split("\n")
     companion_idx = [i for i, ln in enumerate(lines)
@@ -178,8 +171,8 @@ def sample_pairs(transcripts: dict[str, str], pass_id: int, *,
     Each pair is assigned the dimension ``universe_index % 5`` — stable
     across passes and caps. The universe is shuffled with
     ``default_rng(PAIRWISE_SAMPLE_SEED_BASE + pass_id)`` (same sampling for
-    every judge family — inter-family agreement compares the same pairs) and
-    capped at ``max_pairs`` (default: the whole universe).
+    every judge family) and capped at ``max_pairs`` (default: the whole
+    universe).
 
     Returns ``(pairs, sampling_meta)``.
     """
@@ -281,9 +274,8 @@ def parse_pair_response(raw: str) -> dict:
     """Parse the forced-pairwise JSON response (tolerant).
 
     Returns ``{"winner": "A"|"B"|None, "justification": str, "valid": bool}``.
-    Invalid: unparseable, winner missing/not A-or-B (ties count as invalid —
-    the protocol is FORCED), or empty justification (the one-sentence
-    justification is REQUIRED).
+    Invalid: unparseable, winner missing/not A-or-B (ties count as invalid),
+    or empty justification (the one-sentence justification is REQUIRED).
     """
     m = re.search(r"\{.*\}", raw, re.DOTALL)
     if not m:
@@ -312,11 +304,9 @@ class PairwiseFakeJudge:
     """Deterministic fake v2 judge for CI plumbing.
 
     mode='see'   — picks the transcript with FEWER blank companion turns; the
-                   corrupted probe always loses its control pairs (acceptance
-                   1: the protocol identifies the degraded transcript).
+                   corrupted probe always loses its control pairs.
     mode='blind' — ignores blanks; on control pairs it ALWAYS prefers the
-                   corrupted probe ("rates the corrupted transcript highly"),
-                   so it is disqualified for the pass (acceptance 2); its
+                   corrupted probe, so it is disqualified for the pass; its
                    justifications never mention blanks.
 
     Implements the same ``chat`` interface as ``harness.client`` clients.
@@ -687,13 +677,11 @@ def pairwise_report(out_dir: Path) -> dict:
 
 def severity_model(by_family: dict[str, dict[str, dict]],
                    dims: list[str]) -> dict:
-    """Legacy v1 path: per-family severity offsets β_j (brief item 7).
+    """Legacy v1 path: per-family severity offsets β_j.
 
-    Never average absolute family scores without modelling severity: for each
-    dimension, β_j = mean over transcripts rated by ≥2 families of
+    For each dimension, β_j = mean over transcripts rated by ≥2 families of
     (family score − cross-family mean at that transcript). Adjusted scores
-    (raw − β_j) are pooled per family; a family that systematically inflates
-    by +1.84 pts contributes that as its severity term, not as signal.
+    (raw − β_j) are pooled per family.
     """
     # Transcripts rated by two or more families, one score per family.
     fam_scores: dict[str, dict[str, float]] = {}

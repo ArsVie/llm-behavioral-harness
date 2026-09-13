@@ -1,13 +1,9 @@
 """Heuristic token pricing for the model-visible surface.
 
-The provider's own usage numbers are the only exact token counts in the
-store; the *composition* of a request is always an estimate. This module
-prices one request's parts with a fixed character heuristic and then anchors
-the parts to the provider's reported prompt size, so the composition bar sums
-to a number the provider actually billed while each slice keeps its share.
-
-Baseline semantics mirror DeepSeek Harness' token meter: ``usage`` when a
-provider anchor covers the priced surface, ``estimated`` when none does.
+Prices one request's parts with a fixed character heuristic, then anchors them
+to the provider's reported prompt size, so the parts sum to a billed number
+while each slice keeps its share. ``Anchor.kind`` records how exact that
+reconciliation was.
 """
 
 from __future__ import annotations
@@ -71,11 +67,9 @@ def estimate_tools(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
 class Anchor:
     """How the displayed prices were reconciled with the provider.
 
-    ``kind`` is ``usage`` when the provider reported prompt tokens for this
-    request and they cover the heuristic total, ``estimated`` when a provider
-    total exists but reads *below* the heuristic (the estimate overshoots, so
-    the prices are scaled down to the billed total and stay proportional),
-    and ``none`` when the provider reported nothing at all.
+    ``kind``: ``usage`` when the provider's prompt tokens cover the heuristic
+    total, ``estimated`` when they read below it (prices scale down to the billed
+    total), ``none`` when the provider reported nothing.
     """
 
     kind: str

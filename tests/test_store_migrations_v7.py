@@ -1,26 +1,13 @@
 """S1 real time: v6 -> v7 migration (nullable real timestamps) + write path.
 
-Builds a genuine v6 database by running the store's OWN historical
-migration chain (v2..v6) and stamping ``schema_meta`` to 6, seeds it across
-the conversation/agenda/proactive/message families, then opens it with the
-v7 store: the migration must add ONLY the seven nullable REAL columns
-(``conversations.opened_at/closed_at``, ``agenda_items.start_at/end_at``,
-``proactive_intents.created_at/valid_until_at``, ``messages.sent_at``),
-keep every pre-existing row intact and interpretable, be idempotent on
-re-open, and leave the version row at 7. No destructive step — the same
-shape of migration that runs on the live ``companion.db`` at next restart.
-
-The write-path tests pin the S1 contract: with an anchor attached every
-row-creation write resolves ``real_at(t_h)`` into the matching ``*_at``
-column; without an anchor all new columns stay NULL and the legacy columns
-are byte-identical to the pre-v7 write path (replay parity, G1).
-
-The live-DB copy test (``test_live_companion_db_migrates_additively``) runs
-the same verification against a COPY of the real populated live database
-(``results/live-companion/companion.db``, main tree) when that file is
-present; it is skipped elsewhere. The copy goes to a pytest tmp_path — the
-original is opened read-only and byte-compared before/after, and is NEVER
-touched by the migration.
+Builds a genuine v6 database by running the store's OWN historical migration
+chain (v2..v6), stamped 6, then opens it with the v7 store: only the seven
+nullable REAL columns are added (opened_at/closed_at, start_at/end_at,
+created_at/valid_until_at, sent_at), every pre-existing row stays intact, and
+re-open is idempotent. The write-path tests pin S1: with an anchor every
+row-creation write resolves ``real_at(t_h)`` into the matching ``*_at`` column;
+without one every new column stays NULL and the legacy columns stay
+byte-identical (replay parity).
 """
 
 import hashlib
@@ -92,12 +79,8 @@ _ORDER_BY = {
 
 
 def _build_v6_db(path) -> None:
-    """A genuine v6 database: the store's own v1..v6 chain, stamped 6.
-
-    Uses the historical migration functions verbatim (the same code that
-    shipped v6), so the pre-migration schema is exactly what a v6 live
-    database has — not a hand-approximation.
-    """
+    """A genuine v6 database: the store's own v1..v6 chain, stamped 6 (the
+    historical migration functions verbatim, not a hand-approximation)."""
     con = sqlite3.connect(path)
     con.row_factory = sqlite3.Row  # migration helpers read columns by name
     con.executescript(_SCHEMA)
@@ -457,9 +440,8 @@ def _live_db_candidates() -> list:
     "gitignored; this test runs where the real DB ships)",
 )
 def test_live_companion_db_migrates_additively(tmp_path):
-    """The REQUIRED live-schema verification: migrate a COPY of the real
-    populated companion.db. The original is opened read-only and its bytes
-    are compared before/after — the migration NEVER touches it."""
+    """Migrate a COPY of the real populated companion.db; the original is opened
+    read-only and byte-compared before/after."""
     src = _live_db_candidates()[0]
 
     def _sha(p) -> str:

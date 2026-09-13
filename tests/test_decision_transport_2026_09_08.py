@@ -1,29 +1,5 @@
-"""Guards for the four decision-lane fixes of 2026-09-08.
-
-What went wrong live, and what each fix pins:
-
-1. The aux call offered all three tool schemas, so an event pop-up came back
-   as ``tool_decide_reply`` — or as plain prose with no tool at all. 20 of 25
-   aux calls discarded in one evening. Measured against the live gateway:
-   1-in-3 wrong tool with three schemas offered, 0-in-3 with one. A forced
-   ``tool_choice`` would settle it outright but this model rejects one in
-   thinking mode, so prose is bounded (fix 2) rather than prevented.
-2. A failed decision is requeued, and nothing bounded the retries: the same
-   steer was re-asked every turn, one model call each, 4 -> 4 -> 5 -> 7 per
-   turn and climbing.
-3. Decisions replayed into context as a PROSE summary, so the history held no
-   evidence that tool calls happen here — every pop-up was a first-ever ask
-   appended after real dialogue, and answering the person was the likeliest
-   continuation.
-4. A go/initiate verdict pasted the verdict's ``reason`` into the channel as
-   her words ("...I'll send a warm in-character send-off and keep cooking":
-   third person, an intention rather than the act) and closed the
-   conversation BEFORE generating, so a user goodbye got silence.
-
-The ``reason`` field itself is untouched by all of this. It is the engine's
-audit trail and the reason the decision lane exists; it simply stopped being
-her mouth. ``test_reason_is_still_recorded_for_the_engine_study`` pins that.
-"""
+"""Guards for the decision lane: tool menu, retry budget, native replay,
+reason recording."""
 
 from __future__ import annotations
 
@@ -73,12 +49,7 @@ def _session(tmp_path, *, responses=None, name="d.db"):
 
 
 def test_logged_decide_call_records_the_payload_that_went_out(tmp_path):
-    """A stored call must be provably the call that was made.
-
-    The ledger recorded the request WITHOUT ``tools``, so a live cache reading
-    could not be reproduced from its own row. Three explanations of it survived
-    longer than they should have because of that gap.
-    """
+    """A stored call must be provably the call that was made."""
     session, client, store = _session(tmp_path)
     request = PopupRequest(
         popup_kind="tool_decide_event",
@@ -107,12 +78,7 @@ def _prefix_events(store) -> list[str]:
 
 
 def test_the_prefix_invariant_logs_a_rewrite_and_is_silent_otherwise(tmp_path, monkeypatch):
-    """Witness the append-only property at runtime, per lane.
-
-    A rewrite at the head costs the entire prefix (measured), so the check has
-    to exist — but it must never raise in a live run, and it must stay off
-    unless asked for.
-    """
+    """Witness the append-only property at runtime, per lane."""
     session, client, store = _session(tmp_path)
     lane = "chat"
     first = [{"role": "system", "content": "core"}, {"role": "user", "content": "hi"}]
@@ -143,13 +109,7 @@ def _role_leak_events(store) -> list[str]:
 
 
 def test_a_harness_event_in_a_user_slot_is_recorded_and_tolerated(tmp_path):
-    """The role convention, enforced at runtime (CONVENTIONS:27).
-
-    User-role content is what the USER said; an event that turns up in a user
-    slot is a leak worth knowing about. Checked on every call rather than behind
-    a flag -- it is a substring pass, and it must log and carry on, never raise:
-    a diagnostic sensor cannot be allowed to kill a live run.
-    """
+    """The role convention, enforced at runtime (CONVENTIONS:27)."""
     session, client, store = _session(tmp_path)
     clean = [
         {"role": "system", "content": "core"},
@@ -183,11 +143,7 @@ def test_the_prefix_invariant_is_scoped_per_lane(tmp_path, monkeypatch):
 
 
 def test_the_chat_leg_stores_its_wire_identity(tmp_path):
-    """The mainline leg stores its decode controls AND that it offered no tools.
-
-    The eval-cell path enriches its own repro rows, so this asserts on the LIVE
-    path — the rows a running bot writes.
-    """
+    """The mainline leg stores its decode controls AND that it offered no tools."""
     store = SQLiteStore(tmp_path / "audit.db", audit_mode=True)
     profile = _persona()
     store.save_persona(profile)
@@ -213,7 +169,7 @@ def test_the_chat_leg_stores_its_wire_identity(tmp_path):
 
 
 def test_a_textual_decision_records_that_it_offered_nothing(tmp_path):
-    """No tools is a FACT worth storing, not an absence to be inferred."""
+    """A textual decision records the absence of tools explicitly."""
     session, client, store = _session(tmp_path)
     request = PopupRequest(
         popup_kind="tool_decide_event", popup="x",
@@ -226,7 +182,7 @@ def test_a_textual_decision_records_that_it_offered_nothing(tmp_path):
     )
 
 
-# -- 1. the requested tool is the only one offered, and it is required ----- #
+# -- the requested tool is the only one offered ---------------------------- #
 
 
 def test_popup_call_requires_exactly_the_requested_tool(tmp_path):
@@ -247,12 +203,8 @@ def test_popup_call_requires_exactly_the_requested_tool(tmp_path):
         f"offered {offered} — a pop-up asks ONE named question, so the other "
         "schemas must not be on the table"
     )
-    # tool_choice is not sent at all. It cannot be narrowed on this model
-    # (always thinking; a forced choice 400s, verified against the live
-    # gateway 2026-09-08), and sending the only remaining value buys nothing:
-    # on the real decide body, omitted parsed 6/6 while "auto" parsed 5/6,
-    # same cache, no latency penalty (n=6 per arm, interleaved). Narrowing the
-    # MENU is the fix that is actually available; a named choice breaks calls.
+    # tool_choice is never sent: a forced choice breaks this model, and the
+    # only remaining value ("auto") buys nothing.
     assert call["tool_choice"] is None
 
 
@@ -272,7 +224,7 @@ def test_unknown_kind_falls_back_rather_than_offering_nothing(tmp_path):
     assert call["tool_choice"] is None, "the field is never sent"
 
 
-# -- 2. the retry budget is bounded --------------------------------------- #
+# -- the retry budget is bounded ------------------------------------------- #
 
 
 def test_a_steer_is_abandoned_once_its_retry_budget_runs_out():
@@ -323,7 +275,7 @@ def test_a_healthy_steer_is_never_abandoned():
     assert backend.storage[sid]["attempts"] == 0
 
 
-# -- 3. decisions replay as a native tool exchange ------------------------ #
+# -- decisions replay as a native tool exchange ---------------------------- #
 
 
 def _record(store, **over):
@@ -381,11 +333,7 @@ def test_a_textual_decision_still_forms_a_valid_pair(tmp_path):
 
 
 def test_tool_keys_survive_the_trip_to_the_provider(tmp_path):
-    """The copy into the request must not drop the pairing.
-
-    Every call site used to copy role and content only, which would strand an
-    assistant tool_calls message with no result — providers reject that.
-    """
+    """The copy into the request must not drop the pairing."""
     session, client, store = _session(tmp_path, responses=["hi", "second"])
     session.on_message("hey")
     _record(store)
@@ -410,14 +358,12 @@ def test_a_malformed_decision_row_never_breaks_context(tmp_path):
     assert turns
 
 
-# -- 4. reason is recorded, never spoken ---------------------------------- #
+# -- reason is recorded, never spoken -------------------------------------- #
 
 
 def test_reason_is_still_recorded_for_the_engine_study(tmp_path):
-    """The audit trail is the point of the decision lane — it must survive.
-
-    Only its use as DIALOGUE was removed.
-    """
+    """Reason is still recorded in the audit trail; only its use as dialogue
+    was removed."""
     session, client, store = _session(tmp_path, responses=["hi"])
     session.on_message("hey")
     rid = _record(store)

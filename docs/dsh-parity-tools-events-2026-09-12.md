@@ -14,16 +14,18 @@ Question: does our tool-calling and event-delivery implementation resemble their
 | schema type | `{name, description, parameters}` (`harness/tools.py:116`, inform variant `:215`) | `ToolSchema` = the same three fields, ALL required (`packages/llm/llm/src/types.ts:312-317`); `strict` deliberately removed | SAME |
 | wire mapping | wrapped in the OpenAI shape at the boundary (`harness/session.py:2797`) | `{type:'function', function:{...}}` (`llm-deepseek/src/serialize.ts:161-168`), dropped when empty (`:182`) | SAME |
 | how many | ONE per call — the pop-up's function (3 offered → wrong-tool 1-in-3, 1 offered → 0-in-3) | the catalog: 51 model-visible names; narrowed per call type (`subagent/child-agent.ts:174` restrict, code mode = `run_code` only, session-title = none) | DIVERGE (deliberate) |
-| `tool_choice` | sent as `"auto"` (`session.py:2798`) | NEVER sent (`llm/llm/README.md:97`, `llm-deepseek/README.md:112`: "not part of the core vocabulary (MVP cut…)") | DIVERGE |
-| reply parsing | first call whose name matches wins; empty args → `{}`; malformed JSON RAISES → re-ask (`tools.py:761-788`) | `try { return raw ? JSON.parse(raw) : {} } catch { return raw }` (`agent-loop/src/tool-calls.ts:104-110`) — bad JSON rides as the raw string, never rejects | DIVERGE |
+| `tool_choice` | NEVER sent (forced choice 400s in thinking mode; omitting parsed 6/6 vs 5/6 for `auto` against the live gateway, 2026-09-12) | NEVER sent (`llm/llm/README.md:97`, `llm-deepseek/README.md:112`: "not part of the core vocabulary (MVP cut…)") | SAME |
+| reply parsing | first call whose name matches wins; empty args → `{}`; malformed arguments salvaged from the raw text, never a hard reject (`harness/tools.py:_salvage_arguments`) | `try { return raw ? JSON.parse(raw) : {} } catch { return raw }` (`agent-loop/src/tool-calls.ts:104-110`) — bad JSON rides as the raw string, never rejects | SAME |
 | parallelism | one verdict per call | cap 10 (`constants.ts:6`), results committed in contiguous model order (`tool-calls.ts:145-160`), abort synthesizes an error result | n/a (ours is a verdict channel) |
-| results into the loop | verdict never becomes a message — `decision_records` is written but nothing feeds it back (known gap #79) | `ToolResultBlock` → user-role message → `role:'tool'` + `tool_call_id`, empty text `'(no output)'` (`serialize.ts:126-138`) | GAP |
+| results into the loop | the verdict rides the context as a native tool exchange — assistant `tool_calls` + `role:"tool"` result replayed at its boundary time (`harness/session.py:_decision_context_messages`) | `ToolResultBlock` → user-role message → `role:'tool'` + `tool_call_id`, empty text `'(no output)'` (`serialize.ts:126-138`) | SAME |
 | guidance lives | INLINE in the schema description ("this is NOT a verdict: do not initiate…") | dedicated `tool:<name>` system-prompt sections, band 99-150, sorted, joined `\n\n` (`system-prompt/src/index.ts:56-61`) | DIVERGE |
 | gates | no irreversible tool — verdicts only | 51 tools through a gate chain; approval = `allowed-once`, fail-closed; bash needs justification + human approval | different problem class |
 
 Conclusion: our minimal 3-field schema and the OpenAI wire wrapper are the same design
-they arrived at. The differences are parsing tolerance (they never reject malformed
-arguments; we raise) and choice policy (they never send `tool_choice`; we send `auto`).
+they arrived at, and the two deltas this note originally measured have since closed:
+malformed arguments are salvaged on both sides, neither side sends `tool_choice`, and
+the verdict now feeds back as a tool exchange. The remaining differences are the
+catalog size and the gate chain (a different problem class).
 
 ## Incoming events — one shared discipline, one capability they do not have
 

@@ -1,0 +1,2 @@
+2026-09-05 02:57:32,567 INFO     harness.credentials: credentials: product lane — token present (LILY_TOKEN)
+2026-09-05 02:57:32,604 INFO     harness.credentials: credentials: research lane — token present (JUDGE_GENERATOR_TOKEN)

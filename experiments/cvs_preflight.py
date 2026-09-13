@@ -1,35 +1,22 @@
-"""Pre-flight de ablación (Iteración 3, B8 / Gate G2) — la compuerta barata.
+"""Pre-flight de ablación (Gate G2) — la compuerta barata.
 
-Cierra F4 (descubrimiento después del gasto): cinco de siete ablaciones no
-ablaron y nadie lo supo hasta después de 4h12m de API real. Este driver corre
-TODAS las condiciones de la matriz × todas las semillas congeladas × 3 días
-con el cliente FAKE (segundos de costo) y evalúa cada condición contra su
-``AblationClaim`` declarado (harness/domain.py, invariante 9). Una condición
-cuya claim falla es una ABLACIÓN NULA: bloquea la matriz (exit != 0 / reporte
-fuerte) hasta arreglarse o descartarse.
+Corre TODAS las condiciones de la matriz × todas las semillas congeladas × 3
+días con el cliente FAKE y evalúa cada condición contra su ``AblationClaim``
+declarado (harness/domain.py, invariante 9). Una condición cuya claim falla es
+una ABLACIÓN NULA: bloquea la matriz (exit != 0 / reporte fuerte) hasta
+arreglarse o descartarse.
 
-El veredicto es una función del código, no una expectativa hardcodeada: las
-claims se evalúan contra los resúmenes reales de las células (hook
-``records_summary`` de cvs_common).
+Las claims se evalúan contra los resúmenes reales de las células (hook
+``records_summary`` de cvs_common) y se registran como lista plana de
+``AblationClaim`` en la sección marcada de abajo.
 
-Registro de claims: lista plana de ``AblationClaim`` en la sección marcada
-de abajo. Aditivo por diseño. En G2 se sustituyeron los placeholders de los
-canales B4 (generation_controls) y B5 (timing) por las claims preregistradas
-que esos workstreams comprometieron (B4: set plano 600/5.0/0.5/banda media vs
-FULL no degenerado + margen de amplitud 3.0x en delay; B5: la claim de
-manifiesto ``harness.scheduler.structured_no_state_claim`` — divergencia de
-conteo >= 15% y de gaps >= 10%, que se prueba en la matriz REAL en G5) y las
-claims de memoria (RAW_HISTORY/SIMPLE_RAG) ahora verifican CONDUCTA
-(evidencia recuperada no nula + conjunto recuperado distinto del de FULL),
-no la identidad configurada de la lane.
-
-SPLIT de compuerta (G2, corrección del usuario): el pre-flight responde
-"¿está dormido el canal?" con la barra baja GATE_MIN_DIVERGENCE; el umbral
-de hipótesis preregistrado (COUNT_DIVERGENCE_MIN = 0.15) NO se evalúa aquí —
-se prueba en la matriz real. Las claims declaran ``min_days`` (el horizonte
-en que su mecanismo puede haber actuado); por debajo se reportan NOT
-EVALUABLE, nunca FAIL. Horizonte por defecto: 30 días (el confirmatorio de
-la matriz); ``--smoke`` corre la leg estructural rápida de 3 días.
+El pre-flight responde "¿está dormido el canal?" con la barra baja
+GATE_MIN_DIVERGENCE; el umbral de hipótesis preregistrado
+(COUNT_DIVERGENCE_MIN = 0.15) NO se evalúa aquí — se prueba en la matriz
+real. Las claims declaran ``min_days`` (el horizonte en que su mecanismo
+puede haber actuado); por debajo se reportan NOT EVALUABLE, nunca FAIL.
+Horizonte por defecto: 30 días (el confirmatorio de la matriz); ``--smoke``
+corre la leg estructural rápida de 3 días.
 
 Uso:
     python -m experiments.cvs_preflight [--days 30] [--seeds 5001,5002]
@@ -78,8 +65,7 @@ def _goldfish_seed_ok(summary: dict) -> bool:
     and CONSECUTIVE days share NO arc ids (arc identity dies at midnight).
 
     The records carry ``arc_progress_by_day`` snapshots (arc ids + progress
-    per day), surfaced in the summary as ``life_arc_ids_by_day``; the
-    per-day id sets are the identity trace the ablation must destroy.
+    per day), surfaced in the summary as ``life_arc_ids_by_day``.
     """
     by_day = summary.get("life_arc_ids_by_day") or {}
     days = sorted(int(d) for d in by_day)
@@ -119,8 +105,8 @@ def _no_life_goldfish_check(cell: dict, full: dict) -> bool:
 
 
 def _timing_measure(cell: dict, full: dict) -> dict:
-    """Márgenes medidos del canal de timing (para el reporte y la
-    reconciliación del manifiesto en G4): qué pata divergió y cuánto."""
+    """Márgenes medidos del canal de timing (para el reporte): qué pata
+    divergió y cuánto."""
     n_cell = int(cell.get("n_proactive") or 0)
     n_full = int(full.get("n_proactive") or 0)
     f_cell = int(cell.get("n_fired_schedule") or 0)
@@ -150,9 +136,8 @@ def _timing_channel_gate_check(cell: dict, full: dict) -> bool:
     cualquiera de las patas muestra divergencia material — conteo de
     proactivos, eventos de agenda disparados, o artefactos realizados no
     idénticos (las horas proactivas difieren). Los márgenes medidos se
-    reportan vía ``_timing_measure`` (reconciliación del manifiesto en
-    G4). Esto NO es el umbral de hipótesis: el margen preregistrado
-    (COUNT_DIVERGENCE_MIN = 0.15) se prueba en la matriz REAL en G5.
+    reportan vía ``_timing_measure``. El umbral preregistrado
+    (COUNT_DIVERGENCE_MIN = 0.15) se prueba en la matriz real, no aquí.
     """
     m = _timing_measure(cell, full)
     return bool(
@@ -163,16 +148,14 @@ def _timing_channel_gate_check(cell: dict, full: dict) -> bool:
 
 
 def _b4_no_actuators_check(cell: dict, full: dict) -> bool:
-    """Claim preregistrada de B4 (merge f48683d) para NO_ACTUATORS.
+    """Claim preregistrada de B4 para NO_ACTUATORS.
 
-    Objetivo comprometido (reporte B4 §FROZEN TARGET RANGES, manifest-ready):
-    el mapeo actuado ampliado hace que FULL realice controles NO degenerados
-    (max_tokens y response_delay_s varían a lo largo de la banda congelada),
-    mientras que la célula ablacionada fija el set plano 600 / 5.0 s / 0.5 /
-    banda media (``_flat_controls``: todos los controles con varied=False).
-    Margen de amplitud preregistrado (``ab_margins.response_delay_s``: low
-    >= 3.0x high): el delay máximo realizado de FULL >= 3.0x el delay plano
-    de la célula.
+    La célula ablacionada fija el set plano 600 / 5.0 s / 0.5 / banda media
+    (``_flat_controls``: todos los controles con varied=False); FULL debe
+    realizar controles NO degenerados (max_tokens y response_delay_s varían
+    a lo largo de la banda congelada). Margen de amplitud preregistrado
+    (``ab_margins.response_delay_s``: low >= 3.0x high): el delay máximo
+    realizado de FULL >= 3.0x el delay plano de la célula.
     """
     cc = cell.get("controls_stats") or {}
     fc = full.get("controls_stats") or {}
@@ -201,14 +184,13 @@ def _b4_no_actuators_check(cell: dict, full: dict) -> bool:
 
 
 def _memory_behavioral_check(cell: dict, full: dict) -> bool:
-    """Claim conductual de memoria (G2) para lanes de episodios (SIMPLE_RAG).
+    """Claim conductual de memoria para lanes de episodios (SIMPLE_RAG).
 
     La lane debe haber RECUPERADO evidencia no nula (``n_retrieved > 0``
     sobre las sondas de cadena enrutadas por lane) Y su conjunto recuperado
     (ids de episodios que la lane devolvió de verdad) debe DIFERIR del de
     FULL. Una lane cableada a nada devuelve conjunto vacío y falla la pata
-    de no-nulidad — el modo de fallo de it2 (SIMPLE_RAG con store poblado,
-    recuperación idéntica a FULL, AnyEvidence=0.0).
+    de no-nulidad.
     """
     ce = cell.get("memory_evidence") or {}
     fe = full.get("memory_evidence") or {}
@@ -222,7 +204,7 @@ def _memory_behavioral_check(cell: dict, full: dict) -> bool:
 
 
 def _raw_history_behavioral_check(cell: dict, full: dict) -> bool:
-    """Claim conductual de memoria (G2) para RAW_HISTORY.
+    """Claim conductual de memoria para RAW_HISTORY.
 
     La lane debe haber RECUPERADO diálogo crudo no nulo (``context_turns >
     0``: la ventana L1 con turnos que el ensamblador recibe de verdad) y su
@@ -366,7 +348,7 @@ def _aggregate(summaries: Sequence[dict]) -> dict:
     Sumas para conteos, media ponderada para longitudes de réplica,
     identidad de lane = primer valor no None. Los campos de conversación se
     agregan SOLO si todas las células los tienen disponibles (degradación
-    con gracia: si el seam de B2 no existe, quedan None).
+    con gracia: si no, quedan None).
     """
     agg: dict = {
         "condition": summaries[0]["condition"],
@@ -514,8 +496,7 @@ def evaluate_claims(
 
     ``days`` es el horizonte del run: una claim cuyo mecanismo no ha podido
     actuar aún (``days < claim.min_days``) se reporta como NOT EVALUABLE
-    (``passed=None``) — NUNCA como FAIL. Reportar un efecto antes de que su
-    causa pueda existir es un artefacto de horizonte, no una ablación nula.
+    (``passed=None``) — NUNCA como FAIL.
     """
     verdicts: list[dict] = []
     for claim in claims:
@@ -578,27 +559,23 @@ def run_preflight(
 
     Horizonte por defecto: 30 días (el confirmatorio de la matriz). Las
     claims declaran ``min_days`` — por debajo se reportan NOT EVALUABLE,
-    nunca FAIL (un efecto no puede existir antes de que su mecanismo haya
-    actuado).
+    nunca FAIL.
 
     ``smoke=True``: leg estructural rápida de 3 días, SIN evaluación de
     claims — solo construcción de condiciones, invariantes duras,
-    determinismo y ceros de turnos en blanco. Para iteración rápida, no
-    para la compuerta.
+    determinismo y ceros de turnos en blanco.
 
     Devuelve el reporte: resúmenes por condición, veredictos por claim,
     ablaciones nulas y ``ok`` (False si alguna claim falla o el chequeo de
-    determinismo falla). El veredicto es función del código actual: las
-    claims se evalúan contra los resúmenes reales de las células, nunca
-    contra expectativas hardcodeadas.
+    determinismo falla). Las claims se evalúan contra los resúmenes reales
+    de las células, nunca contra expectativas hardcodeadas.
 
     ``determinism_check`` (por defecto True): FULL y el control positivo
     NO_TIMING_FEEDBACK se corren DOS veces y se comparan los resúmenes
     agregados. El runner de células del harness (``_run_segment``,
     cvs_common) entrega los feeds del usuario con polling de reloj real
     (TIME_SCALE_S_PER_VH=0.0004) y bajo contention del event loop puede
-    omitir feeds o expirar eventos de cola — una célula no reproducible
-    invalida el veredicto de la compuerta. Si las dos pasadas divergen, el
+    omitir feeds o expirar eventos de cola. Si las dos pasadas divergen, el
     pre-flight lo reporta FUERTE y bloquea (``deterministic=False``).
     """
     claims = list(CLAIMS if claims is None else claims)

@@ -1,5 +1,5 @@
-"""Cálculo del reporte de la iteración 3 (DoD §11) — a partir de los
-artefactos de la matriz G5 + juez G6.
+"""Cálculo del reporte — a partir de los artefactos de la matriz G5 +
+juez G6.
 
 Cada ítem del DoD se recomputa de artefactos reales; nada se escribe a
 mano en el reporte que no salga de aquí (o del juez/G6). El output
@@ -7,8 +7,7 @@ results/it3-report-data.json alimenta results/iteration-3-report.md.
 
 Ítems:
  1. blank rate < 1% por célula (invariante dura) — DBs de la matriz.
- 2. ablaciones ablacionan — compuerta G2 (ya certificada) + auditoría
-    de la matriz (por célula, por claim).
+ 2. ablaciones ablacionan — auditoría de la matriz (por célula, por claim).
  3. conversaciones multi-turno + closing_tendency mecánicamente
     observable — turnos por conversación desde los DBs.
  4. el estado latente alcanza el canal de timing — claim de manifiesto

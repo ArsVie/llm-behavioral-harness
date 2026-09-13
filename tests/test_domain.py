@@ -1,14 +1,5 @@
-"""Tests for harness/domain.py — A1 domain contracts (vertical slice Wave 0).
-
-Covers: every type instantiable (happy path), frozen-ness of every dataclass,
-ProactiveIntent source fields required (no None, no defaults), MemoryContext
-holding all four tiers + anchors, and UserAffectObservation being a DISTINCT
-type from CompanionBehaviorState (no shared field names, no conversion).
-Iteration-2 Gate 0 additions: ContactOpportunity (timing signal, no semantic
-reason), ProactiveIntent.opportunity_id (additive default), the canonical
-8-category L4 taxonomy defined exactly once, and MemoryPolicy distinguishing
-the research-faithful condition from the experimental topicality variant.
-"""
+"""Tests for harness/domain.py: every domain type instantiable and frozen, the
+proactive-intent and conversation contracts, and the canonical enums."""
 
 from __future__ import annotations
 
@@ -365,7 +356,7 @@ def test_companion_snapshot_happy_path() -> None:
     assert bare.proactive_intent is None
 
 
-# ---- Iteration-2 contracts (ContactOpportunity, L4 taxonomy, MemoryPolicy) ----
+# ---- ContactOpportunity, L4 taxonomy, MemoryPolicy ----
 
 def test_contact_opportunity_shape_and_no_semantic_reason() -> None:
     """ContactOpportunity is a timing signal only — never a semantic reason."""
@@ -489,7 +480,7 @@ def test_memory_policy_members_and_experimental_distinction() -> None:
     assert domain.MemoryPolicy.STRUCTURED_MEMORY != domain.MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT
 
 
-# ---- Iteration-3: conversation seam + ablation-effectiveness assertion ----
+# ---- conversation seam + ablation-effectiveness assertion ----
 
 
 def _conv_turn(**overrides) -> domain.ConversationTurn:
@@ -564,11 +555,8 @@ def test_conversation_open_state_has_none_close_reason() -> None:
 
 
 def test_ablation_claim_shape_and_channel_literals() -> None:
-    """AblationClaim carries the six contract fields (G2 added min_days —
-    the horizon at which the ablated mechanism can have acted — and
-    measure — the optional measured-margins reporter); channel is one of
-    the four ablatable channels; check is callable; assertion is
-    non-empty. min_days defaults to 1 (evaluable at any horizon)."""
+    """AblationClaim carries the six contract fields; channel is one of the four
+    ablatable channels, check is callable, and min_days defaults to 1."""
     fields = {f.name: f for f in dataclasses.fields(domain.AblationClaim)}
     assert set(fields) == {
         "condition", "channel", "assertion", "check", "min_days", "measure",

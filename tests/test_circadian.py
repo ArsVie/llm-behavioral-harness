@@ -1,4 +1,4 @@
-"""Tests de aceptación para engine/circadian.py (W1.3)."""
+"""Tests de aceptación para engine/circadian.py."""
 from __future__ import annotations
 
 from dataclasses import replace
@@ -233,8 +233,7 @@ class TestEnvelope:
     def test_envelope_at_ramp_boundaries(self):
         """Envelope en los bordes exactos de las rampas."""
         params = TimingParams()  # quiet=(23, 8), ramp_h=1.0
-        # Rampa ascendente: [8, 9]
-        # Rampa descendente: [22, 23]
+        # Rampas: ascendente [8, 9], descendente [22, 23]
 
         # Inicio de rampa ascendente: h=8.0
         assert abs(envelope(8.0, params) - 0.0) < TOL_EXACT

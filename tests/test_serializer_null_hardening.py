@@ -1,14 +1,8 @@
 """WS-E serializer null-hardening tests (reasoning-only turns).
 
-DeepSeek-compatible v4-flash can answer ENTIRELY in the reasoning channel:
-``message.reasoning_content`` is populated while ``content`` comes back
-null/empty (the null-content brick — alpha finding 2026-08-16). If such a
-turn is serialized verbatim into the next request the gateway 400s it.
-These tests pin the serializer rule: **content on the wire is always a
-string — ``""`` for reasoning-only turns, never ``null``** — on both the
-request side (payload construction) and the response side (ChatResult
-round-trip). No network: the real client runs against ``httpx.MockTransport``
-and scripted fakes, per tests/test_client.py patterns.
+Content on the wire is always a string — ``""`` for reasoning-only turns,
+never ``null`` — on the request side (payload construction) and the response
+side (ChatResult round-trip). No network: ``httpx.MockTransport`` + fakes.
 """
 
 from __future__ import annotations

@@ -1,18 +1,13 @@
 """Simulación en vivo ACELERADA de dos semanas — el usuario eres tú (Ars).
 
-Reproduce tu estilo de chat del análisis de la novia de 2024-2025: abres
-conversación, hablas un rato, CORTAS a mitad de tema, y saltas al siguiente
-día en que tenías pensado hablarle — mientras el companion actúa con su
-motor completo (mood + ciclo + proactividad real vía Weibull hazard).
+El usuario lo pone UN AGENTE GUIONADO por semilla en tu estilo (aperturas,
+cortes a mitad de conversación, seguimientos) — no un humano en el
+terminal. Los tiempos de apertura siguen el patrón real de los chats:
+mayormente tarde-noche (17:00–21:00). El companion actúa con su motor
+completo (mood + ciclo + proactividad real vía Weibull hazard).
 
-Diferencias clave vs `experiments/live_companion.py`:
   - Tiempo ACELERADO: time_scale configurable (--time-scale, default
-    60 s por hora virtual ⇒ 2 semanas ≈ 28 min reales). live_companion
-    usa 3600 s/vh (tiempo real); esto es una simulación rápida.
-  - El usuario lo pone UN AGENTE GUIONADO por semilla en TU estilo
-    (aperturas, cortes a mitad de conversación, seguimientos) — no un
-    humano en el terminal. Los tiempos de apertura siguen el patrón
-    real de los chats: mayormente tarde-noche (17:00–21:00).
+    60 s por hora virtual ⇒ 2 semanas ≈ 28 min reales).
   - Un solo run, 14 días, sin checkpoints ni perturbación preregistrada.
   - Todo persiste en un DB (resume-safe): reabrir con --db continúa.
 
@@ -74,11 +69,10 @@ CUT_LINES = [  # mid-conversation cut (topic abandonment)
 def plan_params(seed: int, days: int) -> dict:
     """Parámetros del usuario guionado, derivados frescos de la semilla.
 
-    Nada aquí es constante del protocolo: cada run sortea sus días de
-    silencio, días dobles, ventanas de apertura y tasa de corte de su
-    propio stream (``user-plan-params-{seed}``) — determinista por semilla
-    para reproducibilidad. Tasas calibradas al protocolo seed-6001 (~14%
-    silencio, ~1 día doble por 14 días, corte ~0.45).
+    Cada run sortea días de silencio, días dobles, ventanas de apertura y
+    tasa de corte de su propio stream (``user-plan-params-{seed}``),
+    determinista por semilla. Tasas calibradas al protocolo seed-6001
+    (~14% silencio, ~1 día doble por 14 días, corte ~0.45).
     """
     rng = random.Random(f"user-plan-params-{seed}")
     n_silent = max(1, days * 2 // 14)
@@ -108,9 +102,8 @@ def user_plan(seed: int, days: int, params: dict | None = None) -> list[dict]:
     """Plan del usuario: eventos {"kind", "day", "t_h", "text"} ordenados.
 
     Tipos: ``open`` (abre), ``followup`` (tras réplica del companion),
-    ``cut`` (cierra a mitad de tema). Determinista por semilla: los
-    parámetros (días de silencio, días dobles, ventanas) salen de
-    ``plan_params`` salvo override explícito.
+    ``cut`` (cierra a mitad de tema). Determinista por semilla; los
+    parámetros salen de ``plan_params`` salvo override explícito.
     """
     p = params if params is not None else plan_params(seed, days)
     rng = random.Random(f"user-plan-{seed}")

@@ -69,11 +69,9 @@ def empirical_amplitude(x: np.ndarray) -> float:
 def denoised_amplitude_via_variance(x: np.ndarray, noise_sd: float) -> float:
     """Amplitud de A·sin(θ)+ε estimada restando la varianza del ruido.
 
-    Var(x) = Var(A·sin(θ)) + σ² ; para θ que cubre ~uniformemente [0,2π)
-    (90 días / ~3 ciclos de L≈28), Var(A·sin(θ)) ≈ A²/2. Despejando:
+    Var(x) = Var(A·sin(θ)) + σ² ; para θ que cubre ~uniformemente [0,2π),
+    Var(A·sin(θ)) ≈ A²/2:
         A_est = sqrt(2 · max(Var(x) − σ², 0))
-    Documentado en el reporte junto al valor pico-a-pico (menos robusto al
-    ruido pero más intuitivo) para que ambos puedan contrastarse.
     """
     x = np.asarray(x, dtype=float)
     var_x = float(np.var(x, ddof=1))

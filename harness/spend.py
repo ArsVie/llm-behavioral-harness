@@ -1,23 +1,13 @@
-"""WS-D spend report — totals + by lane/model/day-window, cache savings.
-
-Run from the worktree::
+"""Spend report — totals + by lane/model/day-window, cache savings.
 
     python -m harness.spend <companion.db> [--days N] [--day-start D]
         [--day-end D] [--lane L] [--model M] [--out results/spend-report-<ts>.txt]
         [--pricing-json pricing.json]
 
-Reads the ``llm_calls`` ledger (v8 columns; legacy NULL rows count as
-calls with no tokens/dollars), prices each row with the tiered cached-input
-formula (``harness.pricing``), and renders a plain-text report: grand
-totals, per-lane (product | research | NULL/unknown), per-model, per-day
-window, plus cache-hit rate and cache savings (what the calls would have
-cost fully-uncached minus the actual tiered cost). While
-``harness.pricing.PRICING_PENDING`` is True the report prints a
-"PRICING PENDING" banner and dollar figures are labeled as placeholder
-math — the user must fill real rates first.
-
-Aggregation is pure and separately testable (``aggregate`` /
-``aggregate_by`` / ``render_report``); the CLI only reads the store.
+Reads the ``llm_calls`` ledger (legacy NULL rows count as calls with no
+tokens/dollars), prices each row with the tiered cached-input formula
+(``harness.pricing``) and renders a plain-text report; while
+``PRICING_PENDING`` is True the dollar figures are labeled placeholder math.
 """
 
 from __future__ import annotations
@@ -43,15 +33,12 @@ LANE_LABELS = {"product": "product (Lily live bot)", "research": "research (judg
 
 @dataclass
 class GroupStats:
-    """Aggregated spend of a group of llm_calls rows (WS-D).
+    """Aggregated spend of a group of llm_calls rows.
 
-    Rows with NULL token columns (legacy pre-v8) contribute calls only.
-    ``cost_usd`` uses the tiered formula: cached at the cheap cached rate,
-    cache-miss at the fresh input rate, completion at the output rate.
-    ``uncached_cost_usd`` is the hypothetical fully-uncached bill of the
-    same tokens; ``savings_usd`` = uncached - actual = cached tokens times
-    the cached-rate discount. ``unpriced_calls`` counts rows whose model
-    is absent (no rate table entry — no dollars for them).
+    Rows with NULL token columns contribute calls only. ``cost_usd`` uses the
+    tiered formula (cached at the cached rate, cache-miss at the input rate,
+    completion at the output rate); ``savings_usd`` = the cached-token
+    discount. ``unpriced_calls`` counts rows whose model has no rate entry.
     """
 
     calls: int = 0
@@ -115,7 +102,7 @@ def aggregate(rows: Iterable[dict], pricing: dict[str, dict[str, float]] | None 
     """Grand-total stats over an iterable of llm_calls rows.
 
     ``pricing`` overrides the module-level ``MODELS`` table for this call
-    only (no global side effect); ``None`` uses the built-in rates.
+    only; ``None`` uses the built-in rates.
     """
     out = GroupStats()
     for row in rows:
@@ -131,7 +118,7 @@ def aggregate_by(
     """Stats grouped by ``key(row)``; groups appear in first-seen order.
 
     ``pricing`` overrides the module-level ``MODELS`` table for this call
-    only (no global side effect); ``None`` uses the built-in rates.
+    only; ``None`` uses the built-in rates.
     """
     groups: dict[str, GroupStats] = {}
     for row in rows:

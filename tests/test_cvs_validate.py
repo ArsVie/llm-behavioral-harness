@@ -1,4 +1,4 @@
-"""Tests del validador OKF del harness (A8 — validate_okf)."""
+"""Tests del validador OKF del harness (validate_okf)."""
 
 import json
 
@@ -42,8 +42,7 @@ REPORT_BODY = """# Iteration-2 vertical slice
 
 
 def test_short_vertical_probe_needs_no_checkpoints(tmp_path):
-    """Gate 6 probe: a 3-day vertical can't hold 5 restarts; the ≥5
-    checkpoint rule applies to 30+ day verticals only (probe G6 fix)."""
+    """Gate 6 probe: the ≥5 checkpoint rule applies to 30+ day verticals only."""
     _write_run_dir(tmp_path)
     (tmp_path / "run" / "vertical_summary.json").write_text(
         json.dumps({"days": 3, "checkpoints": [], "validated": True}),

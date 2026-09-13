@@ -1,12 +1,11 @@
-"""Manifiesto de preregistro del harness de evaluación (Iteración 2, A8).
+"""Manifiesto de preregistro del harness de evaluación.
 
 Genera el JSON de preregistro que congela —ANTES de generar resultados—
 preguntas, hipótesis (H1-H6), condiciones, semillas, configuración de jueces
-(≥2 familias independientes, 4 dimensiones §17.1), métricas, umbrales y la
-declaración Weibull congelada (§17.5). Invariantes 19/20 del plan: los inputs
-de evaluación deben ser reconstruibles desde un manifest inmutable; ninguna
-hipótesis ni umbral cambia tras observar resultados sin crear un experimento
-nuevo.
+(≥2 familias independientes, 4 dimensiones), métricas, umbrales y la
+declaración Weibull congelada. Invariantes 19/20: los inputs de evaluación
+deben ser reconstruibles desde un manifest inmutable; ninguna hipótesis ni
+umbral cambia tras observar resultados sin crear un experimento nuevo.
 
 Convención del repo: docstrings en español, identificadores en inglés.
 """

@@ -1,18 +1,8 @@
 """The authored voice comes from a file, and the file is authoritative.
 
-What went wrong, and what this pins
------------------------------------
-The companion's voice — smug, bratty, calls him a dummy — only ever existed
-as a hand-edited ``persona.core`` row in the live database. Nothing in the
-tree held it. On 2026-09-08 a DB reset regenerated the core from
-``_build_core`` and two runs then talked to the owner as "a warm and
-attentive companion", closing every turn with a question. Nothing failed,
-nothing logged, and the loss was only visible by reading her replies.
-
-So: the voice lives in a file named by ``HARNESS_PERSONA_FILE``, it is
-applied on EVERY start rather than only a cold one, and it is composed with
-the drawn interest sentence instead of replacing it. Unset or broken config
-falls back to Nova — a persona file is an override, never a requirement.
+The voice lives in a file named by ``HARNESS_PERSONA_FILE``, applied on every
+start and composed with the drawn interest sentence; unset or broken config
+falls back to Nova.
 """
 
 from __future__ import annotations
@@ -210,7 +200,7 @@ def test_an_unchanged_file_is_a_no_op(tmp_path, monkeypatch):
 
 
 def test_a_reset_reproduces_the_voice(tmp_path, monkeypatch):
-    """The actual 2026-09-08 failure: a fresh store must come back as HER."""
+    """A fresh store must come back as HER."""
     monkeypatch.setenv(PERSONA_FILE_ENV, str(_write(tmp_path, VOICE)))
     cores = []
     for name in ("run1.db", "run2.db"):

@@ -1,4 +1,4 @@
-"""Ablation experiment tests (W-E3): fake-mode plumbing + invariants."""
+"""Ablation experiment tests: fake-mode plumbing + invariants."""
 
 import json
 

@@ -1,41 +1,8 @@
-"""Telegram channel (Part B, seam B-4) — python-telegram-bot transport.
+"""Telegram channel — python-telegram-bot transport.
 
-Env contract:
-  TELEGRAM_BOT_TOKEN  required at runtime; a clear error is raised when
-                      missing (mirrors OpenAICompatibleClient's missing-key
-                      message). Credentials come from the environment, never
-                      from the repo, tests, or logs.
-  TELEGRAM_CHAT_ID    optional; the single owner's chat. Used as the default
-                      ``send`` target and to filter inbound to the owner only.
-  HARNESS_DEBOUNCE    optional, default OFF. When enabled, rapid inbound text
-                      is merged: messages are buffered AFTER the owner filter
-                      and delivered as ONE InboundMessage joined with ``\\n``,
-                      trailing-edge 2 s after the last arrival, hard-capped at
-                      8 s after the FIRST buffered message. A /command
-                      arrival flushes the buffer immediately. OFF (default) =
-                      today's behavior (each message delivered immediately).
-  HARNESS_TYPING      optional, default OFF. When enabled, ``typing_context()``
-                      refreshes the Telegram "typing" chat action every 4.5 s
-                      (the indicator expires after ~5 s) while inside the
-                      context. OFF (default) = no chat actions are ever sent.
-
-python-telegram-bot is an OPTIONAL dependency: importing this module never
-requires it. The guarded top-level import only sets a capability flag; every
-method that needs the library checks the flag (and imports the needed
-classes lazily), so ``harness.config.select_channel`` can import this module
-without the extra installed and ``from_env()`` can raise its missing-token
-error without it.
-
-Wave-1 seams (orchestration plan 2026-08-15, worker W-channel):
-  S3 (command seam): :class:`ControlCommand` + the optional ``on_command``
-  argument of :meth:`TelegramChannel.start` — the command handler is
-  registered ONLY when the callback is given (default None -> commands are
-  dropped, matching the ``filters.TEXT & ~filters.COMMAND`` registration).
-  Commands NEVER become InboundMessage; a command arrival flushes the
-  debounce buffer first.
-  S4 (typing capability): :meth:`TelegramChannel.typing_context` — duck-typed:
-  the runtime probes ``getattr(channel, 'typing_context', None)``; channels
-  that lack the method (CLI, fakes) are a no-op.
+Env: ``TELEGRAM_BOT_TOKEN`` (required at runtime), ``TELEGRAM_CHAT_ID`` (the
+owner chat), ``HARNESS_DEBOUNCE`` / ``HARNESS_TYPING`` (opt-in, off by
+default). ptb itself is optional — importing this module never requires it.
 """
 
 from __future__ import annotations
@@ -58,9 +25,8 @@ from harness.channels.base import InboundMessage, OutboundMessage
 from harness.concurrency import Sleeper, default_sleeper
 from harness.env import env_bool as _env_bool
 
-#: Errors raised inside a ptb handler land here instead of being
-#: swallowed by the library's default (which logs only when an error
-#: handler is registered).
+#: Errors raised inside a ptb handler are reported here instead of being
+#: swallowed by the library's default.
 _logger = logging.getLogger(__name__)
 
 try:  # optional dependency
@@ -71,11 +37,11 @@ try:  # optional dependency
 except ImportError:  # pragma: no cover - depends on install
     _PTB_AVAILABLE = False
 
-#: Trailing-edge debounce window: flush this many seconds after the last
-#: buffered message arrives. Configurable via HARNESS_DEBOUNCE_TRAILING_S.
+#: Trailing-edge debounce window (HARNESS_DEBOUNCE_TRAILING_S): flush this
+#: many seconds after the last buffered message.
 DEFAULT_DEBOUNCE_TRAILING_S = 4.5
-#: Debounce hard cap: flush at most this long after the first buffered
-#: message. Configurable via HARNESS_DEBOUNCE_MAX_WAIT_S.
+#: Debounce hard cap (HARNESS_DEBOUNCE_MAX_WAIT_S): flush at most this long
+#: after the first buffered message.
 DEFAULT_DEBOUNCE_MAX_WAIT_S = 12.0
 #: Typing refresh cadence; the typing indicator expires after ~5 s.
 _TYPING_INTERVAL_S = 4.5
@@ -147,13 +113,9 @@ def chunk_send(text: str, limit: int = _TELEGRAM_MAX_LEN) -> list[str]:
 def acquire_poller_lock(token: str):
     """Claim the single-poller lock for one bot token (multi-profile guard).
 
-    Telegram delivers each update to exactly one getUpdates consumer: a
-    second poller on the same token does not load-balance, it
-    Conflict-loops both. The lock is an OS-held flock on a token-scoped
-    file, so it dies with the process and can never go stale — a refused
-    second instance exits LOUDLY instead of storming. Returns the open
-    file object; the caller must keep it referenced for the process
-    lifetime (see ``_POLLER_LOCKS`` in experiments/live_companion.py).
+    Telegram sends each update to one getUpdates consumer only, so a second
+    poller Conflict-loops both. An OS flock that dies with the process; the
+    caller must keep the returned file object open for the process lifetime.
     """
     import fcntl  # lazy: posix-only, and this module stays importable without it
 
@@ -186,9 +148,7 @@ USER_COMMANDS: tuple[tuple[str, str], ...] = (
 def _debounce_window(name: str, default: float) -> float:
     """Resolve one debounce window from its env var (float seconds).
 
-    Unset/empty -> default. Invalid values FAIL LOUDLY (ValueError at
-    channel construction): a misconfigured HARNESS_DEBOUNCE_* must never
-    silently change the merge window.
+    Unset or empty -> default; invalid values raise ValueError.
     """
     raw = os.environ.get(name)
     if raw is None or raw.strip() == "":
@@ -210,12 +170,9 @@ def _debounce_window(name: str, default: float) -> float:
 
 @dataclass(frozen=True)
 class ControlCommand:
-    """Parsed slash-command delivered to ``start(on_command=...)`` (seam S3).
+    """Parsed slash-command delivered to ``start(on_command=...)``.
 
-    Commands NEVER become InboundMessage: they are routed to the command
-    callback only, and only when ``start()`` was given one (default None ->
-    commands are dropped, exactly like the ``filters.TEXT & ~filters.COMMAND``
-    registration). ``name`` carries no leading slash.
+    ``name`` carries no leading slash. Commands never become InboundMessage.
     """
 
     name: str  # "tz", "status", ... (no slash)
@@ -226,21 +183,13 @@ class ControlCommand:
 class TelegramChannel:
     """Channel that delivers messages through a Telegram bot.
 
-    Build via ``TelegramChannel.from_env()`` (production) or by injecting a
-    fake application and owner chat id (tests). No network access happens
-    unless the real library and token are present.
+    Build via ``TelegramChannel.from_env()`` or by injecting a fake application
+    and owner chat id (tests); no network access happens without the real
+    library and token.
 
-    Inbound policy: when TELEGRAM_CHAT_ID is set, only that chat's text
-    messages are forwarded (others are dropped). When it is UNSET, inbound
-    is fail-open — any chat that finds the bot can talk to the companion
-    (documented trade-off of the single-user POC; set the env var to lock
-    it down).
-
-    Wave-1 additions (debounce, typing, commands) are ALL flag-gated OFF by
-    default (HARNESS_DEBOUNCE / HARNESS_TYPING; ``on_command`` defaults to
-    None) so the live bot stays byte-identical until the owner flips flags.
-    The debounce sleeper and the monotonic clock are injectable (runtime's
-    Sleeper pattern) so tests never wait real seconds.
+    Inbound policy: with ``TELEGRAM_CHAT_ID`` set, only that chat's text is
+    forwarded; UNSET means fail-open — any chat that finds the bot can talk to
+    the companion (set the env var to lock it down).
     """
 
     name = "telegram"
@@ -259,8 +208,7 @@ class TelegramChannel:
         self._handler = None
         self._command_callback = None
         self._stopped = False
-        #: Injectable sleep and clock: production uses real sleep and
-        #: time.monotonic; tests inject fakes.
+        #: Injectable sleep and clock (tests inject fakes).
         self._sleeper: Sleeper = sleeper if sleeper is not None else default_sleeper()
         self._monotonic: Callable[[], float] = (
             monotonic if monotonic is not None else time.monotonic
@@ -268,8 +216,7 @@ class TelegramChannel:
         #: Flag-controlled behavior, both off by default.
         self.debounce_enabled: bool = _env_bool("HARNESS_DEBOUNCE")
         self.typing_enabled: bool = _env_bool("HARNESS_TYPING")
-        #: Debounce windows, env-configurable; defaults are trailing 4.5 s
-        #: and cap 12 s, resolved at construction.
+        #: Debounce windows, env-configurable, resolved at construction.
         self.debounce_trailing_s: float = _debounce_window(
             "HARNESS_DEBOUNCE_TRAILING_S", DEFAULT_DEBOUNCE_TRAILING_S
         )
@@ -287,8 +234,7 @@ class TelegramChannel:
     def from_env(cls) -> "TelegramChannel":
         """Build from the TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID env vars.
 
-        Raises a clear RuntimeError when the token is missing. The token
-        check does not require python-telegram-bot to be installed.
+        Raises RuntimeError when the token is missing (no ptb required).
         """
         token = os.environ.get("TELEGRAM_BOT_TOKEN")
         if not token:
@@ -303,11 +249,7 @@ class TelegramChannel:
         return cls(application=application, owner_chat_id=owner_chat_id)
 
     async def check_token(self) -> bool:
-        """Validate the bot token via getMe — sends NOTHING.
-
-        Gate-style verification for the stolen-Hermes-token path: proves
-        the token is live without delivering a single message. Works
-        without python-telegram-bot (raw HTTP)."""
+        """Validate the bot token via getMe — sends NOTHING. Raw HTTP, no ptb."""
         import httpx
 
         token = os.environ.get("TELEGRAM_BOT_TOKEN", "")
@@ -323,7 +265,6 @@ class TelegramChannel:
                 data = resp.json()
                 ok = bool(data.get("ok"))
                 if ok and self.owner_chat_id is None and self.application is not None:
-                    # No owner chat set: warn that owner-only inbound filtering is off.
                     print(
                         "[telegram] WARNING: TELEGRAM_CHAT_ID not set — "
                         "outbound works, owner-only inbound filtering is off",
@@ -346,15 +287,12 @@ class TelegramChannel:
     async def start(self, on_message, on_command=None) -> None:
         """Register the inbound handler and begin delivering updates.
 
-        With a real ptb Application this initializes and starts polling;
-        with an injected fake application (tests) it just registers the raw
-        callback the fake can drive directly — the pure seam, no network.
+        A real ptb Application initializes and starts polling; an injected fake
+        (tests) only records the raw callbacks — no network.
 
-        ``on_command`` is the seam-S3 command callback: when given, a
-        command handler is registered too and slash-commands are routed to
-        it (never to ``on_message``). When None (default), commands are
-        dropped — matching today's ``filters.TEXT & ~filters.COMMAND``
-        registration, so the live bot is unchanged.
+        ``on_command`` (default None) registers the command handler and routes
+        slash-commands to it, never to ``on_message``; with None, commands are
+        dropped.
         """
         self._handler = on_message
         self._command_callback = on_command
@@ -371,8 +309,7 @@ class TelegramChannel:
                 MessageHandler(filters.TEXT & ~filters.COMMAND, self._on_update)
             )
             if on_command is not None:
-                # Route every slash-command to _on_command_update;
-                # filters.COMMAND also handles unknown command names.
+                # filters.COMMAND also matches unknown command names.
                 app.add_handler(
                     MessageHandler(filters.COMMAND, self._on_command_update)
                 )
@@ -386,17 +323,10 @@ class TelegramChannel:
             if on_command is not None:
                 app.add_handler(self._on_command_update)
         if on_command is not None:
-            # Register the user-facing command menu when commands are enabled.
             await self._register_commands()
 
     async def _on_handler_error(self, update: object, context: object) -> None:
-        """Report an exception raised inside a ptb handler.
-
-        Without a registered error handler python-telegram-bot discards
-        handler exceptions with a single unformatted warning, so a failing
-        turn looked exactly like a user who got no reply. Reporting only —
-        polling continues, which is the point: the bot outlives the error.
-        """
+        """Log an exception raised inside a ptb handler; polling continues."""
         error = getattr(context, "error", None)
         _logger.exception(
             "telegram handler error: %s", error, exc_info=error
@@ -405,10 +335,9 @@ class TelegramChannel:
     async def send(self, message: OutboundMessage) -> None:
         """Post an outbound (reactive or proactive) message to the owner chat.
 
-        One send per paragraph (``\\n\\n`` separated) with RP ``*span*``
-        rendered as MarkdownV2 italics. A failed Markdown send retries
-        once as plain text (logged); if plain fails too the error
-        propagates — no silent drops.
+        One send per paragraph, RP ``*span*`` rendered as MarkdownV2 italics. A
+        failed Markdown send retries once as plain text; if that fails too the
+        error propagates.
         """
         if self.owner_chat_id is None:
             raise RuntimeError(
@@ -436,15 +365,11 @@ class TelegramChannel:
 
     @asynccontextmanager
     async def typing_context(self):
-        """S4 typing capability: keep the Telegram "typing" indicator alive
-        while inside the context.
+        """Keep the Telegram "typing" indicator alive while inside the context.
 
-        Sends ``send_chat_action('typing')`` immediately on entry, then every
-        ~4.5 s (the indicator expires after ~5 s). Flag-gated by
-        HARNESS_TYPING (default OFF -> the context is a no-op, exactly like
-        channels that do not expose the method at all — the runtime probes
-        it with ``getattr(channel, 'typing_context', None)``). The runtime
-        wraps generation + response_delay_s in this context (Wave 2).
+        Sends ``send_chat_action('typing')`` on entry, then refreshes every
+        ~4.5 s (the indicator expires after ~5 s). Gated by HARNESS_TYPING
+        (default OFF -> no-op).
         """
         if not self.typing_enabled:
             yield
@@ -458,10 +383,8 @@ class TelegramChannel:
                 await task
 
     async def _typing_loop(self) -> None:
-        """Send a typing action, then refresh it every _TYPING_INTERVAL_S.
-
-        A failed send stops the loop quietly: the indicator is cosmetic and
-        the real delivery path (send()) reports errors loudly."""
+        """Send a typing action, then refresh it every _TYPING_INTERVAL_S; a
+        failed send stops the loop quietly (the indicator is cosmetic)."""
         while True:
             try:
                 await self._send_typing()
@@ -486,11 +409,8 @@ class TelegramChannel:
     async def stop(self) -> None:
         """Stop listeners and release resources. Idempotent.
 
-        Deterministic debounce shutdown: any pending flush task is cancelled
-        and buffered messages are DROPPED (never delivered). Shutdown must
-        not invoke the session handler — the runtime finalizes the session
-        before stopping the channel — and the owner can simply re-send after
-        restart.
+        Buffered debounce text is dropped, never delivered: shutdown must not
+        invoke the session handler.
         """
         if self._stopped:
             return
@@ -506,25 +426,17 @@ class TelegramChannel:
         self._last_arrival_at = None
         app = self.application
         if _PTB_AVAILABLE and isinstance(app, Application):
-            # stop() first, then shutdown(): shutdown tears down the bot,
-            # updater, and processors, and raises if the app is running.
+            # stop() first: shutdown tears the app down and raises if running.
             await app.stop()
             await app.shutdown()
 
     async def _on_update(self, update, context=None) -> None:
         """ptb update callback: wrap the update and forward it to the handler.
 
-        Declared async so ptb (which supports coroutine callbacks) and
-        injected fakes can both drive it directly. The ``context`` argument
-        is optional: real ptb MessageHandler callbacks receive
-        (update, context) — the fake applications used in tests call with a
-        single argument.
-
-        Commands NEVER become InboundMessage: they are dropped here (matching
-        the ``filters.TEXT & ~filters.COMMAND`` registration) and routed only
-        via the command handler registered by ``start(on_command=...)``. With
-        HARNESS_DEBOUNCE enabled, owner text is buffered (AFTER the owner
-        filter) and flushed as ONE merged message.
+        Declared async so ptb and injected fakes can both drive it directly;
+        ``context`` is optional (fakes call with a single argument). Commands
+        are for the command handler only, never an InboundMessage. With
+        HARNESS_DEBOUNCE on, owner text is buffered and flushed as ONE message.
         """
         if self._stopped:
             return
@@ -540,14 +452,12 @@ class TelegramChannel:
             await self._handler(message)
 
     async def _on_command_update(self, update, context=None) -> None:
-        """ptb command callback (seam S3): parse a :class:`ControlCommand`
-        and hand it to the ``start(on_command=...)`` callback.
+        """ptb command callback: parse a :class:`ControlCommand` and hand it to
+        the ``start(on_command=...)`` callback.
 
-        Mirrors ``_on_update``'s signature so real ptb and injected fakes can
-        drive it the same way. The owner filter applies to commands too. The
-        debounce buffer is flushed FIRST (contract S3) so a command is never
-        delayed by, or merged with, buffered chat text. Commands NEVER become
-        InboundMessage.
+        Same signature as ``_on_update``; the owner filter applies. The debounce
+        buffer is flushed FIRST, so a command is never merged with buffered chat
+        text. Commands never become InboundMessage.
         """
         message = getattr(update, "message", None)
         text = getattr(message, "text", None) if message is not None else None
@@ -572,10 +482,8 @@ class TelegramChannel:
     def _bot_commands(self) -> list:
         """The user-facing command list as ptb ``BotCommand`` values.
 
-        Lazy ptb import (optional dependency — the guarded-import pattern).
-        ``/state`` is never included: mood internals in the user's view
-        contaminate the perceptual read (standing decision); the handler
-        stays dispatchable but is not user-visible.
+        Lazy ptb import; ``/state`` is never in the menu (dispatchable, not
+        user-visible).
         """
         from telegram import BotCommand  # lazy ptb (optional dep)
 
@@ -587,18 +495,15 @@ class TelegramChannel:
     async def _register_commands(self) -> None:
         """Register ``USER_COMMANDS`` via Telegram ``setMyCommands``.
 
-        Runs at channel start ONLY when commands are enabled (``start()``
-        was given ``on_command`` — the seam-S3 gate). Best-effort: a
-        network failure logs a warning and the channel still starts — the
-        menu is client UI; the command dispatch itself is unaffected.
-        Fakes (tests) record the call on their bot.
+        Only when commands are enabled; best-effort — a failure logs a warning
+        and the channel still starts (the menu is client UI).
         """
         if self._command_callback is None:
-            return  # commands not enabled: nothing to register
+            return
         bot = getattr(self.application, "bot", None)
         setter = getattr(bot, "set_my_commands", None)
         if setter is None:
-            return  # stub without a setter: nothing to register
+            return
         try:
             await setter(self._bot_commands())
         except Exception as exc:  # noqa: BLE001 - cosmetic; dispatch unaffected
@@ -609,10 +514,8 @@ class TelegramChannel:
             )
 
     def _wrap_update(self, update) -> InboundMessage | None:
-        """Map a raw update to an InboundMessage, or None when it is not a
-        text message from the owner (photos, stickers, strangers). Command
-        text is wrapped too and dropped by _on_update — commands never
-        become InboundMessage."""
+        """Map a raw update to an InboundMessage, or None when it is not a text
+        message from the owner (photos, stickers, strangers)."""
         message = getattr(update, "message", None)
         text = getattr(message, "text", None) if message is not None else None
         if not text:
@@ -621,7 +524,7 @@ class TelegramChannel:
         if chat_id is None:
             return None
         if self.owner_chat_id is not None and str(chat_id) != self.owner_chat_id:
-            return None  # filter inbound to the owner only
+            return None
         return InboundMessage(
             text=text, sender_id=str(chat_id), received_at=time.time()
         )
@@ -642,9 +545,8 @@ class TelegramChannel:
     # --- Debounce machinery (HARNESS_DEBOUNCE, default off) ---
 
     def _buffer_text(self, text: str, sender_id: str | None) -> None:
-        """Buffer one owner text message. Creates the single flush task on
-        the first buffered message; the task re-arms itself for later
-        arrivals, so at most ONE flush task exists at any time."""
+        """Buffer one owner text message; the single flush task is created on
+        the first buffered message and re-arms itself for later arrivals."""
         if self._buffer_first_at is None:
             self._buffer_first_at = self._monotonic()
         self._last_arrival_at = self._monotonic()
@@ -655,12 +557,10 @@ class TelegramChannel:
     async def _debounce_loop(self) -> None:
         """Trailing-edge debounce with a hard max-wait cap.
 
-        Waits min(trailing-edge remaining, max-wait remaining), then
-        re-checks: a new arrival during the wait extends the trailing edge,
-        while the cap is measured from the FIRST buffered message. Flushes
-        when either window is exhausted, then loops if a message arrived
-        during the flush. Never sleeps past the cap: ``wait`` is always
-        <= max-wait remaining, so the cap deadline is a wake point.
+        Waits min(trailing-edge remaining, max-wait remaining), then re-checks:
+        a new arrival extends the trailing edge, while the cap is measured from
+        the FIRST buffered message. Flushes when either window is exhausted,
+        then loops if a message arrived during the flush.
         """
         while self._buffer:
             # A non-empty buffer always has both timestamps set.
@@ -696,8 +596,7 @@ class TelegramChannel:
     async def _flush_debounce(self) -> None:
         """Flush any pending debounced texts IMMEDIATELY.
 
-        Contract S3: a command arrival flushes the buffer first. Cancels the
-        pending flush task (if any), then delivers the buffer synchronously.
+        Cancels the pending flush task (if any), then delivers the buffer.
         """
         if self._flush_task is not None and not self._flush_task.done():
             self._flush_task.cancel()

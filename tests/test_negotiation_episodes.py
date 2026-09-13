@@ -1,10 +1,7 @@
-"""A3 tests: decisions-to-episodes emission hook (G0 contract).
+"""Decisions-to-episodes emission hook tests (G0 contract).
 
-Verifies the salience gate (plain go is not emitted; go-with-delays, skip
-and forced-skip are), the deterministic episode id, replay idempotency via
-the insert_episode ON CONFLICT upsert, the composed summary text, the
-negotiation tags, and retrieval through store.list_episodes filtered on
-MemoryKind.COMPANION_EPISODE.
+Verifies the salience gate, the deterministic episode id, replay idempotency,
+the composed summary, the negotiation tags, and store retrieval.
 """
 
 import pytest

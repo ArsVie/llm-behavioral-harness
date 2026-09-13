@@ -180,8 +180,6 @@ def test_event_builders_cover_every_table(tmp_path):
     assert all(event.real is not None for event in collected)
     # The cursor's time and the time the row SHOWS must be the same instant:
     # seq = round(t_h * 1e6) * 1e6 + rank * 1e5 + id, so decode and compare.
-    # A row sorted by one instant and displaying another reads as a stream that
-    # runs backwards (all six conversation rows did before this was pinned).
     for event in collected:
         sorted_t_h = (event.seq // 1_000_000) / 1e6
         assert round(sorted_t_h, 4) == round(event.t_h, 4), (
@@ -565,6 +563,37 @@ def test_call_rows_flag_a_changed_system_prefix(tmp_path):
     assert rows[1]["verdict"] == "stable prefix CHANGED"
 
 
+def test_aux_envelope_hoists_the_kwargs_system(tmp_path):
+    """The metered aux lane nests the system under kwargs; the panel sees it."""
+    store = _store_with_history(tmp_path)
+    env_a = calls.envelope_of({"repro_json": json.dumps(ENVELOPE_A)})
+    assert env_a is not None
+    mainline_system = env_a["system"]
+    aux = {
+        "messages": [{"role": "user", "content": "plan"}],
+        "kwargs": {"system": mainline_system, "json_mode": True},
+    }
+    conn = _writable(store.path)
+    try:
+        conn.execute(
+            "update llm_calls set role = 'aux_day_planner', repro_json = ? where id = 2",
+            (json.dumps(aux),),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+    hoisted = calls.envelope_of({"repro_json": json.dumps(aux)})
+    assert hoisted is not None
+    assert hoisted["system"] == mainline_system
+    assert hoisted["kwargs"]["system"] == mainline_system, "the hoist is additive"
+    with reader.open_run(store.path) as conn:
+        rows = reader.call_rows(conn)
+        payload = calls.context_payload(conn, None, call_id=2, context_window=1_000_000)
+    assert rows[1]["system_stable"] is True, "same base prefix after hoisting"
+    assert payload["system_parts"], "the hoisted system prices into blocks"
+    assert sum(p["priced_tokens"] for p in payload["system_parts"]) > 0
+
+
 def test_call_rows_without_an_envelope_say_so(tmp_path):
     store = _store_with_history(tmp_path, audit=False)
     with reader.open_run(store.path) as conn:
@@ -726,9 +755,8 @@ def test_events_payload_filters_by_cursor_and_reports_the_newest(tmp_path):
 
 def test_checks_payload_reports_the_inspector_verdicts(tmp_path):
     store = _store_with_history(tmp_path)
-    # A model id the rate table does not know is a WARN (spend would be
-    # derived from the fallback tier), so the warn bucket has a real row to
-    # count now that a missing raw_cost alone is no longer a warning.
+    # A model id the rate table does not know is a WARN, so the warn bucket
+    # has a real row to count.
     store.conn.execute("update llm_calls set model = 'unknown-model' where id = 2")
     store.conn.commit()
     with reader.open_run(store.path) as conn:

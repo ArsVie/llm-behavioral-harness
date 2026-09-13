@@ -1,9 +1,5 @@
-"""Tests for the CLI channel (Part B, worker B2).
-
-Plain synchronous pytest functions wrapping ``asyncio.run()`` — pytest-asyncio
-is not installed, so no extra dependency. No real terminal is used: stdin and
-stdout are injected StringIO-like objects.
-"""
+"""Tests for the CLI channel: plain sync tests driving ``asyncio.run()``; stdin
+and stdout are injected StringIO-like objects."""
 
 import asyncio
 import io
@@ -24,10 +20,8 @@ async def _wait_for(predicate, timeout: float = 2.0) -> None:
 
 
 class QueueStdin:
-    """Blocking fake stdin: readline() waits for the next fed line or EOF.
-
-    Used to keep the CLIChannel reader task alive while exercising stop().
-    """
+    """Blocking fake stdin: readline() waits for the next fed line or EOF (keeps
+    the CLIChannel reader task alive while exercising stop())."""
 
     def __init__(self) -> None:
         self._lines: "queue.Queue[str]" = queue.Queue()

@@ -1,23 +1,6 @@
-"""Onboarding: /setup works, identity persists, the graph gets extended.
-
-Three things were broken together, and each has a guard here.
-
-1. ``/setup`` had NO reachable success path on the live runtime.
-   ``AsyncRuntime._on_command`` built its ``CommandContext`` without
-   ``request_setup``, so the command refused either as "already initialized"
-   (persona present) or with a ``--defer-bootstrap`` message naming a flag
-   only ``sim/run_async.py`` had. It was advertised in ``/help`` and could
-   not work.
-
-2. The onboarding identity was never persisted. ``BootstrapStore`` declared
-   ``load_user_profile``/``save_user_profile`` but no table backed them, so
-   the profile was re-derived from the environment on every start and the
-   store had no record of who the companion thinks she is talking to.
-
-3. The live launcher's fallback identity was the ABLATION MATRIX FIXTURE.
-   With the owner env vars unset (they were), a real trial built its whole
-   40/40/20 portfolio around an experiment's example user.
-"""
+"""Onboarding: ``/setup`` works on the live runtime, the identity persists,
+and the interest graph gets extended — with a bounded fallback that never
+raises and never samples against the bare catalog on a warm start."""
 
 from __future__ import annotations
 
@@ -83,13 +66,9 @@ def proposal_cache_dir(tmp_path, monkeypatch):
 
 
 def test_the_same_interest_set_is_free_the_second_time(proposal_cache_dir):
-    """The case that matters is a DB RESET with unchanged interests.
-
-    On 2026-09-08 that reset paid the full call again, timed out at 90s, and
-    handed the experiment a 31-relation graph where the run before it had 45.
-    Two consecutive resets have to be comparable, so the accepted proposal is
-    replayed from disk instead of re-rolled.
-    """
+    """A DB reset with unchanged interests replays the accepted proposal from
+    disk instead of paying the extension call again — two consecutive resets
+    stay comparable."""
     client = StubExtender()
     first = extend_graph_for_user(build_catalog(), MINE, client=client)
     assert first.source == "model" and client.calls == 1
@@ -122,12 +101,8 @@ def test_a_fallback_is_never_cached(proposal_cache_dir):
 
 
 def test_off_catalog_interests_have_no_adjacency_without_extension():
-    """The defect, pinned: an unknown interest anchors nothing.
-
-    ``build_persona`` accepts it as exact and says its "adjacency region is
-    just themselves" -- so it contributes zero adjacent candidates and the
-    portfolio collapses onto whichever interests the catalog happens to have.
-    """
+    """An unknown interest anchors nothing: ``build_persona`` accepts it as
+    exact, so it contributes zero adjacent candidates without an extension."""
     graph = build_catalog()
     assert unknown_interests(graph, MINE) == ("lifting", "anime", "history")
     pool = [
@@ -163,11 +138,8 @@ def test_extension_gives_unknown_interests_a_real_adjacency_region():
 
 
 def test_buckets_stay_structural_not_model_assigned():
-    """The frozen invariant: the model proposes NAMES, never buckets.
-
-    Every bucket is recomputed from graph distance after the extension, so
-    40/40/20 stays true by construction rather than by trusting a reply.
-    """
+    """The model proposes NAMES, never buckets: every bucket is recomputed from
+    graph distance after the extension, so 40/40/20 holds by construction."""
     graph = build_catalog()
     extend_graph_for_user(graph, MINE, client=StubExtender())
     persona = build_persona(8001, graph=graph, user_interests=MINE)
@@ -252,9 +224,7 @@ def test_resume_samples_against_the_stored_graph_not_the_catalog(tmp_path):
             day=0, client=client,
         )
         # Two setup calls on a cold start: the interest extension and the
-        # routine catalog. The stub only answers the first shape, so the
-        # routine builder falls back to the default catalog — which is the
-        # point here: what must not happen is a THIRD call on resume.
+        # routine catalog; resume must not make a THIRD call.
         assert client.calls == 2
         second = ensure_companion_initialized(
             store, seed=8001, user=UserProfile(name="Ars", interests=MINE),
@@ -306,12 +276,8 @@ def test_setup_command_succeeds_when_the_hook_is_wired(tmp_path):
 
 
 def test_live_runtime_wires_the_setup_hook():
-    """The regression that made /setup dead: the hook must be in the context.
-
-    Asserted against the source rather than a live runtime, because building
-    one needs a channel, a schedule and a client — and what actually broke
-    was a missing keyword at the CommandContext call site.
-    """
+    """The live runtime's CommandContext must carry ``request_setup``; asserted
+    against the source rather than a live runtime."""
     import inspect
 
     from harness.runtime import AsyncRuntime
@@ -328,13 +294,8 @@ def test_live_runtime_wires_the_setup_hook():
 
 
 def test_no_catalog_name_is_an_ambiguous_bare_word():
-    """A catalog name reaches the model verbatim, so it must mean ONE thing.
-
-    ``metal`` produced the live life-arc "learning metal" — music, or
-    metalworking? ``rock`` sits in the same graph as ``hiking`` and
-    ``camping``, where rock climbing is a live misreading. Both are now
-    qualified; this fails if a bare ambiguous word comes back.
-    """
+    """A catalog name reaches the model verbatim, so it must mean ONE thing:
+    this fails if a bare ambiguous word (metal, rock) comes back."""
     from harness.interest_extension import AMBIGUOUS_BARE_NAMES
 
     offenders = sorted(set(build_catalog().nodes()) & AMBIGUOUS_BARE_NAMES)
@@ -369,14 +330,9 @@ def test_qualified_names_are_still_accepted():
 
 
 def test_a_hanging_provider_falls_back_within_the_budget():
-    """The defect a real 240s timeout exposed on 2026-09-07.
-
-    The harness client retries 7 times at a 60s timeout with exponential
-    backoff — right for a conversation turn, minutes-long here. ``/setup``
-    runs inside the runtime lock, so an unresponsive provider would hold the
-    entire bot with no reply. Catching exceptions is not enough: nothing is
-    raised while it waits, so the WAIT itself has to be bounded.
-    """
+    """An unresponsive provider falls back within the budget: ``/setup`` runs
+    inside the runtime lock and nothing is raised while the client waits, so
+    the WAIT itself has to be bounded."""
     import time
 
     class Hangs:
@@ -401,13 +357,8 @@ def test_a_hanging_provider_falls_back_within_the_budget():
 
 
 def test_the_budget_is_bounded_and_far_under_the_retry_storm():
-    """Bounded, and well under what the client would do left alone.
-
-    The client's own policy is 7 attempts at a 60s timeout plus exponential
-    backoff — about seven minutes, during which nothing is raised. The budget
-    has to cover the measured latency (25-59s observed on the free lane) and
-    still cut in long before that.
-    """
+    """The setup budget is bounded, covers the observed latency, and cuts in
+    long before the client's own retry storm (7 attempts at 60s + backoff)."""
     from harness.interest_extension import EXTENSION_BUDGET_S
 
     assert 60 <= EXTENSION_BUDGET_S <= 120, (
@@ -420,13 +371,8 @@ def test_the_budget_is_bounded_and_far_under_the_retry_storm():
 
 
 def test_extension_call_sends_low_effort_and_json_mode():
-    """A naming task in front of a waiting person, not a reasoning problem.
-
-    The first version called the thin ``chat`` surface, which accepts
-    neither option — so no ``reasoning_effort`` was sent at all and the model
-    inherited the provider's default. A 240s attempt against the real
-    provider returned nothing (2026-09-07).
-    """
+    """The extension call sends low ``reasoning_effort`` and JSON mode through
+    the meta-capable chat surface."""
     from harness.interest_extension import EXTENSION_REASONING_EFFORT
 
     seen = {}

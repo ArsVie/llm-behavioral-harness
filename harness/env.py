@@ -1,12 +1,7 @@
 """Environment parsing shared by every flag-gated feature.
 
-A leaf module on purpose: it imports nothing from ``harness``, so the
-runtime, the channels and the tool layer can all use it without creating a
-cycle (``runtime.py`` in particular must not import ``harness.commands`` at
-module scope — pinned by test_runtime_anchor).
-
-``env_bool`` was copy-pasted into five modules with byte-identical bodies
-before this existed.
+A leaf module: it imports nothing from ``harness``, so the runtime, the
+channels and the tool layer can all use it without an import cycle.
 """
 
 from __future__ import annotations
@@ -14,7 +9,7 @@ from __future__ import annotations
 import os
 
 #: Values that read as True. Everything else — including a typo — is False,
-#: so a mistyped flag leaves the feature OFF rather than half-enabled.
+#: so a mistyped flag leaves the feature OFF.
 _TRUTHY = ("1", "true", "yes", "on")
 
 

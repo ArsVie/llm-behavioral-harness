@@ -1,12 +1,4 @@
-"""Q1 actuator experiment — RE-DERIVED from the lost original (G0 record).
-
-STATUS: The orchestrator brief referenced ``scratchpad/q1_actuator.py``; that
-file is LOST (verified absent from the repo, all worktrees, /tmp, /mnt/c, git
-history, and session history on 2026-08-14). This module RE-DERIVES the
-experiment from the brief's design spec. The brief's cited numbers are treated
-as HYPOTHESES to confirm, not ground truth: if the re-run reproduces them, this
-is the record; if not, the corrected numbers ARE the record (and the brief's
-prose gets corrected).
+"""Q1 actuator experiment.
 
 Design (from the brief):
   Modulator = envelope(t % 24) x S_d, with S_d an imposed constant and
@@ -24,9 +16,8 @@ Design (from the brief):
             stored FULL run: committed it3-g5-matrix full/seed5001..5005 dbs
                 via harness.scheduler.state_factor (load-bearing, headline)
           Fresh-vs-stored gap expected (momentum/previous-day + trajectory).
-  Envelope floor/ceiling (15 / 90) reasoned ANALYTICALLY from the guards
-  (max_gap 48h => at least ~15/30d; daily_cap 3 => at most 90/30d), NOT
-  re-simulated at pathological S_d.
+  Envelope floor/ceiling (15 / 90) from the guards (max_gap 48h => at least
+  ~15/30d; daily_cap 3 => at most 90/30d).
 
 Floor: engine/ untouched (frozen engine.timing.next_event is driven read-only
 through sim/run_events.run, the production thinning wrapper); harness/ is
@@ -241,13 +232,13 @@ def exp3_stored(tmpdir: Path) -> dict:
     }
 
 
-# Envelope (analytic, per brief — not simulated)
+# Envelope (analytic)
 
 def analytic_envelope(days: int = 30) -> dict:
-    """Envelope floor/ceiling reasoned from the queue guards:
-    max_gap_h 48h forces at least one contact per 48h window (=> ~days/2
-    events at minimum); daily_cap 3 caps at 3 per day (=> 3*days at most).
-    Analytic bounds, deliberately not re-simulated at pathological S_d.
+    """Envelope floor/ceiling from the queue guards: max_gap_h 48h forces at
+    least one contact per 48h window (=> ~days/2 events at minimum); daily_cap
+    3 caps at 3 per day (=> 3*days at most). Analytic bounds, not re-simulated
+    at pathological S_d.
     """
     return {
         "floor_analytic": max(1, days // 2),

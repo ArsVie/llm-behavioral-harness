@@ -1,13 +1,5 @@
-"""Session e2e loop tests (W-E1).
-
-The critical invariants:
-  1. The session's mood sequence replays EXACTLY like `sim.run_daily` for the
-     same seed (RNG consumption order is frozen).
-  2. Shadow mode records judge scores WITHOUT moving mu; feedback mode moves
-     mu by k*(score - neutral) per day.
-  3. Days finalize only once; state/messages/judgements are persisted.
-  4. Resume restores mu/eta from the latest daily_state and continues.
-"""
+"""Session e2e loop tests (W-E1): replay parity with ``sim.run_daily``,
+shadow vs feedback mu updates, finalize-once, and resume."""
 
 import math
 
@@ -68,9 +60,8 @@ def test_first_message_rolls_over_day_zero(tmp_path):
 
 
 def test_replay_matches_run_daily(tmp_path):
-    """Session M(t) must equal run_daily M(t) for the same seed (synthetic
-    score mode replicates the score RNG draw; judge mode intentionally
-    consumes no RNG, so parity is only guaranteed in synthetic mode)."""
+    """Session M(t) equals run_daily M(t) for the same seed in synthetic score
+    mode (judge mode draws no score RNG)."""
     store, clock, client, session = _session(
         tmp_path, feedback=True, synthetic_score=True
     )
@@ -183,8 +174,7 @@ def test_resume_restores_state(tmp_path):
 
 
 def test_resume_across_reopened_store(tmp_path):
-    """Review gap 15a: crash-restart flow — a NEW SQLiteStore on the same
-    path must resume identically (fresh connection, same file)."""
+    """Crash-restart: a NEW SQLiteStore on the same path resumes identically."""
     path = tmp_path / "s.db"
     store = SQLiteStore(path)
     clock = VirtualClock(t_h=19.0)
@@ -213,9 +203,8 @@ def test_resume_across_reopened_store(tmp_path):
 
 
 def test_resume_from_finalized_latest_day(tmp_path):
-    """Review gap 15b / finding #1: latest day has a judgement but no
-    rollover beyond it (clean shutdown). Resume must re-apply that day's
-    end-of-day update so continuation matches a fresh run."""
+    """Clean shutdown (latest day judged, no rollover): resume re-applies that
+    day's end-of-day update so continuation matches a fresh run."""
     store, clock, client, session = _session(tmp_path, feedback=True, judge_score=0.8)
     clock.advance_hours(19.0)
     session.on_message("warm day")
@@ -243,8 +232,8 @@ def test_resume_from_finalized_latest_day(tmp_path):
 
 
 def test_synthetic_mode_no_interaction_day_parity(tmp_path):
-    """Review gap 15e: synthetic mode with a silent day must still replicate
-    run_daily (the score draw happens even with no transcript)."""
+    """Synthetic mode with a silent day still replicates run_daily: the score
+    draw happens with no transcript."""
     store, clock, client, session = _session(
         tmp_path, feedback=True, synthetic_score=True
     )
@@ -265,7 +254,7 @@ def test_synthetic_mode_no_interaction_day_parity(tmp_path):
 
 
 def test_session_logs_llm_calls(tmp_path):
-    """Review gap 15c: session writes to llm_calls."""
+    """The session writes usage to llm_calls."""
     store, clock, client, session = _session(tmp_path)
     clock.advance_hours(19.0)
     session.on_message("hi")
@@ -382,14 +371,10 @@ def test_proactive_without_intent_degrades_without_fabrication(tmp_path):
 
 
 def test_memory_session_boundary_closes_and_promotes(tmp_path, monkeypatch):
-    """Conversation close drives the memory session: L2 summary persisted,
-    L3 episodes promoted and L4 assertions consolidated (provenanced).
-
-    it3 B2: memory forms at the CONVERSATION boundary (one memory session
-    per conversation), not the day boundary. closing_tendency is forced to
-    1.0 so the first eligible draw (second companion turn) closes the
-    conversation deterministically; the summary is keyed by the
-    conversation's memory session id (day-1000 = conv-0's session)."""
+    """Conversation close drives the memory session: L2 summary persisted, L3
+    episodes promoted, L4 assertions consolidated. Memory forms at the
+    CONVERSATION boundary; closing_tendency 1.0 closes on the first eligible
+    draw, and the summary is keyed by that conversation's memory session id."""
     from harness.domain import GenerationControls
 
     def forced_controls(directive):
@@ -507,11 +492,9 @@ def test_restart_continuity_with_life_lanes(tmp_path):
 
 
 def test_fire_proactive_exact_intent_never_reason_substitute(tmp_path):
-    """T3 seam (invariant 7): fire_proactive(intent_id) builds the snapshot
-    from the EXACT intent — two intents sharing reason='schedule' are never
-    interchangeable. Firing #87 renders #87's hook (never #88's, even though
-    #88 was created later), and the outgoing message persists intent_id #87
-    (invariant 6)."""
+    """fire_proactive(intent_id) builds the snapshot from the EXACT intent —
+    two intents sharing reason='schedule' are never interchangeable, and the
+    outgoing message persists the fired intent_id."""
     from harness.domain import ProactiveIntent
 
     store = SQLiteStore(tmp_path / "s.db")
@@ -594,11 +577,9 @@ def test_fire_proactive_expired_exact_intent_raises(tmp_path):
 
 
 def test_resume_with_day_zero_clock_does_not_rewind(tmp_path):
-    """ROUTED DEFECT (A1b): restarting on an already-progressed store with a
-    driver clock that starts at day 0 crashed with 'cannot rewind session
-    from day N to 0' the moment a day-0 grounded intent fired on resume.
-    The resume path now initializes the session at the store's day — no
-    rewind crash, and the conversation continues on the resumed day."""
+    """A driver clock starting at day 0 on an already-progressed store: resume
+    initializes the session at the store's day — no rewind, and the
+    conversation continues on the resumed day."""
     from harness.domain import ProactiveIntent
 
     path = tmp_path / "s.db"
@@ -768,10 +749,8 @@ def _replace_day0_agenda(store, items) -> None:
 
 
 def test_current_activity_documented_bad_case_returns_none(tmp_path):
-    """Documented bad case (plan §1): at t_h=19.00 on day 0 the 6.96-7.46
-    'morning coffee' item must NOT be current — nothing is in progress, so
-    the session reports None instead of the day's highest-salience item
-    (the 53-56% error the NOW-semantics fix removes)."""
+    """At t_h=19.00 on day 0 the 6.96-7.46 'morning coffee' item is NOT
+    current: nothing is in progress, so the session reports None."""
     from harness.domain import AgendaItem
 
     store, _clock, session = _agenda_session(tmp_path)

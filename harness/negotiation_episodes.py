@@ -1,17 +1,7 @@
-"""A3: negotiation decisions -> companion episodes (G0 contract seam).
+"""A3: negotiation decisions -> companion episodes.
 
-Maps a ``NegotiationEpisode`` (harness.negotiation_contract, frozen) onto the
-existing ``store.insert_episode`` seam.  memory.py is MUST-NOT-TOUCH; this
-module is the only adapter A1 needs.
-
-Determinism contract:
-  * episode id is derived purely from episode fields (``neg-`` + item id +
-    outcome + numeric occurred time), so replaying the same episode yields
-    the same id; ``insert_episode``'s ON CONFLICT(id) upsert means a
-    re-emitted episode never duplicates a row.
-  * summary text is composed from episode fields (fallback only: A1's own
-    ``episode.summary`` is respected when provided).
-  * no wall-clock / random inputs anywhere.
+Maps ``NegotiationEpisode`` onto the existing ``store.insert_episode`` seam;
+ids and summaries derive from the episode's own fields (replay upserts).
 """
 
 from __future__ import annotations
@@ -97,9 +87,7 @@ def emit_negotiation_episode(
 ) -> str | None:
     """Emit a negotiation outcome as a companion episode; returns the id.
 
-    Returns ``None`` when the salience gate withholds emission (a plain go
-    with zero delays per the contract; unknown outcomes are also withheld).
-    Replay-idempotent: emitting the same episode twice writes one row.
+    None when the salience gate withholds emission; replay-idempotent.
     """
     if not _should_emit(episode):
         return None

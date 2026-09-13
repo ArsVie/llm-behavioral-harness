@@ -1,13 +1,6 @@
-"""A9 Iteration-2 adversarial wave — INTEREST-GRAPH attack class (plan §5-A9 B2).
+"""A9 Iteration-2 adversarial wave — INTEREST-GRAPH attack class.
 
-Attacks on the interest graph and the user-relative 40/40/20 sampler: the
-distance function must be symmetric and consistent with path_exists, there is
-no self-distance, and the adjacency boundary cannot be gamed into 'exact' by
-duplicating edges or duplicate user interests.
-
-Every test is deterministic: no RNG draws except the seeded samplers, no real
-clock, no LLM.
-"""
+Deterministic: no real clock, no LLM."""
 
 from __future__ import annotations
 
@@ -31,10 +24,8 @@ def _all_pairs(nodes: list[str]) -> list[tuple[str, str]]:
 
 
 def test_b2_distance_symmetric_and_consistent_with_path_exists():
-    """For EVERY node pair of the default catalog: distance(a,b) ==
-    distance(b,a); distance(a,a) == 0; and the hop-bounded reachability
-    primitive agrees with the exact distance for every hop bound
-    (distance(a,b) <= h  <=>  path_exists(a,b,h))."""
+    """For every node pair: distance is symmetric, self-distance is 0, and
+    path_exists agrees with the exact distance."""
     graph = build_catalog()
     nodes = graph.nodes()
     assert len(nodes) >= 20, "precondition: a catalog worth attacking"
@@ -54,9 +45,8 @@ def test_b2_distance_symmetric_and_consistent_with_path_exists():
 
 
 def test_b2_no_self_distance_and_unknown_nodes():
-    """distance(x, x) == 0 for every node INCLUDING unknown names;
-    reachable_within always includes the start node itself; an unknown node
-    is unreachable from anything else and reachable only from itself."""
+    """distance(x, x) == 0 for every node, including unknown names; unknown nodes
+    are reachable only from themselves."""
     graph = build_catalog()
     for name in graph.nodes() + ["ghost-interest", ""]:
         assert graph.distance(name, name) == 0
@@ -69,9 +59,7 @@ def test_b2_no_self_distance_and_unknown_nodes():
 
 
 def test_b2_adjacency_boundary_not_gameable_via_duplicate_edges():
-    """Duplicate relations cannot shorten distances: re-adding an existing
-    edge (even many times) never reduces a distance below its true shortest
-    path, and re-marking a hub never adds duplicate hubs to the exact pool."""
+    """Duplicate edges never shorten a distance and never duplicate hubs."""
     graph = build_catalog()
     before = {
         (a, b): graph.distance(a, b)
@@ -106,10 +94,7 @@ def test_b2_adjacency_boundary_not_gameable_via_duplicate_edges():
 
 
 def test_b2_duplicate_user_interests_cannot_game_exact():
-    """The adjacency boundary cannot be gamed into 'exact' via duplicates: a
-    user listing the SAME interest many times still gets ONE exact slot (the
-    dedup'd pool), the portfolio never contains duplicate names, and the
-    exact bucket never exceeds the dedup'd user set."""
+    """Duplicate user interests cannot inflate the exact bucket."""
     graph = build_catalog()
     rng = np.random.default_rng(SEED)
     # "pottery" is repeated 20 times, plus two real graph-adjacent neighbors.
@@ -137,10 +122,7 @@ def test_b2_duplicate_user_interests_cannot_game_exact():
 
 
 def test_b2_island_always_independent_pool():
-    """The hubless island can never be gamed into exact or adjacent: every
-    island node stays > MAX_ADJACENCY_HOPS from every hub of the default
-    catalog (the structural guarantee that the independent bucket is always
-    fillable)."""
+    """Every island node stays further than MAX_ADJACENCY_HOPS from every hub."""
     graph = build_catalog()
     for island_node in ISLAND:
         for hub in graph.hubs():

@@ -1,4 +1,4 @@
-"""Tests unitarios de la maquinaria del harness (A8 — cvs_common)."""
+"""Tests unitarios de la maquinaria del harness (cvs_common)."""
 
 import json
 
@@ -47,11 +47,8 @@ def _skipped_item(start: float, end: float, status: str = "skipped") -> AgendaIt
 
 
 def test_duplicate_turns_key_disambiguates_real_run_collisions(tmp_path):
-    """Gate 6: in real runs the virtual clock freezes during LLM calls, so a
-    reactive reply and a proactive fire can share (role, content, t_h, day)
-    — with the model repeating text verbatim or returning empty. Distinct
-    messages must NOT be flagged; a true resume-rewind (same intent_id
-    re-written) MUST be."""
+    """Gate 6: identical (role, content, t_h, day) messages must NOT be flagged;
+    a true resume-rewind (same intent_id re-written) MUST be."""
     from harness.store import SQLiteStore
     from experiments.cvs_common import _duplicate_turns
 
@@ -75,9 +72,7 @@ def test_duplicate_turns_key_disambiguates_real_run_collisions(tmp_path):
 
 
 def test_judge_report_aggregates_both_passes_and_agreement(tmp_path):
-    """Review 2026-08-09: by_family keyed passes by the FAMILY (split[2])
-    so pass 2 clobbered pass 1 (n=5 not 10) and agreement looked up a
-    nonexistent '1' key (None forever)."""
+    """Both passes count per family, and agreement is a real correlation, not None."""
     from experiments.companion_vertical_slice import _judge_report
 
     out = tmp_path / "j"
@@ -98,7 +93,7 @@ def test_judge_report_aggregates_both_passes_and_agreement(tmp_path):
     # Both passes counted per family -> n = 6 per family per dimension.
     assert rep["per_family_per_dimension"]["flash"]["persona_enactment"]["n"] == 6
     assert rep["per_family_per_dimension"]["luna"]["persona_enactment"]["n"] == 6
-    # Pass-2-only mean would be 6.2; both-passes mean is (5.1+6.1+7.1+5.2+6.2+7.2)/6.
+    # both-passes mean, not the pass-2-only 6.2
     m = rep["per_family_per_dimension"]["flash"]["persona_enactment"]["mean"]
     assert abs(m - 6.15) < 1e-9
     # Agreement is a real correlation (perfect, +1 shift), not None.
@@ -108,8 +103,7 @@ def test_judge_report_aggregates_both_passes_and_agreement(tmp_path):
 
 
 def test_parse_transcript_stem_both_namings():
-    """Gate 6: cmd_matrix writes COND_seed<S>; the judge parser must accept
-    both that and the bare COND_<S> form (burned 2 judge runs 2026-08-09)."""
+    """Gate 6: cmd_matrix writes COND_seed<S>; the parser must also accept COND_<S>."""
     from experiments.companion_vertical_slice import _parse_transcript_stem
     assert _parse_transcript_stem("FULL_seed5001") == ("FULL", 5001)
     assert _parse_transcript_stem("NO_LIFE_5003") == ("NO_LIFE", 5003)
@@ -118,12 +112,8 @@ def test_parse_transcript_stem_both_namings():
 
 
 def test_source_superseded_agenda_item_touctou_clamp():
-    """Gate 2 finding: the naive ``end_t_h >= created_t_h`` predicate
-    flagged IN-SLOT fires as superseded. Skips are written at day
-    close-out ((day+1)*24, day 0-indexed), so an intent created before
-    that boundary referenced a still-``planned`` item (resolver evidence
-    pi_agenda_item_ag_16_r_00_406.117 / pi_agenda_item_ag_29_r_02_716.563).
-    """
+    """Gate 2: an intent created before the day's close-out skip is not superseded
+    by it; at or after the close-out it is."""
     item = _skipped_item(405.6, 406.6)  # day 16 (0-idx), close-out 408.0
     assert not _source_superseded_at(None, item, _intent(406.117))  # mid-slot
     assert not _source_superseded_at(None, item, _intent(407.0))  # pre-close-out
@@ -202,11 +192,11 @@ def test_deterministic_judge_perturbation_dip():
     # Deterministic: a second judge reproduces the exact sequence.
     judge2 = DeterministicJudge(5001)
     assert [judge2("", None).score for _ in range(16)] == scores
-    # Outside the block the judge is NOT flat (real signal for the scheduler).
+    # Outside the block the judge is NOT flat.
     assert len(set(base)) > 3
 
 
-# Cadenas de eventos (§17.2)
+# Cadenas de eventos
 
 
 def test_classify_chain_levels():
@@ -264,14 +254,7 @@ def test_token_gap():
 
 
 def test_perturbation_block_analysis():
-    """Bloque negativo con recuperación completa.
-
-    Antes esta prueba no llamaba a la función que nombra: tomaba
-    ``__globals__``, lo descartaba, y afirmaba hechos de numpy sobre una
-    lista hecha a mano. Ahora ejercita la aritmética real
-    (``block_deviation_analysis``, extraída de la clausura para poder
-    probarse sin un store).
-    """
+    """Bloque negativo con recuperación completa."""
     days = 30
     base_end = cvs_common.BLOCK_START_D
     block = list(range(cvs_common.BLOCK_START_D, cvs_common.BLOCK_END_D + 1))
@@ -361,7 +344,7 @@ def test_apply_and_restore_patches():
     assert cvs_common.apply_condition_patches("FULL") == []
 
 
-# B6 — lane routing + sonda justa RAW_HISTORY (closes F5)
+# lane routing + sonda justa RAW_HISTORY
 
 
 def _chain(chain_id: str) -> dict:
@@ -381,10 +364,8 @@ def _store_with_chain_episodes(tmp_path, chain_id: str):
 
 
 def test_event_chain_metrics_routes_simple_rag_lane(tmp_path):
-    """F5: SIMPLE_RAG scored 0.0 while its store held the episodes — the metric
-    built a MemoryAgent unconditionally instead of the condition's lane. With
-    lane routing the metric must read SimpleRagMemory and return non-zero
-    AnyEvidence on a populated store."""
+    """The metric must read the condition's lane (SimpleRagMemory), not build a
+    MemoryAgent unconditionally."""
     store = _store_with_chain_episodes(tmp_path, "sister_ana")
     chains = cvs_common.event_chain_metrics(store, condition="SIMPLE_RAG")
     cls = chains["sister_ana"]
@@ -411,10 +392,8 @@ def test_recall_probe_metrics_routes_simple_rag_lane(tmp_path):
 
 
 def test_raw_history_fair_probe_verdict_from_context_not_zero(tmp_path):
-    """F5: RAW_HISTORY has zero episodes, so episode-keyed metrics returned 0
-    necessarily. The fair probe scores recoverability from the raw dialogue
-    window the lane conditions on at query time — a fact inside the window is
-    recovered, an old fact outside it is not (a real verdict, not a constant 0)."""
+    """The fair probe scores recoverability from the raw dialogue window: a fact
+    inside the window is recovered, an old fact outside it is not."""
     from harness.store import SQLiteStore
 
     store = SQLiteStore(str(tmp_path / "raw.db"))
@@ -435,8 +414,7 @@ def test_raw_history_fair_probe_verdict_from_context_not_zero(tmp_path):
     assert cls["AnyEvidence"] is True          # not an automatic 0
     assert cls["LatestEvidence"] is True
     assert cls["CompleteChain"] is False
-    # A fact inside the window IS recovered -> the verdict is recoverable,
-    # not a constant 0.
+    # a fact inside the window IS recovered
     store.add_message("user", "Also, my sister is named Ana.", 300.0, 12)
     chains2 = cvs_common.event_chain_metrics(store, condition="RAW_HISTORY")
     assert chains2["sister_ana"]["covered"] == [True, True, True]
@@ -446,7 +424,7 @@ def test_raw_history_fair_probe_verdict_from_context_not_zero(tmp_path):
 
 def test_raw_history_recall_probe_uses_context_window(tmp_path):
     """M3 for RAW_HISTORY: same-day facts are inside the lane's window at probe
-    time (probe_day*24+6) and must be recalled — not pinned to 0."""
+    time and must be recalled."""
     from harness.store import SQLiteStore
 
     store = SQLiteStore(str(tmp_path / "raw2.db"))
@@ -462,7 +440,7 @@ def test_raw_history_recall_probe_uses_context_window(tmp_path):
 
 
 def test_aggregate_chain_metrics_reports_absolute_rates():
-    """B6: absolute CompleteChain/AnyEvidence reported (not only gaps)."""
+    """Absolute CompleteChain/AnyEvidence rates are reported, not only gaps."""
     chains = {
         "a": {"AnyEvidence": True, "LatestEvidence": True, "CompleteChain": True},
         "b": {"AnyEvidence": True, "LatestEvidence": False, "CompleteChain": False},
@@ -475,8 +453,7 @@ def test_aggregate_chain_metrics_reports_absolute_rates():
 
 
 def test_fair_probe_definition_is_documented():
-    """B6 acceptance: the RAW_HISTORY fair probe definition is documented and
-    manifest-ready (B10 reviews it; G4 freezes it)."""
+    """The RAW_HISTORY fair probe definition is documented and manifest-ready."""
     text = cvs_common.RAW_HISTORY_FAIR_PROBE
     assert "RECOVERABLE" in text
     assert "t_q" in text

@@ -1,10 +1,4 @@
-"""A9 adversarial wave — MEMORY attack class (plan §9, cases M-1..M-8).
-
-Attacks on L1/L2/L3/L4: contradictory facts must not surface stale truth,
-irrelevant high-salience memories must not crowd out relevant ones,
-provenance chains must stay intact, and a memory wipe must never produce
-phantom continuity.
-"""
+"""Adversarial memory tests (M-1..M-8): stale truth, crowding-out, provenance, memory wipe."""
 
 from __future__ import annotations
 
@@ -49,10 +43,7 @@ def _day_session(store, day: int, user_text: str, *, t_h: float | None = None,
 
 
 def test_m1_contradictory_facts_supersede_stale_truth(tmp_path):
-    """M-1: 'I have a cat named Luna' (day 2) then 'I don't have Luna anymore'
-    (day 10). The L4 assertion `user:cat` must be superseded (status flip,
-    provenance kept), retrieval at day 20 must surface the revised truth, and
-    stale 'Luna is alive' must never be returned as current."""
+    """M-1: a contradiction supersedes the stale L4 fact; only the revised truth surfaces."""
     store = make_store(tmp_path, "m1.db")
     agent = MemoryAgent(store)
     _day_session(store, 2, "I have a cat named Luna", agent=agent)
@@ -83,9 +74,7 @@ def test_m1_contradictory_facts_supersede_stale_truth(tmp_path):
 
 
 def test_m1b_negation_provenance_keeps_both_sources(tmp_path):
-    """M-1 (provenance leg): after the contradiction the superseded assertion's
-    persisted provenance must include BOTH the original memory and the
-    negation memory (provenance chain intact, nothing deleted)."""
+    """M-1 (provenance): the superseded assertion keeps both source memories."""
     store = make_store(tmp_path, "m1b.db")
     agent = MemoryAgent(store)
     _day_session(store, 2, "I have a cat named Luna", agent=agent)
@@ -102,9 +91,7 @@ def test_m1b_negation_provenance_keeps_both_sources(tmp_path):
 
 
 def test_m2_stale_episode_anchored_not_blended_into_current(tmp_path):
-    """M-2: the old L3 episode mentioning Luna still exists; retrieval at day
-    20 must either exclude it or return it ANCHORED to its verbatim turn —
-    never blended into L4 current truth."""
+    """M-2: a stale episode is returned with its verbatim anchor, never as current truth."""
     store = make_store(tmp_path, "m2.db")
     agent = MemoryAgent(store)
     _day_session(store, 2, "I have a cat named Luna", agent=agent)
@@ -146,18 +133,7 @@ def _episode(ep_id: str, summary: str, importance: float, tags, *,
 
 
 def test_m3_relevant_low_salience_not_crowded_out(tmp_path):
-    """M-3: an emotional-peak memory (importance 1.0, 'user's dog Bruno') and
-    several other irrelevant high-salience memories must NOT crowd out a
-    directly relevant low-salience memory for 'pottery class' under the hard
-    budget limit=8.
-
-    Iteration-2 contract (plan §5-A4 T2, invariants 11-12): the topicality
-    boost lives ONLY in STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT. The faithful
-    STRUCTURED_MEMORY reranker is formula-exact (0.35 semantic + 0.30
-    strength + 0.35 importance) with NO hidden topicality — crowding-out under
-    the faithful formula is the documented contrast, which is exactly why the
-    experimental variant exists. Both legs are asserted below.
-    """
+    """M-3: high-salience distractors must not crowd out the relevant low-salience memory."""
     store = make_store(tmp_path, "m3.db")
     distractors = [
         ("user's dog Bruno is very sick", ("dog", "bruno")),
@@ -207,9 +183,7 @@ def test_m3_relevant_low_salience_not_crowded_out(tmp_path):
 
 
 def test_m4_no_sourceless_episodes(tmp_path):
-    """M-4: no sourceless episode may ever be created — promote() refuses an
-    unprovenanced summary, and a direct insert_episode with empty
-    source_turn_ids must not leave a sourceless L3 row behind."""
+    """M-4: no sourceless episode may be created or persisted."""
     import pytest
 
     store = make_store(tmp_path, "m4.db")
@@ -232,10 +206,7 @@ def test_m4_no_sourceless_episodes(tmp_path):
 
 
 def test_m5_summarization_hallucination_blocked_from_l4(tmp_path):
-    """M-5: a SessionSummary containing a fact absent from every source turn
-    must never produce an L4 assertion; assertions are created only from
-    summary fields backed by existing source turns, with non-empty
-    source_memory_ids."""
+    """M-5: a fact absent from every source turn must never become an L4 assertion."""
     store = make_store(tmp_path, "m5.db")
     agent = MemoryAgent(store)
     agent.record_turn("user", "hello", 10.0, "day-0")
@@ -260,9 +231,7 @@ def test_m5_summarization_hallucination_blocked_from_l4(tmp_path):
 
 
 def test_m6_user_affect_and_companion_state_are_independent():
-    """M-6: UserAffectObservation and CompanionBehaviorState are separate
-    types with disjoint fields — no shared mutation, no implicit conversion.
-    A playful companion state must never yield 'user = playful'."""
+    """M-6: user affect and companion state are separate types with disjoint fields."""
     obs_fields = {f.name for f in dataclasses.fields(UserAffectObservation)}
     state_fields = {f.name for f in dataclasses.fields(CompanionBehaviorState)}
     assert obs_fields.isdisjoint(state_fields), (
@@ -282,9 +251,7 @@ def test_m6_user_affect_and_companion_state_are_independent():
 
 
 def test_m7_bruno_recall_across_horizon_and_no_false_recall(tmp_path):
-    """M-7: 'My dog's name is Bruno.' (day 2) must be retrievable at day 20
-    WITH its verbatim anchor even after 12+ turns and many days; a query about
-    something never said must return nothing relevant (false recall = 0)."""
+    """M-7: a day-2 fact stays retrievable with its anchor at day 20; no false recall."""
     store = make_store(tmp_path, "m7.db")
     agent = MemoryAgent(store)
     _day_session(store, 2, "My dog's name is Bruno", agent=agent)
@@ -311,9 +278,7 @@ def test_m7_bruno_recall_across_horizon_and_no_false_recall(tmp_path):
 
 
 def test_m8_memory_wipe_no_crash_no_phantom_continuity(tmp_path):
-    """M-8: wipe L3/L4 (and L2) rows after 20 days and restart. No crash, no
-    phantom 'remember when…' references to wiped episodes; intents referencing
-    wiped sources suppress (G-1 path); L1/L2 rebuild proceeds cleanly."""
+    """M-8: a memory wipe leaves no phantom continuity; wiped sources suppress; clean rebuild."""
     from harness.gates import content_gate
     from harness.domain import ProactiveIntent
 
@@ -357,9 +322,7 @@ def test_m8_memory_wipe_no_crash_no_phantom_continuity(tmp_path):
 
 
 def test_m9_canonical_categories_only_foreign_strings_never_persist(tmp_path):
-    """Invariant 10: after a full L1→L4 pipeline the persisted L4 rows carry
-    ONLY canonical UserModelCategory values — a foreign/garbage category
-    string is refused at the write seam, never silently stored."""
+    """Invariant 10: persisted L4 rows carry only canonical UserModelCategory values."""
     from harness.domain import UserModelCategory
 
     store = make_store(tmp_path, "m9.db")
@@ -396,12 +359,7 @@ def test_m9_canonical_categories_only_foreign_strings_never_persist(tmp_path):
 
 
 def test_m9b_policy_switch_changes_retrieval_ordering_by_construction(tmp_path):
-    """Invariant 11/12: the faithful STRUCTURED_MEMORY reranker and the
-    separately named STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT produce
-    DIFFERENT retrieval orderings BY CONSTRUCTION on the same store — the
-    experimental variant promotes a semantic match that the faithful formula
-    ranks below a higher-importance distractor, and the faithful condition
-    is formula-exact (no hidden topicality)."""
+    """Invariant 11/12: the faithful and experimental rerankers order the same store differently."""
     from harness.domain import MemoryPolicy
     from harness.memory import deterministic_hash_embedder
 
@@ -448,11 +406,7 @@ def test_m9b_policy_switch_changes_retrieval_ordering_by_construction(tmp_path):
 
 
 def test_m9c_embedder_and_summarizer_deterministic_across_instances(tmp_path):
-    """Same input → same output across instances: the deterministic embedder
-    is stable across calls and processes, two MemoryAgent instances over the
-    SAME store retrieve byte-identical orderings (embeddings round-trip
-    through the store unchanged), and the default summarizer produces
-    identical SessionSummary objects across instances."""
+    """The embedder, retrieval and default summarizer are deterministic across instances."""
     from harness.memory import deterministic_hash_embedder
     from harness.summarization import DeterministicSummaryExtractor
 

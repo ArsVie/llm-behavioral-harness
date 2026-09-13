@@ -5,7 +5,7 @@ fija DECOUPLED_OFFSETS, 120 dias, semillas [7001..7005] (sub-experimentos 1 y
 2); el sub-experimento 3 reutiliza las mismas 5 semillas para las corridas sin
 shock a distintos k.
 
-Cota de estabilidad del lazo (engine/validation.py, research/05 SS2):
+Cota de estabilidad del lazo (engine/validation.py):
     k < 2*(1-rho)/g_max,  g_max = 1 + A + 3*sigma_eps
 Con PersonaParams() por defecto (A=0.25, sigma_eps=0.03, rho=0.70):
     g_max = 1.34 ; cota = 2*0.30/1.34 ~= 0.447761...
@@ -21,8 +21,8 @@ Sub-experimentos:
     1. Shock y reversion con defaults (shocks 40..44 = -1.0).
     2. Dosis-respuesta de rho en {0.5, 0.7, 0.85} (k=0.15, sin shocks).
     3. Cota de estabilidad empirica: rho=0.7, k en {0.40, 0.47, 0.60}, SIN
-       shocks, 120 dias (el experimento viola la cota a proposito para k=0.47
-       y k=0.60 — validation.check los rechazaria; ver reporte).
+       shocks, 120 dias (k=0.47 y k=0.60 quedan fuera de la cota;
+       validation.check los rechazaria).
 
 Reproducible: `python -m experiments.w35_shocks` regenera figuras + reporte
 en results/w35-shocks/ (rutas relativas via Path(__file__)).
@@ -264,9 +264,8 @@ def plot_rho_comparison(rho_results: dict) -> Path:
 def run_k_sweep() -> dict:
     """Corre SIN shocks, rho=RHO_FOR_K_SWEEP, k en K_VALS, 120 dias, 5 semillas.
 
-    k=0.47 y k=0.60 violan la cota a proposito (documentado, no filtrado por
-    validation.check aqui — el punto del sub-experimento es medir el
-    comportamiento fuera de la cota).
+    k=0.47 y k=0.60 quedan fuera de la cota (no filtrados por
+    validation.check aqui).
 
     Devuelve por k: mu_by_seed, M_by_seed, mu_tail_mean (media de
     mu[-TAIL_WINDOW:] por semilla, luego promediada), mu_abs_max (max |mu| por

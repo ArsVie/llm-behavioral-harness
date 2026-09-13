@@ -1,9 +1,5 @@
 """Tests for the Channel protocol, message shapes, FakeChannel, and
-active-channel selection (Part B, seams B-1 + B-3).
-
-The cli/telegram branches of select_channel are intentionally NOT tested:
-those modules are built by later workers. Only the fake branch is exercised.
-"""
+active-channel selection (Part B, seams B-1 + B-3)."""
 
 from __future__ import annotations
 

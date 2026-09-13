@@ -1,4 +1,4 @@
-"""Tests de integración del harness (A8): célula vertical mínima, replay y
+"""Tests de integración del harness: célula vertical mínima, replay y
 tracks de memoria/estado (plumbing determinista, sin LLM real)."""
 
 import json

@@ -1,15 +1,6 @@
-"""A9 Iteration-2 adversarial wave — RUNTIME attack class (plan §5-A9 R1).
-
-Attacks on the accelerated-time runtime (plan §16 invariants 3 and 17):
-rollover must never jump the virtual clock past a pending event (fast-clock
-events near midnight fire at their own time, never spurious-expire), the
-quiet-hours deferral must not consume still-valid events, a send exception
-must not corrupt the process (terminate + no orphan threads), and
-cancellation during a sleep must shut down cleanly.
-
-Deterministic only: injected sleeper (recorded, never real seconds) except
-the one bounded real sleep that deterministically triggers the rollover-vs-
-firing race; virtual clock, fixed seeds, no LLM.
+"""Adversarial runtime attacks: rollover must never jump the clock past a pending
+event, quiet-hours deferral must not consume still-valid events, a send exception
+must not corrupt the process, and cancellation must shut down cleanly.
 """
 
 from __future__ import annotations
@@ -62,8 +53,7 @@ def _rows(store):
 
 def _run(store, session, schedule, channel, *, max_hours, scale=FAST,
          sleeper=None, resolver=None, clock_start_h=None):
-    """Run the real AsyncRuntime for a bounded horizon; the sleeper is the
-    injected recording sleeper unless a blocking one is given."""
+    """Run the real AsyncRuntime for a bounded horizon with an injected sleeper."""
     delays: list[float] = []
 
     async def record(delay: float) -> None:
@@ -92,13 +82,8 @@ def _no_llh_threads() -> bool:
 
 
 def test_r1a_fast_clock_events_near_midnight_fire_not_expire(tmp_path):
-    """E0 stress variant closer to midnight than the Iteration-1 regression:
-    events at 21.5 and 22.5 (the 22.5 one inside the envelope ramp-down,
-    validity 3h → still valid at midnight) under FAST accelerated time with
-    a blocking sleeper that holds the firing loop long enough for the
-    rollover's midnight sleep to complete. The rollover must PARK at the
-    pending event: both fire AT THEIR OWN TIMES (fired_t_h == event hour),
-    never spuriously expired."""
+    """Events at 21.5 and 22.5 (still valid at midnight) under FAST time with a
+    blocking sleeper: both must fire at their own hour, never spuriously expire."""
     store = make_store(tmp_path, "r1a.db")
     try:
         _ground_agenda(store, 21.0, 22.0, item_id="slot_a", activity="evening a")
@@ -110,8 +95,7 @@ def test_r1a_fast_clock_events_near_midnight_fire_not_expire(tmp_path):
         channel = FakeChannel()
 
         async def blocking_sleeper(delay: float) -> None:
-            # bounded real wait: a deterministic rollover-vs-firing race trigger
-            # (the 24:00 sleep completes during event A's response delay)
+            # bounded real wait: triggers the rollover-vs-firing race deterministically
             await asyncio.sleep(0.3)
 
         _run(store, make_session(store), ProactiveSchedule.restore(SEED, store),
@@ -136,10 +120,8 @@ def test_r1a_fast_clock_events_near_midnight_fire_not_expire(tmp_path):
 
 
 def test_r1c_three_events_before_midnight_all_fire_at_own_times(tmp_path):
-    """A denser near-midnight cluster (21.0/21.5/22.0, all within validity
-    at midnight, 3 == the daily proactive cap) under FAST time: EVERY event
-    fires at its own hour — the rollover parks at each in turn and never
-    jumps the clock past a pending one; the run still crosses midnight."""
+    """Three near-midnight events (3 == the daily proactive cap) all fire at their
+    own hour under FAST time; the run still crosses midnight."""
     store = make_store(tmp_path, "r1c.db")
     try:
         _ground_agenda(store, 20.5, 21.5, item_id="s1", activity="evening one")
@@ -171,21 +153,12 @@ def test_r1c_three_events_before_midnight_all_fire_at_own_times(tmp_path):
         store.close()
 
 
-# R1-b: a quiet-hours event whose validity outlives the window is deferred;
-# it fires at the next awake instant and the run ends at max_virtual_hours.
+# R1-b: quiet-hours deferral of a still-valid event
 
 
 def test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers(tmp_path):
-    """A still-valid shared-interest event at 23:30 (inside quiet hours,
-    validity 12h → outlives the window) is parked by the rollover and
-    deferred by the firing loop. The run must terminate and the event must
-    fire at the first fully-awake instant (day-1 09:00) — never consumed,
-    never spuriously expired, never livelocked.
-
-    CURRENT STATUS (findings R1-F1): the deferral sleep does not advance the
-    virtual clock while the rollover is parked at the pending event, so the
-    firing loop re-defers forever and the run NEVER terminates. The test
-    bounds the wait so the suite fails fast instead of hanging.
+    """A still-valid event parked in quiet hours must fire at the first fully-awake
+    instant (day-1 09:00); the bounded wait makes the suite fail fast, not hang.
     """
     store = make_store(tmp_path, "r1b.db")
     try:
@@ -200,7 +173,7 @@ def test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers(tmp_path):
         ensure_companion_initialized(
             store, seed=SEED, user=UserProfile(name="u", interests=("pottery",))
         )
-        # g8b: register the episode's source session
+        # register the episode's source session
         store.open_session("day-0", 22.0)
         store.close_session("day-0", 22.7)
         store.insert_episode(EpisodicMemory(
@@ -223,7 +196,7 @@ def test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers(tmp_path):
             sleeper=noop_sleeper,
         )
 
-        # bound the run: healthy execution needs < 2s wall time
+        # bound the run: fail fast instead of hanging
         try:
             asyncio.run(asyncio.wait_for(runtime.run(), timeout=20.0))
         except asyncio.TimeoutError:
@@ -269,10 +242,8 @@ class _BoomChannel(FakeChannel):
 
 
 def test_r1d_send_exception_propagates_but_terminates_cleanly(tmp_path):
-    """A channel.send exception must never hang the process or leak the
-    owned executor: the run raises (the exception is surfaced, not silently
-    swallowed), the executor is shut down, no llh-runtime threads remain,
-    and the store stays usable."""
+    """A send exception must propagate, shut the executor down, leak no llh-runtime
+    threads and leave the store usable."""
     store = make_store(tmp_path, "r1d.db")
     try:
         schedule = ProactiveSchedule.plan_and_persist(1, SEED, PERSONA, TIMING,
@@ -292,9 +263,8 @@ def test_r1d_send_exception_propagates_but_terminates_cleanly(tmp_path):
 
 
 def test_r1e_cancellation_during_sleep_shuts_down_cleanly(tmp_path):
-    """Cancelling the runtime while it sleeps (mid-rollover) must unwind
-    cleanly: CancelledError propagates, the owned executor shuts down, no
-    llh-runtime threads remain, and the store stays usable."""
+    """Cancelling while it sleeps (mid-rollover) must unwind cleanly: CancelledError
+    propagates, the executor shuts down, no llh-runtime threads remain."""
     store = make_store(tmp_path, "r1e.db")
     try:
         schedule = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING,

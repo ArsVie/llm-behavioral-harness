@@ -1,14 +1,10 @@
 """Single source of truth for conversation-lifecycle tunables.
 
-Both the runtime code AND the tests import from here, so changing a value never
-means editing a test — no more drift (the stale ``12.0`` copy in
-``negotiation_contract`` was exactly that failure mode). These live in code, not
-an external file, on purpose: they shape replayable behavior, so a replay is
-pinned to the code version rather than a mutable file. If we ever want to tune
-these without a code edit, snapshot the values into the replay record first.
+Both the runtime code AND the tests import from here, so changing a value
+never means editing a test. They live in code, not an external file: a replay
+is pinned to the code version, not a mutable file.
 
-Clock note: at the default ``seconds_per_virtual_hour = 3600`` (runtime.py) one
-virtual hour == one real hour, so ``0.25`` vh == 15 real minutes.
+Clock: one virtual hour == one real hour, so ``0.25`` vh == 15 minutes.
 """
 
 from __future__ import annotations

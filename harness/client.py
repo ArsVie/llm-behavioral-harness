@@ -1,54 +1,13 @@
-"""Thin OpenAI-compatible LLM client (W-E1).
+"""Thin OpenAI-compatible LLM client.
 
-The harness wraps ANY endpoint exposing /chat/completions; `base_url`,
-`api_key` and `model` come from the environment (no secrets in the repo):
+Wraps ANY endpoint exposing /chat/completions; `base_url`, `api_key` and
+`model` come from the environment or from `lane` resolution (see
+harness.credentials) — no secrets in the repo. Transient failures (transport
+errors, 429/5xx) retry with bounded exponential backoff.
 
-    LLM_BASE_URL  (default https://api.commandcode.ai/provider/v1)
-    LLM_API_KEY   (required at runtime for live calls)
-    LLM_MODEL     (default deepseek/deepseek-v4-flash)
-    JUDGE_MODEL   (default deepseek/deepseek-v4-flash — judges may use a cheaper model)
-
-Two-lane credential split (WS-C, 2026-08-16): pass `lane="product"` (the
-live companion actor — token LILY_TOKEN / optional LILY_BASE_URL) or
-`lane="research"` (judges + all experiment-generated replies — token
-JUDGE_GENERATOR_TOKEN / optional JUDGE_GENERATOR_BASE_URL). Lane resolution
-goes through harness.credentials: it fails loudly at construction when the
-lane token is missing (never a silent fallback to LLM_API_KEY /
-OPENCODE_GO_API_KEY), never logs the value, and stamps the client with
-`client.lane` for spend attribution. Explicit `api_key`/`base_url` arguments
-always win over the resolver; omitting `lane` keeps the legacy env behavior.
-
-`LLMClient` is the injectable protocol; tests use `FakeClient`. JSON mode is
-a CAPABILITY, not an assumption: clients advertise `supports_json` and the
-harness gates `response_format` on it. Same for tools: `supports_tools`
-advertises that the ENDPOINT accepts the `tools` parameter (the MODEL may
-still fail to call tools correctly — that failure is the runner's loud
-parse-failure path, WS2). Transient failures (transport errors, 429/5xx)
-retry with bounded exponential backoff (review fix #3).
-
-WS3 additions (runtime redesign): `ChatResult` carries content, extracted
-reasoning, tool calls, finish_reason and the raw response; `chat_with_meta`
-exposes tools/tool_choice/reasoning_effort; `chat()` remains a thin wrapper
-returning plain content so every pre-existing call site is untouched.
-
-WS-D additions (spend accounting, 2026-08-16): every response's
-OpenAI-compatible `usage` object is parsed into `ChatResult.usage`
-(prompt/completion/total + the cached/miss split across the DeepSeek,
-OpenAI-`prompt_tokens_details.cached_tokens` and Anthropic variants — the
-opencode gateway uses the OpenAI variant, surfacing `cached_tokens` only
-when a prompt prefix is actually cached); the gateway's top-level `cost`
-is captured as `ChatResult.raw_cost`. `FakeClient` scripts both. Absent
-usage degrades to `None` — nothing new is required of any caller.
-
-Streaming surface (2026-09-07): both clients add an OPTIONAL
-`chat_stream` iterator — SSE `delta.content` pieces on the real client,
-`chunk_size` slices on FakeClient — while `chat()` / `chat_with_meta()`
-stay byte-identical (the stream request only adds `stream: true` to the
-usual payload). The surface is duck-typed (`getattr(client,
-"chat_stream", None)`), never required: `LLMClient` declares it, but a
-client or fake without the method still conforms. Endpoints that do not
-speak SSE (non-2xx, or a 2xx body with no content deltas) degrade to one
-non-streaming `chat_with_meta` call, yielding its content once.
+`LLMClient` is the injectable protocol; tests use `FakeClient`. JSON mode and
+tools are CAPABILITIES, not assumptions: clients advertise `supports_json` /
+`supports_tools` and the harness gates those request keys on them.
 """
 
 from __future__ import annotations
@@ -69,13 +28,11 @@ from harness.credentials import resolve_credentials
 DEFAULT_BASE_URL = "https://api.commandcode.ai/provider/v1"
 DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
 
-#: Retry budget: 7 attempts with exponential backoff for transient
-#: failures and empty completions; raises when the budget is exhausted.
+#: Retry budget for transient failures and empty completions.
 _MAX_RETRIES = 6
 _RETRY_BASE_DELAY_S = 2.0
-#: SSE stream parsing (chat_stream): the 2xx retry budget on the initial
-#: connection only, the line prefix for data events, and the sentinel the
-#: OpenAI-compatible gateways emit at end of stream.
+#: SSE stream parsing: the 2xx retry budget on the initial connection, the
+#: line prefix for data events, and the end-of-stream sentinel.
 _STREAM_MAX_RETRIES = 2
 _SSE_DATA_PREFIX = "data:"
 _STREAM_END = "[DONE]"
@@ -85,27 +42,25 @@ _logger = logging.getLogger(__name__)
 
 @dataclass
 class Usage:
-    """Token usage of one chat completion (WS-D spend accounting).
+    """Token usage of one chat completion.
 
-    ``cached_tokens`` / ``cache_miss_tokens`` are the split of the input
-    (prompt) tokens between cache-served and fresh reads, derived from
-    whichever cache-field variant the gateway returns:
+    ``cached_tokens`` / ``cache_miss_tokens`` split the input (prompt) tokens
+    between cache-served and fresh reads, from whichever variant the gateway
+    returns:
 
     - DeepSeek: ``usage.prompt_cache_hit_tokens`` / ``usage.prompt_cache_miss_tokens``
     - OpenAI-compatible: ``usage.prompt_tokens_details.cached_tokens``
     - Anthropic (proxied): ``usage.cache_read_input_tokens`` (served from
-      cache) / ``usage.cache_creation_input_tokens`` (fresh writes — full
-      price, folded into the miss bucket)
+      cache) / ``usage.cache_creation_input_tokens`` (fresh writes, folded
+      into the miss bucket)
 
-    Every field is optional: a gateway that reports no ``usage`` object —
-    or no cache split — leaves the missing fields ``None`` and the totals
-    are still captured when present. Never raises on malformed shapes.
+    Every field is optional: a gateway that reports no ``usage`` object — or
+    no cache split — leaves the missing fields ``None`` and the totals are
+    still captured when present. Never raises on malformed shapes.
 
     ``reasoning_tokens`` is the provider-reported completion-side reasoning
-    spend (OpenAI ``completion_tokens_details.reasoning_tokens``; the
-    commandcode provider surfaces it there, 2026-08-28). It stays separate
-    from ``completion_tokens`` because pricing differs for reasoning output
-    on some providers; ``None`` when the gateway doesn't report it.
+    spend (``completion_tokens_details.reasoning_tokens``); ``None`` when the
+    gateway doesn't report it.
     """
 
     prompt_tokens: int | None = None
@@ -118,27 +73,25 @@ class Usage:
 
 @dataclass
 class ChatResult:
-    """Structured result of one chat completion (WS3).
+    """Structured result of one chat completion.
 
     - ``content``: the reply text (``""`` for a tool-call-only reply).
-      Always a string — a reasoning-only reply (v4-flash quirk: the model
-      answers entirely in ``reasoning_content`` and returns ``content: null``)
-      round-trips as ``""``, never ``None`` (WS-E serializer hardening).
+      Always a string — a reasoning-only reply round-trips as ``""``, never
+      ``None`` (the serializer never puts ``content: null`` on the wire).
     - ``reasoning``: the model's reasoning, extracted from the response
-      message when the provider emits it (e.g. DeepSeek-compatible endpoints
-      put it in ``message.reasoning_content``; some others in
-      ``message.reasoning``). ``None`` for non-reasoning models.
+      message when the provider emits it (``message.reasoning_content`` on
+      DeepSeek-compatible endpoints, ``message.reasoning`` on some others).
+      ``None`` for non-reasoning models.
     - ``tool_calls``: parsed function calls, each ``{"id", "name",
       "arguments_json"}`` — ``arguments_json`` stays the RAW JSON string;
-      semantic parsing belongs to the runner (WS2), which fails loudly on
+      semantic parsing belongs to the runner, which fails loudly on
       invalid JSON.
     - ``finish_reason``: the provider's stop reason (``None`` when absent).
-    - ``usage``: parsed token usage (WS-D) — ``None`` when the response
-      carried no usable ``usage`` object (graceful degradation).
+    - ``usage``: parsed token usage — ``None`` when the response carried no
+      usable ``usage`` object.
     - ``raw_cost``: the gateway-reported cost in USD (a top-level ``cost``
-      field the opencode gateway returns alongside ``usage``; discovery
-      2026-08-16) — ``None`` when absent. Kept separately from
-      :attr:`Usage` because it is gateway-side, not part of ``usage``.
+      field) — ``None`` when absent. Gateway-side, so kept out of
+      :attr:`Usage`.
     - ``raw``: the full parsed response body (audit/replay fidelity).
     """
 
@@ -154,12 +107,10 @@ class ChatResult:
 class LLMClient(Protocol):
     """Minimal client contract used by the harness.
 
-    ``chat_stream`` is an OPTIONAL streaming surface (2026-09-07): the
-    harness gates on ``getattr(client, \"chat_stream\", None)`` and never
-    requires it, so older clients and test fakes without the method still
-    conform. Clients that DO offer it must also keep ``chat_with_meta``
-    behaviour identical — streaming is an extra surface, not a
-    replacement.
+    ``chat_stream`` is optional: the harness gates on
+    ``getattr(client, "chat_stream", None)`` and never requires it, so older
+    clients and test fakes without the method still conform. A client that
+    offers it must keep ``chat_with_meta`` behaviour identical.
     """
 
     supports_json: bool
@@ -189,7 +140,7 @@ class LLMClient(Protocol):
         tool_choice: dict | str | None = None,
         reasoning_effort: str | None = None,
     ) -> ChatResult:
-        """Complete a chat and return the structured result (WS3)."""
+        """Complete a chat and return the structured result."""
         ...
 
     def chat_stream(
@@ -205,11 +156,10 @@ class LLMClient(Protocol):
         reasoning_effort: str | None = None,
         chunk_size: int = 64,
     ) -> Iterator[str]:
-        """Yield the reply in pieces as they arrive (OPTIONAL, 2026-09-07).
+        """Yield the reply in pieces as they arrive (optional surface).
 
-        Not required for protocol conformance — the harness gates on
-        ``getattr(client, "chat_stream", None)`` so clients/fakes without
-        it remain valid.
+        Not required for protocol conformance: the harness gates on
+        ``getattr(client, "chat_stream", None)``.
         """
         ...
 
@@ -221,10 +171,9 @@ class LLMClient(Protocol):
 def _parse_tool_calls(raw: object) -> list[dict]:
     """Parse OpenAI-style ``message.tool_calls`` into ``{id, name, arguments_json}``.
 
-    ``arguments`` is kept as the RAW JSON string — semantic parsing belongs
-    to the runner (WS2), which fails loudly on invalid JSON. Malformed
-    entries (non-dicts, missing ``function``) are skipped with the raw
-    response preserved in ``ChatResult.raw``.
+    ``arguments`` is kept as the RAW JSON string. Malformed entries
+    (non-dicts, missing ``function``) are skipped; the raw response stays in
+    ``ChatResult.raw``.
     """
     if not isinstance(raw, list):
         return []
@@ -248,11 +197,10 @@ def _parse_tool_calls(raw: object) -> list[dict]:
 def _extract_reasoning(msg: dict) -> str | None:
     """Pull the model's reasoning out of a response message.
 
-    Provider placement varies: DeepSeek-compatible endpoints put it in
-    ``message.reasoning_content``; some others use ``message.reasoning``.
-    Both are checked (string values only — dict-shaped reasoning blocks stay
-    in ``raw`` for the audit path). Non-reasoning models have neither key →
-    ``None``, and no fallback is attempted (Hermes behavior, D2).
+    Checks ``message.reasoning_content`` (DeepSeek-compatible) then
+    ``message.reasoning``; string values only — dict-shaped reasoning blocks
+    stay in ``raw``. ``None`` when neither key is present; no fallback is
+    attempted.
     """
     for key in ("reasoning_content", "reasoning"):
         value = msg.get(key)
@@ -262,19 +210,13 @@ def _extract_reasoning(msg: dict) -> str | None:
 
 
 def _normalize_messages(messages: list[dict]) -> list[dict]:
-    """WS-E serializer guard: never put ``content: null`` on the wire.
+    """Never put ``content: null`` on the wire.
 
-    DeepSeek-compatible v4-flash can answer ENTIRELY in the reasoning
-    channel: ``message.reasoning_content`` is populated while ``content``
-    comes back null/empty. If such a turn is serialized verbatim into the
-    next request (``{"role": "assistant", "content": null, ...}``) the
-    gateway 400s the request — the null-content brick (alpha finding
-    2026-08-16). A null or absent ``content`` normalizes to ``""``, the
-    safe DeepSeek-compatible form; ``""`` stays ``""``; non-None content
-    (including multimodal part lists) passes through untouched. Returns
-    NEW dicts only where a normalization applies — caller-owned message
-    objects are never mutated, so repro/audit records keep the original
-    list while the wire carries the hardened shape.
+    A null or absent ``content`` normalizes to ``""``, the safe
+    DeepSeek-compatible form (a null content in a replayed turn 400s the
+    request); ``""`` stays ``""``; non-None content (including multimodal
+    part lists) passes through untouched. Returns NEW dicts only where a
+    normalization applies — caller-owned message objects are never mutated.
     """
     out: list[dict] = []
     for msg in messages:
@@ -302,15 +244,15 @@ def _parse_cache_split(raw: dict,
                        prompt: int | None) -> tuple[int | None, int | None]:
     """The (cached, miss) prompt-token split, across gateway dialects.
 
-    Three shapes in the wild, tried in order: DeepSeek's explicit
-    hit/miss pair, OpenAI's ``prompt_tokens_details.cached_tokens``, and
-    Anthropic's read/creation counters — where a cache READ is a hit but a
-    cache CREATION is fresh input and belongs in the miss bucket.
+    Three shapes in the wild, tried in order: DeepSeek's explicit hit/miss
+    pair, OpenAI's ``prompt_tokens_details.cached_tokens``, and Anthropic's
+    read/creation counters — where a cache READ is a hit but a cache CREATION
+    is fresh input and belongs in the miss bucket.
 
     Whatever the dialect, the two numbers are reconciled against the prompt
     total so the ledger always adds up: a missing miss count is the
-    remainder, and a response with no cache information at all is treated
-    as fully uncached rather than unknown.
+    remainder, and a response with no cache information at all is treated as
+    fully uncached rather than unknown.
     """
     cached = _int_or_none(raw.get("prompt_cache_hit_tokens"))
     miss = _int_or_none(raw.get("prompt_cache_miss_tokens"))
@@ -324,12 +266,8 @@ def _parse_cache_split(raw: dict,
         if creation is not None:
             miss = creation if miss is None else miss + creation
     if prompt is not None and cached is not None and 0 <= cached <= prompt:
-        # The split MUST sum to the prompt total. Gateways that always emit a
-        # zero ``cache_creation_input_tokens`` (observed on commandcode,
-        # 2026-09-12) would otherwise report miss=0 for a mostly-fresh
-        # request: the ledger then claims a 100% cache hit and inflates the
-        # reported savings. An explicit miss count is only trusted when no
-        # prompt total came with it.
+        # The split MUST sum to the prompt total, so an explicit miss count
+        # is only trusted when no prompt total came with it.
         return cached, prompt - cached
     if prompt is not None:
         if cached is not None and miss is None:
@@ -340,14 +278,13 @@ def _parse_cache_split(raw: dict,
 
 
 def _parse_usage(raw: object) -> Usage | None:
-    """Parse the OpenAI-compatible ``usage`` object (WS-D), or ``None``.
+    """Parse the OpenAI-compatible ``usage`` object, or ``None``.
 
     Tolerates every documented cache-field variant and any missing field —
     only what the gateway actually returns is captured, and a bare usage
-    dict without cache details (observed on the real gateway, 2026-08-16)
-    still yields the three totals. ``None`` only when the response carries
-    no usable usage object at all (every field absent → graceful
-    degradation: callers persist nothing).
+    dict without cache details still yields the three totals. ``None`` only
+    when the response carries no usable usage object at all (callers then
+    persist nothing).
     """
     if not isinstance(raw, dict):
         return None
@@ -417,8 +354,8 @@ class OpenAICompatibleClient:
         for attempt in range(self.max_retries + 1):
             try:
                 if stream:
-                    # post() buffers the whole body; a streamed request
-                    # goes through send(build_request(...), stream=True).
+                    # post() buffers the body; a streamed request goes through
+                    # send(build_request(...), stream=True).
                     resp = self._client.send(
                         self._client.build_request(
                             "POST",
@@ -440,9 +377,8 @@ class OpenAICompatibleClient:
                         resp.close()
                     continue
                 if stream and resp.status_code != 200:
-                    # A streamed non-2xx body would otherwise be left
-                    # unread on the connection; release it before the
-                    # raise below.
+                    # Release the streamed non-2xx body before the raise, or
+                    # it stays unread on the connection.
                     resp.close()
                 resp.raise_for_status()
                 return resp
@@ -463,10 +399,10 @@ class OpenAICompatibleClient:
         json_mode: bool = False,
         max_tokens: int | None = None,
     ) -> str:
-        """Complete a chat and return the reply text.
+        """Complete a chat and return the reply text (thin wrapper).
 
-        Thin wrapper over :meth:`chat_with_meta` — every pre-existing call
-        site keeps working unchanged.
+        Returns ``chat_with_meta(...).content``; every pre-existing call site
+        keeps working unchanged.
         """
         return self.chat_with_meta(
             messages,
@@ -484,8 +420,7 @@ class OpenAICompatibleClient:
         """The request body for one completion.
 
         Every optional field is omitted rather than sent as null, and the
-        two capability flags gate their own: an endpoint without JSON mode
-        or tool support never sees those keys. A system prompt with no user
+        capability flags gate their own fields. A system prompt with no user
         turns yet is sent alone.
         """
         if not self.api_key:
@@ -526,8 +461,8 @@ class OpenAICompatibleClient:
         """Whether this response is worth retrying, and what to raise if not.
 
         A tool call or a reasoning-only turn legitimately carries no content
-        — those round-trip as ``""`` and must never be retried. Only a reply
-        that is empty in EVERY channel is a real empty completion.
+        and must never be retried; only a reply empty in EVERY channel is a
+        real empty completion.
         """
         if content is None and not tool_calls and reasoning is None:
             return "null content", RuntimeError("LLM response had null content")
@@ -552,22 +487,18 @@ class OpenAICompatibleClient:
     ) -> ChatResult:
         """Complete a chat and return the structured :class:`ChatResult`.
 
-        ``tools``/``tool_choice`` are passed through to the request body when
-        the endpoint supports them (``supports_tools``); ``tool_calls`` in
-        the response are parsed to ``{"id", "name", "arguments_json"}`` with
-        ``arguments`` kept as the raw JSON string.
+        ``tools``/``tool_choice`` are sent only when the endpoint advertises
+        ``supports_tools``; response ``tool_calls`` are parsed to ``{"id",
+        "name", "arguments_json"}`` with ``arguments`` kept as the raw JSON
+        string.
 
-        ``reasoning_effort`` is sent only when provided; the model's
-        reasoning is extracted from the response message when present
-        (``message.reasoning_content`` on DeepSeek-compatible endpoints,
-        ``message.reasoning`` on some others) and stored separately in
-        ``ChatResult.reasoning`` — it never contaminates ``content``.
+        ``reasoning_effort`` is sent only when provided; extracted reasoning
+        is stored in ``ChatResult.reasoning`` — it never contaminates
+        ``content``.
 
-        GUARD (repo pitfall 3af0a5a): never combine ``max_tokens`` caps with
-        reasoning models — a capped budget starves the thinking pass and
-        yields truncated junk. ``reasoning_effort`` is the sanctioned
-        control; callers configuring a reasoning model must pass
-        ``max_tokens=None``.
+        GUARD: never combine ``max_tokens`` caps with reasoning models — a
+        capped budget starves the thinking pass and yields truncated junk.
+        Use ``reasoning_effort`` to control length; pass ``max_tokens=None``.
         """
         payload = self._build_payload(
             messages, system=system, temperature=temperature,
@@ -610,9 +541,8 @@ class OpenAICompatibleClient:
                     resp = self._retry_post(payload, attempt)
                     continue
                 raise terminal
-            assert terminal is None  # terminal is None unless retry_reason was set
+            assert terminal is None  # set only together with retry_reason
             if finish_reason == "length":
-                # Truncation is logged as a warning; content is persisted.
                 _logger.warning(
                     "LLM reply truncated (finish_reason=length, %d chars) — "
                     "content persisted, truncation recorded",
@@ -644,32 +574,25 @@ class OpenAICompatibleClient:
     ) -> Iterator[str]:
         """Yield the reply text in pieces as they arrive (streaming).
 
-        The request body is the non-streaming payload plus ``stream:
-        true`` — ``chat()`` / ``chat_with_meta()`` are untouched — and the
-        response is parsed as Server-Sent Events: each ``data:`` line's
-        ``choices[0].delta.content`` is yielded as it arrives (empty
-        deltas, role-only deltas and the ``[DONE]`` sentinel are
-        skipped). Pieces are the raw wire deltas — NOT padded or grouped
-        to ``chunk_size``: the parameter exists so FakeClient and the
-        real client share one signature (FakeClient slices its queued
-        reply with it), and it is ignored here.
+        The request body is the non-streaming payload plus ``stream: true``,
+        and the response is parsed as Server-Sent Events: each ``data:``
+        line's ``choices[0].delta.content`` is yielded as it arrives (empty
+        deltas, role-only deltas and the ``[DONE]`` sentinel are skipped).
+        Pieces are the raw wire deltas — NOT padded or grouped to
+        ``chunk_size``, which exists so FakeClient and the real client share
+        one signature (FakeClient slices its queued reply with it).
 
-        Retry/backoff applies to the INITIAL connection only, with the
-        same bounded budget as :meth:`_post`; once the first SSE event
-        arrives the response is streamed to completion. This is a lazy
-        generator: the request fires on the first ``next()`` and the
-        connection stays open while the caller consumes the iterator, so
-        it must be drained (or dropped) before the client makes another
-        call.
+        Retry/backoff applies to the INITIAL connection only; once the first
+        SSE event arrives the response is streamed to completion. This is a
+        lazy generator: the request fires on the first ``next()`` and the
+        connection stays open while the caller consumes the iterator, so it
+        must be drained (or dropped) before the client makes another call.
 
         Fallback: an endpoint that does not speak SSE — a non-2xx status
-        after the retry budget, or a 2xx body with no content deltas
-        (e.g. a JSON completion body) — degrades to ONE non-streaming
-        :meth:`chat_with_meta` call whose content is yielded once, so a
-        caller can always drain the iterator to the full reply. Transport
-        errors (connection failures) are not caught: they mean the
-        endpoint is unreachable, and the non-streaming call would fail
-        the same way.
+        after the retry budget, or a 2xx body with no content deltas —
+        degrades to ONE non-streaming :meth:`chat_with_meta` call whose
+        content is yielded once, so a caller can always drain the iterator to
+        the full reply. Transport errors are not caught.
         """
         payload = self._build_payload(
             messages, system=system, temperature=temperature,
@@ -697,8 +620,7 @@ class OpenAICompatibleClient:
             saw_content = True
             yield piece
         if not saw_content:
-            # 2xx but no content deltas: the endpoint may not speak SSE
-            # (e.g. it ignored `stream: true` and returned a JSON body).
+            # 2xx but no content deltas: the endpoint may not speak SSE.
             _logger.warning(
                 "LLM stream carried no content deltas — falling back to "
                 "a single non-streaming completion"
@@ -714,11 +636,9 @@ class OpenAICompatibleClient:
         """Yield non-empty content deltas from an SSE stream response.
 
         Each ``data:`` line is parsed as JSON and its
-        ``choices[0].delta.content`` is yielded when present; the
-        ``[DONE]`` sentinel, empty/whitespace deltas and role-only deltas
-        are skipped. Malformed lines (keep-alive comments, partial JSON)
-        are skipped with the line logged at debug level — a streaming
-        endpoint must never take down the turn over one stray line.
+        ``choices[0].delta.content`` is yielded when present; the ``[DONE]``
+        sentinel, empty/whitespace deltas and role-only deltas are skipped.
+        Malformed lines are skipped with the line logged at debug level.
         """
         try:
             for line in resp.iter_lines():
@@ -741,8 +661,7 @@ class OpenAICompatibleClient:
             resp.close()
 
     def _retry_post(self, payload: dict, attempt: int) -> httpx.Response:
-        """Backoff + repost for one retryable failure (shared by the
-        malformed/null/empty retry branches)."""
+        """Backoff + repost for one retryable failure."""
         time.sleep(_RETRY_BASE_DELAY_S * (2**attempt))
         return self._post(payload)
 
@@ -750,9 +669,8 @@ class OpenAICompatibleClient:
 def _chunk_text(text: str, chunk_size: int) -> Iterator[str]:
     """Yield ``text`` in pieces of at most ``chunk_size`` characters.
 
-    Pieces are yielded as soon as they fill, so a partial trailing chunk
-    is still delivered (a short reply with a large ``chunk_size`` yields
-    the whole reply once, never nothing).
+    A partial trailing chunk is still delivered (a short reply with a large
+    ``chunk_size`` yields the whole reply once, never nothing).
     """
     if not text:
         return
@@ -772,13 +690,10 @@ class FakeClient:
     or dicts scripting a full response: ``{"content", "reasoning",
     "tool_calls", "finish_reason", "usage", "cost"}`` — ``usage`` scripts
     the RAW usage object (parsed through the same ``_parse_usage`` as the
-    real client, so every cache-field variant is exercisable) and ``cost``
-    scripts the gateway-reported cost. `echo` mode returns the last user
-    message wrapped. Records every call (including tools/tool_choice/
-    reasoning_effort) for assertions. Faithful to the LLMClient protocol:
-    system-only payload on empty transcripts, `supports_json`,
-    `supports_tools`, no-op `close`. Also offers the optional
-    `chat_stream` surface (chunked slicing of the same queued replies).
+    real client) and ``cost`` the gateway-reported cost. `echo` mode returns
+    the last user message wrapped. Records every call (including
+    tools/tool_choice/reasoning_effort) for assertions. Mirrors the LLMClient
+    protocol and offers the optional ``chat_stream`` surface.
     """
 
     supports_json: bool = True
@@ -789,7 +704,7 @@ class FakeClient:
         self.responses = deque(responses or [])
         self.calls: list[dict] = []
         self.echo = echo
-        #: Lane name for spend attribution, like OpenAICompatibleClient.
+        #: Lane name for spend attribution.
         self.lane = lane
 
     def chat(
@@ -870,17 +785,12 @@ class FakeClient:
     ) -> Iterator[str]:
         """Yield the next queued response's content in ``chunk_size`` slices.
 
-        Scripting parity with :meth:`chat_with_meta`: ONE call entry is
-        recorded with the identical wire shape (messages/system/
-        temperature/json_mode/max_tokens/tools/tool_choice/
-        reasoning_effort), one queued response is consumed, and echo mode
-        chunks ``echo: <last content>``. Dict responses yield their
-        ``content`` field; plain-string responses yield the string; the
-        default reply yields ``FakeClient reply.``. A reply shorter than
-        ``chunk_size`` is yielded whole — the caller always receives the
-        full text. Consuming the returned iterator fully is equivalent to
-        one ``chat_with_meta`` call, so existing calls-log assertions on
-        length and shapes keep holding.
+        Records ONE call entry with the same wire shape as
+        :meth:`chat_with_meta` and consumes one queued response; dict
+        responses yield their ``content`` field, plain strings yield the
+        string, the default reply yields ``FakeClient reply.``, and echo mode
+        chunks ``echo: <last content>``. A reply shorter than ``chunk_size``
+        is yielded whole — the caller always receives the full text.
         """
         result = self.chat_with_meta(
             messages, system=system, temperature=temperature,

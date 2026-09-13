@@ -1,23 +1,10 @@
-"""Grounded proactive intent resolution (A7; it2 A3).
+"""Grounded proactive intent resolution.
 
-Separates the CONTACT OPPORTUNITY (when the Weibull process says "she feels
-like contacting around now") from the CONTACT REASON (why). At OPPORTUNITY
-time the runtime asks :class:`IntentResolver` for a grounded
-:class:`ProactiveIntent` — ``resolve(opportunity)`` resolves against the
-opportunity's desired time, links the intent back via ``opportunity_id``,
-and bounds the intent's validity by the opportunity's own window; no
-grounded candidate ⇒ ``None`` ⇒ the runtime SUPPRESSES the event
-(``no_grounded_reason`` is a legitimate outcome, never an error).
-
-Candidates are STORE-BACKED ONLY — no imports from life.py/memory.py: the
-store seam provides every source (agenda items, completed agenda items as
-companion life events, CALLBACK memories, shared-interest memories tagged
-with persona interest names, and legitimate check-in context). The hook is
-COMPOSED DETERMINISTICALLY from source fields (:func:`compose_hook`) —
-never invented free text — so the content gate can re-derive it and verify
-the intent is attached to a real source.
-
-Ranking: salience × recency × validity, with seeded tie-breaks.
+The contact opportunity (when) and its reason (why) are separate: the resolver
+returns a grounded :class:`ProactiveIntent`, or None (SUPPRESS — a legitimate
+outcome, never an error). Candidates come from the store only, and hooks are
+composed deterministically from source fields so the content gate can re-derive
+them. Ranking: salience × recency × validity, seeded tie-breaks.
 """
 
 from __future__ import annotations
@@ -74,14 +61,12 @@ VALIDITY_WEIGHT_H = 6.0
 
 
 def compose_hook(source, reason: str) -> str:
-    """Deterministic hook composed from source fields (rule 13: never
-    invented free text). The content gate re-derives it from the resolved
-    source and rejects intents whose hook does not match."""
+    """Deterministic hook composed from source fields (never invented free text).
+    The content gate re-derives it and rejects mismatches."""
     if isinstance(source, AgendaItem):
         if reason == REASON_EVENT:
             return f"Finished: {source.activity}"
-        # HH:MM, never raw t_h: the hook renders VERBATIM into the state
-        # card's proactive block, so it is a model-visible surface.
+        # HH:MM, never raw t_h: the hook renders verbatim into the state card.
         return (
             f"Agenda: {source.activity} "
             f"({hhmm(source.start_t_h)}\u2013{hhmm(source.end_t_h)})"
@@ -145,12 +130,10 @@ class _Candidate:
 class IntentResolver:
     """Store-backed resolver of grounded proactive intents.
 
-    ``store`` implements the A2 store seam (agenda items, life arcs,
-    episodes, interests, latest interaction). ``rng`` seeds tie-breaks; the
-    default is a deterministic engine.rng stream (spawn key (0,) — a
-    tie-break-only generator, never the day_rng draw order; the bare 0 is
-    kept deliberately distinct from DAILY_STREAM so resolver draws can
-    never perturb replay).
+    ``store`` implements the store seam (agenda items, life arcs, episodes,
+    interests, latest interaction). ``rng`` seeds tie-breaks; the default is a
+    deterministic engine.rng stream (spawn key (0,)) kept distinct from the daily
+    stream, so resolver draws can never perturb replay.
     """
 
     def __init__(self, store, *, rng=None):
@@ -163,13 +146,12 @@ class IntentResolver:
         self, opportunity: ContactOpportunity | float
     ) -> ProactiveIntent | None:
         """Best grounded intent AT the opportunity's time, or None (SUPPRESS:
-        no_grounded_reason — a legitimate outcome, never an error).
+        no grounded reason — a legitimate outcome, never an error).
 
-        ``opportunity`` is the scheduler's :class:`ContactOpportunity` (the
-        intent links back via ``opportunity_id`` and its validity is bounded
-        by the opportunity's own window); a bare float is accepted for
-        legacy callers / store-injected rows without an opportunity.
-        Read-only: the runtime persists the intent.
+        ``opportunity`` is the scheduler's :class:`ContactOpportunity` (the intent
+        links back via ``opportunity_id`` and its validity is bounded by the
+        opportunity window); a bare float is accepted for store-injected rows
+        without an opportunity. Read-only: the runtime persists the intent.
         """
         if isinstance(opportunity, ContactOpportunity):
             t_h = opportunity.desired_t_h
@@ -315,8 +297,7 @@ class IntentResolver:
             extra = f"local={now_h % 24.0:.2f}h last_interaction={last} gap_h={gap}"
         else:
             extra = ""
-        # The intent expires at the earlier of the reason validity and the
-        # opportunity window.
+        # expires at the earlier of the reason validity and the opportunity window.
         valid_until = now_h + REASON_VALIDITY_H[reason]
         if opportunity is not None:
             valid_until = min(valid_until, opportunity.valid_until_t_h)

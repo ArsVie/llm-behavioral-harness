@@ -1,43 +1,8 @@
-"""Persona builder: structural 40/40/20 portfolio sampling (A6 / Iteration-2 A1b).
+"""Persona builder: structural 40/40/20 portfolio sampling.
 
 ``build_persona`` assembles a ``PersonaProfile`` from the interest graph
 purely structurally — bucket membership (exact / adjacent / independent) is
 decided by graph distance, never by an LLM.
-
-Sampling contract
------------------
-* Bucket counts are sampled AROUND the target counts ``n_exact``,
-  ``n_adjacent``, ``n_independent``: each count is uniform over
-  ``{target - 1, target, target + 1}`` (clamped to the available pool), so an
-  individual companion deviates from 40/40/20 while the population mean
-  converges to the targets across seeds (defaults 4/4/2 on a ~10-interest
-  portfolio).
-* Two modes, selected by ``user_interests``:
-
-  * Hub-relative (``user_interests`` None/empty — legacy): exact interests
-    are cluster hubs; adjacent interests are nodes within
-    ``MAX_ADJACENCY_HOPS`` (3) edges of at least one sampled exact;
-    independent interests have no such path.
-  * User-relative (``user_interests`` given — Iteration-2 A1b): EXACT =
-    interest in the user's interests; ADJACENT = graph-distance within
-    ``adjacency_hops`` of at least one USER interest but not exact;
-    INDEPENDENT = outside exact + adjacency region. The user-relative
-    definition of 40/40/20 is "40% of the portfolio shares the user's
-    interests, 40% sits adjacent to them in the interest graph, 20% is
-    independent" — the ratios stay distribution targets, not per-companion
-    hard ratios.
-
-* All sampling is without replacement, so a profile never repeats an interest.
-* Salience is bucket-conditioned (seeded): exact ~ U(0.60, 1.00),
-  adjacent ~ U(0.35, 0.80), independent ~ U(0.10, 0.50).
-* Routines are drawn from ``ROUTINE_CATALOG`` (2-4 of them) with seeded
-  salience.
-* ``core`` is deterministic <= 2-sentence prose derived from the portfolio
-  (no LLM, no store), in the voice of ``DEFAULT_PERSONA_CORE``.
-* RNG: when ``rng`` is None the module uses ``stream_rng(seed, PERSONA_STREAM)``
-  (engine.rng stream key 5, reserved for persona construction). There is no
-  global RNG state, so repeated calls with the same seed reproduce the
-  identical profile.
 """
 
 from __future__ import annotations
@@ -85,8 +50,7 @@ ROUTINE_SALIENCE_RANGE: tuple[float, float] = (0.30, 1.00)
 def _sample_count(rng: np.random.Generator, target: int, pool: int) -> int:
     """Count around ``target``: uniform over {target-1, target, target+1}.
 
-    Clamped to ``[1, pool]``; returns 0 when the pool is empty. With a large
-    enough pool the mean equals ``target`` exactly.
+    Clamped to ``[1, pool]``; returns 0 when the pool is empty.
     """
     if pool <= 0:
         return 0
@@ -116,12 +80,8 @@ DEFAULT_VOICE = (
 )
 
 
-#: Opening words of the generated interest sentence.
-#:
-#: Also the split point for swapping an authored voice into a STORED core
-#: (:func:`split_core`). The sentence is generated from the portfolio in DRAW
-#: order, while the stored interests are name-sorted, so it cannot be
-#: regenerated from a loaded persona — it has to be carried across verbatim.
+#: Opening words of the generated interest sentence; also the split point for
+#: swapping an authored voice into a stored core (:func:`split_core`).
 INTEREST_SENTENCE_PREFIX = "These days you are absorbed in"
 
 
@@ -143,8 +103,7 @@ def split_core(core: str) -> tuple[str, str] | None:
     """Split a stored core into ``(voice, interest_sentence)``.
 
     Returns None when the core has no recognizable interest sentence — an
-    unexpected shape (a hand-edited row, a future format) is left strictly
-    alone rather than rewritten on a guess.
+    unexpected shape is left strictly alone rather than rewritten on a guess.
     """
     if not core:
         return None
@@ -157,12 +116,9 @@ def split_core(core: str) -> tuple[str, str] | None:
 def compose_core(voice: str, interests: str) -> str:
     """Authored voice first, then the drawn interests.
 
-    The two are COMPOSED, never substituted. An authored persona says who she
-    is and how she talks; the interest sentence says what she happens to be
-    into this cycle, and dropping it would leave the seeded portfolio with no
-    voice in the prompt at all. Separate paragraphs, because the authored
-    prose is written as prose and jamming a generated sentence onto the end of
-    its last line reads as part of it.
+    The two are COMPOSED, never substituted: dropping the interest sentence
+    would leave the seeded portfolio with no voice in the prompt. Authored
+    prose gets its own paragraph.
     """
     voice = (voice or "").strip()
     interests = (interests or "").strip()
@@ -170,8 +126,8 @@ def compose_core(voice: str, interests: str) -> str:
         return interests
     if not interests:
         return voice
-    # The default voice is a single sentence written to run straight into the
-    # interest sentence; authored prose gets its own paragraph.
+    # The default voice runs straight into the interest sentence; authored
+    # prose gets its own paragraph.
     joiner = " " if voice == DEFAULT_VOICE else "\n\n"
     return voice + joiner + interests
 
@@ -182,11 +138,9 @@ def _build_core(
 ) -> str:
     """Deterministic core prose: the voice plus the sampled portfolio.
 
-    Pure function of (voice, portfolio) — no LLM, no store: the same seed
-    always yields the same portfolio and therefore the same core.
-
-    ``voice`` is the authored persona from the configured persona file (see
-    :mod:`harness.persona_file`); ``None`` uses :data:`DEFAULT_VOICE`.
+    Pure function of (voice, portfolio) — no LLM, no store. ``voice`` is the
+    authored persona from the configured persona file; ``None`` uses
+    :data:`DEFAULT_VOICE`.
     """
     return compose_core(
         voice if voice is not None else DEFAULT_VOICE,
@@ -210,29 +164,21 @@ def build_persona(
     """Build a deterministic ``PersonaProfile`` around the 40/40/20 target.
 
     ``seed`` seeds the persona stream (``stream_rng(seed, PERSONA_STREAM)``)
-    unless an explicit ``rng`` is given. The graph is only read, never
-    mutated.
+    unless an explicit ``rng`` is given. The graph is only read, never mutated.
 
-    ``voice`` is the authored persona prose that opens the core — who she is
-    and how she talks, loaded from the configured persona file (see
-    :mod:`harness.persona_file`). ``None`` uses :data:`DEFAULT_VOICE`. It is
-    composed with the drawn interest sentence, never substituted for it.
+    ``voice`` is the authored persona prose that opens the core; ``None`` uses
+    :data:`DEFAULT_VOICE`. It is composed with the drawn interest sentence,
+    never substituted for it.
 
-    ``routine_catalog`` is the pool the daily routines are drawn from;
-    ``None`` uses the built-in :data:`ROUTINE_CATALOG`. It is an INPUT to the
-    sampler, never something the sampler decides — ``harness.routine_setup``
-    builds a per-companion catalog at onboarding and passes it here, and the
-    draw itself (count, which ones, their salience) is the same seeded
-    arithmetic either way.
+    ``routine_catalog`` is the pool the daily routines are drawn from; ``None``
+    uses :data:`ROUTINE_CATALOG`. It is an INPUT to the sampler, never
+    something the sampler decides.
 
     ``user_interests`` selects the bucket semantics: ``None``/empty keeps the
-    legacy hub-relative sampling (exact = cluster hubs); a non-empty sequence
-    switches to USER-relative sampling (EXACT = interest in the user's
-    interests, ADJACENT = within ``adjacency_hops`` — default
-    ``MAX_ADJACENCY_HOPS`` — of at least one user interest but not exact,
-    INDEPENDENT = outside that region). User interests that are not in the
-    graph are still valid exact candidates (the companion shares them); their
-    adjacency region is just themselves.
+    hub-relative sampling (exact = cluster hubs); a non-empty sequence switches
+    to user-relative sampling (EXACT = interest in the user's interests,
+    ADJACENT = within ``adjacency_hops`` of at least one user interest but not
+    exact, INDEPENDENT = outside that region).
     """
     rng = rng if rng is not None else stream_rng(seed, PERSONA_STREAM)
 
@@ -242,7 +188,7 @@ def build_persona(
             n_exact, n_adjacent, n_independent, adjacency_hops,
         )
     else:
-        # 1. Bucket counts around the targets (legacy hub-relative path).
+        # 1. Bucket counts around the targets (hub-relative path).
         k_exact = _sample_count(rng, n_exact, len(graph.hubs()))
         exacts: list[str] = []
         while len(exacts) < k_exact:
@@ -251,8 +197,7 @@ def build_persona(
                 exacts.append(node)
         exact_set = set(exacts)
 
-        # 2. Adjacent / independent pools relative to this profile's exacts;
-        #    membership is computed structurally here.
+        # 2. Adjacent / independent pools relative to this profile's exacts.
         all_nodes = graph.nodes()
         adjacent_candidates = [
             n
@@ -308,14 +253,12 @@ def _sample_user_relative(
     n_independent: int,
     adjacency_hops: Optional[int],
 ) -> tuple[list[str], list[str], list[str]]:
-    """User-relative bucket sampling (Iteration-2 A1b, plan §5-A1 task 2).
+    """User-relative bucket sampling.
 
     EXACT pool = the user's interests (deduplicated, order kept); ADJACENT
     pool = every node within ``adjacency_hops`` of at least one user interest,
     minus the user interests themselves; INDEPENDENT pool = every remaining
-    graph node. All three pools are sampled with the usual around-target
-    counts, so the population means converge to the 40/40/20 targets while
-    each companion deviates.
+    graph node.
     """
     hops = MAX_ADJACENCY_HOPS if adjacency_hops is None else adjacency_hops
     if hops < 1:

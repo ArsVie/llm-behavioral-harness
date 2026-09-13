@@ -1,20 +1,10 @@
 """W2+W3 — time-aware agenda + state-card sectioning (Track A-2).
 
-Gate evidence:
-- G3 (time correctness): the current-time/day line and the agenda
-  partition match ``anchor.real_at`` at known t_h fixtures. Anchor:
-  epoch0 = 2026-08-15T13:30:00Z, t_h0 = 7.5, tz America/Chihuahua →
-  t_h 15.4 reads "It is 15:24, Saturday afternoon — day 0.".
-- G5 (affect unchanged): the AFFECTIVE BEARING section carries the
-  pre-wave renderer's output byte-identically — only its position/header
-  changed.
-- Section ordering: TEMPORAL FRAME / AFFECTIVE BEARING / BEHAVIORAL
-  BEARING / CURRENT INTENT in fixed order.
-- G2 (masking): unanchored runs omit the temporal section entirely (never
-  fall back to raw t_h); the only numeric content in the assembled prompt
-  is clock-shaped times (HH:MM) and the temporal line's day index.
-- Agenda transitions: the session hook persists planned→completed as
-  windows pass and the rendered partition agrees with the stored status.
+Pins the G3 time line and agenda partition against ``anchor.real_at`` fixtures,
+the G2 masking (unanchored runs omit the temporal section; clock-shaped times
+and the day index are the only numeric content), the G5 frozen AFFECTIVE
+BEARING wording, the fixed section order (TEMPORAL FRAME / AFFECTIVE BEARING /
+BEHAVIORAL BEARING / CURRENT INTENT) and the persisted agenda transitions.
 """
 
 from __future__ import annotations

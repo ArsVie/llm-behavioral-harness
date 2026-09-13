@@ -1,19 +1,5 @@
-"""BubbleStreamer hardening tests: streaming invariants, incremental
-release, no-mid-sentence-split, env-flag gating.
-
-Property under test: for ANY text, feeding it to :class:`BubbleStreamer`
-char-by-char or in random chunks and then ``flush()`` must yield exactly
-``parse_bubbles(text)``.
-
-Pinned incremental semantics (WS-B: any newline run is one separator):
-* A sentence-complete head at a trailing boundary releases IMMEDIATELY
-  (``feed('Hello there.\\n\\n')`` -> ``['Hello there.']``). A newline is
-  always a separator, so membership is already decided; early release is
-  never premature and keeps ``flush == parse`` exact.
-* A NON-complete head at a trailing boundary HOLDS (``feed('First line\\n')``
-  -> ``[]``): the newline may be a line wrap, so the piece waits for the
-  next chunk or for ``flush()``.
-"""
+"""BubbleStreamer hardening tests: streaming invariants, incremental release, env-flag gating.
+Property: char-by-char or random-chunk feeding + ``flush()`` == ``parse_bubbles(text)``."""
 from __future__ import annotations
 
 import os
@@ -30,8 +16,7 @@ from harness.bubbles import (
 )
 
 # Word chars + sentence punctuation + closers + whitespace + CJK/Devanagari
-# terminators + em-dash: exercises every _sentence_complete closer and the
-# boundary grammar.
+# terminators + em-dash: exercises every _sentence_complete closer.
 _ALPHABET = "abc XYZ,.!?\"'”’」』）)]}…।。；;:\n \t" + "\u2014" + "éñ"
 _CJK = "。！？"
 _CHUNK_CASES = 520
@@ -75,9 +60,7 @@ def _assert_single_release(pre: list[str], release: list[str]) -> str | None:
     return None
 
 
-# ---------------------------------------------------------------------------
 # flush == parse property
-# ---------------------------------------------------------------------------
 
 
 def test_property_char_by_char_corpus():
@@ -163,11 +146,8 @@ def test_property_one_shot_matches_full_parse():
 
 
 def test_flush_after_partial_feed_equals_parse_of_so_far():
-    """A caller may flush mid-reply (e.g. to end the turn early): every
-    flush must equal parse_bubbles() of exactly the text that stream has
-    consumed since the previous flush — chunk boundaries never leak into
-    output, and early (non-flush) releases plus the flush still sum to the
-    segment's full parse."""
+    """A caller may flush mid-reply (e.g. to end the turn early): every flush must equal
+    parse_bubbles() of exactly the text that stream has consumed since the last flush."""
     rng = random.Random(31337)
     for i in range(300):
         text = _random_text(rng)
@@ -193,9 +173,7 @@ def test_flush_after_partial_feed_equals_parse_of_so_far():
         assert segment_out == parse_bubbles(segment_fed), f"case {i} tail"
 
 
-# ---------------------------------------------------------------------------
 # Incremental release + no-mid-sentence-split
-# ---------------------------------------------------------------------------
 
 
 def test_feed_releases_complete_sentence_at_trailing_boundary():
@@ -218,8 +196,7 @@ def test_feed_holds_incomplete_line_at_trailing_boundary():
 def test_no_mid_sentence_split_then_sentence_end_releases():
     s = BubbleStreamer()
     assert s.feed("First line\nsecond") == []  # hold: wrap or mid-sentence?
-    # A later sentence end must NOT yank 'First line' out early: its own
-    # boundary is still mid-sentence, so the whole prefix keeps holding.
+    # A later sentence end must NOT yank 'First line' out early.
     assert s.feed(".") == []
     # The reply is over: flush splits per parse_bubbles (every newline run
     # is a separator) — held pieces go out parse-exact, never merged.
@@ -244,9 +221,8 @@ def test_no_release_before_sentence_punctuation_multi_chunk():
 
 
 def test_mid_sentence_split_never_multiple_bubbles_without_sentence_ends():
-    """Holds are legal; a NON-flush feed may emit at most ONE bubble, and
-    only when that bubble ends a sentence. Two mid-sentence breaks must not
-    release two pieces."""
+    """Holds are legal; a NON-flush feed may emit at most ONE bubble, and only when
+    that bubble ends a sentence."""
     texts = [
         "First line\nsecond\nthird",
         "no caps here\nneither here",
@@ -269,20 +245,15 @@ def test_incremental_stream_exact_match():
     emitted: list[str] = []
     for ch in text:
         emitted.extend(s.feed(ch))
-    # Every non-final boundary here is followed by more text but the pieces
-    # before it are mid-sentence (no '.'), so each holds; nothing is
-    # releaseable before flush. The sentence-complete pieces sit behind
-    # those mid-sentence boundaries and must NOT jump the queue.
+    # Every boundary here is followed by more text but the pieces before it are
+    # mid-sentence, so each holds; nothing is releaseable before flush.
     assert emitted == []
     assert s.flush() == ["First line", "second", "third.", "fourth."]
     assert emitted == []
     assert parse_bubbles(text) == ["First line", "second", "third.", "fourth."]
 
-    # Same text where every piece IS sentence-complete before its boundary:
-    # each releases as soon as its boundary is confirmed by more text.
-    # Trailing-boundary release (my fix) sends 'third.' early here. The
-    # FINAL piece ('fourth.') has no following boundary yet, so it holds
-    # until flush — never released mid-reply on a maybe-wrap.
+    # Same text where every piece IS sentence-complete before its boundary: each
+    # releases once more text confirms it; the final piece holds until flush.
     text2 = "First.\nsecond.\n\nthird.\n\nfourth."
     s2 = BubbleStreamer()
     emitted2: list[str] = []
@@ -316,9 +287,7 @@ def test_trailing_whitespace_boundary():
     assert s3.flush() == ["still going"]
 
 
-# ---------------------------------------------------------------------------
 # Sentence-completeness helper
-# ---------------------------------------------------------------------------
 
 
 def test_sentence_complete():
@@ -350,9 +319,7 @@ def test_sentence_complete():
     assert not _sentence_complete("")
 
 
-# ---------------------------------------------------------------------------
 # parse_bubbles sanity (independent of the streamer)
-# ---------------------------------------------------------------------------
 
 
 def test_parse_bubbles_spec():
@@ -365,9 +332,7 @@ def test_parse_bubbles_spec():
     assert parse_bubbles("\n\na\n\n\n\nb\n\n") == ["a", "b"]
 
 
-# ---------------------------------------------------------------------------
 # Env flag gating
-# ---------------------------------------------------------------------------
 
 
 def _with_env(monkeypatch, bubbles: bool, stream: bool):

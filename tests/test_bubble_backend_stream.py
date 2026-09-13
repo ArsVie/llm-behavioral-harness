@@ -1,27 +1,6 @@
-"""Integration A — bubble backend streaming through session + runtime.
-
-End-to-end wiring of the optional ``chat_stream`` surface (2026-09-07):
-
-- With ``HARNESS_BUBBLE_STREAM=1`` (which requires ``HARNESS_BUBBLES=1``)
-  AND a client exposing ``chat_stream``, ``Session._chat`` routes through
-  ``_generate_stream``: the wire chunks feed a ``BubbleStreamer``, bubbles
-  release incrementally as their boundaries parse, and the JOINED raw
-  stream is the canonical persisted reply (one message row, one llm_call
-  row — the single-persist invariant).
-- Streamed replies carry no usage accounting (the stream yields text
-  only): ``usage=None`` / ``raw_cost=None`` / ``reasoning=None`` degrade
-  to NULL ledger columns, same as gateways without usage.
-- OFF (or a client without ``chat_stream``) takes the EXACT canonical
-  path — ``_generate`` + post-hoc ``_split_into_bubbles`` — byte parity:
-  same seed, same scripted reply, identical ``TurnResult.reply`` and
-  ``TurnResult.bubbles``.
-- ``TurnResult.streamed`` is a data-origin MARKER only: the runtime's
-  paced multi-send in ``_send_turn_outputs`` is byte-identical for both
-  origins (sequential send_message per bubble, same gap heuristic).
-
-Plain pytest only (no pytest-asyncio): async behavior is driven with
-``asyncio.run`` inside sync tests.
-"""
+"""Bubble backend streaming through session + runtime: the optional
+``chat_stream`` surface, single-persist, usage NULLs, and flag-off parity with
+the canonical path."""
 
 import asyncio
 import json
@@ -127,8 +106,7 @@ def test_stream_on_bubbles_equal_parse_bubbles_of_reply(monkeypatch):
 
 
 def _chunked_stream(pieces: list[str], messages, **kw):
-    """Side-effect factory: yield pre-sliced chunks (no loop-variable
-    closure, so ruff B023 stays quiet)."""
+    """Side-effect factory: yield pre-sliced chunks (no loop-variable closure)."""
     return iter(pieces)
 
 
@@ -176,8 +154,7 @@ def test_stream_single_bubble_is_not_streamed(monkeypatch):
 
 def test_stream_persists_single_joined_reply_and_usage_null(monkeypatch):
     """Streamed turn: exactly one assistant message + one llm_call row, the
-    response is the JOINED reply, and usage/reasoning columns are NULL even
-    when the scripted response carried usage (stream yields text only)."""
+    response is the JOINED reply, and usage/reasoning columns are NULL."""
     scripted = {
         "content": REPLY,
         "usage": {"prompt_tokens": 40, "completion_tokens": 9,
@@ -212,9 +189,8 @@ def test_stream_persists_single_joined_reply_and_usage_null(monkeypatch):
 
 
 def test_usage_columns_do_populate_on_non_stream_path(monkeypatch):
-    """Control for the NULL test: the same store DOES persist usage when
-    the canonical (non-streamed) path runs with a scripted usage — proving
-    the streamed NULLs come from the degradation rule, not the store."""
+    """Control for the NULL test: the canonical path DOES persist usage for the
+    same store, so the streamed NULLs come from the degradation rule."""
     scripted = {
         "content": REPLY,
         "usage": {"prompt_tokens": 40, "completion_tokens": 9,
@@ -241,9 +217,8 @@ def test_usage_columns_do_populate_on_non_stream_path(monkeypatch):
 
 
 def test_stream_off_is_exact_generate_path_identical_result(monkeypatch):
-    """Bubbles on + stream off: the canonical _generate/_split_into_bubbles
-    path runs and the TurnResult is identical to the streamed one except
-    for the origin marker."""
+    """Bubbles on + stream off: the canonical path runs and the TurnResult is
+    identical to the streamed one except for the origin marker."""
     _env(monkeypatch, STREAM_ON)
     cli_on = FakeClient(responses=[REPLY])
     sess_on = _session(seed=55, client=cli_on)
@@ -257,9 +232,7 @@ def test_stream_off_is_exact_generate_path_identical_result(monkeypatch):
     assert r_off.reply == r_on.reply == REPLY
     assert r_off.bubbles == r_on.bubbles == BUBBLES
     assert r_off.streamed is False
-    # One client call in both modes, identical wire shape (FakeClient
-    # records chat_stream through chat_with_meta — parity pinned in
-    # test_client_stream).
+    # One client call in both modes, identical wire shape.
     assert len(cli_on.calls) == len(cli_off.calls) == 1
     assert cli_on.calls[0] == cli_off.calls[0]
 
@@ -343,9 +316,8 @@ def test_runtime_sends_streamed_bubbles_in_order_with_pacing(monkeypatch):
 
 
 def test_runtime_delivery_identical_for_streamed_and_posthoc(monkeypatch):
-    """The streamed marker does NOT change delivery: the same bubbles send
-    with the same order, texts and pacing whether origin is streamed or
-    post-hoc (sequential send_message, no SSE/edit)."""
+    """The streamed marker does NOT change delivery: the same bubbles send with
+    the same order, texts and pacing for both origins."""
     # Streamed origin.
     _env(monkeypatch, STREAM_ON)
     sess_on = _session(seed=99, client=FakeClient(responses=[REPLY]))

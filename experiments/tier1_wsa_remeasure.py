@@ -1,17 +1,11 @@
 """WS-A re-measure (model-free): FULL vs STRUCTURED_NO_STATE proactive counts.
 
 Drives ``experiments.cvs_common.run_cell`` with the deterministic fake client
-(fake=True) over a shared seed set (default 5001..5500 — the same base the
-G0 re-derivation used), 30 days, perturb=True, default checkpoints
-(DEFAULT_CHECKPOINT_DAYS), default memory policy — the same cell recipe as the
-it3 confirmatory matrix, minus the LLM. Counts flow through the real
-engine.timing.next_event path (AsyncRuntime/FakeChannel); no LLM, no judge run,
-no independent judge. Deterministic given seed.
-
-Purpose: measure the FULL − SNS proactive-count delta THROUGH the fixed
-day-0 planning path (commit 772b0f0: session.ensure_day(0) + real
-day_scores(store, 0, timing) instead of scores=None) and test the
-≈ +10% prediction (stored-run S_d mean ≈ 1.3123 ⇒ FULL should exceed SNS).
+(fake=True) over a shared seed set (default 5001..5500), 30 days,
+perturb=True, default checkpoints (DEFAULT_CHECKPOINT_DAYS), default memory
+policy, minus the LLM. Counts flow through the real engine.timing.next_event
+path (AsyncRuntime/FakeChannel); no LLM, no judge run. Deterministic given
+seed.
 
 Usage (repo root):
     .venv/bin/python -m experiments.tier1_wsa_remeasure --smoke

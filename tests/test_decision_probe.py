@@ -1,12 +1,5 @@
-"""#22 decision probe tests — fake mode runs end to end.
-
-Runs experiments/decision_probe.py in --fake mode (scripted model, no
-network) into a tmp dir and verifies the full pipeline: ~105 evaluations
-(15 samples x 3 states x 2 transports + 15 server draws), the OKF report
-with the per-evaluation table and verbatim answers, the probe.json record,
-the LOUD parse-failure path (s09 textual legs are requeued and recorded as
-state events), and replay determinism when re-running over the same store.
-"""
+"""#22 decision probe tests: the full pipeline in --fake mode (scripted
+model, no network) and replay determinism over the same store."""
 
 import json
 
@@ -36,7 +29,7 @@ def test_fake_probe_runs_end_to_end(tmp_path):
     assert s["evaluations"] == N_TOTAL == 105  # ~100 calls per the #22 spec
     assert s["parse_failures"] == N_REQUEUED == 3
 
-    # outputs exist
+
     report = (tmp_path / "report.md").read_text(encoding="utf-8")
     probe_json = json.loads((tmp_path / "probe.json").read_text(
         encoding="utf-8"
@@ -112,8 +105,7 @@ def test_fake_probe_deterministic_across_dirs(tmp_path):
 
 
 def test_fake_probe_rerun_same_dir_replays(tmp_path):
-    """Re-running over the same store replays recorded verdicts: the model
-    is never consulted again and no new decision records are written."""
+    """Re-running over the same store replays recorded verdicts: no new records."""
     run_probe(out=tmp_path, fake=True)
     before = SQLiteStore(tmp_path / "decision_probe.db", audit_mode=True)
     try:

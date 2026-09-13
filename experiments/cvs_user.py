@@ -1,8 +1,7 @@
-"""Simulador de usuario conversacional (it3 B3) — cierra F6 en el lado eval.
+"""Simulador de usuario conversacional — agente guionado por semilla.
 
-Sustituye el guion de mensajes sueltos ``(t_h, text)`` de la iteración 2 por
-un agente GUIONADO por semilla que sostiene conversaciones multi-turno
-(nunca un LLM libre: la condición de ablación no existe para este módulo).
+Agente GUIONADO por semilla que sostiene conversaciones multi-turno (nunca
+un LLM libre: la condición de ablación no existe para este módulo).
 El stream es una función pura de ``(seed, days, perturb)`` más el diálogo ya
 ocurrido (tiempos de las réplicas del companion), así que el mismo seed
 produce secuencias de CONTENIDO byte-idénticas en todas las condiciones —
@@ -24,8 +23,7 @@ contenido, misma semántica de programación (at_t_h en la ventana de la
 conversación, entre la apertura y los seguimientos).
 
 ================================================================================
-FEED CONTRACT (B8 — el driver ``run_cell`` consume este stream; texto
-normativo, no cambies la forma de los eventos sin coordinar con B3)
+FEED CONTRACT (el driver ``run_cell`` consume este stream; texto normativo)
 ================================================================================
 
 ``build_user_stream(seed, days, *, perturb=True) -> list[dict]`` devuelve la
@@ -35,10 +33,10 @@ Cada evento es EXACTAMENTE uno de dos tipos:
 
     {"kind": "at_t_h", "t_h": float, "text": str}
         Mensaje programado en un tiempo virtual ABSOLUTO. Aliméntalo cuando
-        el reloj virtual alcance ``t_h`` (semántica del runner de la it2).
-        Porta las aperturas diarias, las sondas de recuerdo, los eventos de
-        cadena y los turnos negativos del bloque — todo lo que debe disparar
-        en su día preregistrado pase lo que pase con las réplicas.
+        el reloj virtual alcance ``t_h``. Porta las aperturas diarias, las
+        sondas de recuerdo, los eventos de cadena y los turnos negativos del
+        bloque — todo lo que debe disparar en su día preregistrado pase lo
+        que pase con las réplicas.
 
     {"kind": "after_reply", "text": str,
      "min_delay_h": float, "max_delay_h": float}
@@ -47,9 +45,8 @@ Cada evento es EXACTAMENTE uno de dos tipos:
         CONSUMIDOR (driver) desde SU rng sembrado — uniforme en
         ``[min_delay_h, max_delay_h]`` — vía ``draw_after_reply_delay(ev, rng)``.
         Dibuja EXACTAMENTE UN retardo por evento after_reply, en orden de
-        stream, y NUNCA saltes un dibujo (saltar desincronizaría todos los
-        dibujos posteriores). Los retardos son < 1h: el turno cae en el mismo
-        día virtual que la réplica que lo precede.
+        stream, y NUNCA saltes un dibujo. Los retardos son < 1h: el turno cae
+        en el mismo día virtual que la réplica que lo precede.
 
 Garantías del contrato:
   * Función pura de (seed, days, perturb): secuencias de CONTENIDO
@@ -70,22 +67,19 @@ Sincronización con el reloj virtual (nota para el driver):
     El rollover del runtime avanza el reloj a saltos (hasta la medianoche o
     hasta el próximo evento de agenda pendiente). Un feed cuyo ``t_h`` quede
     ATRÁS del reloj se procesa igual, pero se persiste con el tiempo ACTUAL
-    del reloj (desplazamiento documentado del runner it2) y el DÍA puede
-    cambiar. Para preservar los días: usa el patrón drain-then-feed de
-    ``_run_segment`` (espera a que el reloj alcance el objetivo drenando los
-    eventos de agenda pendientes) y, en cells fake, elige un time_scale en
-    el que el bucle de feeds no pierda la carrera contra el rollover
+    del reloj y el DÍA puede cambiar. Para preservar los días: usa el patrón
+    drain-then-feed de ``_run_segment`` (espera a que el reloj alcance el
+    objetivo drenando los eventos de agenda pendiente) y, en cells fake,
+    elige un time_scale en el que el bucle de feeds no pierda la carrera
+    contra el rollover
     (p.ej. 0.01-0.02 s/vh; con el default 0.0004 el rollover salta a la
     medianoche en ~2ms reales y cada feed tarda 15-90ms — el feed pierde
     siempre). tests/test_cvs_user.py usa 0.02 y aserta los días exactos.
 
-``user_script()`` en cvs_common.py es la PROYECCIÓN LEGACY de este stream al
-formato ``(t_h, text)`` del runner de la iteración 2: aplana SOLO los
-eventos ``at_t_h`` (aperturas, sondas, cadenas, negativos) — los after_reply
-viven exclusivamente en el contrato, porque el runner actual no puede
-entregar un stream más denso al time_scale congelado (carrera del rollover
-documentada en el runner it2). El driver de B8 consume ``build_user_stream``
-directamente.
+``user_script()`` en cvs_common.py aplana SOLO los eventos ``at_t_h``
+(aperturas, sondas, cadenas, negativos) al formato ``(t_h, text)``; los
+after_reply viven exclusivamente en el contrato. El driver consume
+``build_user_stream`` directamente.
 
 Convención del repo: docstrings en español, identificadores en inglés.
 """
@@ -101,7 +95,7 @@ from experiments.cvs_manifest import (
     RECALL_PROBES,
 )
 
-# Simulator stream key (101); 100 was it2's flat-script key.
+# Simulator stream key (101).
 USER_SIM_STREAM_KEY = 101
 
 # Perturbation block days, 0-indexed (from PERTURBATION).
@@ -118,8 +112,6 @@ BASE_HOUR = 19.0
 PROBE_HOUR = 19.1
 CHAIN_HOUR = 19.2
 NEGATIVE_HOUR = 19.3
-
-# Conversational repertoire (pools by category)
 
 # Follow-up questions (persona consistency stress).
 _FOLLOWUP_QUESTION_POOL = (

@@ -60,8 +60,8 @@ specced in [docs/spec-context-events-time-2026-08-15.md](../docs/spec-context-ev
 |---|---|---|---|
 | S1 | No real timestamp on events/conversations/messages (virtual `t_h` only) | high | **DONE** — RealTimeAnchor / `real_at` (wave-1 W1) |
 | S2 | Agenda never expires; no current-time line → time-blind | high | **DONE** — time-aware assembler + current-time line (wave-1 W2) |
-| S3 | Idle-close threshold 12 h; proactive appends to stale-open conversation | medium | **RESOLVED as away≠close** — 15-min silence marks the user *away* (dormant, presence signal), not a close; conversations close only at a checkpoint. See [lifecycle plan](../plans/plan-lifecycle-away-checkpoint-2026-08-17.md) / BACKLOG |
-| S4 | Flat global message tail crosses conversation boundaries; summaries not wired into the transcript | high | **PARTIAL** — state-card sectioning landed (wave-1 W3); continuity-across-conversations + no-rebuild-from-summary is the lifecycle-plan work |
+| S3 | Idle-close threshold 12 h; proactive appends to stale-open conversation | medium | **RESOLVED as away≠close** — 15-min silence marks the user *away* (dormant, presence signal), not a close; conversations close only at a checkpoint. See the architecture overview / BACKLOG |
+| S4 | Flat global message tail crosses conversation boundaries; summaries not wired into the transcript | high | **PARTIAL** — state-card sectioning landed (wave-1 W3); continuity-across-conversations + no-rebuild-from-summary remain open |
 | S5 | Decision/steering + availability layers exist but were OFF live | high | **OPEN** — still env-gated off; events not yet reasoned over as time passes |
 | S6 | Agenda activities are template strings, not generated | low | **OPEN** |
 

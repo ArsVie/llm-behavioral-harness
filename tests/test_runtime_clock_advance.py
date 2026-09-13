@@ -1,17 +1,9 @@
-"""S1 clock-advance + sent_at (WS-A, D4): anchored inbound messages advance
-the virtual clock to the REAL arrival instant and ``messages.sent_at`` is
-stamped from real arrival; the unanchored path is byte-identical (no
-advance, sent_at NULL — the documented frozen-clock fallback).
+"""S1 clock-advance + sent_at (WS-A, D4): anchored inbound messages advance the
+virtual clock to the REAL arrival instant and ``messages.sent_at`` is stamped
+from real arrival; the unanchored path is byte-identical (no advance, NULL).
 
-The anchored path: ``AsyncRuntime._on_inbound`` advances the session clock
-to ``anchor.t_h_at(msg.received_at)`` (never backwards); the store then
-resolves ``sent_at = real_at(t_h)`` — the anchor's exact inverse — to the
-true arrival epoch. Two trial messages arriving at different wall times get
-DIFFERENT sent_at values (previously the frozen clock shared one timestamp).
-
-No run() is invoked: the tests drive ``_on_inbound`` directly (the
-registered channel handler) with a ManualWallClock + no-op sleeper, exactly
-the test_runtime_anchor pattern.
+No run() is invoked: the tests drive ``_on_inbound`` directly with a
+ManualWallClock + no-op sleeper.
 """
 
 import asyncio

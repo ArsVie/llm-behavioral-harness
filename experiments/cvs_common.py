@@ -1,9 +1,9 @@
-"""Maquinaria compartida del harness de evaluación (Iteración 2, A8).
+"""Maquinaria compartida del harness de evaluación.
 
 Cliente determinista (mock), juez guionado (con bloques de perturbación),
 sesiones/runtimes por condición, runner de celdas con checkpoints/restarts,
-auditoría mecánica, clasificación de cadenas de eventos (§17.2), métricas
-estructurales/de estado/de perturbación y replay reproducible (M3).
+auditoría mecánica, clasificación de cadenas de eventos, métricas
+estructurales/de estado/de perturbación y replay reproducible.
 
 Convención del repo: docstrings en español, identificadores en inglés.
 """
@@ -54,10 +54,8 @@ from experiments.cvs_manifest import (
 
 MODEL = "deepseek/deepseek-v4-flash"
 TIME_SCALE_S_PER_VH = 0.0004  # 30 virtual days ~ <1s of real sleep
-# Bootstrap user interests.
-# "metal music", not "metal": the catalog node was renamed 2026-09-07 to
-# stop it reading as metalworking. The fixture keeps its meaning only if
-# it follows -- an off-catalog name anchors no adjacency at all.
+# Bootstrap user interests. Names must match catalog nodes ("metal music",
+# not "metal"): an off-catalog name anchors no adjacency.
 GATE2_USER_INTERESTS = ("mathematics", "lifting", "movies", "metal music")
 
 
@@ -82,8 +80,7 @@ def recall_embedder(text: str, *, dim: int = 1024, seed: int = 0) -> list[float]
     """Embedder determinista (inyectado en la lane de memoria).
 
     Unigramas + bigramas de caracteres con feature hashing firmado (SHA-256,
-    estable entre procesos) en 1024 dims. Sustituye al embedder de 64 dims de
-    pruebas (demasiado colisionante para las barras congeladas M3/M4).
+    estable entre procesos) en 1024 dims.
     """
     import hashlib
 
@@ -161,11 +158,11 @@ class DeterministicClient:
 
 
 class MockJudgeClient:
-    """Juez mock determinista: puntuaciones JSON por dimensión (§17.1/§17.4).
+    """Juez mock determinista: puntuaciones JSON por dimensión.
 
-    Para el comando ``judge --fake``: devuelve una puntuación 1-9 por cada
-    dimensión, derivada de un hash determinista de (seed, transcript id) —
-    estable entre pasadas para la misma semilla, distinta entre familias.
+    Para el comando ``judge --fake``: puntuación 1-9 por dimensión derivada
+    de un hash determinista de (seed, transcript id) — estable entre pasadas
+    para la misma semilla, distinta entre familias.
     """
 
     supports_json = True
@@ -202,9 +199,8 @@ class MockJudgeClient:
 def score_schedule(seed: int, day: int) -> float:
     """Puntuación guionada para un día (determinista por semilla).
 
-    Sinusoide suave con fase dependiente de la semilla: da señal real al
-    término A(score_{d-1}) del scheduler (M9) siendo IDÉNTICA entre
-    condiciones (misma regla de generación downstream).
+    Sinusoide suave con fase dependiente de la semilla: alimenta el término
+    A(score_{d-1}) del scheduler (M9) y es IDÉNTICA entre condiciones.
     """
     phase = (seed % 13) / 13.0
     s = 0.62 * math.sin(2.0 * math.pi * (day / 9.0 + phase)) + 0.12 * math.sin(
@@ -219,8 +215,7 @@ class DeterministicJudge:
     Los días se finalizan estrictamente en orden y una sola vez, así el
     contador de llamadas coincide con el índice de día. Durante el bloque de
     perturbación (días 0-indexados ``block_start..block_end``) la puntuación
-    se hunde — el feedback mecánico propaga el bloque al estado latente y a
-    los canales observables.
+    se hunde.
     """
 
     def __init__(self, seed: int, *, block_start: int = BLOCK_START_D,
@@ -278,10 +273,8 @@ def _flat_controls(directive, *, base_max_tokens: int = 600, min_tokens: int = 9
                    max_tokens: int = 1500, beta: float = 2.0) -> GenerationControls:
     """NO_ACTUATORS / PROMPT_ONLY_STATE: parámetros de generación planos.
 
-    B4: valores PINNED (600 / 5.0 / 0.5 / 1.0 / banda media) a propósito —
-    aunque el mapeo actuado ahora barre [0.22, 1.30] de escala, [0.8, 44] s
-    de latencia y [0.04, 0.85] de cierre, NO_ACTUATORS debe seguir siendo un
-    null genuino (los valores planos NO dependen de la directiva).
+    Valores PINNED (600 / 5.0 / 0.5 / 1.0 / banda media), independientes de
+    la directiva — un null genuino.
     """
     return GenerationControls(
         max_tokens=600,
@@ -306,9 +299,8 @@ def apply_condition_patches(condition: str) -> list[tuple[object, str, object]]:
     """Parchea la frontera de integración para la condición (por proceso).
 
     El camino downstream (session._chat -> assembler -> client) queda
-    byte-idéntico; solo cambia la función ablacionada. Devuelve la lista de
-    parches aplicados para poder restaurarlos (células secuenciales en el
-    mismo proceso).
+    byte-idéntico; solo cambia la función ablacionada. Devuelve los parches
+    aplicados, restaurables entre células secuenciales del mismo proceso.
     """
     import harness.session as session_mod
 
@@ -354,11 +346,10 @@ class EmptyMemory:
 
 
 class RawHistoryMemory:
-    """RAW_HISTORY (matriz E0): lane de memoria = cola de diálogo crudo.
+    """RAW_HISTORY: lane de memoria = cola de diálogo crudo.
 
-    Se conserva como alias de la matriz de ablación; el Track A canónico usa
-    ``MemoryAgent(memory_policy=RAW_CONTEXT)`` (misma semántica, una única
-    implementación fiel).
+    Alias de la matriz de ablación; misma semántica que
+    ``MemoryAgent(memory_policy=RAW_CONTEXT)``.
     """
 
     def __init__(self, store):
@@ -383,9 +374,9 @@ class RawHistoryMemory:
 
 
 class SimpleRagMemory:
-    """SIMPLE_RAG (matriz E0): recuperación léxica top-k, sin reranker fiel.
+    """SIMPLE_RAG: recuperación léxica top-k, sin reranker fiel.
 
-    Alias de la matriz; el Track A canónico usa ``VERBATIM_RAG``.
+    Alias de la matriz de ablación.
     """
 
     def __init__(self, store):
@@ -458,15 +449,8 @@ class RecordingSession(Session):
     def finalize_current(self) -> None:
         """Finaliza el día actual SOLO si ya tiene mensajes.
 
-        Fix de checkpoint (confounder E0): el runtime llama a
-        ``finalize_current`` al terminar cada segmento. Si el segmento
-        termina exactamente en una medianoche, el día frontera recién abierto
-        NO tiene mensajes todavía (llegan tras el restart) y un finalize
-        vacío envenenaría el día con un juicio 0.0 "no interaction": su
-        sesión de memoria jamás se cerraría (L2/L3/L4 perdidos) y el
-        scheduler recibiría un A(score)=neutral espurio. Saltar el día vacío
-        lo deja finalizar en SU medianoche con sus mensajes reales —
-        byte-idéntico a un run sin reinicio.
+        Un día frontera recién abierto tras el restart aún no tiene mensajes;
+        se finaliza en SU medianoche con sus mensajes reales.
         """
         if self.current_day is None:
             return
@@ -480,15 +464,11 @@ class RecordingSession(Session):
 class NoLifeSession(RecordingSession):
     """NO_LIFE (goldfish): arcs regenerate fresh each day.
 
-    The ablated variable is the cross-day PERSISTENCE of life-arc identity
-    and progress: at every day boundary the store's arcs are wiped and the
-    in-memory arc list cleared, so the next day's ``_ensure_life`` re-seeds
-    under a NEW epoch — fresh arc ids, fresh progress, zero carryover.
-    Arcs themselves exist EVERY day (count > 0): the agenda grounds to arcs
-    and proactive intents ground to agenda items, so a life-less condition
-    would fail hard invariants for a structural reason unrelated to the
-    hypothesis. Goldfish keeps every invariant valid while destroying
-    exactly the persistence variable.
+    At every day boundary the store's arcs are wiped and the in-memory list
+    cleared; the next day's ``_ensure_life`` re-seeds under a NEW epoch
+    (fresh arc ids and progress, zero carryover). Arcs exist EVERY day
+    (count > 0): the agenda grounds to arcs and proactive intents to agenda
+    items.
     """
 
     def _rollover(self, day: int) -> None:
@@ -554,13 +534,12 @@ def make_session(condition: str, seed: int, store: SQLiteStore, clock: VirtualCl
                  client, judge, persona: PersonaParams, timing: TimingParams,
                  variant: MoodVariant, *, memory_policy=None,
                  judge_client=None) -> RecordingSession:
-    """Construye la sesión de la condición (la persona sale del STORE — el
+    """Construye la sesión de la condición (la persona sale del STORE: el
     bootstrap limpio es la fuente de verdad del perfil, no un argumento).
 
-    ``judge_client`` is the WS-C judge-lane client (research). Defaults to
-    the product client (session's own backward-compat default); live runs
-    that enable feedback MUST pass a research-lane client so the judge
-    spend attributes to the research lane.
+    ``judge_client`` is the judge-lane client (research). Defaults to the
+    product client; live runs enabling feedback MUST pass a research-lane
+    client so the judge spend attributes to the research lane.
     """
     session_cls: type[RecordingSession] = RecordingSession
     if condition == "NO_LIFE":
@@ -603,7 +582,7 @@ def make_runtime(condition: str, session: Session, store: SQLiteStore, seed: int
 # Runner of segments and cells
 
 
-# Driver stream key for after_reply delays (matches the canonical B3 consumer).
+# Driver stream key for after_reply delays.
 FEED_DELAY_STREAM_KEY = 202
 
 # Fraction of the virtual distance to the next rollover jump that the driver sleeps
@@ -619,10 +598,10 @@ REPLAN_GUARD_WINDOW_H = 1.0
 class _FeedPlan:
     """Plan de alimentación de un segmento (interfaz para ``_run_segment``).
 
-    Legacy (it2): lista plana ``(t_h, text)`` entregada en orden de tiempo.
-    Conversacional (it3 B3): stream de ``cvs_user.build_user_stream`` —
-    eventos ``at_t_h`` (absolutos) y ``after_reply`` (retardo sembrado tras
-    el turno previo del stream, un dibujo por evento en orden de stream).
+    Legacy: lista plana ``(t_h, text)`` entregada en orden de tiempo.
+    Conversacional: stream de ``cvs_user.build_user_stream`` — eventos
+    ``at_t_h`` (absolutos) y ``after_reply`` (retardo sembrado tras el turno
+    previo del stream, un dibujo por evento en orden de stream).
     """
 
     def peek(self) -> tuple[float, str] | None:
@@ -636,7 +615,7 @@ class _FeedPlan:
 
 
 class _FlatFeedPlan(_FeedPlan):
-    """Proyección legacy: mensajes planos ``(t_h, text)`` en orden (it2)."""
+    """Proyección legacy: mensajes planos ``(t_h, text)`` en orden."""
 
     def __init__(self, msgs: Sequence[tuple[float, str]], start_h: float,
                  end_h: float) -> None:
@@ -665,15 +644,14 @@ class _FlatFeedPlan(_FeedPlan):
 
 
 class _ConversationalFeedPlan(_FeedPlan):
-    """Stream conversacional de B3 (FEED CONTRACT de ``cvs_user``).
+    """Stream conversacional (FEED CONTRACT de ``cvs_user``).
 
-    Los ``at_t_h`` se entregan en su ``t_h`` ABSOLUTO (contrato congelado de
-    B3: byte-identidad de aperturas/sondas/cadenas/negativos). Los
-    ``after_reply`` se dibujan EXACTAMENTE UNA vez por evento, en orden de
-    stream, desde el rng sembrado del driver (clave ``FEED_DELAY_STREAM_KEY``)
-    y se entregan ``delay`` después del t_h del turno PREVIO del stream — la
-    semántica del harness canónico de B3 (el reloj encadena del último evento
-    entregado; los retardos < 1h mantienen el turno en el mismo día).
+    Los ``at_t_h`` se entregan en su ``t_h`` ABSOLUTO (byte-identidad de
+    aperturas/sondas/cadenas/negativos). Los ``after_reply`` se dibujan
+    EXACTAMENTE UNA vez por evento, en orden de stream, desde el rng sembrado
+    del driver (clave ``FEED_DELAY_STREAM_KEY``) y se entregan ``delay``
+    después del t_h del turno PREVIO del stream: el reloj encadena del último
+    evento entregado; los retardos < 1h mantienen el turno en el mismo día.
     """
 
     def __init__(self, events: Sequence[dict], start_h: float, end_h: float,
@@ -740,39 +718,25 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
                        store: SQLiteStore, seed: int) -> list[tuple[float, str]]:
     """Corre el runtime hasta end_h alimentando el plan de feeds del usuario.
 
-    RELOJ-ROBUSTO (it3 FEED — B8 Finding 4): el driver entrega los feeds
-    conduciéndose por el MISMO reloj virtual del runtime, nunca por sueños
-    de tiempo real fijos:
+    RELOJ-ROBUSTO: el driver se conduce por el MISMO reloj virtual del
+    runtime, nunca por sueños de tiempo real fijos. Por cada feed espera a
+    que (a) el reloj entre en el día del objetivo, (b) los eventos de agenda
+    pendientes estrictamente anteriores al objetivo se hayan disparado
+    (drenaje en orden) y (c) el replan de medianoche del día objetivo haya
+    terminado. Mientras espera duerme la FRACCIÓN ``FEED_PACE_FRACTION`` de
+    la distancia virtual al próximo salto del rollover (min(evento de agenda
+    pendiente futuro, medianoche, end_h) * time_scale), así ningún objetivo
+    de feed se pierde por un salto del reloj.
 
-    * Por cada feed espera a que (a) el reloj entre en el día del objetivo,
-      (b) los eventos de agenda pendientes estrictamente anteriores al
-      objetivo se hayan disparado (drenaje: se gatean a su propia hora, en
-      orden) y (c) el replan de medianoche del día objetivo haya terminado
-      (el rollover sostiene el lock del runtime durante ensure_day+replan;
-      si el reloj está clavado en la frontera del día con el lock tomado,
-      el plan del día aún no existe y un avance prematuro desplazaría los
-      eventos de la mañana).
-    * Mientras espera duerme la FRACCIÓN ``FEED_PACE_FRACTION`` de la
-      distancia virtual al próximo salto del rollover (min(evento de agenda
-      pendiente futuro, medianoche, end_h) * time_scale) — el driver
-      despierta SIEMPRE antes de que el runtime pueda avanzar el reloj más
-      allá del objetivo, así un objetivo de feed NUNCA se pierde por un
-      salto del reloj.
-    * El feed se LANZA como tarea sin esperar su réplica (la cola FIFO del
-      lock del runtime la serializa en orden de t_h y avanza el reloj a t_h
-      EXACTO antes de que el timer del rollover pueda saltar); el driver
-      sigue con el siguiente feed y espera todas las tareas al final.
-    * NUNCA se omite un feed por llegar tarde: si el reloj ya pasó el
-      objetivo (defensivo — con el ritmo de medio paso no ocurre), el
-      mensaje se entrega igual y se persiste al tiempo actual del reloj
-      (desplazamiento documentado del runner it2, nunca un skip). Solo se
-      omiten honestamente los feeds cuando el runtime TERMINÓ (no se puede
-      alimentar un canal apagado; el executor ya está cerrado).
+    El feed se LANZA como tarea sin esperar su réplica (la cola FIFO del
+    lock del runtime la serializa en orden de t_h y avanza el reloj a t_h
+    EXACTO antes de que el timer del rollover pueda saltar); el driver sigue
+    con el siguiente feed y espera todas las tareas al final. Un feed que
+    llega tarde se entrega igual, persistido al tiempo actual del reloj
+    (nunca un skip); solo se omiten cuando el runtime TERMINÓ, y los feeds
+    omitidos se devuelven para la auditoría (nunca un hang).
 
-    Un runtime que TERMINA CON EXCEPCIÓN (p.ej. cliente sin clave: probe G6)
-    se propaga SIEMPRE — una celda hueca (0 mensajes, exit 0) es el peor
-    modo de fallo; falla fuerte y deja el log. Los feeds omitidos se
-    devuelven para la auditoría (nunca un hang).
+    Una excepción del runtime se propaga SIEMPRE.
     """
 
     def _raise_if_failed(t) -> None:
@@ -860,22 +824,18 @@ async def _run_segment(session: Session, runtime: AsyncRuntime,
 def user_script(seed: int, days: int, *, perturb: bool = True) -> list[tuple[float, str]]:
     """Guion de usuario determinista por semilla (idéntico entre condiciones).
 
-    PROYECCIÓN LEGACY (it3 B3) del stream conversacional de
+    PROYECCIÓN LEGACY del stream conversacional de
     ``cvs_user.build_user_stream``: aplana SOLO los eventos ``at_t_h`` al
-    formato ``(t_h, text)`` del runner de la iteración 2. Cada día conserva
-    su apertura a las 19:00; las sondas de recuerdo, los eventos de cadena y
-    los mensajes negativos del bloque de perturbación (días 11-14,
-    1-indexados) van EMBEBIDOS en la ventana de la conversación
-    (19:10 / 19:20 / 19:30). Los seguimientos del repertorio conversacional
-    (eventos ``after_reply``) NO entran en esta proyección: el runner actual
-    no puede entregar un stream más denso al time_scale congelado (el
-    rollover del reloj desplaza los feeds tardíos al siguiente día — carrera
-    documentada del runner it2), y el presupuesto de mensajes queda idéntico
-    al de la iteración 2 (51 mensajes en 30 días).
+    formato plano ``(t_h, text)``. Cada día conserva su apertura a las 19:00;
+    las sondas de recuerdo, los eventos de cadena y los mensajes negativos
+    del bloque de perturbación (días 11-14, 1-indexados) van EMBEBIDOS en la
+    ventana de la conversación (19:10 / 19:20 / 19:30). Los seguimientos
+    ``after_reply`` NO entran en esta proyección; el presupuesto es 51
+    mensajes en 30 días.
 
-    El CONTRATO de feed para el driver de B8 es
-    ``cvs_user.build_user_stream`` (eventos at_t_h / after_reply); este
-    formato plano se mantiene solo para compatibilidad con el runner actual.
+    El CONTRATO de feed para el driver es ``cvs_user.build_user_stream``
+    (eventos at_t_h / after_reply); este formato plano se mantiene solo para
+    compatibilidad con el runner actual.
     """
     from experiments.cvs_user import build_user_stream
 
@@ -1020,7 +980,7 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
                 draw_after_reply_delay,
             )
         except ImportError:
-            # Pre-B3 main: legacy it2 plan.
+            # cvs_user unavailable: fall back to the flat feed plan.
             build_user_stream = None  # type: ignore[assignment]
             draw_after_reply_delay = None  # type: ignore[assignment]
         if build_user_stream is not None:
@@ -1130,7 +1090,6 @@ def run_cell(condition: str, seed: int, out_dir: Path, *, days: int = 30,
 def _memory_lane_for(records: dict) -> str:
     """Lane de memoria efectiva de la condición (espejo de ``_memory_for``).
 
-    Identidad de mecanismo para las claims del canal memory_store (B8/B6):
     RAW_HISTORY usa diálogo crudo, SIMPLE_RAG recuperación léxica top-k;
     el resto usa el MemoryAgent con la policy indicada en ``records``.
     """
@@ -1153,13 +1112,13 @@ def _fired_schedule_count(store: SQLiteStore, seed: int) -> int:
 
 
 def _conversation_summary(store: SQLiteStore) -> dict:
-    """Resumen de conversaciones (seam B2) — degradación con gracia.
+    """Resumen de conversaciones — degradación con gracia.
 
-    Sin la tabla ``conversations`` de B2: ``n_conversations`` y
-    ``mean_turns_per_conversation`` son None y ``conversations_available``
-    es False (se reporta en el pre-flight, no se calla). Con el seam
-    presente: cuenta conversaciones y turnos (tabla ``conversation_turns``,
-    o columna ``messages.conversation_id`` como respaldo).
+    Sin la tabla ``conversations``: ``n_conversations`` y
+    ``mean_turns_per_conversation`` son None, ``conversations_available``
+    es False (se reporta en el pre-flight). Con la tabla: cuenta
+    conversaciones y turnos (``conversation_turns`` o
+    ``messages.conversation_id`` como respaldo).
     """
     if store.conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name='conversations'"
@@ -1196,15 +1155,9 @@ def _controls_stats(records: dict) -> dict:
     """Estadísticas por control de generación sobre ``controls_by_message``.
 
     Por control: ``n`` (mensajes con el control registrado), ``min``/``max``/
-    ``mean`` (solo para controles numéricos; ``None`` para campos textuales
-    como ``closing_guidance``) y ``varied`` (¿el control toma más de un
-    valor a lo largo de los mensajes de la célula?).
-
-    Es el sustrato de las claims de G2 (B4 generation_controls): una
-    ablación de actuadores (``_flat_controls``, NO_ACTUATORS) fija
-    600 / 5.0 / 0.5 / 1.0 / banda media, así que todos los controles salen
-    con ``varied=False`` — la afirmación "actuator controls do not vary" se
-    lee del resumen, no de una expectativa hardcodeada.
+    ``mean`` (solo controles numéricos; ``None`` para campos textuales como
+    ``closing_guidance``) y ``varied`` (¿el control toma más de un valor a lo
+    largo de los mensajes de la célula?).
     """
     by_msg = records.get("controls_by_message") or {}
     values: dict[str, list] = {}
@@ -1234,28 +1187,23 @@ def _controls_stats(records: dict) -> dict:
 
 
 def records_summary(store: SQLiteStore, records: dict) -> dict:
-    """Resumen por condición para las AblationClaim del pre-flight (it3 B8).
+    """Resumen por condición para las AblationClaim del pre-flight.
 
     Contrato AblationClaim (harness/domain.py): ``n_proactive``,
     ``n_reactive``, ``n_assistant_turns``, ``n_blank_assistant_turns``,
     ``n_conversations`` y ``mean_turns_per_conversation`` — más las claves
     de canal que las claims usan (arcos/agenda/episodios, lane de memoria,
     disparos de agenda, longitud de réplica). ``n_conversations`` /
-    ``mean_turns_per_conversation`` son None mientras el seam de B2 no
-    exista (degradación documentada, no silenciosa:
-    ``conversations_available=False``).
+    ``mean_turns_per_conversation`` son None mientras no exista el seam de
+    conversaciones (``conversations_available=False``).
 
-    Piernas aditivas de G2 (claims preregistradas de B4/B5 + claims
-    conductuales de memoria):
-    - ``controls_stats`` (leg de reporte, wip/it3-g2-controls): estadísticas
-      por control de generación.
+    Claves adicionales:
+    - ``controls_stats``: estadísticas por control de generación.
     - ``proactive_times``: horas absolutas de los mensajes proactivos
-      (ascendente) — la pata de gaps del claim de B5
-      (``structured_no_state_timing_check``).
+      (ascendente).
     - ``memory_evidence``: lo que la lane de memoria de la condición
       RECUPERÓ de verdad (ids de episodios / turnos de contexto crudo) en
-      las sondas enrutadas por lane (B6) — el sustrato conductual de las
-      claims de memoria (no la identidad configurada de la lane).
+      las sondas enrutadas por lane (no la identidad configurada).
     """
     msgs = _all_messages(store)
     assistant = [m for m in msgs if m["role"] == "assistant"]
@@ -1301,24 +1249,21 @@ def records_summary(store: SQLiteStore, records: dict) -> dict:
 def _proactive_times(msgs: Sequence[dict]) -> list[float]:
     """Horas absolutas de los mensajes proactivos (ascendente).
 
-    La pata de gaps del claim de B5 (``structured_no_state_timing_check``
-    lee ``proactive_times``); el pre-flight las agrupa por condición
-    (pooled) antes de evaluar la claim.
+    El pre-flight las agrupa por condición (pooled) antes de evaluar.
     """
     return sorted(float(m["t_h"]) for m in msgs if m["proactive"])
 
 
 def _memory_evidence(store: SQLiteStore, records: dict) -> dict:
-    """Evidencia de recuperación REAL de la lane de la condición (B6/G2).
+    """Evidencia de recuperación REAL de la lane de la condición.
 
-    Sondas de cadena (§17.2) y de recuerdo (M3) enrutadas por la lane de la
-    condición (``event_chain_metrics`` / ``recall_probe_metrics``): lo que
-    la lane devolvió de verdad — ids de episodios recuperados
-    (``retrieved_ids``), turnos del contexto crudo (``context_turns`` para
-    RAW_HISTORY, cuya lane no hace retrieval rankeado) y coberturas
-    (``AnyEvidence``, ``M3_recall``). NO es la identidad configurada de la
-    lane (``memory_lane``): una lane cableada a nada devuelve conjunto
-    vacío y es detectable.
+    Sondas de cadena y de recuerdo enrutadas por la lane de la condición
+    (``event_chain_metrics`` / ``recall_probe_metrics``): lo que la lane
+    devolvió de verdad — ids de episodios recuperados (``retrieved_ids``),
+    turnos del contexto crudo (``context_turns`` para RAW_HISTORY, cuya lane
+    no hace retrieval rankeado) y coberturas (``AnyEvidence``,
+    ``M3_recall``). NO es la identidad configurada de la lane
+    (``memory_lane``).
     """
     condition = records.get("condition", "FULL")
     chains = event_chain_metrics(store, condition=condition)
@@ -1348,15 +1293,14 @@ def _memory_evidence(store: SQLiteStore, records: dict) -> dict:
 
 def _enrich_repro_rows(store: SQLiteStore, client, seed: int, condition: str,
                        memory_policy) -> None:
-    """Completa el payload repro (M3/invariante 19) de las filas llm_calls.
+    """Completa el payload repro (invariante 19) de las filas llm_calls.
 
     La sesión persiste el payload EXACTO de cada llamada (sistema + mensajes
-    + controles) en ``log_llm_call(repro=...)`` cuando el store está en
-    ``audit_mode`` (it3 B7). Aquí se añade lo que solo sabe el runner —
-    semilla, condición, política de memoria, fuente — mediante MERGE sobre el
-    payload ya persistido: nunca se pisa el texto de la llamada. Las filas
-    hash-only (runs no-eval) se dejan tal cual; el escaneo de fugas las
-    reporta como no verificables, no las finge.
+    + controles) en ``log_llm_call(repro=...)`` en ``audit_mode``. Aquí se
+    añade lo que solo sabe el runner — semilla, condición, política de
+    memoria, fuente — mediante MERGE sobre el payload persistido: nunca se
+    pisa el texto de la llamada. Las filas hash-only (runs no-eval) se dejan
+    tal cual.
     """
     calls = getattr(client, "calls", [])
     rows = store.conn.execute(
@@ -1403,27 +1347,15 @@ def _episode_text(ep) -> str:
 def _source_superseded_at(store: SQLiteStore | None, src, intent: ProactiveIntent) -> bool:
     """¿La fuente ya estaba superseded al CREAR el intent? (clamp TOCTOU).
 
-    El veredicto naíf comparaba el estado FINAL del run (``status ==
-    'skipped'`` / ``'abandoned'``) — anacrónico (time-of-check vs
-    time-of-use): el cierre del día (``life.step_life``) escribe esos
-    estados DESPUÉS de que el slot/día transcurrió, así que un intent
-    disparado mientras la fuente aún estaba ``planned``/``active``
-    quedaría marcado 'superseded' retroactivamente por un bookkeeping
-    posterior al disparo.
-
-    Clamp temporal: solo es un fallo real si la fuente YA estaba
-    superseded a la hora de crear el intent (``intent.created_t_h``):
-    - AgendaItem: el skip se escribe en el cierre del día, siempre
-      después de ``end_t_h``; si el slot terminó ANTES de crear el intent
+    Clamp temporal: solo es un fallo real si la fuente YA estaba superseded
+    a la hora de crear el intent (``intent.created_t_h``):
+    - AgendaItem: el skip se escribe en el cierre del día, siempre después
+      de ``end_t_h``; si el slot terminó ANTES de crear el intent
       (``end_t_h < created_t_h``) la fuente seguía ``planned`` en ese
-      momento y el disparo referenció legítimamente una actividad
-      planificada (evidencia: pi_agenda_item_ag_8_r_01_205.214, creado a
-      205.21 con el item ag_8_r_01 aún planned; el skip llegó al cierre).
+      momento.
     - LifeArc: no hay marca de abandono persistida por arco; se usa la
       última evidencia de actividad (max ``end_t_h`` de sus items de
-      agenda, ``source_type='arc'``): si el arco aún tenía actividad a la
-      hora de crear el intent, el abandono posterior es bookkeeping de
-      cierre, no un fallo.
+      agenda, ``source_type='arc'``).
     """
     if isinstance(src, AgendaItem):
         if src.status != "skipped":
@@ -1507,13 +1439,11 @@ def _proactive_grounding(store: SQLiteStore, end_h: float) -> tuple[int, list[di
 def _cycle_leak_hits(store: SQLiteStore) -> dict:
     """Escaneo de fugas (invariante 16): mensajes + prompts persistidos.
 
-    Desde it3 B7 las filas de eval (audit_mode) llevan el sistema + payload
-    EXACTOS en ``repro_json``: el escaneo del lado prompt corre contra el
-    texto PERSISTIDO y puede cazar tokens prohibidos del ciclo. Las filas
-    hash-only (runs no-eval) se contabilizan por separado y se reportan como
-    NO verificables — no se finge cobertura. ``hits``/``total``/``g_bare``
-    conservan la semántica agregada histórica; ``prompt_side`` es el
-    desglose del lado prompt.
+    En eval (``audit_mode``) las filas llevan el sistema + payload EXACTOS
+    en ``repro_json``: el escaneo del lado prompt corre contra el texto
+    PERSISTIDO. Las filas hash-only (runs no-eval) se contabilizan aparte y
+    se reportan como NO verificables. ``hits``/``total``/``g_bare`` son la
+    semántica agregada; ``prompt_side`` es el desglose del lado prompt.
     """
     hits: dict[str, int] = {}
     g_bare = 0
@@ -1607,14 +1537,11 @@ def _life_dead_days(store: SQLiteStore, days: int) -> tuple[list[int], int]:
 def _duplicate_turns(store: SQLiteStore) -> list[dict]:
     """Turnos duplicados a través de restarts (resume no debe rewindear).
 
-    Clave = (role, content, t_h, day, proactive, intent_id). El flag
-    proactive + intent_id desambiguan mensajes DISTINTOS que colisionan en
-    (role, content, t_h, day) en runs reales: el reloj virtual se congela
-    durante los calls LLM, así que una réplica reactiva y un disparo
-    proactivo pueden compartir t_h, y el modelo puede repetir texto
-    verbatim (o devolver vacío) — no es un rewind. Un rewind REAL reescribe
-    la misma fila: mismo intent_id (proactivo) o misma (role, content, t_h,
-    day, session) (reactivo) — la clave lo sigue capturando.
+    Clave = (role, content, t_h, day, proactive, intent_id); ``proactive`` +
+    ``intent_id`` desambiguan mensajes DISTINTOS que colisionan en (role,
+    content, t_h, day). Un rewind REAL reescribe la misma fila — mismo
+    intent_id (proactivo) o misma (role, content, t_h, day, session)
+    (reactivo) — y la clave lo sigue capturando.
     """
     seen: dict[tuple, int] = {}
     dupes: list[dict] = []
@@ -1753,7 +1680,7 @@ def _tokens_covered(tokens: Sequence[str], texts: Sequence[str]) -> list[bool]:
 
 
 def _chain_classification(chain: dict, covered: Sequence[bool]) -> dict:
-    """Forma estándar de clasificación §17.2, compartida por todas las lanes."""
+    """Forma estándar de clasificación, compartida por todas las lanes."""
     covered = list(covered)
     return {
         "chain_id": chain["id"],
@@ -1766,7 +1693,7 @@ def _chain_classification(chain: dict, covered: Sequence[bool]) -> dict:
 
 
 def classify_chain(retrieved: Sequence, chain: dict) -> dict:
-    """Clasifica una recuperación según §17.2 (lane de episodios).
+    """Clasifica una recuperación (lane de episodios).
 
     Cobertura por evento: el texto del episodio (summary+tags+anclas) contiene
     el token distintivo del evento. AnyEvidence: >=1 evento cubierto.
@@ -1818,9 +1745,8 @@ def _raw_history_window(store: SQLiteStore, t_h: float, *,
     """Slice L1 de diálogo crudo TAL COMO la lane RAW_HISTORY lo ve en t_h.
 
     Reconstrucción retrospectiva: los últimos ``limit`` turnos persistidos
-    (rol, texto) con t_h' < t_h, en orden cronológico. ``recent_messages``
-    ordena por id; filtrar por tiempo y quedarse con la cola reproduce
-    exactamente el slice que ``raw_history`` habría devuelto en vivo en t_h.
+    (rol, texto) con t_h' < t_h, en orden cronológico — el slice que
+    ``raw_history`` habría devuelto en vivo en t_h.
     """
     rows = store.recent_messages(limit=1_000_000)
     return tuple(
@@ -1829,7 +1755,7 @@ def _raw_history_window(store: SQLiteStore, t_h: float, *,
 
 
 def _chain_classify_raw_history(store: SQLiteStore, chain: dict) -> dict:
-    """Sonda justa RAW_HISTORY para cadenas (§17.2, B6)."""
+    """Sonda justa RAW_HISTORY para cadenas."""
     qday = int(chain["query_day"])
     window = _raw_history_window(store, qday * 24.0)
     tokens = _chain_event_tokens(chain)
@@ -1844,13 +1770,12 @@ def _chain_classify_raw_history(store: SQLiteStore, chain: dict) -> dict:
 
 def event_chain_metrics(store: SQLiteStore, *, condition: str = "FULL",
                         memory_policy=None) -> dict:
-    """Métricas de cadena de eventos por cadena — lane de la condición (B6/F5).
+    """Métricas de cadena de eventos por cadena — lane de la condición.
 
-    El agente de recuperación se construye con ``_memory_for(condition)``: la
-    MISMA lane con la que corrió la celda (FULL/SIMPLE_RAG/RAW_HISTORY/...).
-    ``memory_policy`` se conserva para runs por policy (tracks A/B/C) bajo
-    condiciones estructuradas. RAW_HISTORY usa la sonda justa (contexto crudo
-    en t_q) porque su lane no almacena episodios.
+    El agente de recuperación se construye con ``_memory_for(condition)``:
+    la MISMA lane con la que corrió la celda. ``memory_policy`` se conserva
+    para runs por policy (tracks A/B/C) bajo condiciones estructuradas.
+    RAW_HISTORY usa la sonda justa (contexto crudo en t_q).
     """
     if condition == "RAW_HISTORY":
         return {
@@ -1870,11 +1795,10 @@ def event_chain_metrics(store: SQLiteStore, *, condition: str = "FULL",
 
 
 def aggregate_chain_metrics(chains: dict) -> dict:
-    """Rates ABSOLUTOS de cadena sobre las clasificaciones por cadena (B6).
+    """Rates ABSOLUTOS de cadena sobre las clasificaciones por cadena.
 
-    Reporte absoluto, no solo gaps: AnyEvidence/LatestEvidence/CompleteChain
-    como fracción de cadenas probadas. FULL en 0.333 — una de cada tres — es
-    el titular honesto, no solo su brecha frente a RAW_HISTORY.
+    AnyEvidence/LatestEvidence/CompleteChain como fracción de cadenas
+    probadas.
     """
     items = list(chains.values())
     n = len(items)
@@ -1896,7 +1820,7 @@ RECALL_PROBES_TOKENS = {
 
 
 def _recall_probe_metrics_raw_history(store: SQLiteStore) -> dict:
-    """Sonda justa RAW_HISTORY para sondas de hecho único (M3, B6)."""
+    """Sonda justa RAW_HISTORY para sondas de hecho único."""
     recall_hits = 0
     detail = []
     for pday, _probe, query in RECALL_PROBES:
@@ -1918,8 +1842,8 @@ def _recall_probe_metrics_raw_history(store: SQLiteStore) -> dict:
 
 def recall_probe_metrics(store: SQLiteStore, *, condition: str = "FULL",
                          memory_policy=None) -> dict:
-    """Recuerdo de sondas de hecho único (M3/M4): recall@8 por contenido,
-    probado con la lane de la condición (B6/F5)."""
+    """Recuerdo de sondas de hecho único: recall@8 por contenido, probado
+    con la lane de la condición."""
     if condition == "RAW_HISTORY":
         return _recall_probe_metrics_raw_history(store)
     mem = _memory_for(condition, store, memory_policy=memory_policy)
@@ -2274,18 +2198,15 @@ def _token_gap(init_daily: Sequence[float], tokens_daily: Sequence[float]) -> fl
 
 def block_deviation_analysis(values: list[float], *, base_end: int,
                              block: list[int], days: int) -> dict:
-    """Baseline-vs-perturbation-block analysis of one daily series (§17.3).
-
-    Módulo-level (no una clausura) para que sea testeable sin un store: es la
-    aritmética del hallazgo, no de la recolección.
+    """Baseline-vs-perturbation-block analysis of one daily series.
 
     * ``baseline`` = días ``0..base_end-1``; una serie vacía da media 0.0 y
-      una de un solo día da sd 0.0 (no hay dispersión que medir).
+      una de un solo día da sd 0.0.
     * ``persistence_days`` = primer día de la ventana que vuelve dentro de la
       MITAD de la desviación pico; ``None`` = nunca lo hizo.
     * ``recovery_time_days`` = primer día tras el bloque con DOS días
-      consecutivos dentro de la banda base (sd, con piso 0.05, para que una
-      base plana no exija una coincidencia exacta); ``None`` = sin recuperar.
+      consecutivos dentro de la banda base (sd con piso 0.05); ``None`` =
+      sin recuperar.
     """
     base = values[:base_end]
     base_mean = float(np.mean(base)) if base else 0.0
@@ -2319,7 +2240,7 @@ def block_deviation_analysis(values: list[float], *, base_end: int,
 
 def compute_perturbation_metrics(store: SQLiteStore, records: dict,
                                  days: int) -> dict:
-    """Métricas de perturbación + recuperación (§17.3).
+    """Métricas de perturbación + recuperación.
 
     Serie latente: M diario. Serie observable: initiative / max_tokens /
     delay diarios (mensajes reactivos). Línea base = días 0..block_start-1.

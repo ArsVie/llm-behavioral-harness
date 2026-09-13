@@ -1,7 +1,7 @@
 """Fresh visuals from the live two-week run (results/live-two-weeks/companion.db).
 
-Same four-panel layout as the README hero (experiments/month_showcase.py) plus a
-week view, rebuilt against the REAL live run instead of the backfill sims:
+Four-panel layout as in the README hero (experiments/month_showcase.py) plus a
+week view:
 
   overview.png (4 panels)
     P1  mood trajectory vs 7-day smoothed expectation, cycle-phase background
@@ -12,8 +12,8 @@ week view, rebuilt against the REAL live run instead of the backfill sims:
     W1  week 1 day-x-hour message heatmap      W2  week 2 day-x-hour heatmap
     W3  proactive pipeline per day: fired vs suppressed intents
 
-Single-run data (seed 6001): no ensemble band exists — P1 shows the smoothed
-expectation line only. Run with MPLBACKEND=Agg.
+Single-run data (seed 6001): P1 shows the smoothed expectation line only.
+Run with MPLBACKEND=Agg.
 """
 
 from __future__ import annotations

@@ -1,8 +1,4 @@
-"""Tests de aceptación para engine.cycle (W1.2).
-
-Especificación: m(d) = B·sin(2π·d/L), g(d) = 1 + A·sin(2π·d/L) + ε,
-con redraw de L y fases según types.PHASE_FRACTIONS.
-"""
+"""Tests de aceptación para engine.cycle (W1.2)."""
 from __future__ import annotations
 
 from dataclasses import replace

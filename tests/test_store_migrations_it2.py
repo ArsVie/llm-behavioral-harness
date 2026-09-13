@@ -1,12 +1,10 @@
 """v2 -> v3 migration tests (iteration-2 A7).
 
-Builds a database with the PRE-A7 schema (the CURRENT repo schema at the A7
-base commit — v2 DDL embedded VERBATIM below, deliberately NOT imported from
-harness.store), seeds it with messages/judgements/schedule/memory/persona,
-then instantiates the new store: the v2 -> v3 migration must succeed, every
-piece of legacy data must remain present and interpretable, the canonical L4
-categories must be backfilled, and re-opening the same database (migration
-runs twice) must be a no-op. No destructive migration.
+Builds a database with the PRE-A7 schema (v2 DDL embedded VERBATIM below, not
+imported), seeds messages/judgements/schedule/memory/persona, then opens it with
+the new store: the migration succeeds, legacy data stays present and
+interpretable, the canonical L4 categories are backfilled, and re-opening is a
+no-op (no destructive step).
 """
 
 import sqlite3

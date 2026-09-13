@@ -1,36 +1,12 @@
-"""W-close: FLAG-OFF BYTE-PARITY (merge blocker) + flag-on vestigial pin.
+"""W-close: flag-off byte-parity pin + flag-on vestigial pin.
 
-BYTE PARITY (merge blocker)
----------------------------
-The closing draw is FEATURE-FLAGGED OFF (harness/tunables.py:
-CLOSING_TENDENCY_ENABLED=False, MAX_TURNS=None, since commit 365ad33), and
-the flag-off path itself changed shape with it: no per-turn taper draw
-fires, no turn cap exists, and the ONLY closures are the boundary closes
-(``quiet_hours`` at 23:00, ``user_left`` at ``USER_LEFT_THRESHOLD_H`` of
-user silence). The pin below is a sha256 over the canonical persisted
-trace (conversations + turns + messages + state_events) of a seeded,
-bounded scripted feed with two_phase_close OFF. It was REGENERATED from
-the current implementation after commit 365ad33 — an OWNER-APPROVED
-_rebaseline to the draw-OFF reality (2026-08) — and is frozen HERE: any
-change to the flag-off path (close timing, event strings, message flow,
-RNG consumption) breaks it. Regenerating the pin stays an orchestrator
-decision, never a silent test edit.
-
-The test also recomputes the expected close pattern INDEPENDENTLY from the
-boundary discipline (the first fed message whose local hour reaches the
-quiet-hours start closes the open conversation with ``quiet_hours`` just
-past the boundary) and asserts the recorded pattern matches, so a changed
-close timing or reason fails even before the hash check.
-
-FLAG-ON VESTIGIAL PIN (_rebaseline)
------------------------------------
-With the draw flagged OFF the wind-down machinery is UNREACHABLE: the
-flag-on arm must be byte-identical to the flag-off arm, and NEITHER arm
-may produce wind-down artifacts. Sentinel: any ``wind_down_started`` event
-while the draw is flagged off means the gating regressed. When the draw is
-re-enabled, re-base this test back to the B3-style contract (a fired draw
-closes exactly TWO turns later under two-phase close; draws identical
-across arms because the keys are unchanged).
+With the closing draw flagged OFF the only closures are the boundary closes
+(``quiet_hours`` at 23:00, ``user_left`` at ``USER_LEFT_THRESHOLD_H`` of user
+silence). The pin is a sha256 over the canonical persisted trace
+(conversations + turns + messages + state_events) of a seeded, bounded scripted
+feed; the expected close pattern is also recomputed independently, so a changed
+close timing or reason fails before the hash check. The flag-on arm must be
+byte-identical to the flag-off arm.
 """
 
 import hashlib
@@ -67,12 +43,10 @@ def _forced_controls(directive):
 
 
 def _run_feed(tmp_path, *, two_phase: bool) -> tuple[SQLiteStore, list]:
-    """Bounded scripted feed: exactly ``N_MESSAGES`` user messages every
-    ``GAP_H`` virtual hours from ``START_H`` on day 0 (draw-OFF helper —
-    closures are boundary-driven, so the feed is bounded by message count,
-    not by waiting for N closes). Returns the store and the
-    ``(id, close_reason, turn_count)`` pattern of conversations closed SO
-    FAR (the successor conversation stays open)."""
+    """Bounded scripted feed: ``N_MESSAGES`` user messages every ``GAP_H``
+    virtual hours from ``START_H`` on day 0. Returns the store and the
+    ``(id, close_reason, turn_count)`` pattern of conversations closed so far
+    (the successor conversation stays open)."""
     tmp_path.mkdir(parents=True, exist_ok=True)
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock()
@@ -124,9 +98,8 @@ def _canonical_trace(store: SQLiteStore) -> str:
 def _expected_boundary_close() -> tuple[int, float]:
     """Independently recompute the draw-OFF close discipline: the first fed
     message whose local hour reaches the quiet-hours start closes the open
-    conversation with reason ``quiet_hours``, recorded AT that message's
-    t_h (lazy close-before-turn ordering). Returns ``(message_index_1based,
-    expected_closed_t_h)``."""
+    conversation with reason ``quiet_hours``, recorded at that message's t_h.
+    Returns ``(message_index_1based, expected_closed_t_h)``."""
     quiet_start = TIMING.quiet_hours[0]
     m = next(
         m for m in range(1, N_MESSAGES + 1)
@@ -136,11 +109,10 @@ def _expected_boundary_close() -> tuple[int, float]:
 
 
 def test_flag_off_byte_parity_is_pinned(tmp_path, monkeypatch):
-    """MERGE BLOCKER (_rebaseline to draw-OFF reality, owner-approved
-    2026-08). Flag off: (a) two fresh runs are byte-identical, (b) the
-    frozen pin matches, (c) the recorded close pattern matches the
-    independently recomputed boundary discipline, (d) zero wind-down
-    artifacts reach the store."""
+    """Flag off: (a) two fresh runs are byte-identical, (b) the frozen pin
+    matches, (c) the recorded close pattern matches the independently
+    recomputed boundary discipline, (d) zero wind-down artifacts reach the
+    store."""
     assert CLOSING_TENDENCY_ENABLED is False, (
         "this battery encodes the DRAW-OFF reality; regenerate PARITY_PIN "
         "and re-base the pins when the draw is re-enabled"
@@ -189,14 +161,9 @@ def test_flag_off_byte_parity_is_pinned(tmp_path, monkeypatch):
 
 
 def test_flag_on_turn_count_rebaseline(tmp_path, monkeypatch):
-    """RE-BASELINE (draw-OFF reality, owner-approved 2026-08): with the
-    closing draw flagged OFF the wind-down machinery is UNREACHABLE —
-    two_phase_close is VESTIGIAL and the flag-on arm is byte-identical to
-    the flag-off arm over the same feed. Sentinel: any wind-down artifact
-    in either arm means the flag gate regressed. When the draw is
-    re-enabled, re-base this test back to the B3-style contract (flag-on
-    closes every drawn conversation exactly TWO turns later than flag-off;
-    mean-turns >= 4 bound in both arms)."""
+    """With the closing draw flagged OFF the flag-on arm is byte-identical to
+    the flag-off arm over the same feed; any wind-down artifact in either arm
+    means the flag gate regressed."""
     monkeypatch.setattr("harness.session.controls_from_directive", _forced_controls)
 
     off_store, off_pattern = _run_feed(tmp_path / "off", two_phase=False)

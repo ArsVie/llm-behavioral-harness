@@ -1,9 +1,4 @@
-"""Defensive branches that only fire on degenerate input.
-
-Each of these is a single guard that the ordinary paths never reach — the
-kind of line that stays uncovered until something odd happens in
-production, which is exactly when you want it to have been tested.
-"""
+"""Defensive branches that only fire on degenerate input."""
 
 from __future__ import annotations
 
@@ -17,12 +12,7 @@ from harness.negotiation_state import NegotiationState
 
 
 def test_bubbles_of_whitespace_only_text_is_empty():
-    """Whitespace-only input yields no bubbles at all.
-
-    The session only treats a reply as bubbled when it gets >= 2 parts, so
-    [] and [one] both mean "send it as a single message" — there is no path
-    where an empty list loses a message.
-    """
+    """Whitespace-only input yields no bubbles; [] and [one] both mean one message."""
     assert parse_bubbles("\n\n   \n") == []
     assert parse_bubbles("   ") == []
 
@@ -32,8 +22,7 @@ def test_bubbles_collapse_a_run_of_newlines_into_one_boundary():
 
 
 def test_derive_behavior_rejects_a_non_positive_mood_scale():
-    """mood_scale divides the mood into valence; zero or negative would
-    silently produce nonsense (or a ZeroDivisionError) instead of failing."""
+    """A non-positive mood_scale is rejected instead of producing nonsense."""
 
     class _Record:
         M = 5
@@ -56,8 +45,7 @@ def test_derive_behavior_rejects_a_non_positive_mood_scale():
     ([0.0, 0.0], [0.0, 0.0]),
 ])
 def test_cosine_of_a_zero_vector_is_zero_not_a_division_error(a, b):
-    """An all-zero embedding is possible (an empty or unknown text); the
-    similarity must degrade to 0.0 rather than raise."""
+    """An all-zero embedding degrades to 0.0 instead of raising."""
     assert cosine(a, b) == 0.0
 
 
@@ -66,8 +54,7 @@ def test_cosine_of_identical_vectors_is_one():
 
 
 def test_decide_index_counts_the_delays_taken():
-    """The decide-leg index is what makes a decision id stable across a
-    restart: neg-<item>-decide-<index>, index = delays already taken."""
+    """decide_index counts the delays already taken (stable id across a restart)."""
     state = NegotiationState(
         item_id="g1", activity="pottery class", source_type="arc",
         start_t_h=10.0, end_t_h=11.0, salience=0.8,

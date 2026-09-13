@@ -1,15 +1,10 @@
 """Debounce (HARNESS_DEBOUNCE) for the Telegram channel — Wave 1, W-channel.
 
-All timing is virtual (see test_telegram_helpers): the channel's injectable
-sleeper parks on a GateSleeper and time is a ManualClock the test advances
-explicitly, so no test sleeps for real and every flush instant is
-deterministic. Test discipline: buffer -> drain (background task parks on
-the gate) -> advance the clock -> release -> drain (flush delivers).
-
-WS-A (2026-08-16): the windows are env-configurable
-(HARNESS_DEBOUNCE_TRAILING_S / HARNESS_DEBOUNCE_MAX_WAIT_S) with defaults
-bumped to 4.5 s trailing / 12.0 s cap (the human follow-up window). Tests
-import the defaults so future bumps do not pin stale literals.
+All timing is virtual (see test_telegram_helpers): the injectable sleeper parks
+on a GateSleeper and time is a ManualClock the test advances explicitly, so no
+test sleeps for real and every flush instant is deterministic. The windows are
+env-configurable (HARNESS_DEBOUNCE_TRAILING_S / HARNESS_DEBOUNCE_MAX_WAIT_S);
+tests import the defaults rather than pinning stale literals.
 """
 
 import asyncio

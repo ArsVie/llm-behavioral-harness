@@ -1,6 +1,6 @@
-"""E2E blind ablation — harness on/off response matrix (W-E3).
+"""E2E blind ablation — harness on/off response matrix.
 
-Preregistered 3 x 2 design:
+3 x 2 design:
     Month:   horrible | perfect | flat   (paired scripted synthetic user)
     Harness: on | off
 
@@ -9,7 +9,7 @@ both harness conditions). "Off" removes ONLY the dynamic behavior guidance
 (system prompt = persona core, no engine, no state, no judge) while keeping
 the same transcript context.
 
-Evaluator is SEPARATE from the feedback judge (advisor review 2026-08-08):
+Evaluator is SEPARATE from the feedback judge:
     - leakage scan: phase labels / internal tokens / self-reported mood
     - tone proxies: reply length, exclamation rate, first-person rate
     - manipulation check: harness-on horrible vs perfect engine trajectories

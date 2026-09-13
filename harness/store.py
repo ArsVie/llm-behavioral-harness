@@ -1,131 +1,9 @@
-"""SQLite persistence for the harness (W-E1) — schema-versioned (vertical slice A2).
+"""SQLite persistence for the harness (single SQLite file, WAL mode).
 
-Pattern follows Hermes session storage: single SQLite file, WAL mode, append-
-only trace tables alongside canonical state tables. Canonical tables hold the
-current truth (daily_state, messages, judgements); `state_events` and
-`llm_calls` are the audit/replay log (model, prompt hash, seed, clock time,
-state version recorded per call).
-
-Schema versioning (A2 + A7)
----------------------------
-The pre-slice schema is version 1 and is frozen verbatim in ``_SCHEMA``; it is
-executed with ``CREATE TABLE IF NOT EXISTS`` on every open (legacy behavior,
-idempotent). ``schema_meta(version)`` creates the ``schema_meta`` bookkeeping
-table; the migration framework (``_migrate``) reads the recorded version and
-applies **additive** migrations to reach ``SCHEMA_VERSION`` (currently 8).
-Migrations never drop or alter existing columns; all ``ALTER TABLE`` steps are
-guarded by ``PRAGMA table_info``. On a fresh database the effective version is
-1 (only the v1 base tables exist), so the migration chain runs and the
-bookkeeping collapses to a single row at the current version. Reopening a
-migrated database sees the current version and skips the migration
-(idempotent; safe to run twice).
-
-Migration v1 -> v2 adds: ``session_id`` on ``messages`` (A5 needs L1 session
-scoping) and the vertical-slice tables below.
-
-Migration v2 -> v3 (A7) adds:
-  - ``messages.intent_id`` (NULLABLE TEXT) — proactive provenance: the exact
-    validated intent id that produced an outgoing message (invariant 6);
-    reactive messages keep it NULL.
-  - ``user_model_assertions.category`` — the canonical L4 taxonomy
-    (``UserModelCategory`` value) stored DIRECTLY on every assertion row.
-    Legacy rows are backfilled once from the documented key-prefix
-    conventions; loads never re-infer categories from keys.
-  - ``llm_calls.repro_json`` — call-reproducibility audit payload (JSON) for
-    eval mode: exact request/response fields needed to reproduce a call.
-    Production privacy default: not logged (configurable via ``audit_mode``).
-
-Migration v4 -> v5 (runtime redesign WS2) adds:
-  - ``decision_records`` — one row per pop-up decision (tool_decide_event /
-    tool_decide_reply): the drawn pop-up inputs (JSON), the RAW model reply,
-    the parsed verdict (JSON), source (model|server_draw), transport
-    (native|textual|server_draw|server_draw_fallback), budget consumption
-    and the ``replay_id`` natural key. Replay reads the recorded verdict —
-    it never re-rolls.
-  - ``steering_queue`` — pending arriving events (pop-ups due, user messages
-    mid-turn, schedule fires) awaiting delivery at the next safe boundary;
-    ``status`` is 'pending' | 'delivered', delivery records the actual
-    ``delivered_t_h``/``boundary``/``seen_turn_id`` (summary #23). The
-    enqueue/pending/mark/requeue methods are the WS3 steering backend
-    contract.
-
-Migration v6 -> v7 (S1 real time, additive only) adds nullable REAL
-timestamp columns holding the UTC epoch instant resolved via the
-RealTimeAnchor at row-creation time:
-  - ``conversations.opened_at`` / ``conversations.closed_at``
-  - ``agenda_items.start_at`` / ``agenda_items.end_at``
-  - ``proactive_intents.created_at`` / ``proactive_intents.valid_until_at``
-  - ``messages.sent_at``
-NULL = no anchor present (pre-anchor / replay rows) — replay parity is
-preserved. No backfill, no NOT NULL, no defaults, no new indexes: purely
-additive, safe on the populated live database. The tz name already lives
-in the anchor (kv_store ``anchor.tz``), so the columns store the instant
-only.
-
-Tables (slice scope of the plan's data model):
-  - daily_state(day PK, M, m_level, g, p, arg, mu, eta, cycle_day, phase_label,
-    seed, score)                       -- FROZEN legacy table, untouched
-  - messages(id PK, role, content, t_h, day, proactive, meta, session_id)
-  - judgements(day PK, score, justification, model, shadow)
-  - state_events(id PK, day, t_h, event, detail)
-  - llm_calls(id PK, day, t_h, role, model, prompt_hash, response, meta) —
-    v8 (WS-D) adds the spend ledger: prompt_tokens, completion_tokens,
-    total_tokens, cached_tokens, cache_miss_tokens, lane, raw_cost (all
-    nullable; legacy rows NULL)
-  - schedule_events(id PK, seed, t_h, day, reason, status, fired_t_h)
-  - persona(id=1 singleton, name, core, routines_json)   -- routines as JSON
-  - interests(name PK, bucket, salience)                 -- portfolio bucket
-  - life_arcs(id PK, name, interest, started_day, progress, status,
-    next_intention)
-  - agenda_items(id PK, day, start_t_h, end_t_h, activity, source_type,
-    source_id, salience, status)
-  - proactive_intents(id PK, reason, source_type, source_id, hook,
-    created_t_h, valid_until_t_h, salience, evidence, status)
-  - memory_sessions(session_id PK, started_at_t_h, ended_at_t_h)
-  - memory_turns: **VIEW over messages** (rows with a session_id) — L1 turns
-    are stored in the existing `messages` table (reused deliberately: one
-    append-only conversation log, no dual-write); the view gives the
-    session-scoped read shape without duplicating rows.
-  - memory_session_summaries(session_id PK, summary, <tuples as JSON>,
-    emotional_peak, importance, source_turn_ids_json)
-  - memory_episodes(id PK, summary, category, occurred_at_t_h, created_at_t_h,
-    importance, access_count, last_accessed_t_h, affect_json,
-    source_session_id, source_turn_ids_json, verbatim_anchors_json, tags_json)
-  - memory_episode_sources(episode_id, turn_id, PK(episode_id, turn_id))
-    -- normalized provenance links episode -> exact turn ids
-  - user_model_assertions(seq PK, key, value, confidence, updated_at_t_h,
-    source_memory_ids_json, status)
-  - memory_embeddings(episode_id PK, vector BLOB, dim)   -- local BLOB
-    embeddings, brute-force cosine at retrieval (no vector DB)
-  - decision_records(id PK, day, t_h, popup_kind, event_id, event_label,
-    state_label, time, inputs_json, raw_reply, verdict_json, source,
-    transport, delivered_t_h, budget_consumed, replay_id)  -- v5: one row
-    per pop-up decision; raw reply AND parsed verdict (dual persistence)
-  - steering_queue(id PK, day, t_h, kind, payload_json, delivered_t_h,
-    boundary, status, seen_turn_id)   -- v5: pending arriving events (WS3
-    backend contract)
-  - kv_store(key PK, value)   -- v6: generic key/value table (seam S1);
-    Wave-2 real-time anchor persists under keys ``anchor.epoch0_s`` /
-    ``anchor.t_h0`` / ``anchor.tz``; ``conversations`` gains the nullable
-    ``closing_pending_t_h`` column (v6: NULL = no wind-down pending).
-
-Conventions (no business logic lives here — pure persistence + simple queries)
--------------------------------------------------------------------------------
-* Tuple fields are stored as JSON arrays in ``*_json`` columns; bools as 0/1
-  ints; ``AffectMetadata`` as a JSON dict. Reconstruction is exact.
-* ``resolve_intent_source`` maps ``ProactiveIntent.source_type``:
-  ``"agenda_item"`` -> AgendaItem, ``"life_arc"`` -> LifeArc,
-  ``"episodic_memory"`` -> EpisodicMemory, anything else -> None.
-* ``upsert_assertion`` implements the L4 rule "new evidence updates the
-  model": inserting a ``current`` assertion flips the previous ``current``
-  row of the same key to ``superseded`` (provenance kept, no deletion).
-* ``load_user_model`` groups current assertions by their key prefix
-  ``"<group>:<name>"`` where ``<group>`` is one of the seven UserModel group
-  names (or exactly ``"identity"``); ungrouped keys surface under
-  ``important_entities``.
-
-All writes go through `conn` transactions; reads are plain SELECTs. No
-secrets are stored (credentials stay in the environment).
+Canonical tables hold the current truth (daily_state, messages, judgements);
+``state_events`` and ``llm_calls`` are the audit/replay log. Schema, DDL and
+the migration chain live in ``harness.store_schema``. No business logic lives
+here: pure persistence plus simple queries. No secrets are stored.
 """
 
 from __future__ import annotations
@@ -159,10 +37,8 @@ from harness.domain import (
     UserProfile,
 )
 
-#: PRAGMA synchronous level for every connection this module opens. Production
-#: keeps SQLite's FULL default (one fsync per commit). The test suite exports
-#: OFF, which is the difference between ~4.8 ms and ~0.01 ms per commit — the
-#: fsync, not the work, is what made the suite take minutes.
+#: PRAGMA synchronous level for every connection this module opens.
+#: Production keeps SQLite's FULL default; the test suite exports OFF.
 SYNCHRONOUS_ENV = "HARNESS_SQLITE_SYNCHRONOUS"
 _SYNCHRONOUS_LEVELS = ("OFF", "NORMAL", "FULL", "EXTRA")
 
@@ -261,10 +137,8 @@ class SQLiteStore:
 
         ``audit_mode`` enables eval-mode call reproducibility: when True,
         ``log_llm_call(..., repro=...)`` persists the exact request/response
-        payload (model, temperature, max_tokens, seed, system context, message
-        payload, generation controls, memory policy, intent id, snapshot refs,
-        timestamp, response) as JSON. Default False = production privacy:
-        only the prompt hash is logged (privacy-configurable, plan §5-A7 M3).
+        payload as JSON. Default False = production privacy: only the prompt
+        hash is logged.
         """
         self.path = str(path)
         self.audit_mode = bool(audit_mode)
@@ -291,22 +165,18 @@ class SQLiteStore:
     # -- real-time anchor ----------------------------------------------------
 
     def attach_anchor(self, anchor) -> None:
-        """Attach the RealTimeAnchor used to resolve real timestamps (S1).
+        """Attach the RealTimeAnchor used to resolve real timestamps.
 
-        Optional and additive: with no anchor attached (the default) every
-        new ``*_at`` column stays NULL — byte-identical to the pre-v7 write
-        path (replay parity). ``anchor`` must expose
-        ``real_at(t_h) -> aware datetime`` (the ``RealTimeAnchor``
-        contract); its ``timestamp()`` is stored as UTC epoch seconds.
+        Optional: with no anchor attached every new ``*_at`` column stays
+        NULL. ``anchor`` must expose ``real_at(t_h) -> aware datetime`` (the
+        ``RealTimeAnchor`` contract); its ``timestamp()`` is stored as UTC
+        epoch seconds.
         """
         self._anchor = anchor
 
     def _real_at(self, t_h: float) -> float | None:
-        """UTC epoch seconds of virtual hour ``t_h`` per the attached anchor.
-
-        None when no anchor is attached — all ``*_at`` columns stay NULL
-        (pre-anchor / replay rows).
-        """
+        """UTC epoch seconds of virtual hour ``t_h`` per the attached anchor,
+        or None when no anchor is attached (all ``*_at`` columns stay NULL)."""
         if self._anchor is None:
             return None
         return self._anchor.real_at(t_h).timestamp()
@@ -377,16 +247,13 @@ class SQLiteStore:
         intent_id: str | None = None,
         conversation_id: str | None = None,
     ) -> int:
-        """Append a message; ``session_id`` (A5 L1 session scoping),
-        ``intent_id`` (A7 proactive provenance — the exact validated intent
-        id that produced an outgoing message, invariant 6; reactive messages
-        keep it None) and ``conversation_id`` (it3 B2 conversation linkage,
-        module invariant 8) are optional and backward compatible with all
-        pre-slice callers."""
+        """Append a message; returns the row id. ``session_id``,
+        ``intent_id`` (proactive provenance — the validated intent id that
+        produced an outgoing message) and ``conversation_id`` are optional.
+        """
         if role == "system":
-            # Fold at write time, exactly as the request path folds
-            # (assembler.append_system): a stored run of adjacent system rows
-            # is a shape no request ever sent.
+            # Fold at write time, as the request path does: adjacent system
+            # rows are a shape no request ever sent.
             folded = self._fold_into_system_tail(content)
             if folded is not None:
                 return folded
@@ -404,10 +271,8 @@ class SQLiteStore:
     def _fold_into_system_tail(self, content: str) -> int | None:
         """Merge a system block into the system row it would sit next to.
 
-        The request path already folds consecutive system blocks, so keeping
-        them apart in the stream stores a transcript shape no request ever
-        sent (the 2026-09-08 markup-leak run). Returns the surviving row id
-        when it merged, or None when the insert should proceed.
+        Returns the surviving row id when it merged, or None when the insert
+        should proceed.
         """
         from harness.assembler import SYSTEM_BLOCK_SEPARATOR
 
@@ -434,14 +299,7 @@ class SQLiteStore:
         return int(row_id)
 
     def repair_placeholder_steers(self) -> int:
-        """Rewrite the legacy literal ``"?"`` event name; rows changed.
-
-        A steer enqueued with no active event used to store ``"?"`` as its
-        event name, which rendered as if the model were being asked a
-        question. The enqueue path no longer does that, so the rows left
-        behind are the only ones left to fix; the new name says what
-        happened.
-        """
+        """Rewrite the legacy literal ``"?"`` event name; rows changed."""
         import json as _json
 
         from harness.steering import NO_ACTIVE_EVENT
@@ -464,9 +322,8 @@ class SQLiteStore:
     def prune_thin_user_facts(self, max_words: int = 5) -> int:
         """Delete keyword-shaped user facts; rows removed.
 
-        A user fact is recalled as a fact, so a five-word blob ("user has a
-        duty") is noise in the prompt, not memory. The writer refuses them
-        now; this clears the ones already stored.
+        A user fact is recalled as a fact, so a five-word blob is prompt
+        noise, not memory.
         """
         rows = list(self.conn.execute(
             "SELECT id, summary FROM memory_episodes WHERE category = ?",
@@ -481,9 +338,8 @@ class SQLiteStore:
     def fold_system_history(self) -> int:
         """Fold adjacent system rows already in the stream; rows removed.
 
-        The invariant belongs to the stream, not to new writes only, so older
-        runs are repaired in place: the first row of each run keeps its id and
-        timestamp and absorbs the text of the rows after it.
+        The first row of each run keeps its id and timestamp and absorbs the
+        text of the rows after it.
         """
         from harness.assembler import SYSTEM_BLOCK_SEPARATOR
 
@@ -526,21 +382,12 @@ class SQLiteStore:
     def messages_since(self, since_id: int = 0, limit: int | None = None) -> list[dict]:
         """Messages with ``id > since_id``, OLDEST FIRST (the context read).
 
-        This is the append-only counterpart to :meth:`recent_messages`. The
-        window is anchored to a stored watermark that moves only at explicit
-        compaction boundaries, so between boundaries request N+1's message
-        list is request N's list plus whatever was appended -- which is the
-        whole requirement for a prefix cache to hit past the system message.
-
-        ``recent_messages`` front-truncates instead ("the last 12 rows"),
-        which moves the first byte of the payload on every turn once history
-        passes the window. It stays for callers that genuinely want a recency
-        peek (last user text, silence measurement, decide_reply context) and
-        must not be used to build the model's context.
-
-        ``limit`` is a SAFETY CAP, not a window: it bounds a runaway epoch
-        (the caller keeps the OLDEST rows, so the prefix still only grows
-        until the next boundary moves the watermark).
+        The window is anchored to a stored watermark that moves only at
+        compaction boundaries, so the list grows by appending — what a prefix
+        cache needs to hit past the system message. ``recent_messages``
+        front-truncates and must not be used for the model's context.
+        ``limit`` is a SAFETY CAP, not a window (the caller keeps the OLDEST
+        rows).
         """
         if limit is None:
             rows = self.conn.execute(
@@ -572,11 +419,10 @@ class SQLiteStore:
         return int(row["n"])
 
     def messages_for_session(self, session_id: str) -> list[dict]:
-        """L1 turns of one memory session (the documented store seam read).
+        """L1 turns of one memory session (the store read).
 
-        Since it3 B2 the session id is the conversation id (one memory
-        session per conversation, module invariant 8); legacy day-scoped
-        ids keep working because ``messages.session_id`` is unchanged.
+        The session id is the conversation id; legacy day-scoped ids keep
+        working because ``messages.session_id`` is unchanged.
         """
         rows = self.conn.execute(
             "SELECT * FROM messages WHERE session_id = ? ORDER BY id",
@@ -700,13 +546,7 @@ class SQLiteStore:
     # -- user profile (the onboarding identity) ------------------------------
 
     def save_user_profile(self, profile: UserProfile) -> None:
-        """Persist the owner's identity (single row, replaced in place).
-
-        The bootstrap seam has always named this method; before schema v9 no
-        table backed it, so the identity was re-derived from the environment
-        on every start and a run had no durable record of who the companion
-        thinks she is talking to.
-        """
+        """Persist the owner's identity (single row, replaced in place)."""
         self.conn.execute(
             "INSERT OR REPLACE INTO user_profile (id, name, interests_json) "
             "VALUES (1, ?, ?)",
@@ -732,10 +572,9 @@ class SQLiteStore:
     def save_interest_graph(self, graph, *, origin: str = "catalog") -> None:
         """Persist a graph's edges and hub flags.
 
-        Rows carry ``origin`` so a later reader can tell the built-in catalog
-        apart from edges added for user interests the catalog did not contain
-        (see ``harness.interest_extension``). Existing rows for the same pair
-        are replaced, so re-saving an extended graph is idempotent.
+        Rows carry ``origin`` (built-in catalog vs added for a user
+        interest); existing rows for the same pair are replaced, so re-saving
+        is idempotent.
         """
         hubs = set(graph.hubs())
         rows = [
@@ -790,7 +629,7 @@ class SQLiteStore:
     # -- kv_store -----------------------------------------------------------
 
     def get_kv(self, key: str) -> str | None:
-        """Value stored under ``key`` (seam S1), or None when absent."""
+        """Value stored under ``key``, or None when absent."""
         row = self.conn.execute(
             "SELECT value FROM kv_store WHERE key = ?", (key,)
         ).fetchone()
@@ -809,9 +648,8 @@ class SQLiteStore:
     ) -> None:
         """Persist (or clear, with None) the conversation's wind-down marker.
 
-        ``closing_pending_t_h`` is the virtual hour at which the closing
-        draw fired (two-phase close, seam S1); NULL means no wind-down is
-        pending. Additive v6 column; idempotent.
+        ``closing_pending_t_h`` is the virtual hour at which the closing draw
+        fired; NULL means no wind-down is pending.
         """
         self.conn.execute(
             "UPDATE conversations SET closing_pending_t_h = ? WHERE id = ?",
@@ -909,19 +747,15 @@ class SQLiteStore:
         """Record one generation call; returns the call id.
 
         The prompt hash is ALWAYS kept. When ``audit_mode`` is enabled and a
-        ``repro`` payload is supplied (eval-mode call reproducibility, plan
-        §5-A7 M3: model, temperature, max_tokens, seed, system context, message
-        payload, generation controls, memory policy, intent id, snapshot/
-        reference ids, timestamp, response), the exact payload is persisted as
-        JSON so the call can be reproduced from the run manifest (invariant
-        19). In production privacy mode the payload is dropped.
+        ``repro`` payload is supplied, the exact payload is persisted as JSON
+        so the call can be reproduced; in production privacy mode it is
+        dropped.
 
-        WS-D spend accounting (additive): ``usage`` (a ``harness.client.Usage``
-        or plain dict) persists the token ledger columns (prompt/completion/
-        total/cached/cache-miss); ``lane`` carries the WS-C attribution
-        ("product" | "research"); ``raw_cost`` persists the gateway-reported
-        cost (G-cost cross-check). All optional — callers that predate usage
-        capture are unchanged and the new columns stay NULL (replay parity).
+        ``usage`` (a ``harness.client.Usage`` or plain dict) persists the
+        token ledger columns (prompt/completion/total/cached/cache-miss);
+        ``lane`` the attribution ("product" | "research"); ``raw_cost`` the
+        gateway-reported cost. All optional — the new columns stay NULL for
+        callers that predate them.
         """
         repro_json = None
         if self.audit_mode and repro is not None:
@@ -952,8 +786,7 @@ class SQLiteStore:
 
     def get_llm_call(self, call_id: int) -> dict | None:
         """One audit row by id, with ``repro`` and ``meta`` parsed back to
-        dicts (None when absent). Used by the eval harness to reconstruct the
-        exact inputs of a call (invariant 19)."""
+        dicts (None when absent)."""
         row = self.conn.execute(
             "SELECT * FROM llm_calls WHERE id = ?", (call_id,)
         ).fetchone()
@@ -967,14 +800,12 @@ class SQLiteStore:
 
     def rebuild_call(self, call_id: int) -> dict:
         """Reconstruct the exact request envelope of one logged call from its
-        ``repro_json`` payload ALONE (it3 B7, invariant 19).
+        ``repro_json`` payload alone.
 
         Returns ``{"model", "system", "messages", "temperature",
-        "max_tokens", "json_mode"}`` — the exact inputs the client received,
-        so the call can be replayed byte-for-byte from the row. Raises
-        ``ValueError`` for hash-only rows: non-eval runs persist no payload
-        by design, and the leak audit reports those rows honestly instead of
-        faking coverage.
+        "max_tokens", "json_mode"}`` — the exact inputs the client received.
+        Raises ``ValueError`` for hash-only rows (non-eval runs persist no
+        payload).
         """
         row = self.get_llm_call(call_id)
         if row is None:
@@ -1170,13 +1001,11 @@ class SQLiteStore:
         self.conn.commit()
 
     def wipe_life_arcs(self) -> None:
-        """Delete every life-arc row (NO_LIFE goldfish day-boundary wipe).
+        """Delete every life-arc row (NO_LIFE day-boundary wipe).
 
-        The life layer re-seeds on the next ``Session._ensure_life`` under a
-        fresh epoch (``_life_epoch`` counts ``life_wipe`` as a generation
-        boundary), so a wiped generation's arc ids are never reused. Agenda
-        items are NOT touched: past days' items keep their (now-historical)
-        arc references — the content gate resolves missing arcs to None.
+        The life layer re-seeds on the next ``Session._ensure_life``, so a
+        wiped generation's arc ids are never reused. Agenda items are NOT
+        touched: past days' items keep their (now-historical) arc references.
         """
         self.conn.execute("DELETE FROM life_arcs")
         self.conn.commit()
@@ -1227,8 +1056,8 @@ class SQLiteStore:
     def set_agenda_item_outcome(self, item_id: str, outcome: str) -> None:
         """Record what came of an item (see ``AgendaItem.outcome``).
 
-        Only ever called with something the companion actually decided or
-        said; a window merely elapsing is a status change, not an outcome.
+        Only called with something the companion actually decided or said; a
+        window merely elapsing is a status change, not an outcome.
         """
         self.conn.execute(
             "UPDATE agenda_items SET outcome = ? WHERE id = ?",
@@ -1237,12 +1066,8 @@ class SQLiteStore:
         self.conn.commit()
 
     def recent_outcomes(self, *, before_day: int, limit: int = 8) -> list[dict]:
-        """Recorded outcomes from days before ``before_day``, newest first.
-
-        The day planner's continuity input: what actually came of recent
-        activities, so a plan can follow on from it instead of re-drawing
-        from a template pool with no memory.
-        """
+        """Recorded outcomes from days before ``before_day``, newest first —
+        the day planner's continuity input."""
         rows = self.conn.execute(
             "SELECT id, day, activity, source_type, source_id, status, outcome "
             "FROM agenda_items WHERE day < ? AND outcome IS NOT NULL "
@@ -1301,9 +1126,8 @@ class SQLiteStore:
 
     def session_exists(self, session_id: str) -> bool:
         """True when the L1 session row is registered (open_session was
-        called and the row was not deleted). The content gate's broken-
-        provenance check (A9 G-8b): a memory whose source session is gone
-        has no record of what it claims."""
+        called and the row was not deleted); a memory whose source session is
+        gone has no provenance record."""
         row = self.conn.execute(
             "SELECT 1 FROM memory_sessions WHERE session_id = ?",
             (session_id,),
@@ -1539,11 +1363,10 @@ class SQLiteStore:
         """Insert an assertion; a new ``current`` one supersedes (status flip,
         provenance kept) the previous ``current`` row of the same key.
 
-        The canonical L4 category (plan §5-A7 M2, invariant 10) is stored
-        DIRECTLY on the row: pass the ``UserModelCategory`` explicitly, or omit
-        it for legacy-compatible derivation from the documented key prefixes
-        (``_category_from_key``). The load path reads this column only — keys
-        are never parsed to infer categories.
+        The canonical L4 category is stored DIRECTLY on the row: pass the
+        ``UserModelCategory`` explicitly, or omit it for derivation from the
+        documented key prefixes (``_category_from_key``). The load path reads
+        this column only — keys are never parsed to infer categories.
         """
         if category is None:
             cat = _category_from_key(assertion.key)
@@ -1616,13 +1439,12 @@ class SQLiteStore:
         updated_at_t_h: float | None = None,
     ) -> None:
         """Flip every current assertion of ``key`` to superseded (provenance
-        kept). Cross-key negation support: a "user no longer has X" fact
-        supersedes unrelated keys whose values mention X (memory.py M-1b).
+        kept). Cross-key negation: a "user no longer has X" fact supersedes
+        unrelated keys whose values mention X.
 
         Optional ``source_memory_ids`` / ``updated_at_t_h`` rewrite the
-        superseded row's provenance and timestamp so the negation evidence
-        is PERSISTED, not only merged in the caller's return value (A9
-        M-1b provenance leg: no provenance -> no truth).
+        superseded row's provenance and timestamp so the negation evidence is
+        PERSISTED, not only merged in the caller's return value.
         """
         sets = ["status = 'superseded'"]
         params: list = []
@@ -1652,11 +1474,9 @@ class SQLiteStore:
     def _stored_category(self, key: str) -> UserModelCategory:
         """Canonical category of the most recent row of ``key``.
 
-        Primary path: the stored ``category`` column (canonical values only).
-        Defensive fallback for rows with a NULL category (only possible in
-        hand-edited databases — the v3 migration backfills every row): the
-        documented legacy key-prefix derivation. Loads never parse arbitrary
-        keys.
+        Reads the stored ``category`` column; the legacy key-prefix
+        derivation is a fallback for rows with a NULL category (hand-edited
+        databases only). Loads never parse arbitrary keys.
         """
         row = self.conn.execute(
             "SELECT category FROM user_model_assertions WHERE key = ? "
@@ -1670,11 +1490,9 @@ class SQLiteStore:
     def load_user_model(self) -> UserModel:
         """Project current assertions into the L4 UserModel.
 
-        Bucketing uses the CANONICAL ``category`` column only (plan §5-A7 M2,
-        invariant 10): each assertion carries its ``UserModelCategory`` value
-        directly, so no semantic category is ever inferred from string
-        prefixes or free-form keys at load time. Keys remain visible for
-        provenance but are not parsed for grouping.
+        Bucketing uses the CANONICAL ``category`` column only: no semantic
+        category is ever inferred from string prefixes or free-form keys.
+        Keys remain visible for provenance but are not parsed for grouping.
         """
         current = self.list_assertions(status="current")
         identity = ""
@@ -1854,7 +1672,7 @@ class SQLiteStore:
     ) -> None:
         """Record the delivery of one steer: status -> 'delivered' with the
         actual delivery time, boundary ('idle'|'after_tool'|'after_reply')
-        and the turn id that saw it (summary #23)."""
+        and the turn id that saw it."""
         self.conn.execute(
             "UPDATE steering_queue SET status = 'delivered', "
             "delivered_t_h = ?, boundary = ?, seen_turn_id = ? WHERE id = ?",
@@ -1881,9 +1699,8 @@ class SQLiteStore:
     def abandon_steer(self, steer_id: int) -> None:
         """Give up on a steer permanently (retry budget exhausted).
 
-        A terminal status rather than a delete: the row is the record of a
-        decision the model never answered usably, and an audit that silently
-        loses those cannot explain the gap.
+        Terminal status rather than a delete: the row is the audit record of
+        a decision the model never answered usably.
         """
         self.conn.execute(
             "UPDATE steering_queue SET status = 'abandoned' WHERE id = ?",
@@ -1912,9 +1729,9 @@ class SQLiteStore:
         *,
         replay_id: str | None = None,
     ) -> int:
-        """Persist one pop-up decision (raw reply AND parsed verdict — dual
-        persistence); returns the record id. ``replay_id`` is the natural
-        key used by :meth:`decision_for_replay` (deterministic replay)."""
+        """Persist one pop-up decision (raw reply AND parsed verdict); returns
+        the record id. ``replay_id`` is the natural key used by
+        :meth:`decision_for_replay`."""
         cur = self.conn.execute(
             "INSERT INTO decision_records (day, t_h, popup_kind, event_id, "
             "event_label, state_label, time, inputs_json, raw_reply, "
@@ -1933,8 +1750,8 @@ class SQLiteStore:
 
     def decision_for_replay(self, decision_id: str) -> dict | None:
         """The latest decision recorded for a natural key (``replay_id``),
-        with ``inputs`` and ``verdict`` parsed back to dicts. Replay reads
-        this — it never re-rolls. None when the key is unknown."""
+        with ``inputs`` and ``verdict`` parsed back to dicts; None when the
+        key is unknown."""
         row = self.conn.execute(
             "SELECT * FROM decision_records WHERE replay_id = ? "
             "ORDER BY id DESC LIMIT 1",
@@ -1948,12 +1765,8 @@ class SQLiteStore:
         return out
 
     def decisions_since(self, since_t_h: float) -> list[dict]:
-        """Decision rows at or after ``since_t_h``, oldest first.
-
-        The context projection merges these with :meth:`messages_since`; the
-        floor is a TIME rather than an id because the two tables have
-        independent id sequences.
-        """
+        """Decision rows at or after ``since_t_h``, oldest first (a TIME
+        floor: the two tables have independent id sequences)."""
         rows = self.conn.execute(
             "SELECT * FROM decision_records WHERE t_h >= ? ORDER BY id",
             (since_t_h,),
@@ -1963,9 +1776,8 @@ class SQLiteStore:
     def recent_decisions(self, limit: int = 12) -> list[dict]:
         """The most recent decision rows, oldest-first (context projection).
 
-        The model-context reader merges these with ``recent_messages`` by
-        ``t_h`` so a decision the model made appears in later turns at the
-        position it was made -- the decision lane stops being write-only.
+        Merged with ``recent_messages`` by ``t_h`` so a decision appears in
+        later turns where it was made.
         """
         rows = self.conn.execute(
             "SELECT * FROM decision_records ORDER BY id DESC LIMIT ?", (limit,)

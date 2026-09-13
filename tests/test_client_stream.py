@@ -1,12 +1,6 @@
-"""Streaming surface tests (2026-09-07): chat_stream on both clients.
+"""Streaming surface tests: chat_stream on both clients.
 
-Covers SSE parsing on the real client via httpx.MockTransport (content
-deltas, [DONE], malformed lines, a non-streaming fallback path), the
-chunked slicing on FakeClient, and the calls-log parity between
-``chat_stream`` and ``chat_with_meta`` (one entry, identical wire shape).
-The existing chat/chat_with_meta suites stay untouched — streaming is an
-additive, optional surface (``LLMClient`` declares ``chat_stream`` but
-clients without it still conform; consumers duck-type with getattr).
+SSE parsing on the real client, FakeClient chunking, and calls-log parity.
 """
 
 import json
@@ -141,9 +135,8 @@ def test_openai_chat_stream_skips_malformed_lines_without_raising():
 
 
 def test_openai_chat_stream_no_extra_request_when_finish_reason_present():
-    # finish_reason=stop on a normal completion body: stream=true was
-    # ignored by the endpoint; no deltas -> exactly ONE non-streaming
-    # fallback request, whose content is yielded once.
+    # finish_reason=stop on a normal completion body: stream=true was ignored;
+    # no deltas -> exactly ONE non-streaming fallback request, yielded once.
     requests: list[dict] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -175,9 +168,8 @@ def test_openai_chat_stream_no_extra_request_when_finish_reason_present():
 
 
 def test_openai_chat_stream_fallback_after_retryable_status(monkeypatch):
-    # A streamed 503 exhausts the bounded retry budget (max_retries=1 →
-    # 2 stream attempts), then ONE non-streaming fallback call returns
-    # the full reply.
+    # A streamed 503 exhausts the retry budget (max_retries=1 -> 2 attempts),
+    # then ONE non-streaming fallback call returns the full reply.
     calls = {"n": 0}
     sleeps: list[float] = []
     monkeypatch.setattr("harness.client.time.sleep", sleeps.append)
@@ -388,9 +380,8 @@ def test_fake_client_chat_stream_default_reply():
 
 
 def test_fake_client_chat_stream_requires_consumption_for_effect():
-    # chat_stream is lazy like the real client: the queued response is
-    # only consumed (and the call only recorded) once the iterator is
-    # consumed.
+    # chat_stream is lazy like the real client: the queued response is only
+    # consumed (and the call recorded) once the iterator is consumed.
     client = FakeClient(responses=["lazy reply"])
     gen = client.chat_stream([{"role": "user", "content": "q"}])
     assert client.calls == []

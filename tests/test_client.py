@@ -29,8 +29,8 @@ def test_fake_client_records_max_tokens_per_call():
 
     assert client.calls[0]["max_tokens"] == 123
     assert client.calls[1]["max_tokens"] is None
-    # The call record carries the full request (WS3): tools/tool_choice/
-    # reasoning_effort are recorded even when absent (None).
+    # The call record carries the full request: tools/tool_choice/reasoning_effort.
+
     assert set(client.calls[0]) == {
         "messages", "system", "temperature", "json_mode", "max_tokens",
         "tools", "tool_choice", "reasoning_effort",
@@ -212,8 +212,8 @@ def test_openai_client_truncation_finish_reason_records_marker(caplog):
     )
     client._client = httpx.Client(transport=transport)
 
-    # Truncated-but-non-empty content is returned (not retried, not raised)
-    # and the truncation is recorded as a marker log line.
+    # Truncated-but-non-empty content is returned (not retried, not raised).
+
     assert client.chat([{"role": "user", "content": "q"}]) == "partial reply"
     assert "truncated (finish_reason=length" in caplog.text
 
@@ -334,8 +334,8 @@ def test_openai_client_tool_calls_stay_raw_json_strings():
     client = _client_with(handler)
     result = client.chat_with_meta([{"role": "user", "content": "q"}])
 
-    # arguments_json is passed through verbatim; semantic parsing (and the
-    # loud failure on invalid JSON) belongs to WS2's runner.
+    # arguments_json is passed through verbatim; parsing belongs to the runner.
+
     assert result.tool_calls[0]["arguments_json"] == "not json!"
 
 
@@ -380,8 +380,8 @@ def test_openai_client_reasoning_alternate_key():
 
 
 def test_openai_client_supports_tools_capability_flag():
-    # Endpoint capability, not model capability: the flag gates whether the
-    # tools param is SENT; model-level failures are WS2's parse path.
+    # The flag gates whether the tools param is sent.
+
     assert OpenAICompatibleClient.supports_tools is True
     assert FakeClient.supports_tools is True
 
@@ -452,8 +452,8 @@ def test_fake_client_chat_with_meta_records_defaults():
     assert call["json_mode"] is False
 
 
-# WS-C two-lane credentials: api_key/base_url resolve by lane
-# (product vs research); explicit args win; values never logged.
+# Two-lane credentials: api_key/base_url resolve by lane; explicit args win.
+
 
 
 def test_lane_product_resolves_token_and_stamp(monkeypatch):
@@ -484,8 +484,8 @@ def test_lane_missing_token_fails_loudly_at_construction(monkeypatch):
     monkeypatch.delenv("OPENCODE_GO_API_KEY", raising=False)
     with pytest.raises(RuntimeError, match="product lane credential missing"):
         OpenAICompatibleClient(lane="product", model="m")
-    # Same for the research lane — and the message names the env var, not a
-    # fallback: there is NO silent fallback to LLM_API_KEY/OPENCODE_GO_API_KEY.
+    # No silent fallback to LLM_API_KEY/OPENCODE_GO_API_KEY.
+
     monkeypatch.delenv("JUDGE_GENERATOR_TOKEN", raising=False)
     with pytest.raises(RuntimeError, match="JUDGE_GENERATOR_TOKEN"):
         OpenAICompatibleClient(lane="research", model="m")

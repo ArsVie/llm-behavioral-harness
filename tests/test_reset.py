@@ -1,11 +1,6 @@
 """Reset keeps the onboarding cache, clears the trial, and never deletes.
 
-The reset exists because a run DB holds two things at once: the trial's record
-(messages, decisions, mood, memories) and the onboarding results that cost model
-calls (the user profile, the interest graph with off-catalog interests placed
-into it, the persona that carries the routine catalog). These tests pin both
-halves, plus the two guarantees that make it safe to run: a live writer is
-refused, and the old database is moved rather than removed.
+A live writer is refused, and the old database is moved rather than removed.
 """
 
 from __future__ import annotations

@@ -1,11 +1,8 @@
 """Decision-layer tests (WS2): verdict parsing (native + textual), dual
-persistence, loud parse failures, per-day budget with forced-reply
-exhaustion, server_draw determinism, replay-reads-verdict, notice builder,
-transport selection and the env config loader.
-
-Uses the real SQLiteStore (tmp_path) so the runner's persistence surface is
-exercised end to end; only the model callable and the capabilities object
-are fakes.
+persistence, loud parse failures, per-day budget with forced-reply exhaustion,
+server_draw determinism, replay-reads-verdict, notice builder, transport
+selection and the env config loader. Real SQLiteStore (tmp_path); only the model
+callable and the capabilities object are fakes.
 """
 
 import json
@@ -82,12 +79,8 @@ EVENT_INPUTS = {
 
 
 def test_malformed_native_arguments_are_salvaged_not_rejected():
-    """Port of DeepSeek-Harness ``catch { return raw }`` (tool-calls.ts).
-
-    The model nests its marker payload inside ``arguments``; a strict JSON
-    parse used to spend a re-ask on a reply that was perfectly parsable. Only
-    text with no payload at all is still a failure — and it stays loud.
-    """
+    """A nested marker payload inside ``arguments`` is salvaged, not rejected:
+    only text with no payload at all is still a loud failure."""
     from harness.tools import parse_native_reply
 
     def call(arguments: str) -> list[dict]:

@@ -1,20 +1,11 @@
 """W-close: v5 -> v6 migration (seam S1) — additive-only, live-DB safe.
 
-Builds a genuine v5 database by running the store's OWN historical
-migration chain (v2..v5) and stamping ``schema_meta`` to 5, seeds it across
-the conversation/message families, then opens it with the v6 store: the
-migration must add ONLY ``kv_store`` and the nullable
-``conversations.closing_pending_t_h`` column, keep every pre-existing row
-intact and interpretable, be idempotent on re-open, and expose the new
-kv/close-pending APIs. No destructive step — the same shape of migration
-that runs on the live ``companion.db`` at next restart.
-
-The live-DB copy test (``test_live_companion_db_migrates_additively``) runs
-the same verification against a COPY of the real populated live database
-(``results/live-companion/companion.db``, main tree) when that file is
-present; it is skipped elsewhere. The copy goes to a pytest tmp_path — the
-original is opened read-only and byte-compared before/after, and is NEVER
-touched by the migration.
+Builds a genuine v5 database by running the store's OWN historical migration
+chain (v2..v5) and stamping ``schema_meta`` to 5, then opens it with the v6
+store: only ``kv_store`` and the nullable ``conversations.closing_pending_t_h``
+column are added, every pre-existing row stays intact, re-open is idempotent,
+and the new kv/close-pending APIs work. The live-DB copy test verifies the same
+against a COPY of the real companion.db when present, skipped elsewhere.
 """
 
 import hashlib
@@ -45,12 +36,8 @@ _LEGACY_TABLES = [
 
 
 def _build_v5_db(path) -> None:
-    """A genuine v5 database: the store's own v1..v5 chain, stamped 5.
-
-    Uses the historical migration functions verbatim (the same code that
-    shipped v5), so the pre-migration schema is exactly what a v5 live
-    database has — not a hand-approximation.
-    """
+    """A genuine v5 database: the store's own v1..v5 chain, stamped 5 (the
+    historical migration functions verbatim, not a hand-approximation)."""
     con = sqlite3.connect(path)
     con.row_factory = sqlite3.Row  # migration helpers read columns by name
     con.executescript(_SCHEMA)
@@ -193,9 +180,8 @@ def _live_db_candidates() -> list:
     "gitignored; this test runs where the real DB ships)",
 )
 def test_live_companion_db_migrates_additively(tmp_path):
-    """The REQUIRED live-schema verification: migrate a COPY of the real
-    populated companion.db. The original is opened read-only and its bytes
-    are compared before/after — the migration NEVER touches it."""
+    """Migrate a COPY of the real populated companion.db; the original is opened
+    read-only and byte-compared before/after."""
     src = _live_db_candidates()[0]
 
     def _sha(p) -> str:

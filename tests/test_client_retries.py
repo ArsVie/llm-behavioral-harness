@@ -1,10 +1,6 @@
 """Transport and response retries in the real HTTP client.
 
-The retry budget is the same for three different failures — a retryable
-status, a transport error, and a 200 whose body cannot be parsed — and in
-every case the LAST attempt raises rather than returning something the
-session would persist. Backoff is stubbed so the tests do not sleep.
-"""
+Same budget for a retryable status, a transport error and a malformed 200."""
 
 from __future__ import annotations
 
@@ -16,16 +12,12 @@ from harness.client import OpenAICompatibleClient
 
 @pytest.fixture(autouse=True)
 def _no_backoff(monkeypatch):
-    """The retry backoff is real time.sleep; the schedule is tested
-    elsewhere, so here it only has to not happen."""
+    """Backoff is stubbed so the tests do not sleep."""
     monkeypatch.setattr("harness.client.time.sleep", lambda _s: None)
 
 
 def _client(monkeypatch, responses):
-    """A client whose underlying httpx.Client replays `responses` in order.
-
-    Each entry is either an httpx.Response or an exception to raise.
-    """
+    """A client whose stubbed httpx.Client replays `responses` in order."""
     monkeypatch.setenv("LILY_TOKEN", "tok")
     client = OpenAICompatibleClient(lane="product", base_url="https://x/v1")
     calls = {"n": 0}
@@ -76,19 +68,8 @@ def test_retryable_status_eventually_raises(monkeypatch):
 
 
 def test_a_client_error_is_also_retried_the_full_budget(monkeypatch):
-    """Pins CURRENT behaviour, which is arguably wrong and worth revisiting.
-
-    ``_post`` names 429/500/502/503/504 as the retryable statuses, but the
-    ``raise_for_status()`` below raises ``httpx.HTTPStatusError`` — a
-    subclass of ``httpx.HTTPError`` — straight into the generic
-    ``except httpx.HTTPError`` handler, which retries anything. So a 400
-    (bad payload, unsupported_model: deterministic, our bug, never going to
-    succeed) is re-sent the whole budget before surfacing, delaying the real
-    error and spending against a paid gateway to do it.
-
-    Pinned rather than changed: narrowing the retry set is a behaviour
-    change to spend and latency, not a test fix.
-    """
+    """Pins a 400 being retried the full budget: the raised HTTPStatusError hits
+    the generic httpx.HTTPError handler."""
     client = _client(monkeypatch, [_status(400)])
     with pytest.raises(httpx.HTTPStatusError):
         client.chat([{"role": "user", "content": "hi"}])
@@ -147,11 +128,7 @@ def test_null_content_eventually_raises(monkeypatch):
 
 
 def test_reasoning_only_reply_is_not_retried(monkeypatch):
-    """A reasoning model may answer entirely in the reasoning channel.
-
-    That is a legitimate turn with empty content and must round-trip as ""
-    — retrying it would burn the budget and then raise on a good response.
-    """
+    """A reasoning-only reply is a legitimate empty-content turn and must not be retried."""
     resp = httpx.Response(
         200,
         json={"choices": [{"message": {"content": None,

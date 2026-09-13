@@ -1,14 +1,6 @@
 """Command semantics tests (Wave 2, W-commands): harness/commands.py.
 
-Unit-level tests of ``handle_command`` — a pure function of
-(ControlCommand, CommandContext). The context is built against a real
-SQLiteStore + VirtualClock (runtime facts only) with recorder hooks, so
-every assertion pins the command's reply AND its side effects (hooks
-called / not called, store writes, refusal semantics). No channel, no
-session, no network.
-
-The end-to-end channel path (FakeApplication-driven) lives in
-tests/test_commands_channel.py.
+The end-to-end channel path lives in tests/test_commands_channel.py.
 """
 
 from harness.channels.telegram import ControlCommand
@@ -122,12 +114,7 @@ def test_setup_runs_the_hook_on_a_blank_db(tmp_path) -> None:
 
 
 def test_setup_without_hook_gives_launcher_guidance(tmp_path) -> None:
-    """A launcher that did not wire the hook says so, and names no flag.
-
-    The message used to point at ``--defer-bootstrap``, which exists only in
-    sim/run_async.py — so on the live runtime (which had not wired the hook
-    at all) it sent the reader after a flag their entry point does not have.
-    """
+    """A launcher that did not wire the hook says so, and names no flag."""
     store = make_store(tmp_path)
     ctx = CommandContext(store=store, clock=VirtualClock(t_h=8.0))
     reply = handle_command(_cmd("setup"), ctx)

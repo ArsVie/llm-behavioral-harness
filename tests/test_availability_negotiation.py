@@ -1,27 +1,6 @@
-"""A4 — availability-negotiation scenario tests (G0 contract).
-
-Drives the REAL harness mechanics offline — SQLiteStore (audit_mode) +
-Session (the G0 A1 negotiation state machine: _apply_steer routing,
-Inform-once -> Decide loop, AFK bomb, backstop) + the REAL DecisionRunner
-(A2: phase-aware verdict parsing, server-filled defer_turns, replay by
-decision id) + a scripted model client (no LLM, no network) — through the
-six G0 scenarios (experiments/negotiation_scenarios.py) and asserts the
-contract's observable outcomes:
-
-* agenda item final status (completed / skipped),
-* decision records (popup_kind tool_decide_event, phase / skippable /
-  delay_count / window_ending inputs, action follow|abandon|defer, the
-  server-filled defer_turns, deterministic decision ids),
-* exactly-once Inform (channel messages containing the mention),
-* forced-skip recording ("missed it entirely", no model call),
-* termination by end_t_h (backstop + re-arm clamp),
-* no-nag (no re-announcement across delays).
-
-Deterministic: fixed seeds (chosen so the session's spontaneous
-conversation closes never fire before the negotiation resolves) + virtual
-clock. The assertions are all store/contract-level, so they hold against
-the merged A1/A2 implementation.
-"""
+"""Availability-negotiation scenario tests (G0 contract): the real Session
+negotiation state machine and DecisionRunner over scripted scenarios, asserting
+agenda status, decision records, exactly-once inform and window termination."""
 
 from __future__ import annotations
 
@@ -38,10 +17,8 @@ from experiments.negotiation_scenarios import (
 
 
 def _run(tmp_path, sid: str):
-    """Run one scenario on a fresh audit store; returns (result, store).
-
-    The store is left OPEN so the test can query it; the test closes it.
-    """
+    """Run one scenario on a fresh audit store; returns (result, store). The
+    store is left OPEN so the test can query it; the test closes it."""
     store = SQLiteStore(tmp_path / f"{sid}.db", audit_mode=True)
     result = run_scenario(store, SCENARIOS[sid])
     return result, store
@@ -62,14 +39,8 @@ def _forced_records(result) -> list[dict]:
 
 
 def test_retain_repeated_delay_then_go(tmp_path):
-    """User keeps actively talking past the boundary -> repeated delay, she
-    stays past start_t_h, then goes on a companion turn.
-
-    The heads-up fires at 18.95 (HEADS_UP_LEAD_H ahead of the 19.0 window),
-    so every turn from 19.05 on is INSIDE the window and carries a decide
-    leg. He is present throughout, which is the whole point: the delay loop
-    is his window to keep her, and it only runs while he is talking.
-    """
+    """User keeps actively talking past the boundary: repeated delay, she stays
+    past start_t_h, then goes on a companion turn."""
     result, store = _run(tmp_path, "retain")
     try:
         assert result.agenda_status == "completed"
@@ -107,8 +78,7 @@ def test_retain_repeated_delay_then_go(tmp_path):
             assert d["t_h"] > 19.0
             assert d["replay_id"] == f"neg-retain-gym-decide-{i}"
 
-        # The go lands on the last companion turn, not on a bomb: he was
-        # still there, so the decision came round on his turn.
+        # the go lands on his companion turn, not on a bomb
         go = decides[-1]
         assert go["verdict"]["action"] == "follow"
         assert go["replay_id"] == "neg-retain-gym-decide-3"
@@ -123,10 +93,7 @@ def test_retain_repeated_delay_then_go(tmp_path):
                   if e["event"] == "conversation_closed"]
         assert len(closes) == 1
         assert "reason=followed_event" in closes[0]["detail"]
-        # The go landed on a companion turn, so the TURN says her goodbye
-        # (GO_NOTE on the drain) and nothing extra rides the channel. The
-        # only channel entry is the heads-up mention. Pasting the verdict's
-        # `reason` there is what this used to assert.
+        # only the heads-up mention rides the channel; the go closes through the turn
         assert [t for _, t, _ in result.channel_out] == [
             "I've got gym soon — just letting you know"
         ]
@@ -135,13 +102,8 @@ def test_retain_repeated_delay_then_go(tmp_path):
 
 
 def test_release_afk_bomb_fires_decide_go(tmp_path):
-    """User goes quiet before the window even opens -> silence >
-    SHORT_AFK_H fires the AFK bomb -> Decide -> scripted go.
-
-    No companion turn ever lands inside the window, so the bomb is the only
-    trigger left. She is still the one who decides — the bomb fires a real
-    decide leg and the model answers it.
-    """
+    """User goes quiet before the window opens: the AFK bomb fires a decide leg,
+    then the scripted go."""
     result, store = _run(tmp_path, "release")
     try:
         assert result.agenda_status == "completed"
@@ -167,9 +129,8 @@ def test_release_afk_bomb_fires_decide_go(tmp_path):
 
 
 def test_window_close_forced_skip_recorded(tmp_path):
-    """User holds her past end_t_h -> forced skip ("missed it entirely"),
-    recorded (agenda skipped + decision record); no model call at/after
-    end_t_h."""
+    """User holds her past end_t_h: forced skip recorded, no model call at or
+    after end_t_h."""
     result, store = _run(tmp_path, "window-close")
     try:
         assert result.agenda_status == "skipped"
@@ -254,10 +215,7 @@ def test_no_nag_inform_exactly_once_across_delays(tmp_path):
         # exactly one channel message contains the mention
         mention_hits = [t for _, t, _ in result.channel_out if "gym" in t]
         assert len(mention_hits) == 1
-        # 2026-09-08: the inform mention still rides the channel (it IS her
-        # words -- the inform verdict's field is the mention itself), but the
-        # go verdict no longer does: the TURN says her goodbye, so the close
-        # is an ordinary reply rather than a second channel_out entry. Was 2.
+        # only the heads-up mention rides the channel; the go is an ordinary reply
         assert len(result.channel_out) == 1  # the mention only
 
         # 3 delays with rising delay_count, then the go at the 4th decide leg

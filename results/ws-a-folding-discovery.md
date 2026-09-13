@@ -31,7 +31,7 @@ In principle: enqueue the mid-turn message WITHOUT the decision layer, and
 render it as an injected follow-up (`render-as-inject`) without `_apply_steer`,
 flag-gated. That is NEW minimal plumbing — not "turn on folding" — and is a
 small S5-precursor lane (pre-registered, own gates), not a side effect of UX
-feature enablement. See also `docs/design-note-cognition-principle-2026-08-15.md`
+feature enablement. The current timing/decision rule is recorded in `docs/architecture-overview.md`
 (cognition principle for deferred S5).
 
 ## Decision for this wave

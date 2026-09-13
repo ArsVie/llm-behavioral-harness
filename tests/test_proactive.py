@@ -1,13 +1,7 @@
-"""IntentResolver tests + the seam-faithful SeamStore (A7).
+"""IntentResolver tests and the seam-faithful SeamStore double.
 
-The A2 store seam (agenda, arcs, episodes, interests, proactive intents,
-resolve_intent_source) has NOT landed in this repo yet — wip/vslice-a2
-points at main and carries no store ops. Per the A7 brief's fallback, the
-store-backed modules are tested against :class:`SeamStore`, an in-memory
-implementation of the frozen A2 seam (plus the existing ops Session and the
-runtime use), so the tests exercise the CONTRACT, not a stub. The canonical
-SeamStore lives in tests.helpers (imported here and by test_runtime and
-test_gates).
+The store-backed modules run against :class:`SeamStore` (tests.helpers), so
+the tests exercise the store CONTRACT rather than a stub.
 """
 
 from __future__ import annotations

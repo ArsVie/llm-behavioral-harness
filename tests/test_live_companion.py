@@ -1,12 +1,6 @@
-"""Compuerta de la integración en vivo (telegram/cli) — it3.
+"""Compuerta de la integración en vivo (telegram/cli).
 
-El driver live_companion no añade piezas al runtime: el stack completo es
-config.select_channel -> AsyncRuntime.run(). Esta compuerta verifica que
-el driver (a) arranca el runtime con un canal inyectado, (b) entrega
-inbound -> réplica -> send, y (c) entrega proactivos por el canal real.
-El token de telegram se valida aparte (check_token / getMe — no envía
-mensajes; no se toca la red aquí).
-"""
+El driver arranca el runtime con un canal inyectado; entrega inbound -> réplica -> send y proactivos."""
 
 from __future__ import annotations
 
@@ -23,10 +17,7 @@ from tests.helpers import no_wait
 
 
 def test_live_runtime_round_trip_reply_and_proactive():
-    """Inbound -> réplica -> send, y los proactivos llegan al canal.
-
-    Patrón síncrono del repo (asyncio.run dentro del test — el repo no
-    usa pytest-asyncio)."""
+    """Inbound -> réplica -> send, y los proactivos llegan al canal."""
     async def _run():
         from experiments.cvs_common import DeterministicJudge, BLOCK_START_D, BLOCK_END_D
         from harness.store import SQLiteStore
@@ -88,9 +79,7 @@ def test_build_runtime_smoke(tmp_path):
 
 
 def test_build_runtime_wires_anchor_and_resume_positions(tmp_path):
-    """live_companion wires the real-time anchor into AsyncRuntime, and the
-    persisted anchor positions a restart at the real local hour instead of
-    virtual midnight (the resume→midnight bug fix, WS-A)."""
+    """El anchor persistido posiciona un reinicio en la hora local real, no en medianoche virtual."""
     import time
     import datetime
     import zoneinfo
@@ -124,8 +113,7 @@ def test_build_runtime_wires_anchor_and_resume_positions(tmp_path):
 
 
 def test_build_runtime_no_tz_keeps_pre_anchor_behavior(tmp_path):
-    """No anchor persisted and no tz -> anchor=None (byte-identical to the
-    pre-anchor live path; the accelerated/test fleet is untouched)."""
+    """Sin anchor persistido y sin tz -> anchor=None."""
     from experiments.cvs_common import DeterministicJudge, BLOCK_START_D, BLOCK_END_D
     from harness.store import SQLiteStore
 

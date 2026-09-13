@@ -1,41 +1,7 @@
-"""Availability-event negotiation — phase machine (A1, G0 contract).
+"""Availability-event negotiation — the pure phase machine (A1).
 
-The G0 negotiation contract defines one negotiation per AgendaItem that hits
-its start boundary while a conversation is open:
-
-    INFORM (once, idempotent) -> DECIDE (recurring, go/skip/delay(N))
-        -> BACKSTOP (now >= end_t_h forces a skip; defer never re-arms
-           past the window)
-
-This module owns the MECHANICS only — the pure, deterministic phase machine:
-
-* :class:`NegotiationState` — one item's negotiation, with the responded-bool
-  idempotency marker (``informed`` checked as VALUE True, never key
-  presence — commit 3005b9e discipline);
-* trigger arithmetic — the companion-turn counter and the AFK bomb
-  (``last_user_turn + SHORT_AFK_H``), both re-armed on every delay;
-* the window-close backstop — a decide instant at/after ``end_t_h`` is a
-  forced skip (no model call), and a delay whose re-arm would land at/after
-  ``end_t_h`` resolves immediately instead of re-arming;
-* the converging pull-to-go — ``delay_count * PULL_PER_DELAY`` presented as
-  rising pressure in the decide request (the MODEL still chooses);
-* the deterministic defer(N) mapping (``DEFER_N_PATTERNS``, clamped) and
-  deterministic decision ids (``neg-<item_id>-inform`` /
-  ``neg-<item_id>-decide-<delay_index>``).
-
-The harness session (harness/session.py) drives the machine at turn
-boundaries and runtime wakes; the runtime (harness/runtime.py) parks the
-rollover at the AFK-bomb / backstop instants via
-``Session.next_negotiation_trigger_t_h``. Nothing here touches a store, a
-clock or a client — everything is passed in, so the machine is deterministic
-and unit-testable with a fake DecisionRunner.
-
-Replay contract: the state is persisted as a ``negotiation_state`` state
-event (full snapshot per mutation) and rebuilt on session init, so a
-restart resumes the negotiation mid-loop; each decide leg's decision id is
-derived from the item id and the CURRENT delay index, so
-``DecisionRunner``'s replay-by-decision_id returns the recorded verdict
-instead of re-rolling.
+Deterministic mechanics only: inform -> decide -> backstop transitions, trigger
+arithmetic, defer(N) mapping. No store, clock or client.
 """
 
 from __future__ import annotations
@@ -53,19 +19,12 @@ from harness.negotiation_contract import (
     NegotiationPhase,
 )
 
-#: Decision-id prefixes (deterministic replay: literal item id + delay index);
-#: the literals are inlined at the call sites in session.py.
+# Decision-id prefixes are built at the call sites (item id + delay index).
 
 
 @dataclass
 class NegotiationState:
-    """One AgendaItem's availability negotiation (mutable; persisted as a
-    JSON snapshot per mutation).
-
-    Idempotency marker: ``informed`` is a RESPONDED-BOOL — the session
-    checks ``state.informed is True`` (value), never key presence
-    (``"informed" in ...``), per the G0 floor (commit 3005b9e discipline).
-    """
+    """One AgendaItem's availability negotiation; JSON snapshot per mutation."""
 
     item_id: str
     activity: str
@@ -74,16 +33,13 @@ class NegotiationState:
     end_t_h: float
     salience: float
     phase: str = NegotiationPhase.INFORM.value
-    #: Responded-bool Inform marker: True once the model produced the
-    #: natural mention; checked as a value, not key presence.
+    #: Responded-bool marker; checked as ``is True`` (value), never key presence.
     informed: bool = False
-    #: Companion turns remaining before the decide fires; 0 means the
-    #: next companion turn decides.
+    #: Companion turns remaining before the decide fires (0 = next turn decides).
     turns_to_decide: int = 0
     #: AFK bomb: last user turn + SHORT_AFK_H (None = not yet armed).
     afk_deadline_t_h: float | None = None
-    #: Virtual instant of the last executed decide leg (or the inform
-    #: turn); the decide fires at most once per virtual instant per item.
+    #: Virtual instant of the last decide leg; one decide per instant per item.
     last_decide_at_t_h: float | None = None
     delay_count: int = 0
     resolved_action: str | None = None   # "follow" | "abandon" | "forced"
@@ -95,9 +51,7 @@ class NegotiationState:
 
     @property
     def decide_index(self) -> int:
-        """Deterministic decide-leg index: the number of delays already
-        taken. The first decide leg is index 0, the next after one delay is
-        index 1, ... -> decision id ``neg-<item>-decide-<index>``."""
+        """Decide-leg index (deterministic): the number of delays taken."""
         return self.delay_count
 
 
@@ -109,31 +63,16 @@ def decide_status_at(
 ) -> str:
     """The decide status of ``state`` at a virtual instant.
 
-    Returns one of:
-
-    * ``"inactive"`` — not in the DECIDE phase or already resolved;
-    * ``"forced"``   — BACKSTOP: ``now >= end_t_h``; the decide is a forced
-      skip with NO model call;
-    * ``"due"``      — the decide leg fires now: the AFK bomb has fired
-      (``now >= afk_deadline_t_h``) or this is a companion turn with the
-      turn counter at 0 — and the leg was not already executed at this
-      exact instant (at-most-once per instant);
-    * ``"waiting"``  — nothing due; on a companion turn the turn counter is
-      decremented (the turn passes without a decide).
-
-    Nothing decides before the window opens. The heads-up leg runs
-    ``HEADS_UP_LEAD_H`` ahead of ``start_t_h`` and moves the phase to
-    DECIDE, so between the heads-up and the window opening this returns
-    ``"waiting"`` WITHOUT consuming a companion turn — the turns the model
-    gets to decide in are the turns inside the window, not the ones it
-    spent being warned.
+    "inactive" — not deciding or resolved; "forced" — backstop, ``now >= end_t_h``
+    (no model call); "due" — the AFK bomb fired or a companion turn with the
+    counter at 0, at most once per instant; "waiting" — nothing due (a companion
+    turn decrements the counter).
     """
     if state.resolved:
         return "inactive"
     if now < state.start_t_h - 1e-12:
         return "waiting"
-    # Backstop check runs before the phase check; a closed window forces
-    # a skip regardless of phase.
+    # Backstop first: a closed window forces a skip in any phase.
     if now >= state.end_t_h - 1e-12:
         return "forced"
     if state.phase != NegotiationPhase.DECIDE.value:
@@ -155,12 +94,9 @@ def decide_status_at(
 
 
 def next_trigger_t_h(state: NegotiationState, now: float) -> float | None:
-    """Next strictly-future runtime wake instant for this negotiation: the
-    earlier of the AFK-bomb deadline and the window-close backstop instant.
-    None when nothing is pending in the future. The rollover parks here
-    exactly like ``next_conversation_close_t_h`` parks at conversation
-    closes (the park is always a strictly-future instant; a past deadline
-    fires at the next wake of any kind)."""
+    """Next strictly-future wake instant (AFK-bomb deadline or window close);
+    None when nothing is pending. A past deadline fires at the next wake.
+    """
     if state.phase != NegotiationPhase.DECIDE.value or state.resolved:
         return None
     if now < state.start_t_h - 1e-12:
@@ -181,11 +117,10 @@ def next_trigger_t_h(state: NegotiationState, now: float) -> float | None:
 
 
 def map_defer_n(reason: str) -> int:
-    """Map the model's natural delay reason to a concrete N (the server
-    owns the mechanics; the model never emits arithmetic). Deterministic:
-    the FIRST matching ``DEFER_N_PATTERNS`` row wins; the explicit
-    "N more turns/messages" pattern is clamped to [DEFER_N_MIN,
-    DEFER_N_MAX]; no match falls back to ``DEFAULT_DEFER_TURNS``."""
+    """Map the model's delay reason to a concrete N (the server owns the
+    arithmetic). First matching ``DEFER_N_PATTERNS`` row wins; explicit N is
+    clamped to [DEFER_N_MIN, DEFER_N_MAX]; no match -> DEFAULT_DEFER_TURNS.
+    """
     text = (reason or "").strip()
     for pattern, n in DEFER_N_PATTERNS:
         m = re.search(pattern, text, re.IGNORECASE)
@@ -204,21 +139,11 @@ def rearm_after_delay(
     last_user_turn_t_h: float | None,
     n: int,
 ) -> bool:
-    """Re-arm both triggers after a delay(N) verdict.
+    """Re-arm both triggers after a delay(N): the turn counter to ``n - 1``, the
+    AFK bomb to last user turn + ``SHORT_AFK_H``.
 
-    The turn counter re-arms to ``n - 1`` (the decide leg that produced the
-    delay is turn 0; the next decide fires on the n-th companion turn
-    after it). The AFK bomb re-arms off the LAST user turn
-    (``last_user_turn_t_h + SHORT_AFK_H``; falls back to ``now`` when no
-    user turn exists yet) — active talk keeps pushing it out, silence lets
-    it fire.
-
-    Returns True when the re-arm is REFUSED: the AFK bomb would land at or
-    after ``end_t_h`` — the backstop clamp, the delay resolves immediately
-    (forced skip) instead of re-arming. (The turn counter cannot be
-    predicted ahead of time, so the AFK deadline is the deterministic
-    clamp; a turn-triggered decide that would land past the window is
-    caught by the ``now >= end_t_h`` backstop at its own instant.)
+    Returns False when refused — the AFK bomb would land at/after ``end_t_h``;
+    the caller resolves the delay as a forced skip.
     """
     anchor = last_user_turn_t_h if last_user_turn_t_h is not None else now
     afk_new = anchor + SHORT_AFK_H
@@ -234,17 +159,14 @@ def rearm_after_delay(
 
 
 def pull_toward_go(state: NegotiationState) -> float:
-    """Rising pressure toward go: ``delay_count * PULL_PER_DELAY``, capped
-    at 1.0. The session includes this (plus the remaining window) in the
-    decide request as context the MODEL sees — the server never overrides
-    the verdict."""
+    """Rising pressure toward go: ``delay_count * PULL_PER_DELAY``, capped at 1.0.
+    Request context for the model; the server never overrides the verdict.
+    """
     return min(1.0, state.delay_count * PULL_PER_DELAY)
 
 
 def window_ending_at(state: NegotiationState, now: float) -> bool:
-    """True when the remaining window is at most one AFK-bomb period
-    (``SHORT_AFK_H``) — the next AFK-bomb decide could land at/after the
-    window close, so the request flags the ending window."""
+    """True when the remaining window is at most ``SHORT_AFK_H`` (one AFK period)."""
     return (state.end_t_h - now) <= SHORT_AFK_H + 1e-12
 
 
@@ -264,8 +186,8 @@ def state_to_dict(state: NegotiationState) -> dict:
 
 
 def state_from_dict(data: dict) -> NegotiationState | None:
-    """Rebuild a NegotiationState from a persisted snapshot; None when the
-    snapshot is unusable (foreign/corrupt rows are skipped, never fatal)."""
+    """Rebuild a NegotiationState from a snapshot; None when unusable (foreign
+    or corrupt rows are skipped, never fatal)."""
     try:
         return NegotiationState(
             item_id=str(data["item_id"]),
@@ -275,8 +197,7 @@ def state_from_dict(data: dict) -> NegotiationState | None:
             end_t_h=float(data["end_t_h"]),
             salience=float(data.get("salience", 0.0)),
             phase=str(data.get("phase", NegotiationPhase.INFORM.value)),
-            # Responded-bool restore: ``informed`` is stored as a bool
-            # value; a snapshot without the key restores False.
+            # Responded-bool restore: a snapshot without the key restores False.
             informed=bool(data.get("informed")),
             turns_to_decide=int(data.get("turns_to_decide", 0)),
             afk_deadline_t_h=(

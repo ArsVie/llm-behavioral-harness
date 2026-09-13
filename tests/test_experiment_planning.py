@@ -1,34 +1,6 @@
-"""A1 (WS-A): experiment-only state-aware day-0 plan + fired-event integrity.
+"""Experiment-only state-aware day-0 plan + fired-event integrity.
 
-Regression for the it3 defect: the experiment matrix planned day-0
-contacts UP-FRONT at neutral state (``plan_and_persist`` with
-``scores=None``) before the day-0 mood row existed, and INSERT OR IGNORE
-never revised them — FULL cells planned their first day at state factor
-exactly 1.0. Production ``runtime._replan`` is state-aware; the defect
-lived in the two experiment copies (``run_cell`` in cvs_common,
-``build_runtime`` in live_companion).
-
-Covered:
-1. Day-0 plan is state-aware through BOTH entry points: the day-0 mood row
-   is drawn BEFORE planning (``session.ensure_day(0)`` — the same slow
-   step the midnight rollover uses) and the plan is made with real
-   ``day_scores`` — the persisted day-0 rows match the state-aware
-   composition and differ from the neutral one the defect produced.
-2. STRUCTURED_NO_STATE ablation intact: its day-0 plan stays identical to
-   the neutral composition (the B5 state channel collapses to 1.0 under
-   the condition patch), even though the mood row exists (the ablation is
-   read-side).
-3. Fired-event integrity (parametrized over both entry points): after some
-   day-0 events have FIRED, a re-plan with different scores leaves the
-   fired rows untouched (same t_h/reason, status stays fired) and never
-   resurrects a fired hour as pending; unfired future events may be
-   regenerated (the re-plan actually produces new candidate hours).
-4. Timing rationale preserved: the day-0 plan exists before the firing
-   loop starts — a 1-day cell actually FIRES a day-0 event (a row first
-   planned at midnight day 1 would be born expired and could never fire).
-
-All tests use a real SQLiteStore on a tmp dir and a fixed seed (5001);
-fake client + scripted judge keep everything deterministic and offline.
+Both entry points, the STRUCTURED_NO_STATE ablation, and fired-row survival.
 """
 
 import numpy as np
@@ -105,13 +77,11 @@ def _neutral_day0_plan() -> list[float]:
     ))
 
 
-# ---- 1. State-aware day-0 plan through both entry points ----
+# ---- State-aware day-0 plan through both entry points ----
 
 
 def test_matrix_entry_day0_plan_is_state_aware(tmp_path):
-    """run_cell: the day-0 mood row exists and the persisted day-0 rows
-    contain the state-aware up-front candidates (which differ from the
-    neutral candidates the defect produced)."""
+    """run_cell: the persisted day-0 rows contain the state-aware up-front plan."""
     records = run_cell("FULL", SEED, tmp_path / "cell", days=1,
                        fake=True, perturb=True)
     store = SQLiteStore(records["db"], audit_mode=True)
@@ -131,9 +101,7 @@ def test_matrix_entry_day0_plan_is_state_aware(tmp_path):
 
 
 def test_live_entry_day0_plan_is_state_aware(tmp_path):
-    """build_runtime: on a fresh store the day-0 mood is drawn BEFORE
-    planning (bootstrap leaves no mood row) and the persisted day-0 rows
-    match the state-aware plan exactly."""
+    """build_runtime: the day-0 mood is drawn before planning; the rows match the plan."""
     store = SQLiteStore(tmp_path / "companion.db", audit_mode=True)
     bootstrap(store, seed=SEED)
     try:
@@ -155,9 +123,7 @@ def test_live_entry_day0_plan_is_state_aware(tmp_path):
 
 
 def test_structured_no_state_day0_plan_stays_neutral(tmp_path):
-    """The B5 state channel ablates under STRUCTURED_NO_STATE: the day-0
-    plan stays identical to the neutral composition even though the mood
-    row exists (the ablation is read-side, via the condition patch)."""
+    """STRUCTURED_NO_STATE: the day-0 plan stays identical to the neutral composition."""
     records = run_cell("STRUCTURED_NO_STATE", SEED, tmp_path / "cell",
                        days=1, fake=True, perturb=True)
     store = SQLiteStore(records["db"], audit_mode=True)
@@ -173,9 +139,7 @@ def test_structured_no_state_day0_plan_stays_neutral(tmp_path):
 
 
 def test_day0_plan_preexists_firing_loop(tmp_path):
-    """Timing rationale preserved: the day-0 plan exists before the firing
-    loop starts — a 1-day cell actually FIRES a day-0 event (a row first
-    planned at midnight day 1 would be born expired and could never fire)."""
+    """The day-0 plan exists before the firing loop: a 1-day cell still fires an event."""
     records = run_cell("FULL", SEED, tmp_path / "cell", days=1,
                        fake=True, perturb=True)
     store = SQLiteStore(records["db"], audit_mode=True)
@@ -187,7 +151,7 @@ def test_day0_plan_preexists_firing_loop(tmp_path):
         store.close()
 
 
-# ---- 3. Fired-event integrity under re-plan with different scores ----
+# ---- Fired-event integrity under re-plan with different scores ----
 
 
 def _assert_fired_rows_intact(store: SQLiteStore, fired_t: list[float]) -> None:
@@ -207,9 +171,8 @@ def _assert_fired_rows_intact(store: SQLiteStore, fired_t: list[float]) -> None:
 @pytest.mark.parametrize("entry", ["matrix", "live"],
                          ids=["matrix-run_cell", "live-build_runtime"])
 def test_fired_rows_survive_replan_with_different_scores(tmp_path, entry):
-    """Both experiment paths: after day-0 events have FIRED, a re-plan with
-    different scores leaves the fired rows untouched (same t_h/reason,
-    status stays fired) and never resurrects a fired hour as pending."""
+    """After day-0 events fire, a re-plan leaves fired rows untouched and never
+    resurrects them."""
     if entry == "matrix":
         records = run_cell("FULL", SEED, tmp_path / "cell", days=2,
                            fake=True, perturb=True)
@@ -246,10 +209,8 @@ def test_fired_rows_survive_replan_with_different_scores(tmp_path, entry):
 
 
 def test_replan_with_different_scores_regenerates_unfired_events(tmp_path):
-    """The matrix plan-entry shape (fresh store, day-0 plan via the same
-    sequence run_cell uses): a re-plan with different scores inserts NEW
-    pending rows for unfired future events (regeneration) while fired rows
-    stay untouched — the INSERT OR IGNORE integrity contract."""
+    """A re-plan with different scores regenerates unfired events; fired rows stay
+    untouched."""
     store = SQLiteStore(tmp_path / "cell.db", audit_mode=True)
     _boot(store)
     session = _make_session(store)

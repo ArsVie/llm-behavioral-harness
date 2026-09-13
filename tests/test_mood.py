@@ -21,16 +21,7 @@ from engine import mood
 
 
 def test_step_nu_inf_matches_binomial_distribution(persona: PersonaParams) -> None:
-    """Con nu=inf (default de PersonaParams), la distribución empírica de M
-    sobre >=5000 muestras debe coincidir con Binomial(N, p) conocida.
-
-    p se fija eligiendo mu tal que compute_arg produzca un p conocido (usamos
-    variant=DECOUPLED con g=1, m=0 para que arg = logit(lam) + mu = logit(p)).
-    Criterio: test chi-cuadrado de bondad de ajuste sobre las N+1 categorías
-    de la Binomial, alpha=0.01 (test estadístico generoso, ver CONVENTIONS.md
-    §5). N=10 (default) da 11 categorías; se agrupan colas con conteo
-    esperado < 5 para que el chi-cuadrado sea válido.
-    """
+    """Con nu=inf, la distribucion empirica de M debe coincidir con Binomial(N, p)."""
     assert math.isinf(persona.nu)  # precondition for this case
 
     p_target = 0.35
@@ -81,17 +72,7 @@ def test_step_nu_inf_matches_binomial_distribution(persona: PersonaParams) -> No
 
 
 def test_step_nu_inf_ks_matches_binomial_cdf(persona: PersonaParams) -> None:
-    """Chequeo independiente del anterior (chi-cuadrado): compara la CDF
-    empírica discreta de M contra la CDF teórica de Binomial(N, p) mediante el
-    estadístico de Kolmogorov-Smirnov D = sup_x |ecdf(x) - cdf(x)|, acotado con
-    la banda de confianza de Dvoretzky-Kiefer-Wolfowitz (DKW):
-        P(D > eps) <= 2*exp(-2*n*eps^2)
-    válida para cualquier distribución (continua o discreta) sin necesitar la
-    distribución exacta del estadístico KS bajo discreción (a diferencia de
-    scipy.stats.kstest, que asume una cdf de referencia continua y da falsos
-    rechazos aquí — verificado empíricamente contra muestras Binomial() puras
-    de numpy, ver notas de implementación). alpha=0.01 -> eps = sqrt(ln(2/alpha)/(2n)).
-    """
+    """Chequeo independiente con la banda DKW: D = sup|ecdf - cdf|, alpha=0.01."""
     p_target = 0.62
     mu = mood.logit(p_target) - mood.logit(persona.lam)
     state = MoodState(mu=mu, eta=0.0)

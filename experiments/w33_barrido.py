@@ -4,7 +4,7 @@ PROPIEDAD: tarea W3.3 (este archivo + results/w33-barrido/). Variante fija
 DECOUPLED_OFFSETS, 90 días, 5 semillas por celda para el barrido, 5 semillas
 frescas para la verificación de los defaults propuestos.
 
-Diseño (mantenido tratable — NO producto cartesiano completo, ver plan):
+Diseño (no producto cartesiano completo):
     1. 2D (rho_e x sigma_e): autocorrelación endógena.
     2. 2D (k x rho): memoria de eventos (celdas inestables descartadas con
        engine.validation.check y reportadas aparte).

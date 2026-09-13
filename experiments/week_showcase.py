@@ -1,4 +1,4 @@
-"""README hero: 30-day engine view in the spirit of Ars's chat-analysis figures.
+"""README hero: 30-day engine view.
 
 Four panels, one representative FULL simulation (seed 5001) pooled with the
 4 sibling seeds where noted:

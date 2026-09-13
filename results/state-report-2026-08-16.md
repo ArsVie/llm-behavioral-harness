@@ -1,5 +1,9 @@
 # State report — spikes, waves, decisions (2026-08-16)
 
+Historical snapshot. Current architecture and open work are maintained in
+`docs/architecture-overview.md`, `docs/spec-context-events-time-2026-08-15.md`,
+and `docs/internal/BACKLOG.md`.
+
 Consolidated snapshot across the session's parallel work. Facts verified at
 source where load-bearing; unreported items marked as such, not guessed.
 

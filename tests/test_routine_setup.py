@@ -1,19 +1,8 @@
 """The routine catalog is built at setup, cached, and never trusted raw.
 
-``ROUTINE_CATALOG`` used to be six hardcoded rows every companion drew from,
-so the interests were personalized and the shape of her day was not. It also
-carried a name the engine cannot honour: "weekend market" fires on a per-day
-cadence coin flip that never reads the weekday, which is how a companion went
-to the weekend market on a Tuesday.
-
-These tests pin the three properties that make the replacement safe:
-
-* the catalog is an INPUT to ``build_persona``, so every seeded draw and the
-  40/40/20 interest invariant are untouched;
-* nothing the model says is trusted as a number, a name, or a count — and a
-  proposal that validates down to too little yields the offline default;
-* the same interest SET costs no second call, which is what makes two
-  consecutive resets comparable instead of one being quietly degraded.
+The catalog is an input to ``build_persona``; nothing the model says is
+trusted as a number, a name, or a count, and a proposal that validates down
+to too little yields the offline default.
 """
 
 from __future__ import annotations

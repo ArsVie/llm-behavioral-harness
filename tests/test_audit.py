@@ -1,9 +1,5 @@
-"""Audit export tests (WS1): per-call context reconstruction from the store
-with typed headers, honest errors on hash-only rows (invariant 19), and the
-conversation-level markdown export. Prompt persistence is VERIFIED here, not
-rebuilt: the round-trip itself is covered by tests/test_store_it3.py
-(repro_json alone reconstructs the call byte-exact); these tests render it.
-"""
+"""Audit export tests: per-call context reconstruction from the store with
+typed headers, honest errors on hash-only rows, and the markdown exports."""
 
 import pytest
 
@@ -88,8 +84,7 @@ def test_call_extract_no_thinking_without_reasoning(tmp_path):
 
 
 def test_call_extract_hash_only_row_raises_clear_error(tmp_path):
-    """Non-eval rows persist hash only: reconstructing must raise a clear
-    error, never fake coverage (invariant 19)."""
+    """Non-eval rows persist hash only: reconstructing must raise a clear error."""
     store = SQLiteStore(tmp_path / "audit.db")  # audit_mode=False
     call_id = _log_call(store, repro=None)
     with pytest.raises(ValueError, match="hash-only"):

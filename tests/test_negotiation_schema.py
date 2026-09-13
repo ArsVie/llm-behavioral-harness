@@ -1,15 +1,7 @@
-"""A2 — G0 negotiation verdict/request schema tests (harness/tools.py).
+"""Negotiation verdict/request schema tests (harness/tools.py).
 
-Covers the availability-negotiation contract deltas (the frozen
-``harness/negotiation_contract.py``): the SERVER-filled ``defer_turns``
-mapping from reason phrases (DEFER_N_PATTERNS, clamped, fallback), the
-inform-phase mention verdict ``{message: str}`` (native + textual +
-legacy-shape normalization), the backward compatibility of legacy decide
-verdicts and pop-ups without the new input keys, and the runner plumbing
-(phase-aware schema, defer_turns on the recorded decision verdict).
-
-Legacy verdicts and pop-ups must parse/render EXACTLY as before — the
-probe/decision tests depend on that; this file only ADDS coverage.
+Covers the SERVER-filled ``defer_turns`` mapping, the inform-phase mention
+verdict, legacy-verdict compatibility, and the runner plumbing.
 """
 
 import json
@@ -137,9 +129,8 @@ def test_fill_defer_turns_adds_server_n():
 
 
 def test_fill_defer_turns_keeps_the_n_the_model_asked_for():
-    # The model MAY name its own N on a defer; it asked, so it wins. The
-    # value reaching fill_defer_turns is already clamped by verdict
-    # normalization (see the tri-state tests below).
+    # The model may name its own N on a defer; the value reaching
+    # fill_defer_turns is already clamped by verdict normalization.
     verdict = fill_defer_turns({"initiate": False,
                                 "reason": "a bit longer",
                                 "action": "defer", "defer_turns": 4})
@@ -376,9 +367,7 @@ def test_inform_schema_is_mention_only():
 
 def test_decide_schema_is_one_tristate_field():
     # The model answers ONE field: initiate in {yes, no, defer}, plus the
-    # reason and an optional turns it may name on a defer. The old bool +
-    # parallel `action` pair is gone from the model's view; it survives only
-    # as the internal canonical shape the verdict normalizes onto.
+    # reason and an optional turns it may name on a defer.
     event = TOOL_SCHEMAS[0]
     assert set(event["parameters"]["required"]) == {"initiate", "reason"}
     assert set(event["parameters"]["properties"]) == {

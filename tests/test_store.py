@@ -182,9 +182,9 @@ def test_proactive_intent_crud_and_resolve(tmp_path):
 
 
 def test_resolve_intent_source_full_vocabulary(tmp_path):
-    """MAJOR-1 gate fix: every source_type harness.proactive emits must
-    resolve against the REAL store (agenda_item/life_event -> agenda_items;
-    callback/shared_interest/check_in -> episodes; life_arc -> life_arcs)."""
+    """Every source_type harness.proactive emits resolves against the REAL store
+    (agenda_item/life_event -> agenda_items; callback/shared_interest/check_in
+    -> episodes; life_arc -> life_arcs)."""
     store = SQLiteStore(tmp_path / "s.db")
 
     # sources

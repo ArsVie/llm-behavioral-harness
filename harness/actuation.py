@@ -1,10 +1,6 @@
 """Mechanical actuation: BehaviorDirective -> observable generation controls.
 
-This module is the A3 seam: it converts a behavioral directive into the
-mechanical parameters the rest of the harness can execute — token budget,
-delivery latency, closing policy and the initiative multiplier. It is pure
-and deterministic: it contains no I/O and never blocks. Latency is data, not
-behavior; nothing here waits.
+Pure and deterministic: no I/O, never blocks. Latency is data, not behavior.
 """
 
 from __future__ import annotations
@@ -37,18 +33,10 @@ def _clamp(value: float, low: float, high: float) -> float:
     return max(low, min(high, value))
 
 
-#: Closing guidance is DISABLED (2026-09-07, user directive).
-#:
-#: The band prose told the model how to end every reply, on every turn, from
-#: a per-turn draw. That is the kind of instruction that flattens a reply
-#: into an assistant's sign-off, and the closing behaviour it actuates is
-#: itself unspecified (see the "Closing behavior" backlog entry). The
-#: channel stays wired end to end -- ``GenerationControls.closing_guidance``
-#: still exists, the assembler still renders a non-empty value -- so
-#: re-enabling is a one-line change once the behaviour is specified.
+#: When False, ``_closing_guidance`` returns "" for every tendency.
 CLOSING_GUIDANCE_ENABLED = False
 
-#: The band prose, retained verbatim for the day the channel is re-enabled.
+#: Closing bands, keyed by the closing-tendency threshold.
 _CLOSING_BANDS: tuple[tuple[float, str], ...] = (
     (0.20, "The companion may naturally invite continuation; leaving the door open is fine."),
     (0.40, "The companion is still open; a natural follow-up is welcome if the moment calls for it."),
@@ -59,14 +47,7 @@ _CLOSING_BANDS: tuple[tuple[float, str], ...] = (
 
 
 def _closing_guidance(closing_tendency: float) -> str:
-    """Continuation policy for the prompt -- currently the empty string.
-
-    With ``CLOSING_GUIDANCE_ENABLED`` false this returns "" for every
-    tendency, so the assembler's ``if controls.closing_guidance`` guard drops
-    the CLOSING section from the state card entirely. ``closing_tendency``
-    itself is untouched: it still drives the conversation-close draw, it just
-    no longer speaks to the model.
-    """
+    """Continuation policy for the prompt; "" while the channel is disabled."""
     if not CLOSING_GUIDANCE_ENABLED:
         return ""
     for threshold, text in _CLOSING_BANDS:
@@ -85,23 +66,10 @@ def controls_from_directive(
 ) -> domain.GenerationControls:
     """Derive mechanical generation controls from a behavioral directive.
 
-    Mapping (deterministic, documented — B4 widened ranges):
-    * ``max_tokens`` = clamp(round(base_max_tokens * response_length_scale),
-      min_tokens, max_tokens). ``response_length_scale`` now spans
-      [0.22, 1.30] — coupled to energy and expressiveness, so a terse
-      low-energy day realizes roughly 130–350 tokens and an expansive
-      high-energy day 600–780 (F4: ±6% around 551). ``closing_tendency`` is
-      not part of the budget so that closing stays a policy, not a length
-      artifact.
-    * ``response_delay_s`` = directive.response_delay_s clamped to [0, 60];
-      the directive channel now spans ~0.8 s (high energy) to ~44 s
-      (low energy, recent dip) — real inter-turn latency inside a
-      conversation.
-    * ``closing_tendency`` passes through unchanged; it now spans
-      [0.04, 0.85]. ``closing_guidance`` is the prompt-level continuation
-      policy derived from it, with five distinct bands.
-    * ``initiative_factor`` = exp(beta * (initiative - 0.5)) clamped to
-      [0.2, 5.0] — the mechanical multiplier that enters scheduling.
+    ``max_tokens`` = clamp(round(base_max_tokens * response_length_scale),
+    min_tokens, max_tokens). ``response_delay_s`` clamps to [0, 60] and
+    ``initiative_factor`` = exp(beta * (initiative - 0.5)) clamps to [0.2, 5.0].
+    ``closing_tendency`` passes through unchanged.
     """
 
     budget = _clamp(round(base_max_tokens * directive.response_length_scale), min_tokens, max_tokens)

@@ -1,25 +1,5 @@
-"""Tests del pre-flight de ablación (Iteración 3, B8 / Gate G2).
-
-Verifica el mecanismo de la compuerta barata: matriz completa × semillas en
-el cliente fake, veredictos por AblationClaim contra FULL, registro aditivo y
-el resumen por condición (hook records_summary). El veredicto es función del
-código actual — estos tests fijan el comportamiento de HOY (código actual:
-STRUCTURED_NO_STATE/NO_ACTUATORS son ablaciones nulas, F4; NO_LIFE es una
-ablación genuina — goldfish: arcos frescos cada día, identidad discontinua)
-y se actualizan cuando B4/B5 arreglan las condiciones (el orquestador
-mantiene el registro en G2).
-
-Nota sobre determinismo: el runner de células del harness entrega los feeds
-del usuario con polling de reloj real (``_run_segment``, cvs_common) y bajo
-contention del event loop puede omitir feeds — el pre-flight corre FULL dos
-veces y bloquea si la referencia no es reproducible (chequeo de determinismo).
-Los tests del control positivo se saltan (skip) cuando la referencia del
-propio run no es reproducible: una compuerta sin referencia reproducible ya
-bloquea sola; el test solo fija que, con referencia reproducible, el control
-positivo se detecta.
-
-Convención del repo: docstrings en español, identificadores en inglés.
-"""
+"""Tests del pre-flight de ablación: matriz completa × semillas en el cliente
+fake, veredictos por AblationClaim contra FULL y resumen por condición."""
 
 import pytest
 
@@ -40,8 +20,7 @@ ALLOWED_CHANNELS = {"timing", "memory_store", "generation_controls", "life_state
 
 
 def _seed_conversation_tables(store: SQLiteStore) -> None:
-    """Crea el seam de conversaciones de B2 (tablas conversations +
-    conversation_turns) para ejercitar el resumen con conversaciones."""
+    """Crea las tablas conversations/conversation_turns para ejercitar el resumen."""
     store.conn.execute(
         "CREATE TABLE IF NOT EXISTS conversations ("
         " id TEXT PRIMARY KEY, opened_t_h REAL, closed_t_h REAL,"
@@ -81,7 +60,7 @@ class TestRecordsSummary:
                     "n_blank_assistant_turns", "n_conversations",
                     "mean_turns_per_conversation"):
             assert key in summary, f"missing contract key {key}"
-        # Counts are verified against the store.
+
         msgs = store.conn.execute("SELECT * FROM messages").fetchall()
         n_assistant = sum(1 for m in msgs if m["role"] == "assistant")
         n_pro = sum(1 for m in msgs if m["proactive"])
@@ -91,7 +70,7 @@ class TestRecordsSummary:
         assert summary["n_assistant_turns"] == (
             summary["n_reactive"] + summary["n_proactive"]
         )
-        # v4 creates the tables always: available, with countable zeros.
+
         assert summary["conversations_available"] is True
         assert summary["n_conversations"] is not None
         assert summary["mean_turns_per_conversation"] is not None
@@ -116,12 +95,7 @@ class TestRecordsSummary:
 
 
 class TestControlsStats:
-    """Estadísticas de controles de generación por célula/condición (G2).
-
-    Sustrato de las claims de B4 (generation_controls): la afirmación
-    "actuator controls do not vary" debe leerse del resumen (varied=False
-    en NO_ACTUATORS), no de una expectativa hardcodeada del veredicto.
-    """
+    """Estadísticas de controles de generación por célula/condición."""
 
     RECORDED_CONTROLS = (
         "max_tokens", "response_delay_s", "closing_tendency",
@@ -129,9 +103,7 @@ class TestControlsStats:
     )
 
     def test_full_cell_controls_stats_varied(self, tmp_path):
-        """FULL registra controls_stats con los 5 controles de
-        controls_by_message; max_tokens presente, numérico y VARIADO
-        (el mapeo actuado barre el rango — B4)."""
+        """FULL registra controls_stats con los 5 controles, numéricos y variados."""
         out = tmp_path / "cell"
         records = run_cell("FULL", 5001, out, days=2, fake=True, perturb=True)
         store = SQLiteStore(records["db"])
@@ -152,11 +124,7 @@ class TestControlsStats:
         assert isinstance(cs["closing_guidance"]["varied"], bool)
 
     def test_no_actuators_cell_controls_not_varied(self, tmp_path):
-        """NO_ACTUATORS (B4 null genuino: _flat_controls fija 600/5.0/0.5/
-        1.0/banda media) deja TODOS los controles en varied=False y los
-        numéricos colapsados a un punto (min == max == mean) — mientras la
-        lane de mensajes sigue viva (los mensajes ocurren y su longitud
-        varía: la ablación aplanó el actuador, no el flujo)."""
+        """NO_ACTUATORS deja todos los controles en varied=False, colapsados a un punto."""
         out = tmp_path / "cell"
         records = run_cell("NO_ACTUATORS", 5001, out, days=2,
                            fake=True, perturb=True)
@@ -178,9 +146,7 @@ class TestControlsStats:
         assert summary["std_reply_len"] > 0
 
     def test_preflight_report_includes_controls_stats(self, tmp_path):
-        """El reporte JSON del pre-flight lleva controls_stats por condición
-        (y en FULL), con la firma de la claim B4 visible: FULL variado,
-        NO_ACTUATORS plano."""
+        """El reporte JSON lleva controls_stats por condición y en FULL."""
         report = run_preflight(
             days=3, seeds=(5001,),
             conditions=("FULL", "NO_ACTUATORS"),
@@ -210,16 +176,8 @@ class TestPreflightGate:
 
     @pytest.mark.slow
     def test_preflight_flags_null_ablations_on_current_code(self, tmp_path):
-        """Aceptación B8 #2 (G2, goldfish + claims fundidos + SPLIT de
-        compuerta): sobre el código ACTUAL y en el horizonte CONFIRMATORIO
-        (30 días) el pre-flight NO marca ninguna ablación nula — el split
-        separó la compuerta (canal no dormido, barra baja) del umbral de
-        hipótesis (0.15, matriz real). NO_LIFE pasa por goldfish
-        (discontinuidad de identidad), NO_ACTUATORS/RAW_HISTORY por sus
-        claims conductuales, y el canal de timing (STRUCTURED_NO_STATE +
-        control positivo) por la compuerta de nulidad con las patas
-        medidas. Un canal genuinamente dormido seguiría marcándose:
-        el veredicto es función del código, no una expectativa."""
+        """Sobre el código actual y en el horizonte confirmatorio (30 días) el
+        pre-flight no marca ninguna ablación nula."""
 
         report = run_preflight(
             days=30, seeds=(5001, 5002),
@@ -236,13 +194,8 @@ class TestPreflightGate:
             assert cond in report["per_condition"]
 
     def test_below_horizon_claims_are_not_evaluable_not_fail(self, tmp_path):
-        """min_days: en 3 días el feedback de puntuación (min_days=4) y la
-        comparación de conjuntos recuperados (SIMPLE_RAG, min_days=10 — el
-        store cruza la superficie de recuperación entre el día 5 y el 10)
-        aún no pueden haber actuado: se reportan NOT EVALUABLE, NUNCA FAIL.
-        Es la distinción 'esto falló' vs 'esto no era testeable' — el
-        artefacto que costó la ronda (el pre-flight de 3 días marcando
-        claims legítimas como nulas)."""
+        """Bajo el horizonte (3 días) las claims con min_days mayor se reportan
+        NOT EVALUABLE, nunca FAIL."""
         report = run_preflight(
             days=3, seeds=(5001,),
             conditions=("FULL", "NO_TIMING_FEEDBACK", "STRUCTURED_NO_STATE",
@@ -261,15 +214,8 @@ class TestPreflightGate:
     def test_preflight_positive_control_detectable_across_frozen_seeds(
         self, tmp_path
     ):
-        """NO_TIMING_FEEDBACK (control positivo) en el horizonte
-        confirmatorio: la compuerta detecta el canal (fired_div >= 5%) y
-        REGISTRA qué pata disparó y con qué margen — la reconciliación del
-        manifiesto (G4) necesita los márgenes medidos, no solo el bool.
-        Medido en el código actual: n_fired_schedule 48 vs 62 = 29.2% en la
-        semilla 5001 (la pata de conteo de proactivos queda por debajo del
-        margen preregistrado 0.15 — exactamente por eso el split existe).
-        Se salta cuando la referencia no es reproducible (carrera conocida
-        de ``_run_segment``; la compuerta ya bloquea por sí sola)."""
+        """El control positivo se detecta y registra qué pata disparó con su
+        margen medido; se salta si la referencia no es reproducible."""
         report = run_preflight(
             days=30, seeds=(5001, 5002),
             conditions=("FULL", "NO_TIMING_FEEDBACK"),
@@ -294,12 +240,8 @@ class TestPreflightGate:
 
     @pytest.mark.slow
     def test_positive_control_high_margin_seed5005(self, tmp_path):
-        """El control positivo en la semilla 5005 tiene margen amplio en la
-        pata de disparos en el horizonte confirmatorio — el canal responde.
-        El test documenta la reconciliación: la claim POSITIVA de la
-        compuerta pasa por fired_div; el margen preregistrado (0.15) se
-        prueba en la matriz REAL, no aquí. Se salta si la referencia no es
-        reproducible."""
+        """En la semilla 5005 el control positivo tiene margen amplio en la pata
+        de disparos; se salta si la referencia no es reproducible."""
         report = run_preflight(
             days=30, seeds=(5005,),
             conditions=("FULL", "NO_TIMING_FEEDBACK"),
@@ -343,14 +285,8 @@ class TestPreflightGate:
 
 
 class TestNoLifeGoldfish:
-    """NO_LIFE (it3 G2): ablación goldfish — arcos frescos cada día.
-
-    La variable ablada es la PERSISTENCIA de identidad/progreso de arcos a
-    través de la medianoche: cada día re-siembra arcos con ids NUEVOS (epoch
-    creciente) y progreso inicial, con arcos presentes TODOS los días
-    (grounding de agenda intacto). FULL, en cambio, conserva los ids entre
-    días (progreso que avanza sobre el mismo arco).
-    """
+    """NO_LIFE: ablación goldfish — cada día re-siembra arcos con ids nuevos;
+    FULL conserva los ids entre días."""
 
     def test_no_life_arcs_fresh_each_day_disjoint(self, tmp_path):
         """2 días NO_LIFE: cada día tiene arcos (>0) y los conjuntos de ids
@@ -371,8 +307,7 @@ class TestNoLifeGoldfish:
             )
 
     def test_full_arcs_persist_across_days(self, tmp_path):
-        """FULL (mismo mecanismo, lado positivo): algún id de arco aparece
-        en >= 2 días — la identidad sobrevive la medianoche."""
+        """FULL: algún id de arco aparece en >= 2 días."""
         out = tmp_path / "cell"
         records = run_cell("FULL", 5001, out, days=2, fake=True, perturb=True)
         seen: set[str] = set()
@@ -385,8 +320,7 @@ class TestNoLifeGoldfish:
         assert overlap, "FULL must persist arc ids across days"
 
     def test_no_life_claim_discriminates(self, tmp_path):
-        """La claim reescrita DISCRIMINA: pasa con una célula NO_LIFE
-        goldfish y FALLA con una célula FULL (no es tautología)."""
+        """La claim discrimina: pasa con NO_LIFE goldfish y falla con FULL."""
         out = tmp_path / "cells"
         cells: dict[str, dict] = {}
         for cond in ("FULL", "NO_LIFE"):
@@ -396,10 +330,10 @@ class TestNoLifeGoldfish:
             cells[cond] = _aggregate([records_summary(store, records)])
             store.close()
         no_life, full = cells["NO_LIFE"], cells["FULL"]
-        # Goldfish cell: claim passes.
+
         verdicts = evaluate_claims("NO_LIFE", no_life, full, CLAIMS, days=3)
         assert verdicts and all(v["passed"] for v in verdicts), verdicts
-        # FULL cell: the same claim fails.
+
         verdicts_full = evaluate_claims("NO_LIFE", full, full, CLAIMS, days=3)
         assert verdicts_full and not any(v["passed"] for v in verdicts_full)
 
@@ -408,8 +342,7 @@ class TestClaimsRegistry:
     """Registro de claims: lista plana, contrato congelado, aditivo."""
 
     def test_registry_is_plain_list_of_ablation_claims(self):
-        """Toda entrada es AblationClaim (contrato congelado, invariante 9);
-        cada condición no-FULL de la matriz declara al menos una claim."""
+        """Toda entrada es AblationClaim y cada condición no-FULL declara una claim."""
         assert isinstance(CLAIMS, list)
         assert CLAIMS, "registry must be seeded"
         assert all(isinstance(c, AblationClaim) for c in CLAIMS)
@@ -425,8 +358,7 @@ class TestClaimsRegistry:
                 )
 
     def test_registry_accepts_additive_claims(self, tmp_path):
-        """Aceptación B8 #3: el mecanismo acepta claims añadidas (append a la
-        lista plana, sin reestructurar) y las evalúa."""
+        """El mecanismo acepta claims añadidas (append a la lista plana) y las evalúa."""
         extra_pass = AblationClaim(
             condition="FULL",
             channel="generation_controls",
@@ -486,13 +418,8 @@ class TestClaimsRegistry:
 
 
 class TestDeterminismCheck:
-    """Chequeo de determinismo: el run de referencia debe ser reproducible.
-
-    El runner de células del harness entrega feeds con polling de reloj real
-    (TIME_SCALE_S_PER_VH=0.0004) y bajo carga puede omitir feeds — el
-    pre-flight corre FULL dos veces y bloquea si divergen (una compuerta con
-    referencia no reproducible no es una compuerta).
-    """
+    """El run de referencia debe ser reproducible: el pre-flight corre FULL dos
+    veces y bloquea si divergen."""
 
     def test_summary_diff_detects_divergence(self):
         """_summary_diff compara las claves numéricas y reporta diferencias."""
@@ -511,8 +438,7 @@ class TestDeterminismCheck:
         assert not any("memory_lane" in d for d in diffs)  # identity excluded
 
     def test_preflight_reports_deterministic_on_idle_run(self, tmp_path):
-        """En un run sin carga, el chequeo de determinismo pasa y el reporte
-        lo declara (deterministic=True)."""
+        """En un run sin carga el chequeo de determinismo pasa."""
         report = run_preflight(
             days=3, seeds=(5001,),
             conditions=("FULL", "NO_LIFE"),
@@ -535,14 +461,8 @@ class TestDeterminismCheck:
 
 
 class TestPreregisteredClaimsG2:
-    """Claims de G2: objetivos preregistrados de B4/B5 + conducta de memoria.
-
-    Cada claim sustituida DISCRIMINA: pasa para la célula de su condición
-    (resúmenes sintéticos construidos conforme al objetivo comprometido) y
-    falla para una célula FULL (sin tautología). Las claims de memoria
-    fallan para la lane degenerada (el escenario SIMPLE_RAG-cero de it2:
-    store poblado, recuperación vacía/idéntica a FULL).
-    """
+    """Cada claim pasa para la célula de su condición y falla contra FULL
+    (sin tautología)."""
 
     @staticmethod
     def _flat_controls_stats() -> dict:
@@ -562,8 +482,7 @@ class TestPreregisteredClaimsG2:
 
     @staticmethod
     def _full_controls_stats() -> dict:
-        """FULL: mapeo ampliado de B4 — controles no degenerados sobre la
-        banda congelada (delay max 27.0 s >= 3.0x el delay plano 5.0 s)."""
+        """FULL: controles no degenerados (delay max 27.0 s = 3.0x el delay plano)."""
         return {
             "max_tokens": {"n": 30, "min": 380.0, "max": 625.0, "mean": 500.0,
                            "varied": True},
@@ -610,14 +529,12 @@ class TestPreregisteredClaimsG2:
                 if v["condition"] == condition]
 
     def test_b4_no_actuators_claim_discriminates(self):
-        """NO_ACTUATORS (B4): la célula plana pasa contra FULL no degenerado;
-        una célula FULL contra sí misma falla (sin tautología); el margen de
-        amplitud 3.0x en delay es vinculante."""
+        """La célula plana pasa contra FULL no degenerado; FULL contra sí misma falla."""
         cell = self._summary(controls=self._flat_controls_stats())
         full = self._summary(controls=self._full_controls_stats())
         verdicts = self._verdict("NO_ACTUATORS", cell, full)
         assert verdicts and all(v["passed"] for v in verdicts)
-        # FULL vs FULL fails.
+
         verdicts_full = self._verdict("NO_ACTUATORS", full, full)
         assert verdicts_full and all(not v["passed"] for v in verdicts_full)
         # FULL with delay max under 3.0x the flat delay does not pass.
@@ -630,20 +547,15 @@ class TestPreregisteredClaimsG2:
         assert verdicts_weak and all(not v["passed"] for v in verdicts_weak)
 
     def test_b5_structured_no_state_claim_discriminates(self):
-        """STRUCTURED_NO_STATE — la claim de MANIFIESTO de B5
-        (harness.scheduler.structured_no_state_claim, probada en la matriz
-        REAL en G5): divergencia de conteo >= 15% (COUNT_DIVERGENCE_MIN) Y
-        de gaps >= 10% (cuando hay >= 4 horas por lado); sin divergencia o
-        con gaps parejos la claim falla. La COMPUERTA del pre-flight es
-        otra cosa (canal no dormido, barra baja) — este test ejercita la
-        claim de efecto, que es la que decide el resultado confirmatorio."""
+        """STRUCTURED_NO_STATE: divergencia de conteo >= 15% y de gaps >= 10%
+        (con >= 4 horas por lado); sin divergencia la claim falla."""
         from harness.scheduler import structured_no_state_claim
 
         claim = structured_no_state_claim()
         cell = {"n_proactive": 12, "proactive_times": [10.0, 30.0, 50.0, 70.0]}
         full = {"n_proactive": 8, "proactive_times": [10.0, 20.0, 30.0, 40.0]}
         assert claim.check(cell, full)
-        # Identical inputs fail.
+
         same = {"n_proactive": 8, "proactive_times": [10.0, 20.0, 30.0, 40.0]}
         assert not claim.check(same, full)
         # Counts diverge >= 15% but mean gaps differ < 10%: claim fails.
@@ -656,17 +568,14 @@ class TestPreregisteredClaimsG2:
         assert claim.check(sparse, sparse_full)
 
     def test_simple_rag_claim_fails_on_degenerate_lane(self):
-        """Escenario SIMPLE_RAG-cero de it2: lane que NO recupera nada
-        (n_retrieved=0) -> la claim conductual falla aunque la lane
-        configurada sea 'simple_rag'."""
+        """Lane que no recupera nada (n_retrieved=0): la claim conductual falla."""
         full = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
         dead = self._summary(evidence=self._memory_evidence([]))
         verdicts = self._verdict("SIMPLE_RAG", dead, full)
         assert verdicts and all(not v["passed"] for v in verdicts)
 
     def test_simple_rag_claim_passes_on_real_retrieval(self):
-        """SIMPLE_RAG con recuperación real: evidencia no nula Y conjunto
-        recuperado distinto del de FULL -> pasa."""
+        """SIMPLE_RAG con recuperación real y conjunto distinto de FULL: pasa."""
         cell = self._summary(evidence=self._memory_evidence(["ep-x", "ep-y"]))
         full = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
         verdicts = self._verdict("SIMPLE_RAG", cell, full)
@@ -675,34 +584,31 @@ class TestPreregisteredClaimsG2:
         same = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
         verdicts_same = self._verdict("SIMPLE_RAG", same, full)
         assert verdicts_same and all(not v["passed"] for v in verdicts_same)
-        # FULL vs FULL fails.
+
         verdicts_full = self._verdict("SIMPLE_RAG", full, full)
         assert verdicts_full and all(not v["passed"] for v in verdicts_full)
 
     def test_raw_history_claim_discriminates(self):
-        """RAW_HISTORY: ventana cruda no nula (context_turns > 0) y sin ids
-        de episodio vs el conjunto de FULL -> pasa; sin ventana o lane
-        estructurada -> falla."""
+        """RAW_HISTORY: ventana cruda no nula y sin ids de episodio: pasa."""
         cell = self._summary(
             evidence=self._memory_evidence([], lane="raw_history", ctx=36)
         )
         full = self._summary(evidence=self._memory_evidence(["ep-a", "ep-b"]))
         verdicts = self._verdict("RAW_HISTORY", cell, full)
         assert verdicts and all(v["passed"] for v in verdicts)
-        # Empty window: fails.
+
         dead = self._summary(
             evidence=self._memory_evidence([], lane="raw_history", ctx=0)
         )
         verdicts_dead = self._verdict("RAW_HISTORY", dead, full)
         assert verdicts_dead and all(not v["passed"] for v in verdicts_dead)
-        # FULL vs FULL fails.
+
         verdicts_full = self._verdict("RAW_HISTORY", full, full)
         assert verdicts_full and all(not v["passed"] for v in verdicts_full)
 
     def test_records_summary_wires_behavioral_legs_to_real_store(self, tmp_path):
-        """Las piernas conductuales salen del store REAL: proactive_times
-        alinea con los mensajes proactivos y memory_evidence con la
-        recuperación de la lane (n_retrieved > 0 en una célula FULL real)."""
+        """Las piernas conductuales salen del store real: proactive_times y
+        memory_evidence alinean con mensajes y recuperación."""
         out = tmp_path / "cell"
         records = run_cell("FULL", 5001, out, days=2, fake=True, perturb=True)
         store = SQLiteStore(records["db"])

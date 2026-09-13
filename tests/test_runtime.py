@@ -1,17 +1,9 @@
-"""AsyncRuntime tests (wave 3 + A7): rollover, firing, gates, restart
-recovery, grounded intents, timing feedback, delivery latency.
+"""AsyncRuntime tests (wave 3 + A7): rollover, firing, gates, restart recovery,
+grounded intents, timing feedback, delivery latency.
 
 A tiny TimeScale (1 virtual hour = 1 ms real) runs full multi-day proactive
-cycles in milliseconds while the short poll sleep keeps the event loop
-responsive. All proactive activity is driven by schedule rows injected via
-the store (seam A-1) and by agenda items seeded for the event hours, so
-quiet-hours / cooldown / expired / recovery cases are fully deterministic
-even though the planner itself never places events in quiet hours.
-
-The A2 store seam has not landed in this repo, so the runtime tests run on
-the seam-faithful SeamStore (test_proactive) and inject a real
-IntentResolver over it; the sleeper is always injected (recorded, never
-real seconds).
+cycles in milliseconds. Proactive activity is driven by schedule rows injected
+via the store and by agenda items seeded for the event hours.
 """
 
 import asyncio

@@ -50,11 +50,8 @@ def _split_sums(row: dict[str, Any]) -> bool:
 def usage_payload(rows_in: list[dict[str, Any]]) -> dict[str, Any]:
     """Totals plus per-lane and per-role spend (same math as harness.spend).
 
-    Also reports the prompt-denominated hit share and how many rows carry a
-    ledger whose split does not sum to its prompt total. Rows written before
-    the ``cache_creation_input_tokens: 0`` reconciliation (see
-    ``harness.client._parse_cache_split``) stored ``cache_miss_tokens = 0``
-    and would otherwise read as a 100% cache hit forever.
+    Also reports the prompt-denominated hit share and counts rows whose ledger
+    split does not sum to its prompt total.
     """
     if not rows_in:
         return {"totals": stats_json(GroupStats()), "by_lane": [], "by_role": []}
@@ -73,7 +70,11 @@ def usage_payload(rows_in: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def envelope_of(row: dict[str, Any]) -> dict[str, Any] | None:
-    """The persisted request envelope, or None for a hash-only row."""
+    """The persisted request envelope, or None for a hash-only row.
+
+    The metered auxiliary lane nests the client kwargs - the system prompt among
+    them - under ``kwargs``; the aux system is hoisted to the top level.
+    """
     blob = row.get("repro_json")
     if not blob:
         return None
@@ -81,16 +82,20 @@ def envelope_of(row: dict[str, Any]) -> dict[str, Any] | None:
         loaded = json.loads(blob)
     except (ValueError, TypeError):
         return None
-    return loaded if isinstance(loaded, dict) else None
+    if not isinstance(loaded, dict):
+        return None
+    if "system" not in loaded and isinstance(loaded.get("kwargs"), dict):
+        aux_system = loaded["kwargs"].get("system")
+        if isinstance(aux_system, str):
+            loaded["system"] = aux_system
+    return loaded
 
 
 def _prefix_share(previous: dict[str, Any], current: dict[str, Any]) -> tuple[float, bool]:
     """Byte-proven shared prefix fraction and whether the system stayed put.
 
-    Mirrors ``harness.trace._prefix_share``: the previous envelope's trailing
-    block is the per-turn card, so it is excluded before comparison, and the
-    shared bytes are measured against the WHOLE current request (what share of
-    this prompt the provider could have served from cache).
+    The previous envelope's trailing card block is excluded before comparison;
+    shared bytes are measured against the whole current request.
     """
     _count, shared_chars, system_stable = context_mod.shared_message_count(previous, current)
     total_chars = sum(
@@ -193,16 +198,14 @@ def stamp(anchor: Any, t_h: Any) -> str | None:
 def tool_schemas_for(role: str | None) -> tuple[list[dict[str, Any]], str]:
     """The tool schemas a call of ``role`` sent, with their provenance.
 
-    The store keeps the request body WITHOUT ``tools``, so these are rebuilt
-    from the current code. The mainline reply sends no tools at all, and the
-    decide legs send the pinned schema named by their popup kind (falling back
-    to the full set, exactly as ``harness.session`` does).
+    Rebuilt from the current code: the store keeps the request body without
+    ``tools``. The mainline reply sends none; the decide legs send the pinned
+    schema named by their popup kind, falling back to the full set.
     """
     kind = str(role or "")
     if kind == "chat":
-        # "none" alone read as "the harness never sends schemas". It does —
-        # on the decide legs. Say where they go, so an empty tool panel on a
-        # chat call is not mistaken for a harness-wide omission.
+        # Say where the decide legs' schemas go, so an empty tool panel on
+        # a chat call is not read as a harness-wide omission.
         return [], ("none on this call — the mainline reply is prose by design; "
                     "the decide legs carry the schema")
     if kind.startswith("tool_decide"):

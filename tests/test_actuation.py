@@ -115,12 +115,7 @@ def test_response_delay_is_clamped_and_closing_tendency_passes_through() -> None
 
 
 def test_closing_guidance_is_disabled_by_default() -> None:
-    """2026-09-07: the closing channel no longer speaks to the model.
-
-    Every tendency renders the empty string, so the assembler drops the
-    CLOSING section entirely. ``closing_tendency`` itself is untouched — it
-    still drives the conversation-close draw.
-    """
+    """Closing guidance is disabled: every tendency renders the empty string."""
     assert actuation.CLOSING_GUIDANCE_ENABLED is False
     for tendency in (0.05, 0.5, 0.9):
         controls = actuation.controls_from_directive(
@@ -200,9 +195,7 @@ class _LengthProportionalClient:
 
 
 def _extreme_directive(*, low_energy: bool) -> BehaviorDirective:
-    """Construct the extremes directly (B4 acceptance 1): low = menstrual
-    02:00, mood 1 after a mood-8 day; high = ovulatory 14:00, mood 10 after a
-    mood-3 day. Deterministic: same seed, no RNG consumed."""
+    """Construct the low- and high-energy extremes directly."""
     from engine.types import DayRecord, TimingParams
     from harness.behavior import derive_behavior
 
@@ -224,10 +217,8 @@ def _extreme_directive(*, low_energy: bool) -> BehaviorDirective:
 
 
 def _realized_turns(tmp_path, directive: BehaviorDirective, *, n: int = 12) -> list[dict]:
-    """Run n scripted turns through the real session + fake client with
-    derive_behavior pinned to `directive` (caller monkeypatches it — the
-    cvs_common ablation pattern: the downstream path stays byte-identical;
-    only the directive is fixed)."""
+    """Run n turns through the real session + fake client; the caller pins
+    derive_behavior to `directive`."""
     from engine.types import MoodVariant, PersonaParams, TimingParams
     from harness.clock import VirtualClock
     from harness.judge import ScriptedJudge
@@ -268,17 +259,7 @@ def _realized_turns(tmp_path, directive: BehaviorDirective, *, n: int = 12) -> l
 
 
 def test_ab_extreme_states_separated_by_preregistered_margin(tmp_path, monkeypatch) -> None:
-    """B4 acceptance 1 — PREREGISTERED MARGINS (frozen at B4):
-
-    Over 12 scripted turns at each fixed extreme state (low-energy night vs
-    high-energy afternoon) through the real session + fake client:
-      * mean realized max_tokens:  HIGH >= 2.5x LOW   (measured 3.6x)
-      * mean realized reply words: HIGH >= 2.5x LOW   (same ratio; artifact)
-      * mean response_delay_s:     LOW  >= 3.0x HIGH  (measured 4.9x)
-      * mean closing_tendency:     LOW  >= 2.0x HIGH  (measured 3.9x; B2's
-        conversation loop turns this driver into turn-count separation —
-        asserted at the driver here, B2's seam).
-    """
+    """Extreme states separate the realized controls over 12 scripted turns."""
     import harness.session as session_mod
 
     monkeypatch.setattr(session_mod, "derive_behavior", lambda *a, **k: _extreme_directive(low_energy=True))
@@ -301,16 +282,7 @@ def test_ab_extreme_states_separated_by_preregistered_margin(tmp_path, monkeypat
 
 
 def test_30day_realized_ranges_cover_frozen_band(tmp_path) -> None:
-    """B4 acceptance 2 — FROZEN iteration-3 band (declared in the B4 report;
-    reviewed by B10, frozen into the G4 manifest):
-
-      max_tokens   [350, 630]   (measured 335–654, 105 distinct values)
-      delay_s      [8.0, 26.0]  (measured 7.61–27.16)
-      closing      [0.25, 0.80] (measured 0.219–0.831)
-
-    Over a scripted 30-day fake run (150 turns, seed 5001, hours 9/12/15/18/21)
-    the realized controls must occupy at least the band, with no degenerate
-    clustering at one value."""
+    """Realized controls over a 30-day scripted run cover the frozen band."""
     from engine.types import MoodVariant, PersonaParams, TimingParams
     from harness.client import FakeClient
     from harness.clock import VirtualClock
@@ -353,20 +325,14 @@ def test_30day_realized_ranges_cover_frozen_band(tmp_path) -> None:
     assert len({b for b in budgets}) >= 40, "degenerate clustering in max_tokens"
     assert min(delays) <= 8.0 and max(delays) >= 26.0, f"{min(delays)=} {max(delays)=}"
     assert min(closings) <= 0.25 and max(closings) >= 0.80, f"{min(closings)=} {max(closings)=}"
-    # The closing GUIDANCE channel is disabled (2026-09-07), so every turn
-    # renders "". The underlying closing_tendency band is asserted above;
-    # the band-to-prose mapping has its own test.
+    # Closing guidance is disabled, so every turn renders "". The
+    # band-to-prose mapping has its own test.
+
     assert set(guidances) == {""}
 
 
 def test_closing_guidance_yields_at_least_four_distinct_strings(monkeypatch) -> None:
-    """B4 acceptance 3: five bands across the widened closing range; a sweep
-    over [0.04, 0.85] yields >= 4 distinct guidance strings (F4: 2).
-
-    Asserted with the channel force-enabled: the MAPPING is still the frozen
-    B4 one, it just no longer reaches the prompt (see
-    ``test_closing_guidance_is_disabled_by_default``).
-    """
+    """A sweep over the closing range yields >= 4 distinct guidance strings."""
     monkeypatch.setattr(actuation, "CLOSING_GUIDANCE_ENABLED", True)
     strings = {
         actuation.controls_from_directive(_directive(closing_tendency=t)).closing_guidance

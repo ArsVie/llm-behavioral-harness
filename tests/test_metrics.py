@@ -83,13 +83,7 @@ class TestVarRatioByGain:
     """Test 3: M con var 4 donde g=2 y var 1 donde g=1 (dos bloques)."""
 
     def test_two_block_variance_ratio(self):
-        """Bloque g=1 con var(M)=1, bloque g=2 con var(M)=4 -> ratio ~4.
-
-        Con q=0.25 default y solo dos valores de g, el cuartil inferior
-        (g <= Q(0.25)) selecciona exactamente el bloque g=1 y el cuartil
-        superior (g >= Q(0.75)) selecciona exactamente el bloque g=2.
-        Tolerancia 25% (n grande, pero var muestral tiene ruido).
-        """
+        """Dos bloques con var(M)=1 y var(M)=4 -> ratio ~4 (tolerancia 25%)."""
         rng = np.random.default_rng(123)
         n_block = 5000
         g = np.concatenate([np.full(n_block, 1.0), np.full(n_block, 2.0)])
@@ -174,15 +168,8 @@ class TestGapStats:
     """Test 6: gaps construidos a mano [1,1,1,9]."""
 
     def test_hand_built_gaps(self):
-        """4 eventos en t=[0,1,2,3,12] -> gaps=[1,1,1,9].
-
-        A mano: mean=(1+1+1+9)/4=3; sorted=[1,1,1,9], median=(1+1)/2=1;
-        sd(ddof=1)=sqrt(((1-3)^2*3+(9-3)^2)/3)=sqrt((4*3+36)/3)=sqrt(48/3)=4;
-        cv=4/3; burstiness=(4-3)/(4+3)=1/7.
-        Histograma bin_width=1 desde min=1: bins [1,2),[2,3),...,[8,9] (8
-        bins); los tres gaps=1 caen en [1,2) (centro 1.5), el gap=9 en el
-        ultimo bin [8,9] (centro 8.5). Bin mas poblado: [1,2) -> mode_h=1.5.
-        """
+        """4 eventos en t=[0,1,2,3,12] -> gaps=[1,1,1,9] y stats a mano
+        (mean=3, median=1, cv=4/3, burstiness=1/7, mode_h=1.5)."""
         times_h = np.array([0.0, 1.0, 2.0, 3.0, 12.0])
         stats = gap_stats(times_h, bin_width_h=1.0)
 
@@ -215,16 +202,7 @@ class TestHourlyHistogram:
     """Test 7: eventos en horas conocidas, incluyendo t>24 (wrap)."""
 
     def test_hand_placed_events_with_wrap(self):
-        """Eventos en horas locales: 0(x2 via wrap), 5, 13, 13, 23.
-
-        times_h = [0.5, 24.5, 5.0, 13.0, 37.0, 23.9]
-        -> hora local (t%24) = [0.5, 0.5, 5.0, 13.0, 13.0, 23.9]
-        -> bin 0 (hora [0,1)): 2 eventos (0.5 y 24.5%24=0.5)
-        -> bin 5: 1 evento (5.0)
-        -> bin 13: 2 eventos (13.0 y 37.0%24=13.0)
-        -> bin 23: 1 evento (23.9)
-        resto de bins: 0. Total 6 eventos, shape (24,).
-        """
+        """Las horas locales se envuelven a 24 buckets; el histograma es (24,)."""
         times_h = np.array([0.5, 24.5, 5.0, 13.0, 37.0, 23.9])
         hist = hourly_histogram(times_h, bins=24)
 

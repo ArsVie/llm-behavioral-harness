@@ -1,22 +1,12 @@
 """Forbidden-token battery (Wave 2, A1): raw engine state never reaches the
 assembled prompt.
 
-For a battery of (seed, mood variant, day, local hour) combinations the
-ACTUAL system prompt the client received is scanned for the forbidden
-tokens — internal phase labels, hormone variables, mood parameters and
-cycle-day indices must never appear in conversation-visible strings:
-
-    phase_label, mu, eta, g, cycle_day, menstrual, follicular,
-    ovulatory, luteal
-
-The battery also verifies the prompt carries the persona core, a current
-activity, active life arcs and today's agenda, and stays within the
-assembler's character budget.
-
-Note on `g`: checked as a standalone word (\\bg\\b) — the letter appears
-inside ordinary words (dog, running, ...) which is user content, not state
-leakage. All battery fixtures deliberately avoid words containing the other
-tokens (e.g. "mu" inside "music") so the substring check is exact.
+For a battery of (seed, mood variant, day, local hour) combinations the ACTUAL
+system prompt the client received is scanned for phase_label, mu, eta, g,
+cycle_day, menstrual, follicular, ovulatory and luteal — with ``g`` matched as
+a standalone word (\\bg\\b). The prompt must still carry the persona core, a
+current activity, active life arcs and today's agenda, inside the character
+budget.
 """
 
 import re
@@ -108,16 +98,9 @@ def _battery_session(tmp_path, seed: int, variant: MoodVariant):
 
 
 def _ensure_activity_at(store, session, day: int, t_h: float) -> None:
-    """Guarantee an agenda item IN PROGRESS at ``t_h``.
-
-    The battery's structural assertions require ``Current activity:`` in
-    the prompt. Under NOW semantics (WS1, design §2.1) an activity is only
-    current when an item is genuinely in progress at that hour — the old
-    highest-salience fallback is gone, so a 15:00 message may have no
-    activity. The life-generated agenda is kept and a guaranteed
-    in-progress item (highest salience) is merged in; the forbidden-token
-    scan still covers the real generated agenda and all other sections.
-    """
+    """Guarantee an agenda item IN PROGRESS at ``t_h`` so the prompt carries
+    ``Current activity:``: the life-generated agenda is kept and a guaranteed
+    in-progress item (highest salience) is merged in."""
     session.ensure_day(day)
     agenda = store.load_agenda(day)
     items = agenda.items if agenda is not None else ()
@@ -166,17 +149,14 @@ def _check_prompt(call, *, seed: int, day: int) -> None:
         )
     # The budget bound applies to the system prompt, not the transcript.
     assert len(system) <= MAX_PROMPT_CHARS
-    # Persona core + life content present across the whole request. This must
-    # read EVERY message, not system+tail: day-scoped state (the plan, her
-    # arcs, the user model) is emitted once at rollover as its own stream
-    # message rather than re-sent in the per-turn card.
+    # Persona core + life content present across the whole request: read EVERY
+    # message, not system+tail (day-scoped state rides its own stream message).
     whole = _whole_request(call)
     assert "Nova" in whole
     assert "Current activity:" in whole
     assert "Active life arcs:" in whole
-    # The plan header is DATED on anchored runs ("Tuesday's plan:") so that
-    # yesterday's block, still in the stream as history, cannot be mistaken
-    # for today's. Unanchored runs keep the undated header.
+    # The plan header is DATED on anchored runs ("Tuesday's plan:") so
+    # yesterday's block cannot be mistaken for today's; unanchored stays undated.
     assert re.search(r"(Today's agenda:|\b\w+day's plan:)", whole), whole[:400]
 
 
@@ -208,12 +188,9 @@ TEMPORAL_LINE_RE = re.compile(
 
 
 def test_time_aware_anchored_battery_clean(tmp_path):
-    """G2/G3 on REAL anchored assembled prompts: with the G3 anchor attached
-    (epoch0 2026-08-15T13:30:00Z, tz America/Chihuahua), 3 days × turns at
-    ~15:00 the temporal section renders (line + partition), the line reads
-    the right weekday for the REAL date, and the numeric scan stays clean —
-    the temporal line's times and the agenda's clock times are the ONLY
-    numeric content allowed."""
+    """Anchored assembled prompts: the temporal section renders (line +
+    partition), the line reads the right weekday, and the numeric scan stays
+    clean — temporal-line times and agenda clock times are the ONLY numbers."""
     from datetime import datetime, timezone
 
     from harness.anchor import RealTimeAnchor

@@ -1,5 +1,5 @@
-"""Causal traces (plan §13, deliverable 10): machine-generated provenance
-walk for spontaneous proactive messages.
+"""Causal traces: machine-generated provenance walk for spontaneous
+proactive messages.
 
 For each proactive message the walk resolves:
   MESSAGE -> ProactiveIntent (reason) -> source (AgendaItem/LifeArc/

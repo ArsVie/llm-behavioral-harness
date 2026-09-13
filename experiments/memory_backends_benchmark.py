@@ -1,20 +1,18 @@
 """Small, reproducible comparison of the project memory and two OSS backends.
 
-The benchmark deliberately keeps the semantic embedding fixed across backends.
-The local llama.cpp server is used only for the extraction/generation step in
-the Mem0 and Graphiti adapters; llama.cpp's server in this environment does
-not expose /v1/embeddings.
+The semantic embedding is fixed across backends. The local llama.cpp server
+is used only for the extraction/generation step in the Mem0 and Graphiti
+adapters (it does not expose /v1/embeddings).
 
-Run one backend at a time because the project, Mem0, and Graphiti are being
-tested in different Python environments::
+Run one backend at a time because the project, Mem0, and Graphiti need
+different Python environments::
 
     python experiments/memory_backends_benchmark.py --backend current
     python experiments/memory_backends_benchmark.py --backend mem0
     python experiments/memory_backends_benchmark.py --backend graphiti
 
-Each command prints one JSON document.  The dataset is intentionally small:
-eight facts followed by twenty filler sessions so that the project's recent
-turn window cannot answer the questions by accident.
+Each command prints one JSON document.  The dataset is small: eight facts
+followed by twenty filler sessions.
 """
 
 from __future__ import annotations

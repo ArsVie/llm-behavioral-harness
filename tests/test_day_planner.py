@@ -1,17 +1,5 @@
-"""The day planner: concrete activities, real continuity, safe failure.
-
-What this replaces, measured on a real profile over fourteen simulated days:
-58 agenda items, 25 distinct activity strings, the four most common
-("morning coffee", "weekend market", "prepare the materials", "finish the
-current piece") accounting for 52% of them. Every interest activity was a
-verb template formatted with an interest NAME, and every arc activity was a
-``next_intention`` drawn once at arc creation and then frozen for the arc's
-whole life.
-
-The two properties templates cannot supply, and the ones asserted here:
-an OBJECT (a specific nameable thing) and CONTINUITY (today follows on from
-what actually happened).
-"""
+"""The day planner: planned text replaces templates for arcs and interests, a day
+follows on from recorded outcomes, and failure keeps the template day intact."""
 
 from __future__ import annotations
 
@@ -97,8 +85,7 @@ def test_parse_rejects_junk(reply):
 
 
 def test_an_overlong_activity_is_dropped_not_truncated():
-    """A paragraph must never reach the agenda, and a half-sentence is worse
-    than the template it would replace."""
+    """A paragraph must never reach the agenda."""
     long = "x" * (MAX_ACTIVITY_CHARS + 1)
     parsed = parse_plan(json.dumps({"activities": [long, "a real thing"]}), 2)
     assert parsed == ["", "a real thing"]
@@ -113,8 +100,7 @@ def test_trailing_period_and_whitespace_are_normalised():
 
 
 def test_request_labels_hers_versus_shared():
-    """``Interest.bucket`` reaches the planner — it was read nowhere outside
-    arc spawning, so the 40/40/20 mix never affected behaviour."""
+    """``Interest.bucket`` reaches the planner request as HERS/SHARED labels."""
     slots = [
         PlanSlot("interest", "pottery", "practice pottery",
                  "her interest in pottery (HERS)", bucket="independent"),
@@ -208,9 +194,7 @@ def test_planned_text_replaces_templates_for_arcs_and_interests(tmp_path):
 
 
 def test_routines_are_never_planned(tmp_path):
-    """"morning coffee" is the same thing every day — that is what makes it a
-    routine. A planner inventing a new object for it every morning would be
-    describing a different life."""
+    """Routines are never planned: "morning coffee" stays the same every day."""
     store = make_store(tmp_path, "routine.db")
     try:
         agenda = _generate(store, client=Planner(activities=["x"] * 6))
@@ -221,13 +205,8 @@ def test_routines_are_never_planned(tmp_path):
 
 
 def test_the_planner_never_perturbs_the_seeded_schedule(tmp_path):
-    """Windows, ids, sources and salience must be identical with and without
-    a planner — it supplies TEXT and nothing else, so replay is unaffected.
-
-    Every field is compared, not just the ones that looked likely: the
-    failure this guards against is a planner that reaches back into the
-    schedule, and it could do so through any of them.
-    """
+    """Windows, ids, sources and salience must be identical with and without a
+    planner — it supplies TEXT and nothing else, so replay is unaffected."""
     a = make_store(tmp_path, "a.db")
     b = make_store(tmp_path, "b.db")
     try:
@@ -272,11 +251,8 @@ def test_a_planner_failure_leaves_the_template_day_intact(tmp_path):
 
 
 def test_yesterdays_recorded_outcome_reaches_todays_plan(tmp_path):
-    """The whole point: a day follows on from what actually happened.
-
-    Templates cannot do this at any quality — they have no memory, so day 3
-    repeats day 0 with a different verb.
-    """
+    """A day follows on from what actually happened: yesterday's recorded outcome
+    reaches today's plan."""
     store = make_store(tmp_path, "cont.db")
     try:
         day0 = _generate(store, client=Planner(activities=[
@@ -298,8 +274,8 @@ def test_yesterdays_recorded_outcome_reaches_todays_plan(tmp_path):
 
 
 def test_an_elapsed_window_alone_records_no_outcome(tmp_path):
-    """An outcome must be something she decided or said — never a side effect
-    of time passing, or the planner follows on from a fiction."""
+    """An outcome must be something she decided or said — never a side effect of
+    time passing."""
     store = make_store(tmp_path, "elapsed.db")
     try:
         agenda = _generate(store, client=None, day=0)
@@ -328,15 +304,8 @@ def _interest_share(store, persona, name: str, days: int = 300) -> float:
 
 
 def test_the_bucket_weight_measurably_changes_what_she_does(tmp_path):
-    """``BUCKET_WEIGHT`` is the only path from the 40/40/20 portfolio to
-    behaviour, so it has to be observable in the DRAW, not just present.
-
-    A LOW-salience independent interest is the discriminating case: on
-    salience alone it is picked rarely, and the bucket boost is the only
-    thing that lifts it. Measured over 300 days — 12.5% unweighted,
-    18.3% weighted — so the threshold below fails if the weight is removed
-    or flattened.
-    """
+    """``BUCKET_WEIGHT`` must be observable in the DRAW: a low-salience independent
+    interest is picked well above its salience-only rate when it applies."""
     persona = PersonaProfile(
         name="Lily", core="You are Lily.", routines=(),
         interests=(

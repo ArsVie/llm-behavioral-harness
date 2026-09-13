@@ -1,12 +1,9 @@
-"""Proactive-as-decision primitives (WS2): the ``proactive_intent`` steer
-kind (registration, priority, render), the ``tool_decide_proactive`` schema
-and its runner path (execute, textual/native verdicts, replay, server draw),
-and the ``render_popup`` branch with Latest-user/silence context lines.
+"""Proactive-as-decision primitives (WS2): the ``proactive_intent`` steer kind,
+the ``tool_decide_proactive`` schema and runner path, and the
+``render_popup`` branch.
 
-Uses the real SQLiteStore (tmp_path) like test_tools.py so the runner's
-persistence surface is exercised end to end; the model callable and the
-capabilities object are fakes, and a FakeClient (harness.client) exercises
-the session-style adapter call shape.
+Uses the real SQLiteStore (tmp_path); the model callable and the capabilities
+object are fakes.
 """
 
 import json

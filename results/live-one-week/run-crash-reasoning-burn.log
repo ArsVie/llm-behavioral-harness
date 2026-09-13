@@ -1,0 +1,96 @@
+== two-week live simulation: seed=7001 days=7 time_scale=60.0s/vh (~2.8 h real) ==
+[live] user-plan: silent=[3] double=[6] cut_p=0.52 evenings=16.1-21.0h
+[d1 20:15] [USER] Hey. What are you up to?
+[d1 20:15] [COMPANION] Hey. Not much, just letting the day settle. I’ve got that night reading coming up in a bit, so I’m coasting until then. What about you?
+[d1 21:15] [USER] That sounds nice. How long did that take?
+[d1 20:16] [PROACTIVE] (event) Just coasting, mostly. Distracting myself from the fact that I should probably be setting up that reading corner proper — you know me, I'll find five other small things to do first. You caught me between them, so consider yourself a welcome interruption.
+LLM reply truncated (finish_reason=length, 153 chars) — content persisted, truncation recorded
+[d1 21:15] [COMPANION] Honestly? Long enough that I’ve lost track. A little of this, a little of that — the reading corner is still not set up, if that tells you anything. You’
+[d1 21:15] [USER] (leaves mid-conversation)
+[d2 17:43] [PROACTIVE] (event) Honestly, long enough that I’ve lost track. Little bits of nothing, one after another — and the books are still stacked sideways on the shelf, judging me. So, yeah. Productive hour. 😏 You just got the uncut version of my thrilling evening.
+[d2 20:23] [USER] Hey there. What's happening?
+LLM reply truncated (finish_reason=length, 0 chars) — content persisted, truncation recorded
+reactive turn failed
+Traceback (most recent call last):
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/runtime.py", line 489, in _on_inbound
+    result = await self._generate_with_typing(_gen)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/runtime.py", line 522, in _generate_with_typing
+    return await _gen()
+           ^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/runtime.py", line 517, in _gen
+    result = await generation()
+             ^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/runtime.py", line 484, in _gen
+    return await self._executor.run_in_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/concurrency.py", line 198, in run_in_thread
+    return await loop.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/session.py", line 1979, in on_message
+    return self._chat(user_text, proactive=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/cvs_common.py", line 433, in _chat
+    result = super()._chat(user_text, proactive=proactive, intent=intent)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/session.py", line 1604, in _chat
+    reply, reasoning, usage, raw_cost = self._generate(
+                                        ^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/session.py", line 1426, in _generate
+    raise RuntimeError(
+RuntimeError: refusing to persist empty assistant reply (client returned empty/whitespace-only content)
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/live_two_weeks.py", line 381, in <module>
+    sys.exit(main())
+             ^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/live_two_weeks.py", line 373, in main
+    return asyncio.run(amain(argv))
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 194, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/asyncio/base_events.py", line 687, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/live_two_weeks.py", line 332, in amain
+    await channel.inbound(ev["text"], t_h)
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/live_two_weeks.py", line 265, in inbound
+    await self.handler(InboundMessage(text=text, sender_id="ars",
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/runtime.py", line 489, in _on_inbound
+    result = await self._generate_with_typing(_gen)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/runtime.py", line 522, in _generate_with_typing
+    return await _gen()
+           ^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/runtime.py", line 517, in _gen
+    result = await generation()
+             ^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/runtime.py", line 484, in _gen
+    return await self._executor.run_in_thread(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/concurrency.py", line 198, in run_in_thread
+    return await loop.run_in_executor(
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/lib/python3.12/concurrent/futures/thread.py", line 58, in run
+    result = self.fn(*self.args, **self.kwargs)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/session.py", line 1979, in on_message
+    return self._chat(user_text, proactive=False)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/experiments/cvs_common.py", line 433, in _chat
+    result = super()._chat(user_text, proactive=proactive, intent=intent)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/session.py", line 1604, in _chat
+    reply, reasoning, usage, raw_cost = self._generate(
+                                        ^^^^^^^^^^^^^^^
+  File "/home/vruizes/.hermes/projects/llm-behavioral-harness/harness/session.py", line 1426, in _generate
+    raise RuntimeError(
+RuntimeError: refusing to persist empty assistant reply (client returned empty/whitespace-only content)

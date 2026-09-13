@@ -1,18 +1,9 @@
 """What was on the model's context, priced and ordered.
 
-DeepSeek Harness answers this from a replay fold: the current ordered surface,
-one token price per node, reconciled against the provider's last usage report.
-We have something better and simpler to trust — the exact request envelope is
-persisted per call (``llm_calls.repro_json``, audit mode), so this module
-prices the envelope that really went out.
-
-Two honesty rules the front-end renders verbatim:
-
-* the system prompt and the message list are priced from the persisted bytes,
-  with the provider's ``prompt_tokens`` as the anchor;
-* the tool schemas are NOT in the persisted envelope (the store keeps the
-  request body minus ``tools``), so they are reconstructed from the current
-  code (``harness.tools``) and labelled as such.
+Prices the request envelope that really went out (``llm_calls.repro_json``):
+the system prompt and the message list from the persisted bytes, anchored to
+the provider's ``prompt_tokens``. Tool schemas are not in the envelope, so
+they are reconstructed from the current code (``harness.tools``).
 """
 
 from __future__ import annotations
@@ -111,6 +102,9 @@ def message_nodes(envelope: dict[str, Any], shared_count: int) -> list[dict[str,
             "cached": index < shared_count,
             "tool_calls": [tc.get("function", {}).get("name") or tc.get("name")
                            for tc in (message.get("tool_calls") or [])],
+            # The full text rides along so the drawer can show the reply; the
+            # preview is only for the row in the list.
+            "content": text or "",
             "preview": _clip(text or "", 220),
         })
     return nodes
@@ -180,9 +174,8 @@ def _pressure(usage: dict[str, Any], provider: int | None,
     """The headline figures: what was billed, cached, fresh and full."""
     cached_tokens = int(usage.get("cached_tokens") or 0)
     miss_tokens = int(usage.get("cache_miss_tokens") or 0)
-    # Rows written before the client's usage reconciliation can carry a miss
-    # count that does not sum to their prompt total; the fresh share is then
-    # the remainder, and the mismatch is reported so the front-end can say so.
+    # A miss count that does not sum to the prompt total: the fresh share
+    # is the remainder and the mismatch is reported for the front-end.
     if provider is None or cached_tokens + miss_tokens == provider:
         ledger_ok = True
         fresh_tokens = miss_tokens

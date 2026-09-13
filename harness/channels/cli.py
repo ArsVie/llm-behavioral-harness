@@ -1,15 +1,8 @@
-"""Async stdin/stdout CLI channel (Part B, worker B2).
+"""Async stdin/stdout CLI channel.
 
-``CLIChannel`` implements the Channel protocol from
-``harness/channels/base.py`` for direct terminal interaction. A background
-asyncio task reads lines from stdin — via ``asyncio.to_thread`` so the event
-loop is never blocked and the reader stays cancellable — and forwards each
-non-empty line to the inbound handler as an ``InboundMessage``. Outbound
-messages are printed to stdout, with a ``[proactive] `` prefix when flagged
-proactive.
-
-A blank line or EOF is the stop signal: it ends the reader loop (the channel
-then silently delivers nothing more until ``stop()`` or process exit).
+A background task reads stdin via ``asyncio.to_thread`` (never blocks the event
+loop) and forwards each non-empty line to the inbound handler; outbound
+messages print to stdout.
 """
 
 from __future__ import annotations
@@ -24,9 +17,9 @@ from harness.channels.base import InboundHandler, InboundMessage, OutboundMessag
 class CLIChannel:
     """Terminal channel: stdin -> InboundMessage, OutboundMessage -> stdout.
 
-    ``start()`` schedules a cancellable background reader task and returns
-    immediately (it never blocks on input). ``send()`` prints the message
-    text with flush. ``stop()`` cancels the reader task and is idempotent.
+    ``start()`` schedules a background reader task and returns immediately (it
+    never blocks on input); EOF or a blank line ends that reader. ``stop()``
+    cancels it and is idempotent.
     """
 
     name = "cli"
@@ -50,14 +43,13 @@ class CLIChannel:
         handler as InboundMessage(text=..., sender_id="cli")."""
         assert self._on_message is not None
         while True:
-            # Off the event loop; cancellable because to_thread returns a
-            # cancellable future even while the OS read blocks in the thread.
+            # Off the event loop (to_thread stays cancellable while the read blocks).
             line = await asyncio.to_thread(self._stdin.readline)
             if line == "":
-                break  # EOF: no more input
+                break
             text = line.strip()
             if text == "":
-                break  # blank line: stop signal per spec
+                break
             await self._on_message(InboundMessage(text=text, sender_id="cli"))
 
     async def send(self, message: OutboundMessage) -> None:
@@ -69,10 +61,8 @@ class CLIChannel:
     async def stop(self) -> None:
         """Cancel the reader task and release stdin. Idempotent.
 
-        Cancelling the reader alone leaves the executor thread blocked in
-        ``readline()`` alive; asyncio.run's executor shutdown would then
-        hang at process exit (verified empirically). Closing stdin signals
-        EOF, which unblocks the thread.
+        Closing stdin unblocks the executor thread parked in ``readline()``,
+        which would otherwise hang process exit.
         """
         reader, self._reader = self._reader, None
         if reader is not None and not reader.done():

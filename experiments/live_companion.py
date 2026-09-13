@@ -1,6 +1,4 @@
-"""Companion en vivo — Telegram o CLI (integración it3, workstream del
-usuario: "telegram and cli integration, steal the gate for the hermes
-agent to test").
+"""Companion en vivo — Telegram o CLI.
 
 Wire del stack completo, cero piezas nuevas en el runtime:
     config.select_channel('telegram'|'cli') -> AsyncRuntime.run()
@@ -10,10 +8,9 @@ Wire del stack completo, cero piezas nuevas en el runtime:
 - El token del bot se ROBA de la configuración del agente Hermes
   (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID en ~/.hermes/.env) — el mismo
   canal de mensajería que Hermes ya usa; el harness solo lo consume.
-- Tiempo REAL: time_scale = 3600 s/vh (1 hora virtual = 1 hora real) —
-  a diferencia de las células aceleradas de la matriz.
-- El DB persiste entre sesiones (resume-safe, it2 A5): reabrir con la
-  misma ruta continúa la historia sin rewind.
+- Tiempo REAL: time_scale = 3600 s/vh.
+- El DB persiste entre sesiones (resume-safe): reabrir con la misma ruta
+  continúa la historia sin rewind.
 
 Uso:
     # lane token (LILY_TOKEN) vive en el .env de la raíz del repo:
@@ -24,11 +21,10 @@ Uso:
         --db results/live-companion/companion.db
 
 Flags opcionales (misma superficie que sim/run_async):
-    --enable-commands   registra el handler de slash-commands (S3).
-                        Default OFF -> los comandos se descartan, igual que
-                        hoy. Con el flag ON el canal registra el menú de
-                        comandos del cliente vía setMyCommands (/state
-                        NUNCA se registra: contamina la lectura perceptual).
+    --enable-commands   registra el handler de slash-commands.
+                        Default OFF -> los comandos se descartan. Con el
+                        flag ON el canal registra el menú de comandos del
+                        cliente vía setMyCommands (/state NUNCA se registra).
     --tz <IANA>         ancla el reloj virtual a tiempo real (HARNESS_TZ
                         como fallback; sin ninguno = sin ancla).
     Las demás features UX (debounce HARNESS_DEBOUNCE con ventanas
@@ -76,18 +72,15 @@ from harness.env import env_bool as _env_bool
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
-#: Held poller locks (one fd per telegram profile): the OS releases an
-#: flock when its fd closes, so the references must live as long as the
-#: process. See acquire_poller_lock.
+#: Held poller locks (one fd per telegram profile): the OS releases the
+#: flock when the fd closes, so the references must outlive the process.
 _POLLER_LOCKS: list = []
 
 # One virtual hour equals one real hour (live mode; the matrix cells use 0.0004).
 LIVE_TIME_SCALE_S_PER_VH = 3600.0
 
-#: Owner identity for a live trial. Without these the bootstrap falls back to
-#: the ablation matrix's fixture — a user literally named "User" whose
-#: interests are the matrix's four — so the companion spends the trial
-#: talking to a stranger she was told she knows.
+#: Owner identity for a live trial; unset, the bootstrap falls back to the
+#: ablation matrix fixture.
 OWNER_NAME_ENV = "LILY_OWNER_NAME"
 OWNER_INTERESTS_ENV = "LILY_OWNER_INTERESTS"       # comma-separated
 COMPANION_NAME_ENV = "LILY_COMPANION_NAME"
@@ -95,10 +88,8 @@ COMPANION_NAME_ENV = "LILY_COMPANION_NAME"
 
 
 
-#: How much unrun virtual time a resume may silently skip. Beyond this the
-#: entry refuses: the anchor is a wall-clock line, so a DB parked for a week
-#: maps "now" to a virtual day the simulation never lived through, and the
-#: first midnight would manufacture every intervening day at once.
+#: How much unrun virtual time a resume may silently skip; beyond this the
+#: entry refuses (--accept-resume-gap continues anyway).
 MAX_RESUME_GAP_DAYS = 1.0
 
 
@@ -106,13 +97,10 @@ def check_resume_gap(store: SQLiteStore, anchor, now_epoch_s: float,
                      max_gap_days: float = MAX_RESUME_GAP_DAYS) -> str | None:
     """Describe an unsafe resume gap, or None when the resume is safe.
 
-    ``anchor.t_h_at(now)`` is where the wall clock says the companion should
-    be; ``latest_daily_state`` is the last day she actually lived. When the
-    first is far ahead of the second, ``Session.ensure_day`` will roll every
-    missing day forward at the next midnight — finalising each one through
-    the judge — so the trial would start on top of days that never happened.
-    Refusing is the point: the operator archives the DB or accepts the gap
-    explicitly.
+    ``anchor.t_h_at(now)`` is where the wall clock says she should be;
+    ``latest_daily_state`` is the last day she lived. A gap beyond
+    ``max_gap_days`` means ``Session.ensure_day`` would roll every missing
+    day forward at the next midnight, finalising each through the judge.
     """
     latest = store.latest_daily_state()
     reached_day = int(latest["day"]) if latest else 0
@@ -130,12 +118,7 @@ def check_resume_gap(store: SQLiteStore, anchor, now_epoch_s: float,
 
 
 def configure_logging(db_path: Path) -> Path:
-    """Send warnings and errors to stderr AND to a file beside the DB.
-
-    Nothing configured a handler before, so a failed turn produced at best a
-    line on whatever terminal launched the bot — gone the moment the terminal
-    closed. The file is what you read after an unattended night.
-    """
+    """Send warnings and errors to stderr AND to a file beside the DB."""
     log_path = db_path.parent / "companion.log"
     log_path.parent.mkdir(parents=True, exist_ok=True)
     logging.basicConfig(
@@ -145,7 +128,7 @@ def configure_logging(db_path: Path) -> Path:
                   logging.FileHandler(log_path, encoding="utf-8")],
     )
     # httpx logs every request at INFO; the turn traffic is already in the
-    # llm_calls ledger, so keep the file readable.
+    # llm_calls ledger.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("telegram").setLevel(logging.INFO)
     return log_path
@@ -159,16 +142,14 @@ def build_store(db_path: Path) -> SQLiteStore:
 def owner_profile() -> UserProfile:
     """The owner's identity from the environment, matrix fixture otherwise.
 
-    ``LILY_OWNER_INTERESTS`` is a comma-separated list; blank entries are
-    dropped so a trailing comma is harmless.
+    ``LILY_OWNER_INTERESTS`` is a comma-separated list; blank entries
+    are dropped.
     """
     name = (os.environ.get(OWNER_NAME_ENV) or "").strip() or DEFAULT_USER_NAME
     raw = os.environ.get(OWNER_INTERESTS_ENV) or ""
     interests = tuple(x.strip() for x in raw.split(",") if x.strip())
-    # Falls back to the PRODUCT default, not the ablation matrix fixture.
-    # This used to end at GATE2_USER_INTERESTS, so a live trial with the env
-    # vars unset (they were) built the companion's whole interest portfolio
-    # around an experiment's example user.
+    # Falls back to the PRODUCT default (DEFAULT_USER_INTERESTS), not the
+    # ablation matrix fixture.
     return UserProfile(name=name, interests=interests or DEFAULT_USER_INTERESTS)
 
 
@@ -176,11 +157,9 @@ def rename_companion(store: SQLiteStore, new_name: str) -> bool:
     """Rename the persona in place, fixing the name inside the prose core.
 
     ``harness.persona.build_persona`` hard-codes ``DEFAULT_NAME`` ("Nova")
-    and writes it into the core prose ("You are Nova, ..."), so a bot the
-    owner knows by another name introduces itself as Nova on turn one.
-    Returns True when a rename happened. Identity is otherwise untouched —
-    interests, routines and the seed-drawn portfolio are the persona's, not
-    the name's.
+    and writes it into the core prose ("You are Nova, ..."), so the name is
+    replaced there too. Returns True when a rename happened; only the name
+    and the prose core change.
     """
     persona = store.load_persona()
     if persona is None or not new_name or persona.name == new_name:
@@ -231,16 +210,10 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
     if client is None:
         client = OpenAICompatibleClient(lane="product")
     if judge is None:
-        # The REAL judge, not the matrix's DeterministicJudge. The scripted
-        # one returns a seed-keyed sinusoid with a hard-coded bad-mood block
-        # on days 11-14, and the session runs feedback=True — so with it in
-        # place the companion's mood answered a script, never the person she
-        # was talking to. See harness/judge.py: the v2 rubric scores the
-        # USER's treatment of the companion, and it still owes a monthly
-        # separation re-check before its numbers are trusted.
+        # The REAL judge (harness/judge.py), not the matrix's DeterministicJudge.
         judge = judge_day
-    # Judge lane: LLM judges get a research-lane client so judge spend
-    # attributes to the research lane; offline judging keeps the product client.
+    # Judge lane: LLM judges get a research-lane client; offline judging keeps
+    # the product client.
     if judge_client is None and not isinstance(judge, DeterministicJudge):
         judge_client = OpenAICompatibleClient(lane="research")
     persona = persona or PersonaParams()
@@ -269,8 +242,7 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
         resolver=IntentResolver(store, rng=stream_rng(seed, rng_mod.EXPERIMENT_STREAM)),
         sleeper=None,
         anchor=anchor,
-        # Live policy: one failed provider response must not end a week-long
-        # run. Experiment cells keep the fail-fast default.
+        # Live policy: one failed provider response must not end a week-long run.
         survive_turn_failures=True,
     )
     return rt
@@ -295,9 +267,8 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
         print("--check only applies to the telegram channel")
         return 2
 
-    # The planner is opt-in in the session (it shares the conversation
-    # client, so it must never surprise an offline run); the live launcher
-    # is exactly the place to turn it on.
+    # The planner is opt-in in the session; the live launcher turns it on
+    # via HARNESS_DAY_PLANNER.
     if day_planner is not None:
         os.environ["HARNESS_DAY_PLANNER"] = "1" if day_planner else "0"
 
@@ -313,8 +284,7 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
             return 4
     if defer_bootstrap and store.load_persona() is None:
         # Blank DB and the operator asked to onboard interactively: leave
-        # identity uninitialized so /setup has something to do. The runtime
-        # wires the setup hook, so the command can actually succeed.
+        # identity uninitialized so /setup has something to do.
         print("[live] defer-bootstrap: companion NOT initialized — send "
               "/setup on the channel to onboard.", flush=True)
     else:
@@ -428,8 +398,8 @@ def main(argv: list[str] | None = None) -> int:
              "manufactured at the first midnight). Default: refuse.",
     )
     args = parser.parse_args(argv)
-    # WS-C env bootstrap: sources the repo-root .env so the product-lane
-    # token (LILY_TOKEN) is available.
+    # Sources the repo-root .env so the product-lane token (LILY_TOKEN) is
+    # available.
     load_env_file(REPO_ROOT / ".env")
     tz = args.tz or os.environ.get("HARNESS_TZ") or None
     try:

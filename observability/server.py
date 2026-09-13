@@ -1,10 +1,8 @@
 """The observability web app: read-only JSON + Server-Sent Events + one page.
 
-Standard library only. The server never mutates a run: every handler goes
-through ``observability.reader``, which opens the database read-only. Two
-concurrency guards keep a live bot's writer happy: the run id in a request is
-matched against the discovered run list (no path from the URL reaches the
-filesystem), and the SSE loop only polls cheap id/mtime probes.
+Standard library only. Every handler reads through ``observability.reader``,
+which opens the database read-only; the run id in a request is matched against
+the discovered run list, so no path from the URL reaches the filesystem.
 """
 
 from __future__ import annotations
@@ -72,8 +70,7 @@ class Handler(BaseHTTPRequestHandler):
     def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
         """Quiet: the harness' own log is the record of interest.
 
-        ``format``/``args`` are part of the ``BaseHTTPRequestHandler``
-        contract and intentionally unused.
+        ``format``/``args`` are unused, required by the base class contract.
         """
         _ = (args, format)
 

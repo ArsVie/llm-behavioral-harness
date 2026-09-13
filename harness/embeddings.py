@@ -1,22 +1,7 @@
-"""Embedding interfaces for the memory pipeline (Iteration-2 A4, plan §5-A4 Task 3).
+"""Embedding interfaces for the memory pipeline.
 
-Two implementations of one callable contract (``Embedder``):
-``text -> unit vector``:
-
-* ``DeterministicHashEmbedder`` — seeded feature hashing (SHA-256, signed
-  accumulators, process-stable). Used by tests and deterministic CI runs.
-* ``RealSemanticEmbedder`` — wraps an injectable semantic-embedding backend
-  (a local model or service). Used by the real eval/live condition; the
-  backend is wired by experiments, never imported here.
-
-There is NO vector database: retrieval is brute-force cosine over stored
-vectors (``harness.memory`` scans its episode/turn embeddings directly).
-
-COMPARISON RULE (plan §5-A4 Task 3, invariant 13): during any comparison of
-memory conditions, ``VERBATIM_RAG`` and ``STRUCTURED_MEMORY`` MUST use the
-SAME semantic backend — the one ``Embedder`` instance injected into
-``MemoryAgent`` is shared by both policy paths; a policy change never swaps
-the embedder.
+Two implementations of one callable contract (``Embedder``): text -> unit
+vector. No vector DB — retrieval is brute-force cosine over stored vectors.
 """
 
 from __future__ import annotations
@@ -58,10 +43,8 @@ _STOPWORDS = frozenset(
 class DeterministicHashEmbedder:
     """Seeded feature-hashing embedder — deterministic across processes.
 
-    Maps text to a unit vector via SHA-256-signed accumulators over
-    lower-cased alphanumeric tokens (never Python's randomized ``hash()``),
-    so identical text always yields an identical vector on any machine.
-    Empty text maps to ``e_0``.
+    SHA-256-signed accumulators over lower-cased alphanumeric tokens (never
+    Python's randomized ``hash()``). Empty text maps to ``e_0``.
     """
 
     def __init__(self, *, dim: int = 64, seed: int = 0) -> None:
@@ -85,17 +68,10 @@ class DeterministicHashEmbedder:
 class RealSemanticEmbedder:
     """Real semantic embedder wrapping an injectable backend.
 
-    The backend is a batch callable ``list[str] -> list[list[float]]``
-    (e.g. a local sentence-transformer model or an OpenAI-compatible
-    embedding endpoint). It is injected at construction by experiments and
-    the live condition; this module never imports a model or talks to a
-    service. No vector DB — vectors are stored as plain arrays and compared
-    with brute-force cosine.
-
-    NOTE for eval comparisons: a single ``RealSemanticEmbedder`` instance
-    must be shared by the ``VERBATIM_RAG`` and ``STRUCTURED_MEMORY``
-    conditions (plan §5-A4 Task 3) — pass the same instance to the
-    ``MemoryAgent`` used for both.
+    The backend is a batch callable ``list[str] -> list[list[float]]``,
+    injected at construction; this module never imports a model or talks to a
+    service. For eval comparisons of memory conditions, pass the SAME instance
+    to every condition.
     """
 
     def __init__(

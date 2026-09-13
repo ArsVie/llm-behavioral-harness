@@ -80,10 +80,8 @@ def find_runs(root: Path | None = None, *, limit: int = 60) -> list[RunRef]:
 def live_processes(pattern: str = "live_companion") -> dict[str, int]:
     """Running ``pattern`` processes, keyed by the run database they serve.
 
-    The file mtime says whether the run is *writing*; this says whether its
-    process still exists, so a quiet bot can be told apart from a dead one.
-    A relative ``--db`` resolves against this checkout, which is where the
-    launcher runs from. Returns an empty map when ``ps`` is unavailable.
+    A relative ``--db`` resolves against this checkout. Empty map when ``ps``
+    is unavailable.
     """
     try:
         completed = subprocess.run(["ps", "-eo", "pid,args"], capture_output=True,
@@ -139,12 +137,8 @@ def deployments(scripts_dir: Path | None = None,
                 root: Path | None = None) -> list[Deployment]:
     """Every ``live_*.sh`` launcher, as a channel plus a run-path pattern.
 
-    A deployed run is one a launcher points at, which is the only honest
-    definition available: the run database itself records no channel. The
-    launcher's ``--db`` value is read directly, and a value that comes from a
-    shell variable is resolved when the script assigns it, otherwise the
-    variable becomes a wildcard (the CLI launcher keeps its db under
-    ``results/profiles/$PROFILE/``).
+    The launcher's ``--db`` is read directly; a value from a shell variable is
+    resolved where the script assigns it, otherwise it becomes a wildcard.
     """
     base = root or repo_root()
     where = scripts_dir or LAUNCHER_DIR

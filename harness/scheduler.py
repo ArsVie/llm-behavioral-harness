@@ -1,60 +1,9 @@
-"""Proactive scheduler — plan + fire spontaneous messages (W-E2, A7; it2 A3).
+"""Proactive scheduler — plan + fire spontaneous messages.
 
-The scheduler answers ONLY "should she consider contacting the user now?" —
-each planned event hour becomes a :class:`ContactOpportunity` (NO semantic
-reason; invariant 3). Semantic motivation is resolved afterward, at
-opportunity time, by the runtime's IntentResolver into a grounded
-:class:`ProactiveIntent` (invariant 4).
-
-Reuses the PROVEN composition from sim/run_events (envelope × phase × adj,
-Weibull hazard + thinning, queue guards) instead of reimplementing the
-process. Since A7 the timing feedback is LIVE: the runtime plans only the
-CURRENT day with a per-day effective-scores array encoding the previous
-day's real judge score and the day's behavioral initiative:
-
-    h(tau,t) = h0(tau) * C(t) * P(t) * A(score_{d-1}) * I(t)
-
-    A(s)   = adj_from_score(s) = clip(1 + ADJ_SLOPE·s, *adj_bounds)
-             (the engine's monotone bounded previous-day adjustment)
-    I(i)   = initiative_factor(i) = clip(exp(beta·(i-0.5)), *bounds)
-             (mechanical multiplier from BehaviorDirective.initiative)
-    scores[d-1] = (A(score_{d-1}) * I(d) - 1) / ADJ_SLOPE
-
-so that the engine's own adj_from_score(scores[d-1]) reproduces the product
-A(score_{d-1})·I(d) (clipped at adj_bounds). `scores=None` ⇒ adj ≡ 1 is kept
-ONLY for tests/legacy callers — live scheduling (runtime._replan) always
-passes a concrete array (never None).
-
-B5 (iteration-3, closes F4): the latent state now reaches the hazard as a
-preregistered multiplicative term. The store-backed live path
-(plan_and_persist) derives the day's state vector x_d = (E, S, R, A) from
-the day's BehaviorDirective — resolved through the PATCHABLE harness.session
-seam so eval condition patches reach the scheduler — and feeds
-exp(w·(x_d − x₀)) (STATE_WEIGHTS, STATE_NEUTRAL) into run_events' new
-`state_factors` seam:
-
-    h(tau,t) = h0(tau) * C(t) * P(t) * A(score_{d-1}) * I(d) * exp(w·(x_d − x₀))
-
-Under STRUCTURED_NO_STATE's neutral-directive patch x_d ≡ x₀, so the term
-collapses to exactly 1.0 and the timing channel ablates. The seam parameter
-defaults to None: every caller that does not opt in is byte-identical
-(adj-only composition). The Weibull base h0(τ) is plan-frozen and untouched.
-
-Guards inherited from run_events.run:
-  - zero events in quiet hours (envelope = 0 by construction);
-  - min gap between accepted events (15 min default);
-  - daily cap (3 default);
-  - max-gap forcing (48 h) — if the hazard would let silence exceed it, a
-    contact is forced at the first awake instant.
-
-`ProactiveSchedule` tracks which planned events have fired; the async
-runtime (harness/runtime.py) fires due events by pacing the virtual clock
-to each event's hour (sim/run_async.py is the entrypoint).
-
-Restart recovery (A7): `next_pending(t_h)` surfaces PENDING events with
-event_time <= t_h (overdue-visible: at now == event_time the event MUST be
-visible, and overdue rows are never stranded). The runtime then evaluates
-each overdue event — still valid ⇒ fire, past its validity window ⇒ expire.
+Each planned event hour becomes a :class:`ContactOpportunity` with NO semantic
+reason; the runtime resolves a grounded :class:`ProactiveIntent` at opportunity
+time. Event times come from sim/run_events' hazard process, modulated per day by
+the day's stored judgement and BehaviorDirective.
 """
 
 from __future__ import annotations
@@ -127,17 +76,11 @@ def build_opportunity(
 ) -> ContactOpportunity:
     """A ContactOpportunity for a planned event hour — and NOTHING more.
 
-    The Weibull/hazard process says "a plausible time to consider initiating
-    contact"; there is deliberately NO semantic reason on the opportunity
-    (invariant 3 — semantic motivation is resolved later, at opportunity
-    time, into a grounded ProactiveIntent). ``hazard_components`` reports
-    the multiplicative factors of the frozen modulator composition
-    (envelope × phase × A(score_{d-1}) × I(day), plus the B5 ``state``
-    factor exp(w·(x−x₀)) when the state coupling is active) at ``t_h`` for
-    auditability; ``base`` is 1.0 because the Weibull baseline h0(τ) lives
-    inside engine.timing.next_event (engine frozen — not separately
-    recoverable). ``state_factor=None`` (default) keeps the components dict
-    byte-identical to the uncoupled composition.
+    There is deliberately NO semantic reason here: it is resolved later, at
+    opportunity time, into a grounded ProactiveIntent. ``hazard_components``
+    reports the multiplicative factors at ``t_h`` (``base`` is 1.0 — the Weibull
+    baseline lives inside engine.timing). ``state_factor=None`` omits the
+    ``state`` component.
     """
     init_mult = initiative_factor(initiative)
     score_mult = adj_from_score(previous_score, timing)
@@ -172,12 +115,10 @@ def _opportunities_for_plan(
 ) -> dict[float, ContactOpportunity]:
     """Map each planned event hour to its ContactOpportunity (deterministic).
 
-    Phase labels come from the SAME replay contract run_events uses
-    (``_precompute_phase_labels`` — same seed ⇒ same labels), initiative from
-    the day's stored BehaviorDirective (missing state ⇒ neutral 0.5), and
-    the previous-day adjustment from the REAL stored judgement (missing ⇒
-    A ≡ 1.0). The individual multipliers are reported, never the combined
-    A·I product (no double counting in the audit trail).
+    Phase labels come from the same replay contract as run_events (same seed ⇒
+    same labels); initiative and previous-day adjustment come from the store,
+    missing ⇒ neutral. The individual multipliers are reported, never the
+    combined A·I product.
     """
     phase_labels = run_events._precompute_phase_labels(days, seed, persona)
     opps: dict[float, ContactOpportunity] = {}
@@ -195,12 +136,8 @@ def _opportunities_for_plan(
 
 
 def _persist_opportunities(store, opps: dict[float, ContactOpportunity]) -> None:
-    """Persist opportunities through the store's public seam when it exists.
-
-    The A7 store has no contact_opportunities table yet (flagged in the A3
-    handoff); the optional ``save_contact_opportunity`` seam is duck-typed so
-    a store that grows one is used without any scheduler change.
-    """
+    """Persist opportunities via the store's optional
+    ``save_contact_opportunity`` seam (skipped when the store exposes none)."""
     save = getattr(store, "save_contact_opportunity", None)
     if save is not None:
         for opp in opps.values():
@@ -218,11 +155,8 @@ def plan_proactive_events(
     """Absolute hours (in [0, days*24)) of accepted proactive events.
 
     Deterministic given (seed, persona, timing, scores, state_factors).
-    `scores` optional per-day array feeding the adj term; None ⇒ adj ≡ 1
-    (tests/legacy only — live scheduling always passes `day_scores` output).
-    `state_factors` optional per-day multiplicative state term (B5 — the
-    caller precomputes exp(w·(x−x₀)) via ``state_factors_for_plan``); None ⇒
-    uncoupled composition, byte-identical to the pre-B5 behavior.
+    ``scores`` / ``state_factors`` are optional per-day arrays; None leaves that
+    term uncoupled (tests and legacy callers only).
     """
     return run_events.run(
         days, seed, persona, timing, scores=scores, state_factors=state_factors
@@ -237,16 +171,14 @@ def initiative_factor(
 ) -> float:
     """I(i) — mechanical initiative multiplier: clip(exp(beta·(i-0.5)), *bounds).
 
-    initiative=0.5 ⇒ 1.0 (neutral); higher initiative ⇒ factor > 1 (more
-    frequent contact), lower ⇒ factor < 1. Monotone and bounded.
+    initiative=0.5 ⇒ 1.0; monotone and bounded.
     """
     return float(np.clip(np.exp(beta * (initiative - 0.5)), *bounds))
 
 
 def _record_from_row(row: dict) -> DayRecord:
-    """Rebuild a DayRecord from a store daily_state row (same mapping as
-    session._record_from_row; duplicated here to avoid an import cycle —
-    session imports scheduler)."""
+    """Rebuild a DayRecord from a store daily_state row (duplicated from
+    session to avoid an import cycle)."""
     return DayRecord(
         t=int(row["day"]),
         m=float(row["m"]),
@@ -267,15 +199,9 @@ def _directive_for_day(store, day: int, timing: TimingParams, *,
                        hour: float = INITIATIVE_SAMPLE_HOUR):
     """The day's BehaviorDirective through the PATCHABLE session seam.
 
-    Resolved as ``harness.session.derive_behavior`` via a deferred import
-    (session imports scheduler, so the module cannot import it at load
-    time). In production that attribute IS ``harness.behavior.derive_behavior``
-    (same object), so behavior is byte-identical; under an eval condition
-    patch (cvs_common.apply_condition_patches rebinds the attribute) the
-    neutral directive reaches the scheduler too — this is the seam that
-    makes STRUCTURED_NO_STATE flatten the state vector. Missing state (no
-    daily row) ⇒ None (callers degrade to neutral, as day_initiative always
-    has).
+    Deferred import (session imports scheduler); in production this resolves to
+    ``harness.behavior.derive_behavior``, and a condition patch rebinds it so the
+    neutral directive reaches the scheduler too. Missing state ⇒ None.
     """
     row = store.load_daily_state(day)
     if row is None:
@@ -292,15 +218,10 @@ def _directive_for_day(store, day: int, timing: TimingParams, *,
 
 def state_vector(store, day: int, timing: TimingParams, *,
                  hour: float = INITIATIVE_SAMPLE_HOUR) -> tuple[float, float, float, float]:
-    """The day's latent-state vector x_d = (E, S, R, A) (B5).
+    """The day's latent-state vector x_d = (E, S, R, A).
 
-    E = directive.energy — circadian energy at the sampled hour (cycle/phase
-    level; engine.circadian); S = directive.initiative — the social-drive
-    channel; R = directive.valence — normalized mood; A = directive.reactivity
-    — hormonal-gain/momentum reactivity. All four are directive channels, so
-    the STRUCTURED_NO_STATE neutral patch flattens them to STATE_NEUTRAL
-    exactly. Missing state ⇒ STATE_NEUTRAL (exp term ≡ 1.0), mirroring the
-    day_initiative degradation contract.
+    E/S/R/A are the directive's energy / initiative / valence / reactivity
+    channels. Missing state ⇒ STATE_NEUTRAL (exp term ≡ 1.0).
     """
     directive = _directive_for_day(store, day, timing, hour=hour)
     if directive is None:
@@ -311,13 +232,8 @@ def state_vector(store, day: int, timing: TimingParams, *,
 
 def state_factor(store, day: int, timing: TimingParams, *,
                  hour: float = INITIATIVE_SAMPLE_HOUR) -> float:
-    """The per-day multiplicative state term exp(w·(x_d − x₀)) (B5).
-
-    Clipped at STATE_FACTOR_BOUNDS (bounded-factor convention, same as
-    adj/initiative). Under the neutral directive x_d == STATE_NEUTRAL, so
-    the factor is EXACTLY 1.0 — the exp term collapses to a constant and
-    STRUCTURED_NO_STATE ablates the timing channel.
-    """
+    """The per-day multiplicative state term exp(w·(x_d − x₀)), clipped at
+    STATE_FACTOR_BOUNDS. Neutral state ⇒ EXACTLY 1.0."""
     x = state_vector(store, day, timing, hour=hour)
     exponent = sum(
         w * (xi - xn) for w, xi, xn in zip(STATE_WEIGHTS, x, STATE_NEUTRAL)
@@ -326,12 +242,10 @@ def state_factor(store, day: int, timing: TimingParams, *,
 
 
 def state_factors_for_plan(store, days: int, timing: TimingParams) -> np.ndarray:
-    """Per-day state factors (days,) for the run_events B5 seam.
+    """Per-day state factors (days,) for the run_events ``state_factors`` seam.
 
-    factor[d] is day d's OWN state term (the day's directive drives that
-    day's contact timing — consistent with the per-day initiative design).
-    Deterministic; a store without state rows yields all 1.0, which is
-    byte-identical to the uncoupled composition.
+    factor[d] is day d's OWN state term. A store without state rows yields all
+    1.0 (uncoupled composition).
     """
     return np.asarray(
         [state_factor(store, d, timing) for d in range(days)], dtype=float
@@ -339,14 +253,8 @@ def state_factors_for_plan(store, days: int, timing: TimingParams) -> np.ndarray
 
 
 def day_initiative(store, day: int, timing: TimingParams, *, hour: float = INITIATIVE_SAMPLE_HOUR) -> float:
-    """The day's initiative (0..1) from its stored BehaviorDirective.
-
-    Mechanical path: the directive is resolved through the PATCHABLE session
-    seam (``_directive_for_day``) — the same function in production, neutral
-    under STRUCTURED_NO_STATE's patch so the A·I timing fold ablates with
-    the state vector. Missing state (should not happen for the current day)
-    degrades to the neutral 0.5.
-    """
+    """The day's initiative (0..1) from its stored BehaviorDirective; missing
+    state degrades to the neutral 0.5."""
     directive = _directive_for_day(store, day, timing, hour=hour)
     if directive is None:
         return 0.5
@@ -356,16 +264,11 @@ def day_initiative(store, day: int, timing: TimingParams, *, hour: float = INITI
 def day_scores(store, current_day: int, timing: TimingParams) -> np.ndarray:
     """Effective per-day scores array for a plan covering days 0..current_day.
 
-    scores[i] = (A(score_i) · I(i+1) − 1) / ADJ_SLOPE for i < current_day,
-    where score_i is the REAL judge score of day i (store.load_judgement;
-    missing ⇒ A=1.0 neutral) and I(i+1) is day i+1's initiative factor.
-    scores[current_day] is an unused placeholder (the engine reads
-    scores[day-1], and day 0's adj is 1 by construction). The engine's
-    adj_from_score(scores[d-1]) then equals clip(A(score_{d-1})·I(d), bounds)
-    — the A·I term of the A7 hazard modulator. Deterministic, and stable
-    across replans: entry i is fixed once day i is judged (score_i) and day
-    i+1's state exists (initiative_i+1), both true the first time the plan
-    covers day i+1, so re-planning never drifts already-persisted rows.
+    scores[i] = (A(score_i) · I(i+1) − 1) / ADJ_SLOPE, where score_i is day i's
+    stored judge score (missing ⇒ A=1.0) and I(i+1) is day i+1's initiative
+    factor. scores[current_day] is an unused placeholder (the engine reads
+    scores[day-1]). Entry i is fixed once day i is judged and day i+1's state
+    exists, so replans never drift already-persisted rows.
     """
     n = current_day + 1
     scores = np.zeros(n, dtype=float)
@@ -424,20 +327,12 @@ class ProactiveSchedule:
                          reason: str = REASON_SCHEDULE,
                          scores=None) -> "ProactiveSchedule":
         """plan() then store.save_schedule_events(seed, [{t_h, day, reason} ...]).
-        Idempotent (INSERT OR IGNORE). Returns a schedule whose _fired set is
-        pre-seeded from the store: any planned hour whose row is no longer
-        'pending' (i.e. already fired/expired) is treated as fired. Each
-        planned hour also gets a ContactOpportunity (NO semantic reason);
-        opportunities are persisted through the store's optional
-        ``save_contact_opportunity`` seam when present (A7 gap — flagged in
-        the A3 handoff) and always carried in-memory on the schedule.
-
-        B5: the store-backed live path ALWAYS couples the latent state
-        (``state_factors_for_plan`` — the day's directive through the
-        patchable session seam). A store without state rows yields all-1.0
-        factors, i.e. byte-identical event hours; under STRUCTURED_NO_STATE's
-        neutral patch the factors collapse to exactly 1.0, ablating the
-        timing channel (F4).
+        Idempotent (INSERT OR IGNORE). _fired is pre-seeded from the store: any
+        planned hour whose row is no longer 'pending' counts as fired. Each
+        planned hour gets a ContactOpportunity (NO semantic reason), persisted
+        through the store's optional ``save_contact_opportunity`` seam. The latent
+        state is always coupled (``state_factors_for_plan``); a store without
+        state rows yields all-1.0 factors.
         """
         schedule = cls.plan(
             days, seed, persona, timing, scores=scores,
@@ -463,11 +358,9 @@ class ProactiveSchedule:
     @classmethod
     def restore(cls, seed, store) -> "ProactiveSchedule":
         """Rebuild from store: event_hours = all rows' t_h for seed; _fired =
-        every row whose status != 'pending'; opportunities = the store's
-        persisted ContactOpportunities when the optional
-        ``load_contact_opportunities`` seam exists (A7 gap otherwise —
-        restored schedules carry no opportunities and the runtime resolves
-        with the bare event hour). For restart-resume without re-planning."""
+        every row whose status != 'pending'; opportunities from the store's
+        optional ``load_contact_opportunities`` seam (empty otherwise). For
+        restart-resume without re-planning."""
         rows = store.schedule_events_for_seed(seed)
         event_hours = np.asarray([float(r["t_h"]) for r in rows])
         fired = {float(r["t_h"]) for r in rows if r["status"] != "pending"}
@@ -487,13 +380,12 @@ class ProactiveSchedule:
         store.mark_schedule_fired(seed, t_h, fired_t_h)
 
     def next_pending(self, t_h: float) -> float | None:
-        """Earliest pending event hour due at `t_h`, else the earliest
-        pending future hour; None when nothing is pending.
+        """Earliest pending event hour due at `t_h`, else the earliest pending
+        future hour; None when nothing is pending.
 
-        A7 restart fix: pending events with event_time <= t_h are VISIBLE
-        (at now == event_time the event must be found, and overdue rows are
-        never stranded). Overdue events are returned first — the runtime
-        evaluates each (still valid ⇒ fire, past validity ⇒ expire).
+        Pending hours with event_time <= t_h come first, so overdue rows are never
+        stranded: the runtime evaluates each (still valid ⇒ fire, past validity ⇒
+        expire).
         """
         pending = [float(h) for h in self.event_hours if h not in self._fired]
         overdue = [h for h in pending if h <= t_h]
@@ -506,21 +398,15 @@ class ProactiveSchedule:
 
 
 def structured_no_state_timing_check(cell_records: dict, full_records: dict) -> bool:
-    """Check logic of the STRUCTURED_NO_STATE timing claim (for B8's registry).
+    """Check logic of the STRUCTURED_NO_STATE timing claim.
 
-    Records follow the domain.py convention (at least ``n_proactive``); the
-    B5 claim additionally reads ``proactive_times`` — ascending absolute
-    hours of the condition's proactive messages — when present. Margins are
-    the preregistered constants COUNT_DIVERGENCE_MIN / GAP_DIVERGENCE_MIN:
-
-      * count leg (binding): |n_cell − n_full| / n_full >= 0.15;
-      * gap leg: |mean_gap_cell − mean_gap_full| / mean_gap_full >= 0.10,
-        applied only when BOTH sides provide at least MIN_GAPS_FOR_GAP_LEG
-        gaps (a short 3-day preflight may not — the count leg alone then
-        decides; the acceptance test exercises both legs over 30 days).
-
-    The pre-flight driver should aggregate over its seeds (summed
-    ``n_proactive``, pooled ``proactive_times``) before calling this check.
+    Records follow the domain.py convention (at least ``n_proactive``);
+    ``proactive_times`` — ascending absolute hours of the condition's proactive
+    messages — is read when present. Count leg (binding): |n_cell − n_full| /
+    n_full >= COUNT_DIVERGENCE_MIN. Gap leg: |mean_gap_cell − mean_gap_full| /
+    mean_gap_full >= GAP_DIVERGENCE_MIN, applied only when BOTH sides provide at
+    least MIN_GAPS_FOR_GAP_LEG gaps. The caller aggregates over its seeds before
+    calling this check.
     """
     n_cell = int(cell_records["n_proactive"])
     n_full = int(full_records["n_proactive"])
@@ -542,12 +428,8 @@ def structured_no_state_timing_check(cell_records: dict, full_records: dict) -> 
 
 
 def structured_no_state_claim() -> AblationClaim:
-    """The AblationClaim for STRUCTURED_NO_STATE — B8's pre-flight registry
-    (the orchestrator wires it at G2; see the B5 report §claim). This is
-    the MANIFEST claim (effect-size, COUNT_DIVERGENCE_MIN = 0.15) — tested
-    on the REAL matrix at G5. The pre-flight GATE uses the split
-    low-bar null-detector instead (cvs_preflight._timing_channel_gate_check,
-    GATE_MIN_DIVERGENCE); this claim stays untouched."""
+    """The AblationClaim for STRUCTURED_NO_STATE (effect-size; tested on the real
+    matrix)."""
     return AblationClaim(
         condition="STRUCTURED_NO_STATE",
         channel="timing",

@@ -4,11 +4,10 @@ PROPIEDAD: este archivo + las figuras `engine_simulation/10_*.png` y
 `11_*.png` EN LA RAIZ del proyecto. No modifica engine_simulation.py ni
 borra nada del README existente (solo le anade una seccion al final).
 
-Motivacion: con B=0.15 (default de PersonaParams) el ciclo hormonal mueve
-el animo real N*p(t) solo +/-0.36 pasos (sensibilidad ~ N*p*(1-p) ~ 2.4
-pasos/logit), contra un ruido de muestreo binomial de sd ~ 1.55 pasos:
-invisible mirando solo los puntos M(t) del dado diario. Este script ofrece
-dos lecturas:
+Con B=0.15 (default de PersonaParams) el ciclo hormonal mueve el animo real
+N*p(t) solo +/-0.36 pasos (sensibilidad ~ N*p*(1-p) ~ 2.4 pasos/logit),
+contra un ruido de muestreo binomial de sd ~ 1.55 pasos: invisible mirando
+solo los puntos M(t) del dado diario. Dos lecturas:
 
     (A) 10_barrido_B.png     — barrido de B para ver a partir de que
                                amplitud el ciclo se vuelve visible en

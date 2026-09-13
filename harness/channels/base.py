@@ -1,9 +1,8 @@
-"""Channel protocol + message shapes + shared FakeChannel (Part B, seam B-1).
+"""Channel protocol, message shapes, and the shared FakeChannel.
 
-This is the contract every channel (CLI, Telegram, fakes) implements and every
-consumer (the async runtime) codes against. Channels are dumb transports:
-they never touch Session — inbound messages arrive as InboundMessage, outbound
-messages leave as OutboundMessage.
+The contract every channel implements and the runtime codes against. Channels
+are transports and never touch Session — inbound arrives as InboundMessage,
+outbound leaves as OutboundMessage.
 """
 
 from __future__ import annotations

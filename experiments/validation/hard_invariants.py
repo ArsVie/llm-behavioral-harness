@@ -1,23 +1,18 @@
-"""Invariantes duras del validador (Iteración 3, B8) — los dientes que la
-auditoría mecánica no tenía.
+"""Invariantes duras del validador (Iteración 3, B8).
 
-Cierra F1 (auditoría ciega): una célula donde el compañero calla el 40% de
-las veces devolvía ``validated: true``. Estas cuatro invariantes fallan FUERTE
-y con el conteo en el mensaje de fallo:
+Las cuatro invariantes fallan FUERTE y con el conteo en el mensaje de fallo:
 
 1. ``empty_assistant_turns == 0`` (cero duro) — un turno assistant vacío o de
    solo espacios en blanco es un fallo de la célula.
 2. ``blank_rate < BLANK_RATE_CEILING`` (techo preregistrado a nivel de run) —
-   techo declarado: < 1% (plan §11 DoD item 1; B10 lo revisa). El corpus it2
-   corrió 18–40% de blancos; el techo lo hace imposible.
+   techo declarado: < 1%.
 3. ``truncated_replies == 0`` — detección de truncamiento: ``finish_reason ==
    'length'`` en las filas ``llm_calls`` cuando esté disponible (meta JSON;
-   hoy ``meta`` es NULL — vía aditiva, se activa sola cuando B7 lo pueble) y
-   heurística de réplica final corta: la ÚLTIMA réplica assistant del run con
-   <= 4 caracteres no-blancos (el corpus it2 termina en "Nova: Hey") es un
-   truncamiento sospechoso (umbral declarado: SHORT_FINAL_MAX_CHARS=4,
-   MIN_ASSISTANT_TURNS_FOR_SHORT_FINAL=5 para no disparar en células
-   miniatura).
+   ``meta`` es NULL — vía aditiva que se activa al poblarse) y heurística de
+   réplica final corta: la ÚLTIMA réplica assistant del run con <= 4
+   caracteres no-blancos es un truncamiento sospechoso (umbral declarado:
+   SHORT_FINAL_MAX_CHARS=4, MIN_ASSISTANT_TURNS_FOR_SHORT_FINAL=5 para no
+   disparar en células miniatura).
 4. Coherencia de conversación — ninguna conversación con CERO turnos del
    compañero (seam de B2: tablas ``conversations``/``conversation_turns`` o
    columna ``messages.conversation_id``). Degrada con gracia cuando B2 no ha
@@ -90,8 +85,8 @@ def truncated_reply_hits(store) -> list[dict]:
 
     Dos vías, ambas declaradas:
     * ``finish_reason == 'length'`` parseado del JSON de ``llm_calls.meta``
-      cuando la fila lo traiga (hoy ``meta`` es NULL; vía aditiva para cuando
-      el seam de persistencia de prompts de B7 lo pueble).
+      cuando la fila lo traiga (``meta`` es NULL; vía aditiva que se activa al
+      poblarse).
     * Heurística de réplica final corta: la última réplica assistant del run
       (por t_h, id) con <= SHORT_FINAL_MAX_CHARS caracteres no-blancos, si el
       run tiene >= MIN_ASSISTANT_TURNS_FOR_SHORT_FINAL turnos assistant.

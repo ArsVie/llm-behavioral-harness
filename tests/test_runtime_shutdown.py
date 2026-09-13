@@ -1,19 +1,8 @@
-"""Unit tests for harness/concurrency.py (Iteration 2, A6) — shutdown
-semantics of the runtime's concurrency abstraction.
+"""Unit tests for harness/concurrency.py (Iteration 2, A6) -- shutdown semantics.
 
-Covers the plan §5-A6 design requirements:
-
-- sleeper injectable (protocol/ABC; tests never wait real seconds);
-- executor lifecycle explicit: created by a named owner, shutdown explicit,
-  double-shutdown safe;
-- SQLite worker/thread ownership explicit (documented contract + helper);
-- closing a runtime closes OWNED resources; injected resources are NOT
-  accidentally closed twice (ownership-flag pattern);
-- deterministic: no real-clock reads, no multi-second sleeps (worker
-  threads are joined via ``shutdown(wait=True)``, never polled).
-
-Async code follows the repo pattern (pitfall 12): sync ``def test_``
-functions driving coroutines via ``asyncio.run(...)``.
+Covers the injectable sleeper, explicit executor lifecycle (double-shutdown
+safe), SQLite worker/thread ownership, and the ownership-flag pattern for
+injected resources.
 """
 
 import asyncio
@@ -319,9 +308,9 @@ def test_shutdown_executor_helper_is_idempotent():
 
 
 def test_sqlite_thread_ownership_contract_documented():
-    """The ownership contract is explicit and covers the four invariants:
-    who owns the store, who owns the runtime connection, who may use it,
-    and who closes what (no double close of injected stores)."""
+    """The ownership contract covers four invariants: who owns the store, who
+    owns the runtime connection, who may use it, and who closes what.
+    """
     contract = conc.SQLITE_THREAD_OWNERSHIP
     assert isinstance(contract, str) and len(contract) > 200
     for token in ("check_same_thread", "asyncio.Lock", "store", "runtime",

@@ -1,13 +1,9 @@
-"""Content + context gates for proactive contact (wave 2, seam A-4; A7).
+"""Content + context gates for proactive contact.
 
-Pure functions: no I/O except reads through the injected store. Since A7 the
-content gate is REAL: instead of checking ``reason in VALID_REASONS`` it
-verifies, against the store, that the intent's source still exists, is not
-deleted/superseded, the intent is still timely, and the supplied hook is
-actually attached to that source (deterministic re-derivation). The context
-gate re-checks at FIRE time that the moment is still good (quiet hours,
-cooldown, daily cap), because user activity, restarts, and clock pacing can
-change state since planning.
+Pure functions: no I/O except reads through the injected store. The content gate
+re-derives the intent's source and hook from the store; the context gate
+re-checks quiet hours, cooldown and daily cap at FIRE time, because state can
+change since planning.
 """
 
 from __future__ import annotations
@@ -37,20 +33,19 @@ def content_gate(intent, store, *, now_h: float | None = None) -> GateDecision:
       - intent is not None                                   -> 'no_valid_reason'
       - now_h <= intent.valid_until_t_h (when now_h given)   -> 'expired'
       - store.resolve_intent_source(intent) is not None      -> 'no_source'
-      - source not deleted/superseded (status checks:
-        AgendaItem 'skipped', LifeArc 'abandoned')           -> 'source_superseded'
-      - a life_event claim ("Finished: X") requires the agenda
-        item to be persisted 'completed' (A9 G-5)            -> 'source_superseded'
-      - an episode linked to a SUPERSEDED L4 assertion
-        carries stale truth (A9 G-4)                         -> 'source_superseded'
+      - source not deleted/superseded (AgendaItem 'skipped',
+        LifeArc 'abandoned')                                 -> 'source_superseded'
+      - a life_event claim requires the agenda item to be
+        persisted 'completed'                                -> 'source_superseded'
+      - an episode linked to a superseded L4 assertion
+        carries stale truth                                  -> 'source_superseded'
       - an episode whose source session no longer exists has
-        broken provenance (A9 G-8b)                          -> 'no_source'
-      - compose_hook(source, intent.reason) == intent.hook
-        (the hook is actually attached to that source)       -> 'hook_mismatch'
+        broken provenance                                    -> 'no_source'
+      - compose_hook(source, intent.reason) == intent.hook    -> 'hook_mismatch'
 
-    New checks run only against seams the store exposes (duck-typed):
-    seam-faithful fakes without ``list_assertions`` / ``session_exists`` are
-    skipped, matching the codebase's optional-seam convention.
+    Checks run only against the seams the store exposes (duck-typed): fakes
+    without ``list_assertions`` / ``session_exists`` are skipped, matching the
+    codebase's optional-seam convention.
     """
     if intent is None:
         return GateDecision(allowed=False, code="no_valid_reason")
@@ -62,23 +57,23 @@ def content_gate(intent, store, *, now_h: float | None = None) -> GateDecision:
     if isinstance(source, AgendaItem):
         if source.status == "skipped":
             return GateDecision(allowed=False, code="source_superseded")
-        # G-5: a life_event claim is only grounded when the store records the
-        # item as completed — the completion write is the source of the claim.
+        # A life_event claim is grounded only when the store records the item
+        # as completed — the completion write is the source of the claim.
         if intent.reason == REASON_EVENT and source.status != "completed":
             return GateDecision(allowed=False, code="source_superseded")
     if isinstance(source, LifeArc) and source.status == "abandoned":
         return GateDecision(allowed=False, code="source_superseded")
     if isinstance(source, EpisodicMemory):
-        # G-4: the episode embodies a fact whose L4 assertion was superseded
-        # (stale truth must not reach a proactive message).
+        # The episode embodies a fact whose assertion was superseded; stale truth
+        # must not reach a proactive message.
         list_assertions = getattr(store, "list_assertions", None)
         if list_assertions is not None and any(
             source.id in a.source_memory_ids
             for a in list_assertions(status="superseded")
         ):
             return GateDecision(allowed=False, code="source_superseded")
-        # G-8b: broken provenance — the source session that witnessed the
-        # memory no longer exists; no record of the promise, no claim.
+        # Broken provenance: the source session that witnessed the memory no
+        # longer exists — no record of the promise, no claim.
         session_exists = getattr(store, "session_exists", None)
         if (
             session_exists is not None
@@ -104,9 +99,8 @@ def context_gate(
       cooldown    : last_fired_t_h is None OR
                     (now_h - last_fired_t_h) >= timing.min_gap_min/60
       daily_cap   : store.proactive_count(day) < timing.daily_cap
-    (envelope==0 already encodes 'active window'/quiet hours by construction,
-    matching run_events guards; the gate re-checks at FIRE time because
-    user activity, restarts, and clock pacing can change state since planning.)
+    Envelope==0 already encodes quiet hours (same as the run_events guards); the
+    gate re-checks at fire time because state can change since planning.
     """
     if envelope(now_h % 24.0, timing) < 1e-9:
         return GateDecision(allowed=False, code="quiet_hours")

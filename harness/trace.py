@@ -1,35 +1,13 @@
 """Run inspector: one read-only view over a live or archived run DB.
 
-``harness.audit`` answers "what did the model see on call N". This answers
-the other question — "what happened, and is any of it broken" — without a
-hand-written query per investigation.
+Views: timeline (default), checks, negotiations, decisions, steers, agenda,
+cache, memory, all. ``checks`` exits 1 when any ERROR finding stands, so it
+works as a post-run gate as well as an inspection tool. The DB is opened
+READ-ONLY (``mode=ro``), so it is safe to point at a database a live bot is
+currently writing; raw SQL on purpose, so old or half-written runs still read.
 
-Views::
-
-    python -m harness.trace --db <path>                  # timeline (default)
-    python -m harness.trace --db <path> checks           # invariant report
-    python -m harness.trace --db <path> negotiations
-    python -m harness.trace --db <path> decisions
-    python -m harness.trace --db <path> steers
-    python -m harness.trace --db <path> agenda
-    python -m harness.trace --db <path> cache
-    python -m harness.trace --db <path> memory
-    python -m harness.trace --db <path> all
-
-``checks`` exits 1 when any ERROR finding stands, so it works as a
-post-run gate as well as an inspection tool.
-
-The DB is opened READ-ONLY through a ``mode=ro`` URI: this never runs
-against a schema migration and is safe to point at the database a live bot
-is currently writing (including its WAL). Raw SQL on purpose — an
-inspector that goes through ``SQLiteStore`` stops working on exactly the
-old or half-written runs you most need to read.
-
-Virtual hours are an engine coordinate; every line here also renders the
-real local clock reconstructed from the run's persisted time anchor
-(``kv_store``: ``anchor.epoch0_s`` / ``anchor.t_h0`` / ``anchor.tz``), so a
-row can be matched against a Telegram timestamp. Unanchored runs print the
-virtual coordinate alone.
+Virtual hours are an engine coordinate; every line also renders the real
+local clock when the run persisted a time anchor.
 """
 
 from __future__ import annotations
@@ -59,8 +37,7 @@ INFO = "INFO"
 _RANK = {ERROR: 0, WARN: 1, INFO: 2}
 
 #: A prompt whose predecessor is a proven byte-prefix should cache at least
-#: this fraction of its tokens. Below it, either prefix caching is not being
-#: applied past the system prompt or the provider under-reports it.
+#: this fraction of its tokens.
 CACHE_FLOOR = 0.6
 
 #: state_events that are per-turn bookkeeping rather than run history.
@@ -71,8 +48,7 @@ _NOISY_EVENTS = frozenset({"popup_boundary_check", "assistant_reply"})
 
 
 def open_db(path: str | Path) -> sqlite3.Connection:
-    """Open ``path`` read-only. Raises if the file does not exist rather
-    than silently creating an empty database (the ``mode=ro`` guarantee)."""
+    """Open ``path`` read-only; raises when the file does not exist."""
     p = Path(path)
     if not p.exists():
         raise FileNotFoundError(f"no such run database: {p}")
@@ -91,8 +67,8 @@ def _tables(conn: sqlite3.Connection) -> frozenset[str]:
 
 def rows(conn: sqlite3.Connection, table: str, sql: str = "",
          params: tuple = ()) -> list[sqlite3.Row]:
-    """Query ``table`` when it exists, else return nothing. Old and
-    partial runs are missing tables; an inspector must read them anyway."""
+    """Query ``table`` when it exists, else return nothing. Old and partial
+    runs are missing tables; an inspector must read them anyway."""
     if table not in _tables(conn):
         return []
     return list(conn.execute(f"select * from {table} {sql}", params))
@@ -194,10 +170,9 @@ def _head(title: str) -> str:
 def timeline(ctx: Ctx) -> list[str]:
     """Every recorded happening in one chronological stream.
 
-    Ordering is by virtual instant, and a decision or steer stamped at its
-    ORIGINAL boundary sorts there even though it was executed later — the
-    replay contract makes those two instants deliberately different, so
-    the delivery instant is printed alongside rather than substituted.
+    Ordering is by virtual instant, so a decision or steer stamped at its
+    ORIGINAL boundary sorts there; the delivery instant is printed alongside
+    rather than substituted.
     """
     conn = ctx.conn
     out: list[tuple[float, int, str]] = []
@@ -336,9 +311,7 @@ def negotiations(ctx: Ctx) -> list[str]:
 
 
 def decisions(ctx: Ctx) -> list[str]:
-    """The decision lane: every verdict, plus the parse-failure rate that
-    says how often the model answered the conversation instead of the
-    pop-up it was handed."""
+    """The decision lane: every verdict plus the parse-failure rate."""
     lines = [_head("DECISIONS")]
     recs = [r for r in rows(ctx.conn, "decision_records", "order by id")
             if ctx.keep(r["t_h"], r["day"])]
@@ -435,9 +408,8 @@ def _envelope(row: sqlite3.Row) -> dict | None:
 def _prefix_share(prev: dict, cur: dict) -> tuple[int, int, bool]:
     """Characters of ``cur`` provably identical to a prefix of ``prev``.
 
-    The per-turn card is the LAST message by design, so ``prev`` minus its
-    trailing block is what a correct append-only stream re-sends. Returns
-    ``(shared_chars, total_chars, system_stable)``.
+    ``prev`` minus its trailing (last) message is what an append-only stream
+    re-sends. Returns ``(shared_chars, total_chars, system_stable)``.
     """
     pm = prev.get("messages") or []
     cm = cur.get("messages") or []
@@ -455,8 +427,8 @@ def _prefix_share(prev: dict, cur: dict) -> tuple[int, int, bool]:
 
 
 def cache(ctx: Ctx) -> list[str]:
-    """Prefix-cache accounting per call, with the shared prefix measured
-    from the persisted envelopes rather than assumed."""
+    """Prefix-cache accounting per call; the shared prefix is measured from
+    the persisted envelopes rather than assumed."""
     lines = [_head("PREFIX CACHE")]
     calls = rows(ctx.conn, "llm_calls", "order by id")
     if not calls:
@@ -719,8 +691,8 @@ _CARD_SECTIONS = ("Done earlier", "Did not happen", "Happening now",
 def _card_section(card: str, name: str) -> str:
     """One labelled block of a rendered state card, or "" when absent.
 
-    The block runs from its own header to the next header or blank line —
-    the card's sections are flat and ordered, so this needs no parser.
+    The block runs from its own header to the next section header or blank
+    line.
     """
     marker = f"{name}:"
     if marker not in card:
@@ -740,8 +712,8 @@ def _check_metering(ctx: Ctx) -> list[Finding]:
         return [Finding(WARN, "no-call-metering",
                         "no llm_calls rows: nothing about token use or cost "
                         "was recorded for this run")]
-    # The decision lane is the SAME model on the same lane as the mainline —
-    # what tells them apart in the ledger is the row's role (the pop-up kind).
+    # The decision lane is the same model on the same lane as the mainline;
+    # the row's role (the pop-up kind) tells them apart in the ledger.
     metered = {str(r["role"]) for r in calls}
     instants = [float(r["t_h"]) for r in calls if r["t_h"] is not None]
     model_recs = [r for r in recs if r["source"] == "model"]
@@ -749,11 +721,8 @@ def _check_metering(ctx: Ctx) -> list[Finding]:
     for rec in model_recs:
         if str(rec["popup_kind"]) in metered:
             continue
-        # A native pop-up rides INSIDE the mainline call: the model answers
-        # the pop-up with a tool call in the turn it was already running, so
-        # its tokens are metered under ``role='chat'`` at the same instant
-        # (live run: 3 of 4 reply decisions share a chat row's t_h exactly).
-        # A textual-transport verdict is its own call and must be its own row.
+        # A native pop-up rides INSIDE the mainline call, metered under
+        # ``role='chat'`` at the same instant; a textual verdict is its own row.
         native = ("transport" in rec.keys()
                   and str(rec["transport"] or "").startswith("native"))
         if native and any(abs(t - float(rec["t_h"])) < 1e-9 for t in instants):
@@ -770,14 +739,8 @@ def _check_metering(ctx: Ctx) -> list[Finding]:
              f"unmetered decision ids: "
              f"{[r['id'] for r in unmet][:12]}"],
         ))
-    # ``raw_cost`` can be missing entirely on a run written before the column
-    # existed, and sqlite3.Row raises on indexing an absent column.
-    # A null raw_cost is normal: this gateway does not report a cost on every
-    # lane, and harness.spend reconstructs spend from the token counts and the
-    # pricing table. A run is only unpriceable when no call names a model with
-    # rates -- that is worth a warning. A model missing from the table is
-    # priced by the fallback tier, which silently over-states a cheap model,
-    # so it gets its own.
+    # ``raw_cost`` can be an absent column on old runs; a null raw_cost is
+    # normal — spend is reconstructed from the token counts and pricing below.
     if all(("raw_cost" not in r.keys()) or (r["raw_cost"] is None) for r in calls):
         if all(price_for(_model_of(r)) is None for r in calls):
             found.append(Finding(
@@ -884,9 +847,7 @@ CHECKS = (
 def collect_findings(ctx: Ctx) -> list[Finding]:
     """Every invariant finding, sorted worst-first.
 
-    The single source for both the ``checks`` view and any other reader
-    (the observability app renders exactly what ``python -m harness.trace
-    checks`` would report).
+    The single source for the ``checks`` view and for any other reader.
     """
     found: list[Finding] = []
     for check in CHECKS:

@@ -1,17 +1,16 @@
-"""Matriz confirmatoria de la iteración 3 (Gate G5) — 7 condiciones × 5
-semillas × 30 días con el cliente REAL (deepseek-v4-flash vía opencode-go).
+"""Matriz confirmatoria (Gate G5) — 7 condiciones × 5 semillas × 30 días
+con el cliente REAL (deepseek-v4-flash vía opencode-go).
 
-Diseño (disciplina de compuerta, heredada de G2):
+Diseño:
 - Cada célula corre por el camino integrado (run_cell) con checkpoints de
-  reinicio (7/14/21/26/29) y perturbación habilitada — M7 real, no vacuo.
+  reinicio (7/14/21/26/29) y perturbación habilitada — M7 real.
 - Resiliencia a ventanas de proveedor: una célula que muere (p. ej.
-  ``RuntimeError`` por contenido vacío — el cliente endurecido de it2) se
-  reintenta con backoff creciente (2/4/8 min). El cliente ya reintenta
-  internamente 4× con backoff corto; esta capa es la de nivel-célula.
+  ``RuntimeError`` por contenido vacío) se reintenta con backoff creciente
+  (2/4/8 min). El cliente ya reintenta internamente 4× con backoff corto;
+  esta capa es la de nivel-célula.
 - Honestidad: una célula que agota sus reintentos se registra como FAILED
-  y la matriz CONTINÚA (no se mata la tanda por una ventana del proveedor);
-  el reporte de cierre lista las fallas explícitamente. Nunca se escribe
-  una célula vacía ni se fabrica un resultado.
+  y la matriz CONTINÚA; el reporte de cierre lista las fallas explícitamente.
+  Nunca se escribe una célula vacía ni se fabrica un resultado.
 - Checkpoint de progreso: status.json se actualiza tras cada célula
   (done/failed/retries/timestamps) — el orquestador puede commitear
   progreso y reanudar la tanda si el proceso muere.

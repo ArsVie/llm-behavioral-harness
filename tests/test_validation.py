@@ -39,13 +39,8 @@ class TestPersonaParamsBasic:
         assert any("N" in e for e in errors)
 
     def test_N_not_bool(self):
-        """N como bool (True/False) inválido aunque sea int en Python.
-
-        Nota: PersonaParams es frozen=True, así que no se puede crear una
-        instancia con N=True/False directamente. El código valida esto
-        mediante isinstance(N, int) and not isinstance(N, bool) pero el
-        test es conceptual (la verificación está en el código).
-        """
+        """N como bool (True/False) inválido aunque sea int en Python; test
+        conceptual (la verificación isinstance está en el código)."""
 # In Python, bool is a subclass of int; the check requires isinstance(N, int), not isinstance(N, bool).
         pass
 
@@ -547,12 +542,8 @@ def _add_turn(store: SQLiteStore, conv: str, speaker: str, text: str,
 
 class TestHardInvariants:
     """Dientes del validador (it3 B8): cero duro de vacíos, techo de tasa de
-    blancos, detección de truncamiento y coherencia de conversación.
-
-    Techo de tasa de blancos DECLARADO (revisión B10): BLANK_RATE_CEILING
-    = 0.01 (< 1% a nivel de run, plan §11 DoD item 1). El corpus it2 corrió
-    18–40% de blancos; este techo lo hace imposible.
-    """
+    blancos (BLANK_RATE_CEILING = 0.01 a nivel de run), detección de
+    truncamiento y coherencia de conversación."""
 
     def test_40pct_blank_cell_fails_loudly_with_count(self, tmp_path):
         """Aceptación B8 #1: una célula con 40% de blancos FALLA FUERTE y el

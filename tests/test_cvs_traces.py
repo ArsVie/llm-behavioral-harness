@@ -1,4 +1,4 @@
-"""Smoke tests del generador de causal traces (plan §13, deliverable 10)."""
+"""Smoke tests del generador de causal traces."""
 
 import json
 import sqlite3

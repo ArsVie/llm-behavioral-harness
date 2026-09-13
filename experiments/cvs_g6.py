@@ -1,4 +1,4 @@
-"""Driver del protocolo de juez v2 (Gate G6, it3) — ambas familias,
+"""Driver del protocolo de juez v2 (Gate G6) — ambas familias,
 sondas de atención, agregación Bradley-Terry.
 
 Usa la maquinaria de cvs_judge (run_pairwise_pass / bradley_terry_scale /
@@ -8,7 +8,7 @@ pairwise_report) sobre los transcripts de la matriz G5:
   gpt-5.6-luna, mismas claves que el manifiesto congela).
 - 2 passes por familia, pares muestreados dentro de la semilla
   (preregistrado: sin cruce completo), control pairs de transcript
-  degradado (sondas de atención) resueltos por AMBAS familias — DoD 6.
+  degradado (sondas de atención) resueltos por AMBAS familias.
 - Agregación BT por dimensión y familia; desacuerdo reportado; un efecto
   visto por una sola familia NO es conducta establecida del companion.
 
@@ -38,16 +38,11 @@ from experiments.cvs_manifest import JUDGE_FAMILIES, JUDGE_PASSES
 
 def _family_route_ok(family: dict, timeout_s: float = 30.0) -> bool:
     """Sonda rápida: el modelo de la familia devuelve contenido real?
-    Evita quemar el presupuesto de reintentos de TODO un pass sobre una
-    ruta muerta (episodio opencode-go 2026-08-10: flash 100% vacío).
 
-    PITFALL 2026-08-13 (probe artifact): NUNCA cap max_tokens en la sonda.
-    deepseek-v4-flash es un modelo de RAZONAMIENTO: consume su presupuesto de
-    tokens en reasoning ANTES de emitir contenido, así que con max_tokens=10
-    devuelve HTTP 200 con content vacío (finish_reason='length') aunque la
-    ruta esté viva — la sonda antigua marcaba flash como muerto ~100% de las
-    veces mientras las llamadas reales del juez (sin cap) funcionaban.
-    Sondear SIN max_tokens (o ≥512) para medir contenido real.
+    Nunca cap max_tokens en la sonda: deepseek-v4-flash es un modelo de
+    RAZONAMIENTO y consume su presupuesto en reasoning antes de emitir
+    contenido (con max_tokens bajo devuelve HTTP 200 con content vacío,
+    finish_reason='length'). Sondear SIN max_tokens (o ≥512).
     """
     import httpx
 

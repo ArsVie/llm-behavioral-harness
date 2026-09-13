@@ -5,19 +5,15 @@ EN LA RAIZ del proyecto. No modifica engine_simulation.py ni
 engine_simulation_lecturas.py; solo anade una linea a la seccion existente
 "## Lecturas adicionales" del README.
 
-Motivacion: `10_barrido_B.png` mostro el barrido de B con UNA sola semilla
-(3001) — no se puede distinguir si la (in)visibilidad de la onda hormonal es
-un efecto real de B o un artefacto de esa semilla en particular (ruido de
-muestreo binomial + rachas endogenas de eta). Este script promedia M(t) y
-N*p(t) entre 30 semillas (4001-4030) para cada B del barrido, aislando la
-onda de ambas fuentes de variabilidad.
+Este script promedia M(t) y N*p(t) entre 30 semillas (4001-4030) para cada B
+del barrido (`10_barrido_B.png` usa una sola semilla, 3001), aislando la onda
+de ambas fuentes de variabilidad (ruido de muestreo binomial + rachas
+endogenas de eta).
 
-Nota de alineacion de fase: phi=0.0 en todas las semillas => los ciclos
-arrancan alineados (cycle_day=0 el dia 0); L_0 (duracion del ciclo) varia un
-poco por semilla ~ Normal(28, 1.5) => desfase leve creciente hacia el final
-de la ventana de 30 dias. Por eso promediar entre semillas SI preserva la
-onda (no la cancela): el desfase acumulado en 30 dias es pequeno frente al
-periodo de ~28 dias.
+Alineacion de fase: phi=0.0 en todas las semillas (los ciclos arrancan
+alineados, cycle_day=0 el dia 0); L_0 (duracion del ciclo) varia un poco por
+semilla ~ Normal(28, 1.5) => desfase leve hacia el final de la ventana de 30
+dias.
 
 30 dias, semillas 4001..4030 (30), variante DECOUPLED_OFFSETS, persona base
 = PersonaParams() (defaults de Fase 1: rho_e=0.7, sigma_e=0.45 — no se

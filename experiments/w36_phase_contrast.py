@@ -4,8 +4,7 @@ PROPIEDAD: tarea W3.6 (este archivo + carpeta results/w36-phase-contrast/).
 Variante fija DECOUPLED_OFFSETS, 120 días, semillas [4001..4030] (30 semillas),
 persona base = PersonaParams() (defaults).
 
-Objetivo: visualizar directamente las cuatro fenomenologías que la galería
-existente no muestra de forma aislada:
+Objetivo: visualizar las cuatro fenomenologías:
 
     (a) fase menstrual = caótica/irritable  — menor M medio, MAYOR varianza
         día-a-día, mayor ganancia de reactividad g(t);
@@ -117,7 +116,7 @@ def _mean_or_nan(values: list[float]) -> float:
 
 def _mean_finite_or_nan(values: list[float]) -> float:
     """Media descartando valores no finitos (p. ej. autocorr indefinida de
-    rachas con M constante, donde corrcoef divide por sd=0)."""
+    rachas con M constante)."""
     finite = [v for v in values if math.isfinite(v)]
     return float(np.mean(finite)) if finite else float("nan")
 
@@ -410,8 +409,7 @@ def plot_p5_hourly_low_vs_high(first_result) -> Path:
 
     Toma de la primera semilla el día con M mínimo y el día con M máximo, y
     traza valence/playfulness/reflectiveness/energy para cada hora 0..23.
-    El sombreado marca las quiet hours (23:00-08:00) — la lectura de la
-    "noche melancólica" (energía y chispa bajas, reflectividad alta).
+    El sombreado marca las quiet hours (23:00-08:00).
     """
     recs = first_result.records
     M_arr = first_result.M

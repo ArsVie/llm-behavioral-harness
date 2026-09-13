@@ -1,21 +1,6 @@
-"""End-to-end command tests (Wave 2, W-commands): channel seam -> run_async wiring.
+"""End-to-end command tests: channel seam -> run_async wiring.
 
-Drives real command updates through the TelegramChannel's S3 command seam
-using the SHARED FakeApplication from tests/test_channel_telegram.py
-(consumed UNMODIFIED — its ``command_update()`` injection builds the stub
-update the registered command handler receives) and the launcher-side
-callback factory from sim/run_async.py. Covers:
-
-- every command's happy path end-to-end (update -> ControlCommand ->
-  handle_command -> reply -> channel.send -> bot.calls);
-- /setup refusal after a persona row exists;
-- /mute defer semantics (hook records, schedule rows untouched);
-- command-flag-off parity: on_command=None means commands are dropped,
-  matching today's behavior;
-- the CommandBridgeChannel launcher wiring (injects on_command into
-  Channel.start; a runtime's own callback wins).
-
-The unit-level semantics tests live in tests/test_commands_core.py.
+Commands drive the TelegramChannel seam with the shared FakeApplication.
 """
 
 import argparse
@@ -215,14 +200,13 @@ def test_state_is_gated_even_end_to_end(tmp_path) -> None:
     assert "disabled" in app.bot.calls[-1]["text"]
 
 
-# command-flag-off parity (on_command=None -> commands dropped, matching today)
+# command-flag-off parity (on_command=None -> commands dropped)
 
 
 def test_flag_off_parity_commands_are_dropped(tmp_path) -> None:
     """start(on_message=...) without on_command: no command handler is
     registered and command updates reach nobody — today's behavior."""
-    # No store needed: this asserts on handler REGISTRATION, and the
-    # unused handle was also leaking a sqlite connection per run.
+    # No store needed: this asserts on handler REGISTRATION only.
     app = FakeApplication()
     channel = TelegramChannel(application=app, owner_chat_id="42")
     received = []
@@ -283,8 +267,7 @@ def test_bridge_injects_the_launcher_callback_into_start(tmp_path) -> None:
 
 
 def test_bridge_runtimes_own_callback_wins(tmp_path) -> None:
-    """When the runtime passes its own on_command, it supersedes the
-    launcher's — no double wiring after W-runtime merges."""
+    """When the runtime passes its own on_command, it supersedes the launcher's."""
     store = make_store(tmp_path)
     clock = VirtualClock(t_h=8.0)
     app = FakeApplication()
@@ -374,7 +357,7 @@ def test_resolve_tz_anchor_maps_wall_clock_to_virtual_hours() -> None:
 
     name, anchor = resolve_tz("UTC", env={})
     now = time.time()
-    # Round-trip through the anchor (S2 math).
+    # Round-trip through the anchor.
     assert abs(anchor.t_h_at(anchor.epoch_of(now)) - now) < 1e-6
 
 
@@ -436,15 +419,8 @@ def test_defer_bootstrap_on_initialized_db_is_a_noop(tmp_path) -> None:
 
 
 def test_cli_accepts_the_new_flags_without_commands(tmp_path) -> None:
-    """--enable-commands on the fake channel: launcher warning, no
-    crash, default-inert behavior preserved for the plain path.
-
-    NOTE: --tz is intentionally NOT passed here — after the W-runtime merge
-    --tz builds a real-time anchor, and anchored mode is 1:1 real time (it
-    must not be combined with --time-scale acceleration). --tz acceptance is
-    covered by test_tz_flag_resolves_anchor (resolution layer) and by
-    argparse parsing itself (the subprocess below proves flags parse).
-    """
+    """--enable-commands on the fake channel: launcher warning, no crash, inert
+    for the plain path."""
     db = tmp_path / "flags.db"
     proc = _run_async_cli(
         tmp_path, db, "--enable-commands",
@@ -457,10 +433,8 @@ def test_cli_accepts_the_new_flags_without_commands(tmp_path) -> None:
 
 
 def test_tz_flag_resolves_anchor(tmp_path) -> None:
-    """--tz acceptance at the resolution layer: explicit flag wins, absent
-    everywhere -> (None, None) (today's behavior), bad IANA name raises.
-    Anchored mode is 1:1 real time by design, so no accelerated subprocess
-    may combine --tz with --time-scale (that combination times out)."""
+    """--tz acceptance at the resolution layer: flag wins, absent -> (None, None),
+    bad IANA name raises."""
     from sim.run_async import resolve_tz
 
     tz, anchor = resolve_tz("UTC", env={})

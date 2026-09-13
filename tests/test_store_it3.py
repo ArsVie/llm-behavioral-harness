@@ -1,14 +1,10 @@
-"""it3 B7 — prompt persistence in eval mode (closes iteration-2 §6 limitation).
+"""it3 B7 — prompt persistence in eval mode.
 
-Mechanical acceptance:
-1. A prompt containing a forbidden cycle token, persisted in eval mode, is
-   CAUGHT by the invariant-16 leak scan over llm_calls (prompt side).
-2. ``repro_json`` alone suffices to reconstruct a call: rebuild from the row
-   and byte-compare against the payload the client actually received.
-3. Eval-mode rows carry the full system prompt + message payload; default
-   (non-eval) rows keep hash-only + no payload (privacy preserved).
-4. Hash-only rows are reported by the scan as NOT verifiable (no faked
-   coverage), and ``rebuild_call`` refuses them honestly.
+A forbidden cycle token persisted in eval mode is CAUGHT by the invariant-16
+leak scan; ``repro_json`` alone reconstructs a call (rebuild + byte-compare
+against the received payload). Eval-mode rows carry the full prompt + payload;
+default rows stay hash-only, are reported as NOT verifiable, and
+``rebuild_call`` refuses them.
 """
 
 import json
@@ -77,9 +73,8 @@ def test_leak_scan_catches_forbidden_token_in_persisted_prompt(tmp_path):
 
 
 def test_leak_scan_reports_hash_only_rows_as_not_verifiable(tmp_path):
-    """Non-eval rows persist no payload: the scan says so honestly (0 hits,
-    because the forbidden text was never persisted — that is the privacy
-    default, not fake coverage)."""
+    """Non-eval rows persist no payload: the scan reports them as not verifiable
+    rather than as clean coverage."""
     store = SQLiteStore(tmp_path / "plain.db")  # audit_mode=False
     _poison_call(store)
     leaks = _cycle_leak_hits(store)

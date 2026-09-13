@@ -1,13 +1,5 @@
-"""Memory-layer domain types (extracted from ``harness.domain``, unchanged).
-
-The L2/L4 vocabulary: what a session summary is, what an episodic memory
-carries, and what an assertion about the user looks like once it has been
-consolidated. Split out because the memory layer is the half of the domain
-that only the memory pipeline reads — the companion/agenda types in
-``harness.domain`` are read by nearly everything.
-
-``harness.domain`` re-exports every name here, so existing imports are
-unaffected.
+"""Memory-layer domain types: the L2/L4 vocabulary, re-exported by
+``harness.domain`` so existing imports keep working.
 """
 
 from __future__ import annotations
@@ -27,13 +19,7 @@ class MemoryKind(Enum):
 
 
 class MemoryPolicy(Enum):
-    """Memory conditioning policy for generation/eval (module invariant 7).
-
-    ``STRUCTURED_MEMORY`` is the research-faithful condition; the
-    topicality-boosted variant is a SEPARATELY NAMED experiment and is
-    flagged by ``is_experimental``. ``RAW_CONTEXT`` and ``VERBATIM_RAG``
-    are honest baselines.
-    """
+    """Memory conditioning policy for generation/eval."""
 
     RAW_CONTEXT = "raw_context"
     VERBATIM_RAG = "verbatim_rag"
@@ -113,11 +99,10 @@ class UserModelAssertion:
 
 
 class UserModelCategory(Enum):
-    """Canonical L4 taxonomy — defined exactly ONCE (module invariant 6).
+    """Canonical L4 taxonomy: the 8 categories every store shares.
 
-    The 8 categories shared by every store (SQLite and test doubles alike).
-    Stores consume this single enum directly; categories are never inferred
-    from string prefixes or free-form keys.
+    Stores consume this enum directly; categories are never inferred from
+    string prefixes or free-form keys.
     """
 
     IDENTITY = "identity"
@@ -146,10 +131,9 @@ class UserModel:
 
 @dataclass(frozen=True)
 class UserAffectObservation:
-    """An observed, labeled snapshot of the USER's affect at time t_h.
+    """An observed, labeled snapshot of the USER's affect at time ``t_h``.
 
-    Distinct from ``CompanionBehaviorState``: no shared fields, no implicit
-    conversion between the two (module invariant 1).
+    Distinct from ``CompanionBehaviorState``: no implicit conversion.
     """
 
     t_h: float

@@ -1,11 +1,5 @@
-"""Gate tests (wave 2, seam A-4; A7) — the shared contract A3 relies on.
-
-Since A7 the content gate is REAL: ``content_gate(intent, store)`` verifies
-groundedness against the store (source exists, not deleted/superseded,
-timely, hook actually attached to the source) instead of checking a reason
-taxonomy. context_gate is unchanged; both use the REAL defaults and the
-seam-faithful SeamStore (A2 store ops have not landed in this repo yet).
-"""
+"""Gate tests: ``content_gate`` verifies groundedness against the store;
+``context_gate`` checks quiet hours, cooldown and daily cap."""
 
 from engine.circadian import envelope
 from engine.types import TimingParams

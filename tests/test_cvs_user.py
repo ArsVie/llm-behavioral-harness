@@ -1,21 +1,5 @@
-"""Tests del simulador de usuario conversacional (it3 B3).
-
-Cubre el FEED CONTRACT de ``cvs_user.build_user_stream`` (el handshake con
-el driver de B8) y las cuatro aceptaciones mecánicas de B3: media de turnos
-por conversación >= 4 con el cliente fake, turnos byte-idénticos entre
-condiciones para un mismo seed, sondas/cadenas en sus días preregistrados,
-y las invariantes de la proyección legacy ``user_script``.
-
-El harness ``_run_conversational_cell`` reproduce la forma de la célula
-vertical existente (bootstrap limpio + sesión de la condición) y conduce la
-sesión DIRECTAMENTE consumiendo el stream del contrato: los ``at_t_h`` se
-entregan cuando el reloj virtual los alcanza; los ``after_reply`` un retardo
-sembrado después de la réplica anterior. El brief autoriza explícitamente
-esta vía mientras ``run_cell`` no sea conversacional (B8): con el runtime
-real, el rollover del reloj (time_scale congelado 0.0004) desplaza los feeds
-tardíos al día siguiente y la entrega depende de carreras de hilos — la
-conducción directa de la sesión es determinista por construcción.
-"""
+"""Tests del simulador de usuario conversacional (it3 B3): FEED CONTRACT de
+``cvs_user.build_user_stream`` y aceptaciones mecánicas de B3."""
 
 from __future__ import annotations
 
@@ -63,20 +47,7 @@ SEED = 5001
 
 def _run_conversational_cell(tmp_path, seed: int, condition: str,
                              days: int = DAYS):
-    """Célula fake de ``days`` días por el camino integrado (forma de run_cell).
-
-    Bootstrap limpio + sesión de la condición; el stream conversacional se
-    alimenta vía el FEED CONTRACT conduciendo la sesión directamente:
-
-    * ``at_t_h``: el reloj virtual avanza hasta ``t_h`` y el mensaje se
-      entrega (``session.on_message`` persiste el turno de usuario y la
-      réplica del companion al tiempo del reloj).
-    * ``after_reply``: se dibuja el retardo sembrado (un dibujo por evento,
-      en orden de stream) y el mensaje se entrega en ``now + delay``.
-
-    Sin runtime: sin carreras del rollover ni hilos — determinismo exacto.
-    Devuelve ``(db_path, fed)`` con los feeds realmente entregados.
-    """
+    """Célula fake de ``days`` días por el FEED CONTRACT; devuelve ``(db_path, fed)``."""
     out = tmp_path / f"cell_{condition.lower()}"
     out.mkdir(parents=True, exist_ok=True)
     db_path = out / f"cell_{condition.lower()}_seed{seed}.db"
@@ -124,8 +95,7 @@ def _run_conversational_cell(tmp_path, seed: int, condition: str,
 
 
 def _user_stream_from_db(store: SQLiteStore) -> list[tuple[str, float]]:
-    """Secuencia de turnos de usuario (contenido, t_h) tal como los vio el
-    companion — la fuente de verdad de la identidad entre condiciones."""
+    """Secuencia de turnos de usuario (contenido, t_h) tal como los vio el companion."""
     rows = store.conn.execute(
         "SELECT content, t_h FROM messages WHERE role = 'user' ORDER BY id"
     ).fetchall()
@@ -133,13 +103,7 @@ def _user_stream_from_db(store: SQLiteStore) -> list[tuple[str, float]]:
 
 
 def _conversations(store: SQLiteStore) -> list[list[dict]]:
-    """Agrupa mensajes en conversaciones (una por día).
-
-    En el stream del simulador la unidad conversacional es el intercambio
-    diario: la apertura de las 19:00 abre la conversación del día y sus
-    seguimientos (after_reply) la continúan. Los proactivos no cuentan como
-    turnos de conversación.
-    """
+    """Agrupa mensajes en conversaciones (una por día); los proactivos no cuentan como turnos."""
     rows = [dict(r) for r in store.conn.execute(
         "SELECT role, content, t_h, proactive FROM messages ORDER BY id")]
     by_day: dict[int, list[dict]] = {}
@@ -274,11 +238,7 @@ def test_mean_turns_per_conversation_ge_4(tmp_path):
 
 
 def test_user_turns_identical_across_conditions(tmp_path):
-    """Aceptación B3-2: turnos byte-idénticos entre condiciones (mismo seed).
-
-    FULL vs NO_ACTUATORS, cliente fake, runtime determinista: las secuencias
-    de CONTENIDO y de tiempos de los turnos de usuario son idénticas.
-    """
+    """Aceptación B3-2: turnos byte-idénticos entre condiciones (mismo seed)."""
     db1, fed1 = _run_conversational_cell(tmp_path, SEED, "FULL", DAYS)
     db2, fed2 = _run_conversational_cell(tmp_path, SEED, "NO_ACTUATORS", DAYS)
     assert fed1 == fed2, "feed sequences differ between conditions"

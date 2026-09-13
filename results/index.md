@@ -28,15 +28,18 @@ Experiment reports, run artifacts, experiment briefs/memos, and status snapshots
 - [Q1 actuator — reversal record (2026-08-14)](/results/q1-actuator-rerun-2026-08-14.md) — Re-derived reversal record (G0).
 - [Judge calibration: v1 vs v2](/results/e2e-ablation-v1-v2-comparison.md) — E2E ablation judge calibration.
 - [Experiments report (2026-08-12)](/results/report-2026-08-12-experiments.md) — Orchestrator-away experiments report.
+- [Provider switch verification (2026-08-28)](provider-commandcode-2026-08-28.md) — dated live provider probes and integration result.
 
 ## Experiment briefs & memos (spikes)
-- [Spikes registry](/results/spikes-registry.md) — the running list of candidate/ready/done spikes.
-- [Affect codebook — spike 1](/results/exp-affect-codebook-pipeline-2026-08-15.md) — value→words pipeline validation (NO-GO).
-- [Affect codebook — spike 2](/results/exp-affect-codebook-spike2-2026-08-16.md) — behavioral re-gate (SHELVED).
+- [Spikes registry](/results/spikes-registry.md) — index of retained experiment records.
+- [Affect codebook — spike 1](/results/exp-affect-codebook-pipeline-2026-08-15.md) — value→words pipeline validation (NO-GO); [moved project report](../../emotion-codebook/emotion-codebook-spike/report.md).
+- [Affect codebook — spike 2](/results/exp-affect-codebook-spike2-2026-08-16.md) — behavioral re-gate (SHELVED); [moved project brief](../../emotion-codebook/emotion-codebook-spike2/docs/exp-affect-codebook-spike2-2026-08-16.md).
 - [Internal-thoughts marker](/results/exp-internal-thoughts-spike-2026-08-16.md) — analysis vs immersion markers.
 - [DeepSeek-harness alpha — brief](/results/exp-deepseek-alpha-extraction-2026-08-16.md) → [memo](/results/memo-deepseek-alpha-2026-08-16.md) — transferable patterns (30 ranked).
 - [WS-A mid-reply folding discovery](/results/ws-a-folding-discovery.md) — folding separability note.
 
 ## Status & reviews
-- [State report (2026-08-16)](/results/state-report-2026-08-16.md) — consolidated snapshot of spikes, results, decisions.
-- [Architecture review (2026-08-15)](/results/architecture-review-2026-08-15.md) — measured results, known-issues status (S1–S6), risks; split from the architecture overview.
+- [State report (2026-08-16)](/results/state-report-2026-08-16.md) — historical consolidated snapshot of spikes, results, and decisions.
+- [Architecture review (2026-08-15)](/results/architecture-review-2026-08-15.md) — historical measured results, known-issue status, and risks.
+- [Quality metrics baseline (2026-09-03)](quality-metrics-2026-09-03.md) — historical
+  measured quality snapshot; rerun before using structural counts.

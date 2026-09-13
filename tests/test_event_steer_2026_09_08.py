@@ -1,31 +1,5 @@
 """The event steer as designed: heads-up, ONE decision, honest replay.
-
-The pop-up is a steer injected into main context for an event, carrying the
-event, its time and its state, plus a brief instruction. The model answers
-with one tri-state field. Three boundaries, one decision:
-
-    start_t_h - HEADS_UP_LEAD_H   HEADS_UP -- "this is about to start, get
-                                  ready" (only while he is there). NO verdict.
-    start_t_h                     the ONE decision: initiate yes/no/defer.
-                                  Re-offered only on her own defer, which is
-                                  his window to talk her out of going.
-    end_t_h                       nothing. No model call.
-
-What each test here pins, and what it went wrong as:
-
-* The decision used to be offered TWICE — once at each boundary — and the
-  end leg's ``reason`` was captured as the item's "outcome". A verdict
-  rationale is not a record of what happened, and the end boundary has
-  nothing left to decide: ``life.transition_past_windows`` already resolves
-  a passed window deterministically.
-* ``initiate`` used to be a bool with a parallel optional ``action``, so a
-  model that answered ``"defer"`` had it read as falsey and became a skip.
-* Past boundaries were all enqueued stamped ``now`` and drained as one pile,
-  which asked her at 18:41 whether to initiate a 07:28 coffee. Her day runs
-  whether or not anyone watched it, so a resume replays the morning in the
-  order the morning happened, each pop-up carrying the time the event
-  actually arrived.
-"""
+The model answers one tri-state field at the start boundary only."""
 
 from __future__ import annotations
 
@@ -54,8 +28,6 @@ def _popups(store) -> list[dict]:
 
 
 def test_defer_is_a_defer_not_a_falsey_skip():
-    # The bug: `_as_bool("defer")` returned None, `initiate` stayed False and
-    # `action` stayed None, so a deferral was applied as an abandon.
     v = _event_verdict({"initiate": "defer", "reason": "just a sec"})
     assert v["action"] == "defer"
     assert v["initiate"] is False      # a defer is not an initiation
@@ -146,9 +118,8 @@ def test_no_heads_up_for_a_window_that_already_opened(tmp_path):
 
 
 def test_nothing_decides_between_the_heads_up_and_the_window():
-    # The heads-up moves the phase to DECIDE, but the window is not open
-    # yet: no leg is due, and the companion turns he spends being warned are
-    # NOT deducted from the turns she gets to decide in.
+    # The heads-up moves the phase to DECIDE, but the window is not open yet: no leg
+    # is due, and warning turns are NOT deducted from the deciding turns.
     st = NegotiationState(
         item_id="ag1", activity="gym", source_type="arc",
         start_t_h=19.0, end_t_h=21.0, salience=0.8,
@@ -164,10 +135,8 @@ def test_nothing_decides_between_the_heads_up_and_the_window():
 
 
 def test_past_boundaries_replay_in_the_order_they_happened(tmp_path):
-    """A resume mid-day: two windows already passed. Each pop-up is stamped
-    with its OWN boundary and they queue in chronological order across
-    items, not per-item (which used to interleave A-start, A-end, B-start).
-    """
+    """A resume mid-day: each pop-up is stamped with its OWN boundary and they queue in
+    chronological order across items."""
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (
         _item(7.0, 9.0, "morning coffee", "ag-coffee"),
@@ -201,9 +170,8 @@ def test_past_boundaries_replay_in_the_order_they_happened(tmp_path):
 
 
 def test_end_boundary_never_calls_the_model(tmp_path):
-    """The window resolves server-side (planned -> completed) with no
-    verdict and no captured "outcome" text.
-    """
+    """The window resolves server-side (planned -> completed) with no verdict and no
+    captured "outcome" text."""
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0, "pottery"),)))
     clock = VirtualClock(t_h=9.5)

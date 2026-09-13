@@ -1,17 +1,9 @@
 """Iteration-2 A3 tests (proactivity/runtime): ContactOpportunity separation,
-opportunity-time intent resolution, EXACT intent identity end-to-end, A6
-concurrency integration, rollover clock discipline (E0), and SUPPRESS-as-
-normal semantics. Runs on the seam-faithful SeamStore (test_proactive) and
-the real SQLiteStore where noted; the sleeper is always injected (recorded,
-never real seconds) except where a bounded real sleep is the deterministic
-trigger for the rollover-vs-firing race.
+opportunity-time intent resolution, exact intent identity, A6 concurrency,
+rollover clock discipline (E0) and SUPPRESS-as-normal semantics.
 
-A5's ``session.fire_proactive(intent_id)`` has not merged in this worktree:
-:class:`ExactIntentSession` is a seam double implementing the documented A5
-contract (plan §5-A5 T3 — fetch the exact intent by id, carry it into the
-snapshot, persist ``message.intent_id``). The runtime calls
-``fire_proactive(intent.id)``; when A5's session lands the same tests pass
-against the real session unchanged.
+Runs on SeamStore (test_proactive) and the real SQLiteStore where noted; the
+sleeper is always injected.
 """
 
 from __future__ import annotations
@@ -119,9 +111,7 @@ def _stored_intent(item, intent_id, t_h, *, reason=REASON_SCHEDULE):
 
 
 class FixedIdResolver(IntentResolver):
-    """Real resolver whose resolved intent is renamed to a fixed id — the
-    adversarial setup stores #87/#88 up front and the runtime must validate
-    and fire the EXACT id, never a same-reason sibling."""
+    """Real resolver whose resolved intent is renamed to a fixed id."""
 
     def __init__(self, store, intent_id: str, *args, **kwargs):
         super().__init__(store, *args, **kwargs)
@@ -135,13 +125,11 @@ class FixedIdResolver(IntentResolver):
 
 
 class ExactIntentSession(Session):
-    """A5-seam double (plan §5-A5 T3) over the legacy session.
+    """A5-seam double over the legacy session.
 
-    ``fire_proactive(intent_id)`` fetches the EXACT stored intent by id,
-    carries it into the snapshot (never a same-reason sibling — invariant
-    7), and persists ``message.intent_id`` (A7 M1, which the legacy ``_chat``
-    does not yet pass). ``fire_calls`` records every id the runtime passes.
-    Replaced by A5's session at its merge; the contract is identical.
+    ``fire_proactive(intent_id)`` fetches the exact stored intent by id and
+    persists ``message.intent_id``; ``fire_calls`` records every id the runtime
+    passes.
     """
 
     def __init__(self, *args, **kwargs):
@@ -328,12 +316,10 @@ def test_planned_opportunities_without_grounded_source_all_suppressed():
 
 
 def test_exact_intent_identity_two_same_reason_intents():
-    """Adversarial (plan §5-A3, invariant 7): TWO simultaneous intents with
-    the SAME reason (#87 pottery, #88 gym). The runtime validates #87 and the
-    generated message MUST use #87 — the exact id reaches
-    ``session.fire_proactive(intent_id)`` and ``message.intent_id == #87``.
-    Reason equality is never enough: #88 (stored later, same reason) is
-    never used."""
+    """Adversarial (plan §5-A3, invariant 7): two simultaneous intents with the
+    SAME reason -- the runtime must fire the exact validated id, never the
+    same-reason sibling.
+    """
     store, clock, session = _session(replies=["pottery ping!"],
                                          session_cls=ExactIntentSession)
     pottery = ground_agenda(store, 9.5, 10.5, item_id="pottery",
@@ -395,13 +381,9 @@ def test_exact_identity_not_downgraded_to_reason_when_same_reason_pending():
 
 
 def test_near_midnight_events_fire_not_expire_under_accelerated_time():
-    """E0 regression: under FAST accelerated time the rollover loop must not
-    jump the virtual clock past a pending event. Event A (20.5) holds the
-    firing loop in its response-delay sleeper long enough for the rollover's
-    midnight sleep to complete; without the park discipline the rollover
-    advances the clock to 24:00 and event B (21.0, 3h validity → expires at
-    exactly 24:00) is spuriously gated 'expired'. With the discipline the
-    rollover parks at 21.0 and B fires at its own time."""
+    """E0 regression: under fast accelerated time the rollover loop must not
+    jump the virtual clock past a pending event, or event B expires spuriously.
+    """
     store, clock, session = _session(replies=["a!", "b!"])
     ground_agenda(store, 20.0, 21.0, item_id="slot_a", activity="evening a")
     ground_agenda(store, 21.0, 22.0, item_id="slot_b", activity="evening b")
@@ -448,9 +430,9 @@ def test_rollover_parks_at_pending_event_before_midnight():
 
 
 def test_overdue_pending_event_does_not_hang_rollover():
-    """An OVERDUE pending event (recovered during quiet hours, deferred past
-    max_virtual_hours) must not park the rollover forever: overdue events are
-    left to the firing loop's recovery evaluation and the run terminates."""
+    """An overdue pending event must not park the rollover forever; the firing
+    loop's recovery evaluation owns it and the run terminates.
+    """
     store = SeamStore()
     clock = VirtualClock(t_h=27.0)  # 03:00 next day — quiet hours
     session = Session(
@@ -494,9 +476,9 @@ def test_runtime_uses_concurrency_sleeper_default():
 
 
 def test_runtime_leaves_sqlite_store_usable_after_run(tmp_path):
-    """The runtime re-opens the store connection thread-safe (A6 helper) but
-    must NOT close it: the connection is now the store's (store.conn) and the
-    store's own close() owns its lifecycle."""
+    """The runtime re-opens the store connection thread-safe but must NOT close
+    it -- the store's own ``close()`` owns its lifecycle.
+    """
     store = SQLiteStore(tmp_path / "s.db")
     try:
         store.save_daily_state(0, {

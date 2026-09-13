@@ -1,9 +1,5 @@
-"""Tests de aceptación para engine/timing.py (W1.4).
-
-Semillas fijas; tests estadísticos con alpha=0.01 y n>=2000 (KS) o
-tolerancia +-3*sem (medias). Ver docstring de engine/timing.py y el
-contrato en engine/types.py para la especificación del modelo.
-"""
+"""Tests de aceptación para engine/timing.py (W1.4). Semillas fijas; tests
+estadísticos con alpha=0.01 y n>=2000 (KS) o tolerancia +-3*sem (medias)."""
 from __future__ import annotations
 
 import math

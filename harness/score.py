@@ -1,15 +1,13 @@
-"""Score sources shared by drivers and the harness (review fix #5).
+"""Score sources shared by drivers and the harness.
 
-`synthetic_score` belongs to the product layer, not to a single experiment
-driver; `sim.run_daily` re-exports it for backward compatibility and to keep
-its own CLI unchanged.
+`sim.run_daily` re-exports `synthetic_score` unchanged.
 """
 
 from __future__ import annotations
 
 import numpy as np
 
-#: sd of the synthetic score noise (frozen in the Phase-1 plan).
+#: sd of the synthetic score noise.
 SCORE_NOISE_SD = 0.2
 
 

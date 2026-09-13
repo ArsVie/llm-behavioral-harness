@@ -1,39 +1,14 @@
-"""WS-D (reduced, 2026-08-19) — structural prompt-cache order tests.
+"""WS-D (reduced) -- structural prompt-cache order tests.
 
-The DeepSeek-harness alpha read found zero ``cache_control`` in the reference
-harness: caching is 100% STRUCTURAL — request N+1 is a byte-identical
-extension of request N, with the stable prefix (system + tools + history)
-never rewritten and the volatile runtime context appended as the LAST user
-message. The reduced WS-D scope implements ONLY the structural reorder.
+Caching here is structural: request N+1 is a byte-identical extension of
+request N, with the stable prefix (system + tools + history) never rewritten
+and the volatile runtime context appended as the LAST message.
 
-  PRE (one system message + transcript)        POST (two-part request)
-  ------------------------------------         ----------------------
-  system = core | persona | agenda |           system = core | persona
-           state-card sections                           (STABLE, byte-identical
-  messages = [history..., user request]                     every turn / conv)
-                                               messages = [history...,
-                                                           user request,
-                                                           STATE CARD]  <tail
-                                               state card = agenda | temporal
-                                                           | ... | popup
-                                                           (VOLATILE tail)
+    system   = core | persona                    (STABLE prefix)
+    messages = [history..., user request, STATE CARD]   <- volatile tail
 
-Byte-identity contract kept: ``assemble_snapshot`` (the legacy/aux full
-3-tier string) outputs the SAME bytes as pre-WS-D — the agenda block merely
-relocated from the day-start block into the state card (probe-verified
-sha256 on this fixture before/after the change; hashes pinned below). The
-stable prefix of the new layout is a byte-identical DECOMPOSITION of the
-legacy prompt::
-
-    assemble_snapshot(...) == stable_system + "\\n\\n" + state_card_tail
-
-What changed (labeled): (1) ``render_day_block`` is now the PERSONA ONLY —
-the day-plan agenda moved to the state card; (2) the state card gained a
-pinned AGENDA section rendered from the identical plan lines; (3) the new
-``build_context_messages`` seam returns the stable system + a message list
-whose LAST element is the volatile state card (the session mainline wires
-this seam; ``assemble_snapshot`` stays byte-identical for aux/experiment
-callers).
+``assemble_snapshot`` keeps the legacy full 3-tier string for aux/experiment
+callers, as a byte-identical decomposition of the two parts.
 """
 
 import dataclasses
@@ -78,16 +53,8 @@ from harness.prompts import render_popup_block
 #: (UTC-6 in August) → t_h 27.0 is 03:00 local, Sunday, virtual day 1.
 G3_EPOCH0_S = datetime(2026, 8, 15, 13, 30, 0, tzinfo=timezone.utc).timestamp()
 
-#: Pinned sha256 of the assembled prompts on this fixture.
-#:
-#: RE-BASELINED 2026-09-07. The pre-reorder pins
-#: (5cfa689a.../c5cf7cb0.../7f641196...) proved that the WS-D relocation of
-#: the agenda block changed no bytes. The prompt-content pass DELIBERATELY
-#: changed them: the persona now leads the stable prefix, the four
-#: overlapping card rules were condensed into one, the steer trust
-#: paragraph left the prefix, and the closing-guidance section no longer
-#: renders. These hashes are the new byte gate -- an UNLABELLED change to
-#: the assembled prompt still fails here.
+#: Pinned sha256 of the assembled prompts on this fixture; an unlabelled change
+#: to the assembled prompt fails here.
 PINNED_ANCHORED_FULL = "27aca53bbada58d07d6ad8da809251877d5e61db3c1fc071fcdf5ef072ac149e"
 PINNED_UNANCHORED_FULL = "cca6001093a16c7b9a171b8f9edba5fa52e50cc99b133843a65a214091b29e5a"
 PINNED_BARE_FULL = "424ab524ead4949ba899a6e5b860a18893365012ca94cef9c53a017420b21cc9"
@@ -210,10 +177,9 @@ def _recent_turns(n: int = 4) -> list[dict]:
 
 
 def test_stable_system_byte_identical_across_turns():
-    """Two consecutive turns with the SAME stable config share a byte-identical
-    stable prefix: the whole system string must not differ, and the message
-    list up to the volatile tail must be an identical prefix (only the last
-    message — the state card — changes)."""
+    """Two consecutive turns with the same stable config share a byte-identical
+    stable prefix; only the last message (the state card) changes.
+    """
     snap = _snapshot(rich=True)
     recent = _recent_turns(4)
     controls = _controls()
@@ -226,9 +192,8 @@ def test_stable_system_byte_identical_across_turns():
     system2, messages2 = build_context_messages(
         snapshot=snap, user_request="hi again",
         recent_turns=recent
-        # The persisted row carries its own t_h, which is what makes the stamp
-        # reproducible: turn 1's request stamped at 27.0 and turn 2's history
-        # row for the same message stamp to the same bytes.
+        # The persisted row carries its own t_h, which makes the stamp
+        # reproducible across turns.
         + [{"role": "user", "content": "hi", "t_h": 27.0},
            {"role": "assistant", "content": "hello"}],
         controls=controls, prompt_brief=brief, t_h=28.0, anchor=_anchor(),
@@ -294,9 +259,8 @@ def test_the_role_scan_flags_harness_vocabulary_in_a_user_slot():
         {"role": "system", "content": wrap_steer_marker("Event: he is back")},
     ]) == [], "the marker in a SYSTEM slot is the convention working"
 
-    # Every family of harness-written text must be caught if it lands in a slot
-    # the user owns: the steer/pop-up envelope, the card's headers, the temporal
-    # partition's labels, the memory sections.
+    # Every family of harness-written text must be caught if it lands in a
+    # slot the user owns.
     for leaked in (
         wrap_steer_marker("Event: he is back"),
         "TEMPORAL FRAME:\nIt is 13:34, Saturday afternoon \u2014 day 4.",
@@ -339,11 +303,7 @@ def test_the_role_scan_does_not_flag_a_real_built_request():
 def test_a_turn_the_user_did_not_speak_has_no_user_message_at_all():
     """The convention, pinned (CONVENTIONS:27, architecture-overview.md:33).
 
-    Internal events are system-level context, NEVER user messages: a proactive
-    turn carries no user-role message, and the volatile card rides as the
-    trailing system block. An empty or null user line would both break the rule
-    ("user-role content is always what the user said") and 400 on dialects that
-    reject null content.
+    Internal events are system-level context, never a user-role message.
     """
     _, silent = build_context_messages(
         _snapshot(), _recent_turns(3), None, controls=_controls(),
@@ -361,9 +321,7 @@ def test_a_turn_the_user_did_not_speak_has_no_user_message_at_all():
         prompt_brief=_prompt_brief(), t_h=27.0, anchor=_anchor(),
     )
     assert spoken[-1]["role"] == "system"
-    # The user turn carries its arrival time (the card no longer clocks
-    # every turn), and it stays a user-role message: the stamp is harness text
-    # inside the user's own turn, which the owner asked for explicitly.
+    # The user turn carries its arrival time and stays a user-role message.
     assert spoken[-2]["role"] == "user"
     assert spoken[-2]["content"].startswith("hey")
     assert " | Time: " in spoken[-2]["content"]
@@ -383,10 +341,8 @@ def test_volatile_state_is_the_last_system_message():
     assert tail["role"] == "system"
 # The temporal/state-card content sits at the END of the wire layout.
     assert TEMPORAL_HEADER in tail["content"]
-# DAY-scoped material is NOT in the per-turn card: the plan changes a few
-# times a day, so re-sending it every turn was ~270 wasted chars a turn on
-# the live store. It goes out once at rollover, into the message stream
-# (render_day_start_block), where the append-only history keeps it cached.
+# DAY-scoped material is NOT in the per-turn card: it goes out once at
+# rollover, into the message stream (render_day_start_block).
     assert AGENDA_HEADER not in tail["content"]
     assert tail["content"].startswith(TEMPORAL_HEADER)
 # Volatile markers stay out of the stable prefix (system message).
@@ -408,9 +364,8 @@ def test_volatile_state_is_the_last_system_message():
 def test_unanchored_replay_omits_temporal_and_the_agenda_moved_to_day_start():
     """Unanchored (replay/test) runs omit the temporal section entirely (G2).
 
-    The day-plan AGENDA is not lost — it moved OUT of the per-turn tail and
-    into the once-a-day stream block, so it must be absent here and present
-    there.
+    The day-plan AGENDA moved to the once-a-day stream block, so it is absent
+    here and present there.
     """
     snap = _snapshot(rich=True)
     system, messages = build_context_messages(
@@ -435,11 +390,8 @@ def _sha256(text: str) -> str:
 
 
 def test_assemble_snapshot_bytes_match_the_pinned_layout():
-    """The legacy/aux full 3-tier string matches the pinned bytes.
-
-    The gate is unchanged in purpose -- an unlabelled edit to the assembled
-    prompt fails here -- but the baseline moved on 2026-09-07 with the
-    prompt-content pass (see the pin constants above).
+    """The legacy/aux full 3-tier string matches the pinned bytes; an unlabelled
+    edit to the assembled prompt fails here.
     """
     snap = _snapshot(rich=True)
     anchored = assemble_snapshot(
@@ -464,13 +416,9 @@ _ALL_HEADERS = (
 
 
 def test_the_layout_loses_no_content_and_duplicates_none():
-    """Content preservation across the THREE scopes, with no overlap.
+    """Content preservation across the three scopes, with no overlap.
 
-    This replaces a byte-decomposition assertion (``legacy == system + tail``)
-    that is deliberately no longer true. Day-scoped state stopped being prompt
-    text and became a MESSAGE emitted once at rollover, so the request is no
-    longer a concatenation of the pre-WS-D prompt. What must still hold is
-    that nothing was dropped and nothing is sent twice: every section lives in
+    Nothing was dropped and nothing is sent twice: every section lives in
     exactly one scope.
     """
     snap = _snapshot(rich=True)
@@ -503,13 +451,7 @@ def test_the_layout_loses_no_content_and_duplicates_none():
 
 
 def test_the_temporal_frame_rides_only_the_first_card_of_the_day():
-    """The frame is a CLOCK READING, not state.
-
-    Re-sending it every turn re-states what the model already has in context and
-    rewrites a block inside the request array, which on this provider costs the
-    prefix for everything after it. It goes out with the day's first card and
-    stays in context after that; the rest of the card is unaffected.
-    """
+    """The frame is a CLOCK READING: it rides only the day's first card."""
     snap = _snapshot(rich=True)
     with_frame = render_state_card(snap, t_h=21.7, anchor=_anchor())
     without = render_state_card(snap, t_h=21.7, anchor=_anchor(), include_temporal=False)
@@ -523,15 +465,9 @@ def test_the_temporal_frame_rides_only_the_first_card_of_the_day():
 def test_the_three_scopes_are_disjoint():
     """Each piece of state sits in exactly one place, by how often it changes.
 
-    * STABLE prefix (``render_day_block``) — the persona, byte-identical
-      forever for a fixed profile.
-    * DAY stream block (``render_day_start_block``) — the plan, her arcs, the
-      user model: emitted once at rollover, then inside the cached prefix.
-    * PER-TURN card (``render_state_card``) — only what actually moves.
-
-    The agenda used to be in the card, re-sent every turn; the previous
-    layout comment said day-scoped material did not belong there, and it was
-    there anyway.
+    * STABLE prefix (``render_day_block``) -- the persona.
+    * DAY stream block (``render_day_start_block``) -- plan, arcs, user model.
+    * PER-TURN card (``render_state_card``) -- only what actually moves.
     """
     snap = _snapshot(rich=True)
     stable = render_day_block(snap)
@@ -573,9 +509,8 @@ def test_seam_transcript_matches_legacy_build_messages():
         snap, controls=controls, prompt_brief=brief, day_block=day_block,
         t_h=27.0, anchor=_anchor(),
     )
-    # Same anchor and turn time: the user-turn stamp is part of the
-    # builder now, so the parity claim is "identical bytes for identical
-    # inputs" and the stamp is one of those inputs.
+    # Same anchor and turn time: identical bytes for identical inputs, and the
+    # user-turn stamp is one of those inputs.
     legacy_messages = build_messages(recent, "hi", anchor=_anchor(), t_h=27.0)
     system, messages = build_context_messages(
         snapshot=snap, recent_turns=recent, user_request="hi",
@@ -586,8 +521,7 @@ def test_seam_transcript_matches_legacy_build_messages():
     assert messages[:-1] == legacy_messages
     assert messages[-1]["role"] == "system"
 # Content parity with the legacy request, across the three scopes. Byte
-# concatenation no longer holds: day-scoped state left the prompt entirely
-# and became a message emitted once at rollover.
+# concatenation no longer holds: day-scoped state left the prompt.
     covered = system + "\n\n" + render_day_start_block(snap) \
         + "\n\n" + messages[-1]["content"]
     for header in _ALL_HEADERS:

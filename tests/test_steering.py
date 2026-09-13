@@ -146,10 +146,9 @@ def test_requeue_clears_delivery_fields():
 
 
 def test_seen_marker_blocks_same_turn_reinjection():
-    """Replay guard: if a pending row's seen marker names the current turn,
-    the queue must not inject it again (the marker is persisted with the
-    turn so replay can detect double-delivery). WS2's SQLite clears the
-    marker on requeue; this guards backends that retain it."""
+    """Replay guard: a pending row whose seen marker names the current turn is
+    not injected again (the marker is persisted with the turn so replay can
+    detect double-delivery)."""
     backend = InMemorySteerBackend()
     q = SteeringQueue(backend, day=7)
     steer_id = q.enqueue(KIND_EVENT_POPUP, {"event": "a"}, day=7, t_h=1.0)
