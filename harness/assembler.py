@@ -259,6 +259,31 @@ def prefix_break(previous: list, current: list) -> int | None:
     return None
 
 
+#: Tokens ONLY the harness writes: ``[STEER ...]`` opens every delivered event
+#: (see :func:`harness.steering.wrap_steer_marker`), and the card names itself
+#: in the same family. A hit inside a USER-role message means the role
+#: convention broke somewhere upstream.
+HARNESS_MARKER_TOKENS = ("[STEER", "[/STEER]")
+
+
+def harness_text_in_user_roles(messages: list) -> list[int]:
+    """Indices of user-role messages carrying harness-written marker text.
+
+    The convention (CONVENTIONS:27, architecture-overview.md:33): user-role
+    content is whatever the USER said; internal events are system-level context
+    and never ride in a user slot. A hit is a leak to investigate, not a
+    request to drop -- this is an audit sensor, so callers log it and carry on.
+    """
+    hits: list[int] = []
+    for index, message in enumerate(messages):
+        if not isinstance(message, dict) or message.get("role") != "user":
+            continue
+        content = message.get("content")
+        if isinstance(content, str) and any(t in content for t in HARNESS_MARKER_TOKENS):
+            hits.append(index)
+    return hits
+
+
 def append_system(messages: list[dict], content: str | None) -> list[dict]:
     """Append a system block, FOLDING it into a trailing system message.
 

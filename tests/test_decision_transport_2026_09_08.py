@@ -38,6 +38,7 @@ from harness.steering import (
     MAX_ATTEMPTS,
     InMemorySteerBackend,
     SteeringQueue,
+    wrap_steer_marker,
 )
 from harness.store import SQLiteStore
 from harness.tools import PopupRequest, tools_identity
@@ -132,6 +133,39 @@ def test_the_prefix_invariant_logs_a_rewrite_and_is_silent_otherwise(tmp_path, m
     store.close()
     assert len(events) == 1, "a rewritten head must be recorded exactly once"
     assert json.loads(events[0]) == {"lane": lane, "index": 0, "was": 3, "now": 1}
+
+
+def _role_leak_events(store) -> list[str]:
+    rows = store.conn.execute(
+        "SELECT detail FROM state_events WHERE event='user_role_leak'"
+    ).fetchall()
+    return [row[0] for row in rows]
+
+
+def test_a_harness_event_in_a_user_slot_is_recorded_and_tolerated(tmp_path):
+    """The role convention, enforced at runtime (CONVENTIONS:27).
+
+    User-role content is what the USER said; an event that turns up in a user
+    slot is a leak worth knowing about. Checked on every call rather than behind
+    a flag -- it is a substring pass, and it must log and carry on, never raise:
+    a diagnostic sensor cannot be allowed to kill a live run.
+    """
+    session, client, store = _session(tmp_path)
+    clean = [
+        {"role": "system", "content": "core"},
+        {"role": "user", "content": "hey, you up?"},
+    ]
+    session._note_request_prefix("chat", clean)
+    assert _role_leak_events(store) == [], "real user text is not a leak"
+
+    mixed = clean + [
+        {"role": "user", "content": wrap_steer_marker("Event: he is back")}
+    ]
+    session._note_request_prefix("chat", mixed)     # must not raise
+    events = _role_leak_events(store)
+    store.close()
+    assert len(events) == 1, "a harness event in a user slot must be recorded"
+    assert json.loads(events[0]) == {"lane": "chat", "indices": [2]}
 
 
 def test_the_prefix_invariant_is_scoped_per_lane(tmp_path, monkeypatch):

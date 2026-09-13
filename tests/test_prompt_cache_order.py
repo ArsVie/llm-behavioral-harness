@@ -281,6 +281,27 @@ def test_constant_state_yields_byte_identical_whole_request():
 # --- (b) volatile state differs between turns and appears at the TAIL ---
 
 
+def test_the_role_scan_flags_only_marker_text_in_user_slots():
+    """Pure scan behind the runtime sensor: markers, not mere brackets."""
+    from harness.assembler import harness_text_in_user_roles
+
+    markers = "[STEER \u2014 a real arriving event from the harness]"
+    assert harness_text_in_user_roles([
+        {"role": "user", "content": "what about [this] bracket, though?"},
+        {"role": "system", "content": f"\\n\\n{markers}\\nEvent: he is back\\n[/STEER]"},
+    ]) == [], "the marker in a SYSTEM slot is the convention working"
+
+    assert harness_text_in_user_roles([
+        {"role": "user", "content": "hey"},
+        {"role": "user", "content": f"\\n\\n{markers}\\nEvent: back\\n[/STEER]"},
+    ]) == [1]
+
+    # Defensive: junk entries and null content must not explode a live call.
+    assert harness_text_in_user_roles([
+        {"role": "user", "content": None}, "junk", {"role": "tool", "content": markers},
+    ]) == []
+
+
 def test_a_turn_the_user_did_not_speak_has_no_user_message_at_all():
     """The convention, pinned (CONVENTIONS:27, architecture-overview.md:33).
 

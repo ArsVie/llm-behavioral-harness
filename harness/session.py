@@ -78,6 +78,7 @@ from harness.assembler import (
     assemble_snapshot,
     prefix_break,
     build_context_messages,
+    harness_text_in_user_roles,
     proactive_block,
     render_day_block,
     render_day_start_block,
@@ -2752,7 +2753,18 @@ class Session(NegotiationMixin):
         never kill a live run. It is the runtime twin of the test that pins the
         pop-up extending the mainline request, and the reason to keep it is
         measured: a rewritten head costs the whole prefix.
+
+        The role convention is checked on every call, flag or no flag: the scan
+        is a substring pass over a handful of messages, and a leak is a bug
+        worth knowing about immediately (see ``harness_text_in_user_roles``).
         """
+        leaked = harness_text_in_user_roles(messages)
+        if leaked:
+            self.store.log_event(
+                int(self.clock.now_h() // 24.0), self.clock.now_h(),
+                "user_role_leak",
+                json.dumps({"lane": lane, "indices": leaked}, sort_keys=True),
+            )
         previous = self._last_request_pairs.get(lane)
         self._last_request_pairs[lane] = list(messages)
         if previous is None or not _env_bool("HARNESS_PREFIX_INVARIANT", False):
