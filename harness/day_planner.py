@@ -226,18 +226,38 @@ def parse_plan(reply: str, expected: int) -> list[str] | None:
     return out or None
 
 
-def _call_within_budget(client, prompt: str, budget_s: float) -> str:
+def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
     """One bounded model call. See ``interest_extension._call_within_budget``
-    for why the wait itself has to be bounded rather than merely guarded."""
+    for why the wait itself has to be bounded rather than merely guarded.
+
+    ``fork`` (owner ruling, 2026-09-13): a callable(task) -> (system,
+    messages) | None that extends the mainline request — the exact pair the
+    companion's last turn sent — instead of a standalone one-shot prompt, so
+    the whole prefix banks on the provider cache. It is CALLED ON THIS THREAD
+    (the store reads behind it belong to it); only the client call moves to
+    the budget worker. None — no mainline has ever run — keeps the standalone
+    shape.
+    """
+    pair = None
+    if fork is not None:
+        try:
+            pair = fork(prompt)
+        except Exception:  # noqa: BLE001 - a fork that cannot build must not cost the day
+            pair = None
+    if pair is not None:
+        system, messages = pair
+    else:
+        # Aux task prompt, not an event in her conversation: the
+        # system-not-user rule governs HER context (CONVENTIONS, ratified
+        # 2026-09-12). A one-off call keeps role=user.
+        messages = [{"role": "user", "content": prompt}]
+        system = "You return JSON only."
     rich = getattr(client, "chat_with_meta", None)
     if rich is not None:
         def _run():
             result = rich(
-                # Aux task prompt, not an event in her conversation: the
-                # system-not-user rule governs HER context (CONVENTIONS,
-                # ratified 2026-09-12). A one-off call keeps role=user.
-                [{"role": "user", "content": prompt}],
-                system="You return JSON only.",
+                messages,
+                system=system,
                 temperature=0.9,  # invention: the point is variety
                 json_mode=True,
                 max_tokens=None,
@@ -251,8 +271,8 @@ def _call_within_budget(client, prompt: str, budget_s: float) -> str:
 
         def _run():
             return plain(
-                [{"role": "user", "content": prompt}],
-                system="You return JSON only.",
+                messages,
+                system=system,
                 temperature=0.9,
             ) or ""
 
@@ -275,6 +295,7 @@ def plan_day(
     slots: list[PlanSlot],
     outcomes=(),
     client=None,
+    fork=None,
     logger=None,
     budget_s: float = PLANNER_BUDGET_S,
 ) -> list[str] | None:
@@ -283,12 +304,15 @@ def plan_day(
     Returns a list the same length as ``slots``; an entry may be "" when the
     model supplied nothing usable for that slot, and the caller keeps that
     slot's fallback. None means planning did not happen at all.
+
+    ``fork`` (optional) routes the call through the session's mainline-request
+    extension instead of a standalone prompt — see ``_call_within_budget``.
     """
     if not slots or client is None:
         return None
     prompt = build_request(name, weekday, arcs, slots, outcomes)
     try:
-        reply = _call_within_budget(client, prompt, budget_s)
+        reply = _call_within_budget(client, prompt, budget_s, fork)
     except concurrent.futures.TimeoutError:
         if logger is not None:
             logger(f"day planner: no reply within {budget_s:.0f}s; keeping templates")

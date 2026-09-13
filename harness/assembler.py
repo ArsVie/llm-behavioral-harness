@@ -373,6 +373,28 @@ def _stamp_user_turn(text: str, t_h: float | None, anchor) -> str:
     return f"{text} | Time: {real.hour:02d}:{real.minute:02d}"
 
 
+def stamped_stream(turns: list[dict], anchor) -> list[dict]:
+    """The context stream as it goes on the wire — user turns carry their clock.
+
+    ONE builder for every request that reads the store: the mainline build,
+    the pop-up legs and the auxiliary forks. Two builders drifting apart is a
+    cache break by definition — on 2026-09-12 the mainline stamped its user
+    turns while the pop-up rebuild read the raw rows, so the live decide calls
+    diverged from the chat leg at the FIRST user message and reused only the
+    system block. Unanchored runs (replay/offline) stamp nothing, which is
+    what keeps replay parity.
+    """
+    out: list[dict] = []
+    for turn in turns:
+        message = wire_message(turn)
+        if message.get("role") == "user":
+            message["content"] = _stamp_user_turn(
+                str(message.get("content", "")), _row_t(turn), anchor
+            )
+        out.append(message)
+    return out
+
+
 def build_messages(
     recent_turns: list[dict],
     user_request: str,
@@ -393,14 +415,7 @@ def build_messages(
     is what breaks prefix reuse, so the mainline passes None.
     """
     pairs = recent_turns if limit is None else recent_turns[-limit:]
-    messages: list[dict] = []
-    for turn in pairs:
-        message = wire_message(turn)
-        if message.get("role") == "user":
-            message["content"] = _stamp_user_turn(
-                str(message.get("content", "")), _row_t(turn), anchor
-            )
-        messages.append(message)
+    messages = stamped_stream(pairs, anchor)
     if user_request is not None:
         messages.append(
             {"role": "user", "content": _stamp_user_turn(user_request, t_h, anchor)}
@@ -996,10 +1011,9 @@ def build_context_messages(
             recent_turns, user_request, limit=limit, anchor=anchor, t_h=t_h,
         )
     else:
-        messages = [
-            wire_message(turn)
-            for turn in (recent_turns if limit is None else recent_turns[-limit:])
-        ]
+        messages = stamped_stream(
+            recent_turns if limit is None else recent_turns[-limit:], anchor
+        )
     tail = render_state_card(
         snapshot,
         controls=controls, prompt_brief=prompt_brief, popup=popup,

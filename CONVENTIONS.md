@@ -26,18 +26,27 @@ are under `results/`. Do not add historical implementation plans to the repo.
   existing interfaces.
 - Internal events are system-level context, not user messages. Decisions are
   structured tools. Telegram visibility is an explicit delivery concern.
-  Scope: that governs HER conversation. Auxiliary one-shot calls (day planner,
-  interest extension, routine setup, judge) are task prompts, not events in her
-  context, and pass their instruction as a single `user` message — ratified
-  2026-09-12; a system-only single message also risks dialects that require a
-  user turn. Her own conversation never carries harness text in a user slot: a
-  proactive turn has NO user message at all, and `harness_text_in_user_roles`
-  scans every request.
+  Scope: that governs HER conversation. A call about the companion also needs
+  to KNOW that conversation: the judge and the day planner FORK the mainline
+  request — same stable system, same stamped stream, same card, task folded
+  into the trailing system block — so the whole prefix banks on the provider
+  cache; their output is engine state (judgement row, agenda text) and never
+  re-enters the conversation (owner ruling 2026-09-13). With no mainline yet
+  (fresh boot; the onboarding calls — interest extension, routine setup) they
+  fall back to a single `user` task message — ratified 2026-09-12; a
+  system-only single message also risks dialects that require a user turn.
+  Her own conversation never carries harness text in a user slot: a proactive
+  turn has NO user message at all, and `harness_text_in_user_roles` scans
+  every request.
 - Keep the stable persona/rules/tools prompt prefix byte-identical; append
   volatile internal material at the tail. Never edit, reorder, or re-render a
   message already sent to the provider — prefix caches match strictly from
   token 0, so a changed byte anywhere costs everything after it. Front-
   truncating history is the same violation: it moves the boundary every turn.
+  Every request that reads the store goes through the ONE stamped-stream
+  builder (`stamped_stream`): a second builder drifting (user turns stamped in
+  one, raw in the other) broke the live prefix at the first user message
+  (2026-09-12) — the pop-up legs banked only the system block.
 - A verdict's `reason` is audit data, never dialogue. Decisions record why;
   turns produce words. Pasting a reason into the channel puts third-person
   machine rationale in the conversation.

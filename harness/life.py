@@ -281,6 +281,7 @@ def generate_agenda(
     rng: np.random.Generator,
     *,
     planner_client=None,
+    fork=None,
     weekday: str = "today",
     logger=None,
 ) -> DailyAgenda:
@@ -389,7 +390,8 @@ def generate_agenda(
 
     items = _apply_plan(
         day, persona, arcs, items, store,
-        planner_client=planner_client, weekday=weekday, logger=logger,
+        planner_client=planner_client, fork=fork, weekday=weekday,
+        logger=logger,
     )
     items.sort(key=lambda it: it.start_t_h)
     agenda = DailyAgenda(day=day, items=tuple(items))
@@ -405,6 +407,7 @@ def _apply_plan(
     store: LifeStore,
     *,
     planner_client,
+    fork=None,
     weekday: str,
     logger,
 ) -> list[AgendaItem]:
@@ -462,7 +465,7 @@ def _apply_plan(
 
     planned = planner.plan_day(
         name=persona.name, weekday=weekday, arcs=arcs, slots=slots,
-        outcomes=outcomes, client=planner_client, logger=logger,
+        outcomes=outcomes, client=planner_client, fork=fork, logger=logger,
     )
     if planned is None:
         return items

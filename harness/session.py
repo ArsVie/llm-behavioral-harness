@@ -82,7 +82,7 @@ from harness.assembler import (
     proactive_block,
     render_day_block,
     render_day_start_block,
-    wire_message,
+    stamped_stream,
 )
 from harness.behavior import BehaviorDirective, derive_behavior
 from harness.clock import VirtualClock, hhmm
@@ -879,7 +879,10 @@ class Session(NegotiationMixin):
             # The judge is a noisy sensor — a failed call must not kill the
             # day (review fix #3): degrade to a logged neutral score.
             try:
-                result = self.judge(transcript, self.judge_client, model=self.judge_model)
+                result = self.judge(
+                    transcript, self.judge_client, model=self.judge_model,
+                    fork=self._aux_task_request,
+                )
             except Exception as exc:  # noqa: BLE001 - sensor degradation
                 self.store.log_event(
                     day, self.clock.now_h(), "judge_failed", str(exc)[:200]
@@ -986,6 +989,7 @@ class Session(NegotiationMixin):
         life.generate_agenda(
             day, self._profile, self._life_arcs, self.store, rng,
             planner_client=self._planner_client(),
+            fork=self._aux_task_request,
             weekday=self._weekday_name(day),
             logger=lambda line: self.store.log_event(
                 day, self.clock.now_h(), "day_planner", line
@@ -2314,11 +2318,12 @@ class Session(NegotiationMixin):
                 conv, "user", user_text, t_h, message_id=mid
             )
         else:
-            # Pass "" instead of None content; None serializes to
-            # content:null and 400s the request.
+            # Rows pass RAW: the stream builder normalizes None content to ""
+            # (content:null 400s the request) and stamps user turns, so a
+            # proactive request matches the reactive shape byte for byte.
             stable, messages = build_context_messages(
                 snapshot,
-                [wire_message(m) for m in recent],
+                recent,
                 None,
                 controls=controls, prompt_brief=directive.prompt_brief,
                 t_h=t_h, anchor=self._real_time_anchor(),
@@ -3141,6 +3146,27 @@ class Session(NegotiationMixin):
             "timestamp": {"day": day, "t_h": t_h},
         }}
 
+    def _aux_task_request(self, task_text: str):
+        """The mainline pair for one auxiliary task, or None without a mainline.
+
+        The fork rule (owner ruling, 2026-09-13): an auxiliary call READS the
+        exact request the last mainline turn sent — same stable system, same
+        stamped stream, same card — and folds its task into the trailing
+        system block. Only the request bytes are shared; the output is engine
+        input and never re-enters the stream (judge -> judgement row, planner
+        -> agenda text), so nothing about her own context changes.
+
+        None means no turn has ever run (fresh boot before the first
+        conversation): there is no prefix to fork, and the caller keeps its
+        standalone one-shot prompt.
+        """
+        if not self._last_stable_system:
+            return None
+        messages = stamped_stream(self._context_turns(), self._real_time_anchor())
+        messages = append_system(messages, self._last_state_card)
+        messages = append_system(messages, task_text)
+        return self._last_stable_system, messages
+
     def _popup_request_call(self, request: PopupRequest) -> RawReply:
         """One pop-up model call (the callable injected into the runner).
 
@@ -3171,8 +3197,12 @@ class Session(NegotiationMixin):
         reasoning model — repo pitfall 3af0a5a).
         """
         # WS-E: never pass None content into the client (a stored
-        # reasoning-only turn must serialize as "", never null).
-        messages = [wire_message(m) for m in self._context_turns()]
+        # reasoning-only turn must serialize as "", never null). The stream
+        # goes through the ONE builder: user turns carry the same clock stamp
+        # the mainline request sent. A raw rebuild over stored rows diverged
+        # from it at the first user message (live 2026-09-12) and banked only
+        # the system block.
+        messages = stamped_stream(self._context_turns(), self._real_time_anchor())
         messages = append_system(messages, self._last_state_card)
         messages = append_system(messages, wrap_steer_marker(request.popup))
         # A re-ask restates the requirement; append_system folds it into the

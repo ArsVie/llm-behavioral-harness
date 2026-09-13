@@ -98,28 +98,49 @@ def judge_day(
     model: str | None = None,
     rubric: str = RUBRIC,
     json_mode: bool | None = None,
+    fork=None,
 ) -> JudgeResult:
     """Score one day's exchange. `model` is informational (client owns model).
 
     JSON mode is gated on the client's capability (review fix #4): the
     harness never assumes an endpoint accepts `response_format`.
+
+    ``fork`` (owner ruling, 2026-09-13): a callable(rubric) -> (system,
+    messages) | None that extends the mainline request — the judge reads the
+    exact context the companion's last turn sent, so the whole prefix banks
+    on the provider cache. When it returns None (no mainline has ever run)
+    the standalone one-shot prompt below is kept. Either way the verdict is a
+    judgement row and nothing about the call re-enters the conversation.
     """
     if json_mode is None:
         json_mode = bool(getattr(client, "supports_json", True))
-    raw = client.chat(
-        [
-            # Aux task prompt, not an event in her conversation: the
-            # system-not-user rule governs HER context (CONVENTIONS,
-            # ratified 2026-09-12). A one-off call keeps role=user.
-            {
-                "role": "user",
-                "content": f"{rubric}\n\nTranscript:\n{transcript}",
-            }
-        ],
-        system="You are a careful interaction judge. Score precisely.",
-        temperature=0.0,
-        json_mode=json_mode,
-    )
+    pair = fork(rubric) if fork is not None else None
+    if pair is not None:
+        system, messages = pair
+        result = client.chat_with_meta(
+            messages,
+            system=system,
+            temperature=0.0,
+            json_mode=json_mode,
+        )
+        raw = getattr(result, "content", None) or (
+            result if isinstance(result, str) else ""
+        )
+    else:
+        raw = client.chat(
+            [
+                # Aux task prompt, not an event in her conversation: the
+                # system-not-user rule governs HER context (CONVENTIONS,
+                # ratified 2026-09-12). A one-off call keeps role=user.
+                {
+                    "role": "user",
+                    "content": f"{rubric}\n\nTranscript:\n{transcript}",
+                }
+            ],
+            system="You are a careful interaction judge. Score precisely.",
+            temperature=0.0,
+            json_mode=json_mode,
+        )
     return _parse_score(raw)
 
 
