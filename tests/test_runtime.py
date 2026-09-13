@@ -24,7 +24,15 @@ from harness.scheduler import (
     day_scores,
 )
 from harness.session import Session
-from tests.helpers import SeamStore, ground_agenda, make_session, no_wait, rows, suppressed_codes
+from tests.helpers import (
+    SeamStore,
+    feed_when_started,
+    ground_agenda,
+    make_session,
+    no_wait,
+    rows,
+    suppressed_codes,
+)
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -190,7 +198,7 @@ def test_reactive_inbound_reply_via_channel():
     channel = FakeChannel()
 
     async def driver():
-        feed = asyncio.create_task(channel.feed("hi", t_h=0.5))
+        feed = asyncio.create_task(feed_when_started(channel, "hi", t_h=0.5))
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
@@ -224,7 +232,7 @@ def test_expired_event_marked_expired():
     async def driver():
         async def delayed_feed():
             await asyncio.sleep(FAST.seconds_per_virtual_hour * 2.5)  # let the firing loop pick nxt first
-            await channel.feed("hi", t_h=28.5)  # jump past day 0's validity
+            await feed_when_started(channel, "hi", t_h=28.5)  # jump past day 0's validity
         feed = asyncio.create_task(delayed_feed())
         try:
             await AsyncRuntime(
@@ -417,7 +425,7 @@ def test_reactive_latency_sleeps_before_send():
     channel = TraceChannel(trace)
 
     async def driver():
-        feed = asyncio.create_task(channel.feed("hi", t_h=0.5))
+        feed = asyncio.create_task(feed_when_started(channel, "hi", t_h=0.5))
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
@@ -463,7 +471,7 @@ def test_quiet_hours_closes_open_conversation_at_boundary():
     channel = FakeChannel()
 
     async def driver():
-        feed = asyncio.create_task(channel.feed("good evening", t_h=22.833))
+        feed = asyncio.create_task(feed_when_started(channel, "good evening", t_h=22.833))
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
@@ -499,7 +507,7 @@ def test_user_left_closes_open_conversation_at_deadline():
     channel = FakeChannel()
 
     async def driver():
-        feed = asyncio.create_task(channel.feed("morning", t_h=10.0))
+        feed = asyncio.create_task(feed_when_started(channel, "morning", t_h=10.0))
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,

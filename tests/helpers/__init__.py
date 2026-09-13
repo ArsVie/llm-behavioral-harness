@@ -37,7 +37,12 @@ from tests.helpers.agenda import (
     suppressed_codes,
 )
 from tests.helpers.fakes import FakeStore, SeamStore
-from tests.helpers.channel_fakes import FakeApplication, FakeBot, StubUpdate
+from tests.helpers.channel_fakes import (
+    FakeApplication,
+    FakeBot,
+    StubUpdate,
+    feed_when_started,
+)
 from tests.helpers.clocks import (
     AnchorManualClock,
     GateSleeper,

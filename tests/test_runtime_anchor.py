@@ -36,6 +36,7 @@ from harness.store import SQLiteStore
 from tests.helpers import (
     AnchorManualClock,
     SeamStore,
+    feed_when_started,
     ground_agenda,
     make_session,
     rows,
@@ -464,7 +465,7 @@ def test_typing_context_wraps_inbound_generation_and_delay():
     )
 
     async def driver():
-        feed = asyncio.create_task(channel.feed("hello", t_h=0.5))
+        feed = asyncio.create_task(feed_when_started(channel, "hello", t_h=0.5))
         try:
             await runtime.run()
         finally:

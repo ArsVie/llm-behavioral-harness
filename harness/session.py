@@ -1952,6 +1952,104 @@ class Session(NegotiationMixin):
             self._active_drain = None
         return drain
 
+
+    def settle_pending(self, reason: str) -> "_SteerDrain":
+        """Resolve pending events on her own clock: no user, no reply.
+
+        Called at startup and at every event instant by the runtime's life
+        loop. The day block and the state card are in place BEFORE the
+        resolutions run — she decides knowing the day she acts on. Nothing
+        is sent: contact to the user only ever rides the proactive lane.
+        """
+        t_h = self.clock.now_h()
+        day = self.clock.day()
+        self.ensure_day(day)
+        assert self.current_record is not None
+        self.check_conversation_lifecycle(t_h)
+
+        previous = self._records.get(day - 1)
+        directive = derive_behavior(
+            self.current_record, self.timing, hour=self.clock.local_hour(),
+            previous=previous,
+        )
+        controls = controls_from_directive(directive)
+        if self.two_phase_close and self._closing_pending_t_h is not None:
+            controls = replace(controls, closing_guidance=WIND_DOWN_GUIDANCE)
+        brief = to_brief(directive)
+
+        snapshot = self._build_snapshot(day, t_h, brief=brief, intent=None, query=None)
+        if self._day_block is None or self._day_block_day != day:
+            self._day_block = render_day_block(snapshot)
+            self._day_block_day = day
+        # Agenda first: the resolutions below must know what they act on.
+        self._emit_day_start_block(snapshot, day, t_h)
+        system = assemble_snapshot(
+            snapshot, controls=controls, prompt_brief=directive.prompt_brief,
+            day_block=self._day_block,
+        )
+        system = _with_bubble_instruction(system)
+        self._last_system_prompt = system
+
+        recent = self._context_turns()
+        stable, messages = build_context_messages(
+            snapshot, recent, None,
+            controls=controls, prompt_brief=directive.prompt_brief,
+            t_h=t_h, anchor=self._real_time_anchor(),
+            day_block=self._day_block,
+            limit=None,
+        )
+        # The card memo keeps the tail byte-identical to what a turn sends.
+        messages = self._stable_card(messages)
+        stable = _with_bubble_instruction(stable)
+        self._last_stable_system = stable
+        self._last_state_card = (
+            messages[-1]["content"]
+            if messages and messages[-1].get("role") == "system"
+            else ""
+        )
+
+        turn_id = f"settle#{day}@{t_h:.5f}"
+        # Windows transition at turns, not here: marking a window completed
+        # before the firing loop surveys an overdue event erases the
+        # grounding its recovery needs (2026-09-13).
+        drain = self._drain_steers(day, t_h, turn_id)
+        if hasattr(self.store, "log_event"):
+            self.store.log_event(
+                day, t_h, "settle",
+                f"reason={reason} notices={len(drain.notices)}",
+            )
+        return drain
+
+    def next_event_instant(self, now: float) -> float | None:
+        """Earliest future agenda instant her life loop must wake for.
+
+        An item start, an item end, or a heads-up lead — the same instants
+        ``_enqueue_event_popups`` fires on, surveyed forward instead of
+        crossed. None means nothing ahead (the loop polls).
+        """
+        if self._steering is None or not self._decision_enabled:
+            return None
+        if not hasattr(self.store, "list_agenda_items"):
+            return None
+        day = self.clock.day()
+        prev: float | None = None
+        for event in self.store.events_since(0):
+            if event.get("event") == "popup_boundary_check":
+                prev = float(event["t_h"])
+        candidates: list[float] = []
+        for it in self.store.list_agenda_items(day=day):
+            if it.status != "planned":
+                continue
+            # A heads-up exists only while its start is still genuinely ahead.
+            if it.start_t_h > now:
+                hu = it.start_t_h - HEADS_UP_LEAD_H
+                if hu > now and (prev is None or hu > prev):
+                    candidates.append(hu)
+            for at in (it.start_t_h, it.end_t_h):
+                if at > now and (prev is None or at > prev):
+                    candidates.append(at)
+        return min(candidates) if candidates else None
+
     def _reask_for_reply(
         self, messages: list, system: str, max_tokens: int | None,
     ) -> tuple[str, object | None]:

@@ -190,12 +190,17 @@ class AsyncRuntime:
         """
         if self.anchor is not None:
             self._apply_anchor_resume()
+        # Her clock starts before the channel does: the pending backlog
+        # resolves as initialization, independent of any user message.
+        await self._session_call(self.session.settle_pending, "startup")
         if self.enable_commands:
             await self.channel.start(self._on_inbound, on_command=self._on_command)
         else:
             await self.channel.start(self._on_inbound)
         try:
-            await asyncio.gather(self._rollover_loop(), self._firing_loop())
+            await asyncio.gather(
+                self._rollover_loop(), self._firing_loop(), self._life_loop()
+            )
         finally:
             try:
                 await self._session_call(self.session.finalize_current)
@@ -458,6 +463,33 @@ class AsyncRuntime:
             )
 
     # day rollover
+
+    async def _life_loop(self) -> None:
+        """Her day on her own clock: wake at each agenda instant and resolve
+        it — decide rounds, records, no user required, nothing sent.
+
+        Mirrors the firing loop's shape: survey the next wake, sleep to it
+        in real time (anchor mode), advance the virtual clock under the
+        lock, then settle. With nothing ahead it polls, so a rollover
+        replan is picked up on the cadence.
+        """
+        while True:
+            now = self.session.clock.now_h()
+            if self._max_reached(now):
+                return
+            nxt = await self._session_call(self.session.next_event_instant, now)
+            if nxt is None:
+                await self._poll_wait()
+                continue
+            if self.max_virtual_hours is not None and nxt >= self.max_virtual_hours:
+                return
+            if nxt > now:
+                await self._sleep_until_t_h(nxt, now)
+            async with self._lock:
+                at = self.session.clock.now_h()
+                if at < nxt:
+                    self.session.clock.advance_hours(nxt - at)
+            await self._session_call(self.session.settle_pending, "event-instant")
 
     async def _rollover_loop(self) -> None:
         """Sleep until the next virtual midnight (paced), roll the session

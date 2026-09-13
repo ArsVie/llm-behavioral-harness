@@ -5,6 +5,8 @@ command/debounce/typing tests.
 
 from __future__ import annotations
 
+import asyncio
+
 
 class StubChat:
     def __init__(self, chat_id):
@@ -60,3 +62,15 @@ class FakeApplication:
     def command_update(self, text, chat_id):
         """Stub update carrying a slash-command (command-update injection)."""
         return StubUpdate(text, chat_id)
+
+
+async def feed_when_started(channel, text: str, *, t_h: float | None = None) -> None:
+    """Feed one inbound once the runtime has opened the channel.
+
+    The startup settle runs BEFORE the channel opens, so a feed created
+    ahead of ``runtime.run()`` must wait for the handler instead of
+    tripping FakeChannel's before-start guard.
+    """
+    while getattr(channel, "handler", None) is None:
+        await asyncio.sleep(0)
+    await channel.feed(text, t_h=t_h)
