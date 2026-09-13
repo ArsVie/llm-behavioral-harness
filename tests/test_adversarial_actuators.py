@@ -299,9 +299,12 @@ def test_a7_raw_engine_state_never_reaches_conversation_context(tmp_path):
             assert token not in payload, (
                 f"raw internal token {token!r} leaked into the message payload"
             )
-        # The guidance present is the rendered prose brief (WS-D: tail).
-        tail = call["messages"][-1]["content"]
-        assert "AFFECTIVE BEARING:" in tail
+        # The guidance present is the rendered prose brief, as a stream
+        # row (never a trailing synthetic block).
+        cards = [m for m in call["messages"]
+                 if m["role"] == "system"
+                 and "AFFECTIVE BEARING:" in (m.get("content") or "")]
+        assert cards
         assert "You are Nova" in system
     finally:
         store.close()

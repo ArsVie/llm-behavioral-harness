@@ -540,11 +540,12 @@ def test_the_card_is_appended_only_when_its_bytes_change(monkeypatch):
     )
 
     s = session_mod.Session.__new__(session_mod.Session)
+    s._conversation = None
     s._card_text = None
     s._persist_message = lambda *a, **k: appended.append((a[0], a[1]))
 
     for _ in range(4):
-        s._ensure_state_card(object(), None, None, day=0, t_h=1.0)
+        s._ensure_state_card(object(), None, day=0, t_h=1.0)
     assert appended == [("system", "card one"), ("system", "card two")]
     assert s._card_text == "card two"
 
@@ -559,8 +560,9 @@ def test_a_restart_baseline_skips_the_unchanged_card(monkeypatch):
     )
 
     s = session_mod.Session.__new__(session_mod.Session)
+    s._conversation = None
     s._card_text = "card one"          # what the store last carried
     s._persist_message = lambda *a, **k: appended.append(a)
 
-    s._ensure_state_card(object(), None, None, day=0, t_h=1.0)
+    s._ensure_state_card(object(), None, day=0, t_h=1.0)
     assert appended == []

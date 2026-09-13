@@ -348,12 +348,13 @@ def test_session_transition_persisted_and_render_agrees(tmp_path):
                      "ag_pottery": "planned",
                      "ag_walk": "planned"}
 
-    tail = client.calls[-1]["messages"][-1]["content"]
-    assert "It is " not in tail
-    assert "Done earlier" not in tail
-    assert "06:58" not in tail
-    assert AFFECTIVE_HEADER in tail
-    assert not FLOAT_RE.search(tail), "raw floats leaked into the live prompt"
+    cards = [m for m in client.calls[-1]["messages"] if m["role"] == "system"]
+    card = cards[-1]["content"]
+    assert "It is " not in card
+    assert "Done earlier" not in card
+    assert "06:58" not in card
+    assert AFFECTIVE_HEADER in card
+    assert not FLOAT_RE.search(card), "raw floats leaked into the live prompt"
     store.close()
 
 
@@ -394,9 +395,11 @@ def test_session_unanchored_prompt_has_no_temporal_section(tmp_path):
     assert TEMPORAL_HEADER not in call["system"]
     assert "It is " not in call["system"]
     assert "Done earlier" not in call["system"]
-    # the sectioned card (affective/behavioral/intent) still renders
-    tail = call["messages"][-1]["content"]
-    assert AFFECTIVE_HEADER in tail
-    assert BEHAVIORAL_HEADER in tail
-    assert CURRENT_INTENT_HEADER in tail
+    # the sectioned card (affective/behavioral/intent) still renders, as a
+    # stream row
+    cards = [m for m in call["messages"] if m["role"] == "system"]
+    card = cards[-1]["content"]
+    assert AFFECTIVE_HEADER in card
+    assert BEHAVIORAL_HEADER in card
+    assert CURRENT_INTENT_HEADER in card
     store.close()

@@ -171,8 +171,9 @@ def test_stream_persists_single_joined_reply_and_usage_null(monkeypatch):
     assistant = [m for m in msgs if m["role"] == "assistant"]
     assert len(assistant) == 1
     assert assistant[0]["content"] == r.reply == REPLY
-    # day-start block (system) + the user turn + one joined assistant turn
-    assert len(msgs) == 3
+    # day-start block + state card (system rows) + the user turn + one
+    # joined assistant turn
+    assert len(msgs) == 4
 
     calls = _llm_rows(sess.store)
     assert len(calls) == 1

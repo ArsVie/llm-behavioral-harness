@@ -262,10 +262,10 @@ def test_fire_proactive_creates_proactive_message(tmp_path):
     )
     result = session.fire_proactive()
     assert result.reply == "proactive hello!"
-    msgs = store.messages_for_day(0)
-    assert len(msgs) == 1
-    assert msgs[0]["role"] == "assistant"
-    assert msgs[0]["proactive"] == 1
+    turns = [m for m in store.messages_for_day(0) if m["role"] != "system"]
+    assert len(turns) == 1
+    assert turns[0]["role"] == "assistant"
+    assert turns[0]["proactive"] == 1
 # fresh transcript → stable system + state-card tail (the tail user message
 # always rides along, so the system-only normalization never triggers)
     last_call = client.calls[-1]

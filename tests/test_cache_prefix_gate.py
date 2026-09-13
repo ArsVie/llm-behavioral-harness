@@ -197,7 +197,7 @@ def test_every_call_extends_the_previous_one(tmp_path, decision_env):
 
 
 def test_the_volatile_block_is_actually_last(tmp_path, decision_env):
-    """The card (and pop-up) must be the FINAL messages, not embedded."""
+    """Nothing synthetic trails the stream; the card never embeds."""
     store = make_store(tmp_path, "tail.db")
     profile = _persona()
     store.save_persona(profile)
@@ -216,11 +216,10 @@ def test_the_volatile_block_is_actually_last(tmp_path, decision_env):
     for call in client.calls:
         messages = call["messages"]
         assert messages, "empty payload"
-        assert messages[-1]["role"] == "system", (
-            "the last message is not the state card — the volatile block "
-            "moved off the tail"
-        )
-        # ... and the card never rides inside the system message.
+        # Append-only: the last message is the newest real row, never a
+        # re-appended block.
+        assert messages[-1]["role"] in ("user", "assistant", "tool")
+        # ... and the card never rides inside the stable system message.
         assert "AFFECTIVE BEARING:" not in (call["system"] or "")
         assert "TEMPORAL FRAME:" not in (call["system"] or "")
 

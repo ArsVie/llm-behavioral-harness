@@ -213,9 +213,11 @@ def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
     assert result.proactive_out == ()
     assert len(client.calls) == 3  # T1 round + T1 generation + T2 decide round (the suppressed turn never generates)
     msgs = store.messages_for_day(0)
-    # The leading system row is the day-start block (plan + arcs), emitted
-    # once at the day's first turn into the stream.
-    assert [m["role"] for m in msgs] == ["system", "user", "assistant", "user"]
+    # Leading system rows: the day-start block (plan + arcs) and the state
+    # card, both emitted into the stream.
+    assert [m["role"] for m in msgs] == [
+        "system", "system", "user", "assistant", "user",
+    ]
     records = store.decisions_for_day(0)
     assert len(records) == 2
     assert records[-1]["popup_kind"] == "tool_decide_reply"

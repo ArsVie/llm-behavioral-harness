@@ -72,6 +72,7 @@ from engine.types import (
 from harness import life, wire
 from harness.actuation import controls_from_directive, to_brief
 from harness.assembler import (
+    CLOSING_HEADER,
     DEFAULT_PERSONA_CORE,
     RECENT_TURNS,
     append_system,
@@ -1529,19 +1530,17 @@ class Session(NegotiationMixin):
     def _ensure_state_card(
         self,
         snapshot,
-        controls,
         prompt_brief: str | None,
         day: int,
         t_h: float,
     ) -> None:
         """Append the state card as a stream row only when its bytes changed.
 
-        The stream is append-only: an unchanged card is never re-sent, and a
-        changed one lands at the tail as a new row, never a rewrite.
+        State only: per-turn guidance (closing wind-down) never enters the
+        persisted row — it rides the generation as a transient block. The
+        stream is append-only: an unchanged card is never re-sent.
         """
-        text = render_state_card(
-            snapshot, controls=controls, prompt_brief=prompt_brief,
-        )
+        text = render_state_card(snapshot, prompt_brief=prompt_brief)
         if not text or text == self._card_text:
             return
         conv = self._conversation
@@ -1995,7 +1994,7 @@ class Session(NegotiationMixin):
         self._last_system_prompt = system
 
         self._ensure_state_card(
-            snapshot, controls, directive.prompt_brief, day, t_h,
+            snapshot, directive.prompt_brief, day, t_h,
         )
         recent = self._context_turns()
         stable, messages = build_context_messages(
@@ -2345,7 +2344,7 @@ class Session(NegotiationMixin):
         self._last_system_prompt = system
 
         self._ensure_state_card(
-            snapshot, controls, directive.prompt_brief, day, t_h,
+            snapshot, directive.prompt_brief, day, t_h,
         )
         recent = self._context_turns()
         # Mainline: stable system + the context stream (never user-role: user
@@ -2439,7 +2438,7 @@ class Session(NegotiationMixin):
         # The stream above was read before the drain; rebuild the request
         # now so this turn's decisions ride it as rows, not as prose.
         self._ensure_state_card(
-            snapshot, controls, directive.prompt_brief, day, t_h,
+            snapshot, directive.prompt_brief, day, t_h,
         )
         recent = self._context_turns()
         stable, messages = build_context_messages(
@@ -2459,6 +2458,13 @@ class Session(NegotiationMixin):
             # Something she decided during this drain needs saying. The note
             # states WHAT she decided; the generation supplies her words.
             messages = append_system(messages, "\n".join(drain.decided_notes))
+
+        if controls is not None and controls.closing_guidance:
+            # Turn-scoped guidance: delivered once, never persisted — so it
+            # can never leak into the next conversation's requests.
+            messages = append_system(
+                messages, f"{CLOSING_HEADER} {controls.closing_guidance}",
+            )
 
         # reasoning_effort passes through HARNESS_THINKING_EFFORT when
         # set; the max_tokens cap is dropped then.

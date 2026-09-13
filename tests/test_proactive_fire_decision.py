@@ -65,10 +65,10 @@ def test_initiate_true_fires_single_reply_with_intent_id(tmp_path):
     store.save_proactive_intent(_intent())
     result = session.fire_proactive("pi_1")
     assert result.reply == "hello from Lily!"
-    msgs = store.messages_for_day(0)
-    assert len(msgs) == 1
-    assert msgs[0]["role"] == "assistant"
-    assert msgs[0]["intent_id"] == "pi_1"
+    turns = [m for m in store.messages_for_day(0) if m["role"] != "system"]
+    assert len(turns) == 1
+    assert turns[0]["role"] == "assistant"
+    assert turns[0]["intent_id"] == "pi_1"
     records = store.decisions_for_day(0)
     assert len(records) == 1
     assert records[0]["popup_kind"] == "tool_decide_proactive"
@@ -88,7 +88,7 @@ def test_decline_suppresses_reply_and_marks_intent(tmp_path):
     store.save_proactive_intent(_intent())
     result = session.fire_proactive("pi_1")
     assert result.reply == ""
-    assert store.messages_for_day(0) == []
+    assert [m for m in store.messages_for_day(0) if m["role"] != "system"] == []
     # No main LLM call happened — the only call was the decide pop-up.
     assert len(client.calls) == 1
     records = store.decisions_for_day(0)
@@ -132,8 +132,8 @@ def test_decision_off_fires_undecided_parity(tmp_path):
     result = session.fire_proactive("pi_1")
     assert result.reply == "hello from Lily!"
     assert len(client.calls) == 1  # single main call, no pop-up
-    msgs = store.messages_for_day(0)
-    assert len(msgs) == 1 and msgs[0]["intent_id"] == "pi_1"
+    turns = [m for m in store.messages_for_day(0) if m["role"] != "system"]
+    assert len(turns) == 1 and turns[0]["intent_id"] == "pi_1"
     store.close()
 
 

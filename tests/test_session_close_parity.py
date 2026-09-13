@@ -26,7 +26,11 @@ VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
 
 #: sha256 of the canonical trace of the seeded feed, two_phase_close OFF.
-PARITY_PIN = "be27e97cc366ae6307e63f8b828bf775e905eb21014a6ddd92f7bb61ff87f78e"
+#: Regenerated 2026-09-13 for the append-only stream (two_phase_close OFF:
+#: the state card persists as system rows). Verified then: conversations and
+#: state_events byte-identical to the previous pin's trace; the message diff
+#: is exactly the 12 card rows. No draw-key/RNG/timing change.
+PARITY_PIN = "2e8d3f553132ae231172d9d442d0507f7a8b7a27dfc86b019a4f54723ca7a4fc"
 
 #: Messages land at START_H + m*GAP_H, crossing one quiet-hours boundary.
 START_H = 8.1667

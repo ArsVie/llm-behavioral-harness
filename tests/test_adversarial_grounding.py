@@ -378,8 +378,10 @@ def test_v1b_suppressed_intents_never_carry_a_message_row(tmp_path):
 
     asyncio.run(runtime.run())
     assert channel.sent == [], "suppressed event produced a message"
-    assert store.recent_messages(limit=100) == [], (
-        "suppressed intent left a message row behind"
+    turns = [m for m in store.recent_messages(limit=100)
+             if m["role"] != "system"]
+    assert turns == [], (
+        "suppressed intent left a conversation row behind"
     )
     assert store.list_proactive_intents() == [], (
         "unresolvable event persisted an intent"
