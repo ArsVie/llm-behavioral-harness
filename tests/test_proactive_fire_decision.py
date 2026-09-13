@@ -1,10 +1,9 @@
 """Proactive-as-decision fire path (Integration B).
 
-A grounded ``fire_proactive(intent_id)`` enqueues a KIND_PROACTIVE steer;
-the turn's idle boundary executes ``tool_decide_proactive`` BEFORE any
-generation. ``initiate=true`` proceeds with the single main reply (the
-turn's generation IS the proactive message); ``initiate=false`` declines
-quietly — no message persisted, intent marked suppressed.
+A grounded ``fire_proactive(intent_id)`` enqueues a KIND_PROACTIVE steer; the
+turn's idle boundary executes ``tool_decide_proactive`` before any generation.
+``initiate=true`` proceeds with the main reply, ``initiate=false`` declines
+quietly.
 """
 
 from __future__ import annotations
@@ -57,9 +56,10 @@ def test_initiate_true_fires_single_reply_with_intent_id(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
-        {"content": "hello from Lily!",
+        {"content": "",
          "tool_calls": [{"id": "c1", "name": "tool_decide_proactive",
                          "arguments_json": "{\"initiate\": true, \"reason\": \"go\"}"}]},
+        {"content": "hello from Lily!"},
     ])
     session = _session(store, client, clock, decision=DecisionConfig())
     store.save_proactive_intent(_intent())
@@ -117,9 +117,8 @@ def test_decline_replays_without_new_model_call(tmp_path):
     # drain again: the recorded verdict replays (no new model call).
     store.save_proactive_intent(_intent("pi_2"))
     session.enqueue_proactive_decision("pi_2")
-    # Force the replay path by pre-recording the verdict under the new id
-    # is not possible (id is steer-scoped); instead assert the decline
-    # path consumed exactly one pop-up call and left no message.
+    # The id is steer-scoped, so the replay path cannot be forced from here;
+    # assert the decline path consumed one pop-up call and left no message.
     assert n_calls == 1
     store.close()
 
@@ -142,9 +141,10 @@ def test_reactive_turn_ignores_stray_proactive_decline(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
-        {"content": "reactive reply",
+        {"content": "",
          "tool_calls": [{"id": "c4", "name": "tool_decide_proactive",
                          "arguments_json": "{\"initiate\": false, \"reason\": \"later\"}"}]},
+        {"content": "reactive reply"},
     ])
     session = _session(store, client, clock, decision=DecisionConfig())
     store.save_proactive_intent(_intent())

@@ -1,19 +1,4 @@
-"""WS4 integration wiring tests: steering + decision layer in Session._chat.
-
-Exercises the current steering + decision-layer wiring in Session._chat:
-
-- idle-boundary drain (event pop-ups, mid-turn user messages) and the
-  decide_event / decide_reply pop-ups through the real DecisionRunner;
-- single reply-path invariant: a no-reply verdict suppresses the ordinary
-  reply and the notice rides out through TurnResult;
-- re-queue on parse failure (requeue policy) and on interrupted turns;
-- reasoning effort passthrough + reasoning persistence in llm_calls meta;
-- the cached day-start block (tier 2) and default inertness (no env vars =>
-  the harness behaves exactly as before the redesign).
-
-All tests use the real SQLiteStore (v5 seams) and the real DecisionRunner;
-the model is a scripted FakeClient.
-"""
+"""Integration wiring tests: steering + decision layer in Session._chat."""
 
 from __future__ import annotations
 
@@ -65,17 +50,15 @@ def _session(store, *, client, clock, decision=None):
 
 def test_event_popup_initiate_fires_proactive_out(tmp_path):
     """An agenda item started before the turn: the idle boundary enqueues an
-    event pop-up, the DecisionRunner executes decide_event (textual reply on
-    a native-capable client exercises the text fallback), an initiate
-    verdict produces a proactive_out message, and the decision + delivery
-    are both persisted (delivered_t_h recorded)."""
+    event pop-up; the decision and its delivery are persisted."""
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
-        {"content": "main reply",
+        {"content": "",
          "tool_calls": [{"id": "c1", "name": "tool_decide_event",
                          "arguments_json": "{\"initiate\": true, \"reason\": \"ready to go\"}"}]},
+        {"content": "main reply"},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
@@ -84,14 +67,14 @@ def test_event_popup_initiate_fires_proactive_out(tmp_path):
     result = session.on_message("hello")
 
     assert result.reply == "main reply"
-    # 2026-09-08: the turn speaks for an initiate verdict; the verdict's
-    # `reason` stays in decision_records and out of the conversation.
+    # the verdict's `reason` stays in decision_records, out of the conversation
     assert result.proactive_out == ()
     assert result.notices == ()
-    # the pop-up rides the turn's own generation (owner ruling 2026-09-12):
-    # one call, whose message payload carried the steer-marker-wrapped block
-    assert len(client.calls) == 1
+    # one steer, one round: the decide call carries the question, the
+    # generation speaks and carries no steer block
+    assert len(client.calls) == 2
     assert STEER_MARKER_OPEN in client.calls[0]["messages"][-1]["content"]
+    assert STEER_MARKER_OPEN not in client.calls[1]["messages"][-1]["content"]
     # dual persistence: the decision record + the delivered steer
     records = store.decisions_for_day(0)
     assert len(records) == 1
@@ -114,9 +97,10 @@ def test_event_popup_no_initiate_no_channel_output(tmp_path):
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
-        {"content": "main reply",
+        {"content": "",
          "tool_calls": [{"id": "c2", "name": "tool_decide_event",
                          "arguments_json": "{\"initiate\": false, \"reason\": \"too tired\"}"}]},
+        {"content": "main reply"},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
@@ -132,10 +116,8 @@ def test_event_popup_no_initiate_no_channel_output(tmp_path):
 
 
 def test_backlog_initiate_omits_channel_send(tmp_path):
-    """A steer enqueued BEFORE the conversation opened is fast-forward
-    material: the initiate verdict is decided and persisted, but its
-    reason never reaches the channel — no conversation was live when
-    it arose."""
+    """A steer enqueued before the conversation opened is decided and
+    persisted, but its reason never reaches the channel."""
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     store.enqueue_steer(0, 8.0, KIND_EVENT_POPUP, {
@@ -144,9 +126,10 @@ def test_backlog_initiate_omits_channel_send(tmp_path):
     })
     clock = VirtualClock(t_h=8.5)
     client = FakeClient(responses=[
-        {"content": "main reply",
+        {"content": "",
          "tool_calls": [{"id": "c3", "name": "tool_decide_event",
                          "arguments_json": "{\"initiate\": true, \"reason\": \"ready to go\"}"}]},
+        {"content": "main reply"},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
@@ -165,11 +148,8 @@ def test_backlog_initiate_omits_channel_send(tmp_path):
 
 
 def test_start_no_marks_item_skipped_and_end_asks_nothing(tmp_path):
-    """The decision is offered ONCE, at the start. A `no` closes the event
-    server-side right there (the NOW-semantics state card stops showing
-    it), and the END boundary makes NO model call — the client is scripted
-    with a reply only, so a second pop-up would consume it and break.
-    """
+    """The decision is offered once, at the start; the END boundary makes
+    no model call."""
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
@@ -200,11 +180,8 @@ def test_start_no_marks_item_skipped_and_end_asks_nothing(tmp_path):
 
 
 def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
-    """A user message while an event is in progress runs decide_reply; a
-    no-reply verdict suppresses the ordinary reply entirely (single
-    reply-path invariant) and the notice rides out through TurnResult. The
-    user message IS persisted; no assistant row is created; the main LLM
-    call never happens (the pop-up call is the only call)."""
+    """A user message during an event runs decide_reply; a no-reply verdict
+    suppresses the ordinary reply and the notice rides out through TurnResult."""
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
@@ -234,11 +211,10 @@ def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
     assert result.reply == ""
     assert result.notices == ("Lily saw your message but chose not to reply yet",)
     assert result.proactive_out == ()
-    assert len(client.calls) == 2  # one generation per turn: the verdict-ended second speaks no main reply
+    assert len(client.calls) == 3  # T1 round + T1 generation + T2 decide round (the suppressed turn never generates)
     msgs = store.messages_for_day(0)
     # The leading system row is the day-start block (plan + arcs), emitted
-    # once at the day's first turn into the stream instead of being re-sent
-    # in every per-turn state card.
+    # once at the day's first turn into the stream.
     assert [m["role"] for m in msgs] == ["system", "user", "assistant", "user"]
     records = store.decisions_for_day(0)
     assert len(records) == 2
@@ -263,9 +239,10 @@ def test_decide_reply_yes_proceeds_with_ordinary_reply(tmp_path):
     session.on_message("morning")  # consumes the START pop-up
 
     client.responses.extend([
-        {"content": "ok here I am",
+        {"content": "",
          "tool_calls": [{"id": "c7", "name": "tool_decide_reply",
                          "arguments_json": "{\"reply\": true, \"reason\": \"one sec\", \"terminate_event\": true}"}]},
+        {"content": "ok here I am"},
     ])
     session.enqueue_user_message_steer("are you coming?", 10.0)
     clock.advance_hours(0.5)
@@ -307,10 +284,8 @@ def test_decide_reply_verbose_notice_carries_reason(tmp_path):
 
 
 def test_parse_failure_requeues_steer_for_next_boundary(tmp_path):
-    """A textual reply without a parseable marker raises DecisionRequeue
-    inside the runner; the steer returns to pending (the parse failure is a
-    LOUD recorded event) and the next turn drains it again — this time with
-    a parseable reply. The raw gibberish reply stays persisted."""
+    """A textual reply without a parseable marker requeues the steer; the
+    next turn drains it again with a parseable reply."""
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
@@ -378,10 +353,8 @@ def test_interrupted_turn_requeues_delivered_steers(tmp_path):
 def test_thinking_effort_passthrough_and_reasoning_persistence(
     tmp_path, monkeypatch,
 ):
-    """HARNESS_THINKING_EFFORT=low reaches the client as reasoning_effort,
-    the max_tokens cap is dropped (repo pitfall 3af0a5a: never cap a
-    reasoning model), and the model's reasoning is persisted in the llm_call
-    meta (audit renders it under #Thinking)."""
+    """HARNESS_THINKING_EFFORT=low reaches the client as reasoning_effort;
+    the reasoning is persisted in the llm_call meta."""
     monkeypatch.setenv("HARNESS_THINKING_EFFORT", "low")
     store = make_store(tmp_path)
     clock = VirtualClock(t_h=10.0)
@@ -407,9 +380,8 @@ def test_thinking_effort_passthrough_and_reasoning_persistence(
 
 
 def test_defaults_inert_no_thinking_no_steering(tmp_path):
-    """With no HARNESS_* env vars and no injected config the harness is
-    exactly as before: one model call per turn, no reasoning_effort, no
-    steering activity, no meta."""
+    """With no HARNESS_* env vars the harness is inert: one model call per
+    turn, no reasoning_effort, no steering activity, no meta."""
     store = make_store(tmp_path)
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=["plain reply"])
@@ -430,9 +402,8 @@ def test_defaults_inert_no_thinking_no_steering(tmp_path):
 
 
 def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
-    """Tier 2 (day-start block) is rendered once per day and cached: two
-    turns of the same day share the identical block; the next day's block
-    differs (new agenda)."""
+    """Tier 2 (day-start block) is cached: identical within a day, refreshed
+    at rollover."""
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0, activity="pottery"),)))
     store.save_agenda(1, DailyAgenda(1, (_item(33.0, 35.0, activity="chess",
@@ -442,10 +413,8 @@ def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
     session = _session(store, client=client, clock=clock)
 
     def _agenda_segment(call) -> str:
-        # The day plan is emitted ONCE into the message stream at the day's
-        # first turn, not re-sent in the per-turn card. Read the LAST one:
-        # on day 1 the stream still carries day 0's block as history, so the
-        # newest is the one describing today.
+        # The day plan is emitted once, at the day's first turn; read the
+        # LAST one — on day 1 the stream still carries day 0's block as history.
         found = ""
         for m in call["messages"]:
             _, sep, rest = (m.get("content") or "").partition("Today's agenda:")
@@ -461,8 +430,7 @@ def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
     assert "pottery" in block0a
 
     # Emitted ONCE: the second turn re-reads the same stream message rather
-    # than appending a fresh copy. That is the saving — sent once, read all
-    # day, and inside the cached prefix from then on.
+    # than appending a fresh copy.
     def _plan_messages(call) -> int:
         return sum(1 for m in call["messages"]
                    if "Today's agenda:" in (m.get("content") or ""))

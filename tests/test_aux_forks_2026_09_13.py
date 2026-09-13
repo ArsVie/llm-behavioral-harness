@@ -1,16 +1,4 @@
-"""Aux calls fork the mainline request; only its bytes are shared.
-
-Owner ruling (2026-09-13): the judge and the day planner READ the exact
-request the companion's last mainline turn sent — same stable system, same
-stamped context stream, same state card — plus one trailing task block, so
-the provider cache serves the whole prefix. Their OUTPUT is engine input
-(judgement row / agenda text) and never re-enters the conversation.
-
-The regression pinned first: on the live run the pop-up legs rebuilt the
-stream from raw store rows while the mainline stamped user turns with their
-clock (e4a4a4a) — the two lanes diverged at the FIRST user message, so the
-decide calls banked only the system block. One builder or bust.
-"""
+"""Aux calls fork the mainline request; only its bytes are shared."""
 
 from __future__ import annotations
 
@@ -47,28 +35,23 @@ def _session(tmp_path, client, *, t_h=10.0, agenda=True, anchored=True):
     return store, session
 
 
-# -- the stamped-stream parity (the live regression) ------------------- #
+# -- the stamped-stream parity ----------------------------------------- #
 
 def test_the_popup_leg_reuses_the_stamped_mainline_bytes(tmp_path):
-    """An anchored run stamps user turns; both lanes must send the same bytes.
-
-    Pre-fix this failed at the first user message: the mainline sent
-    ``hey | Time: 10:00`` while the pop-up rebuild sent ``hey``.
-    """
+    """An anchored run stamps user turns; both lanes must send the same bytes."""
     client = FakeClient(responses=[
-        # The generation does NOT answer the pop-up (plain text)...
-        "main reply",
-        # ...so the bounded re-ask draws the verdict, extending the request.
+        # The decide round draws the verdict...
         {"content": "", "tool_calls": [{"id": "c2", "name": "tool_decide_event",
          "arguments_json": "{\"initiate\": \"yes\", \"reason\": \"in the mood\"}"}]},
+        # ...then the generation speaks.
+        "main reply",
     ])
     store, session = _session(tmp_path, client)
     try:
         session.on_message("hey")
-        assert len(client.calls) == 2, "generation + the bounded re-ask"
-        main, popup = client.calls[0], client.calls[1]
-        # The stamp is really on the wire (guards both sides silently
-        # un-stamping, which would make this test pass for the wrong reason).
+        assert len(client.calls) == 2, "decide round + generation"
+        main, popup = client.calls[1], client.calls[0]
+        # The stamp is really on the wire (guards a silent un-stamp on both sides).
         assert any(
             (m.get("role") == "user" and " | Time: 10:00" in (m.get("content") or ""))
             for m in main["messages"]
@@ -98,8 +81,7 @@ def test_aux_task_request_extends_the_last_mainline_request(tmp_path):
         system, messages = pair
         assert system == main["system"]
         # The stream AS OF NOW extends the mainline request: everything the
-        # mainline sent is still at the head, the persisted reply has since
-        # been appended, and the card + task ride as ONE trailing block.
+        # mainline sent stays at the head; the card + task ride as one trailing block.
         head = main["messages"][:-1]
         assert messages[: len(head)] == head
         assert messages[len(head)]["role"] == "assistant"
@@ -112,14 +94,7 @@ def test_aux_task_request_extends_the_last_mainline_request(tmp_path):
 
 
 def test_no_mainline_still_carries_the_base_prefix(tmp_path):
-    """A call before any turn rides the SAME system prompt as the first turn.
-
-    Base-prefix rule (owner ruling, 2026-09-13): the boot day-0 planner has
-    no request to fork, but it must not invent a private prompt base either.
-    It sends the stable system with its task as the single user-role
-    instruction, caches the day block, and the first real turn then sends
-    those exact same bytes.
-    """
+    """A call before any turn rides the SAME system prompt as the first turn."""
     client = FakeClient(responses=["hi there"])
     store, session = _session(tmp_path, client, agenda=False)
     try:
@@ -196,8 +171,7 @@ def test_finalize_day_judges_on_the_fork_and_appends_nothing(tmp_path):
         assert len(store.messages_for_day(0)) == before, (
             "the verdict is a judgement row, never a conversation message"
         )
-        # The rich surface carries usage, so the ledger keeps the judge's
-        # tokens (the plain-chat path recorded the row with NULL usage).
+        # The rich surface carries usage, so the ledger keeps the judge's tokens.
         row = store.conn.execute(
             "SELECT prompt_tokens, completion_tokens FROM llm_calls"
             " WHERE role = 'aux_judge'"

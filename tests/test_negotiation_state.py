@@ -1,22 +1,12 @@
-"""A1: availability-negotiation phase machine (G0 contract) tests.
+"""Availability-negotiation phase machine tests.
 
-Two layers, no LLM anywhere:
+Two layers, no LLM anywhere: pure-machine tests on
+:mod:`harness.negotiation_state`, and session-level tests through
+:class:`harness.session.Session` with a fake DecisionRunner over the real
+SQLiteStore.
 
-* pure-machine tests — the trigger arithmetic, defer(N) mapping, backstop
-  clamp, converging pull and the responded-bool Inform marker, all on
-  :mod:`harness.negotiation_state` directly;
-* session-level tests — the full Inform-once -> Decide-loop wiring through
-  :class:`harness.session.Session` with a FAKE DecisionRunner (scripted
-  verdicts) over the real SQLiteStore, covering: Inform exactly once
-  (value-checked marker, never key presence), go/skip/delay with both
-  triggers re-armed per delay, the AFK-bomb release path, the window-close
-  backstop (no model call, no re-arm past end_t_h), skippable vs
-  unskippable decide requests, deterministic decision ids, restart resume,
-  and the runtime park accessor.
-
-Seed 158: the first conversation's closing_tendency draws all sit above the
-day's closing tendency, so no incidental conversation close disturbs the
-negotiation flow under test.
+Seed 158: the first conversation's closing_tendency draws sit above the
+day's closing tendency, so no incidental close disturbs the flow under test.
 """
 
 from __future__ import annotations
@@ -159,9 +149,8 @@ def test_decide_status_forced_at_window_close():
 
 
 def test_decide_status_forced_in_inform_phase_at_window_close():
-    """G2 finding: the backstop is phase-independent — a negotiation stuck
-    in INFORM (inform never landed) is forced-skipped at end_t_h, so
-    termination holds on every path (the contract's termination floor)."""
+    """The backstop is phase-independent: a negotiation stuck in INFORM is
+    forced-skipped at end_t_h."""
     st = _st(end_t_h=10.0, phase=NegotiationPhase.INFORM.value)
     assert decide_status_at(st, now=10.0, companion_turn=False) == "forced"
     # before the window close the inform phase fires no decide
@@ -278,10 +267,8 @@ def test_inform_once_then_decide_loop_delay_then_go(tmp_path):
     agenda = DailyAgenda(0, (_item(9.0, 11.0),))
     clock = VirtualClock(t_h=8.0)
     session, store, runner = _session(tmp_path, clock=clock, agenda=agenda, verdicts=[
-        # Inform legs carry the mention as ``message``: that is what the
-        # real parser produces (tools._normalize_verdict maps a legacy
-        # ``reason`` onto it), and ONLY ``message`` reaches the channel —
-        # a verdict's reason is audit data, never her words.
+        # Inform legs carry the mention as ``message`` -- the shape the real
+        # parser produces; ``reason`` stays audit data.
         {"message": "I've got gym soon"},                            # inform
         {"initiate": False, "reason": "a bit longer",
          "action": "defer"},                                         # decide 0
@@ -323,10 +310,6 @@ def test_inform_once_then_decide_loop_delay_then_go(tmp_path):
 
     clock.advance_hours(0.3)                      # 10.3 > afk bomb 10.167
     r4 = session.on_message("?")                  # decide leg 1 -> go
-    # 2026-09-08: the TURN says her goodbye. This used to assert
-    # reply == "" and the verdict's `reason` in proactive_out -- machine
-    # rationale as dialogue, and a suppressed reply that left a user
-    # goodbye unanswered. The reason is still recorded in decision_records.
     assert r4.reply == "ok"                       # she actually speaks
     assert r4.proactive_out == ()                 # no rationale in the channel
     assert session.open_conversation_id() is None  # ... and then leaves
@@ -487,9 +470,7 @@ def test_no_conversation_at_boundary_plain_start_popup(tmp_path):
     r = session.on_message("hello")           # conversation opens NOW
     # The negotiation did not activate: the conversation opened after the boundary.
     assert "ag1" not in session._negotiations
-    # 2026-09-08: an initiate verdict makes the TURN open about the event
-    # (START_NOTE on the tail) instead of pasting the verdict's `reason`
-    # into the channel as her words.
+    # An initiate verdict makes the turn open about the event (START_NOTE).
     assert r.proactive_out == ()
     assert r.reply == "ok"
     assert runner.calls[0]["decision_id"].startswith("steer-")
@@ -594,14 +575,14 @@ def test_real_runner_pipeline_inform_message_and_defer_turns(tmp_path):
     store.save_agenda(0, agenda)
     client = FakeClient(responses=[
         "ok",                                                    # T1 main
-        # T2: the inform rides the turn's own generation (owner ruling
-        # 2026-09-12) -- one native tool call, not a second request.
-        {"content": "ok", "tool_calls": [{
+        # T2: the inform is its own round; the generation speaks after it.
+        {"content": "", "tool_calls": [{
             "id": "c1", "name": "tool_decide_event",
             "arguments_json": json.dumps({"message": "gym starts in a bit"}),
         }]},
-        # T3: decide 0 -> defer. The decide leg fires from the drain before
-        # this turn's generation, so it draws the next response.
+        "ok",                                                    # T2 main
+        # T3: decide 0 -> defer; the decide leg fires from the drain before
+        # this turn's generation and draws its own response.
         {"content": "", "tool_calls": [{
             "id": "c2", "name": "tool_decide_event",
             "arguments_json": json.dumps(

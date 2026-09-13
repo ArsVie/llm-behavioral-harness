@@ -1,24 +1,10 @@
 """The wire never carries two system messages in a row.
 
-The 2026-09-08 leak: a conversational turn came back as DeepSeek DSML
-tool-call markup and was persisted as her message and sent to the channel.
-
-The cause was adjacency. A turn's tail could stack up to FOUR ``role="system"``
-messages — state card, injections, decided-notes, and on an aux call the
-pop-up — with the last assistant turn far behind them. A run of system blocks
-reads as one undifferentiated instruction block, and the model answers
-whichever question it latches onto: a pop-up as prose (the decision-lane parse
-failures), or a conversational turn as a tool call (the leak).
-
-So blocks FOLD into one trailing system message. Exactly one place in the
-message list is addressing the model, immediately before it answers.
-
-Two things deliberately NOT done, pinned here so they are not "fixed" later:
-
-* No synthetic assistant turn is interleaved between system blocks. An
-  assistant message the model never produced is a lie in its own history.
-* Replayed DECISIONS keep their real ``assistant tool_calls -> role="tool"``
-  exchange. Those turns actually happened; this is only about the live tail.
+A turn's tail blocks (state card, injections, decided-notes, and on an aux call
+the pop-up) FOLD into one trailing system message, so exactly one place in the
+message list addresses the model immediately before it answers. Pinned here: no
+synthetic assistant turn is interleaved between system blocks, and replayed
+decisions keep their real ``assistant tool_calls -> role="tool"`` exchange.
 """
 
 from __future__ import annotations
@@ -165,16 +151,8 @@ def test_the_state_card_and_popup_arrive_in_one_block(tmp_path):
 
 
 def test_the_day_block_is_written_once_and_never_rerendered(tmp_path):
-    """The whole cache argument in one test.
-
-    The day block is rendered ONCE and persisted; every later turn replays
-    the stored bytes. So its wording can change freely — a dated header, a
-    new section — without touching a single already-cached prefix, because
-    nothing re-renders an emitted block.
-
-    What would break the cache is re-emitting or re-rendering it per turn,
-    which is precisely what the per-turn state card was doing with it.
-    """
+    """The day block is rendered ONCE and persisted; every later turn replays the
+    stored bytes, and nothing re-renders an emitted block."""
     client = FakeClient(responses=["r1", "r2", "r3"])
     store, session = _session(tmp_path, client, t_h=9.5)
     try:
@@ -212,35 +190,21 @@ def test_the_day_block_is_written_once_and_never_rerendered(tmp_path):
 # the cache property
 
 def test_a_popup_call_extends_the_mainline_request(tmp_path):
-    """A pop-up never starts a request of its own; the re-ask extends one.
-
-    This is the provider-cache story in one assertion. Measured on the live
-    run (14 calls): every consecutive pair — chat->chat and chat->decide —
-    was byte-identical up to the trailing state card, so the whole prefix is
-    servable and only the tail changes. The tail is free to change: a
-    re-sent message costs the cache, an EXTENDED last message does not.
-
-    Under the owner ruling (2026-09-12) the turn's own generation answers
-    the pop-up; when that generation does not, the bounded re-ask re-sends
-    the very same array with the pop-up folded into the trailing system
-    block — not a request with its own prefix. Anything that rebuilds its
-    own prefix — a sliding window, a re-rendered transcript, a card in the
-    middle — breaks the property, and this test is what breaks loudly when
-    that happens.
-    """
+    """The pop-up's own round is a byte-identical extension of the shared
+    stream: same stable system, same prefix, and the card with the pop-up
+    folded into ONE trailing system message; the generation follows."""
     client = FakeClient(responses=[
-        # The turn's own generation does NOT answer the pop-up...
-        "main reply",
-        # ...so the bounded re-ask draws the real answer.
+        # The decide round answers the pop-up...
         {"content": "", "tool_calls": [{"id": "c4", "name": "tool_decide_event",
          "arguments_json": "{\"initiate\": \"yes\", \"reason\": \"in the mood\"}"}]},
+        # ...then the generation speaks.
+        "main reply",
     ])
     store, session = _session(tmp_path, client)
     try:
         session.on_message("hey")
-        # ONE generation plus ONE bounded re-ask: the pop-up that the
-        # generation left unanswered is not allowed a request of its own.
-        assert len(client.calls) == 2, "generation + re-ask, nothing else"
+        # The decide round and then the generation: nothing else.
+        assert len(client.calls) == 2, "decide round + generation, nothing else"
         first, second = client.calls[0], client.calls[1]
         # One stable prefix, byte for byte, across the two lanes.
         assert first["system"] == second["system"]
