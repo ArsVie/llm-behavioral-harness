@@ -550,12 +550,19 @@ def test_tool_schemas_for_every_role(tmp_path):
     assert "decide legs carry the schema" in source
     tools, source = reader.tool_schemas_for("tool_decide_event")
     assert tools and "harness.tools" in source
-    assert "OpenAI shape" in source and "tool_choice=auto" in source
+    assert "OpenAI shape" in source and "no tool_choice field is sent" in source
     assert all(tool["name"] == "tool_decide_event" for tool in tools)
     tools, _ = reader.tool_schemas_for("tool_decide_unknown")
     assert len(tools) > 1
     tools, source = reader.tool_schemas_for("day_plan")
     assert tools == [] and "unknown role" in source
+    # Metered auxiliary calls (day planner, extension, setup, judge) offer no
+    # tool at all — that is the call being what it says it is, not an unknown.
+    for role in ("aux_day_planner", "aux_interest_extension",
+                 "aux_routine_setup", "aux_judge"):
+        tools, source = reader.tool_schemas_for(role)
+        assert tools == [] and "auxiliary call" in source, role
+        assert "unknown role" not in source
 
 
 def test_find_runs_ignores_a_dangling_symlink(tmp_path):

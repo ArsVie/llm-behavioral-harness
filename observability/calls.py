@@ -209,7 +209,11 @@ def tool_schemas_for(role: str | None) -> tuple[list[dict[str, Any]], str]:
         wanted = [t for t in TOOL_SCHEMAS if t.get("name") == kind]
         chosen = wanted or list(TOOL_SCHEMAS)
         return chosen, (f"rebuilt from harness.tools — {len(chosen)} function"
-                        " in the OpenAI shape, tool_choice=auto (not persisted in the envelope)")
+                        " in the OpenAI shape; no tool_choice field is sent")
+    if kind.startswith("aux_"):
+        # The four auxiliary callers ask for JSON text, never a tool, so an
+        # empty panel here is the call being what it says it is.
+        return [], ("auxiliary call — no tools offered; it asks for JSON text")
     return [], "unknown role — tool payload not reconstructable"
 
 
