@@ -251,12 +251,14 @@ def test_tool_schemas_shape():
     for t in TOOL_SCHEMAS:
         assert t["description"]
         assert t["parameters"]["type"] == "object"
-        assert t["parameters"]["required"]
+        assert set(t["parameters"]["required"]) <= set(t["parameters"]["properties"])
     event = TOOL_SCHEMAS[0]
-    assert set(event["parameters"]["required"]) == {"initiate", "reason"}
+    # Phase-conditional fields: inform wants message, verdicts want initiate —
+    # so nothing is schema-required; the pop-up block carries the per-phase form.
+    assert event["parameters"]["required"] == []
     # One tri-state verdict field, not a bool plus a parallel action.
     assert set(event["parameters"]["properties"]) == {
-        "initiate", "reason", "turns",
+        "initiate", "reason", "turns", "message",
     }
     assert event["parameters"]["properties"]["initiate"]["enum"] == [
         "yes", "no", "defer",

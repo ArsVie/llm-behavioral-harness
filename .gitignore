@@ -15,6 +15,8 @@ results/live-companion/**/*.db
 results/**/*.db-shm
 results/**/*.db-wal
 results/live-companion/**/*.log
+# Wire dumps are run artifacts too.
+results/**/wire/
 
 # Coverage artefacts
 .coverage

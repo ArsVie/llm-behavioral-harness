@@ -182,14 +182,9 @@ def test_forbidden_tokens_never_reach_assembled_prompt(tmp_path):
     assert len(phases_seen) >= 2, f"battery collapsed onto one phase: {phases_seen}"
 
 
-TEMPORAL_LINE_RE = re.compile(
-    r"It is \d{2}:\d{2}, [A-Z][a-z]+ (morning|afternoon|evening|night) — day \d+\."
-)
-
-
 def test_time_aware_anchored_battery_clean(tmp_path):
-    """Anchored assembled prompts: the temporal section renders (line +
-    partition), the line reads the right weekday, and the numeric scan stays
+    """Anchored assembled prompts: the plan is dated with the right weekday
+    and no temporal frame or partition ever renders; the numeric scan stays
     clean — temporal-line times and agenda clock times are the ONLY numbers."""
     from datetime import datetime, timezone
 
@@ -209,17 +204,16 @@ def test_time_aware_anchored_battery_clean(tmp_path):
         _ensure_activity_at(store, session, day, clock.now_h())
         session.on_message("hello there")
         prompt = _whole_request(client.calls[-1])
-        # G3: temporal line present, correct weekday + day index
-        assert f"It is 15:00, {weekdays[day]} afternoon — day {day}." in prompt, (
-            f"temporal line wrong (day={day}): {prompt[:600]}"
+        # G3: the plan is dated from the real anchor; no temporal frame exists
+        # and no partition labels render anywhere.
+        assert f"{weekdays[day]}'s plan:" in prompt, (
+            f"plan header wrong (day={day}): {prompt[:600]}"
         )
-        # partition labels present (life agenda spans the day)
-        assert "Done earlier:" in prompt or "Happening now:" in prompt
-        assert "Later today:" in prompt
+        assert "Done earlier:" not in prompt and "Happening now:" not in prompt
+        assert "Later today:" not in prompt
         # The numeric scan holds on the anchored prompts too.
         _check_prompt(client.calls[-1], seed=44, day=day)
         store.close()
-        assert TEMPORAL_LINE_RE.search(prompt)
 
 
 def test_forbidden_tokens_absent_after_finalize_and_resume(tmp_path):

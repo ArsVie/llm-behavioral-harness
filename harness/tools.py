@@ -28,8 +28,10 @@ TOOL_SCHEMAS: list[dict] = [
         "name": "tool_decide_event",
         "description": (
             "Your call on the event in the pop-up block above. The block "
-            "carries the context (Event, State, Time, ...) — do NOT echo it "
-            "back. Skippable no means the event is a commitment: go."
+            "carries the context (Event, State, Time, Phase, ...) — do NOT "
+            "echo it back. Phase inform: the event is coming up; mention it "
+            "naturally in message and give no verdict. Otherwise fill ONLY "
+            "the verdict — skippable no means the event is a commitment: go."
         ),
         "parameters": {
             "type": "object",
@@ -49,8 +51,13 @@ TOOL_SCHEMAS: list[dict] = [
                     "description": "Only with defer: how many more turns you "
                                    "want. Omit and the runtime picks.",
                 },
+                "message": {
+                    "type": "string",
+                    "description": "Only with Phase inform: your natural "
+                                   "one-line mention of the upcoming event.",
+                },
             },
-            "required": ["initiate", "reason"],
+            "required": [],
         },
     },
     {
@@ -120,11 +127,9 @@ TOOL_SCHEMAS: list[dict] = [
     },
 ]
 
-#: Inform-phase variant of ``tool_decide_event`` (mention only, no action).
-def offered_tools(request: PopupRequest) -> list[dict]:
-    """The schema matching ``request.popup_kind``; unknown kinds get the full set."""
-    wanted = [t for t in request.tools if t.get("name") == request.popup_kind]
-    return wanted or list(request.tools)
+#: The wire form of the menu: wrapped the way every call sends it.
+TOOL_PAYLOAD: list[dict] = [{"type": "function", "function": t}
+                            for t in TOOL_SCHEMAS]
 
 
 def tools_identity(tools: list[dict] | None) -> tuple[str | None, list[str]]:
@@ -136,30 +141,6 @@ def tools_identity(tools: list[dict] | None) -> tuple[str | None, list[str]]:
     names = [((t.get("function") or t).get("name") or "") for t in tools]
     return hashlib.sha256(canonical.encode()).hexdigest(), names
 
-
-TOOL_SCHEMAS_INFORM: list[dict] = [
-    {
-        "name": "tool_decide_event",
-        "description": (
-            "The pop-up block already carries the event context (Event, "
-            "State, Time, Phase: inform) — do NOT echo it back. Phase "
-            "inform: the event is coming up; just mention it naturally in "
-            "message. This is NOT a verdict: do not initiate, do not "
-            "choose follow/abandon/defer, do not leave."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "message": {
-                    "type": "string",
-                    "description": "Your natural one-line mention of the "
-                                   "upcoming event.",
-                },
-            },
-            "required": ["message"],
-        },
-    },
-]
 
 #: Verdict keys for a ``tool_decide_event`` call (decide phase).
 EVENT_VERDICT_KEYS = ("initiate", "reason")
@@ -827,8 +808,9 @@ class DecisionRunner:
         request = PopupRequest(
             popup_kind=popup_kind,
             popup=render_popup(popup_kind, inputs),
-            # Inform legs get the mention-only schema; decide legs get the verdict schema.
-            tools=TOOL_SCHEMAS_INFORM if phase == "inform" else TOOL_SCHEMAS,
+            # One constant menu on every call: tools are part of the
+            # context and never toggle (ruling 2026-09-13).
+            tools=TOOL_SCHEMAS,
             native=(transport == "native"),
             inputs=inputs,
         )

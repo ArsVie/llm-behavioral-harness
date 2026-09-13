@@ -79,6 +79,7 @@ from harness.domain import AgendaItem, Conversation, DailyAgenda
 from harness.judge import ScriptedJudge
 from harness.session import Session
 from harness.store import SQLiteStore
+from harness.steering import STEER_MARKER_OPEN
 from harness.tools import DecisionConfig
 
 # popup_kind for both negotiation phases.
@@ -269,12 +270,13 @@ class ScriptedClient:
     """Scripted LLMClient: canned companion replies + scripted pop-up
     verdicts, no network.
 
-    Pop-up calls are the session's native-transport calls (``tools`` is
-    not None, exactly like ``_popup_request_call``): the FIRST pop-up call
-    of a run is the Inform mention (``{message: ...}``), the rest are
-    Decide legs consuming the per-scenario verdict script in order (or
-    always delay). The model never emits ``defer_turns`` — the server
-    fills it. Records every call.
+    Pop-up calls are the session calls whose tail carries the steer
+    marker (``_popup_request_call`` folds the block into the card; tools
+    ride EVERY call now, so tools-presence no longer classifies): the
+    FIRST pop-up call of a run is the Inform mention (``{message: ...}``),
+    the rest are Decide legs consuming the per-scenario verdict script in
+    order (or always delay). The model never emits ``defer_turns`` — the
+    server fills it. Records every call.
     """
 
     supports_json: bool = True
@@ -309,15 +311,19 @@ class ScriptedClient:
         tool_choice: dict | str | None = None,
         reasoning_effort: str | None = None,
     ) -> ChatResult:
+        is_popup = bool(messages) and STEER_MARKER_OPEN in (
+            str(messages[-1].get("content") or "")
+        )
         self.calls.append(
             {
                 "messages": messages,
                 "system": system,
                 "tools": tools,
                 "max_tokens": max_tokens,
+                "popup": is_popup,
             }
         )
-        if tools is not None:
+        if is_popup:
             # Pop-up call (native transport): the first popup call is the Inform mention.
             verdict = self._popup_verdict()
             self.popup_calls += 1
@@ -333,7 +339,7 @@ class ScriptedClient:
                     }
                 ],
             )
-        n_chat = sum(1 for c in self.calls if c["tools"] is None)
+        n_chat = sum(1 for c in self.calls if not c["popup"])
         return ChatResult(content=f"(companion reply {n_chat})")
 
     def chat(
@@ -472,7 +478,7 @@ def run_scenario(
         audit_events=store.events_since(0),
         channel_out=channel_out,
         model_calls=[
-            c for c in client.calls if c["tools"] is not None
+            c for c in client.calls if c["popup"]
         ],
         conversations=(
             store.list_conversations()

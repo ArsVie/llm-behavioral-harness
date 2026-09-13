@@ -55,8 +55,7 @@ G3_EPOCH0_S = datetime(2026, 8, 15, 13, 30, 0, tzinfo=timezone.utc).timestamp()
 
 #: Pinned sha256 of the assembled prompts on this fixture; an unlabelled change
 #: to the assembled prompt fails here.
-PINNED_ANCHORED_FULL = "27aca53bbada58d07d6ad8da809251877d5e61db3c1fc071fcdf5ef072ac149e"
-PINNED_UNANCHORED_FULL = "cca6001093a16c7b9a171b8f9edba5fa52e50cc99b133843a65a214091b29e5a"
+PINNED_FULL = "fac6053ff06557f3d24c32d3bb90967e5c293ea37e2ba46f9e245a836789f507"
 PINNED_BARE_FULL = "424ab524ead4949ba899a6e5b860a18893365012ca94cef9c53a017420b21cc9"
 
 
@@ -206,7 +205,7 @@ def test_stable_system_byte_identical_across_turns():
 # Request N+1 is an extension of request N up to the tail.
     tail1 = messages1[-1]["content"]
     tail2 = messages2[-1]["content"]
-    assert tail1 != tail2  # volatile tail differs between turns
+    assert tail1 == tail2  # no clock rides the card: same state, same bytes
     assert messages1[-1]["role"] == "system" and messages2[-1]["role"] == "system"
 
 
@@ -227,8 +226,8 @@ def test_stable_system_byte_identical_across_conversations():
     assert system_a == system_b == "\n\n".join(
         [render_day_block(snap), SYSTEM_CORE_WITH_TOOLS]
     )
-# Different conversation + different turn → different volatile tail.
-    assert messages_a[-1]["content"] != messages_b[-1]["content"]
+# The card is a pure function of the snapshot: same state, same bytes.
+    assert messages_a[-1]["content"] == messages_b[-1]["content"]
 
 
 def test_constant_state_yields_byte_identical_whole_request():
@@ -339,25 +338,26 @@ def test_volatile_state_is_the_last_system_message():
     )
     tail = messages[-1]
     assert tail["role"] == "system"
-# The temporal/state-card content sits at the END of the wire layout.
-    assert TEMPORAL_HEADER in tail["content"]
+# The state-card content sits at the END of the wire layout.
+    assert AFFECTIVE_HEADER in tail["content"]
 # DAY-scoped material is NOT in the per-turn card: it goes out once at
 # rollover, into the message stream (render_day_start_block).
     assert AGENDA_HEADER not in tail["content"]
-    assert tail["content"].startswith(TEMPORAL_HEADER)
+    assert tail["content"].startswith(AFFECTIVE_HEADER)
 # Volatile markers stay out of the stable prefix (system message).
     for volatile_marker in (
         TEMPORAL_HEADER, AFFECTIVE_HEADER, BEHAVIORAL_HEADER,
         CURRENT_INTENT_HEADER, AGENDA_HEADER, MEMORIES_HEADER,
     ):
         assert volatile_marker not in system, volatile_marker
-# The time line and the last message differ between turns; the stable prefix does not.
+# The card does not move between turns when the state does not; neither does
+# the stable prefix.
     system2, messages2 = build_context_messages(
         snapshot=snap, recent_turns=_recent_turns(3), user_request="hi",
         controls=_controls(), prompt_brief=_prompt_brief(),
         t_h=28.0, anchor=_anchor(),
     )
-    assert messages2[-1]["content"] != tail["content"]
+    assert messages2[-1]["content"] == tail["content"]
     assert system == system2
 
 
@@ -394,17 +394,12 @@ def test_assemble_snapshot_bytes_match_the_pinned_layout():
     edit to the assembled prompt fails here.
     """
     snap = _snapshot(rich=True)
-    anchored = assemble_snapshot(
+    full = assemble_snapshot(
         snap, controls=_controls(), prompt_brief=_prompt_brief(),
         popup=render_popup_block("EVENT: pottery class starts in 10 minutes"),
-        t_h=27.0, anchor=_anchor(),
-    )
-    unanchored = assemble_snapshot(
-        snap, controls=_controls(), prompt_brief=_prompt_brief(),
     )
     bare = assemble_snapshot(_snapshot(rich=False))
-    assert _sha256(anchored) == PINNED_ANCHORED_FULL
-    assert _sha256(unanchored) == PINNED_UNANCHORED_FULL
+    assert _sha256(full) == PINNED_FULL
     assert _sha256(bare) == PINNED_BARE_FULL
 
 
@@ -427,7 +422,6 @@ def test_the_layout_loses_no_content_and_duplicates_none():
     popup = render_popup_block("EVENT: pottery class starts in 10 minutes")
     legacy = assemble_snapshot(
         snap, controls=controls, prompt_brief=brief, popup=popup,
-        t_h=27.0, anchor=_anchor(),
     )
     system, messages = build_context_messages(
         snapshot=snap, recent_turns=[], user_request=None,
@@ -450,16 +444,12 @@ def test_the_layout_loses_no_content_and_duplicates_none():
     assert legacy.startswith(system)
 
 
-def test_the_temporal_frame_rides_only_the_first_card_of_the_day():
-    """The frame is a CLOCK READING: it rides only the day's first card."""
-    snap = _snapshot(rich=True)
-    with_frame = render_state_card(snap, t_h=21.7, anchor=_anchor())
-    without = render_state_card(snap, t_h=21.7, anchor=_anchor(), include_temporal=False)
-
-    assert TEMPORAL_HEADER in with_frame
-    assert TEMPORAL_HEADER not in without
-    assert CURRENT_INTENT_HEADER in without, "every other section still rides"
-    assert len(without) < len(with_frame)
+def test_the_card_never_carries_a_temporal_frame():
+    """No clock reading, no partition: the card is per-moment state only."""
+    card = render_state_card(_snapshot(rich=True))
+    assert TEMPORAL_HEADER not in card
+    assert "It is " not in card
+    assert CURRENT_INTENT_HEADER in card, "every other section still rides"
 
 
 def test_the_three_scopes_are_disjoint():
@@ -507,7 +497,6 @@ def test_seam_transcript_matches_legacy_build_messages():
     day_block = render_day_block(snap)  # the session-cached block, as wired
     legacy_system = assemble_snapshot(
         snap, controls=controls, prompt_brief=brief, day_block=day_block,
-        t_h=27.0, anchor=_anchor(),
     )
     # Same anchor and turn time: identical bytes for identical inputs, and the
     # user-turn stamp is one of those inputs.

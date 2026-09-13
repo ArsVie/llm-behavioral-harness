@@ -21,7 +21,6 @@ from harness.tools import (
     DecisionRunner,
     RawReply,
     TOOL_SCHEMAS,
-    TOOL_SCHEMAS_INFORM,
     fill_defer_turns,
     map_defer_turns,
     parse_native_reply,
@@ -358,21 +357,21 @@ def test_render_popup_inform_phase_context():
     )
 
 
-def test_inform_schema_is_mention_only():
-    assert [t["name"] for t in TOOL_SCHEMAS_INFORM] == ["tool_decide_event"]
-    params = TOOL_SCHEMAS_INFORM[0]["parameters"]
-    assert set(params["properties"]) == {"message"}
-    assert params["required"] == ["message"]
+def test_the_event_schema_covers_the_inform_phase():
+    # One constant menu on every call: the event schema carries the inform
+    # phase's message field too. Fields are phase-conditional, so nothing is
+    # schema-required — the pop-up block carries the per-phase form.
+    event = TOOL_SCHEMAS[0]
+    assert set(event["parameters"]["properties"]) == {
+        "initiate", "reason", "turns", "message",
+    }
+    assert event["parameters"]["required"] == []
 
 
 def test_decide_schema_is_one_tristate_field():
     # The model answers ONE field: initiate in {yes, no, defer}, plus the
     # reason and an optional turns it may name on a defer.
     event = TOOL_SCHEMAS[0]
-    assert set(event["parameters"]["required"]) == {"initiate", "reason"}
-    assert set(event["parameters"]["properties"]) == {
-        "initiate", "reason", "turns",
-    }
     assert event["parameters"]["properties"]["initiate"]["enum"] == [
         "yes", "no", "defer",
     ]
@@ -395,7 +394,7 @@ def test_execute_inform_leg_records_message_and_uses_inform_schema(tmp_path):
         call,
     )
     assert res.verdict == {"message": "gym at seven"}
-    assert call.calls[0].tools is TOOL_SCHEMAS_INFORM
+    assert call.calls[0].tools is TOOL_SCHEMAS
     assert call.calls[0].inputs["phase"] == "inform"
     row = store.decision_for_replay("neg-gym-inform")
     assert json.loads(row["verdict_json"]) == {"message": "gym at seven"}

@@ -1,10 +1,11 @@
 """W2+W3 — time-aware agenda + state-card sectioning (Track A-2).
 
-Pins the G3 time line and agenda partition against ``anchor.real_at`` fixtures,
-the G2 masking (unanchored runs omit the temporal section; clock-shaped times
-and the day index are the only numeric content), the G5 frozen AFFECTIVE
-BEARING wording, the fixed section order (TEMPORAL FRAME / AFFECTIVE BEARING /
-BEHAVIORAL BEARING / CURRENT INTENT) and the persisted agenda transitions.
+No temporal frame exists in prompts (removed 2026-09-13): the day block carries
+the plan once, dated from the real anchor; agenda status and past decisions
+live in the context stream and are never re-stated in the state card. Pins:
+the day-block dating, the G5 frozen AFFECTIVE BEARING wording, the fixed
+section order (AFFECTIVE BEARING / BEHAVIORAL BEARING / CURRENT INTENT), the
+numeric-content scan, and the persisted agenda transitions.
 """
 
 from __future__ import annotations
@@ -23,6 +24,8 @@ from harness.assembler import (
     MAX_PROMPT_CHARS,
     TEMPORAL_HEADER,
     assemble_snapshot,
+    render_day_start_block,
+    render_state_card,
 )
 from harness.behavior import _render_brief
 from harness.client import FakeClient
@@ -126,93 +129,57 @@ def _prose() -> str:
                          warmth=0.8, playfulness=0.5, reflectiveness=0.4)
 
 
-# Time correctness (current-time line + agenda partition)
+# The plan's dating is the anchor's only visible effect now
 
 
-def test_g3_temporal_line_and_partition_at_15_4():
-    """t_h 15.4 under the G3 anchor → 'It is 15:24, Saturday afternoon —
-    day 0.' and the partition: coffee done earlier, pottery happening now,
-    evening walk later today."""
-    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose(),
-                               t_h=15.4, anchor=_g3_anchor())
-    assert TEMPORAL_HEADER in prompt
-    assert "It is 15:24, Saturday afternoon — day 0." in prompt
-# partition groups in order, past items kept and labeled
-    assert "Done earlier:\n- morning coffee (06:58–07:46)" in prompt
-    assert "Happening now:\n- pottery (15:00–16:00)" in prompt
-    assert "Later today:\n- evening walk (20:00–21:00)" in prompt
-    # group order fixed: done < now < later
-    assert prompt.index("Done earlier:") < prompt.index("Happening now:") < \
-        prompt.index("Later today:")
+def test_day_block_header_is_dated_from_the_real_anchor():
+    """The plan header comes from the REAL date: t_h 15.4 is Saturday,
+    t_h 25.5 has rolled to Sunday (real date) on virtual day 1."""
+    block = render_day_start_block(_snapshot(), t_h=15.4, anchor=_g3_anchor())
+    assert "Saturday's plan:" in block
+    block2 = render_day_start_block(_snapshot(), t_h=25.5, anchor=_g3_anchor())
+    assert "Sunday's plan:" in block2
+    # Unanchored (replay) runs get the plain header, no weekday.
+    plain = render_day_start_block(_snapshot())
+    assert "Saturday" not in plain
 
 
-def test_g3_before_window_coffee_is_later_today():
-    """At t_h before 06:58 the coffee item is 'Later today' (nothing done)."""
-    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose(),
-                               t_h=6.0, anchor=_g3_anchor())
-    assert "It is 06:00, Saturday morning — day 0." in prompt
-    assert "Done earlier:" not in prompt
-    assert "Happening now:" not in prompt
-    assert "Later today:\n- morning coffee (06:58–07:46)" in prompt
-    assert "- pottery (15:00–16:00)" in prompt
-    assert "- evening walk (20:00–21:00)" in prompt
+# The card never re-states agenda state
 
 
-def test_g3_weekday_period_and_day_index_from_real_date():
-    """The weekday and day period come from the REAL date, the day index is
-    the virtual day: t_h 20.0 is 20:00 Saturday evening; t_h 25.5 has rolled
-    to Sunday (real date) on virtual day 1."""
-    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose(),
-                               t_h=20.0, anchor=_g3_anchor())
-    assert "It is 20:00, Saturday evening — day 0." in prompt
-    prompt2 = assemble_snapshot(_snapshot(), prompt_brief=_prose(),
-                                t_h=25.5, anchor=_g3_anchor())
-    assert "It is 01:30, Sunday night — day 1." in prompt2
-
-
-def test_g3_partition_honors_status_buckets():
-    """completed/skipped items are 'Done earlier' even before their window
-    time; shifted items are 'Later today' (moved, not done)."""
-    items = (
-        dataclasses.replace(_g3_agenda()[0], status="completed"),
-        dataclasses.replace(_g3_agenda()[2], status="shifted"),
-    )
-    prompt = assemble_snapshot(_snapshot(agenda=items), prompt_brief=_prose(),
-                               t_h=6.0, anchor=_g3_anchor())
-    assert "Done earlier:\n- morning coffee (06:58–07:46)" in prompt
-    assert "Later today:\n- evening walk (20:00–21:00)" in prompt
-
-
-# Unanchored runs omit the temporal section entirely
-
-
-def test_unanchored_omits_temporal_section():
-    """Replay / unanchored runs render NO temporal line and NO partition —
-    the section is omitted entirely; t_h is never rendered raw."""
+def test_the_card_never_renders_a_temporal_frame_or_agenda_status():
+    """No temporal line, no partition, no window times — planned or completed
+    items: the card simply does not carry agenda state."""
+    cards = [
+        render_state_card(_snapshot(), prompt_brief=_prose()),
+        render_state_card(
+            _snapshot(agenda=tuple(
+                dataclasses.replace(i, status="completed") for i in _g3_agenda()
+            )),
+            prompt_brief=_prose(),
+        ),
+    ]
+    for card in cards:
+        assert TEMPORAL_HEADER not in card
+        assert "It is " not in card
+        for label in ("Done earlier", "Happening now", "Later today"):
+            assert label not in card
+        assert "06:58" not in card
+    # The full assembled prompt is temporal-free too (the day block carries
+    # the plan; nothing re-states it).
     prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose())
     assert TEMPORAL_HEADER not in prompt
     assert "It is " not in prompt
-    for label in ("Done earlier", "Happening now", "Later today"):
-        assert label not in prompt
-    # partial args are equally unanchored
-    p1 = assemble_snapshot(_snapshot(), prompt_brief=_prose(), t_h=15.4)
-    p2 = assemble_snapshot(_snapshot(), prompt_brief=_prose(),
-                           anchor=_g3_anchor())
-    assert TEMPORAL_HEADER not in p1
-    assert TEMPORAL_HEADER not in p2
 
 
 # Section ordering
 
 
 def test_state_card_sections_in_fixed_order():
-    """Headers appear in order TEMPORAL FRAME < AFFECTIVE BEARING <
-    BEHAVIORAL BEARING < CURRENT INTENT, and the reserved slot sits before
-    the (unchanged) activity section."""
-    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose(),
-                               t_h=15.4, anchor=_g3_anchor())
+    """Headers appear in order AFFECTIVE BEARING < BEHAVIORAL BEARING <
+    CURRENT INTENT, and the reserved slot sits before the activity section."""
+    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose())
     order = [
-        prompt.index(TEMPORAL_HEADER),
         prompt.index(AFFECTIVE_HEADER),
         prompt.index(BEHAVIORAL_HEADER),
         prompt.index(CURRENT_INTENT_HEADER),
@@ -259,15 +226,17 @@ def test_g5_affective_bearing_verbatim_across_bands():
         assert "Current bearing:" in prompt
 
 
-def test_g5_affective_wording_frozen_across_anchoring():
-    """Anchoring adds the TEMPORAL section but never touches the AFFECTIVE
-    wording (renderer-neutral promise)."""
-    anchored = assemble_snapshot(_snapshot(), prompt_brief=_prose(),
-                                 t_h=15.4, anchor=_g3_anchor())
-    unanchored = assemble_snapshot(_snapshot(), prompt_brief=_prose())
-    a = anchored[anchored.index(AFFECTIVE_HEADER):]
-    u = unanchored[unanchored.index(AFFECTIVE_HEADER):]
-    assert a == u
+def test_agenda_status_never_changes_the_card():
+    """completed vs planned items render the SAME card — status lives in the
+    store and the context stream, never in a re-stated section."""
+    planned = render_state_card(_snapshot(), prompt_brief=_prose())
+    completed = render_state_card(
+        _snapshot(agenda=tuple(
+            dataclasses.replace(i, status="completed") for i in _g3_agenda()
+        )),
+        prompt_brief=_prose(),
+    )
+    assert planned == completed
 
 
 # BEHAVIORAL BEARING
@@ -313,18 +282,17 @@ FLOAT_RE = re.compile(r"\d+\.\d+")
 
 
 def _numeric_leak(prompt: str) -> list[str]:
-    """Digits that are neither clock-shaped times (HH:MM — the temporal
-    line's 15:24, the agenda's 06:58) nor the temporal line's day index."""
+    """Digits that are neither clock-shaped times (HH:MM — the plan's window
+    times) nor a day index."""
     masked = CLOCK_TIME_RE.sub("T:T", prompt)
     masked = DAY_INDEX_RE.sub("day N", masked)
     return re.findall(r"\d+", masked)
 
 
-def test_anchored_prompt_numeric_content_is_only_clock_and_day():
-    """The temporal line's times and the agenda's clock times are the ONLY
-    numeric content allowed in an anchored assembled prompt (G2)."""
-    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose(),
-                               t_h=15.4, anchor=_g3_anchor())
+def test_prompt_numeric_content_is_only_clock_and_day():
+    """The plan's clock times are the ONLY numeric content allowed in an
+    assembled prompt (G2)."""
+    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose())
     assert not FLOAT_RE.search(prompt), "raw engine floats leaked"
     assert _numeric_leak(prompt) == [], f"unexpected numeric content: {_numeric_leak(prompt)}"
 
@@ -333,20 +301,14 @@ def test_anchored_prompt_numeric_content_is_only_clock_and_day():
 
 
 def test_replay_determinism_same_snapshot_same_bytes():
-    """Same snapshot + same anchor/t_h → byte-identical prompts (anchored
-    and unanchored), across repeated calls."""
-    a1 = assemble_snapshot(_snapshot(), prompt_brief=_prose(),
-                           t_h=15.4, anchor=_g3_anchor())
-    a2 = assemble_snapshot(_snapshot(), prompt_brief=_prose(),
-                           t_h=15.4, anchor=_g3_anchor())
-    assert a1 == a2
+    """Same snapshot → byte-identical prompts, across repeated calls."""
     u1 = assemble_snapshot(_snapshot(), prompt_brief=_prose())
     u2 = assemble_snapshot(_snapshot(), prompt_brief=_prose())
     assert u1 == u2
-    assert len(a1) <= MAX_PROMPT_CHARS and len(u1) <= MAX_PROMPT_CHARS
+    assert len(u1) <= MAX_PROMPT_CHARS
 
 
-# Session integration: transitions persist and the render agrees
+# Session integration: transitions persist; the card stays clean
 
 
 def _session(store, clock, responses=("ok", "ok", "ok")):
@@ -366,8 +328,8 @@ def _session(store, clock, responses=("ok", "ok", "ok")):
 
 def test_session_transition_persisted_and_render_agrees(tmp_path):
     """A turn at t_h 15.4 (anchored): the coffee window has passed → the
-    store records 'completed' and the state card shows it under 'Done
-    earlier'; pottery is in progress and the walk is later."""
+    store records 'completed'; the card does NOT re-state it (no temporal
+    frame, no partition)."""
     store = SQLiteStore(tmp_path / "s.db")
     store.save_persona(_persona())
     store.attach_anchor(_g3_anchor())
@@ -387,17 +349,17 @@ def test_session_transition_persisted_and_render_agrees(tmp_path):
                      "ag_walk": "planned"}
 
     tail = client.calls[-1]["messages"][-1]["content"]
-    assert "It is 15:24, Saturday afternoon — day 0." in tail
-    assert "Done earlier:\n- morning coffee (06:58–07:46)" in tail
-    assert "Happening now:\n- pottery (15:00–16:00)" in tail
-    assert "Later today:\n- evening walk (20:00–21:00)" in tail
+    assert "It is " not in tail
+    assert "Done earlier" not in tail
+    assert "06:58" not in tail
+    assert AFFECTIVE_HEADER in tail
     assert not FLOAT_RE.search(tail), "raw floats leaked into the live prompt"
     store.close()
 
 
-def test_session_before_window_stays_planned_and_renders_later(tmp_path):
-    """A turn at t_h 06:00: nothing has passed — coffee stays 'planned' in
-    the store and renders under 'Later today'."""
+def test_session_before_window_stays_planned_and_card_stays_clean(tmp_path):
+    """A turn at t_h 06:00: nothing has passed — the store keeps 'planned'
+    and the card carries no agenda state at all."""
     store = SQLiteStore(tmp_path / "s.db")
     store.save_persona(_persona())
     store.attach_anchor(_g3_anchor())
@@ -414,9 +376,9 @@ def test_session_before_window_stays_planned_and_renders_later(tmp_path):
         "ag_coffee": "planned", "ag_pottery": "planned", "ag_walk": "planned",
     }
     tail = client.calls[-1]["messages"][-1]["content"]
-    assert "It is 06:00, Saturday morning — day 0." in tail
-    assert "Later today:\n- morning coffee (06:58–07:46)" in tail
-    assert "Done earlier:" not in tail
+    assert "It is " not in tail
+    assert "Later today" not in tail
+    assert "06:58" not in tail
     store.close()
 
 

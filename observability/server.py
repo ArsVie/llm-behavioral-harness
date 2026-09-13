@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
 
-from observability import reader
+from observability import reader, wire
 
 #: Seconds between SSE probes.
 STREAM_INTERVAL_S: float = 1.5
@@ -113,6 +113,8 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/run/events": self._events,
                 "/api/run/context": self._context,
                 "/api/run/call": self._call,
+                "/api/run/wire": self._wire_list,
+                "/api/run/wire/file": self._wire_file,
                 "/api/run/stream": self._stream,
             }
             handler = routes.get(path)
@@ -196,6 +198,22 @@ class Handler(BaseHTTPRequestHandler):
             self._send_json({"error": "no such call"}, status=404)
             return
         self._send_json(payload)
+
+    def _wire_list(self, params: dict[str, str]) -> None:
+        ref = self._run_or_404(params)
+        if ref is None:
+            return
+        self._send_json(wire.wire_listing(ref.path))
+
+    def _wire_file(self, params: dict[str, str]) -> None:
+        ref = self._run_or_404(params)
+        if ref is None:
+            return
+        text = wire.wire_read(ref.path, params.get("name", ""))
+        if text is None:
+            self._send_json({"error": "no such wire dump"}, status=404)
+            return
+        self._send(200, text.encode("utf-8"), "text/plain; charset=utf-8")
 
     def _stream(self, params: dict[str, str]) -> None:
         """Server-Sent Events: a cheap id/mtime probe every interval."""

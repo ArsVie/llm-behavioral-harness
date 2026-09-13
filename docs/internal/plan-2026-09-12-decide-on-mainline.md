@@ -128,8 +128,9 @@ runs its own bounded model call, in order — the pop-up block rides that reques
 (`_popup_request_call`), the verdict comes back as its tool call, and the
 recorded decide pair extends the context the NEXT ROUND and the later turns
 read (the pair replays through `_context_turns` at its boundary `t_h`). The
-turn's generation carries no tools and no pop-up block; it still folds the
-drain's injections and decided notes into the trailing card.
+The turn's generation carries no pop-up block — and the SAME constant tools
+menu as every call (tools never toggle; see the third amendment); it still
+folds the drain's injections and decided notes into the trailing card.
 
 Consequences the implementation pins:
 
@@ -141,8 +142,37 @@ Consequences the implementation pins:
 - Reactive and proactive turns share the shape; a declined proactive fire still
   suppresses the reply before anything is persisted.
 - The per-boundary SNAPSHOT half of the second ruling stays open: each round
-  renders the current state; only `Time:` is the boundary's own.
+  renders the current state; only `Time:` is the boundary's own (moot for the
+  CARD since the third amendment — no time-of-day state rides it).
 
 Tests: `tests/test_decide_on_mainline.py` pins the shape — one steer, one
 round; pairs extend the next round; the prose-less re-ask and the drop; the
-proactive decide-then-message flow.
+proactive decide-then-message flow; the clamp (a boundary-stamped decision
+predating the stream head still replays).
+
+## Third amendment — 2026-09-13 rulings (owner)
+
+Owner, verbatim: *"Let's just remove the temporal frame at all from the state
+card. The decisions and such are already recorded in the context, no need to
+tell her what she already did, she knows that and her agenda at the start of
+the day."* — `render_temporal_section` is deleted; the card carries no clock
+reading, no partition, no window times. The day block (emitted once at
+rollover) carries the plan; status lives in the store and the context stream.
+
+Owner, verbatim: *"ALL MODELS WORK LIKE THIS, tools are part of the context,
+you can't enable and disable them as you please."* — every conversation call
+sends one constant menu (`harness.tools.TOOL_PAYLOAD`); the per-kind
+one-function narrowing and the inform-phase schema variant are retired (the
+event schema carries the inform's `message` field). "Chat carries no tools" is
+gone from the design.
+
+Owner, verbatim: *"wire out a method to show you what is sent to the model
+verbatim each call... And wire it to observability too."* — `harness/wire.py`
+dumps every request body at send time to `<run>/wire/` (+ `index.jsonl`), and
+the observability app lists, opens and diffs the dumps (Wire card).
+
+Pair replay fix: `_context_turns` no longer drops decisions whose boundary
+`t_h` precedes the stream's first row — they clamp to the stream head (after
+the user row, in record order); the epoch filter is delivery time, so a
+decision delivered inside the stream replays even when its boundary stamp is
+older.

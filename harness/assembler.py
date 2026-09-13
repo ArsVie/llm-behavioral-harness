@@ -57,8 +57,7 @@ MAX_PROMPT_CHARS = 12000
 PROACTIVE_OPENING = (
     "You are reaching out first. {hook}\n"
     "State what you are reaching out about naturally in your FIRST sentence, "
-    "then open with a concrete, verifiable observation. Never guilt-trip, nag, "
-    "or imply the user owes you contact."
+    "then open with a concrete, verifiable observation."
 )
 
 #: Fallback hook used when no grounded proactive intent is available.
@@ -105,7 +104,6 @@ _BEHAVIOR_PERSISTENCE_LOW = "Your participation tends to wind down quickly."
 
 # --------------------------------------------------------------------------- #
 _PRIO_AGENDA = 0
-_PRIO_TEMPORAL = 1
 _PRIO_AFFECTIVE = 2
 _PRIO_BEHAVIORAL = 3
 _PRIO_CURRENT_INTENT = 4
@@ -368,71 +366,6 @@ def _behavioral_bearing(brief: BehaviorBrief) -> str:
     )
 
 
-def _day_period(hour: int) -> str:
-    """Morning/afternoon/evening/night band of a local hour."""
-    if 5 <= hour < 12:
-        return "morning"
-    if 12 <= hour < 17:
-        return "afternoon"
-    if 17 <= hour < 22:
-        return "evening"
-    return "night"
-
-
-def _partition_agenda(
-    items, t_h: float
-) -> tuple[list, list, list, list]:
-    """(done earlier, missed, happening now, later today) — the agenda partition.
-
-    Per item: ``completed`` -> done, ``skipped`` -> missed, ``shifted`` -> later;
-    otherwise the window decides (past end -> done, started -> now, else later).
-    """
-    done: list = []
-    missed: list = []
-    now: list = []
-    later: list = []
-    for it in items:
-        if it.status == "completed":
-            done.append(it)
-        elif it.status == "skipped":
-            missed.append(it)
-        elif it.status == "shifted":
-            later.append(it)
-        elif t_h >= it.end_t_h:
-            done.append(it)
-        elif t_h >= it.start_t_h:
-            now.append(it)
-        else:
-            later.append(it)
-    return done, missed, now, later
-
-
-def render_temporal_section(snapshot: CompanionSnapshot, t_h: float, anchor) -> str | None:
-    """TEMPORAL FRAME section: current-time/day line + agenda partition.
-
-    ``anchor`` must expose ``real_at(t_h) -> aware datetime``. Returns ``None``
-    without one (replay) — never falls back to rendering raw ``t_h``.
-    """
-    if anchor is None:
-        return None
-    real = anchor.real_at(t_h)
-    line = (
-        f"It is {real.hour:02d}:{real.minute:02d}, "
-        f"{real.strftime('%A')} {_day_period(real.hour)} — day {int(t_h // 24)}."
-    )
-    done, missed, now, later = _partition_agenda(snapshot.agenda, t_h)
-    parts = [line]
-    for label, items in (
-        (TEMPORAL_DONE_LABEL, done),
-        (TEMPORAL_MISSED_LABEL, missed),
-        (TEMPORAL_NOW_LABEL, now),
-        (TEMPORAL_LATER_LABEL, later),
-    ):
-        if items:
-            parts.append(label + ":\n" + "\n".join(_agenda_lines(items)))
-    return TEMPORAL_HEADER + "\n" + "\n".join(parts)
-
-
 def _agenda_plan_lines(snapshot: CompanionSnapshot) -> list[str]:
     """Today's agenda plan lines — planned/shifted only, capped at
     ``AGENDA_ITEMS_MAX``; shared by the day block and the state-card AGENDA."""
@@ -472,18 +405,16 @@ def assemble_snapshot(
     prompt_brief: str | None = None,
     popup: str | None = None,
     day_block: str | None = None,
-    t_h: float | None = None,
-    anchor=None,
 ) -> str:
     """Assemble ONE system prompt from a ``CompanionSnapshot`` (3-tier).
 
-    Stable core + day block, then the state-card sections. ``t_h`` + ``anchor``
-    render the temporal frame; over ``MAX_PROMPT_CHARS`` whole sections drop
-    from lowest priority upward, and pinned sections always stay.
+    Stable core + day block, then the state-card sections. Over
+    ``MAX_PROMPT_CHARS`` whole sections drop from lowest priority upward, and
+    pinned sections always stay.
     """
     sections = _state_card_sections(
         snapshot, controls=controls, prompt_brief=prompt_brief,
-        popup=popup, t_h=t_h, anchor=anchor,
+        popup=popup,
     )
     # Stable parts first, then the budget-trimmed state card.
     parts = [day_block if day_block is not None else render_day_block(snapshot)]
@@ -497,8 +428,6 @@ def _state_card_sections(
     controls: GenerationControls | None,
     prompt_brief: str | None,
     popup: str | None,
-    t_h: float | None,
-    anchor,
 ) -> list[tuple[int, bool, str]]:
     """The VOLATILE state-card sections (never the stable core or day block)."""
     sections: list[tuple[int, bool, str]] = []
@@ -509,14 +438,6 @@ def _state_card_sections(
         sections.append(
             (_PRIO_AGENDA, _PINNED, AGENDA_HEADER + "\n" + "\n".join(agenda_lines))
         )
-
-    temporal = (
-        render_temporal_section(snapshot, t_h, anchor)
-        if t_h is not None
-        else None
-    )
-    if temporal:
-        sections.append((_PRIO_TEMPORAL, False, temporal))
 
     # AFFECTIVE BEARING: mood brief line plus availability line.
     affective: list[str] = []
@@ -613,9 +534,6 @@ def render_state_card(
     controls: GenerationControls | None = None,
     prompt_brief: str | None = None,
     popup: str | None = None,
-    t_h: float | None = None,
-    anchor=None,
-    include_temporal: bool = True,
 ) -> str:
     """The PER-MOMENT state card — what is true right now and nothing else.
 
@@ -625,11 +543,9 @@ def render_state_card(
     sections = [
         s for s in _state_card_sections(
             snapshot, controls=controls, prompt_brief=prompt_brief,
-            popup=popup, t_h=t_h, anchor=anchor,
+            popup=popup,
         )
         if s[0] not in _DAY_SCOPED_PRIOS
-        # The temporal frame is sent on the first card of the day only.
-        and (include_temporal or s[0] != _PRIO_TEMPORAL)
     ]
     return _join_stable_plus_sections([], sections)
 
@@ -656,7 +572,6 @@ def render_day_start_block(
     sections = [
         s for s in _state_card_sections(
             snapshot, controls=None, prompt_brief=None, popup=None,
-            t_h=None, anchor=None,
         )
         if s[0] in _DAY_SCOPED_PRIOS
     ]
@@ -682,7 +597,6 @@ def build_context_messages(
     anchor=None,
     day_block: str | None = None,
     limit: int | None = RECENT_TURNS,
-    include_temporal: bool = True,
 ) -> tuple[str, list[dict]]:
     """(stable system, messages) — the cache-ordered request pair.
 
@@ -702,8 +616,6 @@ def build_context_messages(
     tail = render_state_card(
         snapshot,
         controls=controls, prompt_brief=prompt_brief, popup=popup,
-        t_h=t_h, anchor=anchor,
-        include_temporal=include_temporal,
     )
     messages = append_system(messages, tail)
     return system, messages

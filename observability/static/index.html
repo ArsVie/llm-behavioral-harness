@@ -101,6 +101,19 @@
       </div>
     </section>
 
+    <section class="card wire-card">
+      <div class="card-head">
+        <h2>Wire (verbatim)</h2>
+        <span class="hint">exactly what went out, one dump per call — tick two and diff</span>
+      </div>
+      <div class="chiprow">
+        <button type="button" class="btn" id="wire-refresh">Load dumps</button>
+        <button type="button" class="btn" id="wire-diff" disabled>Diff selected</button>
+        <span class="hint" id="wire-status">—</span>
+      </div>
+      <ul class="list dense" id="wire-list"><li class="empty">—</li></ul>
+    </section>
+
     <section class="card events-card">
       <div class="card-head">
         <h2>Event flow</h2>

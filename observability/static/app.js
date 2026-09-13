@@ -520,6 +520,102 @@ async function selectCall(callId) {
   showDrawer(`Call #${callId} — what the model saw`, envelopeNodes(detail));
 }
 
+/* -------------------------------------------------------------------- wire */
+const wireState = { files: [], selected: new Set() };
+
+async function loadWire() {
+  const payload = await getJSON(`/api/run/wire?id=${encodeURIComponent(state.runId)}`);
+  wireState.files = payload.files || [];
+  wireState.selected.clear();
+  renderWire();
+}
+
+function renderWire() {
+  const list = $("wire-list");
+  list.replaceChildren();
+  if (!wireState.files.length) {
+    list.append(el("li", "empty", "no dumps yet — they appear with the first model call"));
+  }
+  for (const file of [...wireState.files].reverse()) {
+    const row = el("li", "wire-row");
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = wireState.selected.has(file.name);
+    box.addEventListener("change", () => {
+      if (box.checked) wireState.selected.add(file.name);
+      else wireState.selected.delete(file.name);
+      updateWireControls();
+    });
+    const open = el("button", "btn btn-quiet", file.name);
+    open.title = "open the raw body";
+    open.addEventListener("click", () => openWireFile(file.name));
+    const when = new Date(file.mtime * 1000).toLocaleTimeString();
+    row.append(box, open, el("span", "hint", `${Math.round(file.size / 1024)} KB · ${when}`));
+    list.append(row);
+  }
+  updateWireControls();
+}
+
+function updateWireControls() {
+  $("wire-diff").disabled = wireState.selected.size !== 2;
+  const picked = [...wireState.selected];
+  $("wire-status").textContent = wireState.files.length
+    ? `${wireState.files.length} dumps${picked.length ? ` · selected ${picked.join(" vs ")}` : ""}`
+    : "—";
+}
+
+async function fetchWireText(name) {
+  const url = `/api/run/wire/file?id=${encodeURIComponent(state.runId)}`
+    + `&name=${encodeURIComponent(name)}`;
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`wire dump ${name}: HTTP ${response.status}`);
+  return response.text();
+}
+
+async function openWireFile(name) {
+  showDrawer(`Wire · ${name}`, [el("p", "sub", "loading…")]);
+  const text = await fetchWireText(name);
+  showDrawer(`Wire · ${name}`, [
+    el("p", "sub", `${text.length} chars · the body exactly as sent (one call)`),
+    el("pre", null, text),
+  ]);
+}
+
+async function openWireDiff() {
+  const [a, b] = [...wireState.selected];
+  showDrawer(`Wire diff · ${a} → ${b}`, [el("p", "sub", "loading…")]);
+  const [aText, bText] = await Promise.all([fetchWireText(a), fetchWireText(b)]);
+  showDrawer(`Wire diff · ${a} → ${b}`, wireDiffNodes(a, b, aText, bText));
+}
+
+/* Line diff by common prefix/suffix strip: adjacent calls share almost
+   everything, and what changed in the middle reads as straight -/+ lines. */
+function wireDiffNodes(aName, bName, aText, bText) {
+  const a = aText.split("\n");
+  const b = bText.split("\n");
+  let start = 0;
+  while (start < a.length && start < b.length && a[start] === b[start]) start += 1;
+  let endA = a.length - 1;
+  let endB = b.length - 1;
+  while (endA >= start && endB >= start && a[endA] === b[endB]) { endA -= 1; endB -= 1; }
+  const lines = [];
+  const above = Math.min(start, 4);
+  for (let i = start - above; i < start; i += 1) lines.push(`  ${a[i]}`);
+  if (start - above > 0) lines.push(`@@ ${start} identical lines above @@`);
+  for (let i = start; i <= endA; i += 1) lines.push(`- ${a[i]}`);
+  for (let i = start; i <= endB; i += 1) lines.push(`+ ${b[i]}`);
+  const below = Math.min(a.length - 1 - endA, 4);
+  for (let i = a.length - below; i < a.length; i += 1) lines.push(`  ${a[i]}`);
+  if (a.length - 1 - endA > below) {
+    lines.push(`@@ ${a.length - 1 - endA - below} identical lines below @@`);
+  }
+  return [
+    el("p", "sub", `${aName} → ${bName} · ${a.length} vs ${b.length} lines · `
+      + `changed -${endA - start + 1} +${endB - start + 1}`),
+    el("pre", null, lines.join("\n")),
+  ];
+}
+
 /* ------------------------------------------------------------------- boot */
 async function loadRun(runId) {
   state.runId = runId;
@@ -530,6 +626,7 @@ async function loadRun(runId) {
   renderContext(detail.context);
   renderCalls(detail.calls, state.selectedCall);
   renderStream(detail.events.events, true);
+  await loadWire();
   state.cursor = detail.events.latest_seq;
   if (state.streaming) openStream(runId);
 }
@@ -589,6 +686,8 @@ async function boot() {
     loadRun(payload.runs[index].path);
   });
   $("refresh").addEventListener("click", () => loadRun(state.runId));
+  $("wire-refresh").addEventListener("click", () => loadWire());
+  $("wire-diff").addEventListener("click", () => openWireDiff());
   $("drawer-close").addEventListener("click", closeDrawer);
   $("scrim").addEventListener("click", closeDrawer);
   document.addEventListener("keydown", (event) => {

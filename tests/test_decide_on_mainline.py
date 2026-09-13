@@ -2,9 +2,9 @@
 
 Pins the flush shape ``state card + {steer} -> model -> decision ->
 {steer}``. The pop-up block rides the decision request; each recorded decide
-pair extends the context the later rounds read; the generation itself
-carries no tools. A generation without prose is re-asked once and dropped
-if still empty.
+pair extends the context the later rounds read; every call carries the same
+constant tools menu (tools are part of the context — never toggled). A
+generation without prose is re-asked once and dropped if still empty.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ from harness.domain import AgendaItem, DailyAgenda, ProactiveIntent
 from harness.judge import ScriptedJudge
 from harness.session import REPLY_NUDGE, Session
 from harness.steering import STEER_MARKER_OPEN
-from harness.tools import DecisionConfig
+from harness.tools import DecisionConfig, TOOL_PAYLOAD
 from tests.helpers import make_store
 
 PERSONA = PersonaParams()
@@ -50,9 +50,8 @@ def _session(store, *, client, clock=None):
 def _anchor(store) -> None:
     """An earlier stream row, like a real run always has.
 
-    The context floor is the first stored message; a decision stamped at its
-    boundary (before the arriving user message) only replays when the stream
-    already starts earlier.
+    A decision stamped before the stream's head still replays (clamped);
+    this row just matches the natural order of a real run.
     """
     store.add_message("assistant", "morning", 8.0, 0)
 
@@ -91,11 +90,12 @@ def test_a_steer_is_decided_in_its_own_round_before_the_generation(tmp_path):
     assert result.reply == "main reply"
     assert len(client.calls) == 2
     round_call, generation = client.calls
-    # The round carries the question; the generation carries no tool payload
-    # and no steered block.
+    # The round carries the question; the generation carries no steered block.
+    # Both ride the same constant tools menu (never toggled).
     assert STEER_MARKER_OPEN in round_call["messages"][-1]["content"]
-    assert round_call["tools"] is not None
-    assert generation["tools"] is None
+    assert round_call["tools"] == TOOL_PAYLOAD
+    assert generation["tools"] == round_call["tools"], \
+        "one constant menu rides every call — never toggled"
     assert STEER_MARKER_OPEN not in generation["messages"][-1]["content"]
     records = store.decisions_for_day(0)
     assert len(records) == 1
@@ -127,7 +127,7 @@ def test_two_steers_take_two_rounds_and_pairs_extend_the_next(tmp_path):
     assert not _has_pair(first), "the first round has no earlier pair"
     assert _has_pair(second), "the next round reads the earlier decision"
     assert STEER_MARKER_OPEN in second["messages"][-1]["content"]
-    assert generation["tools"] is None
+    assert generation["tools"] == TOOL_PAYLOAD
     records = store.decisions_for_day(0)
     assert [r["verdict"]["initiate"] for r in records] == [True, False]
     store.close()
@@ -142,7 +142,7 @@ def test_a_plain_turn_still_makes_exactly_one_call(tmp_path):
 
     assert result.reply == "main reply"
     assert len(client.calls) == 1
-    assert client.calls[0]["tools"] is None
+    assert client.calls[0]["tools"] == TOOL_PAYLOAD
     store.close()
 
 
@@ -181,6 +181,33 @@ def test_a_still_empty_reply_is_dropped_not_persisted(tmp_path):
     store.close()
 
 
+def test_a_decision_stamped_before_the_stream_head_still_replays(tmp_path):
+    """The live defect: a boundary stamped before the stream's first row (boot
+    after the boundary) must still ride the context — clamped, never dropped."""
+    store = make_store(tmp_path)
+    store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
+    client = FakeClient(responses=[
+        _decide_event("c1"),
+        {"content": "first"},
+        {"content": "second"},
+    ])
+    session = _session(store, client=client)
+
+    session.on_message("hello")
+    records = store.decisions_for_day(0)
+    assert len(records) == 1
+    # premise: the boundary (9.0) precedes the stream head (the turn at 10.0)
+    assert float(records[0]["t_h"]) == 9.0
+
+    session.on_message("again")
+    later = client.calls[-1]
+    roles = [row.get("role") for row in later["messages"]]
+    assert "tool" in roles, "the earlier decision rides the next turn's context"
+    assert roles.index("tool") >= 2, "integrated into the stream, not prepended"
+    assert roles[roles.index("tool") - 1] == "assistant"
+    store.close()
+
+
 def test_a_proactive_intent_is_decided_then_the_reply_is_the_message(tmp_path):
     store = make_store(tmp_path)
     store.save_proactive_intent(ProactiveIntent(
@@ -206,7 +233,7 @@ def test_a_proactive_intent_is_decided_then_the_reply_is_the_message(tmp_path):
     assert len(client.calls) == 2
     round_call, generation = client.calls
     assert STEER_MARKER_OPEN in round_call["messages"][-1]["content"]
-    assert generation["tools"] is None
+    assert generation["tools"] == TOOL_PAYLOAD
     records = store.decisions_for_day(0)
     assert len(records) == 1
     assert records[0]["popup_kind"] == "tool_decide_proactive"

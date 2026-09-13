@@ -17,7 +17,7 @@ from harness.steering import (
     wrap_steer_marker,
 )
 from harness.store import SQLiteStore
-from harness.tools import PopupRequest, tools_identity
+from harness.tools import PopupRequest, TOOL_SCHEMAS, tools_identity
 
 from tests.helpers.store import make_store
 
@@ -62,10 +62,12 @@ def test_logged_decide_call_records_the_payload_that_went_out(tmp_path):
     )["repro"]
     store.close()
 
-    assert repro["tool_names"] == ["tool_decide_event"]
+    assert repro["tool_names"] == [
+        "tool_decide_event", "tool_decide_reply", "tool_decide_proactive",
+    ], "one constant menu on every call (ruling 2026-09-13)"
     assert repro["tool_choice"] is None, "the identity records what went out"
     assert repro["tools_hash"] == tools_identity(
-        [{"type": "function", "function": {"name": "tool_decide_event"}}]
+        [{"type": "function", "function": t} for t in TOOL_SCHEMAS]
     )[0]
     assert repro["reasoning_effort"] == session._thinking_effort
 
@@ -199,9 +201,11 @@ def test_popup_call_requires_exactly_the_requested_tool(tmp_path):
     store.close()
 
     offered = [t["function"]["name"] for t in call["tools"]]
-    assert offered == ["tool_decide_event"], (
-        f"offered {offered} — a pop-up asks ONE named question, so the other "
-        "schemas must not be on the table"
+    assert offered == [
+        "tool_decide_event", "tool_decide_reply", "tool_decide_proactive",
+    ], (
+        f"offered {offered} — tools are part of the context: one constant menu "
+        "rides every call, never toggled (ruling 2026-09-13)"
     )
     # tool_choice is never sent: a forced choice breaks this model, and the
     # only remaining value ("auto") buys nothing.

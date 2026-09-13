@@ -526,40 +526,31 @@ def test_behavioral_projection_visible_internals_absent():
     assert not re.search(r"\bg\b", low), "standalone 'g' leaked"
 
 
-# --- the state card is not re-sent for a clock-only change -----------------
+# --- the state card is not re-rendered when nothing changed ----------------
 
-def test_clock_free_blanks_only_the_clock_reading():
-    from harness.session import _clock_free
-
-    card = "TEMPORAL FRAME:\nIt is 21:42, Saturday evening — day 0.\nDone earlier:\n- math practice (07:55–08:40)"
-    freed = _clock_free(card)
-    assert "21:42" not in freed
-    assert "It is <CLOCK>, Saturday evening — day 0." in freed
-    # Weekday, day period, day index and window times stay material.
-    assert "Saturday evening" in freed and "day 0" in freed and "(07:55–08:40)" in freed
-
-
-def test_the_card_is_reused_byte_for_byte_while_only_the_clock_moved():
-    """Only the clock moved: the same card bytes are reused."""
+def test_the_card_is_reused_byte_for_byte_when_unchanged():
+    """An unchanged render reuses the same bytes; a changed render installs
+    the new card."""
     from harness.session import Session
 
     session = Session.__new__(Session)          # the memo is all this needs
     session._card_text = None
-    first = [{"role": "system", "content": "TEMPORAL FRAME:\nIt is 21:42, Saturday evening — day 0."}]
+    text = ("CURRENT INTENT:\nNo active intent.\nAFFECTIVE BEARING:\n"
+            "warm and steady.")
+    first = [{"role": "system", "content": text}]
     assert session._stable_card(first) == first
-    assert session._card_text == first[0]["content"]
+    assert session._card_text == text
 
-    later = [{"role": "system", "content": "TEMPORAL FRAME:\nIt is 21:58, Saturday evening — day 0."}]
-    kept = session._stable_card(later)
-    assert kept[0]["content"] == first[0]["content"], "only the clock moved: keep the bytes"
-    assert kept is not later, "and it returns a copy, never mutating the caller's list"
+    same = [{"role": "system", "content": text}]
+    kept = session._stable_card(same)
+    assert kept[0]["content"] == text
+    assert kept is same, "byte-identical: nothing to swap"
 
-    changed = [{"role": "system",
-                "content": "TEMPORAL FRAME:\nIt is 21:58, Saturday evening — day 0.\n"
-                           "Later today:\n- read history (21:50–22:35)"}]
+    changed_text = text.replace("warm and steady.", "quiet and tired.")
+    changed = [{"role": "system", "content": changed_text}]
     installed = session._stable_card(changed)
-    assert installed[0]["content"] == changed[0]["content"], "a material change installs the new card"
-    assert session._card_text == changed[0]["content"]
+    assert installed[0]["content"] == changed_text, "a real change installs the new card"
+    assert session._card_text == changed_text
 
 
 def test_a_new_day_period_refreshes_the_card():

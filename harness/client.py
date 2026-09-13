@@ -23,6 +23,7 @@ from typing import Protocol
 
 import httpx
 
+from harness import wire
 from harness.credentials import resolve_credentials
 
 DEFAULT_BASE_URL = "https://api.commandcode.ai/provider/v1"
@@ -350,6 +351,7 @@ class OpenAICompatibleClient:
         self._client.close()
 
     def _post(self, payload: dict, stream: bool = False) -> httpx.Response:
+        wire.save(payload)
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:

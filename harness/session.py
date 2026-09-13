@@ -69,7 +69,7 @@ from engine.types import (
     PersonaParams,
     TimingParams,
 )
-from harness import life
+from harness import life, wire
 from harness.actuation import controls_from_directive, to_brief
 from harness.assembler import (
     DEFAULT_PERSONA_CORE,
@@ -106,16 +106,6 @@ from harness.domain import (
 from harness.judge import JudgeResult, judge_day
 from harness.metering import MeteredClient
 from harness.life import LIFE_STREAM, transition_past_windows
-
-
-#: The clock reading inside the card's temporal line ("It is 21:42, ..."). Only
-#: this is normalized when deciding whether a card re-send is warranted.
-_CARD_CLOCK_RE = re.compile(r"It is \d{1,2}:\d{2},")
-
-
-def _clock_free(card: str) -> str:
-    """The card with ONLY its clock reading blanked (see ``_stable_card``)."""
-    return _CARD_CLOCK_RE.sub("It is <CLOCK>,", card)
 from harness.memory import MemoryAgent
 from harness.negotiation_contract import (
     NegotiationPhase,
@@ -139,7 +129,7 @@ from harness.steering import (
 )
 from harness.store import SQLiteStore
 from harness.tools import (
-    TOOL_SCHEMAS,
+    TOOL_PAYLOAD,
     render_popup,
     Capabilities,
     DecisionConfig,
@@ -149,7 +139,6 @@ from harness.tools import (
     PopupRequest,
     RawReply,
     load_decision_config,
-    offered_tools,
     tools_identity,
 )
 
@@ -533,6 +522,8 @@ class Session(NegotiationMixin):
         judge_client: LLMClient | None = None,
     ):
         self.store = store
+        if hasattr(store, "path"):
+            wire.configure(os.path.join(os.path.dirname(str(store.path)), "wire"))
         self.persona = persona
         self.timing = timing
         self.variant = variant
@@ -644,7 +635,6 @@ class Session(NegotiationMixin):
         #: Day whose first card already carried the TEMPORAL FRAME. The frame is
         #: a clock reading, not state: it goes out once with the day's first card
         #: and stays in context after that.
-        self._card_frame_day: int | None = None
         #: System prompt of the turn in progress — shared with pop-up calls.
         self._last_system_prompt: str = ""
         # WS-D cache order: the pop-up aux call must be a byte-identical
@@ -1538,20 +1528,12 @@ class Session(NegotiationMixin):
             self.store.update_agenda_item_status(item.id, item.status)
 
     def _stable_card(self, messages: list[dict]) -> list[dict]:
-        """Keep the state card byte-identical while only its clock moved.
+        """Keep the state card byte-identical while its content is unchanged.
 
         The card is the LAST message of every request by design, so a growing
-        history extends the prefix. Re-rendering it each turn breaks that: on
-        this provider a rewritten block costs the cache for everything after it,
-        and measured live on 2026-09-12 the card's non-clock content was
-        byte-identical across three consecutive calls while the rendered clock
-        moved. Reuse the previous bytes; install a fresh card when the content
-        really changed.
-
-        Only the clock reading is normalized. The weekday, the day period, the
-        day index, the agenda partition and every window time stay material -
-        those are what she reasons about, and a new day period is what refreshes
-        the reading.
+        history extends the prefix; re-rendering it would rewrite bytes inside
+        the array. Reuse the previous bytes; a changed render installs a fresh
+        card.
         """
         if not messages:
             return messages
@@ -1562,14 +1544,10 @@ class Session(NegotiationMixin):
         if self._card_text is None:
             self._card_text = text          # first card of the run: the baseline
             return messages
-        if _clock_free(text) != _clock_free(self._card_text):
-            self._card_text = text          # material change: keep the new card
-            return messages
         if text == self._card_text:
             return messages                 # already byte-identical
-        updated = list(messages)
-        updated[-1] = {**tail, "content": self._card_text}
-        return updated
+        self._card_text = text              # changed: keep the new card
+        return messages
 
     def _build_snapshot(
         self,
@@ -1854,9 +1832,8 @@ class Session(NegotiationMixin):
 
         Merged by ``(t_h, lane, id)`` so the stream reproduces the real order
         within a turn: the user's message, then the decisions taken at that
-        boundary, then the reply. Decisions render as ``role="system"`` --
-        internal material carries system authority through the CHANNEL, which
-        is why the stable prefix no longer needs prose explaining it.
+        boundary, then the reply. Decisions replay as native assistant
+        tool_calls + ``role="tool"`` result pairs at their boundary time.
 
         ``limit`` is a safety cap for callers that want one (the legacy
         transcript peek); the mainline passes None and lets the epoch bound
@@ -1871,7 +1848,9 @@ class Session(NegotiationMixin):
         decisions: list[dict] = []
         try:
             if hasattr(self.store, "decisions_since"):
-                decisions = self.store.decisions_since(floor)
+                # Epoch-wide, then filtered by DELIVERY time below: a decision
+                # stamped before the stream's first row can still belong here.
+                decisions = self.store.decisions_since(0.0)
             elif hasattr(self.store, "recent_decisions"):
                 decisions = self.store.recent_decisions(limit=RECENT_TURNS)
         except Exception:  # the audit lane must never break a turn
@@ -1896,8 +1875,12 @@ class Session(NegotiationMixin):
             rows.append((float(m.get("t_h", 0.0)), lane, int(m.get("id", 0)), m))
         for d in decisions:
             t = float(d.get("t_h") or 0.0)
+            if float(d.get("delivered_t_h") or t) < floor:
+                continue    # rode a stream that predates this epoch
             if t < floor:
-                continue
+                # Boundary stamped before the stream's first row (boot after
+                # the boundary): the pair lands at the stream head, in order.
+                t = floor
             pair = self._decision_context_messages(d)
             if pair is None:
                 continue
@@ -1987,7 +1970,7 @@ class Session(NegotiationMixin):
         return reply or "", usage
 
     def _generate(self, messages: list, system: str,
-                  max_tokens: int | None, *, tools: list | None = None):
+                  max_tokens: int | None, *, tools: list | None = TOOL_PAYLOAD):
         """Run the turn's LLM call; return (reply, reasoning, usage, raw_cost).
 
         ``chat_with_meta`` is the richer surface (reasoning, parsed usage,
@@ -2059,7 +2042,7 @@ class Session(NegotiationMixin):
         return cleaned
 
     def _generate_stream(self, messages: list, system: str,
-                         max_tokens: int | None):
+                         max_tokens: int | None, *, tools: list | None = TOOL_PAYLOAD):
         """Streamed generation: (reply, reasoning, usage, raw_cost, bubbles).
 
         Used ONLY when HARNESS_BUBBLE_STREAM is on AND the client exposes
@@ -2107,7 +2090,7 @@ class Session(NegotiationMixin):
         # must be drained to completion before the client makes another
         # call, so the turn always consumes the full stream.
         for piece in chat_stream(
-            messages, system=system, max_tokens=max_tokens,
+            messages, system=system, max_tokens=max_tokens, tools=tools,
             reasoning_effort=self._thinking_effort,
         ):
             raw_chunks.append(piece)
@@ -2250,8 +2233,6 @@ class Session(NegotiationMixin):
         system = assemble_snapshot(
             snapshot, controls=controls, prompt_brief=directive.prompt_brief,
             day_block=self._day_block,
-            # The temporal section renders only when the run is anchored.
-            t_h=t_h, anchor=self._real_time_anchor(),
         )
         system = _with_bubble_instruction(system)
         if user_text is None and intent is None:
@@ -2274,8 +2255,6 @@ class Session(NegotiationMixin):
                 controls=controls, prompt_brief=directive.prompt_brief,
                 t_h=t_h, anchor=self._real_time_anchor(),
                 day_block=self._day_block,
-                # The temporal frame goes out with the day's FIRST card only.
-                include_temporal=self._card_frame_day != day,
                 # The epoch already bounds the span; a tail limit here would
                 # re-impose the sliding window the epoch exists to remove.
                 limit=None,
@@ -2283,7 +2262,6 @@ class Session(NegotiationMixin):
             # The card rides the tail of every request; keep it byte-identical
             # while only its clock moved (see _stable_card).
             messages = self._stable_card(messages)
-            self._card_frame_day = day
             mid = self._persist_message(
                 "user", user_text, t_h, day,
                 proactive=False, session_id=session_id, conversation_id=conv_id,
@@ -2302,14 +2280,12 @@ class Session(NegotiationMixin):
                 controls=controls, prompt_brief=directive.prompt_brief,
                 t_h=t_h, anchor=self._real_time_anchor(),
                 day_block=self._day_block,
-                include_temporal=self._card_frame_day != day,
                 limit=None,
             )
             # Same rule as the mainline path: the card is the trailing block,
             # and this also keeps `_last_state_card` (the pop-up legs' card)
             # byte-stable.
             messages = self._stable_card(messages)
-            self._card_frame_day = day
         stable = _with_bubble_instruction(stable)
         if user_text is None and intent is None:
             # Legacy ungrounded proactive call (pre-slice callers/tests):
@@ -2957,8 +2933,7 @@ class Session(NegotiationMixin):
         plus their names (the schemas rebuild from ``harness.tools``); the
         decode controls ride by value.
         """
-        wire_tools = ([{"type": "function", "function": t}
-                       for t in offered_tools(request)] if request.native else None)
+        wire_tools = TOOL_PAYLOAD if request.native else None
         tools_hash, tool_names = tools_identity(wire_tools)
         return {"repro": {
             "model": getattr(self.client, "model", None),
@@ -3083,10 +3058,9 @@ class Session(NegotiationMixin):
         native_tools = None
         native_choice = None
         if request.native and request.tools:
-            # An unknown kind falls back to the full set rather than sending
-            # none: a wrong-tool verdict is recoverable, no tool is not.
-            offered = offered_tools(request)
-            native_tools = [{"type": "function", "function": t} for t in offered]
+            # One constant menu on every call: tools are part of the context
+            # and never toggle (ruling 2026-09-13).
+            native_tools = TOOL_PAYLOAD
             native_choice = None
         result = self.client.chat_with_meta(
             messages,
