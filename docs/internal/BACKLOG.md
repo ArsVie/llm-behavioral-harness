@@ -290,3 +290,11 @@ Open, owner-flagged:
   message arrived, attach the arrival time to the user message - cache-neutral,
   since a new turn is new bytes either way.
 
+### Planner and the user (2026-09-13)
+The planner is user-neutral by rule: her day must stand without him — no
+activity needs him or assumes he will be there (the prompt says so outright;
+SHARED/HERS now colors the phrasing only). The positive side is deliberately
+NOT decided: whether and when plans should INCLUDE him — shared activities,
+invitations, how his own plans feed hers. That changes what the companion
+proposes and earns its own battery, not a clause bolted onto this fix.
+

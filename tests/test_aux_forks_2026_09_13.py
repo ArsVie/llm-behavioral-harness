@@ -111,12 +111,28 @@ def test_aux_task_request_extends_the_last_mainline_request(tmp_path):
         store.close()
 
 
-def test_no_mainline_means_no_fork(tmp_path):
-    """A fresh boot before any conversation has no prefix to fork."""
-    client = FakeClient(responses=["hi"])
+def test_no_mainline_still_carries_the_base_prefix(tmp_path):
+    """A call before any turn rides the SAME system prompt as the first turn.
+
+    Base-prefix rule (owner ruling, 2026-09-13): the boot day-0 planner has
+    no request to fork, but it must not invent a private prompt base either.
+    It sends the stable system with its task as the single user-role
+    instruction, caches the day block, and the first real turn then sends
+    those exact same bytes.
+    """
+    client = FakeClient(responses=["hi there"])
     store, session = _session(tmp_path, client, agenda=False)
     try:
-        assert session._aux_task_request("TASK") is None
+        pair = session._aux_task_request("TASK")
+        assert pair is not None, "a pre-turn call still gets the base prefix"
+        system, messages = pair
+        assert messages == [{"role": "user", "content": "TASK"}]
+        assert session._day_block is not None
+        session.on_message("hey")
+        first_turn = client.calls[0]
+        assert first_turn["system"] == system, (
+            "the boot pair and the first turn share one base prefix"
+        )
     finally:
         store.close()
 

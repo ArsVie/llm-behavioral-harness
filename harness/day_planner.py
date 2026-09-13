@@ -109,8 +109,11 @@ specific object; that is the point.
 Where the outcomes above give you something to follow on from, follow on from
 it. A project should visibly move rather than restart.
 
-Marked HERS is something she does on her own; marked SHARED is something he
-is into as well. Do not explain the difference, just let it read differently.
+Marked HERS is something she does on her own; marked SHARED is an interest he
+shares too. Either way this is HER day: write what SHE does and phrase it so
+it stands without him — she has a life of her own, and no activity may need
+him or assume he will be there. Do not explain the difference, just let it
+read differently.
 
 Lowercase, no trailing period, at most {chars} characters each, no names of
 people. Reply with JSON only:
@@ -235,8 +238,10 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
     companion's last turn sent — instead of a standalone one-shot prompt, so
     the whole prefix banks on the provider cache. It is CALLED ON THIS THREAD
     (the store reads behind it belong to it); only the client call moves to
-    the budget worker. None — no mainline has ever run — keeps the standalone
-    shape.
+    the budget worker. None — a fork that could not build, or a direct
+    caller — keeps the standalone shape; the session's own fork never
+    returns None, carrying the system prompt as its base prefix even before
+    the first turn.
     """
     pair = None
     if fork is not None:

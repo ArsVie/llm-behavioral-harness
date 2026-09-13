@@ -662,6 +662,22 @@ def render_day_block(snapshot: CompanionSnapshot) -> str:
     return core
 
 
+def stable_system(day_block: str | None, snapshot: CompanionSnapshot | None = None) -> str:
+    """The STABLE system — the base prefix of every request.
+
+    ``day_block`` is the session's cached day-start persona block; without a
+    cached block (or without a session at all) it renders from ``snapshot``.
+    ONE join, so the mainline request and a call that runs before any turn
+    cannot drift apart (base-prefix rule, owner ruling 2026-09-13).
+    """
+    if day_block is not None:
+        block = day_block
+    else:
+        assert snapshot is not None, "a day block needs the cache or a snapshot"
+        block = render_day_block(snapshot)
+    return "\n\n".join([block, SYSTEM_CORE_WITH_TOOLS])
+
+
 def assemble_snapshot(
     snapshot: CompanionSnapshot,
     *,
@@ -1000,12 +1016,7 @@ def build_context_messages(
     hands the returned halves to ``_popup_request_call``, so a decision call
     extends the mainline request instead of sending a prefix of its own.
     """
-    system = "\n\n".join(
-        [
-            day_block if day_block is not None else render_day_block(snapshot),
-            SYSTEM_CORE_WITH_TOOLS,
-        ]
-    )
+    system = stable_system(day_block, snapshot)
     if user_request is not None:
         messages = build_messages(
             recent_turns, user_request, limit=limit, anchor=anchor, t_h=t_h,

@@ -82,6 +82,7 @@ from harness.assembler import (
     proactive_block,
     render_day_block,
     render_day_start_block,
+    stable_system,
     stamped_stream,
 )
 from harness.behavior import BehaviorDirective, derive_behavior
@@ -3146,26 +3147,45 @@ class Session(NegotiationMixin):
             "timestamp": {"day": day, "t_h": t_h},
         }}
 
-    def _aux_task_request(self, task_text: str):
-        """The mainline pair for one auxiliary task, or None without a mainline.
+    def _stable_system_now(self) -> str:
+        """The stable system as the next mainline turn will send it.
 
-        The fork rule (owner ruling, 2026-09-13): an auxiliary call READS the
-        exact request the last mainline turn sent — same stable system, same
-        stamped stream, same card — and folds its task into the trailing
-        system block. Only the request bytes are shared; the output is engine
-        input and never re-enters the stream (judge -> judgement row, planner
-        -> agenda text), so nothing about her own context changes.
-
-        None means no turn has ever run (fresh boot before the first
-        conversation): there is no prefix to fork, and the caller keeps its
-        standalone one-shot prompt.
+        Base-prefix rule (owner ruling, 2026-09-13): every request starts
+        from the system prompt. A call that runs before any turn ever has
+        (the day-0 planner at boot) renders the base prefix here — the same
+        value ``render_day_block`` would produce, cached exactly as the
+        mainline caches it — so the first turn's bytes are already fixed and
+        its system is already warm on the provider cache.
         """
-        if not self._last_stable_system:
-            return None
-        messages = stamped_stream(self._context_turns(), self._real_time_anchor())
-        messages = append_system(messages, self._last_state_card)
-        messages = append_system(messages, task_text)
-        return self._last_stable_system, messages
+        day = self.clock.day()
+        if self._day_block is None or self._day_block_day != day:
+            profile = self._profile
+            core = profile.core if profile is not None else self.persona_core
+            self._day_block = (core or DEFAULT_PERSONA_CORE).strip()
+            self._day_block_day = day
+        return _with_bubble_instruction(stable_system(self._day_block))
+
+    def _aux_task_request(self, task_text: str):
+        """The request pair for one auxiliary task (owner ruling, 2026-09-13).
+
+        The fork rule: an auxiliary call READS the exact request the last
+        mainline turn sent — same stable system, same stamped stream, same
+        card — and folds its task into the trailing system block. Only the
+        request bytes are shared; the output is engine input and never
+        re-enters the stream (judge -> judgement row, planner -> agenda
+        text), so nothing about her own context changes.
+
+        Before any turn has ever run there is no request to fork, but the
+        base prefix is still the system prompt: the pair renders the stable
+        system and keeps the aux one-shot shape — the task as its single
+        user-role instruction (ratified 2026-09-12).
+        """
+        if self._last_stable_system:
+            messages = stamped_stream(self._context_turns(), self._real_time_anchor())
+            messages = append_system(messages, self._last_state_card)
+            messages = append_system(messages, task_text)
+            return self._last_stable_system, messages
+        return self._stable_system_now(), [{"role": "user", "content": task_text}]
 
     def _popup_request_call(self, request: PopupRequest) -> RawReply:
         """One pop-up model call (the callable injected into the runner).

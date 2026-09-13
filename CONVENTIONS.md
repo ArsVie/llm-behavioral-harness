@@ -31,10 +31,14 @@ are under `results/`. Do not add historical implementation plans to the repo.
   request — same stable system, same stamped stream, same card, task folded
   into the trailing system block — so the whole prefix banks on the provider
   cache; their output is engine state (judgement row, agenda text) and never
-  re-enters the conversation (owner ruling 2026-09-13). With no mainline yet
-  (fresh boot; the onboarding calls — interest extension, routine setup) they
-  fall back to a single `user` task message — ratified 2026-09-12; a
-  system-only single message also risks dialects that require a user turn.
+  re-enters the conversation (owner ruling 2026-09-13). Base prefix rule
+  (owner ruling 2026-09-13): every request starts from the system prompt —
+  the stable system. A fork reuses the one last sent; a call that runs
+  before the first turn renders it and caches the day block, so the first
+  turn's bytes are already fixed and its system is already warm. With no
+  mainline yet the aux pair is that stable system plus the single `user`
+  task message — ratified 2026-09-12; a system-only single message also
+  risks dialects that require a user turn.
   Her own conversation never carries harness text in a user slot: a proactive
   turn has NO user message at all, and `harness_text_in_user_roles` scans
   every request.

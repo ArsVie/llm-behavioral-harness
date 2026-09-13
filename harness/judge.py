@@ -108,9 +108,10 @@ def judge_day(
     ``fork`` (owner ruling, 2026-09-13): a callable(rubric) -> (system,
     messages) | None that extends the mainline request — the judge reads the
     exact context the companion's last turn sent, so the whole prefix banks
-    on the provider cache. When it returns None (no mainline has ever run)
-    the standalone one-shot prompt below is kept. Either way the verdict is a
-    judgement row and nothing about the call re-enters the conversation.
+    on the provider cache. None (a fork that could not build, or a direct
+    caller) keeps the standalone one-shot prompt below. Either way the
+    verdict is a judgement row and nothing about the call re-enters the
+    conversation.
     """
     if json_mode is None:
         json_mode = bool(getattr(client, "supports_json", True))
