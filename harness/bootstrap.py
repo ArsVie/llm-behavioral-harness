@@ -53,9 +53,11 @@ from typing import Optional
 from engine.rng import stream_rng
 
 from harness.domain import DailyAgenda, LifeArc, PersonaProfile, UserProfile
+from harness.clock import VirtualClock
 from harness.interest_extension import extend_graph_for_user
 from harness.interests import InterestGraph, MAX_ADJACENCY_HOPS, build_catalog
 from harness.life import LIFE_STREAM, generate_agenda, init_life
+from harness.metering import MeteredClient
 from harness.persona import (
     DEFAULT_NAME,
     DEFAULT_VOICE,
@@ -248,8 +250,21 @@ def ensure_companion_initialized(
         # adjacency region of itself, so it contributes nothing to the 40%
         # adjacent bucket and the portfolio collapses onto whichever
         # interests the hand-built catalog happens to contain.
+        # Onboarding's own model calls reach the ledger like any other
+        # (BACKLOG: aux calls were invisible to spend accounting). No clock is
+        # read in this function, so the row carries the day being onboarded.
+        onboarding_clock = VirtualClock(float(day) * 24.0)
+
+        def _metered(role: str):
+            if client is None:
+                return None      # offline onboarding keeps its heuristic paths
+            return MeteredClient(
+                client, store, onboarding_clock, role, logger=logger
+            )
+
         extension = extend_graph_for_user(
-            graph, profile.interests, client=client, logger=logger
+            graph, profile.interests,
+            client=_metered("aux_interest_extension"), logger=logger,
         )
         graph = extension.graph
         graph_saver = getattr(store, "save_interest_graph", None)
@@ -269,7 +284,7 @@ def ensure_companion_initialized(
         routines = build_routine_catalog(
             profile.interests,
             default=ROUTINE_CATALOG,
-            client=client,
+            client=_metered("aux_routine_setup"),
             logger=logger,
         )
         if logger is not None:

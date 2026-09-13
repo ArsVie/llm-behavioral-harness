@@ -103,6 +103,7 @@ from harness.domain import (
     Turn,
 )
 from harness.judge import JudgeResult, judge_day
+from harness.metering import MeteredClient
 from harness.life import LIFE_STREAM, transition_past_windows
 from harness.memory import MemoryAgent
 from harness.negotiation_contract import (
@@ -503,7 +504,12 @@ class Session(NegotiationMixin):
         self.judge_model = judge_model
         #: Judge-lane client; judge spend attributes to the research lane.
         #: Defaults to the product client for offline/fake runs.
-        self.judge_client = judge_client if judge_client is not None else client
+        #: Metered: the judge burns tokens every finalize and used to leave no
+        #: `llm_calls` row, so its spend was invisible (BACKLOG, aux calls).
+        self.judge_client = MeteredClient(
+            judge_client if judge_client is not None else client,
+            store, clock, "aux_judge",
+        )
         # synthetic_score replicates run_daily's score source and its RNG
         # draw; the judge path consumes no RNG.
         self.synthetic_score = synthetic_score
@@ -923,7 +929,9 @@ class Session(NegotiationMixin):
         """
         if not _env_bool("HARNESS_DAY_PLANNER", False):
             return None
-        return self.client
+        # Still the conversation client, now metered: one call per day that
+        # used to leave no ledger row (BACKLOG, aux calls).
+        return MeteredClient(self.client, self.store, self.clock, "aux_day_planner")
 
     def _weekday_name(self, day: int) -> str:
         """Weekday of ``day`` from the real anchor, else a neutral word.
