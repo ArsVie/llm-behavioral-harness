@@ -176,18 +176,14 @@ def _recent_turns(n: int = 4) -> list[dict]:
 
 
 def test_stable_system_byte_identical_across_turns():
-    """Two consecutive turns with the same stable config share a byte-identical
-    stable prefix; only the last message (the state card) changes.
-    """
+    """Two consecutive turns share a byte-identical stable prefix, and request
+    N+1 is request N plus the persisted (reply, next request) rows."""
     snap = _snapshot(rich=True)
     recent = _recent_turns(4)
-    controls = _controls()
-    brief = _prompt_brief()
     system1, messages1 = build_context_messages(
         snapshot=snap, recent_turns=recent, user_request="hi",
-        controls=controls, prompt_brief=brief, t_h=27.0, anchor=_anchor(),
+        t_h=27.0, anchor=_anchor(),
     )
-# Turn 2: same config, later time; the transcript gained turn 1's persisted (request, reply) pair.
     system2, messages2 = build_context_messages(
         snapshot=snap, user_request="hi again",
         recent_turns=recent
@@ -195,18 +191,13 @@ def test_stable_system_byte_identical_across_turns():
         # reproducible across turns.
         + [{"role": "user", "content": "hi", "t_h": 27.0},
            {"role": "assistant", "content": "hello"}],
-        controls=controls, prompt_brief=brief, t_h=28.0, anchor=_anchor(),
+        t_h=28.0, anchor=_anchor(),
     )
-# The STABLE system is byte-identical across turns.
     assert system1 == system2
-# The prefix up to the volatile tail is byte-identical; turn 2's history
-# is turn 1's history plus the persisted (request, reply) pair.
-    assert messages1[:-1] == messages2[:-3]
-# Request N+1 is an extension of request N up to the tail.
-    tail1 = messages1[-1]["content"]
-    tail2 = messages2[-1]["content"]
-    assert tail1 == tail2  # no clock rides the card: same state, same bytes
-    assert messages1[-1]["role"] == "system" and messages2[-1]["role"] == "system"
+    # Strict extension: request N+1 = request N + the persisted pair + the
+    # new request. The state card never rides the request.
+    assert messages2[:len(messages1)] == messages1
+    assert [m["role"] for m in messages2[len(messages1):]] == ["assistant", "user"]
 
 
 def test_stable_system_byte_identical_across_conversations():
@@ -215,19 +206,23 @@ def test_stable_system_byte_identical_across_conversations():
     snap = _snapshot(rich=True)
     system_a, messages_a = build_context_messages(
         snapshot=snap, recent_turns=[], user_request="hello",
-        controls=_controls(), prompt_brief=_prompt_brief(),
         t_h=27.0, anchor=_anchor(),
     )
     system_b, messages_b = build_context_messages(
         snapshot=snap, recent_turns=_recent_turns(8), user_request="hi",
-        controls=_controls(), prompt_brief=_prompt_brief(),
         t_h=28.0, anchor=_anchor(),
     )
     assert system_a == system_b == "\n\n".join(
         [render_day_block(snap), SYSTEM_CORE_WITH_TOOLS]
     )
-# The card is a pure function of the snapshot: same state, same bytes.
-    assert messages_a[-1]["content"] == messages_b[-1]["content"]
+    # The requests carry true transcript roles only: no card block anywhere.
+    assert all(m["role"] != "system" for m in messages_a + messages_b)
+    # The card render is a pure function of the snapshot: same state, same
+    # bytes — that is what the stream-row change gate compares.
+    card = render_state_card(snap, controls=_controls(), prompt_brief=_prompt_brief())
+    assert card == render_state_card(
+        snap, controls=_controls(), prompt_brief=_prompt_brief()
+    )
 
 
 def test_constant_state_yields_byte_identical_whole_request():
@@ -236,7 +231,6 @@ def test_constant_state_yields_byte_identical_whole_request():
     snap = _snapshot(rich=True)
     kwargs = dict(
         snapshot=snap, recent_turns=_recent_turns(2), user_request="hi",
-        controls=_controls(), prompt_brief=_prompt_brief(),
         t_h=27.0, anchor=_anchor(),
     )
     s1, m1 = build_context_messages(**kwargs)
@@ -285,18 +279,14 @@ def test_the_role_scan_does_not_flag_a_real_built_request():
     from harness.assembler import harness_text_in_user_roles
 
     _, spoken = build_context_messages(
-        _snapshot(), _recent_turns(3), "hey", controls=_controls(),
-        prompt_brief=_prompt_brief(), t_h=27.0, anchor=_anchor(),
+        _snapshot(), _recent_turns(3), "hey", t_h=27.0, anchor=_anchor(),
     )
     assert harness_text_in_user_roles(spoken) == []
 
-    _, with_popup = build_context_messages(
-        _snapshot(), _recent_turns(3), None, controls=_controls(),
-        prompt_brief=_prompt_brief(),
-        popup="Event: pottery class starts in 10 minutes", t_h=27.0,
-        anchor=_anchor(),
+    _, silent = build_context_messages(
+        _snapshot(), _recent_turns(3), None, t_h=27.0, anchor=_anchor(),
     )
-    assert harness_text_in_user_roles(with_popup) == []
+    assert harness_text_in_user_roles(silent) == []
 
 
 def test_a_turn_the_user_did_not_speak_has_no_user_message_at_all():
@@ -305,60 +295,45 @@ def test_a_turn_the_user_did_not_speak_has_no_user_message_at_all():
     Internal events are system-level context, never a user-role message.
     """
     _, silent = build_context_messages(
-        _snapshot(), _recent_turns(3), None, controls=_controls(),
-        prompt_brief=_prompt_brief(), t_h=27.0, anchor=_anchor(),
+        _snapshot(), _recent_turns(3), None, t_h=27.0, anchor=_anchor(),
     )
-    assert [m["role"] for m in silent] == ["user", "assistant", "user", "system"]
-    assert silent[-1]["role"] == "system"
+    assert [m["role"] for m in silent] == ["user", "assistant", "user"]
     assert all(m["content"] for m in silent if m["role"] == "user"), (
         "no user message may carry empty content or harness text"
     )
 
-    # With a real user turn nothing changes about the tail: system card last.
+    # The speaking turn appends one user-role message; nothing follows it.
     _, spoken = build_context_messages(
-        _snapshot(), _recent_turns(3), "hey", controls=_controls(),
-        prompt_brief=_prompt_brief(), t_h=27.0, anchor=_anchor(),
+        _snapshot(), _recent_turns(3), "hey", t_h=27.0, anchor=_anchor(),
     )
-    assert spoken[-1]["role"] == "system"
-    # The user turn carries its arrival time and stays a user-role message.
-    assert spoken[-2]["role"] == "user"
-    assert spoken[-2]["content"].startswith("hey")
-    assert " | Time: " in spoken[-2]["content"]
+    assert spoken[-1]["role"] == "user"
+    assert spoken[-1]["content"].startswith("hey")
+    assert " | Time: " in spoken[-1]["content"]
 
 
-def test_volatile_state_is_the_last_system_message():
-    """The state card (temporal/state-card content) is the LAST message — a
-    system message, never interleaved in the stable prefix and never wearing
-    the user role (roles stay truthful: user-role content is always the user)."""
+def test_the_card_never_rides_the_request():
+    """The state card is a stream row (append-only, change-gated), never a
+    request block: requests carry transcript roles only, and the card's
+    volatile markers stay out of the stable prefix."""
     snap = _snapshot(rich=True)
     system, messages = build_context_messages(
         snapshot=snap, recent_turns=_recent_turns(3), user_request="hi",
-        controls=_controls(), prompt_brief=_prompt_brief(),
         t_h=27.0, anchor=_anchor(),
     )
-    tail = messages[-1]
-    assert tail["role"] == "system"
-# The state-card content sits at the END of the wire layout.
-    assert AFFECTIVE_HEADER in tail["content"]
-# DAY-scoped material is NOT in the per-turn card: it goes out once at
-# rollover, into the message stream (render_day_start_block).
-    assert AGENDA_HEADER not in tail["content"]
-    assert tail["content"].startswith(AFFECTIVE_HEADER)
-# Volatile markers stay out of the stable prefix (system message).
+    assert all(m["role"] != "system" for m in messages), messages
     for volatile_marker in (
         TEMPORAL_HEADER, AFFECTIVE_HEADER, BEHAVIORAL_HEADER,
         CURRENT_INTENT_HEADER, AGENDA_HEADER, MEMORIES_HEADER,
     ):
         assert volatile_marker not in system, volatile_marker
-# The card does not move between turns when the state does not; neither does
-# the stable prefix.
-    system2, messages2 = build_context_messages(
-        snapshot=snap, recent_turns=_recent_turns(3), user_request="hi",
-        controls=_controls(), prompt_brief=_prompt_brief(),
-        t_h=28.0, anchor=_anchor(),
-    )
-    assert messages2[-1]["content"] == tail["content"]
-    assert system == system2
+    # The card render keeps the moving state and leaves the day plan out.
+    card = render_state_card(snap, controls=_controls(), prompt_brief=_prompt_brief())
+    assert card.startswith(AFFECTIVE_HEADER)
+    assert AGENDA_HEADER not in card
+    # Same state: same card bytes — the stream-row change gate holds.
+    assert render_state_card(
+        snap, controls=_controls(), prompt_brief=_prompt_brief()
+    ) == card
 
 
 def test_unanchored_replay_omits_temporal_and_the_agenda_moved_to_day_start():
@@ -370,11 +345,11 @@ def test_unanchored_replay_omits_temporal_and_the_agenda_moved_to_day_start():
     snap = _snapshot(rich=True)
     system, messages = build_context_messages(
         snapshot=snap, recent_turns=[], user_request="hi",
-        controls=_controls(), prompt_brief=_prompt_brief(),
     )
-    tail = messages[-1]["content"]
-    assert TEMPORAL_HEADER not in tail  # unanchored: not raw t_h
-    assert AGENDA_HEADER not in tail
+    for m in messages:
+        content = m.get("content") or ""
+        assert TEMPORAL_HEADER not in content  # unanchored: not raw t_h
+        assert AGENDA_HEADER not in content
     assert TEMPORAL_HEADER not in system and AGENDA_HEADER not in system
 
     day_start = render_day_start_block(snap)
@@ -425,13 +400,12 @@ def test_the_layout_loses_no_content_and_duplicates_none():
     )
     system, messages = build_context_messages(
         snapshot=snap, recent_turns=[], user_request=None,
-        controls=controls, prompt_brief=brief, popup=popup,
         t_h=27.0, anchor=_anchor(),
     )
     scopes = {
         "system": system,
         "day_start": render_day_start_block(snap),
-        "card": messages[-1]["content"],
+        "card": render_state_card(snap, controls=controls, prompt_brief=brief),
     }
     for header in _ALL_HEADERS:
         if header not in legacy:
@@ -503,26 +477,23 @@ def test_seam_transcript_matches_legacy_build_messages():
     legacy_messages = build_messages(recent, "hi", anchor=_anchor(), t_h=27.0)
     system, messages = build_context_messages(
         snapshot=snap, recent_turns=recent, user_request="hi",
-        controls=controls, prompt_brief=brief,
         t_h=27.0, anchor=_anchor(), day_block=day_block,
     )
-# Transcript portion byte-identical; the volatile tail is appended, not interleaved.
-    assert messages[:-1] == legacy_messages
-    assert messages[-1]["role"] == "system"
-# Content parity with the legacy request, across the three scopes. Byte
-# concatenation no longer holds: day-scoped state left the prompt.
+    # The seam IS the legacy transcript builder, byte for byte — no blocks.
+    assert messages == legacy_messages
+    # Content parity with the legacy request, across the three scopes. Byte
+    # concatenation no longer holds: day-scoped state left the prompt.
     covered = system + "\n\n" + render_day_start_block(snap) \
-        + "\n\n" + messages[-1]["content"]
+        + "\n\n" + render_state_card(snap, controls=controls, prompt_brief=brief)
     for header in _ALL_HEADERS:
         if header in legacy_system:
             assert header in covered, f"{header!r} was dropped"
-# No-request variant: transcript passes through untouched, tail still appended.
+    # No-request variant: the transcript passes through untouched.
     system2, messages2 = build_context_messages(
         snapshot=snap, recent_turns=recent, user_request=None,
-        controls=controls, prompt_brief=brief,
         t_h=27.0, anchor=_anchor(), day_block=day_block,
     )
-    assert messages2[:-1] == [
+    assert messages2 == [
         {"role": turn["role"], "content": turn["content"]} for turn in recent
     ]
     assert system2 == system
@@ -536,7 +507,6 @@ def test_seam_deterministic_replay_parity():
         snapshot=_snapshot(rich=True),
         recent_turns=_recent_turns(4),
         user_request="hi",
-        controls=_controls(), prompt_brief=_prompt_brief(),
         t_h=27.0, anchor=_anchor(),
     )
     s1, m1 = build_context_messages(**kwargs)

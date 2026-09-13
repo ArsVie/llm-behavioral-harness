@@ -51,11 +51,14 @@ def test_first_message_rolls_over_day_zero(tmp_path):
     assert state is not None
     assert 0 <= state["M"] <= 10
     msgs = store.messages_for_day(0)
-    assert [m["role"] for m in msgs] == ["user", "assistant"]
-    # directive exists and the client saw guidance (WS-D: state card tail)
+    assert [m["role"] for m in msgs if m["role"] != "system"] == [
+        "user", "assistant",
+    ]
+    # The directive rides the stream's card row (WS-D).
     # The doubled label is gone; AFFECTIVE BEARING names the block.
-    assert "AFFECTIVE BEARING:" in client.calls[0]["messages"][-1]["content"]
-    assert "Current bearing:" in client.calls[0]["messages"][-1]["content"]
+    card = next(m for m in client.calls[0]["messages"] if m["role"] == "system")
+    assert "AFFECTIVE BEARING:" in card["content"]
+    assert "Current bearing:" in card["content"]
     store.close()
 
 
@@ -291,18 +294,19 @@ def test_reactive_turn_persists_snapshot_and_controls(tmp_path):
     call = client.calls[-1]
     assert call["max_tokens"] == result.controls.max_tokens
     system = call["system"]
-    tail = call["messages"][-1]["content"]
-    assert "AFFECTIVE BEARING:" in tail
+    card = next(m for m in call["messages"] if m["role"] == "system")
+    assert "AFFECTIVE BEARING:" in card["content"]
     # Recent dialogue appears once, in the message payload.
     assert "Recent conversation:" not in system
     assert "user: hello there" not in system
     payload = call["messages"]
     assert sum(1 for m in payload if m["content"] == "hello there") == 1
-    assert sum(1 for m in payload[:-1] if m["role"] == "user") == 2
-    assert payload[-2] == {"role": "user", "content": "how are you"}
-    assert payload[-1]["role"] == "system"  # volatile state-card tail
+    assert sum(1 for m in payload if m["role"] == "user") == 2
+    assert payload[-1] == {"role": "user", "content": "how are you"}
     msgs = store.messages_for_day(0)
-    assert [m["role"] for m in msgs] == ["user", "assistant", "user", "assistant"]
+    assert [m["role"] for m in msgs if m["role"] != "system"] == [
+        "user", "assistant", "user", "assistant",
+    ]
     # Messages are scoped to the conversation's memory session.
     assert all(m["session_id"] == "day-1000" for m in msgs)
     assert all(m["conversation_id"] == "conv-0" for m in msgs)
@@ -341,16 +345,16 @@ def test_proactive_grounded_intent_carries_hook(tmp_path):
     store.save_proactive_intent(intent)
     result = session.fire_proactive("schedule")
     call = client.calls[-1]
-    tail = call["messages"][-1]["content"]
+    card = next(m for m in call["messages"] if m["role"] == "system")
     assert result.controls is not None
-    assert "reaching out first" in tail
-    assert intent.hook in tail
-    assert "Contact reason" not in tail
+    assert "reaching out first" in card["content"]
+    assert intent.hook in card["content"]
+    assert "Contact reason" not in card["content"]
     assert "Contact reason" not in call["system"]
-    msgs = store.messages_for_day(0)
-    assert len(msgs) == 1 and msgs[0]["role"] == "assistant" and msgs[0]["proactive"] == 1
+    turns = [m for m in store.messages_for_day(0) if m["role"] != "system"]
+    assert len(turns) == 1 and turns[0]["role"] == "assistant" and turns[0]["proactive"] == 1
     # The outgoing message persists the exact validated intent id.
-    assert msgs[0]["intent_id"] == "pi_test"
+    assert turns[0]["intent_id"] == "pi_test"
     store.close()
 
 
@@ -528,15 +532,15 @@ def test_fire_proactive_exact_intent_never_reason_substitute(tmp_path):
 
     result = session.fire_proactive("pi_87")
     call = client.calls[-1]
-    tail = call["messages"][-1]["content"]
+    card = next(m for m in call["messages"] if m["role"] == "system")
     assert result.reply == "from intent 87"
-    assert hook_87 in tail
-    assert hook_88 not in tail
-    assert "Contact reason" not in tail
+    assert hook_87 in card["content"]
+    assert hook_88 not in card["content"]
+    assert "Contact reason" not in card["content"]
     assert "Contact reason" not in call["system"]
-    msgs = store.messages_for_day(0)
-    assert len(msgs) == 1 and msgs[0]["role"] == "assistant"
-    assert msgs[0]["intent_id"] == "pi_87"
+    turns = [m for m in store.messages_for_day(0) if m["role"] != "system"]
+    assert len(turns) == 1 and turns[0]["role"] == "assistant"
+    assert turns[0]["intent_id"] == "pi_87"
     store.close()
 
 
@@ -717,7 +721,7 @@ def test_persistent_empty_raises_and_persists_no_assistant_row(
         session.on_message("hi there")
     assert calls["n"] == 2  # bounded: never hangs
     msgs = store.messages_for_day(0)
-    assert [m["role"] for m in msgs] == ["user"]  # user turn only
+    assert [m["role"] for m in msgs if m["role"] != "system"] == ["user"]  # user turn only
     assert store.conn.execute("SELECT COUNT(*) FROM llm_calls").fetchone()[0] == 0
     store.close()
 
@@ -860,5 +864,8 @@ def test_current_activity_in_progress_reaches_the_system_prompt(tmp_path):
     clock.advance_hours(19.0)
     session.on_message("hi there")
     call = session.client.calls[-1]
-    assert "Current activity: evening run" in call["messages"][-1]["content"]
+    assert any(
+        "Current activity: evening run" in (m.get("content") or "")
+        for m in call["messages"] if m.get("role") == "system"
+    )
     store.close()

@@ -526,49 +526,41 @@ def test_behavioral_projection_visible_internals_absent():
     assert not re.search(r"\bg\b", low), "standalone 'g' leaked"
 
 
-# --- the state card is not re-rendered when nothing changed ----------------
-
-def test_the_card_is_reused_byte_for_byte_when_unchanged():
-    """An unchanged render reuses the same bytes; a changed render installs
-    the new card."""
-    from harness.session import Session
-
-    session = Session.__new__(Session)          # the memo is all this needs
-    session._card_text = None
-    text = ("CURRENT INTENT:\nNo active intent.\nAFFECTIVE BEARING:\n"
-            "warm and steady.")
-    first = [{"role": "system", "content": text}]
-    assert session._stable_card(first) == first
-    assert session._card_text == text
-
-    same = [{"role": "system", "content": text}]
-    kept = session._stable_card(same)
-    assert kept[0]["content"] == text
-    assert kept is same, "byte-identical: nothing to swap"
-
-    changed_text = text.replace("warm and steady.", "quiet and tired.")
-    changed = [{"role": "system", "content": changed_text}]
-    installed = session._stable_card(changed)
-    assert installed[0]["content"] == changed_text, "a real change installs the new card"
-    assert session._card_text == changed_text
+# --- the state card is a stream row, appended only when its bytes change ---
 
 
-def test_a_new_day_period_refreshes_the_card():
-    """Crossing evening -> night IS material: the reading updates."""
-    from harness.session import Session
+def test_the_card_is_appended_only_when_its_bytes_change(monkeypatch):
+    """An unchanged render appends nothing; a changed render appends one row."""
+    from harness import session as session_mod
 
-    session = Session.__new__(Session)
-    session._card_text = None
-    evening = [{"role": "system", "content": "It is 21:42, Saturday evening — day 0."}]
-    session._stable_card(evening)
-    night = [{"role": "system", "content": "It is 23:30, Saturday night — day 0."}]
-    assert session._stable_card(night)[0]["content"] == night[0]["content"]
+    appended: list[tuple] = []
+    texts = iter(["card one", "card one", "card one", "card two"])
+    monkeypatch.setattr(
+        session_mod, "render_state_card", lambda *a, **k: next(texts)
+    )
+
+    s = session_mod.Session.__new__(session_mod.Session)
+    s._card_text = None
+    s._persist_message = lambda *a, **k: appended.append((a[0], a[1]))
+
+    for _ in range(4):
+        s._ensure_state_card(object(), None, None, day=0, t_h=1.0)
+    assert appended == [("system", "card one"), ("system", "card two")]
+    assert s._card_text == "card two"
 
 
-def test_a_non_system_tail_is_left_alone():
-    from harness.session import Session
+def test_a_restart_baseline_skips_the_unchanged_card(monkeypatch):
+    """The memo loads from the stream: an unchanged card never re-appends."""
+    from harness import session as session_mod
 
-    session = Session.__new__(Session)
-    session._card_text = "old card"
-    messages = [{"role": "system", "content": "old card"}, {"role": "user", "content": "hey"}]
-    assert session._stable_card(messages) == messages
+    appended: list[tuple] = []
+    monkeypatch.setattr(
+        session_mod, "render_state_card", lambda *a, **k: "card one"
+    )
+
+    s = session_mod.Session.__new__(session_mod.Session)
+    s._card_text = "card one"          # what the store last carried
+    s._persist_message = lambda *a, **k: appended.append(a)
+
+    s._ensure_state_card(object(), None, None, day=0, t_h=1.0)
+    assert appended == []

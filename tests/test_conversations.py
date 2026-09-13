@@ -16,7 +16,7 @@ from harness.scheduler import ProactiveSchedule
 from harness.session import MAX_TURNS, Session, USER_LEFT_THRESHOLD_H
 from harness.store import SCHEMA_VERSION, SQLiteStore
 
-from tests.helpers import no_wait
+from tests.helpers import feed_when_started, no_wait
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -239,7 +239,9 @@ def test_conversation_continues_while_user_replies(tmp_path, monkeypatch):
         "user", "companion", "user", "companion", "user", "companion",
     ]
     assert [t.turn_index for t in convs[0].turns] == [0, 1, 2, 3, 4, 5]
-    assert len(store.messages_for_day(0)) == 6  # no duplicates
+    turns_only = [m for m in store.messages_for_day(0)
+                  if m["role"] != "system"]
+    assert len(turns_only) == 6  # no duplicated turns
     store.close()
 
 
@@ -360,7 +362,7 @@ def test_user_left_close_at_deadline_runtime(tmp_path):
     deadline = 10.0 + USER_LEFT_THRESHOLD_H
 
     async def driver():
-        feed = asyncio.create_task(channel.feed("morning", t_h=10.0))
+        feed = asyncio.create_task(feed_when_started(channel, "morning", t_h=10.0))
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
@@ -388,7 +390,7 @@ def test_quiet_hours_close_at_boundary_runtime(tmp_path):
     channel = FakeChannel()
 
     async def driver():
-        feed = asyncio.create_task(channel.feed("good evening", t_h=22.833))
+        feed = asyncio.create_task(feed_when_started(channel, "good evening", t_h=22.833))
         try:
             await AsyncRuntime(
                 session, ProactiveSchedule.restore(SEED, store), channel,
@@ -474,7 +476,7 @@ def test_resume_mid_conversation_no_rewind(tmp_path, monkeypatch):
     assert len(conv2.turns) == 8  # 6 + 2, no rewind, no duplicates
     assert [t.turn_index for t in conv2.turns] == list(range(8))
     n_msgs = store2.conn.execute(
-        "SELECT COUNT(*) AS n FROM messages"
+        "SELECT COUNT(*) AS n FROM messages WHERE role != 'system'"
     ).fetchone()["n"]
     assert n_msgs == 8
     store2.close()

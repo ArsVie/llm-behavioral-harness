@@ -101,9 +101,14 @@ def test_startup_resolves_the_backlog_before_any_user_message(tmp_path):
     session.on_message("Hi? Anyone there?")
 
     generation = client.calls[2]
-    assert _roles(generation) == [
-        "system", "assistant", "tool", "assistant", "tool", "user", "system",
-    ], "day block -> resolved pairs -> user row -> card"
+    roles = _roles(generation)
+    # Day block -> state card -> resolved pairs -> user row. The card is a
+    # stream row here (not a tail block); the user row rides last.
+    assert roles[:2] == ["system", "system"], roles
+    assert roles[-1] == "user", roles
+    assert [r for r in roles if r in ("assistant", "tool")] == [
+        "assistant", "tool", "assistant", "tool",
+    ], roles
 
 
 def test_next_event_instant_surveys_forward(tmp_path):

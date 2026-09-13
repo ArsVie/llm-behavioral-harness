@@ -64,9 +64,9 @@ def test_the_popup_leg_reuses_the_stamped_mainline_bytes(tmp_path):
         assert m[:head] == p[:head]
         # The generation then carries the round's decision pair as rows...
         assert [x["role"] for x in m[head:head + 2]] == ["assistant", "tool"]
-        # ...and the tail extends: the card survives as the last block.
-        assert m[-1]["role"] == p[-1]["role"] == "system"
-        assert m[-1]["content"] in p[-1]["content"]
+        # ...and the tail stays appended rows: the pair's tool result is last,
+        # and the card is never re-appended behind it.
+        assert m[-1]["role"] == "tool"
     finally:
         store.close()
 
@@ -84,13 +84,13 @@ def test_aux_task_request_extends_the_last_mainline_request(tmp_path):
         system, messages = pair
         assert system == main["system"]
         # The stream AS OF NOW extends the mainline request: everything the
-        # mainline sent stays at the head; the card + task ride as one trailing block.
-        head = main["messages"][:-1]
+        # mainline sent stays at the head; the reply row follows, then the
+        # task as its own appended block.
+        head = main["messages"]
         assert messages[: len(head)] == head
         assert messages[len(head)]["role"] == "assistant"
         assert "hi there" in messages[len(head)]["content"]
         assert messages[-1]["role"] == "system"
-        assert main["messages"][-1]["content"] in messages[-1]["content"]
         assert "TASK: rate the day" in messages[-1]["content"]
     finally:
         store.close()
@@ -166,10 +166,9 @@ def test_finalize_day_judges_on_the_fork_and_appends_nothing(tmp_path):
         assert judge_call["system"] == main["system"]
         # Prefix property: everything the mainline sent stays at the head
         # (the reply joined the stream after it), then the task rides last.
-        head = main["messages"][:-1]
+        head = main["messages"]
         assert judge_call["messages"][: len(head)] == head
         assert judge_call["messages"][-1]["role"] == "system"
-        assert main["messages"][-1]["content"] in judge_call["messages"][-1]["content"]
         assert "Rate how the USER treated" in judge_call["messages"][-1]["content"]
         assert len(store.messages_for_day(0)) == before, (
             "the verdict is a judgement row, never a conversation message"

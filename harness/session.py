@@ -82,6 +82,7 @@ from harness.assembler import (
     proactive_block,
     render_day_block,
     render_day_start_block,
+    render_state_card,
     stable_system,
     stamped_stream,
 )
@@ -627,14 +628,13 @@ class Session(NegotiationMixin):
         self._thinking_effort = _load_thinking_effort()
         self._day_block: str | None = None
         self._day_block_day: int | None = None
-        #: Last state card actually put on the wire. The card is the trailing
-        #: block of every request; re-rendering it with a new clock rewrites a
-        #: block inside the array and costs the prefix cache for everything
-        #: after it. Reuse these exact bytes while only the clock moved.
+        #: Last card bytes the stream carried (a system row). A card is
+        #: appended only when its bytes change — the stream is append-only.
         self._card_text: str | None = None
-        #: Day whose first card already carried the TEMPORAL FRAME. The frame is
-        #: a clock reading, not state: it goes out once with the day's first card
-        #: and stays in context after that.
+        try:
+            self._card_text = self.store.last_system_row_text()
+        except AttributeError:  # minimal stores (tests/fakes) keep working
+            pass
         #: System prompt of the turn in progress — shared with pop-up calls.
         self._last_system_prompt: str = ""
         # WS-D cache order: the pop-up aux call must be a byte-identical
@@ -648,7 +648,6 @@ class Session(NegotiationMixin):
         #: mainline array rather than matching it, so a global check would
         #: report a violation on every turn).
         self._last_request_pairs: dict[str, list] = {}
-        self._last_state_card: str = ""
         #: Steers drained for the turn currently being generated — requeued
         #: if the turn is interrupted (the LLM call is abandoned).
         self._turn_drained: list[int] = []
@@ -1527,27 +1526,32 @@ class Session(NegotiationMixin):
         for item in transition_past_windows(agenda, t_h, day):
             self.store.update_agenda_item_status(item.id, item.status)
 
-    def _stable_card(self, messages: list[dict]) -> list[dict]:
-        """Keep the state card byte-identical while its content is unchanged.
+    def _ensure_state_card(
+        self,
+        snapshot,
+        controls,
+        prompt_brief: str | None,
+        day: int,
+        t_h: float,
+    ) -> None:
+        """Append the state card as a stream row only when its bytes changed.
 
-        The card is the LAST message of every request by design, so a growing
-        history extends the prefix; re-rendering it would rewrite bytes inside
-        the array. Reuse the previous bytes; a changed render installs a fresh
-        card.
+        The stream is append-only: an unchanged card is never re-sent, and a
+        changed one lands at the tail as a new row, never a rewrite.
         """
-        if not messages:
-            return messages
-        tail = messages[-1]
-        if tail.get("role") != "system":
-            return messages
-        text = str(tail.get("content"))
-        if self._card_text is None:
-            self._card_text = text          # first card of the run: the baseline
-            return messages
-        if text == self._card_text:
-            return messages                 # already byte-identical
-        self._card_text = text              # changed: keep the new card
-        return messages
+        text = render_state_card(
+            snapshot, controls=controls, prompt_brief=prompt_brief,
+        )
+        if not text or text == self._card_text:
+            return
+        conv = self._conversation
+        self._persist_message(
+            "system", text, t_h, day,
+            proactive=False,
+            session_id=self._memory_session_id(conv.id) if conv else "",
+            conversation_id=conv.id if conv else None,
+        )
+        self._card_text = text
 
     def _build_snapshot(
         self,
@@ -1990,23 +1994,18 @@ class Session(NegotiationMixin):
         system = _with_bubble_instruction(system)
         self._last_system_prompt = system
 
+        self._ensure_state_card(
+            snapshot, controls, directive.prompt_brief, day, t_h,
+        )
         recent = self._context_turns()
         stable, messages = build_context_messages(
             snapshot, recent, None,
-            controls=controls, prompt_brief=directive.prompt_brief,
             t_h=t_h, anchor=self._real_time_anchor(),
             day_block=self._day_block,
             limit=None,
         )
-        # The card memo keeps the tail byte-identical to what a turn sends.
-        messages = self._stable_card(messages)
         stable = _with_bubble_instruction(stable)
         self._last_stable_system = stable
-        self._last_state_card = (
-            messages[-1]["content"]
-            if messages and messages[-1].get("role") == "system"
-            else ""
-        )
 
         turn_id = f"settle#{day}@{t_h:.5f}"
         # Windows transition at turns, not here: marking a window completed
@@ -2020,6 +2019,10 @@ class Session(NegotiationMixin):
             )
         return drain
 
+    def life_instants_enabled(self) -> bool:
+        """Whether agenda wake instants exist at all (decision-layer gate)."""
+        return self._steering is not None and self._decision_enabled
+
     def next_event_instant(self, now: float) -> float | None:
         """Earliest future agenda instant her life loop must wake for.
 
@@ -2027,7 +2030,7 @@ class Session(NegotiationMixin):
         ``_enqueue_event_popups`` fires on, surveyed forward instead of
         crossed. None means nothing ahead (the loop polls).
         """
-        if self._steering is None or not self._decision_enabled:
+        if not self.life_instants_enabled():
             return None
         if not hasattr(self.store, "list_agenda_items"):
             return None
@@ -2341,25 +2344,23 @@ class Session(NegotiationMixin):
         # WS4: pop-up calls (decision layer) share the turn's system prompt.
         self._last_system_prompt = system
 
+        self._ensure_state_card(
+            snapshot, controls, directive.prompt_brief, day, t_h,
+        )
         recent = self._context_turns()
-        # Mainline: stable system + context stream + the volatile state card
-        # as a TRAILING SYSTEM message (never user-role: user-role content is
-        # always what the user said). The legacy full 3-tier `system` above
-        # stays for `_last_system_prompt`, which aux callers that never ran a
-        # mainline turn still fall back to.
+        # Mainline: stable system + the context stream (never user-role: user
+        # content is always what the user said). The legacy full 3-tier
+        # `system` above stays for `_last_system_prompt`, which aux callers
+        # that never ran a mainline turn still fall back to.
         if user_text is not None:
             stable, messages = build_context_messages(
                 snapshot, recent, user_text,
-                controls=controls, prompt_brief=directive.prompt_brief,
                 t_h=t_h, anchor=self._real_time_anchor(),
                 day_block=self._day_block,
                 # The epoch already bounds the span; a tail limit here would
                 # re-impose the sliding window the epoch exists to remove.
                 limit=None,
             )
-            # The card rides the tail of every request; keep it byte-identical
-            # while only its clock moved (see _stable_card).
-            messages = self._stable_card(messages)
             mid = self._persist_message(
                 "user", user_text, t_h, day,
                 proactive=False, session_id=session_id, conversation_id=conv_id,
@@ -2375,28 +2376,18 @@ class Session(NegotiationMixin):
                 snapshot,
                 recent,
                 None,
-                controls=controls, prompt_brief=directive.prompt_brief,
                 t_h=t_h, anchor=self._real_time_anchor(),
                 day_block=self._day_block,
                 limit=None,
             )
-            # Same rule as the mainline path: the card is the trailing block,
-            # and this also keeps `_last_state_card` (the pop-up legs' card)
-            # byte-stable.
-            messages = self._stable_card(messages)
         stable = _with_bubble_instruction(stable)
         if user_text is None and intent is None:
             # Legacy ungrounded proactive call (pre-slice callers/tests):
             # generic opening without any invented source claim.
             stable += "\n\n" + proactive_block()
-        # Capture the two halves for the pop-up aux calls: same stable
-        # prefix, same card, pop-up appended after it.
+        # Capture the stable half for the pop-up aux calls: same prefix, the
+        # steer appended after it.
         self._last_stable_system = stable
-        self._last_state_card = (
-            messages[-1]["content"]
-            if messages and messages[-1].get("role") == "system"
-            else ""
-        )
 
         # Drain pending steers into this turn; no-reply verdicts
         # suppress the reply, and delivered steers re-queue on error.
@@ -2446,17 +2437,17 @@ class Session(NegotiationMixin):
         # trailing state card rather than stacking behind it — see
         # assembler.append_system for why adjacency is the bug.
         # The stream above was read before the drain; rebuild the request
-        # now so this turn's decisions ride it as rows, not as prose. The
-        # card memo keeps the rebuilt tail byte-identical for the legs.
+        # now so this turn's decisions ride it as rows, not as prose.
+        self._ensure_state_card(
+            snapshot, controls, directive.prompt_brief, day, t_h,
+        )
         recent = self._context_turns()
         stable, messages = build_context_messages(
             snapshot, recent, None,
-            controls=controls, prompt_brief=directive.prompt_brief,
             t_h=t_h, anchor=self._real_time_anchor(),
             day_block=self._day_block,
             limit=None,
         )
-        messages = self._stable_card(messages)
         stable = _with_bubble_instruction(stable)
         if user_text is None and intent is None:
             stable += "\n\n" + proactive_block()
@@ -3099,7 +3090,6 @@ class Session(NegotiationMixin):
         """
         if self._last_stable_system:
             messages = stamped_stream(self._context_turns(), self._real_time_anchor())
-            messages = append_system(messages, self._last_state_card)
             messages = append_system(messages, task_text)
             return self._last_stable_system, messages
         return self._stable_system_now(), [{"role": "user", "content": task_text}]
@@ -3140,10 +3130,8 @@ class Session(NegotiationMixin):
         # from it at the first user message (live 2026-09-12) and banked only
         # the system block.
         messages = stamped_stream(self._context_turns(), self._real_time_anchor())
-        messages = append_system(messages, self._last_state_card)
         messages = append_system(messages, wrap_steer_marker(request.popup))
-        # A re-ask restates the requirement; append_system folds it into the
-        # block above, so the request still ends with ONE system message.
+        # A re-ask restates the requirement as its own appended block.
         messages = append_system(messages, request.nudge or "")
         # Native transport wraps Hermes-style schemas in the OpenAI
         # {"type": "function", "function": ...} form at the boundary.

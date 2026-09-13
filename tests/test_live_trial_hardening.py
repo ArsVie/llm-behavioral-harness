@@ -26,7 +26,7 @@ from experiments.live_companion import (
     owner_profile,
     rename_companion,
 )
-from tests.helpers import ground_agenda, make_session, no_wait
+from tests.helpers import feed_when_started, ground_agenda, make_session, no_wait
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -130,7 +130,7 @@ def test_failed_reactive_turn_does_not_end_a_live_run(tmp_path):
     )
 
     async def driver():
-        feed = asyncio.create_task(channel.feed("hi", t_h=0.5))
+        feed = asyncio.create_task(feed_when_started(channel, "hi", t_h=0.5))
         try:
             await runtime.run()
         finally:

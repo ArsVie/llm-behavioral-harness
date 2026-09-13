@@ -426,17 +426,16 @@ def test_add_message_session_id_optional_and_backward_compatible(tmp_path):
     store.close()
 
 
-def test_a_system_block_folds_into_the_trailing_system_row(tmp_path):
-    """Two system blocks in a row are ONE stored row (the request path folds
-    them too — a run of adjacent system rows is a shape no request sent)."""
+def test_two_system_blocks_stay_two_rows(tmp_path):
+    """Append-only: a second system block is its own row, never a merge."""
     store = SQLiteStore(tmp_path / "s.db")
     store.add_message("user", "hi", t_h=1.0, day=0)
     first = store.add_message("system", "card A", t_h=1.1, day=0)
     second = store.add_message("system", "popup B", t_h=1.2, day=0)
-    assert first == second                      # the same row absorbed both
+    assert first != second
     rows = store.messages_since(0)
-    assert [r["role"] for r in rows] == ["user", "system"]
-    assert rows[-1]["content"] == "card A\n\npopup B"
+    assert [r["role"] for r in rows] == ["user", "system", "system"]
+    assert [r["content"] for r in rows[1:]] == ["card A", "popup B"]
     store.close()
 
 
@@ -468,32 +467,6 @@ def test_an_empty_system_block_is_dropped(tmp_path):
     assert len(rows) == 1 and rows[0]["content"] == "card"
     store.close()
 
-
-def test_fold_system_history_repairs_rows_written_before_the_fold(tmp_path):
-    """A run stored before this rule keeps the unfolded shape until repaired."""
-    import sqlite3
-
-    path = tmp_path / "s.db"
-    store = SQLiteStore(path)
-    store.close()
-    raw = sqlite3.connect(path)
-    for row in (("system", "card A", 1.0), ("system", "popup B", 1.1),
-                ("system", "card C", 1.2), ("user", "hi", 1.3),
-                ("system", "card D", 1.4), ("system", "card D", 1.5)):
-        raw.execute("INSERT INTO messages (role, content, t_h, day) VALUES (?,?,?,0)",
-                    row)
-    raw.commit()
-    raw.close()
-    store = SQLiteStore(path)
-    assert store.fold_system_history() == 3
-    rows = store.messages_since(0)
-    assert [(r["role"], r["content"]) for r in rows] == [
-        ("system", "card A\n\npopup B\n\ncard C"),
-        ("user", "hi"),
-        ("system", "card D"),          # the repeat folded away, not duplicated
-    ]
-    assert store.fold_system_history() == 0     # idempotent
-    store.close()
 
 
 def test_repair_placeholder_steers_rewrites_the_legacy_question_mark(tmp_path):

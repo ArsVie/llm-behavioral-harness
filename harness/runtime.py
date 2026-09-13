@@ -473,6 +473,8 @@ class AsyncRuntime:
         lock, then settle. With nothing ahead it polls, so a rollover
         replan is picked up on the cadence.
         """
+        if not self.session.life_instants_enabled():
+            return
         while True:
             now = self.session.clock.now_h()
             if self._max_reached(now):

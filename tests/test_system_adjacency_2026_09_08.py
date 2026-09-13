@@ -1,18 +1,18 @@
-"""The wire never carries two system messages in a row.
+"""Owner law (2026-09-13): the context stream is APPEND-ONLY.
 
-A turn's tail blocks (state card, injections, decided-notes, and on an aux call
-the pop-up) FOLD into one trailing system message, so exactly one place in the
-message list addresses the model immediately before it answers. Pinned here: no
-synthetic assistant turn is interleaved between system blocks, and replayed
-decisions keep their real ``assistant tool_calls -> role="tool"`` exchange.
+Nothing the model already saw is ever rewritten, merged, folded, removed or
+repositioned: system blocks append as their own messages
+(``assembler.append_system``), and the state card is a stream row appended
+only when its bytes change (:meth:`Session._ensure_state_card`) — never a
+tail block. Replayed decisions keep their real ``assistant tool_calls ->
+role="tool"`` exchange. The only forks of context that are NOT appended, for
+system machinery, are the judge call and the day-planner call.
 """
 
 from __future__ import annotations
 
-import itertools
-
 from engine.types import MoodVariant, PersonaParams, TimingParams
-from harness.assembler import SYSTEM_BLOCK_SEPARATOR, append_system
+from harness.assembler import append_system
 from harness.client import FakeClient
 from harness.clock import VirtualClock
 from harness.domain import AgendaItem, DailyAgenda
@@ -21,31 +21,24 @@ from harness.tools import DecisionConfig
 from tests.helpers.store import make_store
 
 
-def _no_adjacent_system(messages) -> bool:
-    roles = [m.get("role") for m in messages]
-    return not any(a == "system" and b == "system"
-                   for a, b in itertools.pairwise(roles))
-
-
 # the helper
 
-
-def test_folds_into_a_trailing_system_message():
+def test_a_system_block_appends_as_its_own_message():
     msgs = [{"role": "user", "content": "hi"}]
     msgs = append_system(msgs, "card")
     msgs = append_system(msgs, "popup")
-    assert [m["role"] for m in msgs] == ["user", "system"]
-    assert msgs[-1]["content"] == "card" + SYSTEM_BLOCK_SEPARATOR + "popup"
+    assert [m["role"] for m in msgs] == ["user", "system", "system"]
+    assert [m["content"] for m in msgs[1:]] == ["card", "popup"]
 
 
-def test_folding_never_disturbs_earlier_messages():
+def test_appending_never_disturbs_earlier_messages():
     original = [{"role": "user", "content": "hi"},
                 {"role": "assistant", "content": "hey"}]
     out = append_system(list(original), "card")
     assert out[:2] == original
 
 
-def test_empty_blocks_are_dropped_not_folded():
+def test_empty_blocks_are_dropped_not_appended():
     msgs = [{"role": "assistant", "content": "hey"}]
     assert append_system(list(msgs), "") == msgs
     assert append_system(list(msgs), None) == msgs
@@ -67,7 +60,6 @@ def test_no_synthetic_assistant_turn_is_invented():
 
 # the assembled turn
 
-
 def _session(tmp_path, client, t_h=10.0):
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (
@@ -82,8 +74,8 @@ def _session(tmp_path, client, t_h=10.0):
     return store, session
 
 
-def test_a_mainline_turn_sends_no_adjacent_system_messages(tmp_path):
-    """The tail carries a state card AND a decided-note; they must fold."""
+def test_a_mainline_turn_appends_only_stream_rows(tmp_path):
+    """Every system message a call carries is a stored row (or an event)."""
     client = FakeClient(responses=[
         {"content": "main reply",
          "tool_calls": [{"id": "c1", "name": "tool_decide_event",
@@ -92,17 +84,24 @@ def test_a_mainline_turn_sends_no_adjacent_system_messages(tmp_path):
     store, session = _session(tmp_path, client)
     try:
         session.on_message("hey")
+        stored = {m["content"] for m in store.messages_for_day(0)
+                  if m["role"] == "system"}
         for call in client.calls:
-            assert _no_adjacent_system(call["messages"]), [
-                m.get("role") for m in call["messages"]
-            ]
+            for m in call["messages"]:
+                if m.get("role") != "system":
+                    continue
+                content = m.get("content") or ""
+                assert content in stored or "Event:" in content, (
+                    "a synthetic system tail rode the request: "
+                    f"{content[:80]!r}"
+                )
     finally:
         store.close()
 
 
-def test_an_aux_popup_call_sends_no_adjacent_system_messages(tmp_path):
-    """The aux call appends the pop-up behind the state card — the exact
-    pair that produced the live leak."""
+def test_an_aux_popup_call_carries_the_steer_last(tmp_path):
+    """The pop-up is the last thing the model sees; the card is a stream row
+    and is never re-appended behind the steer."""
     client = FakeClient(responses=[
         {"content": "main reply",
          "tool_calls": [{"id": "c2", "name": "tool_decide_event",
@@ -115,40 +114,22 @@ def test_an_aux_popup_call_sends_no_adjacent_system_messages(tmp_path):
                        if any("Event:" in (m.get("content") or "")
                               for m in c["messages"])]
         assert popup_calls, "no pop-up call was made — the lane is not covered"
+        stored = {m["content"] for m in store.messages_for_day(0)
+                  if m["role"] == "system"}
         for call in popup_calls:
             roles = [m.get("role") for m in call["messages"]]
-            assert _no_adjacent_system(call["messages"]), roles
-            # The pop-up is still the LAST thing the model sees.
             assert roles[-1] == "system"
             assert "Event:" in call["messages"][-1]["content"]
-    finally:
-        store.close()
-
-
-def test_the_state_card_and_popup_arrive_in_one_block(tmp_path):
-    """Folded, not dropped: both blocks still reach the model."""
-    client = FakeClient(responses=[
-        {"content": "main reply",
-         "tool_calls": [{"id": "c3", "name": "tool_decide_event",
-                         "arguments_json": "{\"initiate\": \"no\", \"reason\": \"not now\"}"}]},
-    ])
-    store, session = _session(tmp_path, client)
-    try:
-        session.on_message("hey")
-        popup = next(c for c in client.calls
-                     if any("Event:" in (m.get("content") or "")
-                            for m in c["messages"]))
-        tail = popup["messages"][-1]["content"]
-        assert "Event:" in tail, "the pop-up was lost in the fold"
-        assert SYSTEM_BLOCK_SEPARATOR in tail, (
-            "nothing was folded — the state card is missing from the aux call"
-        )
+            # No block may follow the steer, and every other system message
+            # must be the stored stream.
+            for m in call["messages"][:-1]:
+                if m.get("role") == "system":
+                    assert m.get("content") in stored
     finally:
         store.close()
 
 
 # the day block: written once, never re-rendered
-
 
 def test_the_day_block_is_written_once_and_never_rerendered(tmp_path):
     """The day block is rendered ONCE and persisted; every later turn replays the
@@ -161,8 +142,11 @@ def test_the_day_block_is_written_once_and_never_rerendered(tmp_path):
         session.on_message("three")
 
         rows = [m for m in store.messages_for_day(0) if m["role"] == "system"]
-        assert len(rows) == 1, "the day block was emitted more than once"
+        assert rows, "the day block was never emitted"
         stored = rows[0]["content"]
+        assert sum(1 for r in rows if r["content"] == stored) == 1, (
+            "the day block was emitted more than once"
+        )
 
         # Every call carries the SAME bytes for it — replayed, not rebuilt.
         seen = [
@@ -190,10 +174,9 @@ def test_the_day_block_is_written_once_and_never_rerendered(tmp_path):
 # the cache property
 
 def test_a_popup_call_extends_the_mainline_request(tmp_path):
-    """The pop-up's own round extends the shared stream: same stable system,
-    same prefix, and the card with the pop-up folded into ONE trailing
-    system message. The generation then follows the same stream one step
-    further: the round's decision pair rides it as rows before the card."""
+    """The decide round extends the shared stream with its steer; the
+    generation follows the same stream one step further — the round's decision
+    pair rides it as rows. No card tail, ever."""
     client = FakeClient(responses=[
         # The decide round answers the pop-up...
         {"content": "", "tool_calls": [{"id": "c4", "name": "tool_decide_event",
@@ -210,16 +193,15 @@ def test_a_popup_call_extends_the_mainline_request(tmp_path):
         # One stable prefix, byte for byte, across the two lanes.
         assert first["system"] == second["system"]
         a, b = first["messages"], second["messages"]
-        # Byte-identical prefix: day block and user row ride both lanes...
+        # The steer is transient and rides last on the round only.
+        assert a[-1]["role"] == "system" and "Event:" in a[-1]["content"]
+        # The generation's request extends the round's stream byte for byte.
         head = len(a) - 1
         assert b[:head] == a[:head]
-        # ...and the generation adds the round's pair as rows, then the card.
-        assert [m.get("role") for m in b[head:head + 2]] == ["assistant", "tool"]
-        # ...and the last is the state card, with the pop-up folded into it,
-        # still the last thing the model sees and still a single message.
-        assert a[-1]["role"] == b[-1]["role"] == "system"
-        shorter, longer = ((a, b) if len(a[-1]["content"]) <= len(b[-1]["content"])
-                          else (b, a))
-        assert shorter[-1]["content"] in longer[-1]["content"]
+        # The round's decision pair follows as native rows, adjacent.
+        roles = [m.get("role") for m in b[head:]]
+        pair_at = roles.index("assistant") if "assistant" in roles else -1
+        assert pair_at >= 0, f"no decision pair after the prefix: {roles}"
+        assert roles[pair_at + 1] == "tool"
     finally:
         store.close()

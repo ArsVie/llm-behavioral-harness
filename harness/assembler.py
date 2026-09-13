@@ -183,21 +183,10 @@ def harness_text_in_user_roles(messages: list) -> list[int]:
 
 
 def append_system(messages: list[dict], content: str | None) -> list[dict]:
-    """Append a system block, FOLDING it into a trailing system message.
-
-    The wire never carries two system messages in a row: blocks join on a blank
-    line so the tail reads ``... -> assistant -> system -> (reply)``.
-    """
+    """Append a system block as its own message — the stream never rewrites."""
     text = (content or "").strip()
     if not text:
         return messages
-    if messages and messages[-1].get("role") == "system":
-        merged = dict(messages[-1])
-        merged["content"] = (
-            (merged.get("content") or "").rstrip()
-            + SYSTEM_BLOCK_SEPARATOR + text
-        )
-        return messages[:-1] + [merged]
     return messages + [{"role": "system", "content": text}]
 
 
@@ -590,9 +579,6 @@ def build_context_messages(
     recent_turns: list[dict],
     user_request: str | None = None,
     *,
-    controls: GenerationControls | None = None,
-    prompt_brief: str | None = None,
-    popup: str | None = None,
     t_h: float | None = None,
     anchor=None,
     day_block: str | None = None,
@@ -601,8 +587,8 @@ def build_context_messages(
     """(stable system, messages) — the cache-ordered request pair.
 
     STABLE system: day-start persona block + ``SYSTEM_CORE_WITH_TOOLS``.
-    Messages: the context stream, then the user request when given, then the
-    volatile state card as a TRAILING system message.
+    Messages: the context stream, then the user request when given. The state
+    card is a stream row (:meth:`Session._ensure_state_card`), never a tail.
     """
     system = stable_system(day_block, snapshot)
     if user_request is not None:
@@ -613,9 +599,4 @@ def build_context_messages(
         messages = stamped_stream(
             recent_turns if limit is None else recent_turns[-limit:], anchor
         )
-    tail = render_state_card(
-        snapshot,
-        controls=controls, prompt_brief=prompt_brief, popup=popup,
-    )
-    messages = append_system(messages, tail)
     return system, messages

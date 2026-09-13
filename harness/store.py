@@ -252,11 +252,9 @@ class SQLiteStore:
         produced an outgoing message) and ``conversation_id`` are optional.
         """
         if role == "system":
-            # Fold at write time, as the request path does: adjacent system
-            # rows are a shape no request ever sent.
-            folded = self._fold_into_system_tail(content)
-            if folded is not None:
-                return folded
+            skipped = self._skip_duplicate_system_tail(content)
+            if skipped is not None:
+                return skipped
         cur = self.conn.execute(
             "INSERT INTO messages (role, content, t_h, day, proactive, "
             "session_id, intent_id, conversation_id, sent_at) "
@@ -268,35 +266,33 @@ class SQLiteStore:
         last_id = cur.lastrowid
         return int(last_id) if last_id is not None else -1
 
-    def _fold_into_system_tail(self, content: str) -> int | None:
-        """Merge a system block into the system row it would sit next to.
+    def _skip_duplicate_system_tail(self, content: str) -> int | None:
+        """Append-only guard: an identical system row as the tail is a no-op.
 
-        Returns the surviving row id when it merged, or None when the insert
-        should proceed.
+        Nothing the model already saw is ever rewritten, so a repeated block
+        skips instead of merging.
         """
-        from harness.assembler import SYSTEM_BLOCK_SEPARATOR
-
         last = self.conn.execute(
             "SELECT id, role, content FROM messages ORDER BY id DESC LIMIT 1"
         ).fetchone()
         if last is None:
-            return None
+            return -1 if not str(content or "").strip() else None
         row_id, row_role, row_content = last[0], last[1], last[2]
         text = str(content or "").strip()
         if not text:
-            # The request path drops an empty block, so the stream must too:
-            # storing it would put an empty system row next to a real one.
+            # The request path drops an empty block, so the stream must too.
             return int(row_id)
-        if row_role != "system":
-            return None
-        if text in str(row_content or ""):
-            return int(row_id)  # already the tail: do not store it twice
-        self.conn.execute(
-            "UPDATE messages SET content = ? WHERE id = ?",
-            (f"{row_content}{SYSTEM_BLOCK_SEPARATOR}{text}", row_id),
-        )
-        self.conn.commit()
-        return int(row_id)
+        if row_role == "system" and text == str(row_content or "").strip():
+            return int(row_id)
+        return None
+
+    def last_system_row_text(self) -> str | None:
+        """Newest system row the stream carried (last card, or day block)."""
+        row = self.conn.execute(
+            "SELECT content FROM messages WHERE role = 'system' "
+            "ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        return str(row[0]) if row else None
 
     def repair_placeholder_steers(self) -> int:
         """Rewrite the legacy literal ``"?"`` event name; rows changed."""
@@ -334,44 +330,6 @@ class SQLiteStore:
                               (row_id,))
         self.conn.commit()
         return len(thin)
-
-    def fold_system_history(self) -> int:
-        """Fold adjacent system rows already in the stream; rows removed.
-
-        The first row of each run keeps its id and timestamp and absorbs the
-        text of the rows after it.
-        """
-        from harness.assembler import SYSTEM_BLOCK_SEPARATOR
-
-        rows = list(self.conn.execute(
-            "SELECT id, role, content FROM messages ORDER BY id"))
-        runs: list[list[tuple]] = []
-        current: list[tuple] = []
-        for row in rows:
-            if row[1] == "system":
-                current.append(row)
-                continue
-            if current:
-                runs.append(current)
-            current = []
-        if current:
-            runs.append(current)
-        removed = 0
-        for run in runs:
-            head_id, _, head_content = run[0][0], run[0][1], run[0][2]
-            parts = [str(head_content or "").strip()]
-            for row_id, _, content in run[1:]:
-                text = str(content or "").strip()
-                if text and text not in parts[-1]:
-                    parts.append(text)
-                self.conn.execute("DELETE FROM messages WHERE id = ?", (row_id,))
-                removed += 1
-            merged = SYSTEM_BLOCK_SEPARATOR.join(part for part in parts if part)
-            if merged != str(head_content or ""):
-                self.conn.execute("UPDATE messages SET content = ? WHERE id = ?",
-                                  (merged, head_id))
-        self.conn.commit()
-        return removed
 
     def recent_messages(self, limit: int = 12) -> list[dict]:
         rows = self.conn.execute(

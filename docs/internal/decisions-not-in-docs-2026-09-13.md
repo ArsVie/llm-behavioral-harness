@@ -197,3 +197,38 @@ open). Same rule: decision-bearing content that is NOT reflected in any doc.
 - `tests/test_session_close.py:1` — two-phase close: the closing draw persists closing_pending_t_h instead of closing, the wind-down expires at closing_pending_t_h + WIND_DOWN_GRACE_H, and closes use reason closing_tendency; flag OFF by default, on via kwarg or HARNESS_TWO_PHASE_CLOSE.
 - `tests/test_w2w3_time_aware.py:1` — masking rule: unanchored runs omit the temporal section entirely (t_h never rendered raw) and only clock-shaped times (HH:MM) plus the temporal line's day index may be numeric in the prompt.
 - `tests/test_telegram_debounce.py:6` — debounce windows are env-configurable (HARNESS_DEBOUNCE_TRAILING_S / HARNESS_DEBOUNCE_MAX_WAIT_S) with 4.5 s trailing / 12.0 s cap defaults chosen as the human follow-up window; tests import the defaults.
+
+## Owner rulings, verbatim (2026-09-13, live session)
+
+Context: the live wire showed the state card as a trailing system block whose
+position moved between calls (sitting after user message N, then re-appended
+at the tail on call N+1). The directives that followed, verbatim:
+
+> I'm seeing an issue, you seem to always append this #8 system
+> [pasted state card, 544 chars, ending: "AFFECTIVE BEARING: ... CURRENT
+> INTENT: No active intent."]
+> After the user message, removing it from the previous call and putting it
+> at the tail again, that obviously is not acceptable, this card should only
+> if it has changed.
+
+> Are you stupid, what's so hard about never rewriting what the model already
+> saw and not spamming a card that has not changed?
+
+> If feel like you may have put A LOT of machinery around mutating the stream
+> isntead of appending context, so delete all of that too. The only forks for
+> context that is not appended but used for system machinery are the forks
+> for the judge call and the fork for the day planner.
+
+(Earlier the same session, on the reworked boot sequence — resolutions at
+their own event time, before any user message — the owner said: "Great,
+that's looking WAAAYY better.")
+
+### Laws
+
+- The context stream is APPEND-ONLY: nothing the model already saw is ever
+  rewritten, merged, folded, removed, or repositioned.
+- The state card is a stream row: written where it first materializes, and a
+  new row only when its bytes change — never re-sent unchanged, never a
+  trailing block that moves.
+- The only forks of context that are NOT appended to the stream, for system
+  machinery, are the judge call and the day planner call.
