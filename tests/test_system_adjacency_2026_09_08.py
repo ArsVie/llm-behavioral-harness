@@ -190,9 +190,10 @@ def test_the_day_block_is_written_once_and_never_rerendered(tmp_path):
 # the cache property
 
 def test_a_popup_call_extends_the_mainline_request(tmp_path):
-    """The pop-up's own round is a byte-identical extension of the shared
-    stream: same stable system, same prefix, and the card with the pop-up
-    folded into ONE trailing system message; the generation follows."""
+    """The pop-up's own round extends the shared stream: same stable system,
+    same prefix, and the card with the pop-up folded into ONE trailing
+    system message. The generation then follows the same stream one step
+    further: the round's decision pair rides it as rows before the card."""
     client = FakeClient(responses=[
         # The decide round answers the pop-up...
         {"content": "", "tool_calls": [{"id": "c4", "name": "tool_decide_event",
@@ -209,9 +210,11 @@ def test_a_popup_call_extends_the_mainline_request(tmp_path):
         # One stable prefix, byte for byte, across the two lanes.
         assert first["system"] == second["system"]
         a, b = first["messages"], second["messages"]
-        assert [m.get("role") for m in a] == [m.get("role") for m in b]
-        # Every message but the last is re-sent unchanged...
-        assert a[:-1] == b[:-1]
+        # Byte-identical prefix: day block and user row ride both lanes...
+        head = len(a) - 1
+        assert b[:head] == a[:head]
+        # ...and the generation adds the round's pair as rows, then the card.
+        assert [m.get("role") for m in b[head:head + 2]] == ["assistant", "tool"]
         # ...and the last is the state card, with the pop-up folded into it,
         # still the last thing the model sees and still a single message.
         assert a[-1]["role"] == b[-1]["role"] == "system"

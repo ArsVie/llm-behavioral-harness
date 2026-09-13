@@ -2347,6 +2347,22 @@ class Session(NegotiationMixin):
         # (design: events=system, decisions=tools). Both blocks FOLD into the
         # trailing state card rather than stacking behind it — see
         # assembler.append_system for why adjacency is the bug.
+        # The stream above was read before the drain; rebuild the request
+        # now so this turn's decisions ride it as rows, not as prose. The
+        # card memo keeps the rebuilt tail byte-identical for the legs.
+        recent = self._context_turns()
+        stable, messages = build_context_messages(
+            snapshot, recent, None,
+            controls=controls, prompt_brief=directive.prompt_brief,
+            t_h=t_h, anchor=self._real_time_anchor(),
+            day_block=self._day_block,
+            limit=None,
+        )
+        messages = self._stable_card(messages)
+        stable = _with_bubble_instruction(stable)
+        if user_text is None and intent is None:
+            stable += "\n\n" + proactive_block()
+
         if injections:
             messages = append_system(messages, "\n".join(injections))
 

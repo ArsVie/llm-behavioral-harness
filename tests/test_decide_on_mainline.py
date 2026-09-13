@@ -128,6 +128,11 @@ def test_two_steers_take_two_rounds_and_pairs_extend_the_next(tmp_path):
     assert _has_pair(second), "the next round reads the earlier decision"
     assert STEER_MARKER_OPEN in second["messages"][-1]["content"]
     assert generation["tools"] == TOOL_PAYLOAD
+    # The generation reads both decisions this turn made, as rows and with
+    # their tool results — the same session and context decided them.
+    tool_rows = [r for r in generation["messages"] if r.get("role") == "tool"]
+    assert len(tool_rows) == 2, "both pairs ride the generation"
+    assert all((r.get("content") or "") for r in tool_rows), "results, not void"
     records = store.decisions_for_day(0)
     assert [r["verdict"]["initiate"] for r in records] == [True, False]
     store.close()

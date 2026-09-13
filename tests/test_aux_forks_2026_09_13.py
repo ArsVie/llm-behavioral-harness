@@ -38,7 +38,8 @@ def _session(tmp_path, client, *, t_h=10.0, agenda=True, anchored=True):
 # -- the stamped-stream parity ----------------------------------------- #
 
 def test_the_popup_leg_reuses_the_stamped_mainline_bytes(tmp_path):
-    """An anchored run stamps user turns; both lanes must send the same bytes."""
+    """An anchored run stamps user turns; both lanes share the same bytes up
+    to the card, and the generation adds the round's decision pair as rows."""
     client = FakeClient(responses=[
         # The decide round draws the verdict...
         {"content": "", "tool_calls": [{"id": "c2", "name": "tool_decide_event",
@@ -58,9 +59,11 @@ def test_the_popup_leg_reuses_the_stamped_mainline_bytes(tmp_path):
         )
         assert main["system"] == popup["system"] and main["system"]
         m, p = main["messages"], popup["messages"]
-        assert [x["role"] for x in m] == [x["role"] for x in p]
-        # Every byte the mainline sent is re-sent untouched...
-        assert m[:-1] == p[:-1]
+        # Byte-identical head: the stamped user turn rides both lanes.
+        head = len(p) - 1
+        assert m[:head] == p[:head]
+        # The generation then carries the round's decision pair as rows...
+        assert [x["role"] for x in m[head:head + 2]] == ["assistant", "tool"]
         # ...and the tail extends: the card survives as the last block.
         assert m[-1]["role"] == p[-1]["role"] == "system"
         assert m[-1]["content"] in p[-1]["content"]

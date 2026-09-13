@@ -55,7 +55,7 @@ G3_EPOCH0_S = datetime(2026, 8, 15, 13, 30, 0, tzinfo=timezone.utc).timestamp()
 
 #: Pinned sha256 of the assembled prompts on this fixture; an unlabelled change
 #: to the assembled prompt fails here.
-PINNED_FULL = "fac6053ff06557f3d24c32d3bb90967e5c293ea37e2ba46f9e245a836789f507"
+PINNED_FULL = "cec6f55e76e73f51b15981d8e7d8b4b20017a539c204c5f2eeee978719625d54"
 PINNED_BARE_FULL = "424ab524ead4949ba899a6e5b860a18893365012ca94cef9c53a017420b21cc9"
 
 
