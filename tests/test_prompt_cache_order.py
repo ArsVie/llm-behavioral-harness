@@ -281,25 +281,56 @@ def test_constant_state_yields_byte_identical_whole_request():
 # --- (b) volatile state differs between turns and appears at the TAIL ---
 
 
-def test_the_role_scan_flags_only_marker_text_in_user_slots():
-    """Pure scan behind the runtime sensor: markers, not mere brackets."""
+def test_the_role_scan_flags_harness_vocabulary_in_a_user_slot():
+    """Pure scan behind the runtime sensor: harness vocabulary, not brackets."""
     from harness.assembler import harness_text_in_user_roles
+    from harness.steering import wrap_steer_marker
 
-    markers = "[STEER \u2014 a real arriving event from the harness]"
     assert harness_text_in_user_roles([
         {"role": "user", "content": "what about [this] bracket, though?"},
-        {"role": "system", "content": f"\\n\\n{markers}\\nEvent: he is back\\n[/STEER]"},
+        {"role": "system", "content": wrap_steer_marker("Event: he is back")},
     ]) == [], "the marker in a SYSTEM slot is the convention working"
 
-    assert harness_text_in_user_roles([
-        {"role": "user", "content": "hey"},
-        {"role": "user", "content": f"\\n\\n{markers}\\nEvent: back\\n[/STEER]"},
-    ]) == [1]
+    # Every family of harness-written text must be caught if it lands in a slot
+    # the user owns: the steer/pop-up envelope, the card's headers, the temporal
+    # partition's labels, the memory sections.
+    for leaked in (
+        wrap_steer_marker("Event: he is back"),
+        "TEMPORAL FRAME:\nIt is 13:34, Saturday afternoon \u2014 day 4.",
+        "Happening now:\n- sand the last tight curve",
+        "Relevant memories:\n- she likes villanelles",
+    ):
+        assert harness_text_in_user_roles(
+            [{"role": "user", "content": "hey"}, {"role": "user", "content": leaked}]
+        ) == [1], leaked[:26]
 
     # Defensive: junk entries and null content must not explode a live call.
     assert harness_text_in_user_roles([
-        {"role": "user", "content": None}, "junk", {"role": "tool", "content": markers},
+        {"role": "user", "content": None}, "junk", {"role": "tool", "content": "x"},
     ]) == []
+
+
+def test_the_role_scan_does_not_flag_a_real_built_request():
+    """No false positives on the real shape -- a sensor that cries wolf is dead.
+
+    The card (even with a pop-up rendered inside it) is a SYSTEM message and
+    must scan clean, and so must an ordinary user turn.
+    """
+    from harness.assembler import harness_text_in_user_roles
+
+    _, spoken = build_context_messages(
+        _snapshot(), _recent_turns(3), "hey", controls=_controls(),
+        prompt_brief=_prompt_brief(), t_h=27.0, anchor=_anchor(),
+    )
+    assert harness_text_in_user_roles(spoken) == []
+
+    _, with_popup = build_context_messages(
+        _snapshot(), _recent_turns(3), None, controls=_controls(),
+        prompt_brief=_prompt_brief(),
+        popup="Event: pottery class starts in 10 minutes", t_h=27.0,
+        anchor=_anchor(),
+    )
+    assert harness_text_in_user_roles(with_popup) == []
 
 
 def test_a_turn_the_user_did_not_speak_has_no_user_message_at_all():

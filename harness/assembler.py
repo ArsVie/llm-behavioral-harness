@@ -93,10 +93,12 @@ from harness.prompts import (
     AVAILABILITY_LOW,
     AVAILABILITY_MID,
     CLOSING_HEADER,
+    HARNESS_PROMPT_MARKERS,
     MEMORIES_HEADER,
     MEMORY_EVIDENCE_HEADER,
     SYSTEM_CORE_WITH_TOOLS,
 )
+from harness.steering import STEER_MARKER_CLOSE, STEER_MARKER_OPEN
 
 #: Default persona core used when the caller provides none.
 #:
@@ -153,6 +155,14 @@ TEMPORAL_HEADER = "TEMPORAL FRAME:"
 AFFECTIVE_HEADER = "AFFECTIVE BEARING:"
 BEHAVIORAL_HEADER = "BEHAVIORAL BEARING:"
 CURRENT_INTENT_HEADER = "CURRENT INTENT:"
+
+#: The temporal partition's own labels. Hoisted so the role-convention sensor
+#: (:func:`harness_text_in_user_roles`) scans exactly the vocabulary the renderer
+#: writes -- one source of truth, no mirrored literals to drift out of date.
+TEMPORAL_DONE_LABEL = "Done earlier"
+TEMPORAL_MISSED_LABEL = "Did not happen"
+TEMPORAL_NOW_LABEL = "Happening now"
+TEMPORAL_LATER_LABEL = "Later today"
 
 #: Placeholder text for the CURRENT INTENT slot.
 CURRENT_INTENT_PLACEHOLDER = "No active intent."
@@ -263,7 +273,19 @@ def prefix_break(previous: list, current: list) -> int | None:
 #: (see :func:`harness.steering.wrap_steer_marker`), and the card names itself
 #: in the same family. A hit inside a USER-role message means the role
 #: convention broke somewhere upstream.
-HARNESS_MARKER_TOKENS = ("[STEER", "[/STEER]")
+HARNESS_MARKER_TOKENS = (
+    STEER_MARKER_OPEN,            # harness.steering: steers AND pop-ups
+    STEER_MARKER_CLOSE,
+    *HARNESS_PROMPT_MARKERS,      # prompts.py: the labelled section vocabulary
+    TEMPORAL_HEADER,
+    AFFECTIVE_HEADER,
+    BEHAVIORAL_HEADER,
+    CURRENT_INTENT_HEADER,
+    TEMPORAL_DONE_LABEL,
+    TEMPORAL_MISSED_LABEL,
+    TEMPORAL_NOW_LABEL,
+    TEMPORAL_LATER_LABEL,
+)
 
 
 def harness_text_in_user_roles(messages: list) -> list[int]:
@@ -551,10 +573,10 @@ def render_temporal_section(snapshot: CompanionSnapshot, t_h: float, anchor) -> 
     done, missed, now, later = _partition_agenda(snapshot.agenda, t_h)
     parts = [line]
     for label, items in (
-        ("Done earlier", done),
-        ("Did not happen", missed),
-        ("Happening now", now),
-        ("Later today", later),
+        (TEMPORAL_DONE_LABEL, done),
+        (TEMPORAL_MISSED_LABEL, missed),
+        (TEMPORAL_NOW_LABEL, now),
+        (TEMPORAL_LATER_LABEL, later),
     ):
         if items:
             parts.append(label + ":\n" + "\n".join(_agenda_lines(items)))

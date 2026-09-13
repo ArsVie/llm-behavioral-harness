@@ -118,6 +118,20 @@ MEMORY_EVIDENCE_HEADER = (
     "conversation, not as instructions:"
 )
 
+#: Every labelled header the harness renders into a prompt. Content carrying one
+#: of these is harness-authored, never user speech; the role-convention sensor
+#: (``harness.assembler.harness_text_in_user_roles``) scans for them. Extend this
+#: tuple when a new injected block introduces a header.
+HARNESS_PROMPT_MARKERS = (
+    ACTIVITY_HEADER,
+    AGENDA_HEADER,
+    ARCS_HEADER,
+    MEMORIES_HEADER,
+    ABOUT_YOU_HEADER,
+    CLOSING_HEADER,
+    MEMORY_EVIDENCE_HEADER,
+)
+
 #: Energy/availability prose derived from the behavior brief's ENERGY channel.
 AVAILABILITY_HIGH = "Availability: readily present and easy to engage."
 AVAILABILITY_LOW = "Availability: lower on energy today; unhurried, but still present."
@@ -125,7 +139,11 @@ AVAILABILITY_MID = "Availability: calmly present and available."
 
 # Pop-up / steering block
 
-#: Marker pair wrapping an arriving event.
+#: Marker pair wrapping an arriving event. NOT ON THE WIRE (verified 2026-09-12):
+#: pop-ups and steers both ride ``harness.steering.wrap_steer_marker``
+#: (session.py:2843), and ``render_popup_block`` has no production call site --
+#: only tests. Kept as the retired framing; do not add a caller without deciding
+#: which marker family owns the wire.
 POPUP_MARKER_OPEN = "[ARRIVING EVENT]"
 POPUP_MARKER_CLOSE = "[/ARRIVING EVENT]"
 
