@@ -105,6 +105,16 @@ from harness.domain import (
 from harness.judge import JudgeResult, judge_day
 from harness.metering import MeteredClient
 from harness.life import LIFE_STREAM, transition_past_windows
+
+
+#: The clock reading inside the card's temporal line ("It is 21:42, ..."). Only
+#: this is normalized when deciding whether a card re-send is warranted.
+_CARD_CLOCK_RE = re.compile(r"It is \d{1,2}:\d{2},")
+
+
+def _clock_free(card: str) -> str:
+    """The card with ONLY its clock reading blanked (see ``_stable_card``)."""
+    return _CARD_CLOCK_RE.sub("It is <CLOCK>,", card)
 from harness.memory import MemoryAgent
 from harness.negotiation_contract import (
     NegotiationPhase,
@@ -595,6 +605,11 @@ class Session(NegotiationMixin):
         self._thinking_effort = _load_thinking_effort()
         self._day_block: str | None = None
         self._day_block_day: int | None = None
+        #: Last state card actually put on the wire. The card is the trailing
+        #: block of every request; re-rendering it with a new clock rewrites a
+        #: block inside the array and costs the prefix cache for everything
+        #: after it. Reuse these exact bytes while only the clock moved.
+        self._card_text: str | None = None
         #: System prompt of the turn in progress — shared with pop-up calls.
         self._last_system_prompt: str = ""
         # WS-D cache order: the pop-up aux call must be a byte-identical
@@ -1481,6 +1496,40 @@ class Session(NegotiationMixin):
         for item in transition_past_windows(agenda, t_h, day):
             self.store.update_agenda_item_status(item.id, item.status)
 
+    def _stable_card(self, messages: list[dict]) -> list[dict]:
+        """Keep the state card byte-identical while only its clock moved.
+
+        The card is the LAST message of every request by design, so a growing
+        history extends the prefix. Re-rendering it each turn breaks that: on
+        this provider a rewritten block costs the cache for everything after it,
+        and measured live on 2026-09-12 the card's non-clock content was
+        byte-identical across three consecutive calls while the rendered clock
+        moved. Reuse the previous bytes; install a fresh card when the content
+        really changed.
+
+        Only the clock reading is normalized. The weekday, the day period, the
+        day index, the agenda partition and every window time stay material -
+        those are what she reasons about, and a new day period is what refreshes
+        the reading.
+        """
+        if not messages:
+            return messages
+        tail = messages[-1]
+        if tail.get("role") != "system":
+            return messages
+        text = str(tail.get("content"))
+        if self._card_text is None:
+            self._card_text = text          # first card of the run: the baseline
+            return messages
+        if _clock_free(text) != _clock_free(self._card_text):
+            self._card_text = text          # material change: keep the new card
+            return messages
+        if text == self._card_text:
+            return messages                 # already byte-identical
+        updated = list(messages)
+        updated[-1] = {**tail, "content": self._card_text}
+        return updated
+
     def _build_snapshot(
         self,
         day: int,
@@ -2163,6 +2212,9 @@ class Session(NegotiationMixin):
                 # re-impose the sliding window the epoch exists to remove.
                 limit=None,
             )
+            # The card rides the tail of every request; keep it byte-identical
+            # while only its clock moved (see _stable_card).
+            messages = self._stable_card(messages)
             mid = self._persist_message(
                 "user", user_text, t_h, day,
                 proactive=False, session_id=session_id, conversation_id=conv_id,
@@ -2182,6 +2234,10 @@ class Session(NegotiationMixin):
                 day_block=self._day_block,
                 limit=None,
             )
+            # Same rule as the mainline path: the card is the trailing block,
+            # and this also keeps `_last_state_card` (the pop-up legs' card)
+            # byte-stable.
+            messages = self._stable_card(messages)
         stable = _with_bubble_instruction(stable)
         if user_text is None and intent is None:
             # Legacy ungrounded proactive call (pre-slice callers/tests):

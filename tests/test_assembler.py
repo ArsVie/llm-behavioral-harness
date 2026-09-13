@@ -549,3 +549,61 @@ def test_behavioral_projection_visible_internals_absent():
     assert not re.search(r"\bmu\b", low), "standalone 'mu' leaked"
     assert not re.search(r"\beta\b", low), "standalone 'eta' leaked"
     assert not re.search(r"\bg\b", low), "standalone 'g' leaked"
+
+
+# --- the state card is not re-sent for a clock-only change -----------------
+
+def test_clock_free_blanks_only_the_clock_reading():
+    from harness.session import _clock_free
+
+    card = "TEMPORAL FRAME:\nIt is 21:42, Saturday evening — day 0.\nDone earlier:\n- math practice (07:55–08:40)"
+    freed = _clock_free(card)
+    assert "21:42" not in freed
+    assert "It is <CLOCK>, Saturday evening — day 0." in freed
+    # Weekday, day period, day index and window times stay material.
+    assert "Saturday evening" in freed and "day 0" in freed and "(07:55–08:40)" in freed
+
+
+def test_the_card_is_reused_byte_for_byte_while_only_the_clock_moved():
+    """The card rides every request; a re-rendered clock rewrites a block inside
+    the array and costs the prefix cache for everything after it."""
+    from harness.session import Session
+
+    session = Session.__new__(Session)          # the memo is all this needs
+    session._card_text = None
+    first = [{"role": "system", "content": "TEMPORAL FRAME:\nIt is 21:42, Saturday evening — day 0."}]
+    assert session._stable_card(first) == first
+    assert session._card_text == first[0]["content"]
+
+    later = [{"role": "system", "content": "TEMPORAL FRAME:\nIt is 21:58, Saturday evening — day 0."}]
+    kept = session._stable_card(later)
+    assert kept[0]["content"] == first[0]["content"], "only the clock moved: keep the bytes"
+    assert kept is not later, "and it returns a copy, never mutating the caller's list"
+
+    changed = [{"role": "system",
+                "content": "TEMPORAL FRAME:\nIt is 21:58, Saturday evening — day 0.\n"
+                           "Later today:\n- read history (21:50–22:35)"}]
+    installed = session._stable_card(changed)
+    assert installed[0]["content"] == changed[0]["content"], "a material change installs the new card"
+    assert session._card_text == changed[0]["content"]
+
+
+def test_a_new_day_period_refreshes_the_card():
+    """Crossing evening -> night IS material: the reading updates."""
+    from harness.session import Session
+
+    session = Session.__new__(Session)
+    session._card_text = None
+    evening = [{"role": "system", "content": "It is 21:42, Saturday evening — day 0."}]
+    session._stable_card(evening)
+    night = [{"role": "system", "content": "It is 23:30, Saturday night — day 0."}]
+    assert session._stable_card(night)[0]["content"] == night[0]["content"]
+
+
+def test_a_non_system_tail_is_left_alone():
+    from harness.session import Session
+
+    session = Session.__new__(Session)
+    session._card_text = "old card"
+    messages = [{"role": "system", "content": "old card"}, {"role": "user", "content": "hey"}]
+    assert session._stable_card(messages) == messages
