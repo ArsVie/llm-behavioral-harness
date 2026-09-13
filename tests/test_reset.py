@@ -28,9 +28,13 @@ from harness.reset import (
     active_writer,
     apply_reset,
     common_columns,
+    main,
     plan_reset,
     render_plan,
+    render_verification,
+    verify_reset,
 )
+from harness.store import SQLiteStore
 from tests.helpers.store import make_store
 
 
@@ -224,6 +228,66 @@ def test_an_older_database_still_copies_the_columns_it_has(tmp_path):
     assert row == (1, "Lily", "voice"), "the shared columns came across"
     assert report["copied"] == {"persona": 1}
     assert _counts(old)["messages"] == 0
+
+
+def test_verify_requires_an_empty_trial_before_the_service_starts(tmp_path):
+    """The script starts the bot, which writes its anchor and day-0 rows within
+    seconds, so "is the trial empty?" is only askable BEFORE that."""
+    store = _seeded_run(tmp_path)
+    store.close()
+    db = tmp_path / "run.db"
+
+    before = verify_reset(db, expect_fresh=True)
+    assert before["problems"], "a run with a transcript is not a fresh reset"
+    assert any("old trial survived" in problem for problem in before["problems"])
+    assert not verify_reset(db)["problems"], "post-start mode does not assert emptiness"
+
+    apply_reset(plan_reset(db, stamp="20260912-120000"))
+    fresh = verify_reset(db, expect_fresh=True)
+    assert fresh["problems"] == [], fresh["problems"]
+    assert fresh["kept"]["persona"] == 1 and not any(fresh["trial"].values())
+    assert not fresh["anchor"], "the clock starts over"
+    assert "verified" in render_verification(fresh, expect_fresh=True)
+
+
+def test_verify_calls_a_lost_cache_a_wipe_not_a_reset(tmp_path):
+    store = make_store(tmp_path, "bare.db")      # schema only: no onboarding
+    store.close()
+    report = verify_reset(tmp_path / "bare.db", expect_fresh=True)
+    assert len(report["problems"]) == len(PRESERVE_TABLES)
+    assert all("did not come across" in problem for problem in report["problems"])
+
+
+def test_verify_after_the_run_starts_requires_the_new_anchor(tmp_path):
+    store = _seeded_run(tmp_path)
+    store.close()
+    db = tmp_path / "run.db"
+    apply_reset(plan_reset(db, stamp="20260912-120000"))
+
+    # Post-start mode REQUIRES the anchor: it is the liveness signal that the
+    # service actually began writing a new run after the swap.
+    missing_anchor = verify_reset(db)
+    assert missing_anchor["problems"] == [
+        "no anchor: the run did not start writing after the reset"
+    ]
+    reopened = SQLiteStore(db)
+    reopened.set_kv("anchor.t_h0", "21.66")
+    reopened.close()
+    live = verify_reset(db)
+    assert live["anchor"] and live["problems"] == []
+
+
+def test_the_cli_verify_mode_reports_and_exits(tmp_path, capsys):
+    store = _seeded_run(tmp_path)
+    store.close()
+    db = tmp_path / "run.db"
+
+    assert main(["--db", str(db), "--verify", "--expect-fresh"]) == 1
+    assert "PROBLEM" in capsys.readouterr().out
+
+    apply_reset(plan_reset(db, stamp="20260912-120000"))
+    assert main(["--db", str(db), "--verify", "--expect-fresh"]) == 0
+    assert "verified" in capsys.readouterr().out
 
 
 def test_common_columns_keeps_the_target_order_and_intersection():

@@ -53,6 +53,8 @@ __all__ = [
     "common_columns",
     "plan_reset",
     "render_plan",
+    "render_verification",
+    "verify_reset",
 ]
 
 #: Onboarding results a reset KEEPS.
@@ -311,6 +313,69 @@ def apply_reset(plan: ResetPlan, *, force: bool = False, writer: str | None = No
     }
 
 
+def verify_reset(db_path: str | Path, *, expect_fresh: bool = False) -> dict:
+    """Check that a reset did what it claimed, and report what it found.
+
+    ``expect_fresh`` asserts the TRIAL is empty, so it is only meaningful
+    BEFORE the service starts: the bot writes its anchor and its day-0 rows
+    within seconds, and a check that runs after the start reports the new run's
+    own rows as residue. That is exactly how the first version of
+    ``reset_lily.sh`` failed -- it started the service, then looked for an empty
+    database and called the run's own anchor "the old trial's record".
+
+    Both modes require the onboarding cache to be non-empty: a reset that loses
+    the persona or the interest graph while clearing the trial is not a reset,
+    it is a wipe.
+    """
+    db = Path(db_path)
+    if not db.exists():
+        return {"kept": {}, "trial": {}, "anchor": False, "problems": [f"no database at {db}"]}
+
+    kept: dict[str, int] = {}
+    trial: dict[str, int] = {}
+    anchor = False
+    problems: list[str] = []
+    with _ro(db) as conn:
+        present = _tables(conn)
+        for table in PRESERVE_TABLES:
+            if table in present:
+                kept[table] = conn.execute(f"select count(*) from {table}").fetchone()[0]
+        for table in CLEAR_TABLES:
+            if table in present:
+                trial[table] = conn.execute(f"select count(*) from {table}").fetchone()[0]
+        if "kv_store" in present:
+            anchor = conn.execute(
+                "select count(*) from kv_store where key like 'anchor.%'"
+            ).fetchone()[0] > 0
+
+    problems += [
+        f"{table} is empty: the onboarding cache did not come across"
+        for table in PRESERVE_TABLES if kept.get(table, 0) == 0
+    ]
+    if expect_fresh:
+        problems += [f"{table}={n} rows: the old trial survived" for table, n in trial.items() if n]
+        if anchor:
+            problems.append("an anchor is already present: the old clock survived")
+    else:
+        if not anchor:
+            problems.append("no anchor: the run did not start writing after the reset")
+    return {"kept": kept, "trial": trial, "anchor": anchor, "problems": problems}
+
+
+def render_verification(report: dict, *, expect_fresh: bool) -> str:
+    """The verify step's output: the kept cache, the trial, and any problems."""
+    mode = "fresh reset, before the service writes" if expect_fresh else "live run"
+    lines = [f"verification ({mode})"]
+    lines.append("  kept    " + "  ".join(f"{k}={v}" for k, v in report["kept"].items()))
+    lines.append("  trial   " + "  ".join(f"{k}={v}" for k, v in report["trial"].items()))
+    lines.append(f"  anchor  {'present' if report['anchor'] else 'absent'}")
+    for problem in report["problems"]:
+        lines.append(f"  PROBLEM {problem}")
+    if not report["problems"]:
+        lines.append("  verified")
+    return "\n".join(lines)
+
+
 def render_plan(plan: ResetPlan) -> str:
     """The dry-run text: what is kept, what is dropped, where the old file goes."""
     lines = [
@@ -353,7 +418,17 @@ def main(argv: list[str] | None = None) -> int:
                         help="also keep user_model_assertions (dialogue-derived)")
     parser.add_argument("--archive-dir", default=None,
                         help="override the archive target")
+    parser.add_argument("--verify", action="store_true",
+                        help="check the database instead of resetting it")
+    parser.add_argument("--expect-fresh", action="store_true",
+                        help="with --verify: require an empty trial (run this "
+                             "BEFORE the service starts)")
     args = parser.parse_args(argv)
+
+    if args.verify:
+        report = verify_reset(args.db, expect_fresh=args.expect_fresh)
+        print(render_verification(report, expect_fresh=args.expect_fresh))
+        return 1 if report["problems"] else 0
 
     plan = plan_reset(
         args.db,
