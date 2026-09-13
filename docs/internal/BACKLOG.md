@@ -12,6 +12,17 @@ test fakes and migration scaffolding), then switching the session mainline onto
 the `build_context_messages` seam behind a byte-parity gate. The plan's
 "explicitly out" list enumerates what stays on this backlog.
 
+Landed 2026-09-12: the mainline IS on the seam (`session.py` calls
+`build_context_messages` on both lanes, chat and decide, which is what makes
+pop-ups extend the mainline request instead of carrying their own prefix), and
+the decision lane serializes provider-native tool results
+(`test_decision_replays_as_an_assistant_tool_call_plus_result`; 23 of 24 stored
+live requests carry the `tool_call_id` pair). What remains is the pure-removal
+phases and the plan's "Owner-call deletions" list — `render_popup_block` and
+`POPUP_MARKER_OPEN/CLOSE` are still in the tree, kept green by four test cases
+that exercise a framing with no production caller (`session.py` wraps pop-ups
+with `wrap_steer_marker`).
+
 ### Complete the global typed context
 The canonical context is intended to be one append-only stream, with lifecycle
 markers, system-level events, structured decisions, and provider-native tool
@@ -38,11 +49,11 @@ Still open:
 - Lifecycle and day markers as typed events rather than re-rendered card
   sections; day-scoped material (agenda plan, arcs) should be appended once at
   rollover, not rebuilt into the volatile tail every turn.
-- Provider-native tool-result serialization for the decision lane (the
-  projection currently renders prose, not `tool_calls` + `tool` results).
 - Drain outstanding steers before day finalize and conversation close. There
   is no equivalent of Temporal's `all_handlers_finished`: a day can currently
-  be finalized with steers still pending.
+  be finalized with steers still pending. Verified live 2026-09-12: the
+  running DB carried `steering_queue` = 34 delivered / 4 abandoned / **2
+  pending**, so this is not theoretical.
 
 ### Telegram delivery consistency
 Add a durable outbox for model-generated Telegram messages. Stage the outbound
@@ -153,7 +164,11 @@ Still open:
   enqueued pop-ups for 06:58, 11:00 and 17:00 at once. Restart recovery and
   first-boot need different rules.
 - **Aux calls are absent from `llm_calls`**, so spend accounting missed ~25
-  calls and could not show the leak.
+  calls and could not show the leak. Confirmed live 2026-09-12: the running DB
+  logs only `chat` (12), `tool_decide_event` (8) and `tool_decide_proactive`
+  (4) — nothing from the day planner, interest extension, routine setup or
+  judge, which build their own client calls and bypass the session's logging
+  path.
 
 ### Onboarding and event content
 Landed 2026-09-07 (the setup side):
