@@ -99,8 +99,9 @@ def _session(tmp_path, client, t_h=10.0):
 def test_a_mainline_turn_sends_no_adjacent_system_messages(tmp_path):
     """The tail carries a state card AND a decided-note; they must fold."""
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": "yes", "reason": "in the mood"}',
-        "main reply",
+        {"content": "main reply",
+         "tool_calls": [{"id": "c1", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": \"yes\", \"reason\": \"in the mood\"}"}]},
     ])
     store, session = _session(tmp_path, client)
     try:
@@ -117,8 +118,9 @@ def test_an_aux_popup_call_sends_no_adjacent_system_messages(tmp_path):
     """The aux call appends the pop-up behind the state card — the exact
     pair that produced the live leak."""
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": "yes", "reason": "in the mood"}',
-        "main reply",
+        {"content": "main reply",
+         "tool_calls": [{"id": "c2", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": \"yes\", \"reason\": \"in the mood\"}"}]},
     ])
     store, session = _session(tmp_path, client)
     try:
@@ -140,8 +142,9 @@ def test_an_aux_popup_call_sends_no_adjacent_system_messages(tmp_path):
 def test_the_state_card_and_popup_arrive_in_one_block(tmp_path):
     """Folded, not dropped: both blocks still reach the model."""
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": "no", "reason": "not now"}',
-        "main reply",
+        {"content": "main reply",
+         "tool_calls": [{"id": "c3", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": \"no\", \"reason\": \"not now\"}"}]},
     ])
     store, session = _session(tmp_path, client)
     try:
@@ -224,13 +227,16 @@ def test_a_popup_call_extends_the_mainline_request(tmp_path):
     loudly when that happens.
     """
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": "yes", "reason": "in the mood"}',
-        "main reply",
+        {"content": "main reply",
+         "tool_calls": [{"id": "c4", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": \"yes\", \"reason\": \"in the mood\"}"}]},
     ])
     store, session = _session(tmp_path, client)
     try:
         session.on_message("hey")
-        assert len(client.calls) >= 2, "expected a pop-up call and a mainline call"
+        # ONE generation: the pop-up is answered by the turn's own tool call,
+        # which is the whole point of the ruling (owner, 2026-09-12).
+        assert len(client.calls) == 1, "the pop-up must not cost a second call"
         first, second = client.calls[0], client.calls[1]
         # One stable prefix, byte for byte, across the two lanes.
         assert first["system"] == second["system"]

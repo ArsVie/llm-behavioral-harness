@@ -73,8 +73,9 @@ def test_event_popup_initiate_fires_proactive_out(tmp_path):
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": true, "reason": "ready to go"}',
-        "main reply",
+        {"content": "main reply",
+         "tool_calls": [{"id": "c1", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": true, \"reason\": \"ready to go\"}"}]},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
@@ -113,8 +114,9 @@ def test_event_popup_no_initiate_no_channel_output(tmp_path):
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": false, "reason": "too tired"}',
-        "main reply",
+        {"content": "main reply",
+         "tool_calls": [{"id": "c2", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": false, \"reason\": \"too tired\"}"}]},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
@@ -142,8 +144,9 @@ def test_backlog_initiate_omits_channel_send(tmp_path):
     })
     clock = VirtualClock(t_h=8.5)
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": true, "reason": "ready to go"}',
-        "main reply",
+        {"content": "main reply",
+         "tool_calls": [{"id": "c3", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": true, \"reason\": \"ready to go\"}"}]},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
@@ -171,8 +174,9 @@ def test_start_no_marks_item_skipped_and_end_asks_nothing(tmp_path):
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": "no", "reason": "later"}',
-        "morning reply",
+        {"content": "morning reply",
+         "tool_calls": [{"id": "c4", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": \"no\", \"reason\": \"later\"}"}]},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
@@ -205,8 +209,9 @@ def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": false, "reason": "later"}',
-        "morning reply",
+        {"content": "morning reply",
+         "tool_calls": [{"id": "c5", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": false, \"reason\": \"later\"}"}]},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
@@ -249,17 +254,18 @@ def test_decide_reply_yes_proceeds_with_ordinary_reply(tmp_path):
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": false, "reason": "later"}',
-        "morning reply",
+        {"content": "morning reply",
+         "tool_calls": [{"id": "c6", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": false, \"reason\": \"later\"}"}]},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
     session.on_message("morning")  # consumes the START pop-up
 
     client.responses.extend([
-        'tool_decide_reply: {"reply": true, "reason": "one sec", '
-        '"terminate_event": true}',
-        "ok here I am",
+        {"content": "ok here I am",
+         "tool_calls": [{"id": "c7", "name": "tool_decide_reply",
+                         "arguments_json": "{\"reply\": true, \"reason\": \"one sec\", '\"terminate_event\": true}"}]},
     ])
     session.enqueue_user_message_steer("are you coming?", 10.0)
     clock.advance_hours(0.5)
@@ -278,8 +284,9 @@ def test_decide_reply_verbose_notice_carries_reason(tmp_path):
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": false, "reason": "later"}',
-        "morning reply",
+        {"content": "morning reply",
+         "tool_calls": [{"id": "c8", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": false, \"reason\": \"later\"}"}]},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig(verbose=True))
@@ -310,8 +317,9 @@ def test_parse_failure_requeues_steer_for_next_boundary(tmp_path):
     client = FakeClient(responses=[
         "I guess I should? maybe?",                    # popup 1: unparseable
         "first reply",                                 # main call 1
-        'tool_decide_event: {"initiate": false, "reason": "no"}',
-        "second reply",
+        {"content": "second reply",
+         "tool_calls": [{"id": "c9", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": false, \"reason\": \"no\"}"}]},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())
@@ -336,8 +344,9 @@ def test_interrupted_turn_requeues_delivered_steers(tmp_path):
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
-        'tool_decide_event: {"initiate": false, "reason": "later"}',
-        "morning reply",
+        {"content": "morning reply",
+         "tool_calls": [{"id": "c10", "name": "tool_decide_event",
+                         "arguments_json": "{\"initiate\": false, \"reason\": \"later\"}"}]},
     ])
     session = _session(store, client=client, clock=clock,
                        decision=DecisionConfig())

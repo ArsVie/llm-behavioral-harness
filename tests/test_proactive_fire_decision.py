@@ -57,8 +57,9 @@ def test_initiate_true_fires_single_reply_with_intent_id(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
-        'tool_decide_proactive: {"initiate": true, "reason": "go"}',
-        "hello from Lily!",
+        {"content": "hello from Lily!",
+         "tool_calls": [{"id": "c1", "name": "tool_decide_proactive",
+                         "arguments_json": "{\"initiate\": true, \"reason\": \"go\"}"}]},
     ])
     session = _session(store, client, clock, decision=DecisionConfig())
     store.save_proactive_intent(_intent())
@@ -79,7 +80,9 @@ def test_decline_suppresses_reply_and_marks_intent(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
-        'tool_decide_proactive: {"initiate": false, "reason": "later"}',
+        {"content": "",
+         "tool_calls": [{"id": "c2", "name": "tool_decide_proactive",
+                         "arguments_json": "{\"initiate\": false, \"reason\": \"later\"}"}]},
     ])
     session = _session(store, client, clock, decision=DecisionConfig())
     store.save_proactive_intent(_intent())
@@ -102,7 +105,9 @@ def test_decline_replays_without_new_model_call(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
-        'tool_decide_proactive: {"initiate": false, "reason": "later"}',
+        {"content": "",
+         "tool_calls": [{"id": "c3", "name": "tool_decide_proactive",
+                         "arguments_json": "{\"initiate\": false, \"reason\": \"later\"}"}]},
     ])
     session = _session(store, client, clock, decision=DecisionConfig())
     store.save_proactive_intent(_intent())
@@ -137,8 +142,9 @@ def test_reactive_turn_ignores_stray_proactive_decline(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
-        'tool_decide_proactive: {"initiate": false, "reason": "later"}',
-        "reactive reply",
+        {"content": "reactive reply",
+         "tool_calls": [{"id": "c4", "name": "tool_decide_proactive",
+                         "arguments_json": "{\"initiate\": false, \"reason\": \"later\"}"}]},
     ])
     session = _session(store, client, clock, decision=DecisionConfig())
     store.save_proactive_intent(_intent())
