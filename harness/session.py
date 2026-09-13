@@ -610,6 +610,10 @@ class Session(NegotiationMixin):
         #: block inside the array and costs the prefix cache for everything
         #: after it. Reuse these exact bytes while only the clock moved.
         self._card_text: str | None = None
+        #: Day whose first card already carried the TEMPORAL FRAME. The frame is
+        #: a clock reading, not state: it goes out once with the day's first card
+        #: and stays in context after that.
+        self._card_frame_day: int | None = None
         #: System prompt of the turn in progress — shared with pop-up calls.
         self._last_system_prompt: str = ""
         # WS-D cache order: the pop-up aux call must be a byte-identical
@@ -2208,6 +2212,8 @@ class Session(NegotiationMixin):
                 controls=controls, prompt_brief=directive.prompt_brief,
                 t_h=t_h, anchor=self._real_time_anchor(),
                 day_block=self._day_block,
+                # The temporal frame goes out with the day's FIRST card only.
+                include_temporal=self._card_frame_day != day,
                 # The epoch already bounds the span; a tail limit here would
                 # re-impose the sliding window the epoch exists to remove.
                 limit=None,
@@ -2215,6 +2221,7 @@ class Session(NegotiationMixin):
             # The card rides the tail of every request; keep it byte-identical
             # while only its clock moved (see _stable_card).
             messages = self._stable_card(messages)
+            self._card_frame_day = day
             mid = self._persist_message(
                 "user", user_text, t_h, day,
                 proactive=False, session_id=session_id, conversation_id=conv_id,
@@ -2232,12 +2239,14 @@ class Session(NegotiationMixin):
                 controls=controls, prompt_brief=directive.prompt_brief,
                 t_h=t_h, anchor=self._real_time_anchor(),
                 day_block=self._day_block,
+                include_temporal=self._card_frame_day != day,
                 limit=None,
             )
             # Same rule as the mainline path: the card is the trailing block,
             # and this also keeps `_last_state_card` (the pop-up legs' card)
             # byte-stable.
             messages = self._stable_card(messages)
+            self._card_frame_day = day
         stable = _with_bubble_instruction(stable)
         if user_text is None and intent is None:
             # Legacy ungrounded proactive call (pre-slice callers/tests):

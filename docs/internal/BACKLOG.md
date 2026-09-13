@@ -269,3 +269,24 @@ every turn in a second voice.
 Keep `closing_tendency` disabled until its behavior is specified and tested as a
 natural conversation boundary rather than an arbitrary per-turn cutoff. Any
 replacement must preserve replay parity and the away-is-not-close lifecycle.
+
+### Card scope (2026-09-12)
+The TEMPORAL FRAME now rides the day's FIRST card only (`include_temporal` on
+`render_state_card` / `build_context_messages`; the session tracks the day). It
+is a clock reading rather than state, and re-sending it every turn re-stated what
+the model already has in context while rewriting a block inside the request
+array.
+
+Open, owner-flagged:
+- **Experiment: send only the day's DIFF for the rest of the card** (besides the
+  current time). The other sections (bearing, activity, memory, intent) are
+  unchanged turn to turn, so a diff would shrink the trailing block further.
+  Measure before shipping: the card-diff script (`/tmp/card_diff.py` recipe) plus
+  the app's cache panel, over a run with several same-day turns.
+- **Time on user turns.** Nothing carries a clock today except the day's first
+  card, the day-start block and each steer block's own `Time:` field: a user
+  message is exactly the user's words (17 chars on the live request,
+  `"Hi? Anyone there?"`, no timestamp). If the model should always know when a
+  message arrived, attach the arrival time to the user message - cache-neutral,
+  since a new turn is new bytes either way.
+

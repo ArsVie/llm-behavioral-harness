@@ -818,6 +818,7 @@ def render_state_card(
     popup: str | None = None,
     t_h: float | None = None,
     anchor=None,
+    include_temporal: bool = True,
 ) -> str:
     """The PER-MOMENT state card — what is true right now and nothing else.
 
@@ -845,6 +846,11 @@ def render_state_card(
             popup=popup, t_h=t_h, anchor=anchor,
         )
         if s[0] not in _DAY_SCOPED_PRIOS
+        # The temporal frame is the ONE section that reads as a clock reading
+        # rather than as state. Sending it every turn re-states what the model
+        # already has in context and rewrites a block inside the array; the
+        # session sends it on the first card of the day only.
+        and (include_temporal or s[0] != _PRIO_TEMPORAL)
     ]
     return _join_stable_plus_sections([], sections)
 
@@ -922,6 +928,7 @@ def build_context_messages(
     anchor=None,
     day_block: str | None = None,
     limit: int | None = RECENT_TURNS,
+    include_temporal: bool = True,
 ) -> tuple[str, list[dict]]:
     """(stable system, messages) — the cache-ordered request pair.
 
@@ -963,6 +970,7 @@ def build_context_messages(
         snapshot,
         controls=controls, prompt_brief=prompt_brief, popup=popup,
         t_h=t_h, anchor=anchor,
+        include_temporal=include_temporal,
     )
     messages = append_system(messages, tail)
     return system, messages

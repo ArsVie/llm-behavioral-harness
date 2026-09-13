@@ -494,6 +494,24 @@ def test_the_layout_loses_no_content_and_duplicates_none():
     assert legacy.startswith(system)
 
 
+def test_the_temporal_frame_rides_only_the_first_card_of_the_day():
+    """The frame is a CLOCK READING, not state.
+
+    Re-sending it every turn re-states what the model already has in context and
+    rewrites a block inside the request array, which on this provider costs the
+    prefix for everything after it. It goes out with the day's first card and
+    stays in context after that; the rest of the card is unaffected.
+    """
+    snap = _snapshot(rich=True)
+    with_frame = render_state_card(snap, t_h=21.7, anchor=_anchor())
+    without = render_state_card(snap, t_h=21.7, anchor=_anchor(), include_temporal=False)
+
+    assert TEMPORAL_HEADER in with_frame
+    assert TEMPORAL_HEADER not in without
+    assert CURRENT_INTENT_HEADER in without, "every other section still rides"
+    assert len(without) < len(with_frame)
+
+
 def test_the_three_scopes_are_disjoint():
     """Each piece of state sits in exactly one place, by how often it changes.
 
