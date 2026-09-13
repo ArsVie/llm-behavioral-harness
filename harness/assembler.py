@@ -358,10 +358,28 @@ def wire_message(turn: dict) -> dict:
     return out
 
 
+def _stamp_user_turn(text: str, t_h: float | None, anchor) -> str:
+    """"hey | Time: 21:42" - a user turn carries the time it arrived.
+
+    Nothing else on the wire clocks a user turn: the temporal frame rides the
+    day's FIRST card only and the state card no longer re-states the clock, so
+    without this the model could not tell when a message was written. Returns
+    the text unchanged for unanchored runs (replay/offline), which is what keeps
+    replay parity.
+    """
+    if not text or anchor is None or t_h is None:
+        return text
+    real = anchor.real_at(t_h)
+    return f"{text} | Time: {real.hour:02d}:{real.minute:02d}"
+
+
 def build_messages(
     recent_turns: list[dict],
     user_request: str,
     limit: int | None = RECENT_TURNS,
+    *,
+    anchor=None,
+    t_h: float | None = None,
 ) -> list[dict]:
     """Transcript (oldest→newest) + current user request.
 
@@ -374,12 +392,26 @@ def build_messages(
     legacy tail slice for pre-epoch callers; note that slicing from the FRONT
     is what breaks prefix reuse, so the mainline passes None.
     """
-    messages: list[dict] = [
-        wire_message(turn)
-        for turn in (recent_turns if limit is None else recent_turns[-limit:])
-    ]
-    messages.append({"role": "user", "content": user_request})
+    pairs = recent_turns if limit is None else recent_turns[-limit:]
+    messages: list[dict] = []
+    for turn in pairs:
+        message = wire_message(turn)
+        if message.get("role") == "user":
+            message["content"] = _stamp_user_turn(
+                str(message.get("content", "")), _row_t(turn), anchor
+            )
+        messages.append(message)
+    if user_request is not None:
+        messages.append(
+            {"role": "user", "content": _stamp_user_turn(user_request, t_h, anchor)}
+        )
     return messages
+
+
+def _row_t(turn: dict) -> float | None:
+    """The virtual time of a stored turn, or None when the row does not carry one."""
+    value = turn.get("t_h") if isinstance(turn, dict) else None
+    return float(value) if isinstance(value, (int, float)) else None
 
 
 # --------------------------------------------------------------------------- #
@@ -960,7 +992,9 @@ def build_context_messages(
         ]
     )
     if user_request is not None:
-        messages = build_messages(recent_turns, user_request, limit=limit)
+        messages = build_messages(
+            recent_turns, user_request, limit=limit, anchor=anchor, t_h=t_h,
+        )
     else:
         messages = [
             wire_message(turn)

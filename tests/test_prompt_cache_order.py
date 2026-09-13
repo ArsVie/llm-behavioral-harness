@@ -226,7 +226,10 @@ def test_stable_system_byte_identical_across_turns():
     system2, messages2 = build_context_messages(
         snapshot=snap, user_request="hi again",
         recent_turns=recent
-        + [{"role": "user", "content": "hi"},
+        # The persisted row carries its own t_h, which is what makes the stamp
+        # reproducible: turn 1's request stamped at 27.0 and turn 2's history
+        # row for the same message stamp to the same bytes.
+        + [{"role": "user", "content": "hi", "t_h": 27.0},
            {"role": "assistant", "content": "hello"}],
         controls=controls, prompt_brief=brief, t_h=28.0, anchor=_anchor(),
     )
@@ -358,7 +361,12 @@ def test_a_turn_the_user_did_not_speak_has_no_user_message_at_all():
         prompt_brief=_prompt_brief(), t_h=27.0, anchor=_anchor(),
     )
     assert spoken[-1]["role"] == "system"
-    assert spoken[-2]["role"] == "user" and spoken[-2]["content"] == "hey"
+    # The user turn carries its arrival time (the card no longer clocks
+    # every turn), and it stays a user-role message: the stamp is harness text
+    # inside the user's own turn, which the owner asked for explicitly.
+    assert spoken[-2]["role"] == "user"
+    assert spoken[-2]["content"].startswith("hey")
+    assert " | Time: " in spoken[-2]["content"]
 
 
 def test_volatile_state_is_the_last_system_message():
@@ -565,7 +573,10 @@ def test_seam_transcript_matches_legacy_build_messages():
         snap, controls=controls, prompt_brief=brief, day_block=day_block,
         t_h=27.0, anchor=_anchor(),
     )
-    legacy_messages = build_messages(recent, "hi")
+    # Same anchor and turn time: the user-turn stamp is part of the
+    # builder now, so the parity claim is "identical bytes for identical
+    # inputs" and the stamp is one of those inputs.
+    legacy_messages = build_messages(recent, "hi", anchor=_anchor(), t_h=27.0)
     system, messages = build_context_messages(
         snapshot=snap, recent_turns=recent, user_request="hi",
         controls=controls, prompt_brief=brief,
