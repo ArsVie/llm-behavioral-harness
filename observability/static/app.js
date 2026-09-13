@@ -310,10 +310,45 @@ function renderCalls(calls, selectedId) {
 }
 
 /* ----------------------------------------------------------------- stream */
-function eventRow(event) {
+let streamBuffer = [];
+
+/* A mechanism row that repeats tells you nothing the first one did not: the
+   same check firing four times is ONE fact. Collapsing runs is what makes the
+   rows that do not repeat -- a verdict, a close, a refusal -- findable. */
+function collapseRuns(events) {
+  const runs = [];
+  for (const event of events) {
+    const last = runs[runs.length - 1];
+    const key = `${event.kind}|${event.label}|${event.detail || ""}`;
+    if (last && last.key === key) { last.count += 1; last.event = event; }
+    else runs.push({ key, count: 1, event });
+  }
+  return runs;
+}
+
+/* Decision details arrive as a Python repr: {'initiate': True, ...}. The
+   verdict is the reason the row is interesting, so it is read out of the
+   string and shown as fields instead of one quoted blob. */
+function verdictChips(detail) {
+  const chips = [];
+  const pattern = /'([a-z_]+)':\s*('([^']*)'|True|False|None|-?\d+(?:\.\d+)?)/g;
+  let match;
+  while ((match = pattern.exec(detail || "")) !== null) {
+    let value = match[3] !== undefined ? match[3] : match[2];
+    if (value === "True") value = "yes";
+    if (value === "False") value = "no";
+    if (value === "None") continue;
+    if (value.length > 44) value = `${value.slice(0, 42)}…`;
+    chips.push(`${match[1]}=${value}`);
+  }
+  return chips;
+}
+
+function eventRow(event, count) {
   const row = el("li");
   row.dataset.severity = event.severity;
   row.dataset.seq = String(event.seq);
+  if (count > 1) row.dataset.grouped = "1";
   // The date is part of the row: a bare clock repeats every day of a run.
   const stamp = el("time", null,
     event.stamp || (event.real ? event.real.slice(11, 19) : `t${event.t_h}`));
@@ -322,17 +357,47 @@ function eventRow(event) {
   const line = el("div");
   const head = el("div", "line");
   head.append(el("span", "kind", event.kind), el("span", null, event.label));
-  line.append(head, el("div", "detail", event.detail || ""));
+  if (count > 1) head.append(el("span", "repeat", `×${count}`));
+  const raw = event.raw || {};
+  // The agenda item the row is about, where the row has one: "decision" and
+  // the call it made are otherwise only distinguishable by their detail text.
+  if (raw.event_label) head.append(el("span", "chip-item", String(raw.event_label)));
+  if (event.kind === "decision") {
+    for (const chip of verdictChips(event.detail)) {
+      head.append(el("span", "chip-verdict", chip));
+    }
+  }
+  line.append(head);
+  line.append(el("div", "detail", event.detail || ""));
   row.append(line);
   row.addEventListener("click", () => showRawPayload(`${event.kind} · ${event.label}`, event.raw));
   return row;
 }
 
+function streamNodes(events) {
+  const nodes = [];
+  let day = null;
+  for (const run of collapseRuns(events)) {
+    const event = run.event;
+    if (event.day !== day) {
+      day = event.day;
+      const head = el("li", "day-head");
+      head.append(el("span", null, `day ${day}`),
+        el("span", "day-real", event.real ? event.real.slice(0, 10) : ""));
+      nodes.push(head);
+    }
+    nodes.push(eventRow(event, run.count));
+  }
+  return nodes;
+}
+
 function renderStream(events, replace) {
   const list = $("stream");
-  if (replace) list.replaceChildren();
-  for (const event of events) list.append(eventRow(event));
-  while (list.children.length > 400) list.removeChild(list.firstElementChild);
+  if (replace) streamBuffer = [];
+  streamBuffer = streamBuffer.concat(events);
+  if (streamBuffer.length > 400) streamBuffer = streamBuffer.slice(-400);
+  list.replaceChildren();
+  for (const node of streamNodes(streamBuffer)) list.append(node);
   list.scrollTop = list.scrollHeight;
 }
 

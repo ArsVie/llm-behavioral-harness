@@ -248,6 +248,29 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .stream li[data-severity="error"] { border-left-color: var(--rose); background: var(--rose-soft); }
 .sq { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
 .sq.live { background: #4caf8f; }
+/* The ordered surface is read FOR its order: it grows with the page instead of
+   being clipped at a fixed height. */
+.surface { max-height: none; overflow: visible; }
+.stream .day-head {
+  color: var(--ink-faint); font-size: 12px; letter-spacing: .08em;
+  text-transform: uppercase; border-top: 1px solid var(--line);
+  margin-top: 6px; padding-top: 10px; cursor: default;
+}
+.stream .day-head:hover { background: transparent; }
+.stream .day-real { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; }
+.stream li[data-grouped="1"] { border-left-color: var(--lav); }
+.stream .repeat {
+  font-family: var(--mono); font-size: 11px; color: var(--lav);
+  background: var(--lav-soft); border-radius: 6px; padding: 1px 6px;
+}
+.stream .chip-item {
+  font-size: 11px; border-radius: 6px; padding: 1px 7px;
+  background: var(--mint-soft); color: var(--mint);
+}
+.stream .chip-verdict {
+  font-family: var(--mono); font-size: 11px; border-radius: 6px;
+  padding: 1px 7px; background: var(--sky-soft); color: #46688f;
+}
 
 /* --------------------------------------------------------------- drawer */
 .scrim {

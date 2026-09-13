@@ -2011,7 +2011,10 @@ class Session(NegotiationMixin):
         live on 2026-09-08 — ``<｜｜DSML｜｜tool_calls>...`` persisted as her
         message and delivered to the user.
         """
+        # Reset both per generation: a marker from an earlier turn must never
+        # answer a later turn's pop-up.
         self._last_tool_calls = None
+        self._last_marker_reply = None
         chat_with_meta = getattr(self.client, "chat_with_meta", None)
         if chat_with_meta is None:
             reply = self.client.chat(
@@ -2414,15 +2417,21 @@ class Session(NegotiationMixin):
         # tool rides the mainline request, and the streaming path cannot carry
         # a tools payload.
         decision_tools = self._deferred_decision_tools()
-        if stream_chat is not None and _bubble_stream_on() and not decision_tools:
-            reply, reasoning, usage, raw_cost, streamed_bubbles = (
-                self._generate_stream(messages, stable, max_tokens)
-            )
-        else:
-            reply, reasoning, usage, raw_cost = self._generate(
-                messages, stable, max_tokens, tools=decision_tools
-            )
-            streamed_bubbles = None
+        try:
+            if stream_chat is not None and _bubble_stream_on() and not decision_tools:
+                reply, reasoning, usage, raw_cost, streamed_bubbles = (
+                    self._generate_stream(messages, stable, max_tokens)
+                )
+            else:
+                reply, reasoning, usage, raw_cost = self._generate(
+                    messages, stable, max_tokens, tools=decision_tools
+                )
+                streamed_bubbles = None
+        except BaseException:
+            # The generation is where an interrupted turn dies; the pop-ups it
+            # had collected are unanswered, so they go back in the queue.
+            self._requeue_deferred_decisions()
+            raise
         streamed = streamed_bubbles is not None
         self._note_request_prefix("chat", messages)
         # The pop-ups this turn collected are answered by the generation that
@@ -2979,6 +2988,19 @@ class Session(NegotiationMixin):
             self._served_reply = None
             return served
         return self._popup_request_call(request)
+
+    def _requeue_deferred_decisions(self) -> None:
+        """A turn that died never answered its pop-ups: hand them back.
+
+        The same rule the drain applies to a steer whose prompt effect never
+        happened. Without it an interrupted turn swallowed the decision: the
+        steer was delivered, the generation died, and nothing asked again.
+        """
+        pending, self._deferred_decisions = self._deferred_decisions, []
+        if self._steering is None:
+            return
+        for record in pending:
+            self._steering.requeue(record.steer.steer_id)
 
     def _finish_deferred_decisions(self, drain, day: int, t_h: float) -> None:
         """Answer the collected pop-ups from the generation that just ran.
