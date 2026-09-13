@@ -207,9 +207,10 @@ def test_end_boundary_never_calls_the_model(tmp_path):
     store = make_store(tmp_path)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0, "pottery"),)))
     clock = VirtualClock(t_h=9.5)
+    # ONE generation answers the pop-up AND speaks: the verdict is a tool call
+    # in the mainline context, so the canned order is one response per turn.
     client = FakeClient(responses=[
         'tool_decide_event: {"initiate": "yes", "reason": "in the mood"}',
-        "reply one",
     ])
     session = make_session(store, client=client, clock=clock,
                            decision_config=DecisionConfig())

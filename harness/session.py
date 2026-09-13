@@ -138,6 +138,8 @@ from harness.steering import (
 )
 from harness.store import SQLiteStore
 from harness.tools import (
+    TOOL_SCHEMAS,
+    render_popup,
     Capabilities,
     DecisionConfig,
     DecisionRequeue,
@@ -154,6 +156,25 @@ from harness.tools import (
 _STEER_INJECT = "inject"        #: render the block into the next LLM call
 _STEER_CONSUMED = "consumed"    #: handled (decision executed / consumed)
 _STEER_SUPPRESS = "suppress"    #: no-reply verdict — suppress the reply
+
+
+@dataclass
+class _DeferredDecision:
+    """A pop-up the turn's own generation will answer.
+
+    ``tools`` is the function set that kind needs, offered ON the mainline
+    request: one pop-up asks one named question, and offering all three let
+    the model answer an event pop-up with ``tool_decide_reply`` (measured
+    against the live gateway, 1-in-3 with all three, 0-in-3 with one).
+    """
+
+    decision_id: str
+    popup_kind: str
+    inputs: dict
+    steer: object
+    day: int
+    t_h: float
+    tools: list
 
 #: Closing-tendency draw stream (engine.rng stream 6), keyed by
 #: (conversation sequence, companion turn index) — deterministic per draw.
@@ -442,6 +463,26 @@ def _with_bubble_instruction(system: str) -> str:
     return system
 
 
+def _openai_tool_calls(calls) -> list[dict] | None:
+    """ChatResult tool calls ({id, name, arguments_json}) in OpenAI shape.
+
+    The runner's parser expects the wire shape; the client hands back its own.
+    """
+    if not calls:
+        return None
+    return [
+        {
+            "id": call.get("id"),
+            "type": "function",
+            "function": {
+                "name": call.get("name"),
+                "arguments": call.get("arguments_json"),
+            },
+        }
+        for call in calls
+    ]
+
+
 def _split_into_bubbles(reply: str) -> tuple[str, ...] | None:
     """Split a reply on blank-line runs when HARNESS_BUBBLES is on.
 
@@ -631,6 +672,21 @@ class Session(NegotiationMixin):
         #: Steers drained for the turn currently being generated — requeued
         #: if the turn is interrupted (the LLM call is abandoned).
         self._turn_drained: list[int] = []
+        #: Pop-ups THIS turn will answer with its own generation (see
+        #: _defer_decision): the decision is a tool call in the mainline
+        #: context, not a second request in a second voice.
+        self._deferred_decisions: list[_DeferredDecision] = []
+        #: True while the steering drain is COLLECTING decisions rather than
+        #: executing them.
+        self._collect_decisions = False
+        #: The turn's own generation's tool calls (OpenAI shape), captured for
+        #: the deferred decisions to be served from.
+        self._last_tool_calls: list[dict] | None = None
+        #: A machinery-only reply from a decision turn, kept for the parser
+        #: (the runner reads the marker text as the verdict).
+        self._last_marker_reply: str | None = None
+        #: The reply currently being served to a deferred decision.
+        self._served_reply: RawReply | None = None
         if all(
             hasattr(store, name)
             for name in (
@@ -1886,6 +1942,7 @@ class Session(NegotiationMixin):
         """
         drain = _SteerDrain()
         self._turn_drained = []
+        self._deferred_decisions = []
         if self._steering is None:
             return drain
         if self._decision_enabled:
@@ -1902,6 +1959,7 @@ class Session(NegotiationMixin):
         # A verdict resolving during this drain needs the turn to speak for
         # it (see NegotiationMixin._active_drain / GO_NOTE).
         self._active_drain = drain
+        self._collect_decisions = True
         try:
             for steer in drained:
                 outcome = self._apply_steer(
@@ -1917,6 +1975,7 @@ class Session(NegotiationMixin):
                     )
                 else:
                     self._turn_drained.remove(steer.steer_id)
+            self._collect_decisions = False
             # NOTE: proactive_declined does NOT promote to suppress_reply
             # here: _chat decides that with user_text in scope (a stray
             # decline never kills a reactive turn).
@@ -1936,7 +1995,7 @@ class Session(NegotiationMixin):
         return drain
 
     def _generate(self, messages: list, system: str,
-                  max_tokens: int | None):
+                  max_tokens: int | None, *, tools: list | None = None):
         """Run the turn's LLM call; return (reply, reasoning, usage, raw_cost).
 
         ``chat_with_meta`` is the richer surface (reasoning, parsed usage,
@@ -1952,6 +2011,7 @@ class Session(NegotiationMixin):
         live on 2026-09-08 — ``<｜｜DSML｜｜tool_calls>...`` persisted as her
         message and delivered to the user.
         """
+        self._last_tool_calls = None
         chat_with_meta = getattr(self.client, "chat_with_meta", None)
         if chat_with_meta is None:
             reply = self.client.chat(
@@ -1962,6 +2022,7 @@ class Session(NegotiationMixin):
             result = chat_with_meta(
                 messages, system=system, max_tokens=max_tokens,
                 reasoning_effort=self._thinking_effort,
+                tools=tools,
             )
             reply = result.content
             reasoning = result.reasoning
@@ -1969,7 +2030,15 @@ class Session(NegotiationMixin):
             # with the lane attribution when the store accepts them.
             usage = getattr(result, "usage", None)
             raw_cost = getattr(result, "raw_cost", None)
+            self._last_tool_calls = _openai_tool_calls(
+                getattr(result, "tool_calls", None)
+            )
         if not reply.strip():
+            # A decision turn can carry ONLY its tool call: the verdict is the
+            # output and the silence is her answer to the user. A turn with
+            # neither prose nor a call is still a failure.
+            if self._last_tool_calls or self._last_marker_reply:
+                return "", reasoning, usage, raw_cost
             raise RuntimeError(
                 "refusing to persist empty assistant reply (client returned "
                 "empty/whitespace-only content)"
@@ -1983,6 +2052,11 @@ class Session(NegotiationMixin):
         still a leak worth counting."""
         if not looks_like_tool_markup(reply):
             return reply
+        if self._deferred_decisions:
+            # Prose AND machinery in one generation: the prose is her reply and
+            # the marker is the verdict for a pop-up this turn collected
+            # (see _defer_decision). Both are kept, neither is persisted twice.
+            self._last_marker_reply = reply
         cleaned = strip_tool_markup(reply)
         if hasattr(self.store, "log_event"):
             self.store.log_event(
@@ -1990,6 +2064,13 @@ class Session(NegotiationMixin):
                 f"salvaged={len(cleaned)}chars raw={reply[:120]!r}",
             )
         if not cleaned:
+            if self._deferred_decisions:
+                # The turn was asked to decide in the transport it was
+                # offered; the runner's parser reads this text as the verdict,
+                # so capture it instead of refusing -- and never persist it as
+                # prose (see _generate).
+                self._last_marker_reply = reply
+                return ""
             raise RuntimeError(
                 "refusing to persist tool-call markup as an assistant reply "
                 f"(model returned machinery, not prose): {reply[:200]!r}"
@@ -2329,17 +2410,56 @@ class Session(NegotiationMixin):
         # The TurnResult.streamed flag marks the streamed origin; the
         # runtime's paced multi-send is identical either way.
         stream_chat = getattr(self.client, "chat_stream", None)
-        if stream_chat is not None and _bubble_stream_on():
+        # A turn carrying decisions must use the canonical path: the decide
+        # tool rides the mainline request, and the streaming path cannot carry
+        # a tools payload.
+        decision_tools = self._deferred_decision_tools()
+        if stream_chat is not None and _bubble_stream_on() and not decision_tools:
             reply, reasoning, usage, raw_cost, streamed_bubbles = (
                 self._generate_stream(messages, stable, max_tokens)
             )
         else:
             reply, reasoning, usage, raw_cost = self._generate(
-                messages, stable, max_tokens
+                messages, stable, max_tokens, tools=decision_tools
             )
             streamed_bubbles = None
         streamed = streamed_bubbles is not None
         self._note_request_prefix("chat", messages)
+        # The pop-ups this turn collected are answered by the generation that
+        # just ran, and their verdicts land BEFORE the reply is persisted or
+        # sent -- so a no-reply verdict still wins, exactly as it did when the
+        # decision was a call of its own. Oldest boundary first.
+        self._finish_deferred_decisions(drain, day, t_h)
+        if drain.proactive_declined and user_text is None:
+            self._turn_drained = []
+            self.store.log_event(
+                day, t_h, "proactive_declined_turn", f"turn={turn_id}",
+            )
+            return TurnResult(
+                reply="", directive=directive, day=day,
+                hour=self.clock.local_hour(), controls=controls,
+                notices=tuple(notices), proactive_out=tuple(proactive_out),
+            )
+        if not reply.strip() and self._last_marker_reply:
+            # The generation answered a pop-up and said nothing else: there is
+            # no prose to persist and the notice is the user-visible output.
+            self._turn_drained = []
+            return TurnResult(
+                reply="", directive=directive, day=day,
+                hour=self.clock.local_hour(), controls=controls,
+                notices=tuple(notices), proactive_out=tuple(proactive_out),
+            )
+        if drain.suppress_reply:
+            self._turn_drained = []
+            self.store.log_event(
+                day, t_h, "decision_no_reply",
+                f"turn={turn_id} notices={len(notices)}",
+            )
+            return TurnResult(
+                reply="", directive=directive, day=day,
+                hour=self.clock.local_hour(), controls=controls,
+                notices=tuple(notices), proactive_out=tuple(proactive_out),
+            )
         mid = self._persist_message(
             "assistant", reply, t_h, day,
             proactive=proactive, session_id=session_id, conversation_id=conv_id,
@@ -2778,6 +2898,118 @@ class Session(NegotiationMixin):
             drain.proactive_declined = True
         return _STEER_CONSUMED
 
+    def _defer_decision(self, decision_id: str, popup_kind: str, inputs: dict,
+                        steer, day: int, t_h: float) -> None:
+        """Record a pop-up for the turn's own generation to answer.
+
+        A decision made by a SEPARATE request is a second voice: it sees the
+        same card but not the arriving user turn, and its output has to be
+        spliced back into the context at a position it did not come from --
+        which is what put a decide pair in the middle of the message array on
+        the live run (2026-09-12, call #6 -> #7: the card moved from index 2 to
+        5 and the cache fell from 896 to 640 of 1345). So the drain only
+        COLLECTS: the verdict comes back as a tool call on the turn's own
+        response, and the turn speaks for it.
+
+        The pop-up block is injected into the turn's messages here, because
+        the model has to see the question it is being asked.
+        """
+        request = PopupRequest(
+            popup_kind=popup_kind,
+            popup=render_popup(popup_kind, inputs),
+            tools=TOOL_SCHEMAS,
+            native=True,
+            inputs=inputs,
+        )
+        self._deferred_decisions.append(
+            _DeferredDecision(
+                decision_id=decision_id,
+                popup_kind=popup_kind,
+                inputs=inputs,
+                steer=steer,
+                day=day,
+                t_h=t_h,
+                tools=[
+                    {"type": "function", "function": tool}
+                    for tool in offered_tools(request)
+                ],
+            )
+        )
+        drain = self._active_drain
+        if drain is not None:
+            drain.injections.append(wrap_steer_marker(request.popup))
+
+    def _deferred_decision_tools(self) -> list[dict] | None:
+        """The function set the turn's own generation has to offer, or None.
+
+        None (not an empty list) when nothing is deferred: a decision-free
+        turn keeps its prose-only request shape.
+        """
+        if not self._deferred_decisions:
+            return None
+        tools: list[dict] = []
+        for record in self._deferred_decisions:
+            for tool in record.tools:
+                if tool not in tools:
+                    tools.append(tool)
+        return tools
+
+    def _served_for(self, popup_kind: str) -> RawReply | None:
+        """The turn's own output, when it answers THIS pop-up kind."""
+        calls = self._last_tool_calls
+        if calls:
+            names = {str(c.get("function", {}).get("name")) for c in calls}
+            if popup_kind in names:
+                return RawReply(text=None, tool_calls=calls)
+        marker = self._last_marker_reply
+        if marker and popup_kind in marker:
+            return RawReply(text=marker, tool_calls=None)
+        return None
+
+    def _decision_model_call(self, request: PopupRequest) -> RawReply:
+        """Serve a pop-up from the turn's generation, else make its own call.
+
+        The served reply is consumed once per pop-up: a verdict the runner
+        cannot parse is re-asked, and a re-ask is not something the turn's
+        single generation can answer twice, so it falls back to a real call
+        (bounded by the steering retry budget).
+        """
+        served = self._served_reply
+        if served is not None:
+            self._served_reply = None
+            return served
+        return self._popup_request_call(request)
+
+    def _finish_deferred_decisions(self, drain, day: int, t_h: float) -> None:
+        """Answer the collected pop-ups from the generation that just ran.
+
+        Oldest boundary first, so a catch-up batch resolves in the order its
+        events would have happened rather than all at the instant the harness
+        noticed them. The verdict's effects are the handlers' own: each steer
+        is re-applied with the served reply standing in for the model call, so
+        suppression, closes and intent bookkeeping happen exactly once and in
+        one place.
+        """
+        records = sorted(
+            self._deferred_decisions, key=lambda r: (r.t_h, r.decision_id)
+        )
+        self._deferred_decisions = []
+        for record in records:
+            self._served_reply = self._served_for(record.popup_kind)
+            try:
+                outcome = self._apply_steer(
+                    record.steer,
+                    day=day,
+                    t_h=t_h,
+                    notices=drain.notices,
+                    proactive_out=drain.proactive_out,
+                    drain=drain,
+                )
+            finally:
+                self._served_reply = None
+            if outcome == _STEER_SUPPRESS:
+                drain.suppress_reply = True
+
     def _execute_decision(
         self,
         decision_id: str,
@@ -2798,6 +3030,13 @@ class Session(NegotiationMixin):
         re-rolling (deterministic replay).
         """
         assert self._decision is not None
+        if self._collect_decisions:
+            # The turn's OWN generation answers this pop-up: collect the
+            # question now, decide after the mainline call, and let the
+            # verdict ride the context that produced the reply (owner ruling,
+            # 2026-09-12: "a tool call on the mainline context and just that").
+            self._defer_decision(decision_id, popup_kind, inputs, steer, day, t_h)
+            return None
         try:
             return self._decision.execute(
                 decision_id,
@@ -2808,7 +3047,7 @@ class Session(NegotiationMixin):
                         getattr(self.client, "supports_tools", False)
                     )
                 ),
-                lambda request: self._popup_request_call(request),
+                self._decision_model_call,
                 day=day,
                 t_h=t_h,
                 delivered_t_h=steer.delivered_t_h,
