@@ -178,6 +178,15 @@ def test_event_builders_cover_every_table(tmp_path):
     assert {"message", "state", "decision", "steer", "proactive", "call", "judgement"} <= kinds
     assert [event.seq for event in collected] == sorted(event.seq for event in collected)
     assert all(event.real is not None for event in collected)
+    # The cursor's time and the time the row SHOWS must be the same instant:
+    # seq = round(t_h * 1e6) * 1e6 + rank * 1e5 + id, so decode and compare.
+    # A row sorted by one instant and displaying another reads as a stream that
+    # runs backwards (all six conversation rows did before this was pinned).
+    for event in collected:
+        sorted_t_h = (event.seq // 1_000_000) / 1e6
+        assert round(sorted_t_h, 4) == round(event.t_h, 4), (
+            f"{event.kind} {event.label} sorts at {sorted_t_h} but shows {event.t_h}"
+        )
     assert any(event.severity == "error" for event in collected)
 
 
@@ -199,6 +208,53 @@ def test_conversation_events_render_open_and_close(tmp_path):
              "close_reason": "user_left"}]
     event = events_mod.from_conversations(None, rows)[0]
     assert "opened by user" in event.detail and "user_left" in event.detail
+    # A lifecycle row sits at its LAST state change, and says so.
+    assert event.t_h == 12.0 and event.day == 0
+    assert (event.seq // 1_000_000) / 1e6 == 12.0
+
+    open_only = events_mod.from_conversations(
+        None, [{"id": "c2", "opened_t_h": 30.0, "opened_by": "user"}]
+    )[0]
+    assert open_only.t_h == 30.0 and open_only.day == 1, "still-open sits at its open"
+
+
+def test_the_stream_stamp_carries_the_date_and_the_ui_shows_it(tmp_path):
+    """A bare clock repeats every day, so the row carries the date too."""
+    from datetime import datetime, timedelta
+
+    class _Anchor:
+        def real(self, t_h):
+            return datetime(2026, 9, 8) + timedelta(hours=t_h)
+
+    # Same time of day, three days apart: the case that made a live run read as
+    # if it were going backwards.
+    same_clock_different_days = [
+        events_mod.from_state_events(_Anchor(), [
+            {"id": 1, "day": 0, "t_h": 13.34, "event": "x", "detail": "a"},
+        ])[0],
+        events_mod.from_state_events(_Anchor(), [
+            {"id": 2, "day": 3, "t_h": 85.34, "event": "x", "detail": "b"},
+        ])[0],
+    ]
+    stamps = [event.stamp for event in same_clock_different_days]
+    assert stamps[0] != stamps[1], f"same clock, different days: {stamps}"
+    assert stamps[0].startswith("09-08") and stamps[1].startswith("09-11"), stamps
+    assert stamps[0].endswith(stamps[1][-8:]), (
+        f"the two must share the clock and differ only by date: {stamps}"
+    )
+
+    unanchored = events_mod.from_state_events(
+        None, [{"id": 3, "day": 2, "t_h": 50.0, "event": "x", "detail": "c"}]
+    )[0]
+    assert unanchored.real is None and unanchored.stamp == "d2 t50.00", (
+        "an unanchored run still gets a day-qualified stamp"
+    )
+
+    payload = unanchored.to_json()
+    assert payload["stamp"] == unanchored.stamp and payload["day"] == 2
+
+    app_js = (Path(__file__).resolve().parents[1] / "observability/static/app.js").read_text()
+    assert "event.stamp" in app_js, "the stream row must render the date-bearing stamp"
 
 
 def test_state_events_render_their_detail_as_raw():

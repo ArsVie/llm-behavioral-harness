@@ -314,7 +314,11 @@ function eventRow(event) {
   const row = el("li");
   row.dataset.severity = event.severity;
   row.dataset.seq = String(event.seq);
-  row.append(el("time", null, event.real ? event.real.slice(11, 19) : `t${event.t_h}`));
+  // The date is part of the row: a bare clock repeats every day of a run.
+  const stamp = el("time", null,
+    event.stamp || (event.real ? event.real.slice(11, 19) : `t${event.t_h}`));
+  stamp.title = `day ${event.day} · t_h ${event.t_h}` + (event.real ? ` · ${event.real}` : "");
+  row.append(stamp);
   const line = el("div");
   const head = el("div", "line");
   head.append(el("span", "kind", event.kind), el("span", null, event.label));

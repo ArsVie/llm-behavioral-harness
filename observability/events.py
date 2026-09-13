@@ -103,9 +103,23 @@ class Event:
     detail: str
     raw: dict[str, Any] = field(default_factory=dict)
 
+    @property
+    def stamp(self) -> str:
+        """Date AND clock for the stream row.
+
+        A bare ``HH:MM:SS`` repeats on every day of a multi-day run (this run
+        shows five such strings on more than one date), so a time-only column
+        reads as if the log ran backwards. Unanchored runs fall back to the
+        virtual day and hour.
+        """
+        if self.real:
+            return f"{self.real[5:10]} {self.real[11:19]}"     # MM-DD HH:MM:SS
+        return f"d{self.day} t{self.t_h:.2f}"
+
     def to_json(self) -> dict[str, Any]:
         return {
             "seq": self.seq,
+            "stamp": self.stamp,
             "kind": self.kind,
             "severity": self.severity,
             "day": self.day,
@@ -264,15 +278,20 @@ def from_conversations(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Even
         detail = f"opened by {row.get('opened_by')}"
         if closed is not None:
             detail += f" · closed ({row.get('close_reason')})"
+        # A lifecycle row marks its LAST state change, and its sort time must BE
+        # the time it shows: sorting by the close while displaying the open put
+        # all six of this run's conversation rows after later events, each one
+        # reading as a clock running backwards. Nothing is lost -- the open
+        # instant is its own `conversation_opened` state event.
+        at = float(closed) if closed is not None else opened
         out.append(Event(
-            seq=seq_of(float(closed if closed is not None else opened),
-                       "conversation", abs(hash(str(row.get("id")))) % 10_000),
+            seq=seq_of(at, "conversation", abs(hash(str(row.get("id")))) % 10_000),
             kind="conversation",
             rank="conversation",
             severity="info",
-            day=int(opened // 24.0),
-            t_h=opened,
-            real=_real(anchor, opened),
+            day=int(at // 24.0),
+            t_h=at,
+            real=_real(anchor, at),
             label=f"conversation {row.get('id')}",
             detail=detail,
             raw={"opened_by": row.get("opened_by"),
