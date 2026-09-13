@@ -212,7 +212,7 @@ def test_the_day_block_is_written_once_and_never_rerendered(tmp_path):
 # the cache property
 
 def test_a_popup_call_extends_the_mainline_request(tmp_path):
-    """A pop-up call re-sends the mainline request; only its tail grows.
+    """A pop-up never starts a request of its own; the re-ask extends one.
 
     This is the provider-cache story in one assertion. Measured on the live
     run (14 calls): every consecutive pair — chat->chat and chat->decide —
@@ -220,23 +220,27 @@ def test_a_popup_call_extends_the_mainline_request(tmp_path):
     servable and only the tail changes. The tail is free to change: a
     re-sent message costs the cache, an EXTENDED last message does not.
 
-    A pop-up is therefore not a request of its own. It is the mainline array
-    with the pop-up folded into the trailing system block. Anything that
-    rebuilds its own prefix — a sliding window, a re-rendered transcript, a
-    card in the middle — breaks the property, and this test is what breaks
-    loudly when that happens.
+    Under the owner ruling (2026-09-12) the turn's own generation answers
+    the pop-up; when that generation does not, the bounded re-ask re-sends
+    the very same array with the pop-up folded into the trailing system
+    block — not a request with its own prefix. Anything that rebuilds its
+    own prefix — a sliding window, a re-rendered transcript, a card in the
+    middle — breaks the property, and this test is what breaks loudly when
+    that happens.
     """
     client = FakeClient(responses=[
-        {"content": "main reply",
-         "tool_calls": [{"id": "c4", "name": "tool_decide_event",
-                         "arguments_json": "{\"initiate\": \"yes\", \"reason\": \"in the mood\"}"}]},
+        # The turn's own generation does NOT answer the pop-up...
+        "main reply",
+        # ...so the bounded re-ask draws the real answer.
+        {"content": "", "tool_calls": [{"id": "c4", "name": "tool_decide_event",
+         "arguments_json": "{\"initiate\": \"yes\", \"reason\": \"in the mood\"}"}]},
     ])
     store, session = _session(tmp_path, client)
     try:
         session.on_message("hey")
-        # ONE generation: the pop-up is answered by the turn's own tool call,
-        # which is the whole point of the ruling (owner, 2026-09-12).
-        assert len(client.calls) == 1, "the pop-up must not cost a second call"
+        # ONE generation plus ONE bounded re-ask: the pop-up that the
+        # generation left unanswered is not allowed a request of its own.
+        assert len(client.calls) == 2, "generation + re-ask, nothing else"
         first, second = client.calls[0], client.calls[1]
         # One stable prefix, byte for byte, across the two lanes.
         assert first["system"] == second["system"]
@@ -244,7 +248,7 @@ def test_a_popup_call_extends_the_mainline_request(tmp_path):
         assert [m.get("role") for m in a] == [m.get("role") for m in b]
         # Every message but the last is re-sent unchanged...
         assert a[:-1] == b[:-1]
-        # ...and the last is the state card, with the pop-up appended to it,
+        # ...and the last is the state card, with the pop-up folded into it,
         # still the last thing the model sees and still a single message.
         assert a[-1]["role"] == b[-1]["role"] == "system"
         shorter, longer = ((a, b) if len(a[-1]["content"]) <= len(b[-1]["content"])

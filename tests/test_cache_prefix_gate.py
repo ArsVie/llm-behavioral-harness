@@ -198,18 +198,27 @@ def test_every_call_extends_the_previous_one(tmp_path, decision_env):
     client = FakeClient(
         responses=[
             # Mainline replies and pop-up verdicts are drawn from the same
-            # queue; a verdict-shaped reply parses as a verdict, anything
-            # else is an ordinary turn.
-            #
-            # The verdict rides BEHIND prose because the textual parser is
-            # tolerant of surrounding text, while a mainline turn that draws
-            # this response must still have something sayable left after the
-            # marker is stripped. A bare marker as a whole reply is machinery,
-            # and `_reject_tool_markup` refuses to persist it as her message
-            # (2026-09-08: DSML tool markup reached the live channel).
-            f'reply {i}. tool_decide_event: {{"initiate": false, "reason": "later"}}'
-            if i % 3 == 1
-            else f"reply {i}."
+            # queue, and since the pop-ups ride turns and steers (owner
+            # ruling 2026-09-12) the deferral machinery consumes calls in an
+            # order that mixes the two -- so EVERY response has to answer
+            # EVERY lane, whatever slot it lands in:
+            #   * prose left after the markers are stripped ("reply i.") is
+            #     sayable as an ordinary turn (`_reject_tool_markup` keeps
+            #     it; a bare marker as a whole reply is machinery and is
+            #     refused, 2026-09-08: DSML tool markup reached the live
+            #     channel);
+            #   * the FIRST marker must be the event one: the textual parser
+            #     resolves the first marker it finds, and `initiate: "yes"`
+            #     is the verdict every event/proactive consumer reads as a
+            #     go (`message` <- reason for an inform, follow for a
+            #     decide, fire for a proactive -- a `false`/`defer` payload
+            #     would read as a conservative decline);
+            #   * the reply/proactive markers ride along so `_served_for`
+            #     matches whatever kind the turn's own output must answer.
+            f"reply {i}.\n"
+            'tool_decide_event: {"initiate": "yes", "reason": "heading over"}\n'
+            'tool_decide_reply: {"reply": true, "reason": "sure"}\n'
+            'tool_decide_proactive: {"initiate": true, "reason": "checking in"}'
             for i in range(60)
         ]
     )

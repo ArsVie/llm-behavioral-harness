@@ -88,9 +88,9 @@ def test_event_popup_initiate_fires_proactive_out(tmp_path):
     # `reason` stays in decision_records and out of the conversation.
     assert result.proactive_out == ()
     assert result.notices == ()
-    # the pop-up was a real second model call whose message payload carried
-    # the steer-marker-wrapped pop-up block
-    assert len(client.calls) == 2
+    # the pop-up rides the turn's own generation (owner ruling 2026-09-12):
+    # one call, whose message payload carried the steer-marker-wrapped block
+    assert len(client.calls) == 1
     assert STEER_MARKER_OPEN in client.calls[0]["messages"][-1]["content"]
     # dual persistence: the decision record + the delivered steer
     records = store.decisions_for_day(0)
@@ -234,7 +234,7 @@ def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
     assert result.reply == ""
     assert result.notices == ("Lily saw your message but chose not to reply yet",)
     assert result.proactive_out == ()
-    assert len(client.calls) == 3  # three calls total: pop-ups + main reply
+    assert len(client.calls) == 2  # one generation per turn: the verdict-ended second speaks no main reply
     msgs = store.messages_for_day(0)
     # The leading system row is the day-start block (plan + arcs), emitted
     # once at the day's first turn into the stream instead of being re-sent
@@ -265,7 +265,7 @@ def test_decide_reply_yes_proceeds_with_ordinary_reply(tmp_path):
     client.responses.extend([
         {"content": "ok here I am",
          "tool_calls": [{"id": "c7", "name": "tool_decide_reply",
-                         "arguments_json": "{\"reply\": true, \"reason\": \"one sec\", '\"terminate_event\": true}"}]},
+                         "arguments_json": "{\"reply\": true, \"reason\": \"one sec\", \"terminate_event\": true}"}]},
     ])
     session.enqueue_user_message_steer("are you coming?", 10.0)
     clock.advance_hours(0.5)

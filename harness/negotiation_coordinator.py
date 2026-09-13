@@ -198,8 +198,23 @@ class NegotiationMixin:
         conv = self._conversation
         if conv is None:
             return
-        if item_id in self._negotiations:
-            return                      # already informed (or deciding)
+        st = self._negotiations.get(item_id)
+        if st is not None:
+            # A re-delivered heads-up (interrupted-turn requeue, or the
+            # deferred pop-up's re-apply once the turn's own generation
+            # answered it) re-runs Inform only while the responded-bool
+            # marker is not True; a negotiation that already informed just
+            # consumes the steer. Mirrors _maybe_start_negotiation's
+            # re-delivery branch: without this the deferred Inform never
+            # completes on its own turn -- the state exists but informed is
+            # not True -- and the next START pop-up re-fires it late, eating
+            # the first decide's script slot.
+            if (
+                st.phase == NegotiationPhase.INFORM.value
+                and st.informed is not True
+            ):
+                self._run_inform(st, day, t_h, steer, proactive_out)
+            return
         item = self._find_agenda_item(item_id, day)
         if item is None or item.status != "planned":
             return

@@ -594,13 +594,26 @@ def test_real_runner_pipeline_inform_message_and_defer_turns(tmp_path):
     store.save_agenda(0, agenda)
     client = FakeClient(responses=[
         "ok",                                                    # T1 main
-        'tool_decide_event: {"message": "gym starts in a bit"}', # T2 inform
-        "ok",                                                    # T2 main
-        'tool_decide_event: {"initiate": false, "reason": "a bit longer", '
-        '"action": "defer"}',                                    # T3 decide 0
+        # T2: the inform rides the turn's own generation (owner ruling
+        # 2026-09-12) -- one native tool call, not a second request.
+        {"content": "ok", "tool_calls": [{
+            "id": "c1", "name": "tool_decide_event",
+            "arguments_json": json.dumps({"message": "gym starts in a bit"}),
+        }]},
+        # T3: decide 0 -> defer. The decide leg fires from the drain before
+        # this turn's generation, so it draws the next response.
+        {"content": "", "tool_calls": [{
+            "id": "c2", "name": "tool_decide_event",
+            "arguments_json": json.dumps(
+                {"initiate": "defer", "reason": "a bit longer"}),
+        }]},
         "ok",                                                    # T3 main
-        'tool_decide_event: {"initiate": true, "reason": "going", '
-        '"action": "follow"}',                                   # T4 decide 1
+        # T4: decide 1 -> go.
+        {"content": "", "tool_calls": [{
+            "id": "c3", "name": "tool_decide_event",
+            "arguments_json": json.dumps({"initiate": "yes", "reason": "going"}),
+        }]},
+        "ok",                                                    # T4 main
     ])
     session = Session(
         store, persona=PERSONA, timing=TIMING, variant=VARIANT,
