@@ -21,6 +21,7 @@ import pytest
 from harness.client import FakeClient, Usage
 from harness.store import SQLiteStore
 from harness.trace import CACHE_FLOOR
+from harness.tools import TOOL_SCHEMAS
 from observability import calls
 from observability import context as context_mod
 from observability import db
@@ -709,10 +710,10 @@ def test_context_payload_reports_the_latest_call_and_its_provenance(tmp_path):
     assert payload["call"]["id"] == 2
     assert payload["prefix"]["shared_messages"] == len(_MESSAGES) - 1
     assert payload["prefix"]["system_stable"] is True
-    # The chat leg carries the constant menu — the three actuation tools,
-    # one per domain with an ``op`` discriminator. No decide tool is on it.
+    # The chat leg carries the constant menu, rebuilt from the code that
+    # sends it — whatever ``TOOL_SCHEMAS`` holds in this build.
     assert [tool["name"] for tool in payload["tools"]] == [
-        "calendar", "memory", "remind",
+        t["name"] for t in TOOL_SCHEMAS
     ]
     assert "every mainline call" in payload["tools_source"]
 
@@ -742,7 +743,7 @@ def test_call_detail_renders_the_envelope_and_reports_hash_only_rows(tmp_path):
     assert detail is not None and detail["envelope_available"] is False
     # No envelope to price, and the constant menu still rode the call.
     assert [tool["name"] for tool in detail["tools"]] == [
-        "calendar", "memory", "remind",
+        t["name"] for t in TOOL_SCHEMAS
     ]
 
 
