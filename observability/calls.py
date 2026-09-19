@@ -14,7 +14,7 @@ from harness.tools import TOOL_SCHEMAS
 from harness.trace import CACHE_FLOOR
 
 from observability import context as context_mod
-from observability.db import rows
+from observability.db import rows, rows as db_rows
 
 #: Fallback context window when the model's capacity is not known locally.
 DEFAULT_CONTEXT_WINDOW: int = 1_000_000
@@ -199,25 +199,25 @@ def tool_schemas_for(role: str | None) -> tuple[list[dict[str, Any]], str]:
     """The tool schemas a call of ``role`` sent, with their provenance.
 
     Rebuilt from the current code: the store keeps the request body without
-    ``tools``. The mainline reply sends none; the decide legs send the pinned
-    schema named by their popup kind, falling back to the full set.
+    ``tools``. ONE constant menu rides every CANONICAL mainline call — the
+    whole ``TOOL_PAYLOAD`` (``session._chat`` passes it to ``_generate``; the
+    verbatim wire dumps carry all three actuation functions on every chat
+    request, round trips included). Only the auxiliary callers send none, and
+    the bubble-streaming path sends none (a text stream cannot carry a call).
+
+    This panel used to report "none on this call" for ``chat`` and a single
+    pinned schema for a decide leg. Both were wrong, and they under-reported
+    the tools bucket of the context breakdown by the full menu.
     """
     kind = str(role or "")
-    if kind == "chat":
-        # Say where the decide legs' schemas go, so an empty tool panel on
-        # a chat call is not read as a harness-wide omission.
-        return [], ("none on this call — the mainline reply is prose by design; "
-                    "the decide legs carry the schema")
-    if kind.startswith("tool_decide"):
-        wanted = [t for t in TOOL_SCHEMAS if t.get("name") == kind]
-        chosen = wanted or list(TOOL_SCHEMAS)
-        return chosen, (f"rebuilt from harness.tools — {len(chosen)} function"
-                        " in the OpenAI shape; no tool_choice field is sent")
     if kind.startswith("aux_"):
-        # The four auxiliary callers ask for JSON text, never a tool, so an
-        # empty panel here is the call being what it says it is.
-        return [], ("auxiliary call — no tools offered; it asks for JSON text")
-    return [], "unknown role — tool payload not reconstructable"
+        # The auxiliary callers ask for JSON text, never a tool, so an empty
+        # panel here is the call being what it says it is.
+        return [], "none — this leg asks for JSON text"
+    if kind == "chat" or kind.startswith("tool_decide"):
+        chosen = list(TOOL_SCHEMAS)
+        return chosen, f"the same {len(chosen)} on every mainline call"
+    return [], "unknown leg — not reconstructable"
 
 
 def usage_of(row: dict[str, Any]) -> dict[str, Any]:
@@ -231,12 +231,24 @@ def usage_of(row: dict[str, Any]) -> dict[str, Any]:
 
 
 def call_by_id(conn: Any, call_id: int | None) -> dict[str, Any] | None:
-    """One call row by id, or the newest call when ``call_id`` is None."""
-    if call_id is None:
-        found = rows(conn, "select * from llm_calls order by id desc limit 1")
-        return found[0] if found else None
-    found = rows(conn, "select * from llm_calls where id = ?", (call_id,))
-    return found[0] if found else None
+    """One call row by id, or the newest call when ``call_id`` is None.
+
+    Annotated like the ledger's rows. The prefix share and the drift flag are
+    MEASURED against the call before, so a row fetched on its own carried
+    neither, and the inspector reported "first call" and a null share for
+    every call it opened.
+    """
+    found = (rows(conn, "select * from llm_calls where id = ?", (call_id,))
+             if call_id is not None
+             else rows(conn, "select * from llm_calls order by id desc limit 1"))
+    if not found:
+        return None
+    row = found[0]
+    # _annotate measures against the last call that PERSISTED an envelope,
+    # which is what the ledger's full walk also carries forward.
+    before = rows(conn, "select * from llm_calls where id < ? and repro_json is not null "
+                        "order by id desc limit 1", (int(row.get("id") or 0),))
+    return _annotate([*before, row])[-1]
 
 
 def _previous_envelope(conn: Any, call_id: int) -> dict[str, Any] | None:
@@ -265,6 +277,56 @@ def context_payload(conn: Any, anchor: Any, *, call_id: int | None,
     return payload
 
 
+def decision_for_call(conn: Any, row: dict[str, Any]) -> dict[str, Any] | None:
+    """The verdict a decide leg answered with, or None.
+
+    ``llm_calls.response`` is EMPTY for a decide leg: the answer left as a
+    tool call, and only the function's NAME survives in ``meta``. The verdict
+    itself is a ``decision_records`` row, and the two tables share no id. The
+    panel used to render "(empty)" for these calls, which reads as a dropped
+    response when the call in fact answered.
+
+    ``t_h`` does not join them either: the three legs that open a live day all
+    ran at one virtual instant while their records carry each event's own hour
+    (7.92, 11.0, 17.0 against a call t_h of 19.40). What does hold is order
+    within a kind — the model is asked each pop-up once, and answers in the
+    order it was asked — so model-sourced records of a kind pair with that
+    kind's calls by position. A default or replayed verdict costs no call, so
+    only ``source='model'`` rows take part; when the two counts disagree the
+    pairing is refused rather than guessed at.
+    """
+    kind = str(_meta_of(row).get("popup_kind") or "")
+    if not kind:
+        return None
+    calls = [
+        int(entry["id"])
+        for entry in db_rows(
+            conn, "select id, meta from llm_calls order by id")
+        if _meta_of(entry).get("popup_kind") == kind
+    ]
+    records = db_rows(
+        conn,
+        "select * from decision_records where popup_kind = ? and source = 'model' "
+        "order by id", (kind,))
+    if len(calls) != len(records) or int(row.get("id") or 0) not in calls:
+        return None
+    record = records[calls.index(int(row["id"]))]
+    verdict = record.get("verdict_json")
+    if isinstance(verdict, str):
+        try:
+            verdict = json.loads(verdict)
+        except ValueError:
+            verdict = None
+    return {
+        "kind": kind,
+        "verdict": verdict if isinstance(verdict, dict) else None,
+        "event_label": record.get("event_label") or "",
+        "state_label": record.get("state_label") or "",
+        "transport": record.get("transport") or "",
+        "reask": bool(record.get("reask")),
+    }
+
+
 def call_detail(conn: Any, anchor: Any, call_id: int) -> dict[str, Any] | None:
     """The full request/response of one call, for the inspector panel."""
     row = call_by_id(conn, call_id)
@@ -279,6 +341,7 @@ def call_detail(conn: Any, anchor: Any, call_id: int) -> dict[str, Any] | None:
         "tools": tools,
         "tools_source": tools_source,
         "response": row.get("response") or "",
+        "decision": decision_for_call(conn, row),
         "reasoning": meta.get("reasoning") or "",
         "meta": meta,
     }

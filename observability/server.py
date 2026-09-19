@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from observability import reader, wire
+from observability.calls import envelope_of
+from observability.db import rows as db_rows
 
 #: Seconds between SSE probes.
 STREAM_INTERVAL_S: float = 1.5
@@ -27,7 +29,9 @@ STATIC_DIR: Path = Path(__file__).resolve().parent / "static"
 _CONTENT_TYPES = {".html": "text/html; charset=utf-8",
                   ".css": "text/css; charset=utf-8",
                   ".js": "text/javascript; charset=utf-8",
-                  ".svg": "image/svg+xml"}
+                  ".svg": "image/svg+xml",
+                  ".png": "image/png",
+                  ".ico": "image/x-icon"}
 
 
 class AppState:
@@ -203,7 +207,18 @@ class Handler(BaseHTTPRequestHandler):
         ref = self._run_or_404(params)
         if ref is None:
             return
-        self._send_json(wire.wire_listing(ref.path))
+        payload = wire.wire_listing(ref.path)
+        # Stamp each dump with the call it is the bytes of, so the verbatim
+        # view is the same call the ledger and the composition are showing.
+        with reader.open_run(ref.path) as conn:
+            envelopes = [
+                (int(row["id"]), envelope)
+                for row in db_rows(conn, "select id, repro_json from llm_calls "
+                                         "order by id")
+                for envelope in [envelope_of(row)] if envelope
+            ]
+        wire.correlate(ref.path, payload["files"], envelopes)
+        self._send_json(payload)
 
     def _wire_file(self, params: dict[str, str]) -> None:
         ref = self._run_or_404(params)

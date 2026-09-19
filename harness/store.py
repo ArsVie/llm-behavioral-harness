@@ -106,6 +106,19 @@ def _unjson(raw: str | None, default):
     return json.loads(raw)
 
 
+def _message_row(row) -> dict:
+    """One ``messages`` row as a dict, with ``tool_calls_json`` decoded onto
+    the wire key ``tool_calls`` (what :func:`assembler.wire_message` reads)."""
+    out = dict(row)
+    raw = out.pop("tool_calls_json", None)
+    if raw:
+        try:
+            out["tool_calls"] = json.loads(raw)
+        except ValueError:
+            pass
+    return out
+
+
 # UserModel group names (assertion key prefix convention "<group>:<name>").
 _USER_MODEL_GROUPS = (
     "stable_preferences",
@@ -246,10 +259,15 @@ class SQLiteStore:
         session_id: str | None = None,
         intent_id: str | None = None,
         conversation_id: str | None = None,
+        tool_calls: list[dict] | None = None,
+        tool_call_id: str | None = None,
     ) -> int:
         """Append a message; returns the row id. ``session_id``,
         ``intent_id`` (proactive provenance — the validated intent id that
         produced an outgoing message) and ``conversation_id`` are optional.
+        ``tool_calls`` marks her assistant row of a tool exchange (kept as
+        its wire payload); ``tool_call_id`` links a ``role="tool"`` result
+        row back to the call it answers.
         """
         if role == "system":
             skipped = self._skip_duplicate_system_tail(content)
@@ -257,10 +275,12 @@ class SQLiteStore:
                 return skipped
         cur = self.conn.execute(
             "INSERT INTO messages (role, content, t_h, day, proactive, "
-            "session_id, intent_id, conversation_id, sent_at) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "session_id, intent_id, conversation_id, sent_at, "
+            "tool_calls_json, tool_call_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (role, content, t_h, day, int(proactive), session_id, intent_id,
-             conversation_id, self._real_at(t_h)),
+             conversation_id, self._real_at(t_h), _json(tool_calls),
+             tool_call_id),
         )
         self.conn.commit()
         last_id = cur.lastrowid
@@ -335,7 +355,7 @@ class SQLiteStore:
         rows = self.conn.execute(
             "SELECT * FROM messages ORDER BY id DESC LIMIT ?", (limit,)
         ).fetchall()
-        return [dict(r) for r in reversed(rows)]
+        return [_message_row(r) for r in reversed(rows)]
 
     def messages_since(self, since_id: int = 0, limit: int | None = None) -> list[dict]:
         """Messages with ``id > since_id``, OLDEST FIRST (the context read).
@@ -356,7 +376,7 @@ class SQLiteStore:
                 "SELECT * FROM messages WHERE id > ? ORDER BY id LIMIT ?",
                 (since_id, limit),
             ).fetchall()
-        return [dict(r) for r in rows]
+        return [_message_row(r) for r in rows]
 
     def max_message_id(self) -> int:
         """Highest message id, or 0 on an empty store (epoch watermark)."""
@@ -367,7 +387,7 @@ class SQLiteStore:
         rows = self.conn.execute(
             "SELECT * FROM messages WHERE day = ? ORDER BY id", (day,)
         ).fetchall()
-        return [dict(r) for r in rows]
+        return [_message_row(r) for r in rows]
 
     def proactive_count(self, day: int) -> int:
         row = self.conn.execute(
@@ -386,7 +406,7 @@ class SQLiteStore:
             "SELECT * FROM messages WHERE session_id = ? ORDER BY id",
             (session_id,),
         ).fetchall()
-        return [dict(r) for r in rows]
+        return [_message_row(r) for r in rows]
 
     # -- conversations -------------------------------------------------------
 
@@ -848,6 +868,57 @@ class SQLiteStore:
         ).fetchone()
         return float(row["m"]) if row["m"] is not None else None
 
+    # -- reminders (her own alarm clock) -------------------------------------
+
+    def save_reminder(
+        self,
+        created_t_h: float,
+        fire_t_h: float,
+        note: str,
+        *,
+        about: str | None = None,
+        origin_conversation: str | None = None,
+    ) -> int:
+        """Persist one pending reminder; returns its id."""
+        cur = self.conn.execute(
+            "INSERT INTO reminders (created_t_h, fire_t_h, note, about, "
+            "origin_conversation, status) VALUES (?, ?, ?, ?, ?, 'pending')",
+            (created_t_h, fire_t_h, note, about, origin_conversation),
+        )
+        self.conn.commit()
+        last_id = cur.lastrowid
+        return int(last_id) if last_id is not None else -1
+
+    def get_reminder(self, reminder_id: int) -> dict | None:
+        row = self.conn.execute(
+            "SELECT * FROM reminders WHERE id = ?", (reminder_id,)
+        ).fetchone()
+        return dict(row) if row else None
+
+    def list_reminders(self, status: str | None = "pending") -> list[dict]:
+        """Reminders by status (default: pending), soonest fire first."""
+        if status is None:
+            rows = self.conn.execute(
+                "SELECT * FROM reminders ORDER BY fire_t_h, id"
+            ).fetchall()
+        else:
+            rows = self.conn.execute(
+                "SELECT * FROM reminders WHERE status = ? "
+                "ORDER BY fire_t_h, id", (status,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def update_reminder_status(
+        self, reminder_id: int, status: str, *, fired_t_h: float | None = None
+    ) -> bool:
+        """Move a reminder's status; True when a row changed."""
+        cur = self.conn.execute(
+            "UPDATE reminders SET status = ?, fired_t_h = ? WHERE id = ?",
+            (status, fired_t_h, reminder_id),
+        )
+        self.conn.commit()
+        return bool(cur.rowcount)
+
     # -- persona + interests ------------------------------------------------
 
     def save_persona(self, profile: PersonaProfile) -> None:
@@ -1039,6 +1110,17 @@ class SQLiteStore:
             "UPDATE agenda_items SET status = ? WHERE id = ?", (status, item_id)
         )
         self.conn.commit()
+
+    def move_agenda_item(self, item_id: str, start_t_h: float, end_t_h: float) -> None:
+        """Re-window one item (returns the rows changed, 0 when unknown)."""
+        cur = self.conn.execute(
+            "UPDATE agenda_items SET start_t_h = ?, end_t_h = ?, start_at = ?, "
+            "end_at = ? WHERE id = ?",
+            (start_t_h, end_t_h, self._real_at(start_t_h),
+             self._real_at(end_t_h), item_id),
+        )
+        self.conn.commit()
+        return int(cur.rowcount or 0)
 
     def list_agenda_items(
         self, day: int | None = None, status: str | None = None
@@ -1654,6 +1736,19 @@ class SQLiteStore:
         )
         self.conn.commit()
 
+    def defer_steer(self, steer_id: int) -> None:
+        """Return a steer to 'pending' WITHOUT spending retry budget.
+
+        The steer was delivered but never asked: the turn was already
+        carrying a pop-up. ``attempts`` stays put — see ``SteeringQueue.defer``.
+        """
+        self.conn.execute(
+            "UPDATE steering_queue SET status = 'pending', delivered_t_h = "
+            "NULL, boundary = NULL, seen_turn_id = NULL WHERE id = ?",
+            (steer_id,),
+        )
+        self.conn.commit()
+
     def abandon_steer(self, steer_id: int) -> None:
         """Give up on a steer permanently (retry budget exhausted).
 
@@ -1686,20 +1781,30 @@ class SQLiteStore:
         budget_consumed: int,
         *,
         replay_id: str | None = None,
+        reask: bool = False,
     ) -> int:
         """Persist one pop-up decision (raw reply AND parsed verdict); returns
         the record id. ``replay_id`` is the natural key used by
-        :meth:`decision_for_replay`."""
+        :meth:`decision_for_replay`.
+
+        ``after_message_id`` is stamped from the store itself: the highest
+        message id at the moment of recording is the row this decision was
+        taken behind, and it is what orders the context stream. The two
+        tables have independent id sequences and a virtual hour holds more
+        than one turn, so nothing else places the pair. ``reask`` records
+        that the round needed a second ask, so the replay carries it.
+        """
         cur = self.conn.execute(
             "INSERT INTO decision_records (day, t_h, popup_kind, event_id, "
             "event_label, state_label, time, inputs_json, raw_reply, "
             "verdict_json, source, transport, delivered_t_h, "
-            "budget_consumed, replay_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, "
-            "?, ?, ?, ?, ?, ?)",
+            "budget_consumed, replay_id, after_message_id, reask) VALUES "
+            "(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 day, t_h, popup_kind, event_id, event_label, state_label,
                 time, inputs_json, raw_reply, verdict_json, source, transport,
                 delivered_t_h, budget_consumed, replay_id,
+                self.max_message_id(), int(bool(reask)),
             ),
         )
         self.conn.commit()
@@ -1756,3 +1861,54 @@ class SQLiteStore:
             row["verdict"] = _unjson(row["verdict_json"], {})
             out.append(row)
         return out
+
+    # -- tool records (the actuation replay ledger) --------------------------
+
+    def record_tool_call(
+        self,
+        call_id: str,
+        day: int,
+        t_h: float,
+        tool: str,
+        op: str | None,
+        arguments_json: str | None,
+        result: str | None,
+        status: str,
+        *,
+        message_id: int | None = None,
+    ) -> int:
+        """Append one tool call to the ledger; returns its row id."""
+        cur = self.conn.execute(
+            "INSERT INTO tool_records (call_id, day, t_h, tool, op, "
+            "arguments_json, result, status, message_id) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (call_id, day, t_h, tool, op, arguments_json, result, status,
+             message_id),
+        )
+        self.conn.commit()
+        last_id = cur.lastrowid
+        return int(last_id) if last_id is not None else -1
+
+    def tool_record_for_replay(
+        self, call_id: str, tool: str, arguments_json: str | None
+    ) -> dict | None:
+        """The recorded outcome of THIS exact call, or None.
+
+        A re-run of a day replays the ledger instead of acting twice: same
+        call id, same tool, same arguments is the same call — a genuine new
+        call colliding on an id and arguments would be the same request.
+        """
+        row = self.conn.execute(
+            "SELECT * FROM tool_records WHERE call_id = ? AND tool = ? "
+            "AND COALESCE(arguments_json, '') = COALESCE(?, '') "
+            "ORDER BY id DESC LIMIT 1",
+            (call_id, tool, arguments_json),
+        ).fetchone()
+        return dict(row) if row else None
+
+    def tool_records_for_day(self, day: int) -> list[dict]:
+        """Ledger rows for one day, oldest first."""
+        rows = self.conn.execute(
+            "SELECT * FROM tool_records WHERE day = ? ORDER BY id", (day,)
+        ).fetchall()
+        return [dict(r) for r in rows]

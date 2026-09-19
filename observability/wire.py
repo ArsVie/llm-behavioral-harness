@@ -42,3 +42,61 @@ def wire_read(run_path: Path, name: str) -> str | None:
         return (wire_dir(run_path) / name).read_text(encoding="utf-8")
     except OSError:
         return None
+
+
+def _fingerprint_dump(body: dict) -> tuple | None:
+    """The identity of a dump body, as the stored envelope also spells it.
+
+    A wire body is the envelope with its system hoisted to a leading
+    ``role="system"`` message, so the two are comparable without keeping
+    either in full: the message count, the system text and the last message
+    pin a request exactly in practice.
+    """
+    messages = body.get("messages")
+    if not isinstance(messages, list) or not messages:
+        return None
+    head, tail = messages[0], messages[-1]
+    if not isinstance(head, dict) or not isinstance(tail, dict):
+        return None
+    return (len(messages) - 1, str(head.get("content") or ""),
+            str(tail.get("role") or ""), str(tail.get("content") or ""))
+
+
+def _fingerprint_envelope(envelope: dict) -> tuple | None:
+    """The same identity, read off a persisted ``repro_json`` envelope."""
+    messages = envelope.get("messages")
+    if not isinstance(messages, list) or not messages:
+        return None
+    tail = messages[-1]
+    if not isinstance(tail, dict):
+        return None
+    return (len(messages), str(envelope.get("system") or ""),
+            str(tail.get("role") or ""), str(tail.get("content") or ""))
+
+
+def correlate(run_path: Path, files: list[dict],
+              envelopes: list[tuple[int, dict]]) -> None:
+    """Stamp each dump in ``files`` with the ``call_id`` it belongs to.
+
+    The wire directory outlives a reset while ``llm_calls`` ids restart, and
+    several decide legs can share one virtual second, so neither position nor
+    timestamp identifies a dump. The bytes do.
+    """
+    wanted = {}
+    for call_id, envelope in envelopes:
+        key = _fingerprint_envelope(envelope)
+        if key is not None:
+            wanted.setdefault(key, call_id)
+    if not wanted:
+        return
+    root = wire_dir(run_path)
+    for entry in files:
+        entry["call_id"] = None
+        try:
+            import json
+
+            body = json.loads((root / entry["name"]).read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if isinstance(body, dict):
+            entry["call_id"] = wanted.get(_fingerprint_dump(body))

@@ -19,6 +19,14 @@
   --rose-soft: #fde4ec;
   --sky: #5f93c8;
   --sky-soft: #e4f0fc;
+  --sage: #5f8f4e;
+  --sage-soft: #e9f3e2;
+  --clay: #a46a4c;
+  --clay-soft: #f7e8df;
+  --plum: #8c5c9c;
+  --plum-soft: #f3e7f7;
+  --sun: #96761f;
+  --sun-soft: #f7eed4;
   --line: #cbbadf;
   --shadow: 0 10px 26px rgba(150, 130, 180, 0.13);
   --shadow-soft: 0 4px 12px rgba(150, 130, 180, 0.10);
@@ -50,36 +58,69 @@ body {
 }
 
 /* ---------------------------------------------------------------- topbar */
+/* Which run this is, and how it is going: two halves of ONE banner, side by
+   side. Stacked with a rule between them they read as two headers. */
 .topbar {
-  display: flex; flex-wrap: wrap; gap: 18px;
-  align-items: center; justify-content: space-between;
-  padding: 18px 22px; margin-bottom: 18px;
+  display: flex; flex-wrap: wrap; align-items: stretch; gap: 16px 24px;
+  padding: 16px 20px; margin-bottom: 18px;
 }
-.brand { display: flex; gap: 14px; align-items: center; }
+/* Title and controls ride the same rows: stacked, the title line left a
+   hand's width of empty banner beside it. */
+.topline {
+  flex: 0 1 auto; display: flex; flex-direction: row; flex-wrap: wrap;
+  gap: 12px 20px; align-items: center; min-width: 0;
+}
+/* The brand gives way so the control grid can sit BESIDE the title rather
+   than wrapping under it. */
+.brand { display: flex; gap: 14px; align-items: center; min-width: 0; flex: 1 1 auto; }
+.brand > div { min-width: 0; }
 .mark {
   width: 42px; height: 42px; border-radius: 14px; flex: none;
   background: linear-gradient(135deg, var(--lav), var(--mint) 55%, var(--peach));
   box-shadow: inset 0 0 0 2px #fff;
+  object-fit: cover;
 }
 h1 { font-size: 19px; margin: 0; letter-spacing: .2px; }
 .sub { margin: 2px 0 0; color: var(--ink-soft); font-size: 13px; overflow-wrap: anywhere; }
+.brand .sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.topbar-controls { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
-.field { display: flex; flex-direction: column; gap: 3px; }
-.field-label { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-faint); }
-select, .btn {
+/* One family of pills: same height, same radius, so nothing floats half a
+   line off its neighbour. Each is as wide as what it says — on a grid they
+   were padded out to a shared column width, which spent a third of the
+   banner on air around the words "day 0". */
+.topbar-controls {
+  /* Three across, two down, each column only as wide as its widest pill. */
+  display: grid; grid-template-columns: repeat(3, auto);
+  gap: 8px; align-items: center; min-width: 0;
+}
+select, .btn, .check {
   font: inherit; color: var(--ink); background: var(--paper-2);
   border: 1px solid var(--line); border-radius: var(--radius-sm);
-  padding: 8px 12px; cursor: pointer;
+  padding: 0 12px; height: 38px; cursor: pointer;
 }
-select { min-width: 260px; }
+select, .btn { display: inline-flex; align-items: center; }
+/* In the topbar grid every cell is a pill of the same height. */
+.topbar-controls > * { height: 30px; border-radius: 999px; font-size: 13px; flex: none; }
+/* A select is as wide as its longest option unless told otherwise. */
+.topbar-controls select { min-width: 0; max-width: 240px; padding-right: 8px; }
+.topbar-controls .check { justify-content: center; gap: 6px; border: 1px solid var(--line); padding: 0 12px; }
+.topbar-controls .btn { justify-content: center; }
+.topbar-controls .chip { justify-content: flex-start; overflow: hidden; white-space: nowrap; }
+select { min-width: 240px; }
 select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav); }
-.btn-primary { background: var(--lav); border-color: var(--lav); color: var(--ink); }
-.chiprow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+/* A card's own controls are secondary to the page's: they sit at list scale,
+   not at topbar scale. */
+.btn-small { height: 30px; font-size: 12.5px; padding: 0 11px; }
+.btn-quiet { background: transparent; }
+.btn:disabled { opacity: .45; cursor: default; }
+.btn:disabled:hover { background: var(--paper-2); border-color: var(--line); }
+.card-actions { padding: 4px 20px 8px; }
+.chiprow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-height: 38px; }
 .chip {
   display: inline-flex; align-items: center; gap: 7px;
-  padding: 6px 12px; border-radius: 999px; font-size: 13px;
+  padding: 6px 12px; border-radius: 999px; font-size: 13px; white-space: nowrap;
   background: var(--paper-2); border: 1px solid var(--line); color: var(--ink-soft);
+  overflow: hidden; text-overflow: ellipsis;
 }
 .chip::before { content: ""; width: 9px; height: 9px; border-radius: 2px; background: var(--ink-faint); flex: none; }
 .chip[data-state="live"] { background: var(--mint-soft); color: #2f6a58; border-color: var(--mint); }
@@ -92,18 +133,34 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
 .chip-quiet::before { display: none; }
 
 .check { display: inline-flex; align-items: center; gap: 7px; font-size: 13px;
-  color: var(--ink-soft); background: var(--paper-2); border: 1px solid var(--line);
-  border-radius: var(--radius-sm); padding: 8px 12px; cursor: pointer; }
+  color: var(--ink-soft); white-space: nowrap; }
 .check input { accent-color: var(--lav); margin: 0; }
 
 /* ------------------------------------------------------------- statsline */
+/* The run's vitals belong to the run's own card: a separate band of tiles
+   was a second header saying the same thing one row lower. Tighter, too —
+   they are a readout, not the page's subject. */
 .statsline {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr));
-  gap: 8px; padding: 14px 18px; margin-bottom: 18px;
+  flex: 1 1 540px; min-width: 0; align-content: center;
+  /* The first tile carries two figures and a two-word label; equal quarters
+     clipped it to pad three tiles that had room to spare. */
+  display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr;
+  gap: 6px; margin: 0;
 }
-.stat { padding: 6px 10px; border-radius: var(--radius-sm); background: var(--paper-2); min-width: 0; }
-.stat-label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); }
-.stat-value { display: block; font-family: var(--mono); font-size: 17px; margin-top: 2px; }
+@media (max-width: 860px) {
+  .statsline { grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
+}
+.stat { padding: 5px 9px 6px; border-radius: 9px; background: var(--paper-2); min-width: 0; }
+.stat-label, .stat-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stat-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); }
+.stat-value { display: block; font-family: var(--mono); font-size: 15px; margin-top: 1px; line-height: 1.2; }
+/* The second line carries what the headline number is made of, so a figure
+   is never a bare number the reader has to hover to understand. */
+.stat-foot { display: block; font-size: 10.5px; color: var(--ink-soft); margin-top: 1px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.stat-foot:empty { display: none; }
+.stat-click { cursor: pointer; }
+.stat-click:hover { outline: 1px solid var(--lav); }
 .stat[data-state="warn"] { background: var(--peach-soft); }
 .stat[data-state="bad"] { background: var(--rose-soft); }
 .stat[data-state="good"] { background: var(--mint-soft); }
@@ -111,18 +168,47 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
 /* ------------------------------------------------------------------ grid */
 /* Cards size to their own content: a stretched card leaves a dead white
    block under a short table. */
-.grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); align-items: start; }
-/* The event tail owns the full width: its rows carry long labels. */
+/* Two equal columns, because the pair asks two questions of one call: what
+   is in its window, and what the call itself looks like at each zoom. The
+   event tail runs under both. */
+.grid { display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
 .events-card { grid-column: 1 / -1; }
+.context-card, .calls-card { padding-bottom: 14px; display: flex; flex-direction: column; }
+.calls-card .table-wrap { padding-bottom: 6px; }
 @media (max-width: 1100px) {
   .grid { grid-template-columns: minmax(0, 1fr); }
-  .events-card { grid-column: auto; }
+  .card-actions { padding-left: 16px; padding-right: 16px; }
 }
 
-.card-head { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; padding: 18px 20px 6px; }
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 18px 20px 6px; }
+/* A short line under the switch, not a paragraph: it names what the list is,
+   where a column header cannot. */
+.view-note { margin: 0 20px 2px; font-size: 12px; color: var(--ink-faint); }
 h2 { font-size: 16px; margin: 0; }
 h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-faint); margin: 16px 20px 6px; }
 .hint { font-size: 12px; color: var(--ink-faint); font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+/* The three zooms of one card; only one is mounted at a time. It fills the
+   card so the pair stays the same height and the footnote sits on the bottom
+   edge rather than leaving a ragged white block under a short list. */
+.view[hidden] { display: none; }
+.calls-card .view:not([hidden]) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+.calls-card .view > .table-wrap, .calls-card .view > .surface { flex: 1 1 auto; }
+
+/* ---------------------------------------------------- granularity switch */
+.viewswitch {
+  display: inline-flex; background: var(--paper-2); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px; gap: 2px;
+}
+.vbtn {
+  font: inherit; font-size: 12.5px; color: var(--ink-soft); cursor: pointer;
+  background: transparent; border: 0; border-radius: 999px; padding: 5px 14px;
+}
+.vbtn:hover { color: var(--ink); }
+.vbtn[aria-pressed="true"] {
+  background: var(--card); color: var(--ink); font-weight: 600;
+  box-shadow: var(--shadow-soft);
+}
 
 /* --------------------------------------------------------------- context */
 .context-card { padding-bottom: 18px; }
@@ -186,6 +272,10 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .list li:last-child { border-bottom: 0; }
 .list .name { display: flex; align-items: baseline; gap: 8px; min-width: 0; overflow: hidden; }
 .list .name b { font-weight: 500; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* A block's KIND is its whole identity in the list — "persona & voice"
+   clipped to "pers…" is the row saying nothing. It holds its width and the
+   preview beside it gives way instead. */
+.list .name b.fixed { flex: none; overflow: visible; white-space: nowrap; }
 .list .tokens { font-family: var(--mono); color: var(--ink-soft); flex: none; }
 .list .preview {
   color: var(--ink-faint); font-size: 12px; min-width: 0; flex: 1 1 auto;
@@ -194,8 +284,8 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .empty { color: var(--ink-faint); font-style: italic; }
 
 .surface { max-height: 420px; overflow: auto; }
-.surface li { cursor: pointer; }
-.surface li:hover { background: var(--paper-2); }
+.surface li, .list li.clickable { cursor: pointer; border-radius: 8px; padding-inline: 6px; }
+.surface li:hover, .list li.clickable:hover { background: var(--lav-soft); }
 .role { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding: 1px 7px; border-radius: 6px; flex: none; }
 .role-user { background: var(--sky-soft); color: #46688f; }
 .role-assistant { background: var(--lav-soft); color: #6b57ac; }
@@ -207,7 +297,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 /* ----------------------------------------------------------------- table */
 /* The table scrolls inside its own card at any width: a 9-column ledger
    cannot wrap, so it gets an intentional scroll region instead of spilling. */
-.table-wrap { overflow: auto; padding: 6px 12px 18px; max-height: 560px; }
+.table-wrap { overflow: auto; padding: 6px 12px 8px; max-height: 480px; }
 .table { min-width: 620px; }
 .table { width: 100%; border-collapse: collapse; font-size: 13px; }
 .table th {
@@ -220,6 +310,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .table tbody tr:hover { background: var(--paper-2); }
 .table tbody tr[data-selected="true"] { background: var(--lav-soft); }
 .table .leg { font-family: inherit; }
+.table .when { white-space: nowrap; }
 .table .note { font-family: inherit; color: #8a4761; }
 .table .ok { color: #2f6a58; }
 .tag { border-radius: 6px; padding: 1px 6px; font-size: 12px; font-family: inherit; }
@@ -228,37 +319,110 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 
 /* -------------------------------------------------------------- stream */
 .events-card { display: flex; flex-direction: column; }
-.stream {
-  list-style: none; margin: 0; padding: 6px 16px 18px; overflow: auto; max-height: 720px;
-  /* The tail auto-scrolls, so the oldest visible row is usually partly above
-     the fold; the fade makes that read as "more above" rather than a crop. */
-  mask-image: linear-gradient(to bottom, transparent 0, #000 14px);
+/* ---------------------------------------------------------- event legend */
+/* Eleven kinds share one column. Without a key, the colours were decoration;
+   the legend names every one, counts it, and doubles as the filter, so the
+   30 bookkeeping rows can be dropped to find the 3 that decided something. */
+.legend-bar { padding: 2px 20px 10px; }
+.kindbar { display: flex; flex-wrap: wrap; gap: 6px; }
+.kind-toggle {
+  display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
+  font: inherit; font-size: 12px; color: var(--ink-soft);
+  background: var(--kind-soft, var(--paper-2)); border: 1px solid transparent;
+  border-radius: 999px; padding: 3px 10px 3px 7px;
 }
+.kind-toggle:hover { border-color: var(--kind, var(--line)); }
+.kind-toggle .sq { background: var(--kind, var(--ink-faint)); }
+.kind-toggle .n { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+.kind-toggle[data-off="1"] {
+  background: transparent; color: var(--ink-faint);
+  border-color: var(--line); border-style: dashed; text-decoration: line-through;
+}
+.kind-toggle[data-off="1"] .sq { background: var(--line); }
+.legend-note { margin: 8px 0 0; }
+.legend-note .repeat { font-size: 11px; }
+.chip-tail { font-size: 12px; }
+.chip-tail[data-state="on"] { background: var(--mint-soft); color: #2f6a58; border-color: var(--mint); }
+.chip-tail[data-state="on"]::before { background: #4caf8f; }
+.chip-tail[data-state="off"]::before { background: var(--ink-faint); }
+
+/* ----------------------------------------------------------- stream rows */
+.stream {
+  list-style: none; margin: 0; padding: 4px 16px 8px; overflow: auto; max-height: 640px;
+}
+/* Three columns, fixed: time, kind, then the row itself. The kind badge used
+   to sit inside the wrapping flex line, so the label started at a different
+   x on every row and the column could not be read down. */
+/* No colour rail down the left: eleven kinds of stripe turned the column
+   into a barcode. The KIND BADGE carries the colour — one small, aligned,
+   named swatch per row that matches the legend — and the row itself stays
+   paper-white, so a tinted row means something happened. */
 .stream li {
-  display: grid; grid-template-columns: 74px 1fr; gap: 10px;
-  padding: 7px 8px; border-radius: var(--radius-sm); cursor: pointer;
-  border-left: 4px solid transparent;
+  display: grid; grid-template-columns: 92px 92px minmax(0, 1fr);
+  gap: 0 14px; align-items: baseline;
+  padding: 9px 10px; border-radius: 10px; cursor: pointer;
+  background: var(--card);
+  border-bottom: 1px solid var(--paper-2);
 }
 .stream li:hover { background: var(--paper-2); }
-.stream time { font-family: var(--mono); font-size: 12px; color: var(--ink-faint); }
+.stream time { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); white-space: nowrap; }
+.stream .kind {
+  font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
+  padding: 3px 8px; border-radius: 999px; text-align: center;
+  background: var(--kind-soft, var(--paper-2)); color: var(--kind, var(--ink-soft));
+  box-shadow: inset 0 0 0 1px var(--kind, var(--line));
+  font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+/* The label is the row: it reads at body weight while the machinery around
+   it stays small and quiet. */
 .stream .line { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.stream .kind { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; padding: 1px 7px; border-radius: 6px; background: var(--paper-2); color: var(--ink-soft); }
-.stream .detail { color: var(--ink-soft); font-size: 12px; }
-.stream li[data-severity="warn"] { border-left-color: var(--peach); background: var(--peach-soft); }
-.stream li[data-severity="error"] { border-left-color: var(--rose); background: var(--rose-soft); }
-.sq { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
-.sq.live { background: #4caf8f; }
-/* The ordered surface is read FOR its order: it grows with the page instead of
-   being clipped at a fixed height. */
-.surface { max-height: none; overflow: visible; }
+.stream .line > span:nth-child(1) { font-size: 13.5px; color: var(--ink); font-weight: 500; }
+.stream .detail {
+  color: var(--ink-soft); font-size: 12px; margin-top: 2px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; overflow-wrap: anywhere;
+}
+/* Tint is reserved for the exceptions, so the eye finds them without
+   scanning: everything else is white. */
+.stream li[data-severity="warn"] { background: var(--peach-soft); border-bottom-color: var(--peach); }
+.stream li[data-severity="warn"]:hover { background: #ffe0cd; }
+.stream li[data-severity="error"] { background: var(--rose-soft); border-bottom-color: var(--rose); }
+.stream li[data-severity="error"]:hover { background: #fbd6e2; }
+
+[data-kind="state"]        { --kind: #8a809f; --kind-soft: var(--paper-2); }
+[data-kind="call"]         { --kind: #7a63c4; --kind-soft: var(--lav-soft); }
+[data-kind="message"]      { --kind: var(--sky); --kind-soft: var(--sky-soft); }
+[data-kind="decision"]     { --kind: var(--mint); --kind-soft: var(--mint-soft); }
+[data-kind="steer"]        { --kind: var(--peach); --kind-soft: var(--peach-soft); }
+[data-kind="proactive"]    { --kind: var(--rose); --kind-soft: var(--rose-soft); }
+[data-kind="schedule"]     { --kind: var(--sun); --kind-soft: var(--sun-soft); }
+[data-kind="agenda"]       { --kind: var(--sage); --kind-soft: var(--sage-soft); }
+[data-kind="memory"]       { --kind: var(--plum); --kind-soft: var(--plum-soft); }
+[data-kind="conversation"] { --kind: var(--clay); --kind-soft: var(--clay-soft); }
+[data-kind="judgement"]    { --kind: var(--ink); --kind-soft: var(--paper-2); }
+.kind-toggle { color: var(--kind, var(--ink-soft)); font-weight: 500; }
+
+.sq { width: 9px; height: 9px; border-radius: 2px; display: inline-block; flex: none; }
+/* The surface is read FOR its order, but a long run makes it the tallest
+   thing on the page by far. It scrolls in its own panel like the stream and
+   the calls table, and the foot says how much is in there. */
+.surface { max-height: 460px; overflow: auto; }
+.panel-foot {
+  margin: 0; padding: 8px 20px 2px; font-size: 12px; color: var(--ink-faint);
+  border-top: 1px dashed var(--line);
+}
+.panel-foot[hidden] { display: none; }
 .stream .day-head {
+  display: flex; gap: 10px; align-items: baseline;
   color: var(--ink-faint); font-size: 12px; letter-spacing: .08em;
-  text-transform: uppercase; border-top: 1px solid var(--line);
-  margin-top: 6px; padding-top: 10px; cursor: default;
+  text-transform: uppercase; border: 0; border-top: 1px solid var(--line);
+  background: transparent; border-radius: 0;
+  margin: 10px 0 4px; padding: 10px 10px 2px; cursor: default;
 }
 .stream .day-head:hover { background: transparent; }
+.stream .day-head strong { color: var(--ink); font-weight: 600; letter-spacing: .04em; }
 .stream .day-real { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; }
-.stream li[data-grouped="1"] { border-left-color: var(--lav); }
+.stream li[data-grouped="1"] .repeat { box-shadow: inset 0 0 0 1px var(--lav); }
 .stream .repeat {
   font-family: var(--mono); font-size: 11px; color: var(--lav);
   background: var(--lav-soft); border-radius: 6px; padding: 1px 6px;
@@ -267,6 +431,10 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
   font-size: 11px; border-radius: 6px; padding: 1px 7px;
   background: var(--mint-soft); color: var(--mint);
 }
+/* One call, two readings: the switch sits at the top of its drawer. */
+.drawer-modes { margin: 0 0 14px; }
+.drawer-actions { display: flex; justify-content: flex-end; margin-bottom: 10px; }
+
 .full-text {
   white-space: pre-wrap; font-size: 13px; line-height: 1.55; color: var(--ink);
   background: var(--paper-2); border: 1px solid var(--line);
@@ -302,12 +470,19 @@ pre {
   font-family: var(--mono); font-size: 12px; line-height: 1.5; overflow: auto;
   max-height: 320px; margin: 0 0 12px; white-space: pre-wrap; word-break: break-word;
 }
-.kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(190px, 100%), 1fr)); gap: 4px 14px; margin: 0 0 14px; }
-.kv div { display: flex; justify-content: space-between; gap: 10px; font-size: 13px; border-bottom: 1px dashed var(--line); padding: 4px 0; }
+/* Reasoning is the model's own deliberation, not part of the transcript:
+   tinted and italic so it never reads as something that went on the wire. */
+pre.aside {
+  background: var(--lav-soft); color: var(--ink-soft);
+  font-style: italic; border-left: 3px solid var(--lav);
+}
+/* What identifies the call, then what measures it. */
+.drawer-sub { margin: 0 0 10px; font-family: var(--mono); font-size: 12.5px; color: var(--ink-soft); }
+.factstrip {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(min(120px, 100%), 1fr));
+  gap: 6px; margin: 0 0 16px;
+}
 /* A long model id must not break mid-token in a narrow column. */
-.kv div.wide { grid-column: 1 / -1; }
-.kv dt { color: var(--ink-soft); }
-.kv dd { margin: 0; font-family: var(--mono); }
 .bubble { border-radius: var(--radius-sm); padding: 10px 12px; margin: 0 0 8px; font-size: 13px; }
 .bubble .meta { font-size: 12px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 4px; display: flex; justify-content: space-between; gap: 8px; }
 .bubble.user { background: var(--sky-soft); }
@@ -324,7 +499,7 @@ pre {
 /* ------------------------------------------------------------ responsive */
 /* Grid/flex children default to min-width:auto, so a child holding a wide
    table or a long identifier drags the whole page sideways. */
-.card, .grid > *, .meter-figures, .legend div, .kv div, .list li, .stream li,
+.card, .grid > *, .meter-figures, .legend div, .list li, .stream li,
 .bubble, .stat { min-width: 0; }
 .stat-value { overflow-wrap: anywhere; }
 
@@ -332,14 +507,19 @@ pre {
   .page { padding: 16px 14px 48px; }
   .topbar { padding: 14px 16px; gap: 12px; }
   .brand { flex: 1 1 100%; }
-  .topbar-controls { flex: 1 1 100%; }
+  .topbar-controls { flex: 1 1 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
   select { min-width: 0; width: 100%; }
-  .field { flex: 1 1 220px; }
   .meter { flex-wrap: wrap; gap: 14px; padding: 8px 16px 4px; }
   .ring-wrap { width: 108px; height: 108px; }
   h3 { margin: 14px 16px 6px; }
   .card-head, .list, .split { padding-left: 16px; padding-right: 16px; }
-  .stream li { grid-template-columns: 62px 1fr; }
+  /* Two columns on a phone: the kind badge moves under the time so the
+     label keeps a usable width instead of a 40px ribbon. */
+  .stream li { grid-template-columns: 88px minmax(0, 1fr); }
+  .stream .kind { justify-self: start; }
+  .stream .kind { grid-row: 2; grid-column: 1; text-align: left; }
+  .stream .line, .stream li > div { grid-row: 1 / span 2; grid-column: 2; }
+  .legend-bar { padding-left: 16px; padding-right: 16px; }
   /* Drop the preview to its own line on a phone, so a block's label is never
      squeezed into "pr..." just to keep the preview beside it. */
   .list .name { flex-wrap: wrap; }

@@ -8,8 +8,8 @@ timestamp: 2026-09-07
 
 # Harness runtime context flow
 
-This is the short operational view. The [architecture overview](architecture-overview.md)
-is the authoritative system reference; the [verbatim design record](internal/verbatim-design-internal-context.md)
+This is the short operational view. The [architecture overview](../architecture-overview.md)
+is the authoritative system reference; the [verbatim design record](../../VERBATIM.md)
 contains the user's wording and decisions.
 
 ## Context assembly

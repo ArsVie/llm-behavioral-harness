@@ -46,6 +46,9 @@ def system_parts(system: str) -> list[dict[str, Any]]:
             "tokens": tokens.estimate_text(block),
             "chars": len(block),
             "preview": _clip(block, 400),
+            # The row shows a clipped line; the whole block rides along so
+            # the drawer can show what the model actually reads.
+            "text": block,
         }
         for block in blocks
         if block

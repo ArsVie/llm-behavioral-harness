@@ -374,7 +374,7 @@ def test_v4_to_v5_migration_preserves_everything(tmp_path):
         "id", "day", "t_h", "popup_kind", "event_id", "event_label",
         "state_label", "time", "inputs_json", "raw_reply", "verdict_json",
         "source", "transport", "delivered_t_h", "budget_consumed",
-        "replay_id",
+        "replay_id", "after_message_id", "reask",
     }
 
 # steering_queue exists with the exact column set

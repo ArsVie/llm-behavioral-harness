@@ -55,7 +55,7 @@ catalog size and the gate chain (a different problem class).
    "No model is trained on these tags."; `:18` "Injected session content projects
    verbatim; the caller owns any framing."). We use no tag family: the pop-up rides as
    `role=system` and the delimiter is a self-describing square-bracket marker
-   (`[STEER — a real arriving event from the harness…] … [/STEER]`, `steering.py:439-444`).
+   (`[STEER] … [/STEER]`, `steering.py`).
    So we are not on the refuted family. Whether our JSON-ish `System: {Event: …}` block
    reads better than prose is still an open probe, not a settled win.
    **The role divergence stands by decision (2026-09-12):** dsh forces `user`,

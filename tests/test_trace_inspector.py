@@ -83,10 +83,10 @@ def _codes(path):
 
 def _call(env: dict, **kw) -> tuple:
     base = {"prompt": 1000, "cached": 900, "lane": "product", "cost": 0.01,
-            "model": "deepseek/deepseek-v4-flash"}
+            "role": "chat", "model": "deepseek/deepseek-v4-flash"}
     base.update(kw)
     return (
-        0, 1.0, "chat", base["model"], "h", "r", None, json.dumps(env),
+        0, 1.0, base["role"], base["model"], "h", "r", None, json.dumps(env),
         base["prompt"], 10, base["prompt"] + 10, base["cached"], 0,
         base["lane"], base["cost"],
     )
@@ -106,6 +106,7 @@ def test_a_clean_run_reports_nothing(tmp_path):
         {"role": "user", "content": "hi"}, {"role": "system", "content": "c"}]}
     env2 = {"system": "PERSONA", "messages": [
         {"role": "user", "content": "hi"},
+        {"role": "system", "content": "c"},
         {"role": "assistant", "content": "hey"},
         {"role": "system", "content": "c2"}]}
     conn.executemany(
@@ -241,18 +242,36 @@ def test_a_placeholder_event_name_is_flagged(tmp_path):
 # the persisted stream
 
 
-def test_two_system_messages_in_a_row_are_an_error(tmp_path):
+def test_two_system_messages_in_a_row_are_the_architecture(tmp_path):
+    """The day block and the opening card are adjacent on every quiet
+    day."""
     conn, path = _db(tmp_path)
     conn.executemany(
         "insert into messages (id,role,content,t_h,day) values (?,?,?,?,?)",
-        [(1, "system", "card", 1.0, 0), (2, "system", "popup", 1.0, 0)],
+        [(1, "system", "Sunday's plan:\n - gym", 1.0, 0),
+         (2, "system", "AFFECTIVE BEARING:\nbright", 1.0, 0)],
     )
     conn.commit()
     conn.close()
-    assert _codes(path)["adjacent-system-messages"].severity == trace.ERROR
+    found = _codes(path)
+    assert "adjacent-system-messages" not in found
+    assert "superseded-state-cards" not in found
 
 
-def test_a_system_message_between_turns_is_not_adjacency(tmp_path):
+def test_a_pile_of_superseded_cards_is_reported(tmp_path):
+    """Each card change appends a row and never retracts the last one."""
+    conn, path = _db(tmp_path)
+    conn.executemany(
+        "insert into messages (id,role,content,t_h,day) values (?,?,?,?,?)",
+        [(i, "system", f"AFFECTIVE BEARING:\nbright {i}", float(i), 0)
+         for i in range(1, 6)],
+    )
+    conn.commit()
+    conn.close()
+    assert _codes(path)["superseded-state-cards"].severity == trace.WARN
+
+
+def test_a_system_message_between_turns_hides_nothing(tmp_path):
     conn, path = _db(tmp_path)
     conn.executemany(
         "insert into messages (id,role,content,t_h,day) values (?,?,?,?,?)",
@@ -263,7 +282,7 @@ def test_a_system_message_between_turns_is_not_adjacency(tmp_path):
     conn.commit()
     conn.close()
     found = _codes(path)
-    assert "adjacent-system-messages" not in found
+    assert "superseded-state-cards" not in found
     assert "unanswered-user-turn" not in found
 
 
@@ -360,6 +379,7 @@ def test_a_shared_prefix_the_provider_did_not_cache_is_an_error(tmp_path):
     env1 = {"system": "P", "messages": body + [
         {"role": "system", "content": "card"}]}
     env2 = {"system": "P", "messages": body + [
+        {"role": "system", "content": "card"},
         {"role": "assistant", "content": "y"},
         {"role": "system", "content": "card2"}]}
     conn.executemany(
@@ -387,6 +407,93 @@ def test_a_changed_system_prefix_is_an_error(tmp_path):
     conn.commit()
     conn.close()
     assert _codes(path)["stable-prefix-changed"].severity == trace.ERROR
+
+
+def _calls(conn, *calls) -> None:
+    conn.executemany(
+        "insert into llm_calls (day,t_h,role,model,prompt_hash,response,meta,"
+        "repro_json,prompt_tokens,completion_tokens,total_tokens,"
+        "cached_tokens,cache_miss_tokens,lane,raw_cost) "
+        "values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        list(calls),
+    )
+    conn.commit()
+    conn.close()
+
+
+# append-only: the one invariant the whole context design rests on
+
+
+def test_a_request_that_drops_a_row_the_model_already_read_is_an_error(
+    tmp_path,
+):
+    """Divergence before the trailing transient slot is history
+    rewritten, not an append."""
+    conn, path = _db(tmp_path)
+    head = [{"role": "system", "content": "plan"},
+            {"role": "user", "content": "hi"}]
+    long = [{"role": "assistant", "content": "", "tool_calls": [{"id": "t"}]},
+            {"role": "tool", "content": "recorded"}]
+    _calls(
+        conn,
+        _call({"system": "P", "messages": [
+            *head, *long, {"role": "system", "content": "card"}]}),
+        _call({"system": "P", "messages": [
+            *head, {"role": "system", "content": "card"}]}),
+    )
+    found = _codes(path)["context-stream-rewritten"]
+    assert found.severity == trace.ERROR
+    assert "diverges at message 2" in found.detail[0]
+
+
+def test_a_decide_round_may_drop_its_steer(tmp_path):
+    """A round that records no decision re-queues its steer; everything the
+    model already read is still there, in order."""
+    conn, path = _db(tmp_path)
+    head = [{"role": "system", "content": "plan"},
+            {"role": "user", "content": "hi"}]
+    _calls(
+        conn,
+        _call({"system": "P", "messages": [
+            *head, {"role": "system", "content": "steer one"}]},
+            role="tool_decide_event"),
+        _call({"system": "P", "messages": [
+            *head,
+            {"role": "assistant", "content": "", "tool_calls": [{"id": "t"}]},
+            {"role": "tool", "content": "recorded"},
+            {"role": "system", "content": "steer two"}]}),
+    )
+    assert "context-stream-rewritten" not in _codes(path)
+
+
+def test_a_fork_is_not_measured_against_the_mainline(tmp_path):
+    """A fork is neither predecessor nor successor to the mainline."""
+    conn, path = _db(tmp_path)
+    body = [{"role": "system", "content": "plan"}]
+    _calls(
+        conn,
+        _call({"system": "P", "messages": body}),
+        _call({"messages": [{"role": "user", "content": "plan her day"}],
+               "kwargs": {"system": "P"}}, role="aux_day_planner"),
+        _call({"system": "P", "messages": [
+            *body, {"role": "system", "content": "card"}]}),
+    )
+    found = _codes(path)
+    assert "stable-prefix-changed" not in found
+    assert "context-stream-rewritten" not in found
+
+
+def test_the_aux_envelope_shape_is_normalized(tmp_path):
+    """``MeteredClient`` persists ``{messages, kwargs}``, so ``system``
+    sits one level down."""
+    env = trace._envelope({
+        "repro_json": json.dumps(
+            {"messages": [{"role": "user", "content": "x"}],
+             "kwargs": {"system": "PERSONA", "temperature": 0.8}}
+        )
+    })
+    assert env["system"] == "PERSONA"
+    assert env["messages"] == [{"role": "user", "content": "x"}]
 
 
 def test_a_run_with_no_pricable_model_is_only_a_warning(tmp_path):

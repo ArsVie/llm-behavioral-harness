@@ -141,5 +141,5 @@ must be an explicit re-queue, which is what `requeue_steer` already does.
 Engine distributions remain out of scope. Any live deployment is a separate,
 explicit decision.
 
-See [architecture-overview.md](architecture-overview.md) for the compact system
-reference and [internal/BACKLOG.md](internal/BACKLOG.md) for pending work.
+See [architecture-overview.md](../architecture-overview.md) for the compact system
+reference and [internal/BACKLOG.md](../BACKLOG.md) for pending work.

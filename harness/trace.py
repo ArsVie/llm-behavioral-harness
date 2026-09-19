@@ -40,6 +40,12 @@ _RANK = {ERROR: 0, WARN: 1, INFO: 2}
 #: this fraction of its tokens.
 CACHE_FLOOR = 0.6
 
+#: First bytes of a rendered state card (``assembler.AFFECTIVE_HEADER``).
+_CARD_HEADER = "AFFECTIVE BEARING:"
+
+#: Cards in the stream before the superseded copies are worth reporting.
+_CARD_COPIES_WARN = 3
+
 #: state_events that are per-turn bookkeeping rather than run history.
 _NOISY_EVENTS = frozenset({"popup_boundary_check", "assistant_reply"})
 
@@ -400,9 +406,28 @@ def agenda(ctx: Ctx) -> list[str]:
 # ------------------------------------------------------------------- cache
 
 
+#: Role prefix of the calls that FORK the context (judge, day planner,
+#: onboarding) rather than extend it. Everything else is one mainline lane.
+_FORK_PREFIX = "aux_"
+
+
+def _is_fork(row: sqlite3.Row) -> bool:
+    return str(row["role"] or "").startswith(_FORK_PREFIX)
+
+
 def _envelope(row: sqlite3.Row) -> dict | None:
+    """The call's request envelope, flattened.
+
+    The session persists the payload flat; ``metering.MeteredClient`` wraps
+    it as ``{"messages", "kwargs"}``, so ``system`` sits one level down.
+    """
     env = _loads(row["repro_json"])
-    return env if isinstance(env, dict) else None
+    if not isinstance(env, dict):
+        return None
+    kwargs = env.get("kwargs")
+    if isinstance(kwargs, dict):
+        env = {**kwargs, **{k: v for k, v in env.items() if k != "kwargs"}}
+    return env
 
 
 def _prefix_share(prev: dict, cur: dict) -> tuple[int, int, bool]:
@@ -424,6 +449,19 @@ def _prefix_share(prev: dict, cur: dict) -> tuple[int, int, bool]:
     )
     sys_prev, sys_cur = prev.get("system") or "", cur.get("system") or ""
     return shared, total, sys_prev == sys_cur
+
+
+def _divergence(prev: dict, cur: dict) -> int:
+    """Index of the first message where ``cur`` stops repeating ``prev``.
+
+    ``len(prev)`` means ``cur`` repeats all of ``prev`` and appends.
+    """
+    pm = prev.get("messages") or []
+    cm = cur.get("messages") or []
+    i = 0
+    while i < min(len(pm), len(cm)) and pm[i] == cm[i]:
+        i += 1
+    return i
 
 
 def cache(ctx: Ctx) -> list[str]:
@@ -449,32 +487,42 @@ def cache(ctx: Ctx) -> list[str]:
         )
 
     lines.append(
-        "\n  call  prompt  cached   hit%   shared-prefix  system  verdict"
+        "\n  call  role                prompt  cached   hit%   "
+        "shared-prefix  system  append  verdict"
     )
+    # A fork is skipped as a predecessor, never compared against.
     prev_env: dict | None = None
     for r in calls:
         env = _envelope(r)
         prompt = r["prompt_tokens"] or 0
         cached = r["cached_tokens"] or 0
         hit = (cached / prompt * 100.0) if prompt else 0.0
-        share_s, stable = "        -", "  -"
+        share_s, stable, grow = "        -", "  -", "     -"
         verdict = ""
-        if env is not None and prev_env is not None:
+        fork = _is_fork(r)
+        if fork:
+            verdict = "fork (not a stream extension)"
+        elif env is not None and prev_env is not None:
             shared, total, sys_stable = _prefix_share(prev_env, env)
             frac = (shared / total) if total else 0.0
             share_s = f"{frac * 100:8.1f}%"
             stable = " ok" if sys_stable else " !!"
+            kept = len(prev_env.get("messages") or []) - 1
+            at = _divergence(prev_env, env)
+            grow = "    ok" if at >= kept else f"  @{at}/{kept}"
             if not sys_stable:
                 verdict = "stable prefix CHANGED"
+            elif at < kept:
+                verdict = f"stream REWRITTEN at message {at}"
             elif frac >= CACHE_FLOOR and hit / 100.0 < CACHE_FLOOR:
                 verdict = "prefix shared but not cached"
         elif env is None:
             share_s, verdict = "  no repro", "envelope not persisted"
         lines.append(
-            f"  #{r['id']:3} {prompt:7} {cached:7} {hit:5.1f}% "
-            f"{share_s} {stable}   {verdict}"
+            f"  #{r['id']:3} {r['role'] or ''!s:18} {prompt:7} {cached:7} "
+            f"{hit:5.1f}% {share_s} {stable}  {grow}  {verdict}"
         )
-        if env is not None:
+        if env is not None and not fork:
             prev_env = env
     return lines
 
@@ -599,16 +647,18 @@ def _check_negotiations(ctx: Ctx) -> list[Finding]:
 def _check_stream(ctx: Ctx) -> list[Finding]:
     found: list[Finding] = []
     stream = _message_stream(ctx.conn)
-    adjacent = [
-        (a["id"], b["id"]) for a, b in itertools.pairwise(stream)
-        if a["role"] == "system" and b["role"] == "system"
-    ]
-    if adjacent:
+    # Adjacent system rows are the architecture since the card became a
+    # stream row. What is worth reporting is how many are superseded copies.
+    cards = [r for r in stream
+             if r["role"] == "system"
+             and str(r["content"] or "").startswith(_CARD_HEADER)]
+    if len(cards) > _CARD_COPIES_WARN:
         found.append(Finding(
-            ERROR, "adjacent-system-messages",
-            f"{len(adjacent)} pair(s) of consecutive system messages in the "
-            "persisted stream (the 2026-09-08 markup-leak shape)",
-            [f"#{a} then #{b}" for a, b in adjacent[:6]],
+            WARN, "superseded-state-cards",
+            f"{len(cards)} state cards are in the stream; {len(cards) - 1} "
+            "of them are superseded and still read as current",
+            [f"#{r['id']} t={float(r['t_h']):.2f} "
+             f"{len(str(r['content'] or ''))} chars" for r in cards[:6]],
         ))
     convo = [r for r in stream if r["role"] in ("user", "assistant")]
     unanswered = [
@@ -765,15 +815,37 @@ def _model_of(row: Any) -> str:
     if "model" not in row.keys():
         return ""
     return str(row["model"] or "").strip()
-    return found
+
+
+#: Trailing blocks a call may legitimately not have persisted. A decide
+#: round carries the steer and, on a second ask, the re-ask; both become rows
+#: with the decision it records, and a round that records nothing re-queues.
+_DECIDE_TRANSIENTS = 2
+
+
+def _transient_slots(role: str) -> int:
+    """How many trailing messages the NEXT request may drop."""
+    return _DECIDE_TRANSIENTS if role.startswith("tool_decide") else 0
 
 
 def _check_cache(ctx: Ctx) -> list[Finding]:
+    """The append-only invariant, over the mainline chain only.
+
+    A generation must be repeated WHOLE: every block it carried is a stream
+    row. A decide round may drop its trailing steer and re-ask, which become
+    rows only once the round records a decision — a round that never parsed
+    records nothing and re-queues. An earlier divergence means a row the
+    model already read changed or vanished.
+    """
     found: list[Finding] = []
-    calls = rows(ctx.conn, "llm_calls", "order by id")
+    calls = [r for r in rows(ctx.conn, "llm_calls", "order by id")
+             if not _is_fork(r)]
     prev_env: dict | None = None
+    prev_id = 0
+    prev_role = ""
     drift: list[str] = []
     wasted: list[str] = []
+    rewritten: list[str] = []
     for r in calls:
         env = _envelope(r)
         if env is None:
@@ -783,19 +855,39 @@ def _check_cache(ctx: Ctx) -> list[Finding]:
             frac = (shared / total) if total else 0.0
             prompt = r["prompt_tokens"] or 0
             hit = ((r["cached_tokens"] or 0) / prompt) if prompt else 0.0
+            sent = len(prev_env.get("messages") or [])
+            kept = sent - _transient_slots(prev_role)
+            at = _divergence(prev_env, env)
             if not sys_stable:
                 drift.append(f"#{r['id']}")
-            if frac >= CACHE_FLOOR and hit < CACHE_FLOOR:
+            elif at < kept:
+                rewritten.append(
+                    f"#{prev_id} -> #{r['id']}: diverges at message {at}, "
+                    f"but #{prev_id} sent {sent} and a {prev_role} call may "
+                    f"drop only its last {sent - kept}"
+                )
+            elif frac >= CACHE_FLOOR and hit < CACHE_FLOOR:
                 wasted.append(
                     f"#{r['id']} shared={frac * 100:.0f}% "
                     f"cached={hit * 100:.0f}% ({prompt} prompt tokens)"
                 )
         prev_env = env
+        prev_id = int(r["id"])
+        prev_role = str(r["role"] or "")
     if drift:
         found.append(Finding(
             ERROR, "stable-prefix-changed",
             "the persona/system prefix is not byte-identical across calls",
             drift[:8],
+        ))
+    if rewritten:
+        found.append(Finding(
+            ERROR, "context-stream-rewritten",
+            f"{len(rewritten)} mainline call(s) did not extend the previous "
+            "request: something the model already read changed or was "
+            "dropped, so it re-read a different history and the cache is "
+            "lost from that message on",
+            rewritten[:8],
         ))
     if wasted:
         found.append(Finding(

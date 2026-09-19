@@ -202,8 +202,8 @@ def wire_message(turn: dict) -> dict:
     return out
 
 
-def _stamp_user_turn(text: str, t_h: float | None, anchor) -> str:
-    """"hey | Time: 21:42" - a user turn carries the time it arrived.
+def stamp_time(text: str, t_h: float | None, anchor) -> str:
+    """"hey | Time: 21:42" - a block carries the time it was delivered.
 
     Unanchored runs (replay/offline) return the text unchanged.
     """
@@ -211,6 +211,11 @@ def _stamp_user_turn(text: str, t_h: float | None, anchor) -> str:
         return text
     real = anchor.real_at(t_h)
     return f"{text} | Time: {real.hour:02d}:{real.minute:02d}"
+
+
+def _stamp_user_turn(text: str, t_h: float | None, anchor) -> str:
+    """The user-turn spelling of :func:`stamp_time`."""
+    return stamp_time(text, t_h, anchor)
 
 
 def stamped_stream(turns: list[dict], anchor) -> list[dict]:

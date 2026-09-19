@@ -62,6 +62,7 @@ CLEAR_TABLES: tuple[str, ...] = (
     "llm_calls", "agenda_items", "proactive_intents", "daily_state",
     "life_arcs", "kv_store", "memory_episodes", "memory_episode_sources",
     "memory_embeddings", "memory_sessions", "memory_session_summaries",
+    "reminders", "tool_records",
 )
 
 #: Tables seeded by ``init_life`` / the engine from the seed alone, so clearing

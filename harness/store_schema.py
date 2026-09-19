@@ -13,7 +13,7 @@ import sqlite3
 
 from harness.domain import UserModelCategory
 
-SCHEMA_VERSION = 11
+SCHEMA_VERSION = 14
 
 # --- v1 base schema ---
 _SCHEMA = """
@@ -366,7 +366,9 @@ CREATE TABLE IF NOT EXISTS decision_records (
                                        -- | 'server_draw_fallback'
     delivered_t_h REAL,
     budget_consumed INTEGER NOT NULL DEFAULT 0,
-    replay_id TEXT
+    replay_id TEXT,
+    after_message_id INTEGER,           -- the message row it was recorded behind
+    reask INTEGER NOT NULL DEFAULT 0    -- the round needed NATIVE_REASK
 );
 CREATE INDEX IF NOT EXISTS idx_decision_records_day
     ON decision_records(day);
@@ -498,6 +500,82 @@ def _migrate_v11(conn: sqlite3.Connection) -> None:
         _ensure_column(conn, table, column, decl)
 
 
+# Migration v11 -> v12 (additive): decision_records.after_message_id.
+# The message row a decision was recorded behind, so the context stream can
+# be merged in arrival order instead of by a non-unique virtual hour.
+_V12_COLUMNS = (
+    ("decision_records", "after_message_id", "INTEGER"),
+)
+
+
+def _migrate_v12(conn: sqlite3.Connection) -> None:
+    """v11 -> v12: additive decision_records.after_message_id column."""
+    for table, column, decl in _V12_COLUMNS:
+        _ensure_column(conn, table, column, decl)
+
+
+# Migration v12 -> v13 (additive): decision_records.reask.
+# Whether the round needed NATIVE_REASK; the nudge text is derived from
+# ``popup_kind``, so the flag is enough to replay the round as it ran.
+_V13_COLUMNS = (
+    ("decision_records", "reask", "INTEGER NOT NULL DEFAULT 0"),
+)
+
+
+def _migrate_v13(conn: sqlite3.Connection) -> None:
+    """v12 -> v13: additive decision_records.reask column."""
+    for table, column, decl in _V13_COLUMNS:
+        _ensure_column(conn, table, column, decl)
+
+
+# Migration v13 -> v14 (additive): the actuation transport. ``messages``
+# gains the two wire keys a real tool exchange carries (her assistant row's
+# ``tool_calls``, a ``role="tool"`` result's ``tool_call_id``);
+# ``tool_records`` is the replay ledger (a re-run reads the recorded result
+# instead of acting twice); ``reminders`` is her own alarm clock, following
+# the ``schedule_events`` status discipline.
+_V14_TABLES = """
+CREATE TABLE IF NOT EXISTS tool_records (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id TEXT NOT NULL,
+    day INTEGER NOT NULL,
+    t_h REAL NOT NULL,
+    tool TEXT NOT NULL,
+    op TEXT,
+    arguments_json TEXT,
+    result TEXT,
+    status TEXT NOT NULL,          -- 'ok' | 'refused' | 'error'
+    message_id INTEGER
+);
+CREATE INDEX IF NOT EXISTS idx_tool_records_call ON tool_records(call_id);
+CREATE INDEX IF NOT EXISTS idx_tool_records_day ON tool_records(day);
+CREATE TABLE IF NOT EXISTS reminders (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_t_h REAL NOT NULL,
+    fire_t_h REAL NOT NULL,
+    note TEXT NOT NULL,
+    about TEXT,
+    origin_conversation TEXT,
+    status TEXT NOT NULL DEFAULT 'pending',
+        -- 'pending' | 'fired' | 'expired' | 'cancelled'
+    fired_t_h REAL
+);
+CREATE INDEX IF NOT EXISTS idx_reminders_status ON reminders(status);
+"""
+
+_V14_COLUMNS = (
+    ("messages", "tool_calls_json", "TEXT"),
+    ("messages", "tool_call_id", "TEXT"),
+)
+
+
+def _migrate_v14(conn: sqlite3.Connection) -> None:
+    """v13 -> v14: additive tool-transport columns, tool_records, reminders."""
+    conn.executescript(_V14_TABLES)
+    for table, column, decl in _V14_COLUMNS:
+        _ensure_column(conn, table, column, decl)
+
+
 def _migrate(conn: sqlite3.Connection) -> None:
     """Bring the schema up to SCHEMA_VERSION with additive migrations only.
 
@@ -526,6 +604,12 @@ def _migrate(conn: sqlite3.Connection) -> None:
         _migrate_v10(conn)
     if version < 11:
         _migrate_v11(conn)
+    if version < 12:
+        _migrate_v12(conn)
+    if version < 13:
+        _migrate_v13(conn)
+    if version < 14:
+        _migrate_v14(conn)
     if version < SCHEMA_VERSION:
         conn.execute("DELETE FROM schema_meta")
         conn.execute(

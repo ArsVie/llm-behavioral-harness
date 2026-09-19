@@ -4,54 +4,57 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Harness observability</title>
+<link rel="icon" type="image/png" href="/static/lily.png">
+<link rel="apple-touch-icon" href="/static/lily.png">
 <link rel="stylesheet" href="/static/app.css">
 </head>
 <body>
 <div class="page">
 
   <header class="topbar card">
-    <div class="brand">
-      <span class="mark" aria-hidden="true"></span>
-      <div>
-        <h1>Harness observability</h1>
-        <p class="sub" id="root-line">scanning…</p>
+    <div class="topline">
+      <div class="brand">
+        <img class="mark" src="/static/lily.png" alt="" aria-hidden="true">
+        <div>
+          <h1>Harness observability</h1>
+          <p class="sub" id="root-line">scanning…</p>
+        </div>
+      </div>
+
+      <div class="topbar-controls">
+        <span class="chip" id="liveness" data-state="unknown">checking</span>
+        <span class="chip chip-quiet" id="day-chip">&mdash;</span>
+        <span class="chip chip-quiet" id="model-chip">&mdash;</span>
+        <select id="run-picker" aria-label="Active bot"></select>
+        <label class="check" title="Experiment and probe databases are hidden by default">
+          <input type="checkbox" id="show-all"> probe runs
+        </label>
+        <button type="button" class="btn" id="refresh">Refresh</button>
       </div>
     </div>
 
-    <div class="topbar-controls">
-      <label class="field">
-        <span class="field-label">Active bot</span>
-        <select id="run-picker" aria-label="Select a run"></select>
-      </label>
-      <div class="chiprow">
-        <span class="chip" id="liveness" data-state="unknown">checking</span>
-        <span class="chip chip-quiet" id="wall-chip" title="your clock">—</span>
-        <span class="chip chip-quiet" id="clock-chip" title="the bot's own clock">—</span>
-        <span class="chip chip-quiet" id="model-chip">—</span>
-      </div>
-      <label class="check" title="Experiment and probe databases are hidden by default">
-        <input type="checkbox" id="show-all"> show probe runs
-      </label>
-      <button type="button" class="btn" id="refresh">Refresh</button>
+    <!-- Beside the identity, not under it: one banner, read left to right as
+         which run, then how it is going. Run-level facts only — per-call
+         prompt size, cached share and cost are columns in the calls card, so
+         a tile that merely re-totals one has been folded into the tile it
+         qualifies. -->
+    <div class="statsline" aria-label="Run statistics">
+      <div class="stat" id="stat-spend"><span class="stat-label">spend &middot; cache hit</span><span class="stat-value">&mdash;</span><span class="stat-foot"></span></div>
+      <div class="stat" id="stat-calls"><span class="stat-label">calls</span><span class="stat-value">&mdash;</span><span class="stat-foot"></span></div>
+      <div class="stat" id="stat-events"><span class="stat-label">events</span><span class="stat-value">&mdash;</span><span class="stat-foot"></span></div>
+      <div class="stat stat-click" id="stat-checks"><span class="stat-label">invariants</span><span class="stat-value">&mdash;</span><span class="stat-foot"></span></div>
     </div>
   </header>
 
-  <section class="statsline card" aria-label="Run statistics">
-    <div class="stat" id="stat-tokens"><span class="stat-label">tokens</span><span class="stat-value">—</span></div>
-    <div class="stat" id="stat-cache"><span class="stat-label">cache hit</span><span class="stat-value">—</span></div>
-    <div class="stat" id="stat-savings"><span class="stat-label">cache savings</span><span class="stat-value">—</span></div>
-    <div class="stat" id="stat-calls"><span class="stat-label">calls</span><span class="stat-value">—</span></div>
-    <div class="stat" id="stat-turns"><span class="stat-label">turns</span><span class="stat-value">—</span></div>
-    <div class="stat" id="stat-events"><span class="stat-label">events</span><span class="stat-value">—</span></div>
-    <div class="stat" id="stat-checks"><span class="stat-label">invariants</span><span class="stat-value">—</span></div>
-  </section>
-
   <main class="grid">
 
+    <!-- What the focused call's window is made of: how full, and of what.
+         Its own card, because it answers a different question from the
+         ledger beside it — not "which calls", but "what is in this one". -->
     <section class="card context-card">
       <div class="card-head">
-        <h2>Context on the model</h2>
-        <span class="hint" id="context-call-hint">latest call</span>
+        <h2>Context window</h2>
+        <span class="hint" id="context-call">&mdash;</span>
       </div>
 
       <div class="meter">
@@ -60,66 +63,70 @@
             <circle class="ring-track" cx="21" cy="21" r="16"></circle>
             <circle class="ring-fill" id="ring-fill" cx="21" cy="21" r="16"></circle>
           </svg>
-          <div class="ring-center"><strong id="ring-percent">—</strong><span>used</span></div>
+          <div class="ring-center"><strong id="ring-percent">&mdash;</strong><span>used</span></div>
         </div>
         <div class="meter-figures">
           <p class="big" id="pressure-line">no model call yet</p>
-          <p class="sub" id="pressure-sub">waiting for the first request</p>
+          <p class="sub" id="pressure-sub"></p>
           <div class="bar" id="context-bar" aria-hidden="true"></div>
           <dl class="legend" id="context-legend"></dl>
         </div>
       </div>
 
-      <div class="split">
-        <div>
-          <h3>System prompt blocks</h3>
-          <ul class="list dense" id="system-parts"><li class="empty">—</li></ul>
-        </div>
-        <div>
-          <h3>Tool schemas <span class="hint" id="tools-source"></span></h3>
-          <ul class="list dense" id="tool-list"><li class="empty">—</li></ul>
-        </div>
-      </div>
+      <h3>System prompt blocks</h3>
+      <ul class="list dense" id="system-parts"><li class="empty">&mdash;</li></ul>
 
-      <h3>Ordered surface <span class="hint">oldest → newest, price per node</span></h3>
-      <ol class="list surface" id="surface"></ol>
+      <h3>Tool schemas <span class="hint" id="tools-source"></span></h3>
+      <ul class="list dense" id="tool-list"><li class="empty">&mdash;</li></ul>
     </section>
 
+    <!-- Every call as a ledger, and one call's messages in order. The bytes
+         are a reading of one call, so they live in that call's drawer. -->
     <section class="card calls-card">
       <div class="card-head">
-        <h2>Calls &amp; prefix cache</h2>
-        <span class="hint">cached% is the provider's; shared% is measured from the envelopes</span>
+        <h2>Model calls</h2>
+        <div class="viewswitch" id="viewswitch" role="tablist" aria-label="Granularity">
+          <button type="button" class="vbtn" data-view="ledger" aria-pressed="true">Ledger</button>
+          <button type="button" class="vbtn" data-view="surface" aria-pressed="false">Surface</button>
+        </div>
       </div>
-      <div class="table-wrap">
-        <table class="table" id="calls-table">
-          <thead>
-            <tr><th>#</th><th>when</th><th>leg</th><th>prompt</th><th>cached</th>
-                <th>hit</th><th>shared</th><th>out</th><th>note</th></tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
 
-    <section class="card wire-card">
-      <div class="card-head">
-        <h2>Wire (verbatim)</h2>
-        <span class="hint">exactly what went out, one dump per call — tick two and diff</span>
+      <div class="view" id="view-ledger">
+        <div class="table-wrap">
+          <table class="table" id="calls-table">
+            <thead>
+              <tr><th>#</th><th>when</th>
+                  <th title="which leg of the turn made the call — the chat reply, a pop-up decision, or a metered auxiliary — and its lane">leg</th>
+                  <th>prompt</th><th>cached</th>
+                  <th title="the provider's billed cache hit for this call: cached ÷ prompt tokens">hit</th>
+                  <th title="measured shared prefix — this request's bytes byte-identical to the call before it; high shared with low hit means the prefix was reused but not billed as cached">shared</th>
+                  <th>out</th><th>note</th></tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <p class="panel-foot" id="ledger-foot" hidden></p>
       </div>
-      <div class="chiprow">
-        <button type="button" class="btn" id="wire-refresh">Load dumps</button>
-        <button type="button" class="btn" id="wire-diff" disabled>Diff selected</button>
-        <span class="hint" id="wire-status">—</span>
+
+      <div class="view" id="view-surface" hidden>
+        <p class="view-note" id="surface-note"></p>
+        <ol class="list surface" id="surface"></ol>
+        <p class="panel-foot" id="surface-foot" hidden></p>
       </div>
-      <ul class="list dense" id="wire-list"><li class="empty">—</li></ul>
+
     </section>
 
     <section class="card events-card">
       <div class="card-head">
         <h2>Event flow</h2>
-        <span class="hint"><span class="sq live"></span> live tail</span>
+        <span class="chip chip-tail" id="tail-chip" data-state="off">tail off</span>
+      </div>
+      <div class="legend-bar">
+        <div class="kindbar" id="kind-legend"></div>
+        <p class="hint legend-note">click a kind to hide it &middot; peach = warning &middot; rose = error</p>
       </div>
       <ul class="stream" id="stream"></ul>
+      <p class="panel-foot" id="stream-foot" hidden></p>
     </section>
 
   </main>

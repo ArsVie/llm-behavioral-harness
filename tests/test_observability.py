@@ -627,27 +627,29 @@ def test_call_payload_reads_a_json_meta_blob(tmp_path):
 
 
 def test_tool_schemas_for_every_role(tmp_path):
-    tools, source = reader.tool_schemas_for("chat")
-    # The chat leg sends none AND says where schemas do go: an empty panel on
-    # a chat call must not read as "this harness never sends schemas".
-    assert tools == []
-    assert "none on this call" in source and "prose by design" in source
-    assert "decide legs carry the schema" in source
-    tools, source = reader.tool_schemas_for("tool_decide_event")
-    assert tools and "harness.tools" in source
-    assert "OpenAI shape" in source and "no tool_choice field is sent" in source
-    assert all(tool["name"] == "tool_decide_event" for tool in tools)
-    tools, _ = reader.tool_schemas_for("tool_decide_unknown")
-    assert len(tools) > 1
+    """One constant menu rides every mainline call.
+
+    The panel used to claim "none on this call" for chat and one pinned
+    schema for a decide leg; the verbatim wire dumps carry all three
+    functions on every mainline request, chat included.
+    """
+    from harness.tools import TOOL_SCHEMAS
+
+    whole = [tool["name"] for tool in TOOL_SCHEMAS]
+    for role in ("chat", "tool_decide_event", "tool_decide_reply",
+                 "tool_decide_unknown"):
+        tools, source = reader.tool_schemas_for(role)
+        assert [tool["name"] for tool in tools] == whole, role
+        assert "every mainline call" in source, role
     tools, source = reader.tool_schemas_for("day_plan")
-    assert tools == [] and "unknown role" in source
+    assert tools == [] and "unknown leg" in source
     # Metered auxiliary calls (day planner, extension, setup, judge) offer no
     # tool at all — that is the call being what it says it is, not an unknown.
     for role in ("aux_day_planner", "aux_interest_extension",
                  "aux_routine_setup", "aux_judge"):
         tools, source = reader.tool_schemas_for(role)
-        assert tools == [] and "auxiliary call" in source, role
-        assert "unknown role" not in source
+        assert tools == [] and "JSON text" in source, role
+        assert "unknown" not in source
 
 
 def test_find_runs_ignores_a_dangling_symlink(tmp_path):
@@ -707,8 +709,12 @@ def test_context_payload_reports_the_latest_call_and_its_provenance(tmp_path):
     assert payload["call"]["id"] == 2
     assert payload["prefix"]["shared_messages"] == len(_MESSAGES) - 1
     assert payload["prefix"]["system_stable"] is True
-    assert payload["tools_source"].startswith("none on this call")
-    assert "prose by design" in payload["tools_source"]
+    # The chat leg carries the constant menu — the three actuation tools,
+    # one per domain with an ``op`` discriminator. No decide tool is on it.
+    assert [tool["name"] for tool in payload["tools"]] == [
+        "calendar", "memory", "remind",
+    ]
+    assert "every mainline call" in payload["tools_source"]
 
 
 def test_context_payload_without_any_call_is_explicit(tmp_path):
@@ -734,7 +740,10 @@ def test_call_detail_renders_the_envelope_and_reports_hash_only_rows(tmp_path):
     with reader.open_run(hash_only.path) as conn:
         detail = reader.call_detail(conn, None, 1)
     assert detail is not None and detail["envelope_available"] is False
-    assert detail["tools"] == []
+    # No envelope to price, and the constant menu still rode the call.
+    assert [tool["name"] for tool in detail["tools"]] == [
+        "calendar", "memory", "remind",
+    ]
 
 
 def test_events_payload_filters_by_cursor_and_reports_the_newest(tmp_path):
