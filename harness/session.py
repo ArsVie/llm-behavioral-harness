@@ -132,7 +132,6 @@ from harness.steering import (
 from harness.store import SQLiteStore
 from harness.tools import (
     TOOL_PAYLOAD,
-    render_popup,
     Capabilities,
     DecisionConfig,
     DecisionRequeue,
