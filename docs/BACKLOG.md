@@ -306,3 +306,41 @@ NOT decided: whether and when plans should INCLUDE him — shared activities,
 invitations, how his own plans feed hers. That changes what the companion
 proposes and earns its own battery, not a clause bolted onto this fix.
 
+### For the model: a blank line after every section (2026-09-20)
+> "For the model, it might be better to add a simple \n after every section,
+> both in state card and in the agenda, that's easier to read."
+
+A blank line after each section of the state card and of the agenda (day-start
+block), so the model reads the sections apart. The exact spot is unconfirmed:
+the card is diffed section-by-section and its blocks split on the blank line,
+so the change lands with the spot named, then the card tests and the live
+rebuild check re-run.
+
+### Study panels in the app (2026-09-20)
+> "on the observability app, let's start to put build the graphs for study and
+> other things to keep track of current state. We need: Todays agenda /
+> Visualization for proactive messages / Current mood / Menstrual and circadian
+> cycle status / Ways to match any of these to look for patterns."
+
+Five read-only views over data the run already records: the day's agenda (bars
+by status on a 0-24h axis), proactive messages (sent vs suppressed on the same
+axis, with the verdict's reason), mood (M/m_level over the day; the bearing
+texts reconstruct from the card's own rows), the cycle + circadian state
+(`daily_state.cycle_day`/`phase_label` and the engine's intraday parameters),
+and a matching view (two tracks on one day-hour grid, a lag slider, descriptive
+per-phase means/counts). Design agreed in chat before building; agenda +
+proactive first.
+
+### Photos over Telegram reach nothing (2026-09-20)
+> "do you know what would happen if I send an image through telegram? Would it
+> crash, nothing or what? We can change the model to deepseek-v4.1-flash as that
+> one has multimodal capabilities."
+
+Answer on record: a photo is dropped silently — the handler filters
+`TEXT & ~COMMAND` and `_wrap_update` returns None without `.text` (no crash, no
+row, no reply, no log line). Landing images needs three things: the channel
+accepting + downloading photos, a home for the image bytes on the user row, and
+a vision model. The model half is verified — `deepseek/deepseek-v4.1-flash` read
+a 32x32 PNG and answered "Red" (HTTP 200, finish=stop), and `LLM_MODEL` is the
+one env line that switches it.
+
