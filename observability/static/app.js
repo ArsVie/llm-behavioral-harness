@@ -1011,38 +1011,20 @@ function wireDiffNodes(aName, bName, aText, bText) {
 }
 
 /* ----------------------------------------------------------------- study */
-/* The long view, under the live cards: what the run keeps choosing (the
-   distributions on the left, one lever at a time) and where the days went
-   (the calendar on the right, three granularities). Both read /api/study/*,
-   which reads the same database the cards above do — no second truth. */
+/* Two cards under the live rows: the CALENDAR (left) and the STUDY panels
+   (right) — the same pair the context window and the model calls make above.
+   Everything is HTML plus text-free SVG geometry on the app's own type scale:
+   a chart's labels must not grow because the window did.
+   The panels mark the run's events ON its state functions — reach-outs on the
+   energy curve, on the mood line, one mark per message — and leave counting
+   to the day the run is long enough to earn it. */
 const study = {
   runId: null,
-  day: null,        // the day on screen; null follows the run's newest
-  cal: "day",       // "month" | "week" | "day"
-  lever: "agenda",  // which distribution is open
-  view: null,       // the loaded day payload
-  levers: null,     // the loaded distributions payload
+  day: null,          // null follows the run's newest day
+  cal: "day",         // "month" | "week" | "day"
+  panel: "mood",      // "mood" | "rhythm" | "contact"
+  view: null,
 };
-
-const LEVERS = [
-  { key: "agenda", label: "Agenda" },
-  { key: "reach", label: "Reach-outs" },
-  { key: "mood", label: "Mood" },
-  { key: "cycle", label: "Cycle" },
-  { key: "spend", label: "Spend" },
-];
-
-const STATUS_COLOR = {
-  completed: ["var(--mint-soft)", "var(--mint)"],
-  planned: ["var(--lav-soft)", "var(--lav)"],
-  in_progress: ["var(--sun-soft)", "var(--sun)"],
-  shifted: ["var(--clay-soft)", "var(--clay)"],
-  skipped: ["var(--grey-soft)", "var(--grey)"],
-};
-
-//: The day chart's height in pixels — keep in step with --cal-h in app.css.
-//: A block only gets its time line when there is room for two lines.
-const CAL_DAY_H = 620;
 
 function hourText(hour) {
   const h = Math.max(0, Math.floor(hour));
@@ -1059,212 +1041,110 @@ function plural(count, noun) {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
 }
 
+const STATUS_COLOR = {
+  completed: ["var(--mint-soft)", "var(--mint)"],
+  planned: ["var(--lav-soft)", "var(--lav)"],
+  in_progress: ["var(--sun-soft)", "var(--sun)"],
+  shifted: ["var(--clay-soft)", "var(--clay)"],
+  skipped: ["var(--grey-soft)", "var(--grey)"],
+};
+
 function statusColors(status) {
   return STATUS_COLOR[status] || ["var(--paper-2)", "var(--grey)"];
 }
 
-async function loadStudy(runId, { fresh = false } = {}) {
+const PANELS = [
+  { key: "mood", label: "Mood" },
+  { key: "rhythm", label: "Rhythm" },
+  { key: "contact", label: "Contact" },
+];
+
+const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+//: A run this long turns the contact panel's marks into a density grid —
+//: counts earn their place only once a month of days makes a shape.
+const CONTACT_DENSE_DAYS = 21;
+
+/* Cycle phases in the app's own palette: pink is the cycle's colour and also
+   the app's "meaning" colour, so the phase tones stay soft. */
+const PHASE_TONE = {
+  menstrual: ["var(--rose-soft)", "var(--rose)"],
+  follicular: ["var(--mint-soft)", "var(--mint)"],
+  ovulatory: ["var(--sun-soft)", "var(--sun)"],
+  luteal_early: ["var(--lav-soft)", "var(--lav)"],
+  luteal_late: ["var(--plum-soft)", "var(--plum)"],
+};
+
+function phaseTone(label) {
+  return PHASE_TONE[label] || ["var(--grey-soft)", "var(--grey)"];
+}
+
+function svgNode(tag, attrs = {}) {
+  const node = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+  return node;
+}
+
+function titled(node, text) {
+  node.append(svgNode("title"));
+  node.lastChild.textContent = text;
+  return node;
+}
+
+function shortened(text, limit) {
+  const value = String(text || "");
+  return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+}
+
+/* A run day's date as "Sat 19" — a calendar needs dates, not ordinals. */
+function dayLabel(day) {
+  const stamp = study.view && study.view.dates ? study.view.dates[day] : null;
+  if (!stamp) return `day ${day}`;
+  return `${stamp.weekday} ${Number(String(stamp.date).slice(8, 10))}`;
+}
+
+function isoOf(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+async function loadStudy(runId) {
   if (study.runId !== runId) {
     study.runId = runId;
     study.day = null;      // a day number from another run means nothing here
-    study.levers = null;
   }
   const query = study.day === null ? "" : `&day=${encodeURIComponent(study.day)}`;
-  const wants = [`/api/study/day?id=${encodeURIComponent(runId)}${query}`];
-  if (fresh || !study.levers) {
-    wants.push(`/api/study/levers?id=${encodeURIComponent(runId)}`);
-  }
-  const [day, levers] = await Promise.all(wants.map(getJSON));
-  study.view = day;
-  if (levers) study.levers = levers;
+  study.view = await getJSON(
+    `/api/study/day?id=${encodeURIComponent(runId)}${query}`);
   renderStudy();
 }
 
 function renderStudy() {
   if (!study.view) return;
-  renderLevers();
   renderCalendar();
+  renderPanel();
 }
 
-/* ---------------------------------------------------------- the levers */
-function leverBars(rows, { limit = 8 } = {}) {
-  const shown = rows.slice(0, limit);
-  const top = Math.max(1, ...shown.map((row) => Number(row[1]) || 0));
-  const box = el("div", "lever-panel");
-  for (const [label, count] of shown) {
-    const row = el("div", "lever-row");
-    row.append(el("span", "lever-label", label || "(none)"));
-    const bar = el("span", "lever-bar");
-    const fill = el("span");
-    fill.style.width = `${Math.round((Number(count) / top) * 100)}%`;
-    bar.append(fill);
-    row.append(bar, el("span", "lever-value", count));
-    box.append(row);
-  }
-  return box;
-}
-
-function leverTiles(tiles) {
-  const box = el("div", "lever-tiles");
-  for (const [label, value] of tiles) {
-    const tile = el("div", "lever-tile");
-    tile.append(el("b", null, value), el("span", null, label));
-    box.append(tile);
-  }
-  return box;
-}
-
-function leverGroup(title, node) {
-  const box = el("div", "lever-panel");
-  box.append(el("p", "lever-note", title), node);
-  return box;
-}
-
-function spread(summary) {
-  if (!summary || !summary.n) return "n 0";
-  return `n ${summary.n} · mean ${summary.mean} · ${summary.min}–${summary.max}`;
-}
-
-function renderLevers() {
-  const host = $("lever-panel");
-  const payload = study.levers;
+/* One panel at a time, in the order the questions come: what does she feel,
+   what does her body clock say, and when did the two of them talk. */
+function renderPanel() {
+  const host = $("study-panel");
   host.textContent = "";
-  if (!payload) {
-    host.append(el("p", "lever-note", "loading…"));
-    return;
+  for (const button of $("lever-switch").querySelectorAll(".vbtn")) {
+    button.setAttribute("aria-pressed",
+      String(button.dataset.panel === study.panel));
   }
-  const window = payload.window;
-  $("study-window").textContent = window.days.length
-    ? `run so far: days ${window.days[0]}–${window.days[window.days.length - 1]} · ` +
-      `${plural(window.n_agenda, "agenda item")} · ` +
-      `${plural(window.n_reach_outs, "reach-out decision")}`
-    : "nothing to study yet";
-
-  if (study.lever === "agenda") {
-    const data = payload.agenda;
-    host.append(leverTiles([
-      ["items", data.by_status.reduce((sum, row) => sum + row[1], 0)],
-      ["mean length", data.duration.mean === null ? "—" : `${data.duration.mean} h`],
-      ["mean salience", data.salience.mean === null ? "—" : data.salience.mean],
-    ]));
-    host.append(leverGroup(`status — ${spread(data.duration)}`,
-                           leverBars(data.by_status)));
-    host.append(leverGroup("where they come from", leverBars(data.by_source)));
-    host.append(leverGroup("start hour", leverBars(data.by_hour, { limit: 24 })));
-  } else if (study.lever === "reach") {
-    const data = payload.proactive;
-    const share = data.sent + data.suppressed
-      ? `${Math.round((data.sent / (data.sent + data.suppressed)) * 100)}%`
-      : "—";
-    host.append(leverTiles([["sent", data.sent], ["held back", data.suppressed],
-                            ["sent share", share]]));
-    host.append(leverGroup("decided at hour", leverBars(data.by_hour, { limit: 24 })));
-    if (data.suppressed_reasons.length) {
-      host.append(leverGroup("why she held back",
-                             leverBars(data.suppressed_reasons, { limit: 6 })));
-    }
-  } else if (study.lever === "mood") {
-    const data = payload.mood;
-    host.append(leverTiles([
-      ["days", data.series.length],
-      ["mean M", data.M.mean === null ? "—" : data.M.mean],
-      ["range", data.M.min === null ? "—" : `${data.M.min}–${data.M.max}`],
-    ]));
-    host.append(sparkline(data.series.map((row) => row[1])));
-    host.append(leverBars(data.series.map((row) => [`day ${row[0]}`, row[1]]),
-                          { limit: 30 }));
-  } else if (study.lever === "cycle") {
-    const data = payload.cycle;
-    host.append(leverGroup("days per phase", leverBars(data.phase_days)));
-    host.append(leverGroup("mean M per phase", leverBars(
-      data.mood_by_phase.map(([phase, summary]) => [phase, summary.mean ?? 0]))));
-    host.append(el("p", "lever-note",
-      "M is the day's mood level; the phase comes from the run's own cycle day."));
-  } else if (study.lever === "spend") {
-    const totals = payload.spend.totals || {};
-    host.append(leverTiles([
-      ["calls", totals.calls ?? "—"],
-      ["prompt", fmtTokens(totals.prompt_tokens)],
-      ["cost", fmtUsd(totals.cost_usd ?? totals.total_cost_usd)],
-    ]));
-    host.append(leverGroup("per role", leverBars(
-      payload.spend.by_role.map((row) => [row.key, row.calls]))));
-    host.append(el("p", "lever-note",
-      "the same spend math as the calls card — harness.spend, not a second count."));
-  }
+  if (!study.view) return;
+  if (study.panel === "rhythm") host.append(rhythmChart(study.view));
+  else if (study.panel === "contact") host.append(contactChart(study.view));
+  else host.append(moodChart(study.view));
 }
 
-/* A series in one line: no axes, no ticks — the numbers beside it carry the
-   magnitudes; this only shows the shape. */
-function sparkline(values) {
-  const box = el("div", "cal-panel");
-  const points = values.map((value) => Number(value) || 0);
-  if (points.length < 2) {
-    box.append(el("p", "cal-empty", "not enough days for a shape yet"));
-    return box;
-  }
-  const low = Math.min(...points), high = Math.max(...points);
-  const span = high - low || 1;
-  const step = 300 / (points.length - 1);
-  const path = points.map((value, i) =>
-    `${i ? "L" : "M"}${(i * step).toFixed(1)} ${(60 - ((value - low) / span) * 50).toFixed(1)}`)
-    .join(" ");
-  box.innerHTML =
-    `<svg viewBox="0 0 300 66" role="img" aria-label="mood over the run">` +
-    `<path d="${path}" fill="none" style="stroke:var(--plum)" stroke-width="2"/>` +
-    `</svg>`;
-  return box;
-}
-
-/* -------------------------------------------------------- the calendar */
-/* Hand-built HTML on a fixed type scale: a chart's labels must not grow
-   because the window did, and an SVG stretched to the card scales every
-   label with it. Only the wave and the wheel are SVG — no text inside. */
-function renderCalendar() {
-  const host = $("cal-panel");
-  const title = $("cal-title");
-  const foot = $("cal-foot");
-  host.textContent = "";
-  foot.hidden = true;
-  foot.textContent = "";
-  const view = study.view;
-  for (const button of $("cal-switch").querySelectorAll(".vbtn")) {
-    button.setAttribute("aria-pressed", String(button.dataset.cal === study.cal));
-  }
-  if (!view.span.length && !view.agenda.length) {
-    host.append(el("p", "cal-empty", "this run has nothing recorded yet"));
-    return;
-  }
-  if (study.cal === "day") {
-    title.textContent = `day ${view.day}`;
-    host.append(dayChart(view));
-    foot.hidden = false;
-    foot.className = "panel-foot cal-foot";
-    for (const chip of dayChips(view)) foot.append(chip);
-    const legend = el("p", "cal-legend");
-    for (const [label, mark] of dayLegend()) {
-      const key = el("span", "key");
-      key.append(mark, el("span", null, label));
-      legend.append(key);
-    }
-    foot.append(legend);
-  } else if (study.cal === "week") {
-    title.textContent = "the run's days";
-    host.append(weekChart(view));
-    foot.hidden = false;
-    foot.className = "panel-foot cal-foot";
-    foot.append(el("p", "cal-legend",
-      "each column is a day of the run on the same hour stripes — " +
-      "click one for its day view"));
-  } else {
-    title.textContent = "every day so far";
-    host.append(monthChart(view));
-    foot.hidden = false;
-    foot.className = "panel-foot cal-foot";
-    foot.append(el("p", "cal-legend",
-      "a cell's tint is that day's mood; the squares are its agenda blocks " +
-      "in status colours. Click a cell for its day."));
-  }
+/* ---------------------------------------------------------- the calendar */
+function quietBands([from, to]) {
+  return from > to ? [[from, 24], [0, to]] : [[from, to]];
 }
 
 /* Blocks as bare boxes: lanes exist only where two blocks would overlap. */
@@ -1296,23 +1176,49 @@ function laidOut(items, day) {
   return placed;
 }
 
-function hourGutter() {
+function hourGutter(futureAfter) {
   const box = el("div", "cal-hours");
   for (let hour = 0; hour <= 24; hour += 2) {
     const label = el("span", null, hourLabel(hour));
     label.style.top = `${(hour / 24) * 100}%`;
+    if (futureAfter !== null && futureAfter !== undefined && hour > futureAfter) {
+      label.classList.add("is-future");
+    }
     box.append(label);
   }
   return box;
 }
 
-function quietBands([from, to]) {
-  return from > to ? [[from, 24], [0, to]] : [[from, to]];
+function renderCalendar() {
+  const host = $("cal-panel");
+  const title = $("cal-title");
+  host.textContent = "";
+  const view = study.view;
+  for (const button of $("cal-switch").querySelectorAll(".vbtn")) {
+    button.setAttribute("aria-pressed", String(button.dataset.cal === study.cal));
+  }
+  if (!view.span.length && !view.agenda.length) {
+    title.textContent = "";
+    host.append(el("p", "cal-empty", "this run has nothing recorded yet"));
+    return;
+  }
+  if (study.cal === "day") {
+    title.textContent = `day ${view.day} · ${dayLabel(view.day)}`;
+    host.append(dayChart(view));
+  } else if (study.cal === "week") {
+    title.textContent = "this week";
+    host.append(weekChart(view));
+  } else {
+    title.textContent = monthTitle(view);
+    host.append(monthChart(view));
+  }
 }
 
 function dayChart(view) {
   const chart = el("div", "cal-chart");
+  const now = view.now_hour;
   const marks = el("div", "cal-marks");
+  marks.append(el("span", "cal-lane", "msg"));
   // A burst of messages is one mark per quarter hour, not five overlapping
   // ticks: the count rides on the mark, the detail on its tooltip.
   const buckets = new Map();
@@ -1327,14 +1233,14 @@ function dayChart(view) {
     const tick = el("span", "cal-tick");
     tick.style.top = `calc(${(bucket.hour / 24) * 100}% - 3.5px)`;
     tick.style.height = `${Math.min(12, 5 + bucket.count)}px`;
-    tick.style.background = bucket.users === bucket.count
-      ? "var(--ink)" : bucket.users ? "var(--rose-soft)" : "var(--sky)";
+    tick.style.background = bucket.users && bucket.users < bucket.count
+      ? "var(--sky)" : bucket.users ? "var(--ink)" : "var(--sky)";
     if (bucket.users && bucket.users < bucket.count) {
-      tick.style.background = "var(--sky)";
       tick.style.borderLeft = "2px solid var(--ink)";
     }
     tick.title = `${hourText(bucket.hour)}–${hourText(bucket.hour + 0.25)} · ` +
-      `${plural(bucket.count, "message")} (you ${bucket.users}, she ${bucket.count - bucket.users})`;
+      `${plural(bucket.count, "message")} (you ${bucket.users}, she ` +
+      `${bucket.count - bucket.users})`;
     marks.append(tick);
   }
 
@@ -1346,31 +1252,43 @@ function dayChart(view) {
     band.title = `quiet hours ${hourText(from)}–${hourText(to)}`;
     column.append(band);
   }
+  if (now !== null && now < 24) {
+    const ahead = el("div", "cal-ahead");
+    ahead.style.top = `${(now / 24) * 100}%`;
+    column.append(ahead);
+  }
+
   for (const item of laidOut(view.agenda, view.day)) {
     const block = el("div", "cal-block");
     const [fill, edge] = statusColors(item.status);
-    const tall = ((item.end - item.hour) / 24) * CAL_DAY_H >= 34;
+    const future = now !== null && item.hour > now;
+    const tall = ((item.end - item.hour) / 24) * 460 >= 30;
+    if (future) block.classList.add("is-future");
+    if (item.status === "in_progress") block.classList.add("is-active");
     block.style.top = `calc(${(item.hour / 24) * 100}% + 1px)`;
     block.style.height = `calc(${((item.end - item.hour) / 24) * 100}% - 2px)`;
-    block.style.minHeight = "17px";
+    block.style.minHeight = "16px";
     block.style.left = `${(item.lane / item.lanes) * 100}%`;
     block.style.width = `calc(${100 / item.lanes}% - 6px)`;
-    block.style.background = fill;
-    block.style.borderColor = edge;
-    if (tall) block.append(el("span", "cal-when",
-      `${hourText(item.hour)}–${hourText(item.end)}`));
+    block.style.background = future ? "var(--paper-2)" : fill;
+    block.style.borderColor = future ? "var(--line)" : edge;
+    if (tall) {
+      block.append(el("span", "cal-when",
+        `${hourText(item.hour)}–${hourText(item.end)}`));
+    }
     block.append(el("span", "cal-what", item.activity));
     block.title = `${hourText(item.hour)}–${hourText(item.end)} · ${item.activity}\n` +
       [item.status, item.source_type,
        item.salience === null ? "" : `salience ${Number(item.salience).toFixed(2)}`,
-      item.outcome].filter(Boolean).join(" · ");
+       item.outcome].filter(Boolean).join(" · ");
     column.append(block);
   }
-  if (view.now_hour !== null) {
-    const now = el("div", "cal-now");
-    now.style.top = `${(view.now_hour / 24) * 100}%`;
-    now.append(el("b", null, `now ${hourText(view.now_hour)}`));
-    column.append(now);
+
+  if (now !== null) {
+    const line = el("div", "cal-now");
+    line.style.top = `${(now / 24) * 100}%`;
+    line.append(el("b", null, `now ${hourText(now)}`));
+    column.append(line);
   }
 
   const flags = el("div", "cal-flags");
@@ -1378,327 +1296,481 @@ function dayChart(view) {
     const flag = el("span", `cal-flag${reach.fired ? "" : " held"}`);
     flag.style.top = `calc(${(reach.hour / 24) * 100}% - 5px)`;
     flag.title = `${reach.fired ? "reached out" : "held back"} · ` +
-      hourText(reach.hour) +
-      (reach.reason ? `\n${reach.reason}` : "") +
+      hourText(reach.hour) + (reach.reason ? `\n${reach.reason}` : "") +
       (reach.hook ? `\n${reach.hook}` : "");
     flags.append(flag);
   }
 
-  const energy = el("div", "cal-energy");
-  energy.append(el("span", "cal-energy-cap", "energy"), energyWave(view.circadian));
-
-  chart.append(hourGutter(), marks, column, flags, energy);
-  const wrap = el("div", "cal-day-wrap");
-  wrap.append(chart, agendaList(view));
-  return wrap;
+  chart.append(hourGutter(now), marks, column, flags);
+  return chart;
 }
 
-/* Beside the chart, the same day as plain lines: the chart shows the shape,
-   the list says what each block actually was. */
-function agendaList(view) {
-  const box = el("div", "cal-list");
-  box.append(el("h4", null, "the day's items"));
-  const rows = laidOut(view.agenda, view.day);
-  if (!rows.length) box.append(el("p", "cal-empty", "nothing on the agenda"));
-  for (const item of rows) {
-    const row = el("div", "cal-item");
-    const [fill, edge] = statusColors(item.status);
-    const mark = el("span", "sq");
-    mark.style.background = fill;
-    mark.style.borderColor = edge;
-    row.append(mark,
-      el("span", "cal-item-when", `${hourText(item.hour)}–${hourText(item.end)}`),
-      el("span", "cal-item-what", item.activity));
-    row.append(el("span", "cal-item-meta",
-      [String(item.status).replace("_", " "), item.source_type,
-       item.salience === null ? "" : `salience ${Number(item.salience).toFixed(2)}`,
-       item.outcome].filter(Boolean).join(" · ")));
-    box.append(row);
-  }
-  if (view.proactive.length) {
-    box.append(el("h4", null, "reach-outs decided"));
-    for (const reach of view.proactive) {
-      const row = el("div", "cal-item");
-      const mark = el("span", `tri${reach.fired ? "" : " held"}`);
-      row.append(mark, el("span", "cal-item-when", hourText(reach.hour)),
-        el("span", "cal-item-what",
-          reach.fired ? "she reached out" : "she held back"));
-      if (reach.reason) {
-        row.append(el("span", "cal-item-meta", reach.reason));
-      }
-      box.append(row);
-    }
-  }
-  box.append(messagesByHour(view));
-  return box;
-}
-
-/* When did the two of them actually talk? One bar per hour of the day. */
-function messagesByHour(view) {
-  const box = el("div", "cal-byhour");
-  box.append(el("h4", null, "messages by hour"));
-  const counts = new Array(24).fill(0);
-  for (const message of view.messages) {
-    counts[Math.max(0, Math.min(23, Math.floor(message.hour)))] += 1;
-  }
-  const top = Math.max(1, ...counts);
-  const strip = el("div", "cal-byhour-strip");
-  counts.forEach((count, hour) => {
-    const bar = el("span");
-    const share = Math.round((count / top) * 100);
-    bar.style.height = `${count ? Math.max(8, share) : 0}%`;
-    bar.title = `${hourText(hour)} — ${plural(count, "message")}`;
-    strip.append(bar);
-  });
-  box.append(strip);
-  return box;
-}
-
-/* The wave carries no text: it is the one thing that may stretch. */
-function energyWave(points) {
-  const ns = "http://www.w3.org/2000/svg";
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", "0 0 100 480");
-  svg.setAttribute("preserveAspectRatio", "none");
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "the engine's intraday energy, noon high to night low");
-  const path = points.map(([hour, value]) =>
-    `${(100 - value * 92).toFixed(1)} ${((hour / 24) * 480).toFixed(1)}`);
-  const area = document.createElementNS(ns, "polygon");
-  area.setAttribute("points",
-    ["100 0", ...path, "100 480"].join(" "));
-  area.setAttribute("style", "fill:var(--plum);opacity:0.14");
-  svg.append(area);
-  const line = document.createElementNS(ns, "polyline");
-  line.setAttribute("points", path.join(" "));
-  line.setAttribute("fill", "none");
-  line.setAttribute("vector-effect", "non-scaling-stroke");
-  line.setAttribute("style", "stroke:var(--plum)");
-  line.setAttribute("stroke-width", "1.6");
-  svg.append(line);
-  return svg;
-}
-
-function dayChips(view) {
-  const sent = view.proactive.filter((reach) => reach.fired).length;
-  const chips = [
-    ["items today", view.agenda.length],
-    ["messages", view.messages.length],
-    ["reach-outs", `${sent} of ${view.proactive.length}`],
-  ];
-  if (view.mood.M !== null) {
-    chips.push(["mood M", `${view.mood.M} (${Number(view.mood.m_level).toFixed(2)})`]);
-  }
-  if (view.cycle.phase_label) {
-    chips.push(["cycle", `day ${view.cycle.cycle_day} · ${view.cycle.phase_label}`]);
-  }
-  return chips.map(([label, value]) => {
-    const chip = el("span", "cal-chip");
-    chip.append(el("b", null, value), document.createTextNode(` ${label}`));
-    return chip;
-  });
-}
-
-function dayLegend() {
-  const square = (fill, edge) => {
-    const mark = el("span", "sq");
-    mark.style.background = fill;
-    mark.style.borderColor = edge;
-    return mark;
-  };
-  const both = el("span", "sq");
-  both.style.background = "var(--sky)";
-  both.style.borderColor = "var(--sky)";
-  both.style.borderLeft = "2px solid var(--ink)";
-  return [
-    ["completed", square("var(--mint-soft)", "var(--mint)")],
-    ["planned", square("var(--lav-soft)", "var(--lav)")],
-    ["you wrote", square("var(--ink)", "var(--ink)")],
-    ["she wrote", square("var(--sky)", "var(--sky)")],
-    ["both", both],
-    ["reached out", el("span", "tri")],
-    ["held back", el("span", "tri held")],
-    ["quiet hours", el("span", "swatch-quiet")],
-    ["energy", el("span", "swatch-wave")],
-  ];
-}
-
-/* Week: the same gutter, one column per day of the run. */
+/* Week: Sunday to Saturday of the run's current week, the whole day laid
+   out, days and hours that have not happened yet left grey. */
 function weekChart(view) {
-  const days = view.span.slice(-7);
+  const current = view.today === null || view.today === undefined
+    ? view.day : view.today;
+  const stamp = view.dates ? view.dates[current] : null;
   const chart = el("div", "cal-week");
   const columns = el("div", "cal-days");
-  for (const day of days) {
-    const holder = el("div");
-    holder.append(el("h4", null, `day ${day.day}`));
-    holder.append(el("p", "cal-sub",
-      `${day.messages} msg · ${day.agenda.length} items` +
-      (day.M === null ? "" : ` · M ${day.M}`)));
-    const column = el("div", "cal-col");
-    if (day.day === view.day) column.classList.add("is-open");
-    column.dataset.day = day.day;
-    for (const item of laidOut(day.agenda.map((block) => ({
-      ...block,
-      start_t_h: block.hour + day.day * 24,
-      end_t_h: block.end + day.day * 24,
-    })), day.day)) {
-      const [, edge] = statusColors(item.status);
-      const block = el("div", "cal-block");
-      block.style.top = `calc(${(item.hour / 24) * 100}% + 1px)`;
-      block.style.height = `calc(${((item.end - item.hour) / 24) * 100}% - 2px)`;
-      block.style.minHeight = "8px";
-      block.style.left = "2px";
-      block.style.width = "calc(100% - 4px)";
-      block.style.background = statusColors(item.status)[0];
-      block.style.borderColor = edge;
-      block.title = `${hourText(item.hour)}–${hourText(item.end)} · ${item.status}`;
-      column.append(block);
+  const byDate = {};
+  for (const entry of view.span) if (entry.date) byDate[entry.date] = entry;
+
+  const week = [];
+  if (stamp) {
+    const base = new Date(`${stamp.date}T00:00:00`);
+    const start = new Date(base);
+    start.setDate(start.getDate() - start.getDay());
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(start);
+      date.setDate(start.getDate() + i);
+      week.push(date);
     }
-    for (const reach of day.reach_outs) {
-      const flag = el("span", `cal-flag aside${reach.fired ? "" : " held"}`);
-      flag.style.top = `calc(${(reach.hour / 24) * 100}% - 5px)`;
-      flag.title = `${reach.fired ? "reached out" : "held back"} · ` +
-        hourText(reach.hour);
-      column.append(flag);
+  } else {
+    for (const entry of view.span.slice(-7)) week.push(null);
+  }
+
+  week.forEach((date, index) => {
+    const holder = el("div");
+    const entry = date ? byDate[isoOf(date)] : view.span[index];
+    const head = el("h4", null, date
+      ? `${WEEKDAYS[date.getDay()]} ${date.getDate()}` : `day ${entry ? entry.day : index}`);
+    holder.append(head);
+    const column = el("div", "cal-col");
+    if (entry && entry.day === current) column.classList.add("is-today");
+    if (entry && entry.day > current) column.classList.add("is-future-day");
+    if (!entry) column.classList.add("is-empty");
+    if (entry) {
+      column.dataset.day = entry.day;
+      column.title = `day ${entry.day}${entry.M === null ? "" : ` · mood M ${entry.M}`}`;
+      for (const item of laidOut(entry.agenda.map((block) => ({
+        ...block,
+        start_t_h: block.hour + entry.day * 24,
+        end_t_h: block.end + entry.day * 24,
+      })), entry.day)) {
+        const [fill, edge] = statusColors(item.status);
+        const block = el("div", "cal-block");
+        const future = entry.day > current ||
+          (entry.day === current &&
+            view.now_hour !== null && item.hour > view.now_hour);
+        block.style.top = `calc(${(item.hour / 24) * 100}% + 1px)`;
+        block.style.height = `calc(${((item.end - item.hour) / 24) * 100}% - 2px)`;
+        block.style.minHeight = "7px";
+        block.style.left = "2px";
+        block.style.width = "calc(100% - 4px)";
+        block.style.background = future ? "var(--paper-2)" : fill;
+        block.style.borderColor = future ? "var(--line)" : edge;
+        block.title = `${hourText(item.hour)}–${hourText(item.end)} · ${item.status}`;
+        column.append(block);
+      }
+      for (const reach of entry.reach_outs) {
+        const flag = el("span", `cal-flag aside${reach.fired ? "" : " held"}`);
+        flag.style.top = `calc(${(reach.hour / 24) * 100}% - 5px)`;
+        flag.title = `${reach.fired ? "reached out" : "held back"} · ` +
+          hourText(reach.hour);
+        column.append(flag);
+      }
     }
     holder.append(column);
     columns.append(holder);
-  }
+  });
+
   chart.append(hourGutter(), columns);
   return chart;
 }
 
-/* Month: a cell per day, tinted by mood, with the phase wheel beside it. */
-function monthChart(view) {
-  const wrap = el("div", "cal-months-wrap");
-  const grid = el("div", "cal-months");
-  const moods = view.span.map((day) => day.M).filter((value) => value !== null);
-  const low = moods.length ? Math.min(...moods) : 0;
-  const high = moods.length ? Math.max(...moods) : 1;
-  for (const day of view.span) {
-    const cell = el("div", "cal-cell");
-    cell.dataset.day = day.day;
-    if (day.day === view.day) cell.classList.add("is-open");
-    if (day.M !== null) {
-      const tone = (day.M - low) / (high - low || 1);
-      cell.style.background = `rgba(140, 92, 156, ${(0.04 + tone * 0.18).toFixed(3)})`;
-      cell.title = `day ${day.day} · mood M ${day.M}`;
-    }
-    cell.append(el("div", "cal-day-n", `day ${day.day}`));
-    cell.append(el("div", "cal-meta",
-      `${plural(day.agenda.length, "item")} · ${plural(day.messages, "msg")}`));
-    const squares = el("div", "cal-sq");
-    for (const item of day.agenda.slice(0, 12)) {
-      const square = el("i");
-      square.style.background = statusColors(item.status)[1];
-      square.title = `${hourText(item.hour)} ${item.status}`;
-      squares.append(square);
-    }
-    cell.append(squares);
-    const sent = day.reach_outs.filter((reach) => reach.fired).length;
-    const held = day.reach_outs.length - sent;
-    cell.append(el("div", "cal-meta",
-      held ? `${sent} reach · ${held} held` : `${sent} reach`));
-    grid.append(cell);
-  }
-  const side = el("div", "cal-month-side");
-  side.append(cycleWheel(view.cycle), cycleLegend(view.cycle));
-  wrap.append(grid, side);
+function monthTitle(view) {
+  const current = view.today === null || view.today === undefined
+    ? view.day : view.today;
+  const stamp = view.dates ? view.dates[current] : null;
+  if (!stamp) return "every day so far";
+  const date = new Date(`${stamp.date}T00:00:00`);
+  return date.toLocaleString(undefined, { month: "long", year: "numeric" });
+}
 
-  const foot = el("div", "cal-month-foot");
-  const moodDays = view.span.filter((day) => day.M !== null);
-  foot.append(el("p", "cal-empty", moodDays.length === view.span.length
-    ? "mood M across the run, oldest day at the left"
-    : `mood M for the ${moodDays.length} days that carry an engine row ` +
-      `(of ${view.span.length})`), sparkline(moodDays.map((day) => day.M)));
-  wrap.append(foot);
+/* Month: a real month grid — weekday columns, dates — with the cycle marked
+   on the dates the run lived and its days along a capsule strip below. */
+function monthChart(view) {
+  const wrap = el("div", "cal-month");
+  const current = view.today === null || view.today === undefined
+    ? view.day : view.today;
+  const stamp = view.dates ? view.dates[current] : null;
+  const head = el("div", "cal-weekdays");
+  for (const name of WEEKDAYS) head.append(el("span", null, name));
+  const grid = el("div", "cal-grid");
+  const byDate = {};
+  for (const entry of view.span) if (entry.date) byDate[entry.date] = entry;
+  const todayIso = stamp ? stamp.date : null;
+
+  if (stamp) {
+    const date = new Date(`${stamp.date}T00:00:00`);
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const first = new Date(year, month, 1);
+    const length = new Date(year, month + 1, 0).getDate();
+    for (let blank = 0; blank < first.getDay(); blank++) {
+      grid.append(el("div", "cal-blank"));
+    }
+    for (let day = 1; day <= length; day++) {
+      const iso = isoOf(new Date(year, month, day));
+      const cell = el("div", "cal-date");
+      cell.append(el("span", "cal-date-n", day));
+      const entry = byDate[iso];
+      if (entry) {
+        const [tone, edge] = phaseTone(entry.phase_label);
+        const dot = el("span", "cal-date-dot");
+        dot.style.background = edge;
+        dot.style.boxShadow = `0 0 0 3px ${tone}`;
+        cell.append(dot);
+        cell.classList.add("has-run");
+        cell.dataset.day = entry.day;
+        cell.title = `day ${entry.day} · ` +
+          `${String(entry.phase_label || "no engine row").replace("_", " ")}` +
+          `${entry.M === null ? "" : ` · mood M ${entry.M}`}`;
+        if (entry.day === current) cell.classList.add("is-today");
+        else if (entry.day > current) cell.classList.add("is-future");
+      } else if (todayIso && iso > todayIso) {
+        cell.classList.add("is-future");
+      }
+      grid.append(cell);
+    }
+  }
+  wrap.append(head, grid);
+
+  // The cycle band is a second grid over the same weekday columns, so a
+  // capsule sits under the date it belongs to — a wrapped grid cannot be
+  // reached by a proportional timeline.
+  const strip = el("div", "cal-cycle");
+  if (stamp) {
+    const date = new Date(`${stamp.date}T00:00:00`);
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const first = new Date(year, month, 1);
+    const length = new Date(year, month + 1, 0).getDate();
+    for (let blank = 0; blank < first.getDay(); blank++) {
+      strip.append(el("span", "cal-cap-blank"));
+    }
+    for (let day = 1; day <= length; day++) {
+      const entry = byDate[isoOf(new Date(year, month, day))];
+      const cell = el("span", "cal-cap");
+      if (entry) {
+        const [, edge] = phaseTone(entry.phase_label);
+        if (entry.phase_label) cell.style.background = edge;
+        cell.title = `day ${entry.day} (${dayLabel(entry.day)}) · ` +
+          `${String(entry.phase_label || "no engine row").replace("_", " ")}` +
+          `${entry.cycle_day === null ? "" : ` · day ${entry.cycle_day}`}`;
+        if (entry.day === current) cell.classList.add("is-today");
+      }
+      strip.append(cell);
+    }
+  } else {
+    view.span.forEach((entry) => {
+      const [, edge] = phaseTone(entry.phase_label);
+      const cell = el("span", "cal-cap");
+      cell.style.background = edge;
+      cell.style.opacity = entry.phase_label ? "1" : "0.25";
+      strip.append(cell);
+    });
+  }
+  wrap.append(strip);
   return wrap;
 }
 
-/* The wheel's own key: the same five phases, named, with their share. */
-function cycleLegend(cycle) {
-  const box = el("div", "cal-ring-key");
-  for (const phase of cycle.phases) {
-    const key = el("span", "key");
-    const mark = el("span", "sq");
-    mark.style.background = phase.label === cycle.phase_label
-      ? "var(--plum)" : "var(--plum-soft)";
-    mark.style.borderColor = "var(--plum)";
-    key.append(mark, el("span", null,
-      `${phase.label.replace("_", " ")} · ${Math.round((phase.to - phase.from) * 100)}%`));
-    box.append(key);
+/* ----------------------------------------------------------- the panels */
+/* A panel is a plot box on the app's type scale: HTML for everything with
+   text, one text-free SVG under the marks for the geometry. */
+function panelFrame({ yTicks = [], xLabels = [] }) {
+  const box = el("div", "panel-chart");
+  const axis = el("div", "panel-y");
+  for (const [label, at] of yTicks) {
+    const span = el("span", null, label);
+    span.style.top = `${at}%`;
+    axis.append(span);
   }
-  return box;
-}
-
-/* The wheel is the engine's own phase table, never an invented day count:
-   the engine draws each cycle's length afresh and does not store it. */
-function cycleWheel(cycle) {
-  const ns = "http://www.w3.org/2000/svg";
-  const box = el("div", "cal-ring");
-  const size = 132, radius = 50, stroke = 14;
-  const svg = document.createElementNS(ns, "svg");
-  svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
-  svg.setAttribute("role", "img");
-  svg.setAttribute("aria-label", "the cycle's phases, current one filled");
-  const circumference = 2 * Math.PI * radius;
-  const PHASE_TONE = {
-    menstrual: "var(--rose-soft)", follicular: "var(--mint-soft)",
-    ovulatory: "var(--sun-soft)", luteal_early: "var(--lav-soft)",
-    luteal_late: "var(--plum-soft)",
-  };
-  for (const phase of cycle.phases) {
-    const arc = document.createElementNS(ns, "circle");
-    const span = phase.to - phase.from;
-    arc.setAttribute("cx", size / 2);
-    arc.setAttribute("cy", size / 2);
-    arc.setAttribute("r", radius);
-    arc.setAttribute("fill", "none");
-    arc.setAttribute("stroke-width", stroke);
-    arc.setAttribute("stroke-dasharray",
-      `${(span * circumference - 3).toFixed(2)} ${circumference.toFixed(2)}`);
-    arc.setAttribute("stroke-dashoffset",
-      `${(-phase.from * circumference).toFixed(2)}`);
-    arc.setAttribute("style", `stroke:${
-      phase.label === cycle.phase_label ? "var(--plum)" : (PHASE_TONE[phase.label] || "var(--grey-soft)")}`);
-    arc.setAttribute("transform", `rotate(-90 ${size / 2} ${size / 2})`);
-    arc.append(document.createElementNS(ns, "title"));
-    arc.lastChild.textContent = `${phase.label} · phase ` +
-      `${Math.round(phase.from * 100)}–${Math.round(phase.to * 100)}% of the cycle`;
-    svg.append(arc);
+  const events = el("div", "panel-events");
+  const plot = el("div", "panel-plot");
+  const lines = svgNode("svg", {
+    class: "panel-lines", viewBox: "0 0 100 100",
+    preserveAspectRatio: "none", "aria-hidden": "true",
+  });
+  plot.append(lines, el("div", "panel-marks"));
+  const xAxis = el("div", "panel-x");
+  for (const label of xLabels) {
+    const span = el("span", null, label.text);
+    span.style.left = `${label.at}%`;
+    if (label.at <= 0.5) span.style.transform = "none";
+    if (label.at >= 99.5) span.style.transform = "translateX(-100%)";
+    xAxis.append(span);
   }
-  const label = el("div", "cal-ring-label",
-    cycle.phase_label ? cycle.phase_label.replace("_", " ") : "no cycle row");
-  const sub = el("div", "cal-ring-sub",
-    cycle.cycle_day === null ? "this day has no engine row"
-      : `day ${cycle.cycle_day} of the cycle`);
-  box.append(svg, label, sub);
-  return box;
+  box.append(axis, events, plot, xAxis);
+  return { box, plot, lines, marks: plot.lastChild, events };
 }
 
-function onCalendarClick(event) {
-  const hit = event.target.closest("[data-day]");
-  if (!hit) return;
-  study.day = Number(hit.dataset.day);
-  study.cal = "day";
-  loadStudy(study.runId).catch((error) => console.warn("study failed", error));
+function nearestValue(points, hour) {
+  let best = points.length ? points[0][1] : 0;
+  let distance = Infinity;
+  for (const [h, value] of points) {
+    const gap = Math.abs(h - hour);
+    if (gap < distance) { distance = gap; best = value; }
+  }
+  return best;
 }
 
-function buildLeverSwitch() {
+/* Mood: the run's line, the trend it deviates from, phase bands behind it,
+   and every reach-out marked on the day it happened. */
+function moodChart(view) {
+  const series = view.mood_series;
+  const days = series.days;
+  const frame = panelFrame({
+    yTicks: [["10", 0], ["5", 50], ["0", 100]],
+    xLabels: days.map((day, index) => ({
+      text: dayLabel(day), at: ((index + 0.5) / days.length) * 100,
+    })),
+  });
+  const n = days.length;
+  if (!n) {
+    frame.plot.append(el("p", "cal-empty", "no engine rows yet"));
+    return frame.box;
+  }
+  const x = (index) => ((index + 0.5) / n) * 100;
+  const y = (value) => (1 - Math.max(0, Math.min(10, Number(value))) / 10) * 100;
+
+  const bands = [];
+  series.phase.forEach((phase, index) => {
+    const [tone] = phaseTone(phase);
+    frame.lines.append(titled(svgNode("rect", {
+      x: `${(index / n) * 100}`, y: "0", width: `${100 / n}`, height: "100",
+      style: `fill:${tone}`, opacity: "0.5",
+    }), String(phase || "no engine row").replace("_", " ")));
+    const run = bands[bands.length - 1];
+    if (run && run.phase === phase) run.length += 1;
+    else bands.push({ phase, start: index, length: 1 });
+  });
+  for (const band of bands) {
+    if (!band.phase || (band.length * 100) / n < 11) continue;
+    const tag = el("span", "panel-tag", String(band.phase).replace("_", " "));
+    tag.style.left = `${((band.start + band.length / 2) / n) * 100}%`;
+    tag.style.top = "2px";
+    tag.style.color = phaseTone(band.phase)[1];
+    frame.marks.append(tag);
+  }
+  const points = series.M.map((value, index) => [x(index), y(value)]);
+  frame.lines.append(svgNode("polygon", {
+    points: [[x(0), 100], ...points, [x(n - 1), 100]]
+      .map((pair) => pair.join(" ")).join(" "),
+    style: "fill:var(--peach)", opacity: "0.13",
+  }));
+  frame.lines.append(svgNode("polyline", {
+    points: points.map((pair) => pair.join(" ")).join(" "),
+    fill: "none", "vector-effect": "non-scaling-stroke",
+    style: "stroke:var(--peach)", "stroke-width": "2",
+  }));
+  if (series.expected && series.expected.length === n) {
+    frame.lines.append(svgNode("polyline", {
+      points: series.expected
+        .map((value, index) => [x(index), y(value)].join(" ")).join(" "),
+      fill: "none", "vector-effect": "non-scaling-stroke",
+      style: "stroke:var(--sky)", "stroke-width": "1.6",
+      "stroke-dasharray": "5 4",
+    }));
+  }
+
+  const name = el("span", "panel-series", "mood");
+  name.style.color = "var(--peach)";
+  name.style.left = `${x(n - 1)}%`;
+  name.style.top = `${y(series.M[n - 1])}%`;
+  frame.marks.append(name);
+  if (series.expected && series.expected.length === n) {
+    const trend = el("span", "panel-series", "trend");
+    trend.style.color = "var(--sky)";
+    trend.style.left = `${x(n - 1)}%`;
+    trend.style.top = `${y(series.expected[n - 1])}%`;
+    frame.marks.append(trend);
+  }
+
+  for (const event of view.panels.proactive) {
+    const index = days.indexOf(event.day);
+    if (index < 0) continue;
+    if (event.fired) {
+      frame.lines.append(titled(svgNode("line", {
+        x1: x(index), y1: "0", x2: x(index), y2: y(series.M[index]),
+        "vector-effect": "non-scaling-stroke",
+        style: "stroke:var(--rose)", "stroke-width": "1",
+        "stroke-dasharray": "3 3", opacity: "0.55",
+      }), `reached out ${hourText(event.hour)}`));
+    }
+    const mark = el("span", `ev${event.fired ? "" : " held"}`);
+    mark.style.left = `${x(index)}%`;
+    mark.title = `day ${event.day} · ${hourText(event.hour)} — ` +
+      `${event.fired ? "reached out" : "held back"}` +
+      (event.reason ? `\n${event.reason}` : "") +
+      (event.hook ? `\n${event.hook}` : "");
+    frame.events.append(mark);
+    if (event.fired && event.hook) {
+      const label = el("span", "ev-label", shortened(event.hook, 24));
+      label.style.left = `${x(index)}%`;
+      label.title = event.hook;
+      frame.events.append(label);
+    }
+  }
+  return frame.box;
+}
+
+/* Rhythm: the engine's energy curve for each phase the run has lived, with
+   every reach-out decision placed at its own hour on that day's curve. */
+function rhythmChart(view) {
+  const { curves, current } = view.rhythm;
+  const frame = panelFrame({
+    yTicks: [["1", 0], ["", 50], ["0", 100]],
+    xLabels: [0, 6, 12, 18, 24].map((hour) => ({
+      text: String(hour), at: (hour / 24) * 100,
+    })),
+  });
+  if (!curves.length) {
+    frame.plot.append(el("p", "cal-empty", "no engine rows yet"));
+    return frame.box;
+  }
+  const quiet = quietBands(view.quiet_hours);
+  const widest = quiet.reduce((best, band) =>
+    (band[1] - band[0] > best[1] - best[0] ? band : best), quiet[0]);
+  for (const [from, to] of quiet) {
+    const band = titled(svgNode("rect", {
+      x: `${(from / 24) * 100}`, y: "0",
+      width: `${((to - from) / 24) * 100}`, height: "100",
+      style: "fill:var(--grey-soft)", opacity: "0.45",
+    }), `quiet hours ${hourText(from)}–${hourText(to)}`);
+    frame.lines.append(band);
+    if (from === widest[0]) {
+      const tag = el("span", "panel-tag", "quiet");
+      tag.style.left = `${(from / 24) * 100 + 1}%`;
+      tag.style.top = "2px";
+      frame.marks.append(tag);
+    }
+  }
+  for (const curve of curves) {
+    const [, edge] = phaseTone(curve.phase);
+    const isCurrent = curve.phase === current;
+    frame.lines.append(svgNode("polyline", {
+      points: curve.points
+        .map(([hour, value]) => [
+          (hour / 24) * 100, (1 - value) * 100].join(" ")).join(" "),
+      fill: "none", "vector-effect": "non-scaling-stroke",
+      style: `stroke:${edge}`,
+      "stroke-width": isCurrent ? "2" : "1.1",
+      opacity: isCurrent ? "0.95" : "0.45",
+    }));
+  }
+  const phases = {};
+  for (const entry of view.span) phases[entry.day] = entry.phase_label;
+  for (const event of view.panels.proactive) {
+    const phase = phases[event.day];
+    const curve = curves.find((item) => item.phase === phase);
+    if (!curve) continue;
+    const value = nearestValue(curve.points, event.hour);
+    const dot = el("span", `rh-dot${event.fired ? "" : " held"}`);
+    dot.style.left = `${(event.hour / 24) * 100}%`;
+    dot.style.top = `${(1 - value) * 100}%`;
+    dot.style.borderColor = phaseTone(phase)[1];
+    dot.title = `day ${event.day} · ${hourText(event.hour)} · energy ` +
+      `${value.toFixed(2)} — ${event.fired ? "reached out" : "held back"}` +
+      (event.reason ? `\n${event.reason}` : "") +
+      (event.hook ? `\n${event.hook}` : "");
+    frame.marks.append(dot);
+  }
+  return frame.box;
+}
+
+/* Contact: one mark per message — who spoke, and at what hour — until the
+   run is long enough for a density grid to say something. */
+function contactChart(view) {
+  const days = view.panels.contact_days;
+  const grid = view.panels.contact;
+  const dense = days.length >= CONTACT_DENSE_DAYS;
+  const frame = panelFrame({
+    yTicks: [],
+    xLabels: [0, 6, 12, 18, 24].map((hour) => ({
+      text: String(hour), at: (hour / 24) * 100,
+    })),
+  });
+  if (!days.length) {
+    frame.plot.append(el("p", "cal-empty", "no messages yet"));
+    return frame.box;
+  }
+  const byDay = {};
+  for (const entry of view.span) byDay[entry.day] = entry;
+  const peak = Math.max(1, ...grid.flat().map((cell) =>
+    cell[0] + cell[1] + cell[2]));
+  days.forEach((day, index) => {
+    const entry = byDay[day] || {};
+    const label = dayLabel(day);
+    const caption = el("span", null, label);
+    caption.style.top = `${((index + 0.5) / days.length) * 100}%`;
+    const [, edge] = phaseTone(entry.phase_label || "");
+    const chip = el("span", "ct-chip");
+    chip.style.background = edge;
+    chip.style.opacity = entry.phase_label ? "1" : "0.3";
+    caption.prepend(chip);
+    frame.box.querySelector(".panel-y").append(caption);
+
+    const row = el("div", "ct-row");
+    row.style.top = `${(index / days.length) * 100}%`;
+    row.style.height = `${100 / days.length}%`;
+    grid[index].forEach((cell, hour) => {
+      const total = cell[0] + cell[1] + cell[2];
+      if (!total) return;
+      const left = (hour / 24) * 100;
+      const width = 100 / 24;
+      if (dense) {
+        const block = el("span", "ct-cell");
+        block.style.left = `${left}%`;
+        block.style.width = `${width}%`;
+        block.style.opacity = String(0.15 + 0.75 * (total / peak));
+        block.title = `${label} · ${hourText(hour)} — ` +
+          `${plural(total, "message")}`;
+        row.append(block);
+        return;
+      }
+      const marks = cell[0] + cell[1] + cell[2];
+      const perRow = 4;
+      const lines = Math.ceil(marks / perRow);
+      for (let i = 0; i < marks; i++) {
+        const mark = el("span", "ct-mark");
+        const column = i % perRow;
+        const line = Math.floor(i / perRow);
+        mark.style.left = `calc(${left}% + ${(column + 0.5) * (width / perRow)}%)`;
+        mark.style.top = `calc(50% + ${((line - (lines - 1) / 2) * 9).toFixed(1)}px - 2px)`;
+        mark.style.background = i < cell[0] ? "var(--ink)"
+          : i < cell[0] + cell[1] ? "var(--sky)" : "var(--rose)";
+        row.append(mark);
+      }
+      const tip = el("span", "ct-hit");
+      tip.style.left = `${left}%`;
+      tip.style.width = `${width}%`;
+      tip.title = `${label} · ${hourText(hour)}–${hourText(hour + 1)} — ` +
+        `${cell[0]} you, ${cell[1]} her, ${cell[2]} reached out`;
+      row.append(tip);
+    });
+    frame.plot.append(row);
+  });
+  return frame.box;
+}
+
+/* --------------------------------------------------------------- events */
+function buildSwitches() {
   const host = $("lever-switch");
   host.textContent = "";
-  for (const lever of LEVERS) {
-    const button = el("button", "vbtn", lever.label);
+  for (const panel of PANELS) {
+    const button = el("button", "vbtn", panel.label);
     button.type = "button";
-    button.dataset.lever = lever.key;
-    button.setAttribute("aria-pressed", String(lever.key === study.lever));
+    button.dataset.panel = panel.key;
+    button.setAttribute("aria-pressed", String(panel.key === study.panel));
     button.addEventListener("click", () => {
-      study.lever = lever.key;
+      study.panel = panel.key;
       for (const other of host.querySelectorAll(".vbtn")) {
         other.setAttribute("aria-pressed",
-          String(other.dataset.lever === study.lever));
+          String(other.dataset.panel === study.panel));
       }
-      renderLevers();
+      renderPanel();
     });
     host.append(button);
   }
@@ -1708,7 +1780,13 @@ function buildLeverSwitch() {
       renderCalendar();
     });
   }
-  $("cal-panel").addEventListener("click", onCalendarClick);
+  $("cal-panel").addEventListener("click", (event) => {
+    const hit = event.target.closest("[data-day]");
+    if (!hit) return;
+    study.day = Number(hit.dataset.day);
+    study.cal = "day";
+    loadStudy(study.runId).catch((error) => console.warn("study failed", error));
+  });
 }
 
 /* ------------------------------------------------------------------- boot */
@@ -1721,7 +1799,7 @@ async function loadRun(runId) {
   renderContext(detail.context);
   renderCalls(detail.calls, focusedCall() && focusedCall().id);
   renderFlow(detail.events.events, true);
-  await loadStudy(runId, { fresh: true });
+  await loadStudy(runId);
   await loadWire();
   setView(state.view);
   state.cursor = detail.events.latest_seq;
@@ -1812,7 +1890,7 @@ async function boot() {
   for (const button of $("viewswitch").querySelectorAll(".vbtn")) {
     button.addEventListener("click", () => setView(button.dataset.view));
   }
-  buildLeverSwitch();
+  buildSwitches();
   $("drawer-close").addEventListener("click", closeDrawer);
   $("scrim").addEventListener("click", closeDrawer);
   document.addEventListener("keydown", (event) => {

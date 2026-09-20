@@ -1,8 +1,8 @@
-"""The study builders: the day view and the distribution levers.
+"""The study builders: the day view the calendar draws and the panel data.
 
-Read-only shapes over the run's own tables: agenda, reach-outs, message ticks,
-the two cycles, and one histogram per lever with its own n. Nothing here
-writes, so a run can be studied while it is live.
+Read-only shapes over the run's own tables — agenda, reach-out decisions,
+message counts, the cycle, and the functions the panels mark events on.
+Nothing here writes, so a run can be studied while it is live.
 """
 
 from __future__ import annotations
@@ -58,10 +58,13 @@ def test_the_day_view_carries_the_day(tmp_path):
     assert view["mood"] == {"M": 7, "m_level": -0.4}
     assert view["quiet_hours"] == [23.0, 8.0]
     assert view["now_hour"] == 12.1          # the newest row is the run's present
+    assert view["today"] == 0
     # The curve is the engine's own energy, sampled across the day.
     curve = view["circadian"]
     assert len(curve) == 49 and curve[0][0] == 0.0 and curve[-1][0] == 24.0
     assert all(0.0 <= value <= 1.0 for _, value in curve)
+    # An unanchored store has no dates; the front-end falls back to day labels.
+    assert view["dates"] == {} and view["date"] is None
     store.close()
 
 
@@ -72,6 +75,55 @@ def test_a_reach_out_is_a_marker_whether_or_not_it_was_sent(tmp_path):
     assert [(p["hour"], p["fired"]) for p in view["proactive"]] == [
         (10.0, False), (12.0, True)]
     assert view["proactive"][0]["reason"] == "quiet hour"
+    store.close()
+
+
+def test_the_panels_mark_the_whole_run(tmp_path):
+    """The panels read the run, not the day the calendar happens to show."""
+    store = _store(tmp_path)
+    store.add_message("user", "next day", 25.0, 1)
+    panels = study.day_view(store.conn, day=0)["panels"]
+
+    assert [(event["day"], event["hour"], event["fired"])
+            for event in panels["proactive"]] == [(0, 10.0, False), (0, 12.0, True)]
+    assert panels["contact_days"] == [0, 1]
+    assert panels["contact"][0][9] == [1, 1, 0]    # you wrote, she replied
+    assert panels["contact"][0][12] == [0, 0, 1]   # her reach-out
+    assert panels["contact"][1][1] == [1, 0, 0]
+    store.close()
+
+
+def test_the_mood_series_keeps_the_expectation_kernel(tmp_path):
+    store = make_store(tmp_path)
+    for day, mood in enumerate([0, 0, 0, 7, 0, 0, 0, 0]):
+        store.save_daily_state(day, {
+            "day": day, "M": mood, "m": 0.0, "g": 0.0, "p": 0.0, "arg": 0.0,
+            "mu": 0.0, "eta": 0.0, "cycle_day": 0.0, "phase_label": "follicular",
+            "seed": 1, "score": 0.0,
+        })
+    series = study.day_view(store.conn, day=3)["mood_series"]
+
+    assert series["days"] == list(range(8))
+    assert series["M"] == [0, 0, 0, 7, 0, 0, 0, 0]
+    # A 7-wide box mean, padded at the edges: the one spike at day 3 is inside
+    # every window up to day 6, and out of the window by day 7.
+    assert series["expected"][0] == 1.0
+    assert series["expected"][6] == 1.0
+    assert series["expected"][7] == 0.0
+    assert series["window"] == 7
+    store.close()
+
+
+def test_the_rhythm_curves_are_the_engines_own(tmp_path):
+    store = _store(tmp_path)
+    rhythm = study.day_view(store.conn, day=0)["rhythm"]
+
+    assert rhythm["current"] == "follicular"
+    assert [curve["phase"] for curve in rhythm["curves"]] == ["follicular"]
+    points = rhythm["curves"][0]["points"]
+    assert len(points) == 49 and points[0][0] == 0.0 and points[-1][0] == 24.0
+    assert all(0.0 <= value <= 1.0 for _, value in points)
+    assert rhythm["quiet_hours"] == [23.0, 8.0]
     store.close()
 
 
@@ -108,44 +160,16 @@ def test_a_day_that_is_not_now_has_no_now_line(tmp_path):
     store.close()
 
 
-def test_levers_report_their_own_n(tmp_path):
-    store = _store(tmp_path)
-    payload = study.levers(store.conn)
-
-    assert payload["window"]["n_agenda"] == 2
-    assert payload["window"]["n_reach_outs"] == 2
-    agenda = payload["agenda"]
-    assert agenda["by_status"] == [["completed", 1], ["planned", 1]]
-    assert agenda["by_source"] == [["interest", 1], ["routine", 1]]
-    assert agenda["by_hour"] == [["8", 1], ["14", 1]]
-    assert agenda["duration"] == {"n": 2, "mean": 1.0, "min": 1.0, "max": 1.0}
-    assert agenda["salience"]["n"] == 2
-
-    reach = payload["proactive"]
-    assert reach["sent"] == 1 and reach["suppressed"] == 1
-    assert reach["by_hour"] == [["10", 1], ["12", 1]]
-    assert reach["suppressed_reasons"] == [["quiet hour", 1]]
-
-    assert payload["mood"]["series"] == [[0, 7, -0.4]]
-    assert payload["cycle"]["phase_days"] == [["follicular", 1]]
-    assert payload["cycle"]["mood_by_phase"] == [
-        ["follicular", {"n": 1, "mean": 7.0, "min": 7.0, "max": 7.0}]]
-
-    # Spend keeps the harness' own math; with no calls it is an honest zero.
-    assert payload["spend"]["totals"]["calls"] == 0
-    store.close()
-
-
-def test_the_levers_are_empty_before_the_run_is(tmp_path):
+def test_an_empty_run_reads_empty_but_whole(tmp_path):
     store = make_store(tmp_path)
-    payload = study.levers(store.conn)
+    view = study.day_view(store.conn, day=0)
 
-    assert payload["window"] == {"days": [], "n_agenda": 0, "n_reach_outs": 0}
-    assert payload["agenda"]["by_status"] == []
-    assert payload["agenda"]["duration"] == {"n": 0, "mean": None, "min": None,
-                                             "max": None}
-    assert payload["mood"]["series"] == []
+    assert view["agenda"] == [] and view["messages"] == []
+    assert view["span"] == [] and view["days"] == []
+    assert view["mood_series"]["expected"] == []
+    assert view["rhythm"]["curves"] == []
+    assert view["panels"] == {"proactive": [], "contact": [],
+                              "contact_days": []}
+    assert view["now_hour"] is None and view["today"] == 0
     assert study.run_now(store.conn) is None
-    assert study.latest_day(store.conn) == 0
-    assert study.day_view(store.conn, day=0)["now_hour"] is None
     store.close()

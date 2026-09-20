@@ -339,17 +339,18 @@ horizontal hour stripes (owner call: the standard calendar-app shape), Week is
 them. Build order: day view + agenda/proactive first, then week + the cycle
 strip, then month, then the conditioner splits.
 
-Built so far (2026-09-20): `observability/study.py` with the read-only builders
-(`day_view`, `levers`, `_day_span`) behind `/api/study/day` and
-`/api/study/levers`, rendered by the Study row at the bottom of the page — Day
-(vertical hour stripes, agenda blocks by status in overlap lanes, the engine's
-circadian energy as a wave, message ticks, reach-out flags with the verdict's
-reason, the now-line), Week (one column per day of the run) and Month (a cell
-per day, tinted by mood, click-through into that day), with the five lever
-buttons over the distributions (status/source/start-hour, sent-vs-held with the
-reasons, mood series, phase days, spend reused from `harness.spend`). Still
-open: the cycle ring around the month cells, the "by:" conditioner splits, the
-two-track matching view, and the bearing-texts reconstruction.
+Rebuilt as he drew it (2026-09-20): the row is two cards — CALENDAR (left, the
+granularity levers in its own head) and STUDY (right, `Mood | Rhythm |
+Contact`). The calendar always renders the full period, washes everything
+after *now* grey and keeps now/active the only bright thing (Day = vertical
+hour stripes; Week = Sunday-to-Saturday of the run's current week; Month = a
+real month grid with the phase on each date the run lived and a cycle band on
+the grid's own columns). The panels mark the run's events ON its functions:
+mood line + 7-day expectation + reach-out drops, the engine's energy curve
+per phase with each reach-out decision placed at its own hour and energy,
+and one mark per message. The levers payload — histograms, means and the
+spend lever in it — is gone; counts return only when the run is long enough
+(21+ days) to earn them.
 
 ### Photos over Telegram reach nothing (2026-09-20)
 > "do you know what would happen if I send an image through telegram? Would it

@@ -1267,11 +1267,9 @@ def test_study_endpoints_answer_from_the_run(live_server):
     assert day["day"] >= 0
     assert len(day["circadian"]) == 49          # sampled every half hour
     assert day["quiet_hours"] == [23.0, 8.0]
-    assert {"agenda", "proactive", "messages", "cycle", "mood"} <= set(day)
-
-    levers = _json(f"{base}/api/study/levers?id={run_id}")
-    assert levers["window"]["days"] == day["days"]
-    assert "totals" in levers["spend"] and "by_role" in levers["spend"]
+    assert {"agenda", "proactive", "messages", "cycle", "mood_series",
+            "rhythm", "panels", "dates", "span"} <= set(day)
+    assert set(day["panels"]) == {"proactive", "contact", "contact_days"}
 
     status, _ = _get(f"{base}/api/study/day?id={tmp_path}/nope.db")
     assert status == 404

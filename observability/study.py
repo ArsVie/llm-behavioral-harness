@@ -12,14 +12,11 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections import Counter
 from typing import Any
 
 from engine.circadian import energy as circadian_energy
 from engine.types import PHASE_FRACTIONS, TimingParams
-
-from observability.calls import usage_payload
-from observability.db import rows as db_rows
+from harness.trace import load_anchor
 
 #: Samples per day on the circadian curve (one point every half hour).
 CURVE_STEP_H = 0.5
@@ -91,6 +88,49 @@ def _curve(phase_label: str, timing: TimingParams) -> list[list[float]]:
     return points
 
 
+def day_dates(conn: sqlite3.Connection) -> dict[int, dict[str, str]]:
+    """The real date each run day began, from the run's own anchor.
+
+    The calendar is a real calendar: a day number alone cannot place a cell in
+    a month grid or a weekday column. Unanchored runs read empty, and the
+    front-end falls back to "day N" labels.
+    """
+    anchor = load_anchor(conn)
+    if anchor is None:
+        return {}
+    dates: dict[int, dict[str, str]] = {}
+    for day in day_numbers(conn):
+        started = anchor.real(day * DAY_H)
+        dates[day] = {"date": started.date().isoformat(),
+                      "weekday": started.strftime("%a"),
+                      "month": started.strftime("%Y-%m")}
+    return dates
+
+
+def rhythm_curves(conn: sqlite3.Connection,
+                  timing: TimingParams | None = None) -> dict[str, Any]:
+    """One energy curve per cycle phase the run has lived, oldest phase first.
+
+    The panel marks the reach-outs on these curves, so it needs the engine's
+    own function, not a redrawing of it.
+    """
+    timing = timing or TimingParams()
+    phases: list[str] = []
+    for row in conn.execute(
+            "select day, phase_label from daily_state order by day"):
+        phase = str(row["phase_label"] or "")
+        if phase and phase not in phases:
+            phases.append(phase)
+    latest = conn.execute(
+        "select phase_label from daily_state order by day desc limit 1").fetchone()
+    return {
+        "current": str(latest["phase_label"]) if latest is not None else "",
+        "curves": [{"phase": phase, "points": _curve(phase, timing)}
+                   for phase in phases],
+        "quiet_hours": [float(x) for x in timing.quiet_hours],
+    }
+
+
 def _day_span(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """One compact roll-up per day: what the week and month views draw.
 
@@ -146,6 +186,68 @@ def _day_span(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     return [span[day] for day in days]
 
 
+def _mood_series(conn: sqlite3.Connection) -> dict[str, Any]:
+    """The run's mood line and the 7-day expectation it deviates from.
+
+    Same kernel as the README's mood panel (a padded 7-wide box mean), so the
+    app draws the analysis figure's line, not its own smoothing.
+    """
+    rows = [
+        dict(row) for row in conn.execute(
+            "select day, M, m_level, phase_label from daily_state order by day")
+    ]
+    values = [float(row["M"]) for row in rows if row["M"] is not None]
+    expected: list[float | None] = []
+    window = 7
+    half = window // 2
+    if values:
+        padded = [values[0]] * half + values + [values[-1]] * half
+        expected = [
+            round(sum(padded[i + k] for k in range(window)) / window, 3)
+            for i in range(len(values))
+        ]
+    return {
+        "days": [int(row["day"]) for row in rows],
+        "M": [row["M"] for row in rows],
+        "m_level": [row["m_level"] for row in rows],
+        "phase": [str(row["phase_label"] or "") for row in rows],
+        "expected": expected,
+        "window": window,
+    }
+
+
+def _panels(conn: sqlite3.Connection) -> dict[str, Any]:
+    """What the study panels mark: every reach-out decision, and when the two
+    of them talked — both run-wide, because a panel reads the whole run, not
+    the day the calendar happens to show."""
+    proactive = []
+    for row in conn.execute(
+            "select t_h, verdict_json, inputs_json from decision_records "
+            "where popup_kind = 'tool_decide_proactive' order by t_h"):
+        verdict = _loads(row["verdict_json"])
+        inputs = _loads(row["inputs_json"])
+        proactive.append({
+            "day": int(float(row["t_h"]) // DAY_H),
+            "hour": round(float(row["t_h"]) % DAY_H, 3),
+            "fired": bool(verdict.get("initiate")),
+            "hook": str(inputs.get("hook") or inputs.get("reason") or ""),
+            "reason": str(verdict.get("reason") or ""),
+        })
+
+    days = day_numbers(conn)
+    index = {day: i for i, day in enumerate(days)}
+    contact = [[[0, 0, 0] for _ in range(24)] for _ in days]
+    for row in conn.execute("select t_h, role, proactive from messages"):
+        day = int(float(row["t_h"]) // DAY_H)
+        slot = index.get(day)
+        if slot is None:
+            continue
+        hour = int(float(row["t_h"]) % DAY_H)
+        who = 2 if row["proactive"] else (0 if str(row["role"]) == "user" else 1)
+        contact[slot][hour][who] += 1
+    return {"proactive": proactive, "contact": contact, "contact_days": days}
+
+
 def day_view(conn: sqlite3.Connection, *, day: int,
              timing: TimingParams | None = None) -> dict[str, Any]:
     """One day as the calendar's Day view draws it: agenda, reach-outs,
@@ -189,12 +291,19 @@ def day_view(conn: sqlite3.Connection, *, day: int,
     ]
 
     now = run_now(conn)
+    dates = day_dates(conn)
+    span = _day_span(conn)
+    for entry in span:
+        entry.update(dates.get(int(entry["day"]), {}))
     return {
         "day": day,
         # The now-line belongs to the day the run is actually in; on another
         # day there is no "now" to draw.
         "now_hour": (round(now - start, 3)
                      if now is not None and start <= now < end else None),
+        "today": latest_day(conn),
+        "date": dates.get(day, {}).get("date"),
+        "weekday": dates.get(day, {}).get("weekday"),
         "agenda": agenda,
         "proactive": proactive,
         "messages": messages,
@@ -207,107 +316,12 @@ def day_view(conn: sqlite3.Connection, *, day: int,
                               "to": round(end, 4)}
                              for label, start, end in PHASE_FRACTIONS]},
         "mood": {"M": state.get("M"), "m_level": state.get("m_level")},
+        "mood_series": _mood_series(conn),
         "circadian": _curve(phase, timing),
+        "rhythm": rhythm_curves(conn, timing),
+        "panels": _panels(conn),
         "quiet_hours": [float(x) for x in timing.quiet_hours],
         "days": day_numbers(conn),
-        "span": _day_span(conn),
-    }
-
-
-def _hist(counter: Counter, *, order: list[str] | None = None) -> list[list[Any]]:
-    """A histogram as ordered ``[label, count]`` pairs — charts want order."""
-    if order is not None:
-        items = [(str(key), counter.get(key, 0)) for key in order]
-    else:
-        items = sorted(((str(k), v) for k, v in counter.items()),
-                       key=lambda pair: (-pair[1], pair[0]))
-    return [[label, count] for label, count in items if count]
-
-
-def _summary(values: list[float]) -> dict[str, Any]:
-    if not values:
-        return {"n": 0, "mean": None, "min": None, "max": None}
-    return {"n": len(values), "mean": round(sum(values) / len(values), 3),
-            "min": round(min(values), 3), "max": round(max(values), 3)}
-
-
-def levers(conn: sqlite3.Connection) -> dict[str, Any]:
-    """The distribution levers: one histogram + summary per subject.
-
-    Descriptive only — counts, means, spreads. Every lever carries its own
-    ``n``, because a shape drawn over four rows is not a distribution.
-    """
-    agenda = [
-        dict(row) for row in conn.execute(
-            "select day, start_t_h, end_t_h, source_type, status, salience "
-            "from agenda_items")
-    ]
-    status_order = ["completed", "planned", "skipped", "shifted", "in_progress"]
-    source_counter = Counter(str(r["source_type"] or "") for r in agenda)
-    hour_counter = Counter(int(float(r["start_t_h"]) % DAY_H) for r in agenda)
-    durations = [float(r["end_t_h"]) - float(r["start_t_h"]) for r in agenda]
-    saliences = [float(r["salience"]) for r in agenda if r["salience"] is not None]
-
-    proactive = [
-        dict(row) for row in conn.execute(
-            "select t_h, verdict_json, inputs_json from decision_records "
-            "where popup_kind = 'tool_decide_proactive' order by t_h")
-    ]
-    sent = suppressed = 0
-    reason_counter: Counter = Counter()
-    reach_hours: Counter = Counter()
-    for row in proactive:
-        verdict = _loads(row["verdict_json"])
-        if verdict.get("initiate"):
-            sent += 1
-        else:
-            suppressed += 1
-            reason_counter[str(verdict.get("reason") or "(no reason)")] += 1
-        reach_hours[int(float(row["t_h"]) % DAY_H)] += 1
-
-    mood_rows = [
-        dict(row) for row in conn.execute(
-            "select day, M, m_level, phase_label from daily_state order by day")
-    ]
-    phase_counter: Counter = Counter(
-        str(r["phase_label"] or "") for r in mood_rows)
-    by_phase_mood: dict[str, list[float]] = {}
-    for row in mood_rows:
-        if row["M"] is not None:
-            by_phase_mood.setdefault(str(row["phase_label"] or ""), []).append(
-                float(row["M"]))
-
-    # Spend is the harness' own math (per-model pricing), the same numbers the
-    # calls card shows: reuse it rather than derive a second truth.
-    spend = usage_payload(db_rows(conn, "select * from llm_calls"))
-
-    return {
-        "window": {"days": day_numbers(conn),
-                   "n_agenda": len(agenda), "n_reach_outs": len(proactive)},
-        "agenda": {
-            "by_status": _hist(Counter(str(r["status"] or "") for r in agenda),
-                               order=status_order),
-            "by_source": _hist(source_counter),
-            "by_hour": [[str(h), c] for h, c in sorted(hour_counter.items())],
-            "duration": _summary(durations),
-            "salience": _summary(saliences),
-        },
-        "proactive": {
-            "sent": sent,
-            "suppressed": suppressed,
-            "by_hour": [[str(h), c] for h, c in sorted(reach_hours.items())],
-            "suppressed_reasons": _hist(reason_counter),
-        },
-        "mood": {
-            "series": [[int(r["day"]), r["M"], r["m_level"]] for r in mood_rows],
-            "M": _summary([float(r["M"]) for r in mood_rows if r["M"] is not None]),
-        },
-        "cycle": {
-            "phase_days": _hist(phase_counter),
-            "mood_by_phase": [
-                [phase, _summary(values)]
-                for phase, values in sorted(by_phase_mood.items())
-            ],
-        },
-        "spend": spend,
+        "dates": dates,
+        "span": span,
     }
