@@ -56,6 +56,7 @@
     <section class="card flow-card">
       <div class="card-head">
         <h2>Event flow</h2>
+        <div class="kindbar" id="kind-legend"></div>
         <div class="flow-tools">
           <button type="button" class="btn btn-quiet btn-small" id="flow-older" aria-label="older rows">&lsaquo;</button>
           <button type="button" class="btn btn-quiet btn-small" id="flow-newer" aria-label="newer rows">&rsaquo;</button>
@@ -63,8 +64,10 @@
         </div>
       </div>
       <div class="legend-bar">
-        <div class="kindbar" id="kind-legend"></div>
-        <p class="hint legend-note">click a kind to hide it &middot; peach = warning &middot; rose = error</p>
+        <p class="legend-key" title="tinted cards mark exceptions">
+          <span class="key"><span class="sq sq-warn"></span>warning</span>
+          <span class="key"><span class="sq sq-err"></span>error</span>
+        </p>
         <p class="panel-foot" id="flow-foot" hidden></p>
       </div>
       <div class="flow-track" id="flow-track"><p class="flow-empty">no events yet</p></div>

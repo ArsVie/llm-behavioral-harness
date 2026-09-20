@@ -69,14 +69,14 @@ function setStat(id, value, stateName, foot) {
   card.dataset.state = stateName || "";
 }
 
-/* Dollars small enough that two decimals round them to zero: a run that has
-   spent a tenth of a cent should read as a tenth of a cent, not as "$0.00". */
+/* Dollars small enough that two decimals round them to zero keep four
+   decimals: a spend of a tenth of a cent reads as $0.0013, not $0.00. */
 function fmtMoney(value) {
   if (value === null || value === undefined) return "—";
   const n = Number(value);
   if (!Number.isFinite(n)) return "—";
   if (n === 0) return "$0";
-  if (n < 0.01) return `${(n * 100).toFixed(2)}¢`;
+  if (n < 0.01) return `$${Number(n.toFixed(4))}`;
   if (n < 1) return `$${n.toFixed(3)}`;
   return `$${n.toFixed(2)}`;
 }
@@ -655,9 +655,10 @@ function renderFlow(events, replace) {
       hiddenKinds.size ? "every kind hidden" : "no events yet"));
   }
   const foot = $("flow-foot");
-  foot.hidden = false;
-  foot.textContent = `${shown.length} of ${flowBuffer.length} rows`
-    + (hiddenKinds.size ? ` · hiding ${[...hiddenKinds].join(", ")}` : "");
+  foot.hidden = !hiddenKinds.size;
+  foot.textContent = foot.hidden
+    ? ""
+    : `showing ${shown.length} of ${flowBuffer.length} · hiding ${[...hiddenKinds].join(", ")}`;
   // The newest card lives at the right edge, which is where the tail lands.
   if (replace || atEdge) track.scrollLeft = track.scrollWidth;
   updateFlowNav();
@@ -683,8 +684,8 @@ function setTailChip(on) {
   chip.dataset.state = on ? "on" : "off";
   chip.textContent = on ? "live tail on" : "tail off";
   chip.title = on
-    ? "new events stream in as the run records them"
-    : "not streaming — press Refresh, or reload without ?nostream=1";
+    ? "live: events appear as the run records them; the strip follows the newest card while you are at its right edge"
+    : "paused — press Refresh to catch up";
 }
 
 /* ----------------------------------------------------------------- drawer */

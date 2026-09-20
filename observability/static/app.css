@@ -27,6 +27,8 @@
   --plum-soft: #f3e7f7;
   --sun: #96761f;
   --sun-soft: #f7eed4;
+  --grey: #8d8a86;
+  --grey-soft: #e9e6e1;
   --line: #cbbadf;
   --shadow: 0 10px 26px rgba(150, 130, 180, 0.13);
   --shadow-soft: 0 4px 12px rgba(150, 130, 180, 0.10);
@@ -307,7 +309,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .table td { padding: 7px 8px; border-bottom: 1px solid var(--paper-2); font-family: var(--mono); font-size: 12px; }
 .table tbody tr { cursor: pointer; }
 .table tbody tr:hover { background: var(--paper-2); }
-.table tbody tr[data-selected="true"] { background: var(--lav-soft); }
+.table tbody tr[data-selected="true"] { background: var(--grey-soft); }
 .table .leg { font-family: inherit; }
 .table .when { white-space: nowrap; }
 .table .note { font-family: inherit; color: #8a4761; }
@@ -366,7 +368,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 /* Eleven kinds share one column. Without a key, the colours were decoration;
    the legend names every one, counts it, and doubles as the filter, so the
    30 bookkeeping rows can be dropped to find the 3 that decided something. */
-.legend-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 2px 20px 8px; }
+.legend-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 0 20px 8px; }
 .kindbar { display: flex; flex-wrap: wrap; gap: 6px; }
 .kind-toggle {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
@@ -382,9 +384,11 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
   border-color: var(--line); border-style: dashed; text-decoration: line-through;
 }
 .kind-toggle[data-off="1"] .sq { background: var(--line); }
-.legend-note { margin: 0; }
+.legend-key { margin: 0; display: inline-flex; align-items: center; gap: 14px; font-size: 11.5px; color: var(--ink-faint); }
+.legend-key .key { display: inline-flex; align-items: center; gap: 5px; }
+.legend-key .sq-warn { background: var(--peach); }
+.legend-key .sq-err { background: var(--rose); }
 .legend-bar .panel-foot { margin: 0 0 0 auto; padding: 0; }
-.legend-note .repeat { font-size: 11px; }
 .chip-tail { font-size: 12px; }
 .chip-tail[data-state="on"] { background: var(--mint-soft); color: #2f6a58; border-color: var(--mint); }
 .chip-tail[data-state="on"]::before { background: #4caf8f; }
@@ -414,7 +418,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .flow-slide[data-severity="error"] { background: var(--rose-soft); border-color: var(--rose); }
 .flow-slide[data-severity="error"]:hover { background: #fbd6e2; }
 
-[data-kind="state"]        { --kind: #8a809f; --kind-soft: var(--paper-2); }
+[data-kind="state"]        { --kind: var(--grey); --kind-soft: var(--paper-2); }
 [data-kind="call"]         { --kind: #7a63c4; --kind-soft: var(--lav-soft); }
 [data-kind="message"]      { --kind: var(--sky); --kind-soft: var(--sky-soft); }
 [data-kind="decision"]     { --kind: var(--mint); --kind-soft: var(--mint-soft); }
