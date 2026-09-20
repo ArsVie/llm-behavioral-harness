@@ -27,6 +27,8 @@
   --plum-soft: #f3e7f7;
   --sun: #96761f;
   --sun-soft: #f7eed4;
+  --grey: #8d8a86;
+  --grey-soft: #e9e6e1;
   --line: #cbbadf;
   --shadow: 0 10px 26px rgba(150, 130, 180, 0.13);
   --shadow-soft: 0 4px 12px rgba(150, 130, 180, 0.10);
@@ -61,18 +63,18 @@ body {
 /* Which run this is, and how it is going: two halves of ONE banner, side by
    side. Stacked with a rule between them they read as two headers. */
 .topbar {
-  display: flex; flex-wrap: wrap; align-items: stretch; gap: 16px 24px;
-  padding: 16px 20px; margin-bottom: 18px;
+  display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px 20px;
+  padding: 10px 16px; margin-bottom: 12px;
 }
 /* Title and controls ride the same rows: stacked, the title line left a
    hand's width of empty banner beside it. */
 .topline {
-  flex: 0 1 auto; display: flex; flex-direction: row; flex-wrap: wrap;
-  gap: 12px 20px; align-items: center; min-width: 0;
+  flex: 1 1 auto; display: flex; flex-direction: row; flex-wrap: wrap;
+  gap: 8px 16px; align-items: center; min-width: 0;
 }
 /* The brand gives way so the control grid can sit BESIDE the title rather
    than wrapping under it. */
-.brand { display: flex; gap: 14px; align-items: center; min-width: 0; flex: 1 1 auto; }
+.brand { display: flex; gap: 14px; align-items: center; min-width: 0; flex: 0 1 auto; }
 .brand > div { min-width: 0; }
 .mark {
   width: 42px; height: 42px; border-radius: 14px; flex: none;
@@ -137,26 +139,25 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
 .check input { accent-color: var(--lav); margin: 0; }
 
 /* ------------------------------------------------------------- statsline */
-/* The run's vitals belong to the run's own card: a separate band of tiles
-   was a second header saying the same thing one row lower. Tighter, too —
-   they are a readout, not the page's subject. */
+/* The run's vitals ride the identity banner itself, as a 2x2 block on its
+   right: four readouts two-and-two beside the title, where a full-width row
+   was a second header saying the same thing one row lower. */
 .statsline {
-  flex: 1 1 540px; min-width: 0; align-content: center;
-  /* The first tile carries two figures and a two-word label; equal quarters
-     clipped it to pad three tiles that had room to spare. */
-  display: grid; grid-template-columns: 1.4fr 1fr 1fr 1fr;
-  gap: 6px; margin: 0;
+  flex: 0 1 auto; width: min(620px, 100%); margin-left: auto; align-content: center;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 5px;
 }
 @media (max-width: 860px) {
-  .statsline { grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); }
+  .statsline { width: 100%; margin-left: 0; }
 }
-.stat { padding: 5px 9px 6px; border-radius: 9px; background: var(--paper-2); min-width: 0; }
+.stat { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px;
+  padding: 3px 8px 4px; border-radius: 9px; background: var(--paper-2); min-width: 0; }
 .stat-label, .stat-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); }
-.stat-value { display: block; font-family: var(--mono); font-size: 15px; margin-top: 1px; line-height: 1.2; }
+.stat-value { display: block; font-family: var(--mono); font-size: 14px; line-height: 1.2; }
 /* The second line carries what the headline number is made of, so a figure
    is never a bare number the reader has to hover to understand. */
-.stat-foot { display: block; font-size: 10.5px; color: var(--ink-soft); margin-top: 1px;
+.stat-foot { flex-basis: 100%; display: block; font-size: 10px; color: var(--ink-soft); margin-top: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stat-foot:empty { display: none; }
 .stat-click { cursor: pointer; }
@@ -172,7 +173,7 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
    is in its window, and what the call itself looks like at each zoom. The
    event tail runs under both. */
 .grid { display: grid; gap: 18px; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: stretch; }
-.events-card { grid-column: 1 / -1; }
+.flow-card { grid-column: 1 / -1; }
 .context-card, .calls-card { padding-bottom: 14px; display: flex; flex-direction: column; }
 .calls-card .table-wrap { padding-bottom: 6px; }
 @media (max-width: 1100px) {
@@ -180,7 +181,7 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
   .card-actions { padding-left: 16px; padding-right: 16px; }
 }
 
-.card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 18px 20px 6px; }
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 10px 20px 4px; }
 /* A short line under the switch, not a paragraph: it names what the list is,
    where a column header cannot. */
 .view-note { margin: 0 20px 2px; font-size: 12px; color: var(--ink-faint); }
@@ -238,18 +239,18 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 
 /* Scrollable panels: a visible pastel scrollbar, so a cut-off row reads as
    "there is more", never as a broken layout. */
-.surface, .table-wrap, .stream, .drawer-body, .raw {
+.surface, .table-wrap, .flow-track, .drawer-body, .raw {
   scrollbar-width: thin;
   scrollbar-color: #9481cb transparent;
 }
 .surface::-webkit-scrollbar,
 .table-wrap::-webkit-scrollbar,
-.stream::-webkit-scrollbar,
+.flow-track::-webkit-scrollbar,
 .drawer-body::-webkit-scrollbar,
 .raw::-webkit-scrollbar { width: 10px; height: 10px; }
 .surface::-webkit-scrollbar-thumb,
 .table-wrap::-webkit-scrollbar-thumb,
-.stream::-webkit-scrollbar-thumb,
+.flow-track::-webkit-scrollbar-thumb,
 .drawer-body::-webkit-scrollbar-thumb,
 .raw::-webkit-scrollbar-thumb {
   background: #cfc6e8; border-radius: 8px;
@@ -257,7 +258,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 }
 .surface::-webkit-scrollbar-track,
 .table-wrap::-webkit-scrollbar-track,
-.stream::-webkit-scrollbar-track { background: transparent; }
+.flow-track::-webkit-scrollbar-track { background: transparent; }
 
 /* ------------------------------------------------------------------ list */
 .list { list-style: none; margin: 0; padding: 0 20px 0; }
@@ -308,7 +309,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .table td { padding: 7px 8px; border-bottom: 1px solid var(--paper-2); font-family: var(--mono); font-size: 12px; }
 .table tbody tr { cursor: pointer; }
 .table tbody tr:hover { background: var(--paper-2); }
-.table tbody tr[data-selected="true"] { background: var(--lav-soft); }
+.table tbody tr[data-selected="true"] { background: var(--grey-soft); }
 .table .leg { font-family: inherit; }
 .table .when { white-space: nowrap; }
 .table .note { font-family: inherit; color: #8a4761; }
@@ -317,13 +318,57 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .tag-chat { background: var(--sky-soft); color: #46688f; }
 .tag-decide { background: var(--lav-soft); color: #6b57ac; }
 
-/* -------------------------------------------------------------- stream */
-.events-card { display: flex; flex-direction: column; }
+/* -------------------------------------------------------- flow carousel */
+/* The run's story on one slim horizontal strip; the panels below it are
+   the evidence. One truncated line per row — a busy hour scrolls sideways
+   rather than pushing the panels off the fold. */
+.flow-card { display: flex; flex-direction: column; }
+.flow-tools { display: flex; align-items: center; gap: 8px; }
+.flow-track {
+  display: flex; gap: 10px; align-items: center;
+  overflow-x: auto; overflow-y: hidden;
+  padding: 2px 16px 6px; min-height: 40px;
+  scroll-snap-type: x proximity;
+}
+/* One line, not a panel: time · kind · label · chips · gist, everything
+   past the cap cut with an ellipsis. What the strip truncates, the drawer
+   holds whole. */
+.flow-slide {
+  /* 0 0 auto, not 0 1 auto: a shrinkable row lets 100+ cards compress into
+     slivers (timestamp only) instead of overflowing into the scrollable
+     strip. The cap truncates long lines; the track does the scrolling. */
+  flex: 0 0 auto; scroll-snap-align: start; min-width: 0; max-width: 460px;
+  display: flex; flex-direction: row; align-items: center; gap: 8px;
+  padding: 4px 10px; overflow: hidden; cursor: pointer; white-space: nowrap;
+  background: var(--card); border: 1px solid var(--line);
+  border-radius: var(--radius-sm); box-shadow: var(--shadow-soft);
+}
+.flow-slide:hover { background: var(--paper-2); }
+/* `contents` so the stamp and the badge row with the card's other children
+   instead of stacking in their own column. */
+.flow-when { display: contents; }
+.flow-when time { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); white-space: nowrap; flex: none; }
+.flow-label {
+  font-size: 12px; color: var(--ink); font-weight: 500; min-width: 40px;
+  flex: 0 4 auto; overflow: hidden; text-overflow: ellipsis;
+}
+.flow-chips { display: flex; gap: 5px; min-width: 0; flex: 0 2 auto; overflow: hidden; }
+/* The virtual day turns between two cards; the marker is a gutter, not a card. */
+.flow-day {
+  flex: none; align-self: stretch; display: flex; flex-direction: row; gap: 6px;
+  align-items: center; justify-content: center; text-align: center;
+  padding: 0 12px;
+  color: var(--ink-faint); font-size: 10.5px; letter-spacing: .08em;
+  text-transform: uppercase;
+  border-left: 1px dashed var(--line); border-right: 1px dashed var(--line);
+}
+.flow-day strong { color: var(--ink); font-size: 12px; font-weight: 600; }
+.flow-empty { align-self: center; margin: auto; color: var(--ink-faint); font-size: 13px; }
 /* ---------------------------------------------------------- event legend */
 /* Eleven kinds share one column. Without a key, the colours were decoration;
    the legend names every one, counts it, and doubles as the filter, so the
    30 bookkeeping rows can be dropped to find the 3 that decided something. */
-.legend-bar { padding: 2px 20px 10px; }
+.legend-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 0 20px 8px; }
 .kindbar { display: flex; flex-wrap: wrap; gap: 6px; }
 .kind-toggle {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
@@ -339,57 +384,41 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
   border-color: var(--line); border-style: dashed; text-decoration: line-through;
 }
 .kind-toggle[data-off="1"] .sq { background: var(--line); }
-.legend-note { margin: 8px 0 0; }
-.legend-note .repeat { font-size: 11px; }
+.legend-key { margin: 0; display: inline-flex; align-items: center; gap: 14px; font-size: 11.5px; color: var(--ink-faint); }
+.legend-key .key { display: inline-flex; align-items: center; gap: 5px; }
+.legend-key .sq-warn { background: var(--peach); }
+.legend-key .sq-err { background: var(--rose); }
+.legend-bar .panel-foot { margin: 0 0 0 auto; padding: 0; }
 .chip-tail { font-size: 12px; }
 .chip-tail[data-state="on"] { background: var(--mint-soft); color: #2f6a58; border-color: var(--mint); }
 .chip-tail[data-state="on"]::before { background: #4caf8f; }
 .chip-tail[data-state="off"]::before { background: var(--ink-faint); }
 
-/* ----------------------------------------------------------- stream rows */
-.stream {
-  list-style: none; margin: 0; padding: 4px 16px 8px; overflow: auto; max-height: 640px;
-}
-/* Three columns, fixed: time, kind, then the row itself. The kind badge used
-   to sit inside the wrapping flex line, so the label started at a different
-   x on every row and the column could not be read down. */
+/* ------------------------------------------------------------- flow cards */
 /* No colour rail down the left: eleven kinds of stripe turned the column
    into a barcode. The KIND BADGE carries the colour — one small, aligned,
-   named swatch per row that matches the legend — and the row itself stays
-   paper-white, so a tinted row means something happened. */
-.stream li {
-  display: grid; grid-template-columns: 92px 92px minmax(0, 1fr);
-  gap: 0 14px; align-items: baseline;
-  padding: 9px 10px; border-radius: 10px; cursor: pointer;
-  background: var(--card);
-  border-bottom: 1px solid var(--paper-2);
-}
-.stream li:hover { background: var(--paper-2); }
-.stream time { font-family: var(--mono); font-size: 11.5px; color: var(--ink-faint); white-space: nowrap; }
-.stream .kind {
-  font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em;
-  padding: 3px 8px; border-radius: 999px; text-align: center;
+   named swatch per card that matches the legend — and the card itself
+   stays paper-white, so a tinted card means something happened. */
+.flow-slide .kind {
+  font-size: 10px; text-transform: uppercase; letter-spacing: .06em;
+  padding: 2px 7px; border-radius: 999px; text-align: center;
   background: var(--kind-soft, var(--paper-2)); color: var(--kind, var(--ink-soft));
   box-shadow: inset 0 0 0 1px var(--kind, var(--line));
-  font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-weight: 600; flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* The label is the row: it reads at body weight while the machinery around
-   it stays small and quiet. */
-.stream .line { display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
-.stream .line > span:nth-child(1) { font-size: 13.5px; color: var(--ink); font-weight: 500; }
-.stream .detail {
-  color: var(--ink-soft); font-size: 12px; margin-top: 2px;
-  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
-  overflow: hidden; overflow-wrap: anywhere;
+.flow-detail {
+  flex: 0 6 auto; min-width: 24px;
+  color: var(--ink-soft); font-size: 11.5px;
+  overflow: hidden; text-overflow: ellipsis;
 }
 /* Tint is reserved for the exceptions, so the eye finds them without
-   scanning: everything else is white. */
-.stream li[data-severity="warn"] { background: var(--peach-soft); border-bottom-color: var(--peach); }
-.stream li[data-severity="warn"]:hover { background: #ffe0cd; }
-.stream li[data-severity="error"] { background: var(--rose-soft); border-bottom-color: var(--rose); }
-.stream li[data-severity="error"]:hover { background: #fbd6e2; }
+   scanning: everything else stays paper-white. */
+.flow-slide[data-severity="warn"] { background: var(--peach-soft); border-color: var(--peach); }
+.flow-slide[data-severity="warn"]:hover { background: #ffe0cd; }
+.flow-slide[data-severity="error"] { background: var(--rose-soft); border-color: var(--rose); }
+.flow-slide[data-severity="error"]:hover { background: #fbd6e2; }
 
-[data-kind="state"]        { --kind: #8a809f; --kind-soft: var(--paper-2); }
+[data-kind="state"]        { --kind: var(--grey); --kind-soft: var(--paper-2); }
 [data-kind="call"]         { --kind: #7a63c4; --kind-soft: var(--lav-soft); }
 [data-kind="message"]      { --kind: var(--sky); --kind-soft: var(--sky-soft); }
 [data-kind="decision"]     { --kind: var(--mint); --kind-soft: var(--mint-soft); }
@@ -412,24 +441,16 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
   border-top: 1px dashed var(--line);
 }
 .panel-foot[hidden] { display: none; }
-.stream .day-head {
-  display: flex; gap: 10px; align-items: baseline;
-  color: var(--ink-faint); font-size: 12px; letter-spacing: .08em;
-  text-transform: uppercase; border: 0; border-top: 1px solid var(--line);
-  background: transparent; border-radius: 0;
-  margin: 10px 0 4px; padding: 10px 10px 2px; cursor: default;
-}
-.stream .day-head:hover { background: transparent; }
-.stream .day-head strong { color: var(--ink); font-weight: 600; letter-spacing: .04em; }
-.stream .day-real { color: var(--ink-faint); font-family: var(--mono); font-size: 11px; }
-.stream li[data-grouped="1"] .repeat { box-shadow: inset 0 0 0 1px var(--lav); }
-.stream .repeat {
+.flow-slide[data-grouped="1"] .repeat { box-shadow: inset 0 0 0 1px var(--lav); }
+.flow-slide .repeat {
   font-family: var(--mono); font-size: 11px; color: var(--lav);
   background: var(--lav-soft); border-radius: 6px; padding: 1px 6px;
+  margin-left: 6px;
 }
-.stream .chip-item {
+.flow-slide .chip-item {
   font-size: 11px; border-radius: 6px; padding: 1px 7px;
   background: var(--mint-soft); color: var(--mint);
+  max-width: 190px; overflow: hidden; text-overflow: ellipsis;
 }
 /* One call, two readings: the switch sits at the top of its drawer. */
 .drawer-modes { margin: 0 0 14px; }
@@ -440,7 +461,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
   background: var(--paper-2); border: 1px solid var(--line);
   border-radius: var(--radius-sm); padding: 10px 12px; margin: 0 0 12px;
 }
-.stream .chip-verdict {
+.flow-slide .chip-verdict {
   font-family: var(--mono); font-size: 11px; border-radius: 6px;
   padding: 1px 7px; background: var(--sky-soft); color: #46688f;
 }
@@ -499,7 +520,7 @@ pre.aside {
 /* ------------------------------------------------------------ responsive */
 /* Grid/flex children default to min-width:auto, so a child holding a wide
    table or a long identifier drags the whole page sideways. */
-.card, .grid > *, .meter-figures, .legend div, .list li, .stream li,
+.card, .grid > *, .meter-figures, .legend div, .list li,
 .bubble, .stat { min-width: 0; }
 .stat-value { overflow-wrap: anywhere; }
 
@@ -513,12 +534,9 @@ pre.aside {
   .ring-wrap { width: 108px; height: 108px; }
   h3 { margin: 14px 16px 6px; }
   .card-head, .list, .split { padding-left: 16px; padding-right: 16px; }
-  /* Two columns on a phone: the kind badge moves under the time so the
-     label keeps a usable width instead of a 40px ribbon. */
-  .stream li { grid-template-columns: 88px minmax(0, 1fr); }
-  .stream .kind { justify-self: start; }
-  .stream .kind { grid-row: 2; grid-column: 1; text-align: left; }
-  .stream .line, .stream li > div { grid-row: 1 / span 2; grid-column: 2; }
+  /* Phones: a card is most of the viewport wide, so the strip still reads
+     as one card at a time. */
+  .flow-slide { flex-basis: min(280px, 82vw); }
   .legend-bar { padding-left: 16px; padding-right: 16px; }
   /* Drop the preview to its own line on a phone, so a block's label is never
      squeezed into "pr..." just to keep the preview beside it. */

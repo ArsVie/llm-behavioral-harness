@@ -79,21 +79,31 @@ def judge_day(
     JSON mode is gated on the client's capability: the harness never assumes an
     endpoint accepts ``response_format``.
 
-    ``fork``: a callable(rubric) -> (system, messages) | None that extends the
-    mainline request — the judge reads the exact context the companion's last turn
-    sent, so the whole prefix banks on the provider cache. None (a fork that could
-    not build, or a direct caller) keeps the standalone one-shot prompt.
+    ``fork``: a callable(rubric) -> (system, messages, tools) | None that extends
+    the mainline request — the judge reads the exact context (and tool schemas)
+    the companion's last turn sent, so the whole prefix banks on the provider
+    cache. The forked call rides with json_mode OFF: ``response_format``
+    presence is itself part of the provider's cached prefix (measured
+    2026-09-20: the same body banked 0% of a warm 4.2K prefix with it, 84%
+    without), and the rubric already demands JSON — ``_parse_score`` stays
+    lenient. None (a fork that could not build, or a direct caller) keeps the
+    standalone one-shot prompt.
     """
     if json_mode is None:
         json_mode = bool(getattr(client, "supports_json", True))
     pair = fork(rubric) if fork is not None else None
     if pair is not None:
-        system, messages = pair
+        system, messages, tools = pair
         result = client.chat_with_meta(
             messages,
             system=system,
             temperature=0.0,
-            json_mode=json_mode,
+            # json_mode OFF on the forked call: response_format presence is
+            # part of the provider's cached prefix; sending it broke the whole
+            # conversation region (measured 2026-09-20). The rubric text
+            # demands JSON and _parse_score parses leniently.
+            json_mode=False,
+            tools=tools,
         )
         raw = getattr(result, "content", None) or (
             result if isinstance(result, str) else ""

@@ -96,19 +96,16 @@ def envelope_of(row: dict[str, Any]) -> dict[str, Any] | None:
     return loaded
 
 
-def _prefix_share(previous: dict[str, Any], current: dict[str, Any]) -> tuple[float, bool]:
-    """Byte-proven shared prefix fraction and whether the system stayed put.
+def _prefix_share(previous: dict[str, Any],
+                  current: dict[str, Any]) -> tuple[float, bool, str]:
+    """Provider-order shared prefix: fraction, system stability, first break.
 
-    The previous envelope's trailing card block is excluded before comparison;
-    shared bytes are measured against the whole current request.
+    Breaks live at ``"system" | "tools" | "messages"``: the schemas sit
+    between the system block and the conversation, so a tool-menu difference
+    kills more of the prefix than a late message ever could. See
+    :func:`observability.context.provider_prefix_share`.
     """
-    _count, shared_chars, system_stable = context_mod.shared_message_count(previous, current)
-    total_chars = sum(
-        len(json.dumps(m, sort_keys=True, ensure_ascii=False))
-        for m in (current.get("messages") or [])
-    )
-    fraction = (shared_chars / total_chars) if total_chars else 0.0
-    return fraction, bool(system_stable)
+    return context_mod.provider_prefix_share(previous, current)
 
 
 def _annotate(rows_in: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -122,11 +119,13 @@ def _annotate(rows_in: list[dict[str, Any]]) -> list[dict[str, Any]]:
         if envelope is None:
             verdict = "no persisted envelope"
         elif previous is not None:
-            fraction, system_stable = _prefix_share(previous, envelope)
+            fraction, system_stable, break_at = _prefix_share(previous, envelope)
             prompt = int(row.get("prompt_tokens") or 0)
             hit = (int(row.get("cached_tokens") or 0) / prompt) if prompt else 0.0
-            if not system_stable:
+            if not system_stable or break_at == "system":
                 verdict = "stable prefix CHANGED"
+            elif break_at == "tools":
+                verdict = "tool menu differs from the previous call"
             elif fraction >= CACHE_FLOOR and hit < CACHE_FLOOR:
                 verdict = "prefix shared but not cached"
         row["prefix_share_pct"] = round(fraction * 100.0, 1) if previous is not None else None
@@ -216,9 +215,11 @@ def tool_schemas_for(row: dict[str, Any] | None) -> tuple[list[dict[str, Any]], 
     rule, named as the inference it is: ONE constant menu rides every
     CANONICAL mainline call (``session._chat`` passes the whole
     ``TOOL_PAYLOAD`` to ``_generate``; the verbatim wire dumps carry all
-    three actuation functions on every chat request, round trips included),
-    and only the auxiliary callers send none: they ask for JSON text, never
-    a tool.
+    three actuation functions on every chat request, round trips included).
+    The auxiliary legs mirror that same menu since 2026-09-20 (their records
+    carry it; a fork without the schemas broke the shared prefix), so an
+    empty aux panel is HISTORY — it belongs to the pre-fix fork, not to
+    today's design.
     """
     env = envelope_of(row) if row else None
     names = [str(name) for name in (env.get("tool_names") or [])] if env else []
@@ -231,9 +232,14 @@ def tool_schemas_for(row: dict[str, Any] | None) -> tuple[list[dict[str, Any]], 
             "not in this build")
     kind = str((row or {}).get("role") or "")
     if kind.startswith("aux_"):
-        # The auxiliary callers ask for JSON text, never a tool, so an empty
-        # panel here is the call being what it says it is.
-        return [], "none — this leg asks for JSON text"
+        # Modern aux calls mirror the mainline menu and record it (the fork
+        # used to drop the schemas, breaking the shared prefix at them). An
+        # empty panel here is history, and it says which history.
+        if env is not None and ("tools_hash" in env or "tool_names" in env):
+            return [], "none — the mirrored mainline request carried no menu"
+        return [], ("none — this call predates the fork fix: aux legs ran "
+                    "tool-less before 2026-09-20, and mirror the mainline "
+                    "menu on every call since")
     if kind == "chat" or kind.startswith("tool_decide"):
         chosen = list(TOOL_SCHEMAS)
         note = ("the call's record kept no menu" if env is not None

@@ -271,6 +271,23 @@ def test_a_pile_of_superseded_cards_is_reported(tmp_path):
     assert _codes(path)["superseded-state-cards"].severity == trace.WARN
 
 
+def test_a_pile_of_superseded_updates_is_also_reported(tmp_path):
+    """Mid-day UPDATE rows are card rows too: the pile still reads as
+    superseded state."""
+    conn, path = _db(tmp_path)
+    conn.executemany(
+        "insert into messages (id,role,content,t_h,day) values (?,?,?,?,?)",
+        [(1, "system", "AFFECTIVE BEARING:\nbright", 1.0, 0)]
+        + [(i, "system",
+            f"STATE UPDATE — only what changed:\nAFFECTIVE BEARING:\nbright {i}",
+            float(i), 0)
+           for i in range(2, 6)],
+    )
+    conn.commit()
+    conn.close()
+    assert _codes(path)["superseded-state-cards"].severity == trace.WARN
+
+
 def test_a_system_message_between_turns_hides_nothing(tmp_path):
     conn, path = _db(tmp_path)
     conn.executemany(

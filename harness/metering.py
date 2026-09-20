@@ -22,6 +22,8 @@ import inspect
 import sqlite3
 import threading
 
+from harness.tools import tools_identity
+
 __all__ = ["MeteredClient", "render_prompt"]
 
 #: Per-thread sibling stores, keyed by (store class, path): a store's own
@@ -140,7 +142,15 @@ class MeteredClient:
             getattr(self._client, "model", None),
             {"aux": True, "role": self._role},
         )
-        write_kwargs = {"repro": {"messages": messages, "kwargs": dict(kwargs)}, **extra}
+        repro = {"messages": messages, "kwargs": dict(kwargs)}
+        # The tool menu is part of the prefix the provider banks: record its
+        # identity the same way the mainline repro does, so the panel can
+        # show what this call actually rode with.
+        if "tools" in kwargs:
+            tools_hash, tool_names = tools_identity(kwargs.get("tools"))
+            repro["tools_hash"] = tools_hash
+            repro["tool_names"] = tool_names
+        write_kwargs = {"repro": repro, **extra}
         try:
             self._log(*arguments, **write_kwargs)
             return

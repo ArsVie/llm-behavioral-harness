@@ -100,6 +100,14 @@ Define the per-user affection/closeness score and its recorded update rule befor
 using it to gate double-text or related presence behavior. Keep the score out of
 the frozen engine and mask it from prompts like other internal state.
 
+Update-rule shape (2026-09-19): accumulation is logarithmic — constant effort
+per halving of the remaining gap (every extra "nine" costs the same), so
+stranger→acquaintance is cheap and the last mile drags. Tier steps
+(friend→close→lover) are not points on that curve but metastable states behind
+activation barriers: crossed at rare two-sided moments, never by grinding
+totals; a failed attempt leaves hysteresis (a scar). Behavior reads the gap
+between her level and her estimate of his — not the raw number.
+
 ### Decision lane — fixed 2026-09-08
 A live evening discarded 20 of 25 aux model calls and left a user's goodbye
 unanswered. Four causes, all fixed, all with guards in

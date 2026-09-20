@@ -43,6 +43,9 @@ CACHE_FLOOR = 0.6
 #: First bytes of a rendered state card (``assembler.AFFECTIVE_HEADER``).
 _CARD_HEADER = "AFFECTIVE BEARING:"
 
+#: First bytes of a mid-day state UPDATE row (``assembler.STATE_UPDATE_LEAD``).
+_UPDATE_HEADER = "STATE UPDATE — only what changed:"
+
 #: Cards in the stream before the superseded copies are worth reporting.
 _CARD_COPIES_WARN = 3
 
@@ -651,7 +654,8 @@ def _check_stream(ctx: Ctx) -> list[Finding]:
     # stream row. What is worth reporting is how many are superseded copies.
     cards = [r for r in stream
              if r["role"] == "system"
-             and str(r["content"] or "").startswith(_CARD_HEADER)]
+             and str(r["content"] or "").startswith(
+                 (_CARD_HEADER, _UPDATE_HEADER))]
     if len(cards) > _CARD_COPIES_WARN:
         found.append(Finding(
             WARN, "superseded-state-cards",

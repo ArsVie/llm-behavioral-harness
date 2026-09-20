@@ -69,14 +69,14 @@ function setStat(id, value, stateName, foot) {
   card.dataset.state = stateName || "";
 }
 
-/* Dollars small enough that two decimals round them to zero: a run that has
-   spent a tenth of a cent should read as a tenth of a cent, not as "$0.00". */
+/* Dollars small enough that two decimals round them to zero keep four
+   decimals: a spend of a tenth of a cent reads as $0.0013, not $0.00. */
 function fmtMoney(value) {
   if (value === null || value === undefined) return "—";
   const n = Number(value);
   if (!Number.isFinite(n)) return "—";
   if (n === 0) return "$0";
-  if (n < 0.01) return `${(n * 100).toFixed(2)}¢`;
+  if (n < 0.01) return `$${Number(n.toFixed(4))}`;
   if (n < 1) return `$${n.toFixed(3)}`;
   return `$${n.toFixed(2)}`;
 }
@@ -414,8 +414,14 @@ function renderCalls(calls, selectedId) {
     row.append(
       el("td", null, `#${call.id}`),
       whenCell,
-      (() => { const cell = el("td", "leg"); cell.append(leg,
-        el("span", null, ` ${call.lane || ""}`)); return cell; })(),
+      (() => {
+        const cell = el("td", "leg");
+        cell.append(leg);
+        // The lane rides the hover, not a second line: the tag alone names
+        // the call's leg.
+        if (call.lane) cell.title = call.lane;
+        return cell;
+      })(),
       el("td", null, fmtTokens(call.prompt_tokens)),
       el("td", null, fmtTokens(call.cached_tokens)),
       el("td", hitClass, fmtPct(call.cache_hit_pct)),
@@ -509,8 +515,8 @@ async function loadFocusContext() {
   renderContext(payload);
 }
 
-/* ----------------------------------------------------------------- stream */
-let streamBuffer = [];
+/* ------------------------------------------------------------------- flow */
+let flowBuffer = [];
 
 /* A mechanism row that repeats tells you nothing the first one did not: the
    same check firing four times is ONE fact. Collapsing runs is what makes the
@@ -544,54 +550,60 @@ function verdictChips(detail) {
   return chips;
 }
 
-function eventRow(event, count) {
-  const row = el("li");
-  row.dataset.severity = event.severity;
-  row.dataset.seq = String(event.seq);
-  // The kind drives the row's colour (see the legend) and is a column of its
-  // own: inside the wrapping label line it started at a different x on every
-  // row, which is most of why the column could not be read down.
-  row.dataset.kind = event.kind;
-  if (count > 1) row.dataset.grouped = "1";
-  // The date is part of the row: a bare clock repeats every day of a run,
+/* One row of flow as a card: the vertical stream's row anatomy (stamp,
+   kind, label, chips, detail) stood on the other axis, newest at the right
+   edge where the tail lands. */
+function flowCard(event, count) {
+  const card = el("article", "flow-slide");
+  card.dataset.severity = event.severity;
+  card.dataset.seq = String(event.seq);
+  // The kind drives the card's badge colour (see the legend), aligned in the
+  // right of the head so the stamp column reads straight down the strip.
+  card.dataset.kind = event.kind;
+  if (count > 1) card.dataset.grouped = "1";
+  card.tabIndex = 0;
+  // The date is part of the card: a bare clock repeats every day of a run,
   // and an unanchored run stamps "d2 t50.00" rather than a clock at all.
   const stamp = el("time", null,
     event.stamp || (event.real ? event.real.slice(11, 19) : `t${event.t_h}`));
   stamp.title = `day ${event.day} · t_h ${event.t_h}` + (event.real ? ` · ${event.real}` : "");
-  row.append(stamp, el("span", "kind", event.kind));
-  const line = el("div");
-  const head = el("div", "line");
-  head.append(el("span", null, event.label));
-  if (count > 1) head.append(el("span", "repeat", `×${count}`));
+  const when = el("div", "flow-when");
+  when.append(stamp, el("span", "kind", event.kind));
+  const label = el("div", "flow-label", event.label);
+  if (count > 1) label.append(el("span", "repeat", `×${count}`));
   const raw = event.raw || {};
-  // The agenda item the row is about, where the row has one: "decision" and
+  const chips = el("div", "flow-chips");
+  // The agenda item the card is about, where the row has one: "decision" and
   // the call it made are otherwise only distinguishable by their detail text.
-  if (raw.event_label) head.append(el("span", "chip-item", String(raw.event_label)));
+  if (raw.event_label) chips.append(el("span", "chip-item", String(raw.event_label)));
   if (event.kind === "decision") {
-    for (const chip of verdictChips(event.detail)) {
-      head.append(el("span", "chip-verdict", chip));
+    // Two chips, no more: the strip card is one line, and the drawer holds
+    // the whole verdict for reading.
+    for (const chip of verdictChips(event.detail).slice(0, 2)) {
+      chips.append(el("span", "chip-verdict", chip));
     }
   }
-  line.append(head);
-  line.append(el("div", "detail", event.detail || ""));
-  row.append(line);
-  row.addEventListener("click", () => showRawPayload(`${event.kind} · ${event.label}`, event.raw));
-  return row;
+  card.append(when, label);
+  if (chips.childElementCount) card.append(chips);
+  card.append(el("div", "flow-detail", event.detail || ""));
+  card.addEventListener("click", () => showRawPayload(`${event.kind} · ${event.label}`, event.raw));
+  return card;
 }
 
-function streamNodes(events) {
+/* A slim gutter between the cards where the virtual day turns. */
+function flowNodes(events) {
   const nodes = [];
   let day = null;
   for (const run of collapseRuns(events)) {
     const event = run.event;
     if (event.day !== day) {
       day = event.day;
-      const head = el("li", "day-head");
-      head.append(el("strong", null, `day ${day}`),
-        el("span", "day-real", event.real ? event.real.slice(0, 10) : ""));
-      nodes.push(head);
+      const marker = el("div", "flow-day");
+      marker.append(el("strong", null, `day ${day}`),
+        el("span", null, event.real ? event.real.slice(5, 10) : ""));
+      nodes.push(marker);
     }
-    nodes.push(eventRow(event, run.count));
+    nodes.push(flowCard(event, run.count));
   }
   return nodes;
 }
@@ -619,33 +631,52 @@ function renderKindLegend(events) {
     toggle.addEventListener("click", () => {
       if (hiddenKinds.has(kind)) hiddenKinds.delete(kind);
       else hiddenKinds.add(kind);
-      renderStream([], false);
+      renderFlow([], false);
     });
     bar.append(toggle);
   }
 }
 
-function renderStream(events, replace) {
-  const list = $("stream");
-  if (replace) streamBuffer = [];
-  streamBuffer = streamBuffer.concat(events);
-  if (streamBuffer.length > 400) streamBuffer = streamBuffer.slice(-400);
-  renderKindLegend(streamBuffer);
-  const shown = streamBuffer.filter((event) => !hiddenKinds.has(event.kind));
-  const atBottom = list.scrollHeight - list.scrollTop - list.clientHeight < 40;
-  list.replaceChildren();
-  for (const node of streamNodes(shown)) list.append(node);
+/* The strip is the run's story left to right; the follow rule is the old
+   vertical stream's, on the other axis: follow the tail only when the
+   reader was already at the edge they were reading toward. */
+function renderFlow(events, replace) {
+  const track = $("flow-track");
+  if (replace) flowBuffer = [];
+  flowBuffer = flowBuffer.concat(events);
+  if (flowBuffer.length > 400) flowBuffer = flowBuffer.slice(-400);
+  renderKindLegend(flowBuffer);
+  const shown = flowBuffer.filter((event) => !hiddenKinds.has(event.kind));
+  const atEdge = track.scrollWidth - track.scrollLeft - track.clientWidth < 40;
+  track.replaceChildren();
+  for (const node of flowNodes(shown)) track.append(node);
   if (!shown.length) {
-    list.append(el("li", "empty",
+    track.append(el("p", "flow-empty",
       hiddenKinds.size ? "every kind hidden" : "no events yet"));
   }
-  const foot = $("stream-foot");
-  foot.hidden = false;
-  foot.textContent = `${shown.length} of ${streamBuffer.length} rows`
-    + (hiddenKinds.size ? ` · hiding ${[...hiddenKinds].join(", ")}` : "");
-  // Follow the tail only when the reader was already at it: yanking the view
-  // back down while they are reading older rows is the worse failure.
-  if (replace || atBottom) list.scrollTop = list.scrollHeight;
+  const foot = $("flow-foot");
+  foot.hidden = !hiddenKinds.size;
+  foot.textContent = foot.hidden
+    ? ""
+    : `showing ${shown.length} of ${flowBuffer.length} · hiding ${[...hiddenKinds].join(", ")}`;
+  // The newest card lives at the right edge, which is where the tail lands.
+  if (replace || atEdge) track.scrollLeft = track.scrollWidth;
+  updateFlowNav();
+}
+
+/* One press, one card (plus the gap). */
+function flowStep() {
+  const card = $("flow-track").querySelector(".flow-slide");
+  return card ? card.getBoundingClientRect().width + 10 : 320;
+}
+
+/* The ends disable rather than wrap: the strip has a first card and a
+   last one, and the buttons should say which end you are at. */
+function updateFlowNav() {
+  const track = $("flow-track");
+  $("flow-older").disabled = track.scrollLeft <= 1;
+  $("flow-newer").disabled =
+    track.scrollWidth - track.clientWidth - track.scrollLeft <= 1;
 }
 
 function setTailChip(on) {
@@ -653,8 +684,8 @@ function setTailChip(on) {
   chip.dataset.state = on ? "on" : "off";
   chip.textContent = on ? "live tail on" : "tail off";
   chip.title = on
-    ? "new events stream in as the run records them"
-    : "not streaming — press Refresh, or reload without ?nostream=1";
+    ? "live: events appear as the run records them; the strip follows the newest card while you are at its right edge"
+    : "paused — press Refresh to catch up";
 }
 
 /* ----------------------------------------------------------------- drawer */
@@ -988,7 +1019,7 @@ async function loadRun(runId) {
   renderStats(detail);
   renderContext(detail.context);
   renderCalls(detail.calls, focusedCall() && focusedCall().id);
-  renderStream(detail.events.events, true);
+  renderFlow(detail.events.events, true);
   await loadWire();
   setView(state.view);
   state.cursor = detail.events.latest_seq;
@@ -1007,7 +1038,7 @@ function openStream(runId) {
       const fresh = await getJSON(
         `/api/run/events?id=${encodeURIComponent(runId)}&after=${state.cursor}`);
       if (fresh.events.length) {
-        renderStream(fresh.events, false);
+        renderFlow(fresh.events, false);
         state.cursor = fresh.latest_seq;
         // A recorded event is a write to the database, so the "wrote N ago"
         // age restarts here — not only when a whole new call lands.
@@ -1068,6 +1099,13 @@ async function boot() {
     if (run) loadRun(run.path);
   });
   $("refresh").addEventListener("click", () => loadRun(state.runId));
+  // The strip's own controls: a page per press, and the ends disable rather
+  // than wrap.
+  $("flow-older").addEventListener("click", () =>
+    $("flow-track").scrollBy({ left: -flowStep(), behavior: "smooth" }));
+  $("flow-newer").addEventListener("click", () =>
+    $("flow-track").scrollBy({ left: flowStep(), behavior: "smooth" }));
+  $("flow-track").addEventListener("scroll", updateFlowNav);
   for (const button of document.querySelectorAll(".vbtn")) {
     button.addEventListener("click", () => setView(button.dataset.view));
   }

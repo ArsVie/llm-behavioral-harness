@@ -15,6 +15,9 @@ from harness.session import Session
 from harness.tools import DecisionConfig
 from tests.helpers.store import make_store
 
+#: A stand-in tool schema for the fork-parity asserts.
+PROBE = {"type": "function", "function": {"name": "probe"}}
+
 
 def _session(tmp_path, client, *, t_h=10.0, agenda=True, anchored=True):
     store = make_store(tmp_path)
@@ -72,7 +75,7 @@ def test_the_popup_leg_reuses_the_stamped_mainline_bytes(tmp_path):
 
 
 def test_aux_task_request_extends_the_last_mainline_request(tmp_path):
-    """The pair the judge/planner forks carry: same prefix, task folded in."""
+    """The triple the judge/planner forks carry: same prefix, same menu, task in."""
     client = FakeClient(responses=["hi there"])
     store, session = _session(tmp_path, client, agenda=False)
     try:
@@ -81,8 +84,9 @@ def test_aux_task_request_extends_the_last_mainline_request(tmp_path):
         main = client.calls[0]
         pair = session._aux_task_request("TASK: rate the day")
         assert pair is not None
-        system, messages = pair
+        system, messages, tools = pair
         assert system == main["system"]
+        assert tools == main["tools"], "the fork mirrors the mainline tool menu"
         # The stream AS OF NOW extends the mainline request: everything the
         # mainline sent stays at the head; the reply row follows, then the
         # task as its own appended block.
@@ -103,7 +107,8 @@ def test_no_mainline_still_carries_the_base_prefix(tmp_path):
     try:
         pair = session._aux_task_request("TASK")
         assert pair is not None, "a pre-turn call still gets the base prefix"
-        system, messages = pair
+        system, messages, tools = pair
+        assert tools is None, "before any turn there is no menu to mirror"
         assert messages == [{"role": "user", "content": "TASK"}]
         assert session._day_block is not None
         session.on_message("hey")
@@ -126,7 +131,7 @@ def test_judge_fork_sends_the_pair_and_parses():
         return "SYS", [
             {"role": "user", "content": "stream"},
             {"role": "system", "content": "card + task"},
-        ]
+        ], [PROBE]
 
     result = judge_day("", client, fork=fork)
     assert result.score == 0.5
@@ -137,7 +142,11 @@ def test_judge_fork_sends_the_pair_and_parses():
         {"role": "user", "content": "stream"},
         {"role": "system", "content": "card + task"},
     ]
-    assert call["temperature"] == 0.0 and call["json_mode"] is True
+    # json_mode OFF on the forked call: response_format presence is part of
+    # the provider's cached prefix (measured 2026-09-20) — sending it broke
+    # the whole conversation region.
+    assert call["temperature"] == 0.0 and call["json_mode"] is False
+    assert call["tools"] == [PROBE], "the fork's schemas ride with the call"
 
 
 def test_judge_without_a_fork_keeps_the_standalone_prompt():
@@ -147,6 +156,7 @@ def test_judge_without_a_fork_keeps_the_standalone_prompt():
     call = client.calls[0]
     assert call["system"] == "You are a careful interaction judge. Score precisely."
     assert "Transcript:\nday-1: hi" in call["messages"][0]["content"]
+    assert call["json_mode"] is True, "the standalone shape keeps strict JSON"
 
 
 def test_finalize_day_judges_on_the_fork_and_appends_nothing(tmp_path):
@@ -164,6 +174,9 @@ def test_finalize_day_judges_on_the_fork_and_appends_nothing(tmp_path):
         session.finalize_day(0)
         judge_call = client.calls[-1]
         assert judge_call["system"] == main["system"]
+        assert judge_call["tools"] == main["tools"], (
+            "the fork mirrors the mainline tool menu: the prefix banks on it"
+        )
         # Prefix property: everything the mainline sent stays at the head
         # (the reply joined the stream after it), then the task rides last.
         head = main["messages"]
@@ -200,7 +213,7 @@ def test_plan_day_uses_the_fork_pair_and_keeps_the_result_out():
         return "SYS", [
             {"role": "user", "content": "stream"},
             {"role": "system", "content": "card + task"},
-        ]
+        ], [PROBE]
 
     planned = plan_day(name="Lily", weekday="Sunday", arcs=[], slots=[_slot()],
                        client=client, fork=fork)
@@ -212,7 +225,8 @@ def test_plan_day_uses_the_fork_pair_and_keeps_the_result_out():
         {"role": "user", "content": "stream"},
         {"role": "system", "content": "card + task"},
     ]
-    assert call["json_mode"] is True and call["reasoning_effort"] == "low"
+    assert call["tools"] == [PROBE], "the planner fork carries the menu too"
+    assert call["json_mode"] is False and call["reasoning_effort"] == "low"
     assert call["temperature"] == 0.9
 
 
