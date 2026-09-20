@@ -575,6 +575,12 @@ def card_blocks(text: str) -> list[tuple[str, str]]:
     return blocks
 
 
+#: The clear marker a section-level update carries for a section that went
+#: away — written by :func:`render_state_update` and read back by
+#: :func:`apply_state_update`.
+_CLEARED_SUFFIX = ": (cleared)"
+
+
 def render_state_update(prev_card: str, card: str) -> str:
     """The stream bytes for a changed card: only what changed.
 
@@ -592,7 +598,7 @@ def render_state_update(prev_card: str, card: str) -> str:
     if not changed and not cleared:
         return card
     update = "\n\n".join(
-        [STATE_UPDATE_LEAD] + changed + [f"{key}: (cleared)" for key in cleared]
+        [STATE_UPDATE_LEAD] + changed + [f"{key}{_CLEARED_SUFFIX}" for key in cleared]
     )
     return update if len(update) < len(card) else card
 
@@ -612,7 +618,12 @@ def apply_state_update(prev_card: str, update: str) -> str:
     blocks = dict(card_blocks(prev_card))
     order = [key for key, _ in card_blocks(prev_card)]
     for key, block in card_blocks(update)[1:]:
-        if block == f"{key}: (cleared)":
+        # The clear marker is keyed by TEXT, not by the header grammar: a
+        # block whose first line carries no parseable header (the per-turn
+        # guidance a proactive turn writes) clears through the same suffix,
+        # and `card_blocks` keys it differently on the way back in.
+        if block.endswith(_CLEARED_SUFFIX):
+            key = block[: -len(_CLEARED_SUFFIX)]
             blocks.pop(key, None)
             order = [k for k in order if k != key]
             continue

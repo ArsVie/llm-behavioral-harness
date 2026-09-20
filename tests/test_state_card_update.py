@@ -278,3 +278,23 @@ def test_an_update_applies_back_onto_the_card():
     # A row that is not an update (a full card, a day-start block) is skipped.
     assert apply_state_update(CARD, added) == CARD
     assert apply_state_update(CARD, "Sunday's plan:\n- read history") == CARD
+
+
+def test_a_cleared_block_without_a_header_still_drops():
+    """A block whose first line carries no parseable header — the per-turn
+    guidance a proactive turn writes into the card — is added by one update
+    and cleared by the next. The clear marker is keyed by TEXT, not by the
+    header grammar: parsing it back through `card_blocks` yields a different
+    key than the one that was written (live: the proactive turn's row #39
+    added the guidance, #41 cleared it)."""
+    guidance = (
+        "You are reaching out first. Agenda: rewrite the proof (12:00–13:04)\n"
+        "State what you are reaching out about naturally in your FIRST sentence."
+    )
+    with_it = f"{CARD}\n\n{guidance}"
+    added = render_state_update(CARD, with_it)
+    assert apply_state_update(CARD, added) == with_it
+
+    cleared = render_state_update(with_it, CARD)
+    assert "(cleared)" in cleared
+    assert apply_state_update(with_it, cleared) == CARD
