@@ -61,18 +61,18 @@ body {
 /* Which run this is, and how it is going: two halves of ONE banner, side by
    side. Stacked with a rule between them they read as two headers. */
 .topbar {
-  display: flex; flex-wrap: wrap; align-items: stretch; gap: 16px 24px;
-  padding: 16px 20px; margin-bottom: 18px;
+  display: flex; flex-wrap: wrap; align-items: stretch; gap: 10px 20px;
+  padding: 10px 16px; margin-bottom: 12px;
 }
 /* Title and controls ride the same rows: stacked, the title line left a
    hand's width of empty banner beside it. */
 .topline {
   flex: 1 1 auto; display: flex; flex-direction: row; flex-wrap: wrap;
-  gap: 12px 20px; align-items: center; min-width: 0;
+  gap: 8px 16px; align-items: center; min-width: 0;
 }
 /* The brand gives way so the control grid can sit BESIDE the title rather
    than wrapping under it. */
-.brand { display: flex; gap: 14px; align-items: center; min-width: 0; flex: 1 1 auto; }
+.brand { display: flex; gap: 14px; align-items: center; min-width: 0; flex: 0 1 auto; }
 .brand > div { min-width: 0; }
 .mark {
   width: 42px; height: 42px; border-radius: 14px; flex: none;
@@ -141,20 +141,21 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
    right: four readouts two-and-two beside the title, where a full-width row
    was a second header saying the same thing one row lower. */
 .statsline {
-  flex: 0 1 auto; width: min(460px, 100%); margin-left: auto; align-content: center;
+  flex: 0 1 auto; width: min(620px, 100%); margin-left: auto; align-content: center;
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 5px;
 }
 @media (max-width: 860px) {
   .statsline { width: 100%; margin-left: 0; }
 }
-.stat { padding: 5px 9px 6px; border-radius: 9px; background: var(--paper-2); min-width: 0; }
+.stat { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px;
+  padding: 3px 8px 4px; border-radius: 9px; background: var(--paper-2); min-width: 0; }
 .stat-label, .stat-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); }
-.stat-value { display: block; font-family: var(--mono); font-size: 15px; margin-top: 1px; line-height: 1.2; }
+.stat-value { display: block; font-family: var(--mono); font-size: 14px; line-height: 1.2; }
 /* The second line carries what the headline number is made of, so a figure
    is never a bare number the reader has to hover to understand. */
-.stat-foot { display: block; font-size: 10.5px; color: var(--ink-soft); margin-top: 1px;
+.stat-foot { flex-basis: 100%; display: block; font-size: 10px; color: var(--ink-soft); margin-top: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stat-foot:empty { display: none; }
 .stat-click { cursor: pointer; }
@@ -178,7 +179,7 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
   .card-actions { padding-left: 16px; padding-right: 16px; }
 }
 
-.card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 18px 20px 6px; }
+.card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 10px 20px 4px; }
 /* A short line under the switch, not a paragraph: it names what the list is,
    where a column header cannot. */
 .view-note { margin: 0 20px 2px; font-size: 12px; color: var(--ink-faint); }
@@ -324,7 +325,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .flow-track {
   display: flex; gap: 10px; align-items: center;
   overflow-x: auto; overflow-y: hidden;
-  padding: 2px 16px 10px; min-height: 46px;
+  padding: 2px 16px 6px; min-height: 40px;
   scroll-snap-type: x proximity;
 }
 /* One line, not a panel: time · kind · label · chips · gist, everything
@@ -336,7 +337,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
      strip. The cap truncates long lines; the track does the scrolling. */
   flex: 0 0 auto; scroll-snap-align: start; min-width: 0; max-width: 460px;
   display: flex; flex-direction: row; align-items: center; gap: 8px;
-  padding: 6px 12px; overflow: hidden; cursor: pointer; white-space: nowrap;
+  padding: 4px 10px; overflow: hidden; cursor: pointer; white-space: nowrap;
   background: var(--card); border: 1px solid var(--line);
   border-radius: var(--radius-sm); box-shadow: var(--shadow-soft);
 }
@@ -346,7 +347,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .flow-when { display: contents; }
 .flow-when time { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); white-space: nowrap; flex: none; }
 .flow-label {
-  font-size: 12.5px; color: var(--ink); font-weight: 500; min-width: 40px;
+  font-size: 12px; color: var(--ink); font-weight: 500; min-width: 40px;
   flex: 0 4 auto; overflow: hidden; text-overflow: ellipsis;
 }
 .flow-chips { display: flex; gap: 5px; min-width: 0; flex: 0 2 auto; overflow: hidden; }
@@ -365,7 +366,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 /* Eleven kinds share one column. Without a key, the colours were decoration;
    the legend names every one, counts it, and doubles as the filter, so the
    30 bookkeeping rows can be dropped to find the 3 that decided something. */
-.legend-bar { padding: 2px 20px 10px; }
+.legend-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 16px; padding: 2px 20px 8px; }
 .kindbar { display: flex; flex-wrap: wrap; gap: 6px; }
 .kind-toggle {
   display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
@@ -381,7 +382,8 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
   border-color: var(--line); border-style: dashed; text-decoration: line-through;
 }
 .kind-toggle[data-off="1"] .sq { background: var(--line); }
-.legend-note { margin: 8px 0 0; }
+.legend-note { margin: 0; }
+.legend-bar .panel-foot { margin: 0 0 0 auto; padding: 0; }
 .legend-note .repeat { font-size: 11px; }
 .chip-tail { font-size: 12px; }
 .chip-tail[data-state="on"] { background: var(--mint-soft); color: #2f6a58; border-color: var(--mint); }
