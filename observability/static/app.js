@@ -820,7 +820,7 @@ function envelopeNodes(detail) {
       ? message.content : JSON.stringify(message.content);
     meta.append(el("span", null, `#${index} ${message.role}`),
       el("span", null, `${(text || "").length} chars`));
-    bubble.append(meta, el("div", null, text || "(tool call)"));
+    bubble.append(meta, el("div", "bubble-text", text || "(tool call)"));
     if (message.tool_calls) bubble.append(el("pre", null, JSON.stringify(message.tool_calls, null, 2)));
     nodes.push(bubble);
     index += 1;
