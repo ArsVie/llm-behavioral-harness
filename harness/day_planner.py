@@ -181,7 +181,10 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
     ``fork``: a callable(task) -> (system, messages, tools) | None that extends
     the mainline request instead of a standalone prompt, so the whole prefix
     banks on the provider cache — schemas included, since a fork without them
-    breaks the prefix at the schemas block. It is CALLED ON THIS THREAD (the
+    breaks the prefix at the schemas block; ``response_format`` is dropped on
+    the forked call for the same measured reason (its presence is part of the
+    cached prefix, probed 2026-09-20) and ``parse_plan`` tolerates
+    prose-wrapped JSON. It is CALLED ON THIS THREAD (the
     store reads behind it belong to it); only the client call moves to the
     budget worker. None — a fork that could not build, or a direct caller —
     keeps the standalone shape.
@@ -207,7 +210,10 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
                 messages,
                 system=system,
                 temperature=0.9,  # invention: the point is variety
-                json_mode=True,
+                # ON only for the standalone shape; a forked call drops
+                # response_format because its presence is part of the
+                # provider's cached prefix (measured 2026-09-20).
+                json_mode=pair is None,
                 max_tokens=None,
                 reasoning_effort=PLANNER_REASONING_EFFORT,
                 tools=tools,

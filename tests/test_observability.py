@@ -839,13 +839,22 @@ def test_tool_schemas_report_the_recorded_menu_or_name_the_rebuild():
 
     tools, source = reader.tool_schemas_for({"role": "day_plan"})
     assert tools == [] and "unknown leg" in source
-    # Metered auxiliary calls (day planner, extension, setup, judge) offer no
-    # tool at all — that is the call being what it says it is, not an unknown.
+    # An aux row with no record at all: pre-fix history. The label says so —
+    # the legs mirror the mainline menu since 2026-09-20 and record it.
     for role in ("aux_day_planner", "aux_interest_extension",
                  "aux_routine_setup", "aux_judge"):
         tools, source = reader.tool_schemas_for({"role": role})
-        assert tools == [] and "JSON text" in source, role
-        assert "unknown" not in source
+        assert tools == [] and "predates the fork fix" in source, role
+        assert "mirror the mainline menu" in source and "unknown" not in source
+    # A post-fix aux record whose mirrored request carried no menu.
+    tools, source = reader.tool_schemas_for(
+        row("aux_judge", {"tool_names": [], "tools_hash": None}))
+    assert tools == [] and "mirrored mainline request carried no menu" in source
+    # A post-fix aux record with the mirrored trio: rebuilt like any call.
+    tools, source = reader.tool_schemas_for(
+        row("aux_judge", {"tool_names": whole, "tools_hash": digest}))
+    assert [tool["name"] for tool in tools] == whole
+    assert "recorded on the call" in source
 
 
 def test_find_runs_ignores_a_dangling_symlink(tmp_path):

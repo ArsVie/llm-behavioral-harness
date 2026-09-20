@@ -215,9 +215,11 @@ def tool_schemas_for(row: dict[str, Any] | None) -> tuple[list[dict[str, Any]], 
     rule, named as the inference it is: ONE constant menu rides every
     CANONICAL mainline call (``session._chat`` passes the whole
     ``TOOL_PAYLOAD`` to ``_generate``; the verbatim wire dumps carry all
-    three actuation functions on every chat request, round trips included),
-    and only the auxiliary callers send none: they ask for JSON text, never
-    a tool.
+    three actuation functions on every chat request, round trips included).
+    The auxiliary legs mirror that same menu since 2026-09-20 (their records
+    carry it; a fork without the schemas broke the shared prefix), so an
+    empty aux panel is HISTORY — it belongs to the pre-fix fork, not to
+    today's design.
     """
     env = envelope_of(row) if row else None
     names = [str(name) for name in (env.get("tool_names") or [])] if env else []
@@ -230,9 +232,14 @@ def tool_schemas_for(row: dict[str, Any] | None) -> tuple[list[dict[str, Any]], 
             "not in this build")
     kind = str((row or {}).get("role") or "")
     if kind.startswith("aux_"):
-        # The auxiliary callers ask for JSON text, never a tool, so an empty
-        # panel here is the call being what it says it is.
-        return [], "none — this leg asks for JSON text"
+        # Modern aux calls mirror the mainline menu and record it (the fork
+        # used to drop the schemas, breaking the shared prefix at them). An
+        # empty panel here is history, and it says which history.
+        if env is not None and ("tools_hash" in env or "tool_names" in env):
+            return [], "none — the mirrored mainline request carried no menu"
+        return [], ("none — this call predates the fork fix: aux legs ran "
+                    "tool-less before 2026-09-20, and mirror the mainline "
+                    "menu on every call since")
     if kind == "chat" or kind.startswith("tool_decide"):
         chosen = list(TOOL_SCHEMAS)
         note = ("the call's record kept no menu" if env is not None

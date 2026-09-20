@@ -142,7 +142,10 @@ def test_judge_fork_sends_the_pair_and_parses():
         {"role": "user", "content": "stream"},
         {"role": "system", "content": "card + task"},
     ]
-    assert call["temperature"] == 0.0 and call["json_mode"] is True
+    # json_mode OFF on the forked call: response_format presence is part of
+    # the provider's cached prefix (measured 2026-09-20) — sending it broke
+    # the whole conversation region.
+    assert call["temperature"] == 0.0 and call["json_mode"] is False
     assert call["tools"] == [PROBE], "the fork's schemas ride with the call"
 
 
@@ -153,6 +156,7 @@ def test_judge_without_a_fork_keeps_the_standalone_prompt():
     call = client.calls[0]
     assert call["system"] == "You are a careful interaction judge. Score precisely."
     assert "Transcript:\nday-1: hi" in call["messages"][0]["content"]
+    assert call["json_mode"] is True, "the standalone shape keeps strict JSON"
 
 
 def test_finalize_day_judges_on_the_fork_and_appends_nothing(tmp_path):
@@ -222,7 +226,7 @@ def test_plan_day_uses_the_fork_pair_and_keeps_the_result_out():
         {"role": "system", "content": "card + task"},
     ]
     assert call["tools"] == [PROBE], "the planner fork carries the menu too"
-    assert call["json_mode"] is True and call["reasoning_effort"] == "low"
+    assert call["json_mode"] is False and call["reasoning_effort"] == "low"
     assert call["temperature"] == 0.9
 
 

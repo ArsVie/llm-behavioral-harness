@@ -82,7 +82,11 @@ def judge_day(
     ``fork``: a callable(rubric) -> (system, messages, tools) | None that extends
     the mainline request — the judge reads the exact context (and tool schemas)
     the companion's last turn sent, so the whole prefix banks on the provider
-    cache. None (a fork that could not build, or a direct caller) keeps the
+    cache. The forked call rides with json_mode OFF: ``response_format``
+    presence is itself part of the provider's cached prefix (measured
+    2026-09-20: the same body banked 0% of a warm 4.2K prefix with it, 84%
+    without), and the rubric already demands JSON — ``_parse_score`` stays
+    lenient. None (a fork that could not build, or a direct caller) keeps the
     standalone one-shot prompt.
     """
     if json_mode is None:
@@ -94,7 +98,11 @@ def judge_day(
             messages,
             system=system,
             temperature=0.0,
-            json_mode=json_mode,
+            # json_mode OFF on the forked call: response_format presence is
+            # part of the provider's cached prefix; sending it broke the whole
+            # conversation region (measured 2026-09-20). The rubric text
+            # demands JSON and _parse_score parses leniently.
+            json_mode=False,
             tools=tools,
         )
         raw = getattr(result, "content", None) or (
