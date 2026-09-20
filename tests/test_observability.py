@@ -18,7 +18,24 @@ import urllib.request
 
 import pytest
 
+from harness.assembler import (
+    AFFECTIVE_HEADER,
+    BEHAVIORAL_HEADER,
+    CURRENT_INTENT_HEADER,
+    TEMPORAL_HEADER,
+)
 from harness.client import FakeClient, Usage
+from harness.persona import INTEREST_SENTENCE_PREFIX
+from harness.prompts import (
+    ABOUT_YOU_HEADER,
+    ACTIVITY_HEADER,
+    AGENDA_HEADER,
+    ARCS_HEADER,
+    CLOSING_HEADER,
+    MEMORIES_HEADER,
+    SYSTEM_CORE,
+    TOOL_PROTOCOL,
+)
 from harness.store import SQLiteStore
 from harness.trace import CACHE_FLOOR
 from harness.tools import TOOL_SCHEMAS
@@ -122,10 +139,24 @@ def test_estimate_text_and_message_prices_scale_with_content():
 
 
 def test_estimate_tools_names_each_schema_and_prices_it():
-    priced = tokens.estimate_tools([{"function": {"name": "record_reply"}}, {"name": "bare"}])
+    priced = tokens.estimate_tools([
+        {"function": {"name": "record_reply", "description": "note a reply",
+                      "parameters": {"type": "object"}}},
+        {"name": "bare", "parameters": {"type": "object"}},
+    ])
     assert [entry["name"] for entry in priced] == ["record_reply", "bare"]
     assert all(entry["tokens"] > tokens.TOOL_OVERHEAD_TOKENS for entry in priced)
     assert tokens.estimate_tools(None) == []
+
+
+def test_estimate_tools_leaves_a_bodiless_name_unpriced():
+    """A recorded name whose schemas this build does not hold has nothing to
+    price — a number off the name alone would be fabricated."""
+    priced = tokens.estimate_tools([{"name": "calendar"}, {"name": "remind"}])
+    assert priced == [
+        {"name": "calendar", "tokens": None, "chars": None},
+        {"name": "remind", "tokens": None, "chars": None},
+    ]
 
 
 def test_reconcile_scales_to_the_provider_total_both_ways():
@@ -299,18 +330,84 @@ def test_steering_rows_show_status_and_payload():
 # -------------------------------------------------------------------- context
 def test_system_parts_split_blocks_and_classify_them():
     parts = context_mod.system_parts(
-        "You are Lily.\n\nA state card rides at the end.\n\nSomething else entirely.")
-    assert [part["kind"] for part in parts] == ["persona & voice", "state card", "prompt"]
+        "You are Lily.\n\n" + INTEREST_SENTENCE_PREFIX + " lifting.")
+    assert [part["kind"] for part in parts] == ["persona voice", "interests"]
     assert all(part["tokens"] > 0 for part in parts)
     assert context_mod.system_parts("") == []
 
 
-def test_system_parts_classify_every_marker():
-    parts = context_mod.system_parts(
-        "You are Lily.\n\nWhen a decision tool is attached, fill in what it asks."
-        "\n\nTuesday's plan: read a little")
-    assert [part["kind"] for part in parts] == [
-        "persona & voice", "decision tools", "internal card"]
+def test_system_parts_name_every_rendered_section():
+    """Every block the harness renders is named off the harness' own
+    constants: the stable core by its exact paragraphs, the labelled sections
+    by their headers, the block openers by the templates they came from."""
+    system = "\n\n".join([
+        "You are Lily, a companion who keeps odd hours.",
+        INTEREST_SENTENCE_PREFIX + " lifting and history.",
+        *SYSTEM_CORE.split("\n\n"),
+        TOOL_PROTOCOL,
+        AGENDA_HEADER + "\n- gym (19:00\u201321:00)",
+        TEMPORAL_HEADER + "\nDone earlier: nothing",
+        AFFECTIVE_HEADER + "\nCurrent bearing: quietly bright.",
+        BEHAVIORAL_HEADER + "\nYou respond readily.",
+        CURRENT_INTENT_HEADER + "\nNo active intent.",
+        ACTIVITY_HEADER + " reading",
+        ARCS_HEADER + "\n- climbing",
+        MEMORIES_HEADER + "\n- remembers the walk",
+        ABOUT_YOU_HEADER + "\n- likes tea",
+        CLOSING_HEADER + " wind down",
+        "You are reaching out first. Share the small win.",
+    ])
+    assert [part["kind"] for part in context_mod.system_parts(system)] == [
+        "persona voice", "interests", "system core", "system core",
+        "tool protocol", "agenda", "temporal frame", "affective bearing",
+        "behavioral bearing", "current intent", "activity", "life arcs",
+        "memories", "user model", "closing guidance", "proactive opening",
+    ]
+
+
+def test_system_parts_name_retired_wordings_and_refuse_to_guess():
+    """Archived runs carry the pre-rewrite core: its opening words still name
+    the block. What none of the vocabulary claims stays unlabelled — the old
+    mention-scan labeled these by what they merely mentioned."""
+    retired = "\n\n".join([
+        "You are a companion with an inner life of your own. A state card is attached below.",
+        "Read the card before every reply and let it guide your words naturally.",
+        "Show, do not announce: never say \"I am feeling X\".",
+        "Never name the internal state: no labels, no numbers.",
+        "When the card and your character pull apart, you stay yourself.",
+        "Sometimes the harness delivers a real arriving event to you directly.",
+        "When a decision tool is offered, it arrives with its own instructions.",
+        "Current behavioral guidance: Current bearing: quietly bright.",
+        "Availability: calmly present and available.",
+    ])
+    assert [part["kind"] for part in context_mod.system_parts(retired)] == [
+        "system core", "system core", "system core", "system core",
+        "system core", "steer trust rule", "tool protocol",
+        "mood brief", "availability",
+    ]
+    guessed = context_mod.system_parts(
+        "Ask her about the state card sometime.\n\nSomething else entirely.")
+    assert [part["kind"] for part in guessed] == ["unlabelled", "unlabelled"]
+
+
+def test_build_context_carries_each_tool_schema_for_the_drawer():
+    payload = context_mod.build_context(
+        envelope=ENVELOPE_A, tools=TOOL_SCHEMAS, tools_source="code",
+        previous=None, context_window=1000, usage={})
+    assert [tool["name"] for tool in payload["tools"]] == [
+        tool["name"] for tool in TOOL_SCHEMAS]
+    assert [tool["schema"] for tool in payload["tools"]] == TOOL_SCHEMAS
+    # A name whose schema this build does not hold stays schema-less and
+    # unpriced, and the tools bucket stops claiming a total it cannot add up.
+    bodyless = context_mod.build_context(
+        envelope=ENVELOPE_A, tools=[{"name": "calendar"}], tools_source="recorded",
+        previous=None, context_window=1000, usage={})
+    tool = bodyless["tools"][0]
+    assert (tool["schema"], tool["tokens"]) == (None, None)
+    bucket = next(b for b in bodyless["buckets"] if b["key"] == "tools")
+    assert bucket["tokens"] is None
+    assert bucket["priced_tokens"] is None
+    assert bucket["share_pct"] is None
 
 
 def test_seq_of_keeps_siblings_distinct_and_time_ordered():
@@ -627,28 +724,59 @@ def test_call_payload_reads_a_json_meta_blob(tmp_path):
     assert reader.call_payload(dict(rows[0], meta="{not json"), None)["reasoning_chars"] == 0
 
 
-def test_tool_schemas_for_every_role(tmp_path):
-    """One constant menu rides every mainline call.
+def test_tool_schemas_report_the_recorded_menu_or_name_the_rebuild():
+    """The panel shows what the call's own record says, and says so.
 
-    The panel used to claim "none on this call" for chat and one pinned
-    schema for a decide leg; the verbatim wire dumps carry all three
-    functions on every mainline request, chat included.
+    A recorded hash that matches this build rebuilds the schemas; a recorded
+    menu from another build keeps the names it has and admits the bodies are
+    not here; a row whose record kept no menu falls back to the leg's rule,
+    named as the inference it is. The panel used to pin one menu to every
+    mainline role and call that the answer.
     """
-    from harness.tools import TOOL_SCHEMAS
+    from harness.tools import TOOL_PAYLOAD, TOOL_SCHEMAS, tools_identity
 
     whole = [tool["name"] for tool in TOOL_SCHEMAS]
+    digest, _ = tools_identity(TOOL_PAYLOAD)
+
+    def row(role, record=None):
+        if record is None:
+            return {"role": role}
+        return {"role": role, "repro_json": json.dumps({"system": "s", **record})}
+
+    # The call's own record wins, and the hash gates the rebuild.
+    tools, source = reader.tool_schemas_for(
+        row("chat", {"tool_names": whole, "tools_hash": digest}))
+    assert [tool["name"] for tool in tools] == whole
+    assert "recorded on the call" in source
+    assert "rebuilt from harness.tools" in source
+
+    # A menu from a build this one does not hold: the names on record, no bodies.
+    tools, source = reader.tool_schemas_for(
+        row("chat", {"tool_names": ["calendar", "memory", "remind"],
+                     "tools_hash": "0" * 64}))
+    assert tools == [{"name": "calendar"}, {"name": "memory"}, {"name": "remind"}]
+    assert "not in this build" in source
+
+    # A record with no menu: the leg's rule, admitted as a rebuild. The
+    # verbatim wire dumps carry all three functions on every mainline request,
+    # chat included.
     for role in ("chat", "tool_decide_event", "tool_decide_reply",
                  "tool_decide_unknown"):
-        tools, source = reader.tool_schemas_for(role)
+        tools, source = reader.tool_schemas_for(
+            row(role, {"tool_names": [], "tools_hash": None}))
         assert [tool["name"] for tool in tools] == whole, role
-        assert "every mainline call" in source, role
-    tools, source = reader.tool_schemas_for("day_plan")
+        assert "every mainline call" in source and "rebuilt from this build" in source, role
+    tools, source = reader.tool_schemas_for(row("chat"))
+    assert [tool["name"] for tool in tools] == whole
+    assert "no envelope on the row" in source
+
+    tools, source = reader.tool_schemas_for({"role": "day_plan"})
     assert tools == [] and "unknown leg" in source
     # Metered auxiliary calls (day planner, extension, setup, judge) offer no
     # tool at all — that is the call being what it says it is, not an unknown.
     for role in ("aux_day_planner", "aux_interest_extension",
                  "aux_routine_setup", "aux_judge"):
-        tools, source = reader.tool_schemas_for(role)
+        tools, source = reader.tool_schemas_for({"role": role})
         assert tools == [] and "JSON text" in source, role
         assert "unknown" not in source
 

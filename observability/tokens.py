@@ -48,13 +48,22 @@ def estimate_message(message: dict[str, Any]) -> int:
 
 
 def estimate_tools(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
-    """Per-schema prices: ``[{name, tokens, chars}]`` in declared order."""
+    """Per-schema prices: ``[{name, tokens, chars}]`` in declared order.
+
+    An entry with no schema body — a recorded name whose build this one does
+    not hold (``observability.calls.tool_schemas_for``) — prices ``None``:
+    off the name alone any number would be fabricated.
+    """
     import json
 
     priced: list[dict[str, Any]] = []
     for tool in tools or []:
+        body = tool.get("function") or tool
+        name = str(body.get("name", "?"))
+        if "description" not in body and "parameters" not in body:
+            priced.append({"name": name, "tokens": None, "chars": None})
+            continue
         blob = json.dumps(tool, ensure_ascii=False, sort_keys=True)
-        name = str(tool.get("function", {}).get("name", tool.get("name", "?")))
         priced.append({
             "name": name,
             "tokens": estimate_text(blob) + TOOL_OVERHEAD_TOKENS,

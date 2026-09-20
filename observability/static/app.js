@@ -41,6 +41,11 @@ function fmtTokens(value) {
   return `${(n / 1e6).toFixed(2)}M`;
 }
 
+// "~" says "estimate"; a part with no price on record says "—" and nothing else.
+function fmtEstimate(value) {
+  return value === null || value === undefined ? "—" : `~${fmtTokens(value)}`;
+}
+
 function fmtUsd(value) {
   if (value === null || value === undefined) return "—";
   const n = Number(value);
@@ -89,7 +94,11 @@ function renderRuns(payload) {
     // The label alone: the closed select is a pill, and a count cut off
     // mid-digit reads as a rendering fault. It rides in the tooltip.
     const option = el("option", null, run.label);
-    option.title = `${run.active ? "live" : "idle"} · `
+    // "live" keys off the PROCESS that serves the database, not the last
+    // write: a quiet bot still has a pid behind it, and telling the reader
+    // "idle" while its process is up reads as dead. Write freshness is the
+    // chip's job (live / running, quiet / process gone) once the run is open.
+    option.title = `${run.process_up ? "live" : "idle"} · `
       + `${run.deployed || "probe"} · ${run.calls} calls`;
     picker.append(option);
   }
@@ -284,17 +293,23 @@ function renderContext(payload) {
   bar.replaceChildren();
   const legend = $("context-legend");
   legend.replaceChildren();
-  const total = payload.buckets.reduce((sum, bucket) => sum + bucket.priced_tokens, 0) || 1;
+  // A bucket holding a part with no price on record — a tool menu this build
+  // does not hold — carries no number: it shows "—" and takes no width in the
+  // bar, because a guessed width would read as a measured share.
+  const total = payload.buckets.reduce(
+    (sum, bucket) => sum + (bucket.priced_tokens || 0), 0) || 1;
   for (const bucket of payload.buckets) {
-    const share = bucket.priced_tokens / total * 100;
+    const price = bucket.priced_tokens ?? null;
     const segment = el("span", colors[bucket.key] || "");
-    segment.style.width = `${share}%`;
-    segment.title = `${bucket.label}: ${bucket.priced_tokens} tokens`;
+    segment.style.width = `${price === null ? 0 : price / total * 100}%`;
+    segment.title = price === null
+      ? `${bucket.label}: price unknown`
+      : `${bucket.label}: ${price} tokens`;
     bar.append(segment);
     const row = el("div");
     const dt = el("dt");
     dt.append(el("span", `swatch ${colors[bucket.key]}`), el("span", null, bucket.label));
-    row.append(dt, el("dd", null, `~${fmtTokens(bucket.priced_tokens)}`));
+    row.append(dt, el("dd", null, fmtEstimate(price)));
     legend.append(row);
   }
 
@@ -307,7 +322,7 @@ function renderContext(payload) {
     const row = el("li", "clickable");
     const left = el("span", "name");
     left.append(el("b", "fixed", part.kind), el("span", "preview", part.label));
-    row.append(left, el("span", "tokens", `~${fmtTokens(part.priced_tokens)}`));
+    row.append(left, el("span", "tokens", fmtEstimate(part.priced_tokens)));
     row.title = "click to read the whole block";
     row.addEventListener("click", () => {
       const { text, preview, ...rest } = part;
@@ -322,9 +337,21 @@ function renderContext(payload) {
   const tools = $("tool-list");
   tools.replaceChildren();
   for (const tool of payload.tools) {
-    const row = el("li");
+    // A section titled "Tool schemas" that shows names and prices only is the
+    // title lying: the schema is what the call actually sent, so the row
+    // opens it the same way a system block opens its text. A row whose
+    // schema this build does not hold says so instead of pretending.
+    const row = el("li", tool.schema ? "clickable" : null);
     row.append(el("span", "name", tool.name),
-      el("span", "tokens", `~${fmtTokens(tool.tokens)}`));
+      el("span", "tokens", fmtEstimate(tool.tokens)));
+    if (tool.schema) {
+      row.title = "click to read the full schema";
+      const schema = tool.schema.function || tool.schema;
+      row.addEventListener("click", () => showRawPayload(
+        `tool schema · ${schema.name || tool.name}`, schema));
+    } else if (tool.tokens === null) {
+      row.title = "the schema body is not in this build — the call's record kept the name only";
+    }
     tools.append(row);
   }
   if (payload.tools.length === 0) tools.append(el("li", "empty", "none on this call"));
@@ -350,7 +377,7 @@ function renderContext(payload) {
     mark.title = node.cached
       ? "byte-identical to the call before: the measured shared prefix"
       : "not byte-identical to the call before";
-    right.append(mark, el("span", "tokens", `~${fmtTokens(node.priced_tokens)}`));
+    right.append(mark, el("span", "tokens", fmtEstimate(node.priced_tokens)));
     row.append(name, right);
     row.addEventListener("click", () => showRawPayload(`surface node #${node.index}`, node));
     surface.append(row);
@@ -736,12 +763,23 @@ function envelopeNodes(detail) {
   nodes.push(el("h3", null, `Tool schemas — ${detail.tools_source}`));
   // Two shapes reach here: the OpenAI {type, function} wrapper when the
   // envelope persisted them, and the plain Hermes schema ({name, ...}) when
-  // they are rebuilt from harness.tools. Reading only `.function` threw for
-  // every rebuilt call and left the drawer stuck on "loading…".
+  // they are rebuilt from harness.tools. The names alone listed WHICH tools
+  // the call carried, never what they are — the section's whole subject — so
+  // each schema renders as sent.
   const tools = detail.tools || [];
-  nodes.push(el("pre", null, tools.length
-    ? tools.map((tool) => (tool.function || tool).name || "(unnamed)").join("\n")
-    : "none"));
+  if (!tools.length) {
+    nodes.push(el("pre", null, "none"));
+  }
+  for (const tool of tools) {
+    const schema = tool.function || tool;
+    // A recorded name whose schemas this build does not hold has no body to
+    // render — say that instead of drawing a degenerate one-key object.
+    const bodyless = schema.description === undefined && schema.parameters === undefined;
+    nodes.push(el("h3", null, `Schema · ${schema.name || "(unnamed)"}`));
+    nodes.push(el("pre", null, bodyless
+      ? "the schema body is not in this build — the call's record kept the name only"
+      : JSON.stringify(schema, null, 2)));
+  }
   nodes.push(el("h3", null, `Messages (${(envelope.messages || []).length})`));
   let index = 0;
   for (const message of envelope.messages || []) {
@@ -1009,6 +1047,9 @@ async function loadRuns() {
 }
 
 async function boot() {
+  // The deep-link tail below still reads this payload; the picker's change
+  // handler deliberately does NOT (it maps through state.runs, the list the
+  // options were rendered from — index 1 of two is not index 1 of sixty).
   let payload = await loadRuns();
   $("show-all").addEventListener("change", async () => {
     const next = await loadRuns();
@@ -1018,9 +1059,13 @@ async function boot() {
       await loadRun(keep.path);
     }
   });
+  // The picker maps through state.runs, never through boot's first payload:
+  // with "show all" the option list grows to every database, and a stale
+  // list silently loads the wrong run (index 1 of two is not index 1 of
+  // sixty).
   $("run-picker").addEventListener("change", (event) => {
-    const index = event.target.selectedIndex;
-    loadRun(payload.runs[index].path);
+    const run = state.runs[event.target.selectedIndex];
+    if (run) loadRun(run.path);
   });
   $("refresh").addEventListener("click", () => loadRun(state.runId));
   for (const button of document.querySelectorAll(".vbtn")) {

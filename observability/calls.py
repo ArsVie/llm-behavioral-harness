@@ -10,7 +10,7 @@ import json
 from typing import Any
 
 from harness.spend import GroupStats, aggregate, aggregate_by
-from harness.tools import TOOL_SCHEMAS
+from harness.tools import TOOL_PAYLOAD, TOOL_SCHEMAS, tools_identity
 from harness.trace import CACHE_FLOOR
 
 from observability import context as context_mod
@@ -18,6 +18,11 @@ from observability.db import rows, rows as db_rows
 
 #: Fallback context window when the model's capacity is not known locally.
 DEFAULT_CONTEXT_WINDOW: int = 1_000_000
+
+#: This build's constant tool menu, hashed: a call whose recorded tools_hash
+#: matches this is reconstructable here; a hash that matches nothing means the
+#: call's schemas are not in this build.
+_MENU_HASH: str | None = tools_identity(TOOL_PAYLOAD)[0]
 
 
 def stats_json(stats: GroupStats) -> dict[str, Any]:
@@ -195,28 +200,46 @@ def stamp(anchor: Any, t_h: Any) -> str | None:
         return None
 
 
-def tool_schemas_for(role: str | None) -> tuple[list[dict[str, Any]], str]:
-    """The tool schemas a call of ``role`` sent, with their provenance.
+def tool_schemas_for(row: dict[str, Any] | None) -> tuple[list[dict[str, Any]], str]:
+    """The tool menu one call sent, with the provenance of the claim.
 
-    Rebuilt from the current code: the store keeps the request body without
-    ``tools``. ONE constant menu rides every CANONICAL mainline call — the
-    whole ``TOOL_PAYLOAD`` (``session._chat`` passes it to ``_generate``; the
-    verbatim wire dumps carry all three actuation functions on every chat
-    request, round trips included). Only the auxiliary callers send none, and
-    the bubble-streaming path sends none (a text stream cannot carry a call).
+    The call's OWN record comes first: ``tool_names``/``tools_hash`` ride the
+    envelope (the stored request body drops ``tools``), and the schemas
+    rebuild from ``harness.tools`` only when the recorded hash proves the
+    payload is this build's menu — the menu changed over the trial (the
+    pre-reset live run sent calendar/memory/remind on chat calls), and
+    rebuilding today's schemas onto such a call would label it with tools it
+    never carried. Those calls keep their recorded names, nothing more.
 
-    This panel used to report "none on this call" for ``chat`` and a single
-    pinned schema for a decide leg. Both were wrong, and they under-reported
-    the tools bucket of the context breakdown by the full menu.
+    A row whose record kept no menu — older stores, or a mainline row written
+    by a build whose recorder stubbed these keys — falls back to the leg's
+    rule, named as the inference it is: ONE constant menu rides every
+    CANONICAL mainline call (``session._chat`` passes the whole
+    ``TOOL_PAYLOAD`` to ``_generate``; the verbatim wire dumps carry all
+    three actuation functions on every chat request, round trips included),
+    and only the auxiliary callers send none: they ask for JSON text, never
+    a tool.
     """
-    kind = str(role or "")
+    env = envelope_of(row) if row else None
+    names = [str(name) for name in (env.get("tool_names") or [])] if env else []
+    if names:
+        if env.get("tools_hash") == _MENU_HASH:
+            whole = list(TOOL_SCHEMAS)
+            return whole, f"recorded on the call — {len(whole)} rebuilt from harness.tools"
+        return [{"name": name} for name in names], (
+            f"recorded on the call — {len(names)} names; their schemas are "
+            "not in this build")
+    kind = str((row or {}).get("role") or "")
     if kind.startswith("aux_"):
         # The auxiliary callers ask for JSON text, never a tool, so an empty
         # panel here is the call being what it says it is.
         return [], "none — this leg asks for JSON text"
     if kind == "chat" or kind.startswith("tool_decide"):
         chosen = list(TOOL_SCHEMAS)
-        return chosen, f"the same {len(chosen)} on every mainline call"
+        note = ("the call's record kept no menu" if env is not None
+                else "no envelope on the row")
+        return chosen, (f"the same {len(chosen)} on every mainline call"
+                        f" — rebuilt from this build; {note}")
     return [], "unknown leg — not reconstructable"
 
 
@@ -264,7 +287,7 @@ def context_payload(conn: Any, anchor: Any, *, call_id: int | None,
     if row is None:
         return {"available": False, "reason": "no model call recorded yet",
                 "context_window": context_window}
-    tools, tools_source = tool_schemas_for(row.get("role"))
+    tools, tools_source = tool_schemas_for(row)
     payload = context_mod.build_context(
         envelope=envelope_of(row),
         tools=tools,
@@ -333,7 +356,7 @@ def call_detail(conn: Any, anchor: Any, call_id: int) -> dict[str, Any] | None:
     if row is None:
         return None
     meta = _meta_of(row)
-    tools, tools_source = tool_schemas_for(row.get("role"))
+    tools, tools_source = tool_schemas_for(row)
     return {
         "call": call_payload(row, anchor),
         "envelope": envelope_of(row),

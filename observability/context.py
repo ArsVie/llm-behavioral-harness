@@ -11,10 +11,81 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from harness.assembler import (
+    AFFECTIVE_HEADER,
+    BEHAVIORAL_HEADER,
+    CURRENT_INTENT_HEADER,
+    PROACTIVE_OPENING,
+    TEMPORAL_HEADER,
+)
+from harness.persona import INTEREST_SENTENCE_PREFIX
+from harness.prompts import (
+    ABOUT_YOU_HEADER,
+    ACTIVITY_HEADER,
+    AGENDA_HEADER,
+    ARCS_HEADER,
+    CLOSING_HEADER,
+    MEMORIES_HEADER,
+    MEMORY_EVIDENCE_HEADER,
+    MOOD_BRIEF_HEADER,
+    POPUP_MARKER_OPEN,
+    STEER_TRUST_RULE,
+    SYSTEM_CORE,
+    TOOL_PROTOCOL,
+)
+
 from observability import tokens
 
 #: Paragraph marker for the split of the system prompt into priced blocks.
 _PARAGRAPH_SEP = "\n\n"
+
+#: The stable core's own paragraphs, as the harness renders them today — the
+#: one part of the assembly that is prose with no header to key on.
+_CORE_PARAGRAPHS: frozenset[str] = frozenset(SYSTEM_CORE.split(_PARAGRAPH_SEP))
+
+#: The steer trust rule, when the harness has one enabled ("" today).
+_STEER_TRUST_PARAGRAPHS: frozenset[str] = (
+    frozenset({STEER_TRUST_RULE}) if STEER_TRUST_RULE else frozenset()
+)
+
+#: The proactive block's opener ("You are reaching out first."), off the
+#: template itself so a reworded template renames its block with it.
+_PROACTIVE_STARTER = PROACTIVE_OPENING.split("{hook}", 1)[0].strip()
+
+#: The labelled sections: the harness' own header constants → the name the
+#: page shows. The headers are imported, never copied, so a renamed section
+#: renames here; the names are this page's vocabulary.
+_SECTION_NAMES: tuple[tuple[str, str], ...] = (
+    (TEMPORAL_HEADER, "temporal frame"),
+    (AFFECTIVE_HEADER, "affective bearing"),
+    (BEHAVIORAL_HEADER, "behavioral bearing"),
+    (CURRENT_INTENT_HEADER, "current intent"),
+    (AGENDA_HEADER, "agenda"),
+    (ACTIVITY_HEADER, "activity"),
+    (ARCS_HEADER, "life arcs"),
+    (MEMORIES_HEADER, "memories"),
+    (MEMORY_EVIDENCE_HEADER, "memory evidence"),
+    (ABOUT_YOU_HEADER, "user model"),
+    (CLOSING_HEADER, "closing guidance"),
+    (MOOD_BRIEF_HEADER, "mood brief"),
+    # The availability line rides inside AFFECTIVE BEARING today; an older
+    # assembler shipped it as a block of its own.
+    ("Availability:", "availability"),
+)
+
+#: Retired wordings the archived runs still carry: the stable core and the
+#: tool protocol were rewritten mid-trial, and these opening words are the
+#: only handle left on those blocks.
+_RETIRED_CORE_STARTERS: tuple[str, ...] = (
+    "You are a companion with an inner life of your own.",
+    "Read the card before every reply",
+    "Show, do not announce",
+    "Never name the internal state",
+    "When the card and your character pull apart",
+)
+_RETIRED_STEER_STARTERS: tuple[str, ...] = (
+    "Sometimes the harness delivers a real arriving event",
+)
 
 
 def _clip(text: str, limit: int = 160) -> str:
@@ -23,17 +94,37 @@ def _clip(text: str, limit: int = 160) -> str:
 
 
 def _system_kind(paragraph: str) -> str:
-    """A coarse label for one system-prompt block (display only)."""
-    probe = paragraph.lower()
-    if "state card" in probe:
-        return "state card"
-    if "decision tool" in probe:
-        return "decision tools"
-    if probe.startswith("you are"):
-        return "persona & voice"
-    if "plan:" in probe:
-        return "internal card"
-    return "prompt"
+    """Which part of the assembled prompt one block is (display only).
+
+    Blocks split on paragraph breaks, so one section spans several of them
+    (the stable core is two paragraphs; the interest sentence is a paragraph
+    of the day block). The name comes from the harness' OWN vocabulary —
+    today's constants by exact match, the labelled headers as openers, the
+    retired wordings archived runs carry — never from a mention inside the
+    prose: the old mention-scan named two different blocks "prompt" and
+    labeled a paragraph about the card as if it were the card. A block none
+    of the vocabulary claims stays unlabelled rather than guessed at.
+    """
+    probe = paragraph.strip()
+    if probe in _CORE_PARAGRAPHS or probe.startswith(_RETIRED_CORE_STARTERS):
+        return "system core"
+    # Both generations of the protocol open with these words.
+    if probe == TOOL_PROTOCOL or probe.startswith("When a decision tool"):
+        return "tool protocol"
+    if probe in _STEER_TRUST_PARAGRAPHS or probe.startswith(_RETIRED_STEER_STARTERS):
+        return "steer trust rule"
+    for header, name in _SECTION_NAMES:
+        if probe.startswith(header):
+            return name
+    if probe.startswith(INTEREST_SENTENCE_PREFIX):
+        return "interests"
+    if probe.startswith(_PROACTIVE_STARTER):
+        return "proactive opening"
+    if POPUP_MARKER_OPEN in probe:
+        return "arriving event"
+    if probe.startswith("You are "):
+        return "persona voice"
+    return "unlabelled"
 
 
 def system_parts(system: str) -> list[dict[str, Any]]:
@@ -113,18 +204,33 @@ def message_nodes(envelope: dict[str, Any], shared_count: int) -> list[dict[str,
     return nodes
 
 
+def _sum_priced(values: list[int | None]) -> int | None:
+    """Sum that keeps an unpriced part visible: one None makes the total None."""
+    total = 0
+    for value in values:
+        if value is None:
+            return None
+        total += value
+    return total
+
+
 def _buckets(parts: list[dict[str, Any]], priced_tools: list[dict[str, Any]],
              nodes: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """The three composition buckets, unpriced (heuristic totals only)."""
+    """The three composition buckets, unpriced (heuristic totals only).
+
+    A bucket holding an unpriced part carries no total: a partial sum dressed
+    as a total is the same lie as a fabricated one.
+    """
     return [
         {"key": "system", "label": "System prompt",
-         "tokens": sum(p["tokens"] for p in parts),
+         "tokens": _sum_priced([p["tokens"] for p in parts]),
          "chars": sum(p["chars"] for p in parts), "parts": len(parts)},
         {"key": "tools", "label": "Tool schemas",
-         "tokens": sum(t["tokens"] for t in priced_tools),
-         "chars": sum(t["chars"] for t in priced_tools), "parts": len(priced_tools)},
+         "tokens": _sum_priced([t["tokens"] for t in priced_tools]),
+         "chars": _sum_priced([t["chars"] for t in priced_tools]),
+         "parts": len(priced_tools)},
         {"key": "messages", "label": "Conversation",
-         "tokens": sum(n["tokens"] for n in nodes),
+         "tokens": _sum_priced([n["tokens"] for n in nodes]),
          "chars": sum(n["chars"] for n in nodes), "parts": len(nodes)},
     ]
 
@@ -141,9 +247,9 @@ def _anchor_for(buckets: list[dict[str, Any]], usage: dict[str, Any]) -> tokens.
     return tokens.reconcile(persisted, provider)
 
 
-def _share(priced: int, provider: int | None) -> float | None:
-    """A bucket's share of the billed prompt, or None without a provider anchor."""
-    if not provider:
+def _share(priced: int | None, provider: int | None) -> float | None:
+    """A bucket's share of the billed prompt, or None without a price anchor."""
+    if not provider or priced is None:
         return None
     return round(priced / provider * 100.0, 1)
 
@@ -219,6 +325,12 @@ def build_context(*, envelope: dict[str, Any] | None,
     shared_count, shared_chars, system_stable = shared_message_count(previous, envelope)
     parts = system_parts(str(envelope.get("system") or ""))
     priced_tools = tokens.estimate_tools(tools)
+    # A row shows the tool's price; the drawer shows what was priced, so the
+    # schema itself rides along the way a system block's text does. Whatever
+    # could not be priced has no body to show either (a recorded name whose
+    # schemas this build does not hold), so it stays schema-less.
+    for priced, schema in zip(priced_tools, tools or [], strict=True):
+        priced["schema"] = schema if priced["tokens"] is not None else None
     nodes = message_nodes(envelope, shared_count)
     buckets = _buckets(parts, priced_tools, nodes)
     anchor = _anchor_for(buckets, usage)
