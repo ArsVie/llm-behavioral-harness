@@ -68,8 +68,8 @@ _SECTION_NAMES: tuple[tuple[str, str], ...] = (
     (ABOUT_YOU_HEADER, "user model"),
     (CLOSING_HEADER, "closing guidance"),
     (MOOD_BRIEF_HEADER, "mood brief"),
-    # The availability line rides inside AFFECTIVE BEARING today; an older
-    # assembler shipped it as a block of its own.
+    # Availability is its own card section (it varies on the energy clock);
+    # older runs carried it inside AFFECTIVE BEARING.
     ("Availability:", "availability"),
 )
 

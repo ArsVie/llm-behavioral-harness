@@ -84,6 +84,8 @@ from harness.assembler import (
     render_day_block,
     render_day_start_block,
     render_state_card,
+    render_state_update,
+    STATE_UPDATE_LEAD,
     stable_system,
     stamped_stream,
 )
@@ -628,13 +630,31 @@ class Session(NegotiationMixin):
         self._thinking_effort = _load_thinking_effort()
         self._day_block: str | None = None
         self._day_block_day: int | None = None
-        #: Last card bytes the stream carried (a system row). A card is
-        #: appended only when its bytes change — the stream is append-only.
-        self._card_text: str | None = None
+        #: Memo of the last card's FULL text — the baseline a changed card
+        #: updates against (an UPDATE row is never a baseline itself). The
+        #: stream is append-only: an unchanged card is never re-sent, and a
+        #: day's first card is always the full one.
+        self._card_full: str | None = None
+        self._card_day: int | None = None
+        raw_day: str | None = None
         try:
-            self._card_text = self.store.last_system_row_text()
+            self._card_full = self.store.get_kv("state_card.full")
+            raw_day = self.store.get_kv("state_card.day")
         except AttributeError:  # minimal stores (tests/fakes) keep working
             pass
+        if self._card_full is None:
+            try:
+                last = self.store.last_system_row_text()
+            except AttributeError:
+                last = None
+            # A legacy row is a full card; a mid-day UPDATE row is not a
+            # baseline (only reachable when the kv memo is missing).
+            if last and not last.startswith(STATE_UPDATE_LEAD):
+                self._card_full = last
+        try:
+            self._card_day = int(raw_day) if raw_day is not None else None
+        except (TypeError, ValueError):
+            self._card_day = None
         #: System prompt of the turn in progress — shared with pop-up calls.
         self._last_system_prompt: str = ""
         # WS-D cache order: the pop-up aux call must be a byte-identical
@@ -1536,23 +1556,39 @@ class Session(NegotiationMixin):
         day: int,
         t_h: float,
     ) -> None:
-        """Append the state card as a stream row only when its bytes changed.
+        """Append the state card as a stream row only when its state changed.
 
-        State only: per-turn guidance (closing wind-down) never enters the
-        persisted row — it rides the generation as a transient block. The
-        stream is append-only: an unchanged card is never re-sent.
+        A changed card appends as a section-level UPDATE against the memo's
+        full text (the full card when the update would not be smaller); the
+        day's first card is always the full one. State only: per-turn
+        guidance (closing wind-down) never enters the persisted row — it
+        rides the generation as a transient block. The memo holds the last
+        FULL text, so an update row never becomes a baseline.
         """
         text = render_state_card(snapshot, prompt_brief=prompt_brief)
-        if not text or text == self._card_text:
+        if not text:
             return
+        first_of_day = self._card_day != day
+        if not first_of_day and text == self._card_full:
+            return
+        if first_of_day or self._card_full is None:
+            row = text
+        else:
+            row = render_state_update(self._card_full, text)
         conv = self._conversation
         self._persist_message(
-            "system", text, t_h, day,
+            "system", row, t_h, day,
             proactive=False,
             session_id=self._memory_session_id(conv.id) if conv else "",
             conversation_id=conv.id if conv else None,
         )
-        self._card_text = text
+        self._card_full = text
+        self._card_day = day
+        try:
+            self.store.set_kv("state_card.full", text)
+            self.store.set_kv("state_card.day", str(day))
+        except AttributeError:
+            pass
 
     def _build_snapshot(
         self,

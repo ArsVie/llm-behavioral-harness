@@ -6,6 +6,8 @@ and dropped whole over ``MAX_PROMPT_CHARS`` (pinned ones never).
 
 from __future__ import annotations
 
+import re
+
 from harness.clock import hhmm
 from harness.domain import BehaviorBrief, CompanionSnapshot, GenerationControls
 from harness.prompts import (
@@ -105,6 +107,7 @@ _BEHAVIOR_PERSISTENCE_LOW = "Your participation tends to wind down quickly."
 # --------------------------------------------------------------------------- #
 _PRIO_AGENDA = 0
 _PRIO_AFFECTIVE = 2
+_PRIO_AVAILABILITY = 2  #: sibling of the mood brief — same eviction band
 _PRIO_BEHAVIORAL = 3
 _PRIO_CURRENT_INTENT = 4
 _PRIO_ACTIVITY = 5
@@ -125,6 +128,11 @@ _DAY_SCOPED_PRIOS: frozenset[int] = frozenset({
     _PRIO_ARCS,         # active life arcs
     _PRIO_USER_MODEL,   # L4 conclusions about him
 })
+
+#: First line of a mid-day state UPDATE row: a changed card appends only the
+#: sections that changed; a full card rides only at a day's first card (or
+#: when the update would not be smaller).
+STATE_UPDATE_LEAD = "STATE UPDATE — only what changed:"
 
 
 def proactive_block(hook: str | None = None) -> str:
@@ -433,16 +441,18 @@ def _state_card_sections(
             (_PRIO_AGENDA, _PINNED, AGENDA_HEADER + "\n" + "\n".join(agenda_lines))
         )
 
-    # AFFECTIVE BEARING: mood brief line plus availability line.
-    affective: list[str] = []
+    # AFFECTIVE BEARING: the mood brief. Availability varies on its own
+    # clock (energy), so it rides its own section — a mid-day UPDATE can
+    # replace one without resending the other.
     if prompt_brief:
-        affective.append(prompt_brief.strip())
+        sections.append((
+            _PRIO_AFFECTIVE, False,
+            AFFECTIVE_HEADER + "\n" + prompt_brief.strip(),
+        ))
     if snapshot.current_behavior is not None:
         availability = _availability_line(snapshot.current_behavior)
         if availability:
-            affective.append(availability)
-    if affective:
-        sections.append((_PRIO_AFFECTIVE, False, AFFECTIVE_HEADER + "\n" + "\n".join(affective)))
+            sections.append((_PRIO_AVAILABILITY, False, availability))
 
     if snapshot.current_behavior is not None:
         sections.append((_PRIO_BEHAVIORAL, False, _behavioral_bearing(snapshot.current_behavior)))
@@ -542,6 +552,49 @@ def render_state_card(
         if s[0] not in _DAY_SCOPED_PRIOS
     ]
     return _join_stable_plus_sections([], sections)
+
+
+_CARD_BLOCK_HEADER = re.compile(r"^([A-Za-z][A-Za-z /()&-]{2,}):")
+
+
+def card_blocks(text: str) -> list[tuple[str, str]]:
+    """(key, block) for every blank-line block of a card or update row.
+
+    A block's key is the header its first line carries (``CURRENT INTENT:``,
+    ``Current activity: read history``); the full block text is what a
+    section-level diff compares and re-sends.
+    """
+    blocks: list[tuple[str, str]] = []
+    for block in text.split("\n\n"):
+        block = block.strip("\n")
+        if not block:
+            continue
+        first = block.splitlines()[0]
+        match = _CARD_BLOCK_HEADER.match(first)
+        blocks.append(((match.group(1) if match else first), block))
+    return blocks
+
+
+def render_state_update(prev_card: str, card: str) -> str:
+    """The stream bytes for a changed card: only what changed.
+
+    Section-level against the previous full card — changed sections verbatim
+    and ``(cleared)`` for sections that went away — falling back to the full
+    card when the update would not be smaller or nothing recognizably changed.
+    """
+    if not prev_card:
+        return card
+    prev = dict(card_blocks(prev_card))
+    blocks = card_blocks(card)
+    keys = {key for key, _ in blocks}
+    changed = [block for key, block in blocks if prev.get(key) != block]
+    cleared = [key for key in prev if key not in keys]
+    if not changed and not cleared:
+        return card
+    update = "\n\n".join(
+        [STATE_UPDATE_LEAD] + changed + [f"{key}: (cleared)" for key in cleared]
+    )
+    return update if len(update) < len(card) else card
 
 
 def _day_plan_header(t_h: float | None, anchor) -> str:

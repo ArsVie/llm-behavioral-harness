@@ -26,11 +26,12 @@ VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
 
 #: sha256 of the canonical trace of the seeded feed, two_phase_close OFF.
-#: Regenerated 2026-09-13 for the append-only stream (two_phase_close OFF:
-#: the state card persists as system rows). Verified then: conversations and
-#: state_events byte-identical to the previous pin's trace; the message diff
-#: is exactly the 12 card rows. No draw-key/RNG/timing change.
-PARITY_PIN = "2e8d3f553132ae231172d9d442d0507f7a8b7a27dfc86b019a4f54723ca7a4fc"
+#: Regenerated 2026-09-20 for the section-level card diff. Verified against
+#: the previous pin's tree: conversations and state_events byte-identical;
+#: same row count; the message diff is exactly the 12 card rows
+#: (availability split out; later cards ride as STATE UPDATE rows). No
+#: draw-key/RNG/timing change.
+PARITY_PIN = "fd9c30eef2408bc623986529058a111cc64111c8fcdc7b72fa21c7be48f1070f"
 
 #: Messages land at START_H + m*GAP_H, crossing one quiet-hours boundary.
 START_H = 8.1667
@@ -151,9 +152,13 @@ def test_flag_off_byte_parity_is_pinned(tmp_path, monkeypatch):
     assert successor is not None and successor.id == "conv-1"
     assert successor.close_reason is None
 
-    # (d) no wind-down artifacts anywhere
-    kv_rows = store_a.conn.execute("SELECT COUNT(*) FROM kv_store").fetchone()[0]
-    assert kv_rows == 0
+    # (d) no wind-down artifacts anywhere. The kv table arrived with the
+    # wind-down wave; in a flag-off run its only legitimate rows are the
+    # state-card memo.
+    kv_keys = {r["key"] for r in store_a.conn.execute("SELECT key FROM kv_store")}
+    assert kv_keys == {"state_card.full", "state_card.day"}, (
+        f"unexpected kv rows in a flag-off run: {sorted(kv_keys)}"
+    )
     pend = store_a.conn.execute(
         "SELECT COUNT(*) FROM conversations WHERE closing_pending_t_h IS NOT NULL"
     ).fetchone()[0]
