@@ -2767,6 +2767,13 @@ class Session(NegotiationMixin):
         activity = self._current_activity(day, t_h)
         if activity is None or activity.item is None:
             return _STEER_CONSUMED
+        # The pop-up restates the steer's message only when the transcript
+        # does not already end on it. Decided in the same breath it arrived,
+        # it IS the row above (the live decide leg showed it twice — ~45
+        # chars, and a second copy the model has to reconcile); decided at a
+        # later boundary, steps later, the line is the only anchor the
+        # decision has and it stays.
+        message = str(payload.get("message", ""))
         result = self._execute_decision(
             decision_id=f"steer-{steer.steer_id}",
             popup_kind="tool_decide_reply",
@@ -2775,7 +2782,9 @@ class Session(NegotiationMixin):
                 "event_label": activity.item.activity,
                 "state_label": "in_progress",
                 "time": str(t_h),
-                "latest_user_message": str(payload.get("message", "")),
+                "latest_user_message": (
+                    "" if message == self._latest_user_text() else message
+                ),
                 "conversation_context": self._conversation_context(),
             },
             steer=steer,

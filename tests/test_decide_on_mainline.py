@@ -70,6 +70,20 @@ def _decide_event(call_id: str, initiate: bool = True,
     }
 
 
+def _decide_reply(call_id: str, reply: bool = True,
+                  reason: str = "she should answer") -> dict:
+    return {
+        "content": "",
+        "tool_calls": [{
+            "id": call_id,
+            "name": "tool_decide_reply",
+            "arguments_json": json.dumps(
+                {"reply": reply, "reason": reason, "terminate_event": False}
+            ),
+        }],
+    }
+
+
 def _has_pair(messages: dict) -> bool:
     return any(row.get("role") == "tool" for row in messages["messages"])
 
@@ -248,3 +262,47 @@ def test_a_proactive_intent_is_decided_then_the_reply_is_the_message(tmp_path):
     ).fetchone()[0]
     assert delivered == 1
     store.close()
+
+
+# The reply pop-up restates the steer's message only when the transcript has
+# moved on since it arrived (live: the decide leg carried it twice).
+
+def _reply_round(tmp_path, *, steer_message: str, turn_message: str) -> str:
+    """Run one turn whose steer is decided, return the round call's text."""
+    store = make_store(tmp_path)
+    _anchor(store)
+    store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
+    # An earlier boundary check: the item's start is old news, so the only
+    # steer in play is the user message.
+    store.log_event(0, 10.0, "popup_boundary_check", "items=1")
+    store.enqueue_steer(0, 10.0, "user_message_mid_turn",
+                        {"message": steer_message})
+    client = FakeClient(responses=[_decide_reply("c1"), {"content": "main reply"}])
+    session = _session(store, client=client)
+
+    assert session.on_message(turn_message).reply == "main reply"
+
+    records = store.decisions_for_day(0)
+    assert [r["popup_kind"] for r in records] == ["tool_decide_reply"]
+    decided = "\n".join(str(row.get("content")) for row in client.calls[0]["messages"])
+    store.close()
+    return decided
+
+
+def test_a_fresh_reply_popup_does_not_restate_the_message_above_it(tmp_path):
+    """Decided in the same breath it arrived, the steer's message IS the row
+    above the pop-up — restating it only makes the model read it twice."""
+    decided = _reply_round(
+        tmp_path, steer_message="hello", turn_message="hello",
+    )
+    assert "{Event: pottery, State: in_progress, Time: 10:00}" in decided
+    assert "Latest user message:" not in decided
+
+
+def test_a_late_reply_popup_keeps_the_message_line(tmp_path):
+    """The user has said something since the steer arrived: the line is the
+    only anchor the decision has, so it stays."""
+    decided = _reply_round(
+        tmp_path, steer_message="you there?", turn_message="hello",
+    )
+    assert 'Latest user message: "you there?"' in decided

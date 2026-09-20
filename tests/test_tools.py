@@ -243,6 +243,17 @@ def test_render_popup_reply_matches_sketch():
     )
 
 
+def test_render_popup_reply_drops_the_line_when_the_message_is_empty():
+    """The session blanks the field when the steer's message is already the
+    row above (the transcript carries it); the renderer must then omit the
+    line, not print an empty quote."""
+    inputs = dict(REPLY_INPUTS, latest_user_message="")
+    assert render_popup("tool_decide_reply", inputs) == (
+        "{Event: gym, State: in_progress, Time: 19:30}\n"
+        '{Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}'
+    )
+
+
 def test_tool_schemas_shape():
 # The tool is the answer form: required params are the verdict fields, not the pop-up inputs.
     assert [t["name"] for t in TOOL_SCHEMAS] == [
