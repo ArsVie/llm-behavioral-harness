@@ -653,6 +653,9 @@ class Session(NegotiationMixin):
         self._turn_drained: list[int] = []
         #: The turn's own generation's tool calls (OpenAI shape).
         self._last_tool_calls: list[dict] | None = None
+        #: The tool payload the last generation rode with — the wire identity
+        #: the mainline repro records (the constant menu, by default).
+        self._last_request_tools: list | None = None
         if all(
             hasattr(store, name)
             for name in (
@@ -2087,6 +2090,7 @@ class Session(NegotiationMixin):
         """
         # Reset per generation.
         self._last_tool_calls = None
+        self._last_request_tools = tools
         chat_with_meta = getattr(self.client, "chat_with_meta", None)
         if chat_with_meta is None:
             reply = self.client.chat(
@@ -2168,6 +2172,7 @@ class Session(NegotiationMixin):
         """
         from harness.bubbles import BubbleStreamer, bubble_stream_enabled
 
+        self._last_request_tools = tools
         if not bubble_stream_enabled():
             # Flags changed between _chat's gate and here (or a direct
             # caller): fall back to the canonical non-streaming path.
@@ -2220,6 +2225,10 @@ class Session(NegotiationMixin):
         """
         if not self._accepts_repro:
             return {}
+        # The mainline hands every generation the constant menu and that is
+        # what the wire carries; the identity goes on record from the same
+        # generation, so a stored call and a replay of it are provably equal.
+        tools_hash, tool_names = tools_identity(self._last_request_tools)
         return {"repro": {
             "model": getattr(self.client, "model", None),
             "system": system,
@@ -2230,8 +2239,8 @@ class Session(NegotiationMixin):
             # Wire identity of the request beyond the prompt text: without
             # these, a stored call and a replay of it were only assumed equal.
             "reasoning_effort": self._thinking_effort,
-            "tools_hash": None,
-            "tool_names": [],
+            "tools_hash": tools_hash,
+            "tool_names": tool_names,
             "tool_choice": None,
             "controls": {
                 "response_delay_s": controls.response_delay_s,

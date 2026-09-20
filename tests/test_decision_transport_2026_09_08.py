@@ -17,7 +17,7 @@ from harness.steering import (
     wrap_steer_marker,
 )
 from harness.store import SQLiteStore
-from harness.tools import PopupRequest, TOOL_SCHEMAS, tools_identity
+from harness.tools import PopupRequest, TOOL_PAYLOAD, TOOL_SCHEMAS, tools_identity
 
 from tests.helpers.store import make_store
 
@@ -145,7 +145,13 @@ def test_the_prefix_invariant_is_scoped_per_lane(tmp_path, monkeypatch):
 
 
 def test_the_chat_leg_stores_its_wire_identity(tmp_path):
-    """The mainline leg stores its decode controls AND that it offered no tools."""
+    """The mainline leg stores its decode controls AND the menu that rode it.
+
+    Every generation on the mainline is handed the constant menu, so the
+    verbatim wire dumps carry all three actuation functions on every chat
+    request. The repro used to stub the keys empty, so a chat leg's own row
+    could not prove which tools rode it.
+    """
     store = SQLiteStore(tmp_path / "audit.db", audit_mode=True)
     profile = _persona()
     store.save_persona(profile)
@@ -165,8 +171,9 @@ def test_the_chat_leg_stores_its_wire_identity(tmp_path):
     assert row is not None and row[0], "the chat leg logged no reconstructable call"
     repro = json.loads(row[0])
     assert "reasoning_effort" in repro
-    assert repro["tools_hash"] is None
-    assert repro["tool_names"] == []
+    menu_hash, menu_names = tools_identity(TOOL_PAYLOAD)
+    assert repro["tools_hash"] == menu_hash
+    assert repro["tool_names"] == menu_names
     assert repro["tool_choice"] is None
 
 
