@@ -14,7 +14,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Callable
 
-from observability import reader, wire
+from observability import reader, study, wire
 from observability.calls import envelope_of
 from observability.db import rows as db_rows
 
@@ -120,6 +120,8 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/run/wire": self._wire_list,
                 "/api/run/wire/file": self._wire_file,
                 "/api/run/stream": self._stream,
+                "/api/study/day": self._study_day,
+                "/api/study/levers": self._study_levers,
             }
             handler = routes.get(path)
             if handler is None:
@@ -201,6 +203,25 @@ class Handler(BaseHTTPRequestHandler):
         if payload is None:
             self._send_json({"error": "no such call"}, status=404)
             return
+        self._send_json(payload)
+
+    def _study_day(self, params: dict[str, str]) -> None:
+        """One day, as the calendar's Day view draws it."""
+        ref = self._run_or_404(params)
+        if ref is None:
+            return
+        with reader.open_run(ref.path) as conn:
+            day = self._int_param(params, "day", study.latest_day(conn))
+            payload = study.day_view(conn, day=day)
+        self._send_json(payload)
+
+    def _study_levers(self, params: dict[str, str]) -> None:
+        """The distribution levers: agenda, reach-outs, mood, cycle, spend."""
+        ref = self._run_or_404(params)
+        if ref is None:
+            return
+        with reader.open_run(ref.path) as conn:
+            payload = study.levers(conn)
         self._send_json(payload)
 
     def _wire_list(self, params: dict[str, str]) -> None:

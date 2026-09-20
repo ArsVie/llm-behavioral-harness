@@ -141,6 +141,37 @@
 
     </section>
 
+    <!-- The long view, under the live cards: what the run keeps choosing
+         (distributions, left) and where the days went (calendar, right).
+         Same lever idiom as the calls card — one subject at a time — and the
+         three granularities are the same three most calendars offer. -->
+    <section class="card study-card">
+      <div class="card-head">
+        <h2>Study</h2>
+        <span class="hint" id="study-window">&mdash;</span>
+      </div>
+
+      <div class="study-split">
+        <div class="study-levers">
+          <div class="viewswitch" id="lever-switch" role="tablist" aria-label="Distribution"></div>
+          <div class="lever-panel" id="lever-panel"><p class="flow-empty">no data yet</p></div>
+        </div>
+
+        <div class="study-calendar">
+          <div class="cal-head">
+            <div class="viewswitch" id="cal-switch" role="tablist" aria-label="Calendar granularity">
+              <button type="button" class="vbtn" data-cal="month" aria-pressed="false">Month</button>
+              <button type="button" class="vbtn" data-cal="week" aria-pressed="false">Week</button>
+              <button type="button" class="vbtn" data-cal="day" aria-pressed="true">Day</button>
+            </div>
+            <span class="hint" id="cal-title"></span>
+          </div>
+          <div class="cal-panel" id="cal-panel"></div>
+          <p class="panel-foot" id="cal-foot" hidden></p>
+        </div>
+      </div>
+    </section>
+
   </main>
 
   <div class="scrim" id="scrim" hidden></div>

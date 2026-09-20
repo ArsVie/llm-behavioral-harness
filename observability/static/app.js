@@ -473,7 +473,7 @@ function focusedCall() {
 
 function setView(view) {
   state.view = view;
-  for (const button of document.querySelectorAll(".vbtn")) {
+  for (const button of document.querySelectorAll("#viewswitch .vbtn")) {
     button.setAttribute("aria-pressed", String(button.dataset.view === view));
   }
   for (const name of ["ledger", "surface"]) {
@@ -1010,6 +1010,507 @@ function wireDiffNodes(aName, bName, aText, bText) {
   ];
 }
 
+/* ----------------------------------------------------------------- study */
+/* The long view, under the live cards: what the run keeps choosing (the
+   distributions on the left, one lever at a time) and where the days went
+   (the calendar on the right, three granularities). Both read /api/study/*,
+   which reads the same database the cards above do — no second truth. */
+const study = {
+  runId: null,
+  day: null,        // the day on screen; null follows the run's newest
+  cal: "day",       // "month" | "week" | "day"
+  lever: "agenda",  // which distribution is open
+  view: null,       // the loaded day payload
+  levers: null,     // the loaded distributions payload
+};
+
+const LEVERS = [
+  { key: "agenda", label: "Agenda" },
+  { key: "reach", label: "Reach-outs" },
+  { key: "mood", label: "Mood" },
+  { key: "cycle", label: "Cycle" },
+  { key: "spend", label: "Spend" },
+];
+
+const STATUS_COLOR = {
+  completed: ["var(--mint-soft)", "var(--mint)"],
+  planned: ["var(--lav-soft)", "var(--lav)"],
+  in_progress: ["var(--sun-soft)", "var(--sun)"],
+  shifted: ["var(--clay-soft)", "var(--clay)"],
+  skipped: ["var(--grey-soft)", "var(--grey)"],
+};
+
+function esc(text) {
+  return String(text).replace(/[&<>"']/g, (ch) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[ch]));
+}
+
+function hourText(hour) {
+  const h = Math.max(0, Math.floor(hour));
+  const m = Math.round((hour - h) * 60);
+  return `${String(h % 24).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+// A day's last stripe is 24:00, not a second 00:00.
+function hourLabel(hour) {
+  return hour === 24 ? "24:00" : hourText(hour);
+}
+
+// Long labels end in an ellipsis; a cut mid-word reads as a typo.
+function shortened(text, limit) {
+  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
+}
+
+function plural(count, noun) {
+  return `${count} ${noun}${count === 1 ? "" : "s"}`;
+}
+
+function statusColors(status) {
+  return STATUS_COLOR[status] || ["var(--paper-2)", "var(--grey)"];
+}
+
+async function loadStudy(runId, { fresh = false } = {}) {
+  if (study.runId !== runId) {
+    study.runId = runId;
+    study.day = null;      // a day number from another run means nothing here
+    study.levers = null;
+  }
+  const query = study.day === null ? "" : `&day=${encodeURIComponent(study.day)}`;
+  const wants = [`/api/study/day?id=${encodeURIComponent(runId)}${query}`];
+  if (fresh || !study.levers) {
+    wants.push(`/api/study/levers?id=${encodeURIComponent(runId)}`);
+  }
+  const [day, levers] = await Promise.all(wants.map(getJSON));
+  study.view = day;
+  if (levers) study.levers = levers;
+  renderStudy();
+}
+
+function renderStudy() {
+  if (!study.view) return;
+  renderLevers();
+  renderCalendar();
+}
+
+/* ---------------------------------------------------------- the levers */
+function leverBars(rows, { limit = 8 } = {}) {
+  const shown = rows.slice(0, limit);
+  const top = Math.max(1, ...shown.map((row) => Number(row[1]) || 0));
+  const box = el("div", "lever-panel");
+  for (const [label, count] of shown) {
+    const row = el("div", "lever-row");
+    row.append(el("span", "lever-label", label || "(none)"));
+    const bar = el("span", "lever-bar");
+    const fill = el("span");
+    fill.style.width = `${Math.round((Number(count) / top) * 100)}%`;
+    bar.append(fill);
+    row.append(bar, el("span", "lever-value", count));
+    box.append(row);
+  }
+  return box;
+}
+
+function leverTiles(tiles) {
+  const box = el("div", "lever-tiles");
+  for (const [label, value] of tiles) {
+    const tile = el("div", "lever-tile");
+    tile.append(el("b", null, value), el("span", null, label));
+    box.append(tile);
+  }
+  return box;
+}
+
+function leverGroup(title, node) {
+  const box = el("div", "lever-panel");
+  box.append(el("p", "lever-note", title), node);
+  return box;
+}
+
+function spread(summary) {
+  if (!summary || !summary.n) return "n 0";
+  return `n ${summary.n} · mean ${summary.mean} · ${summary.min}–${summary.max}`;
+}
+
+function renderLevers() {
+  const host = $("lever-panel");
+  const payload = study.levers;
+  host.textContent = "";
+  if (!payload) {
+    host.append(el("p", "lever-note", "loading…"));
+    return;
+  }
+  const window = payload.window;
+  $("study-window").textContent = window.days.length
+    ? `run so far: days ${window.days[0]}–${window.days[window.days.length - 1]} · ` +
+      `${plural(window.n_agenda, "agenda item")} · ` +
+      `${plural(window.n_reach_outs, "reach-out decision")}`
+    : "nothing to study yet";
+
+  if (study.lever === "agenda") {
+    const data = payload.agenda;
+    host.append(leverTiles([
+      ["items", data.by_status.reduce((sum, row) => sum + row[1], 0)],
+      ["mean length", data.duration.mean === null ? "—" : `${data.duration.mean} h`],
+      ["mean salience", data.salience.mean === null ? "—" : data.salience.mean],
+    ]));
+    host.append(leverGroup(`status — ${spread(data.duration)}`,
+                           leverBars(data.by_status)));
+    host.append(leverGroup("where they come from", leverBars(data.by_source)));
+    host.append(leverGroup("start hour", leverBars(data.by_hour, { limit: 24 })));
+  } else if (study.lever === "reach") {
+    const data = payload.proactive;
+    const share = data.sent + data.suppressed
+      ? `${Math.round((data.sent / (data.sent + data.suppressed)) * 100)}%`
+      : "—";
+    host.append(leverTiles([["sent", data.sent], ["held back", data.suppressed],
+                            ["sent share", share]]));
+    host.append(leverGroup("decided at hour", leverBars(data.by_hour, { limit: 24 })));
+    if (data.suppressed_reasons.length) {
+      host.append(leverGroup("why she held back",
+                             leverBars(data.suppressed_reasons, { limit: 6 })));
+    }
+  } else if (study.lever === "mood") {
+    const data = payload.mood;
+    host.append(leverTiles([
+      ["days", data.series.length],
+      ["mean M", data.M.mean === null ? "—" : data.M.mean],
+      ["range", data.M.min === null ? "—" : `${data.M.min}–${data.M.max}`],
+    ]));
+    host.append(sparkline(data.series.map((row) => row[1])));
+    host.append(leverBars(data.series.map((row) => [`day ${row[0]}`, row[1]]),
+                          { limit: 30 }));
+  } else if (study.lever === "cycle") {
+    const data = payload.cycle;
+    host.append(leverGroup("days per phase", leverBars(data.phase_days)));
+    host.append(leverGroup("mean M per phase", leverBars(
+      data.mood_by_phase.map(([phase, summary]) => [phase, summary.mean ?? 0]))));
+    host.append(el("p", "lever-note",
+      "M is the day's mood level; the phase comes from the run's own cycle day."));
+  } else if (study.lever === "spend") {
+    const totals = payload.spend.totals || {};
+    host.append(leverTiles([
+      ["calls", totals.calls ?? "—"],
+      ["prompt", fmtTokens(totals.prompt_tokens)],
+      ["cost", fmtUsd(totals.cost_usd ?? totals.total_cost_usd)],
+    ]));
+    host.append(leverGroup("per role", leverBars(
+      payload.spend.by_role.map((row) => [row.role, row.calls]))));
+    host.append(el("p", "lever-note",
+      "the same spend math as the calls card — harness.spend, not a second count."));
+  }
+}
+
+/* A series in one line: no axes, no ticks — the numbers beside it carry the
+   magnitudes; this only shows the shape. */
+function sparkline(values) {
+  const box = el("div", "cal-panel");
+  const points = values.map((value) => Number(value) || 0);
+  if (points.length < 2) {
+    box.append(el("p", "cal-empty", "not enough days for a shape yet"));
+    return box;
+  }
+  const low = Math.min(...points), high = Math.max(...points);
+  const span = high - low || 1;
+  const step = 300 / (points.length - 1);
+  const path = points.map((value, i) =>
+    `${i ? "L" : "M"}${(i * step).toFixed(1)} ${(60 - ((value - low) / span) * 50).toFixed(1)}`)
+    .join(" ");
+  box.innerHTML =
+    `<svg viewBox="0 0 300 66" role="img" aria-label="mood over the run">` +
+    `<path d="${path}" fill="none" style="stroke:var(--plum)" stroke-width="2"/>` +
+    `</svg>`;
+  return box;
+}
+
+/* -------------------------------------------------------- the calendar */
+function renderCalendar() {
+  const host = $("cal-panel");
+  const title = $("cal-title");
+  const foot = $("cal-foot");
+  host.textContent = "";
+  foot.hidden = true;
+  const view = study.view;
+  for (const button of $("cal-switch").querySelectorAll(".vbtn")) {
+    button.setAttribute("aria-pressed", String(button.dataset.cal === study.cal));
+  }
+  if (study.cal === "day") {
+    title.textContent = `day ${view.day}`;
+    host.innerHTML = daySvg(view);
+    foot.hidden = false;
+    foot.innerHTML = dayFoot(view);
+  } else if (study.cal === "week") {
+    title.textContent = "the run's days";
+    host.innerHTML = weekSvg(view);
+    foot.hidden = false;
+    foot.textContent = "each column is a day of the run, hour stripes shared; " +
+      "click a column for its day view";
+  } else {
+    title.textContent = "every day so far";
+    host.innerHTML = monthSvg(view);
+    foot.hidden = false;
+    foot.textContent = "a cell's tint is the day's mood; its squares are agenda " +
+      "blocks, oldest first. Click a cell for that day.";
+  }
+}
+
+/* The day: vertical, hours running down, one column — the standard shape. */
+function daySvg(view) {
+  const top = 26, unit = 23;
+  const colX = 52, colW = 560;
+  const waveX = colX + colW + 18, waveW = 74;
+  const y = (hour) => top + hour * unit;
+  const height = y(24) + 12;
+  const parts = [`<svg viewBox="0 0 720 ${height}" role="img" aria-label="day ${view.day}">`];
+
+  // quiet hours first, so everything else reads on top of them
+  const [quietFrom, quietTo] = view.quiet_hours;
+  for (const [from, to] of quietFrom > quietTo
+    ? [[quietFrom, 24], [0, quietTo]] : [[quietFrom, quietTo]]) {
+    parts.push(`<rect x="${colX}" y="${y(from)}" width="${colW}" ` +
+      `height="${(to - from) * unit}" style="fill:var(--grey-soft)" opacity="0.45"/>`);
+  }
+  for (let hour = 0; hour <= 24; hour++) {
+    const strong = hour % 2 === 0;
+    parts.push(`<line x1="${colX}" y1="${y(hour).toFixed(1)}" x2="${colX + colW}" ` +
+      `y2="${y(hour).toFixed(1)}" style="stroke:var(--grey-soft)" ` +
+      `stroke-width="${strong ? 1 : 0.5}"/>`);
+    if (strong) {
+      parts.push(`<text x="${colX - 8}" y="${(y(hour) + 4).toFixed(1)}" ` +
+        `text-anchor="end" font-size="11" style="fill:var(--ink-faint)">` +
+        `${hourLabel(hour)}</text>`);
+    }
+  }
+
+  // the circadian wave: value right, hour down
+  const wave = view.circadian.map(([hour, value]) =>
+    `${(waveX + waveW - value * waveW).toFixed(1)} ${y(hour).toFixed(1)}`);
+  parts.push(`<polyline points="${wave.join(" ")}" fill="none" ` +
+    `style="stroke:var(--plum)" stroke-width="1.6" opacity="0.75"/>`);
+  parts.push(`<text x="${waveX + waveW}" y="${top - 10}" text-anchor="end" ` +
+    `font-size="10" style="fill:var(--plum)">energy</text>`);
+
+  // agenda blocks: lanes only where two blocks would overlap
+  const lanes = [];
+  for (const item of view.agenda) {
+    const hour = Number(item.start_t_h) - view.day * 24;
+    let lane = lanes.findIndex((last) => last <= hour);
+    if (lane === -1) { lanes.push(hour); lane = lanes.length - 1; }
+    lanes[lane] = Number(item.end_t_h) - view.day * 24;
+    item._lane = lane;
+    item._hour = hour;
+    item._end = Number(item.end_t_h) - view.day * 24;
+  }
+  const laneW = lanes.length ? colW / lanes.length : colW;
+  for (const item of view.agenda) {
+    const [fill, edge] = statusColors(item.status);
+    const x = colX + item._lane * laneW + 3;
+    const boxW = laneW - 6;
+    const boxY = y(item._hour) + 1;
+    const boxH = Math.max(12, (item._end - item._hour) * unit - 2);
+    parts.push(`<rect x="${x.toFixed(1)}" y="${boxY.toFixed(1)}" ` +
+      `width="${boxW.toFixed(1)}" height="${boxH.toFixed(1)}" rx="4" ` +
+      `style="fill:${fill};stroke:${edge}" stroke-width="1"/>`);
+    parts.push(`<rect x="${(x + 1).toFixed(1)}" y="${(boxY + 2).toFixed(1)}" ` +
+      `width="2.5" height="${(boxH - 4).toFixed(1)}" style="fill:${edge}"/>`);
+    const label = `${hourText(item._hour)}–${hourText(item._end)} · ${item.activity}`;
+    parts.push(`<text x="${(x + 8).toFixed(1)}" y="${(boxY + 14).toFixed(1)}" ` +
+      `font-size="11" style="fill:var(--ink)">${esc(shortened(label, 46))}</text>`);
+    if (boxH >= 34) {
+      parts.push(`<text x="${(x + 8).toFixed(1)}" y="${(boxY + 28).toFixed(1)}" ` +
+        `font-size="10" style="fill:var(--ink-faint)">` +
+        `${esc([item.status, item.source_type, item.salience === null ? "" :
+          `salience ${item.salience}`].filter(Boolean).join(" · "))}</text>`);
+    }
+    parts.push(`<title>${esc(label)}</title>`);
+  }
+
+  // message ticks: what arrived, and when, on the column's left edge
+  for (const message of view.messages) {
+    const color = message.proactive ? "var(--rose)"
+      : message.role === "user" ? "var(--ink)" : "var(--sky)";
+    parts.push(`<rect x="${colX - 7}" y="${(y(message.hour) - 1.5).toFixed(1)}" ` +
+      `width="5" height="3" style="fill:${color}"/>`);
+  }
+
+  // reach-outs: a flag at the hour the decision landed
+  for (const reach of view.proactive) {
+    const flagX = colX + colW + 2;
+    const flagY = y(reach.hour);
+    parts.push(`<line x1="${colX + colW}" y1="${flagY.toFixed(1)}" ` +
+      `x2="${flagX + 4}" y2="${flagY.toFixed(1)}" ` +
+      `style="stroke:${reach.fired ? "var(--rose)" : "var(--grey)"}" stroke-width="1"/>`);
+    parts.push(`<polygon points="${flagX + 9},${(flagY - 5).toFixed(1)} ` +
+      `${flagX + 9},${(flagY + 5).toFixed(1)} ${flagX + 1},${flagY.toFixed(1)}" ` +
+      `style="fill:${reach.fired ? "var(--rose)" : "var(--grey-soft)"}"` +
+      `${reach.fired ? "" : ` stroke="var(--grey)"`}/>`);
+    parts.push(`<title>${reach.fired ? "reached out" : "held back"}: ` +
+      `${esc(reach.reason || reach.hook || "(no reason recorded)")}</title>`);
+  }
+
+  if (view.now_hour !== null) {
+    parts.push(`<line x1="${colX - 10}" y1="${y(view.now_hour).toFixed(1)}" ` +
+      `x2="${colX + colW + 12}" y2="${y(view.now_hour).toFixed(1)}" ` +
+      `style="stroke:var(--rose)" stroke-width="1" stroke-dasharray="4 3"/>`);
+    parts.push(`<text x="${colX + colW + 14}" y="${(y(view.now_hour) - 4).toFixed(1)}" ` +
+      `font-size="10" style="fill:var(--rose)">now ${hourText(view.now_hour)}</text>`);
+  }
+  parts.push("</svg>");
+  return parts.join("");
+}
+
+function dayFoot(view) {
+  const cycle = view.cycle.phase_label
+    ? `cycle day ${view.cycle.cycle_day ?? "—"} · ${esc(view.cycle.phase_label)}` : "";
+  const mood = view.mood.M === null ? "" :
+    `mood M <b>${view.mood.M}</b> (${Number(view.mood.m_level).toFixed(3)})`;
+  const sent = view.proactive.filter((reach) => reach.fired).length;
+  return [
+    `agenda <b>${view.agenda.length}</b>`,
+    `messages <b>${view.messages.length}</b>`,
+    `reach-outs <b>${sent}/${view.proactive.length}</b>`,
+    mood, cycle,
+    `<span class="legend-key"><span class="key"><span class="sq" ` +
+      `style="background:var(--rose)"></span>flag = reached out</span> ` +
+      `<span class="key"><span class="sq" ` +
+      `style="background:var(--grey-soft);border:1px solid var(--grey)"></span>` +
+      `held back</span></span>`,
+  ].filter(Boolean).join(" · ");
+}
+
+/* The week: the same hour stripes, one column per day of the run. */
+function weekSvg(view) {
+  const days = view.span.slice(-7);
+  const top = 30, unit = 19, gutterX = 52;
+  const colW = (720 - gutterX) / Math.max(days.length, 1);
+  const y = (hour) => top + hour * unit;
+  const height = y(24) + 16;
+  const parts = [`<svg viewBox="0 0 720 ${height}" role="img" aria-label="the run's days">`];
+  for (let hour = 0; hour <= 24; hour += 2) {
+    parts.push(`<line x1="${gutterX}" y1="${y(hour).toFixed(1)}" x2="720" ` +
+      `y2="${y(hour).toFixed(1)}" style="stroke:var(--grey-soft)" stroke-width="0.6"/>`);
+    parts.push(`<text x="${gutterX - 8}" y="${(y(hour) + 4).toFixed(1)}" ` +
+      `text-anchor="end" font-size="10" style="fill:var(--ink-faint)">` +
+      `${hourText(hour)}</text>`);
+  }
+  days.forEach((day, index) => {
+    const x = gutterX + index * colW;
+    const [, edge] = statusColors("completed");
+    if (day.day === view.day) {
+      parts.push(`<rect x="${x}" y="${top - 20}" width="${colW}" ` +
+        `height="${(24 * unit + 20).toFixed(1)}" style="fill:var(--lav-soft)" ` +
+        `opacity="0.5"/>`);
+    }
+    parts.push(`<line x1="${x}" y1="${top - 16}" x2="${x}" y2="${y(24)}" ` +
+      `style="stroke:var(--line)" stroke-width="1"/>`);
+    parts.push(`<text x="${(x + 6).toFixed(1)}" y="${top - 6}" font-size="11" ` +
+      `style="fill:var(--ink)">day ${day.day}</text>`);
+    parts.push(`<text x="${(x + 6).toFixed(1)}" y="${top + 6}" font-size="9" ` +
+      `style="fill:var(--ink-faint)">${day.messages} msg` +
+      `${day.M === null ? "" : ` · M ${day.M}`}</text>`);
+    for (const item of day.agenda) {
+      const [fill, color] = statusColors(item.status);
+      const boxY = y(item.hour) + 1;
+      parts.push(`<rect x="${(x + 4).toFixed(1)}" y="${boxY.toFixed(1)}" ` +
+        `width="${(colW - 8).toFixed(1)}" ` +
+        `height="${Math.max(8, (item.end - item.hour) * unit - 2).toFixed(1)}" ` +
+        `rx="3" style="fill:${fill};stroke:${color}" stroke-width="1"/>`);
+    }
+    for (const reach of day.reach_outs) {
+      parts.push(`<polygon points="${(x + colW - 5).toFixed(1)},` +
+        `${(y(reach.hour) - 4).toFixed(1)} ${(x + colW - 5).toFixed(1)},` +
+        `${(y(reach.hour) + 4).toFixed(1)} ${(x + colW - 13).toFixed(1)},` +
+        `${y(reach.hour).toFixed(1)}" style="fill:${reach.fired ?
+          "var(--rose)" : "var(--grey-soft)"}"/>`);
+    }
+    parts.push(`<rect x="${x}" y="${top - 20}" width="${colW}" ` +
+      `height="${(24 * unit + 20).toFixed(1)}" fill="transparent" ` +
+      `class="cal-hit" data-day="${day.day}"/>`);
+  });
+  parts.push("</svg>");
+  return parts.join("");
+}
+
+/* The month: every day of the run as a cell, tinted by mood. */
+function monthSvg(view) {
+  const days = view.span;
+  const cellW = 96, cellH = 78, cols = 7;
+  const rows = Math.max(1, Math.ceil(days.length / cols));
+  const width = 720, height = rows * (cellH + 10) + 16;
+  const moods = days.map((day) => day.M).filter((value) => value !== null);
+  const low = moods.length ? Math.min(...moods) : 0;
+  const high = moods.length ? Math.max(...moods) : 1;
+  const span = high - low || 1;
+  const parts = [`<svg viewBox="0 0 ${width} ${height}" role="img" ` +
+    `aria-label="every day of the run">`];
+  days.forEach((day, index) => {
+    const x = 8 + (index % cols) * (cellW + 4);
+    const y = 8 + Math.floor(index / cols) * (cellH + 10);
+    const tint = day.M === null ? "var(--paper-2)"
+      : `color-mix(in srgb, var(--plum-soft) ${Math.round(
+        20 + ((day.M - low) / span) * 80)}%, var(--paper-2))`;
+    parts.push(`<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" ` +
+      `rx="8" style="fill:${tint};stroke:${day.day === view.day ?
+        "var(--lav)" : "var(--line)"}" stroke-width="1"/>`);
+    parts.push(`<text x="${x + 8}" y="${y + 17}" font-size="12" ` +
+      `style="fill:var(--ink)">day ${day.day}</text>`);
+    parts.push(`<text x="${x + 8}" y="${y + 31}" font-size="10" ` +
+      `style="fill:var(--ink-faint)">` +
+      `${day.agenda.length} item${day.agenda.length === 1 ? "" : "s"} · ` +
+      `${day.messages} msg</text>`);
+    day.agenda.slice(0, 8).forEach((item, slot) => {
+      const [, color] = statusColors(item.status);
+      parts.push(`<rect x="${x + 8 + slot * 10}" y="${y + 40}" width="7" ` +
+        `height="7" style="fill:${color}"/>`);
+    });
+    const sent = day.reach_outs.filter((reach) => reach.fired).length;
+    const held = day.reach_outs.length - sent;
+    parts.push(`<text x="${x + 8}" y="${y + 62}" font-size="10" ` +
+      `style="fill:var(--ink-faint)">` +
+      `${sent} reach${held ? ` · ${held} held` : ""}` +
+      `${day.M === null ? "" : ` · M ${day.M}`}</text>`);
+    parts.push(`<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" ` +
+      `fill="transparent" class="cal-hit" data-day="${day.day}"/>`);
+  });
+  parts.push("</svg>");
+  return parts.join("");
+}
+
+function onCalendarClick(event) {
+  const hit = event.target.closest(".cal-hit");
+  if (!hit) return;
+  study.day = Number(hit.dataset.day);
+  study.cal = "day";
+  loadStudy(study.runId).catch((error) => console.warn("study failed", error));
+}
+
+function buildLeverSwitch() {
+  const host = $("lever-switch");
+  host.textContent = "";
+  for (const lever of LEVERS) {
+    const button = el("button", "vbtn", lever.label);
+    button.type = "button";
+    button.dataset.lever = lever.key;
+    button.setAttribute("aria-pressed", String(lever.key === study.lever));
+    button.addEventListener("click", () => {
+      study.lever = lever.key;
+      for (const other of host.querySelectorAll(".vbtn")) {
+        other.setAttribute("aria-pressed",
+          String(other.dataset.lever === study.lever));
+      }
+      renderLevers();
+    });
+    host.append(button);
+  }
+  for (const button of $("cal-switch").querySelectorAll(".vbtn")) {
+    button.addEventListener("click", () => {
+      study.cal = button.dataset.cal;
+      renderCalendar();
+    });
+  }
+  $("cal-panel").addEventListener("click", onCalendarClick);
+}
+
 /* ------------------------------------------------------------------- boot */
 async function loadRun(runId) {
   state.runId = runId;
@@ -1020,6 +1521,7 @@ async function loadRun(runId) {
   renderContext(detail.context);
   renderCalls(detail.calls, focusedCall() && focusedCall().id);
   renderFlow(detail.events.events, true);
+  await loadStudy(runId, { fresh: true });
   await loadWire();
   setView(state.view);
   state.cursor = detail.events.latest_seq;
@@ -1052,6 +1554,7 @@ function openStream(runId) {
         renderHeader(detail);
         renderStats(detail);
         renderCalls(detail.calls, focusedCall() && focusedCall().id);
+        loadStudy(runId).catch((error) => console.warn("study refresh failed", error));
         // Following the newest call means following it into the fine views.
         if (state.focus === null) {
           renderContext(detail.context);
@@ -1106,9 +1609,10 @@ async function boot() {
   $("flow-newer").addEventListener("click", () =>
     $("flow-track").scrollBy({ left: flowStep(), behavior: "smooth" }));
   $("flow-track").addEventListener("scroll", updateFlowNav);
-  for (const button of document.querySelectorAll(".vbtn")) {
+  for (const button of $("viewswitch").querySelectorAll(".vbtn")) {
     button.addEventListener("click", () => setView(button.dataset.view));
   }
+  buildLeverSwitch();
   $("drawer-close").addEventListener("click", closeDrawer);
   $("scrim").addEventListener("click", closeDrawer);
   document.addEventListener("keydown", (event) => {

@@ -1257,6 +1257,26 @@ def test_server_params_survive_garbage(live_server):
     assert handler._int_param(handler, {}, "n", 7) == 7
 
 
+def test_study_endpoints_answer_from_the_run(live_server):
+    """The study panels read the same run the rest of the app is showing."""
+    app, base, tmp_path = live_server
+    runs = _json(f"{base}/api/runs?all=1")
+    run_id = urllib.parse.quote(runs["runs"][0]["path"])
+
+    day = _json(f"{base}/api/study/day?id={run_id}")
+    assert day["day"] >= 0
+    assert len(day["circadian"]) == 49          # sampled every half hour
+    assert day["quiet_hours"] == [23.0, 8.0]
+    assert {"agenda", "proactive", "messages", "cycle", "mood"} <= set(day)
+
+    levers = _json(f"{base}/api/study/levers?id={run_id}")
+    assert levers["window"]["days"] == day["days"]
+    assert "totals" in levers["spend"] and "by_role" in levers["spend"]
+
+    status, _ = _get(f"{base}/api/study/day?id={tmp_path}/nope.db")
+    assert status == 404
+
+
 def test_stream_emits_a_probe_frame(live_server):
     app, base, tmp_path = live_server
     runs = _json(f"{base}/api/runs")

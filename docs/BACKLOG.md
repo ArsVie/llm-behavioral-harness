@@ -339,6 +339,18 @@ horizontal hour stripes (owner call: the standard calendar-app shape), Week is
 them. Build order: day view + agenda/proactive first, then week + the cycle
 strip, then month, then the conditioner splits.
 
+Built so far (2026-09-20): `observability/study.py` with the read-only builders
+(`day_view`, `levers`, `_day_span`) behind `/api/study/day` and
+`/api/study/levers`, rendered by the Study row at the bottom of the page — Day
+(vertical hour stripes, agenda blocks by status in overlap lanes, the engine's
+circadian energy as a wave, message ticks, reach-out flags with the verdict's
+reason, the now-line), Week (one column per day of the run) and Month (a cell
+per day, tinted by mood, click-through into that day), with the five lever
+buttons over the distributions (status/source/start-hour, sent-vs-held with the
+reasons, mood series, phase days, spend reused from `harness.spend`). Still
+open: the cycle ring around the month cells, the "by:" conditioner splits, the
+two-track matching view, and the bearing-texts reconstruction.
+
 ### Photos over Telegram reach nothing (2026-09-20)
 > "do you know what would happen if I send an image through telegram? Would it
 > crash, nothing or what? We can change the model to deepseek-v4.1-flash as that

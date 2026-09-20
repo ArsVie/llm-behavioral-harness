@@ -552,5 +552,68 @@ pre.aside {
   .drawer { inset: auto 10px 10px 10px; left: 10px; width: auto; max-height: 80vh; }
 }
 
+/* ------------------------------------------------- the study panels */
+/* The long view: distributions on the left, one lever at a time, and the
+   calendar on the right. The calendar is hand-rolled SVG — no chart
+   dependency — so the colours here are the only styling it needs. */
+.study-card { grid-column: 1 / -1; display: flex; flex-direction: column; }
+
+.study-split {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+  padding: 0 18px 16px;
+}
+@media (max-width: 980px) {
+  .study-split { grid-template-columns: minmax(0, 1fr); }
+  .study-levers { border-right: 0; border-bottom: 1px solid var(--line);
+                  padding: 0 0 14px; }
+}
+
+.study-levers { display: flex; flex-direction: column; gap: 10px;
+                border-right: 1px solid var(--line); padding-right: 16px; }
+.study-levers .viewswitch { flex-wrap: wrap; }
+.study-calendar { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.cal-head { display: flex; align-items: center; justify-content: space-between;
+            gap: 12px; flex-wrap: wrap; }
+.cal-panel { min-width: 0; }
+.cal-panel svg { display: block; width: 100%; height: auto; }
+.cal-empty { margin: 0; font-size: 12px; color: var(--ink-faint); }
+
+/* A distribution: label, bar, value. The bar is a share of the biggest
+   bucket, so a two-row histogram still reads as a shape. */
+.lever-panel { display: flex; flex-direction: column; gap: 9px; }
+.lever-note { margin: 0; font-size: 12px; color: var(--ink-faint); }
+.lever-row { display: grid; grid-template-columns: minmax(0, 92px) minmax(0, 1fr) auto;
+             align-items: center; gap: 8px; }
+.lever-row .lever-label { font-size: 12px; color: var(--ink-soft);
+                          overflow-wrap: anywhere; }
+.lever-row .lever-bar { height: 10px; background: var(--paper-2);
+                        border-radius: 3px; overflow: hidden; }
+.lever-row .lever-bar span { display: block; height: 100%; background: var(--lav); }
+.lever-row .lever-value { font-family: var(--mono); font-size: 12px;
+                          color: var(--ink); }
+.lever-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
+.lever-tile { flex: 1 1 84px; min-width: 0; border: 1px solid var(--line);
+              border-radius: var(--radius-sm); padding: 7px 10px;
+              background: var(--paper-2); }
+.lever-tile b { display: block; font-size: 17px; color: var(--ink); }
+.lever-tile span { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+                   color: var(--ink-faint); }
+
+/* The calendar's own legend: solid squares, never round dots. */
+.cal-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px;
+              color: var(--ink-faint); }
+.cal-legend .key { display: inline-flex; align-items: center; gap: 5px; }
+.cal-legend .sq, .cal-legend .flag { width: 10px; height: 10px; border-radius: 2px;
+                                     display: inline-block; }
+.cal-legend .flag { width: 0; height: 0; border-radius: 0;
+                    border-left: 6px solid transparent;
+                    border-right: 6px solid transparent; }
+.cal-foot { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; }
+.cal-foot b { font-family: var(--mono); font-weight: 500; }
+
+
 
 
