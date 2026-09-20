@@ -279,9 +279,14 @@ def test_a_pile_of_superseded_updates_is_also_reported(tmp_path):
         "insert into messages (id,role,content,t_h,day) values (?,?,?,?,?)",
         [(1, "system", "AFFECTIVE BEARING:\nbright", 1.0, 0)]
         + [(i, "system",
-            f"STATE UPDATE — only what changed:\nAFFECTIVE BEARING:\nbright {i}",
+            f"STATE UPDATE:\nAFFECTIVE BEARING:\nbright {i}",
             float(i), 0)
-           for i in range(2, 6)],
+           for i in range(2, 5)]
+        # One row in the lead an earlier build wrote: the check must read a
+        # stream that spans the rename, because the live one does.
+        + [(5, "system",
+            "STATE UPDATE — only what changed:\nAFFECTIVE BEARING:\nbright 5",
+            5.0, 0)],
     )
     conn.commit()
     conn.close()
@@ -297,7 +302,7 @@ def test_a_second_full_card_on_one_day_is_a_re_send(tmp_path):
         [(1, "system", "AFFECTIVE BEARING:\nbright", 24.2, 1),
          (2, "system", "AFFECTIVE BEARING:\nbright", 26.1, 1),
          (3, "system",
-          "STATE UPDATE — only what changed:\nAFFECTIVE BEARING:\nbright",
+          "STATE UPDATE:\nAFFECTIVE BEARING:\nbright",
           27.0, 1)],
     )
     conn.commit()
@@ -312,7 +317,7 @@ def test_a_second_full_card_on_one_day_is_a_re_send(tmp_path):
         "insert into messages (id,role,content,t_h,day) values (?,?,?,?,?)",
         [(1, "system", "AFFECTIVE BEARING:\nbright", 24.2, 1),
          (2, "system",
-          "STATE UPDATE — only what changed:\nAFFECTIVE BEARING:\nbright",
+          "STATE UPDATE:\nAFFECTIVE BEARING:\nbright",
           26.1, 1)],
     )
     conn.commit()

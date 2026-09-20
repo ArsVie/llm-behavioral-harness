@@ -22,6 +22,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from harness.assembler import STATE_UPDATE_LEADS
 from harness.pricing import DEFAULT_MODEL_PRICING, MODELS, price_for
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -43,8 +44,9 @@ CACHE_FLOOR = 0.6
 #: First bytes of a rendered state card (``assembler.AFFECTIVE_HEADER``).
 _CARD_HEADER = "AFFECTIVE BEARING:"
 
-#: First bytes of a mid-day state UPDATE row (``assembler.STATE_UPDATE_LEAD``).
-_UPDATE_HEADER = "STATE UPDATE — only what changed:"
+#: First bytes of a mid-day state UPDATE row — both leads, because a stream
+#: spans the 2026-09-20 rename (``assembler.STATE_UPDATE_LEADS``).
+_UPDATE_HEADERS = STATE_UPDATE_LEADS
 
 #: Cards in the stream before the superseded copies are worth reporting.
 _CARD_COPIES_WARN = 3
@@ -655,7 +657,7 @@ def _check_stream(ctx: Ctx) -> list[Finding]:
     cards = [r for r in stream
              if r["role"] == "system"
              and str(r["content"] or "").startswith(
-                 (_CARD_HEADER, _UPDATE_HEADER))]
+                 (_CARD_HEADER, *_UPDATE_HEADERS))]
     if len(cards) > _CARD_COPIES_WARN:
         found.append(Finding(
             WARN, "superseded-state-cards",

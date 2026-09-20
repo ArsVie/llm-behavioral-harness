@@ -31,7 +31,12 @@ SEED = 12345
 #: same row count; the message diff is exactly the 12 card rows
 #: (availability split out; later cards ride as STATE UPDATE rows). No
 #: draw-key/RNG/timing change.
-PARITY_PIN = "fd9c30eef2408bc623986529058a111cc64111c8fcdc7b72fa21c7be48f1070f"
+#: Regenerated again 2026-09-20 for the UPDATE row's lead losing its clause
+#: ("STATE UPDATE — only what changed:" -> "STATE UPDATE:", owner call).
+#: Verified by re-running the feed with the OLD lead substituted: the hash
+#: reproduced the previous pin exactly, so the lead string is the only byte
+#: that moved — no draw-key, RNG or timing change.
+PARITY_PIN = "f3d184f0c1867e87bda234d53c28aeaf48d2d4463589a19b55c0d09cf77adf68"
 
 #: Messages land at START_H + m*GAP_H, crossing one quiet-hours boundary.
 START_H = 8.1667

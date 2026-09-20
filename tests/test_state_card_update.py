@@ -298,3 +298,14 @@ def test_a_cleared_block_without_a_header_still_drops():
     cleared = render_state_update(with_it, CARD)
     assert "(cleared)" in cleared
     assert apply_state_update(with_it, cleared) == CARD
+
+
+def test_an_update_row_from_an_earlier_build_still_applies():
+    """The lead lost its clause on 2026-09-20. A run that spans the rename
+    carries rows in both shapes — the live stream does — and the memo loader
+    walks exactly such a stream, so the reader accepts the pair."""
+    changed = CARD.replace("bright, calm.", "bright, subdued.")
+    rendered = render_state_update(CARD, changed)
+    assert rendered.startswith(STATE_UPDATE_LEAD)
+    legacy = "STATE UPDATE — only what changed:" + rendered[len(STATE_UPDATE_LEAD):]
+    assert apply_state_update(CARD, legacy) == changed

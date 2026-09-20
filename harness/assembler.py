@@ -131,8 +131,20 @@ _DAY_SCOPED_PRIOS: frozenset[int] = frozenset({
 
 #: First line of a mid-day state UPDATE row: a changed card appends only the
 #: sections that changed; a full card rides only at a day's first card (or
-#: when the update would not be smaller).
-STATE_UPDATE_LEAD = "STATE UPDATE — only what changed:"
+#: when the update would not be smaller). The lead NAMES the row and nothing
+#: more — "only what changed" is the row's own shape, not something the model
+#: needs told (owner call 2026-09-20).
+STATE_UPDATE_LEAD = "STATE UPDATE:"
+
+#: Leads earlier builds wrote. A stream that spans the rename carries both
+#: shapes, and the memo loader walks exactly such a stream, so every READER
+#: accepts the pair; only the renderer writes the new one.
+STATE_UPDATE_LEADS = (STATE_UPDATE_LEAD, "STATE UPDATE — only what changed:")
+
+
+def is_state_update(text: str) -> bool:
+    """True when ``text`` opens as a section-level state UPDATE row (any lead)."""
+    return text.startswith(STATE_UPDATE_LEADS)
 
 
 def proactive_block(hook: str | None = None) -> str:
@@ -613,7 +625,7 @@ def apply_state_update(prev_card: str, update: str) -> str:
     leaves ``prev_card`` untouched, so a loader can walk a stream and apply
     whatever it finds.
     """
-    if not prev_card or not update.startswith(STATE_UPDATE_LEAD):
+    if not prev_card or not is_state_update(update):
         return prev_card
     blocks = dict(card_blocks(prev_card))
     order = [key for key, _ in card_blocks(prev_card)]
