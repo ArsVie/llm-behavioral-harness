@@ -642,19 +642,34 @@ class Session(NegotiationMixin):
             raw_day = self.store.get_kv("state_card.day")
         except AttributeError:  # minimal stores (tests/fakes) keep working
             pass
-        if self._card_full is None:
-            try:
-                last = self.store.last_system_row_text()
-            except AttributeError:
-                last = None
-            # A legacy row is a full card; a mid-day UPDATE row is not a
-            # baseline (only reachable when the kv memo is missing).
-            if last and not last.startswith(STATE_UPDATE_LEAD):
-                self._card_full = last
         try:
             self._card_day = int(raw_day) if raw_day is not None else None
         except (TypeError, ValueError):
             self._card_day = None
+        if self._card_full is None:
+            # No memo (a store written by a build that predates it, or a
+            # wiped kv): recover the baseline FROM THE STREAM, its day
+            # included. Text alone cannot tell an already-carded day from
+            # the day's first card, so a restart mid-day re-sent the full
+            # card (live run, 02:09 restart). A legacy row is a full card; a
+            # mid-day UPDATE row is not a baseline.
+            last_text: str | None = None
+            last_day: int | None = None
+            try:
+                row = self.store.last_system_row()
+            except AttributeError:
+                row = None
+            if row is not None:
+                last_text, last_day = row
+            else:
+                try:
+                    last_text = self.store.last_system_row_text()
+                except AttributeError:
+                    last_text = None
+            if last_text and not last_text.startswith(STATE_UPDATE_LEAD):
+                self._card_full = last_text
+                if self._card_day is None:
+                    self._card_day = last_day
         #: System prompt of the turn in progress — shared with pop-up calls.
         self._last_system_prompt: str = ""
         # WS-D cache order: the pop-up aux call must be a byte-identical

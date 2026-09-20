@@ -664,6 +664,24 @@ def _check_stream(ctx: Ctx) -> list[Finding]:
             [f"#{r['id']} t={float(r['t_h']):.2f} "
              f"{len(str(r['content'] or ''))} chars" for r in cards[:6]],
         ))
+    # A day's first card is the FULL one and the day keeps exactly one: a
+    # second full card for the same day is a re-send (a restart that lost the
+    # memo read an already-carded day as the day's first), and it reads to the
+    # user as a duplicated first card.
+    full_per_day: dict[int, list[dict]] = {}
+    for r in stream:
+        if r["role"] == "system" and str(r["content"] or "").startswith(_CARD_HEADER):
+            full_per_day.setdefault(int(r["day"] or 0), []).append(r)
+    resent = {day: rows for day, rows in full_per_day.items() if len(rows) > 1}
+    if resent:
+        found.append(Finding(
+            WARN, "day-card-resent",
+            f"{len(resent)} day(s) carry more than one FULL card — a mid-day "
+            "re-send reads as a duplicated first card",
+            [f"day {day}: " + ", ".join(f"#{r['id']} t={float(r['t_h']):.2f}"
+                                        for r in rows)
+             for day, rows in sorted(resent.items())[:4]],
+        ))
     convo = [r for r in stream if r["role"] in ("user", "assistant")]
     unanswered = [
         (a["id"], b["id"]) for a, b in itertools.pairwise(convo)

@@ -287,6 +287,30 @@ def test_the_stream_stamp_carries_the_date_and_the_ui_shows_it(tmp_path):
     assert "event.stamp" in app_js, "the stream row must render the date-bearing stamp"
 
 
+def test_the_day_band_derives_from_t_h_and_never_flips_backwards():
+    """Boundary bookkeeping rows carry the day they are ABOUT (a day-0
+    finalize lands at t_h 24.0). Grouping by that raw column drew a "day 0"
+    band right after "day 1" at the live run's midnight; the row's day comes
+    from t_h — the same clock it is ordered and stamped by."""
+    boundary = events_mod.from_state_events(None, [
+        {"id": 60, "day": 1, "t_h": 24.0,
+         "event": "popup_boundary_check", "detail": "items=0"},
+        {"id": 61, "day": 0, "t_h": 24.0, "event": "life_step", "detail": "arcs=2"},
+        {"id": 62, "day": 0, "t_h": 24.0,
+         "event": "day_finalized", "detail": "score=0.6"},
+        {"id": 63, "day": 1, "t_h": 24.0, "event": "day_rollover", "detail": "M=3"},
+    ])
+    days = [event.day for event in sorted(boundary, key=lambda e: e.seq)]
+    assert days == [1, 1, 1, 1], (
+        f"the day band must not step back at the boundary: {days}"
+    )
+    # A row with no t_h at all (a judgement) keeps its own day.
+    judgement = events_mod.from_judgements(
+        None, [{"day": 3, "score": 0.1, "shadow": 0}]
+    )[0]
+    assert judgement.day == 3
+
+
 def test_state_events_render_their_detail_as_raw():
     rows = [{"id": 1, "day": 1, "t_h": 2.0, "event": "assistant_reply", "detail": '{"len": 3}'}]
     event = events_mod.from_state_events(None, rows)[0]

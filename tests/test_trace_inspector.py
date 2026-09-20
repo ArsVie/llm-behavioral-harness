@@ -288,6 +288,38 @@ def test_a_pile_of_superseded_updates_is_also_reported(tmp_path):
     assert _codes(path)["superseded-state-cards"].severity == trace.WARN
 
 
+def test_a_second_full_card_on_one_day_is_a_re_send(tmp_path):
+    """One full card per day: a second one mid-day is the restart re-send
+    (a missing memo read an already-carded day as the day's first)."""
+    conn, path = _db(tmp_path)
+    conn.executemany(
+        "insert into messages (id,role,content,t_h,day) values (?,?,?,?,?)",
+        [(1, "system", "AFFECTIVE BEARING:\nbright", 24.2, 1),
+         (2, "system", "AFFECTIVE BEARING:\nbright", 26.1, 1),
+         (3, "system",
+          "STATE UPDATE — only what changed:\nAFFECTIVE BEARING:\nbright",
+          27.0, 1)],
+    )
+    conn.commit()
+    conn.close()
+    finding = _codes(path)["day-card-resent"]
+    assert finding.severity == trace.WARN
+    assert "day 1" in finding.detail[0] and "#1" in finding.detail[0]
+
+    # One full card plus updates is the healthy shape: no finding.
+    conn, path = _db(tmp_path, "ok.db")
+    conn.executemany(
+        "insert into messages (id,role,content,t_h,day) values (?,?,?,?,?)",
+        [(1, "system", "AFFECTIVE BEARING:\nbright", 24.2, 1),
+         (2, "system",
+          "STATE UPDATE — only what changed:\nAFFECTIVE BEARING:\nbright",
+          26.1, 1)],
+    )
+    conn.commit()
+    conn.close()
+    assert "day-card-resent" not in _codes(path)
+
+
 def test_a_system_message_between_turns_hides_nothing(tmp_path):
     conn, path = _db(tmp_path)
     conn.executemany(

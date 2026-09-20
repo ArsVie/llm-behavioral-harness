@@ -314,6 +314,20 @@ class SQLiteStore:
         ).fetchone()
         return str(row[0]) if row else None
 
+    def last_system_row(self) -> tuple[str, int | None] | None:
+        """Newest system row as ``(text, day)`` — the text a restart diffs
+        against, and the day it belongs to. Without the day a restart reads
+        an already-carded day as the day's first card and re-sends the full
+        card mid-day."""
+        row = self.conn.execute(
+            "SELECT content, day FROM messages WHERE role = 'system' "
+            "ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        if row is None:
+            return None
+        day = int(row[1]) if row[1] is not None else None
+        return str(row[0]), day
+
     def repair_placeholder_steers(self) -> int:
         """Rewrite the legacy literal ``"?"`` event name; rows changed."""
         import json as _json

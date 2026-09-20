@@ -135,7 +135,18 @@ def _row_event(anchor: Any, row: dict[str, Any], kind: str, rank: str,
                label: str, detail: str, raw: dict[str, Any]) -> Event:
     t_h = float(row.get("t_h") or 0.0)
     day_value = row.get("day")
-    day = int(day_value) if day_value is not None else int(t_h // 24.0)
+    # The day comes from the SAME clock the row is ordered and stamped by.
+    # A row's `day` column can name the day it is ABOUT while `t_h` is the
+    # instant it happened — a day-0 finalize lands at t_h 24.0 — and a band
+    # drawn from the raw column flipped back to "day 0" right after "day 1"
+    # at the midnight boundary (live run). A row with no t_h at all (a
+    # judgement) keeps its own day.
+    if row.get("t_h") is not None:
+        day = int(t_h // 24.0)
+    elif day_value is not None:
+        day = int(day_value)
+    else:
+        day = int(t_h // 24.0)
     return Event(
         seq=seq_of(t_h, rank, int(row.get("id") or 0)),
         kind=kind,

@@ -168,3 +168,36 @@ def test_a_restart_diffs_against_the_full_memo(tmp_path):
     assert rows[2].startswith(STATE_UPDATE_LEAD)
     assert "Current bearing: stormy." in rows[2]
     assert "CURRENT INTENT" not in rows[2]
+
+
+def test_a_restart_without_the_memo_diffs_instead_of_resending(tmp_path):
+    """The recovered baseline carries its DAY: a missing kv memo must not
+    turn an already-carded day into "the day's first card" and re-send the
+    full card mid-day (live run: the 02:09 restart re-sent day 1's card)."""
+    store, session = _session(tmp_path)
+    snapshot = _snapshot()
+    session._ensure_state_card(snapshot, "Current bearing: calm.", 1, 25.0)
+    assert len(_rows(store, 1)) == 1
+
+    # The memo is gone (a store written before the memo landed, or a wiped
+    # kv); the card row in the stream stays.
+    store.conn.execute("DELETE FROM kv_store WHERE key LIKE 'state_card.%'")
+    store.conn.commit()
+
+    fresh = Session(
+        store, persona=PersonaParams(), timing=TimingParams(),
+        variant=MoodVariant.DECOUPLED_OFFSETS, seed=4242,
+        client=FakeClient(responses=[]), clock=VirtualClock(t_h=26.0),
+        decision_config=DecisionConfig(),
+    )
+    # Same state, same day: nothing appended — the day came off the row.
+    fresh._ensure_state_card(snapshot, "Current bearing: calm.", 1, 26.0)
+    assert len(_rows(store, 1)) == 1
+
+    # A change diffs against the recovered full card, not a re-sent card.
+    fresh._ensure_state_card(snapshot, "Current bearing: stormy.", 1, 27.0)
+    rows = _rows(store, 1)
+    assert len(rows) == 2
+    assert rows[1].startswith(STATE_UPDATE_LEAD)
+    assert "Current bearing: stormy." in rows[1]
+    assert "CURRENT INTENT" not in rows[1]
