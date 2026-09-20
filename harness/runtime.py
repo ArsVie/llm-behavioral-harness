@@ -182,7 +182,7 @@ class AsyncRuntime:
         """Start the channel, run rollover + firing until max_virtual_hours
         (or cancelled), then finalize the current day, stop the channel and
         shut down the owned executor (injected resources are never closed
-        here).
+        here). Cleanup runs on every exit path — cancellation included.
 
         Anchor mode: the virtual clock is positioned at the CURRENT real
         virtual hour first. With ``enable_commands`` the channel is started
@@ -190,24 +190,39 @@ class AsyncRuntime:
         """
         if self.anchor is not None:
             self._apply_anchor_resume()
-        # Her clock starts before the channel does: the pending backlog
-        # resolves as initialization, independent of any user message.
-        await self._session_call(self.session.settle_pending, "startup")
-        if self.enable_commands:
-            await self.channel.start(self._on_inbound, on_command=self._on_command)
-        else:
-            await self.channel.start(self._on_inbound)
+        started = False
         try:
+            # Her clock starts before the channel does: the pending backlog
+            # resolves as initialization, independent of any user message.
+            await self._session_call(self.session.settle_pending, "startup")
+            if self.enable_commands:
+                await self.channel.start(self._on_inbound, on_command=self._on_command)
+            else:
+                await self.channel.start(self._on_inbound)
+            started = True
             await asyncio.gather(
                 self._rollover_loop(), self._firing_loop(), self._life_loop()
             )
         finally:
+            # The unwind survives cancellation: a cancelled await anywhere
+            # above — including the startup settle, before the channel even
+            # starts — must never skip these closes. Shutdown first joins
+            # any in-flight session call (worker threads cannot be
+            # interrupted mid-call, so the join is what removes the window
+            # where a leaked worker races the store close), then the day
+            # finalizes on the loop thread — the executor no longer accepts
+            # work. Stop and close sit in nested finallys, so each runs even
+            # when an earlier await raises CancelledError.
             try:
-                await self._session_call(self.session.finalize_current)
-            finally:
-                await self.channel.stop()
                 self._executor.shutdown()
-                self._registry.close()
+                if started:
+                    self.session.finalize_current()
+            finally:
+                try:
+                    if started:
+                        await self.channel.stop()
+                finally:
+                    self._registry.close()
 
     async def _session_call(self, fn, *args):
         """Run one synchronous session call on the OWNED executor, locked."""

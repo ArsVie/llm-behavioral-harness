@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 import threading
+import time
 
 import pytest
 
@@ -281,6 +282,45 @@ def test_r1e_cancellation_during_sleep_shuts_down_cleanly(tmp_path):
             await asyncio.sleep(0.01)
 
         runtime.sleeper = record
+
+        async def main() -> None:
+            task = asyncio.create_task(runtime.run())
+            await asyncio.sleep(0.05)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await task
+
+        asyncio.run(main())
+        assert not runtime._executor.is_running, "executor leaked after cancel"
+        assert _no_llh_threads(), "orphan llh-runtime thread after cancel"
+        assert store.conn.execute("SELECT 1 AS one").fetchone()["one"] == 1
+    finally:
+        store.close()
+
+
+def test_r1f_cancellation_during_startup_settle_shuts_down_cleanly(tmp_path, monkeypatch):
+    """Cancelling while the startup settle is still running (before the channel
+    starts) must unwind just as cleanly: the executor joins the in-flight call
+    and shuts down, and no llh-runtime threads remain."""
+    store = make_store(tmp_path, "r1f.db")
+    try:
+        schedule = ProactiveSchedule.plan_and_persist(3, SEED, PERSONA, TIMING,
+                                                      store)
+        session = make_session(store)
+        runtime = AsyncRuntime(
+            session, schedule, FakeChannel(),
+            store=store, timing=TIMING, seed=SEED,
+            time_scale=SLOW, max_virtual_hours=100.0,
+            resolver=IntentResolver(store),
+        )
+
+        original_settle = session.settle_pending
+
+        def slow_settle(*args, **kwargs):
+            time.sleep(0.25)  # the cancel below lands inside this call
+            return original_settle(*args, **kwargs)
+
+        monkeypatch.setattr(session, "settle_pending", slow_settle)
 
         async def main() -> None:
             task = asyncio.create_task(runtime.run())
