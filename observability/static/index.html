@@ -33,11 +33,11 @@
       </div>
     </div>
 
-    <!-- Beside the identity, not under it: one banner, read left to right as
-         which run, then how it is going. Run-level facts only — per-call
-         prompt size, cached share and cost are columns in the calls card, so
-         a tile that merely re-totals one has been folded into the tile it
-         qualifies. -->
+    <!-- Beside the identity, not under it: one banner — which run, then how
+         it is going as a 2x2 of readouts on the right. Run-level facts only:
+         per-call prompt size, cached share and cost are columns in the calls
+         card, so a tile that merely re-totals one was folded into the tile
+         it qualifies. -->
     <div class="statsline" aria-label="Run statistics">
       <div class="stat" id="stat-spend"><span class="stat-label">spend &middot; cache hit</span><span class="stat-value">&mdash;</span><span class="stat-foot"></span></div>
       <div class="stat" id="stat-calls"><span class="stat-label">calls</span><span class="stat-value">&mdash;</span><span class="stat-foot"></span></div>
@@ -47,6 +47,28 @@
   </header>
 
   <main class="grid">
+
+    <!-- The run's story, between the cards above and the panels below: one
+         truncated line per flow row, oldest at the left edge, newest at the
+         right. A strip, not a panel — a busy hour scrolls sideways instead
+         of pushing the panels off the fold — and the panels below it are
+         the evidence. -->
+    <section class="card flow-card">
+      <div class="card-head">
+        <h2>Event flow</h2>
+        <div class="flow-tools">
+          <button type="button" class="btn btn-quiet btn-small" id="flow-older" aria-label="older rows">&lsaquo;</button>
+          <button type="button" class="btn btn-quiet btn-small" id="flow-newer" aria-label="newer rows">&rsaquo;</button>
+          <span class="chip chip-tail" id="tail-chip" data-state="off">tail off</span>
+        </div>
+      </div>
+      <div class="legend-bar">
+        <div class="kindbar" id="kind-legend"></div>
+        <p class="hint legend-note">click a kind to hide it &middot; peach = warning &middot; rose = error</p>
+      </div>
+      <div class="flow-track" id="flow-track"><p class="flow-empty">no events yet</p></div>
+      <p class="panel-foot" id="flow-foot" hidden></p>
+    </section>
 
     <!-- What the focused call's window is made of: how full, and of what.
          Its own card, because it answers a different question from the
@@ -114,19 +136,6 @@
         <p class="panel-foot" id="surface-foot" hidden></p>
       </div>
 
-    </section>
-
-    <section class="card events-card">
-      <div class="card-head">
-        <h2>Event flow</h2>
-        <span class="chip chip-tail" id="tail-chip" data-state="off">tail off</span>
-      </div>
-      <div class="legend-bar">
-        <div class="kindbar" id="kind-legend"></div>
-        <p class="hint legend-note">click a kind to hide it &middot; peach = warning &middot; rose = error</p>
-      </div>
-      <ul class="stream" id="stream"></ul>
-      <p class="panel-foot" id="stream-foot" hidden></p>
     </section>
 
   </main>
