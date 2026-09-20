@@ -178,11 +178,13 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
     """One bounded model call. The wait itself has to be bounded, not merely
     guarded (see ``interest_extension._call_within_budget``).
 
-    ``fork``: a callable(task) -> (system, messages) | None that extends the
-    mainline request instead of a standalone prompt, so the whole prefix banks on
-    the provider cache. It is CALLED ON THIS THREAD (the store reads behind it
-    belong to it); only the client call moves to the budget worker. None — a fork
-    that could not build, or a direct caller — keeps the standalone shape.
+    ``fork``: a callable(task) -> (system, messages, tools) | None that extends
+    the mainline request instead of a standalone prompt, so the whole prefix
+    banks on the provider cache — schemas included, since a fork without them
+    breaks the prefix at the schemas block. It is CALLED ON THIS THREAD (the
+    store reads behind it belong to it); only the client call moves to the
+    budget worker. None — a fork that could not build, or a direct caller —
+    keeps the standalone shape.
     """
     pair = None
     if fork is not None:
@@ -190,8 +192,9 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
             pair = fork(prompt)
         except Exception:  # noqa: BLE001 - a fork that cannot build must not cost the day
             pair = None
+    tools = None
     if pair is not None:
-        system, messages = pair
+        system, messages, tools = pair
     else:
         # Aux task prompt, not an event in her conversation: the
         # system-not-user rule governs HER context, not this call.
@@ -207,6 +210,7 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
                 json_mode=True,
                 max_tokens=None,
                 reasoning_effort=PLANNER_REASONING_EFFORT,
+                tools=tools,
             )
             return getattr(result, "content", result) or ""
     else:

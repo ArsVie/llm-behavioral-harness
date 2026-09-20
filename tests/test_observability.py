@@ -661,6 +661,73 @@ def test_call_rows_flag_a_changed_system_prefix(tmp_path):
     assert rows[1]["verdict"] == "stable prefix CHANGED"
 
 
+def test_call_rows_flag_a_tool_menu_break(tmp_path):
+    """The schemas sit between the system block and the conversation: a proven
+    menu difference kills the prefix there even when every message matches."""
+    store = _store_with_history(tmp_path)
+    first = json.loads(json.dumps(ENVELOPE_A))
+    first["tools"] = [{"type": "function", "function": {"name": "probe"}}]
+    second = json.loads(json.dumps(ENVELOPE_A))
+    second["messages"] = second["messages"][:-1] + [{"role": "user", "content": "z"}]
+    second["tools"] = [{"type": "function", "function": {"name": "other"}}]
+    conn = _writable(store.path)
+    try:
+        conn.execute("update llm_calls set repro_json = ? where id = 1",
+                     (json.dumps(first),))
+        conn.execute("update llm_calls set repro_json = ? where id = 2",
+                     (json.dumps(second),))
+        conn.commit()
+    finally:
+        conn.close()
+    with reader.open_run(store.path) as conn:
+        rows = reader.call_rows(conn)
+    assert rows[1]["system_stable"] is True
+    assert rows[1]["verdict"] == "tool menu differs from the previous call"
+    assert rows[1]["prefix_share_pct"] < CACHE_FLOOR * 100
+
+
+def test_a_menu_record_gap_claims_only_when_the_empty_side_is_proven(tmp_path):
+    """Old mainline builds wrote None for chat legs that DID ride the menu: a
+    gap proves nothing and must not claim a break. An aux-shaped record with
+    no schemas is certain — the fork ran tool-less by construction."""
+    store = _store_with_history(tmp_path)
+    first = json.loads(json.dumps(ENVELOPE_A))
+    first["tools"] = [{"type": "function", "function": {"name": "probe"}}]
+    gap = json.loads(json.dumps(ENVELOPE_A))
+    gap["messages"] = gap["messages"][:-1] + [{"role": "user", "content": "z"}]
+    gap["tools_hash"] = None
+    gap["tool_names"] = []
+    conn = _writable(store.path)
+    try:
+        conn.execute("update llm_calls set repro_json = ? where id = 1",
+                     (json.dumps(first),))
+        conn.execute("update llm_calls set repro_json = ? where id = 2",
+                     (json.dumps(gap),))
+        conn.commit()
+    finally:
+        conn.close()
+    with reader.open_run(store.path) as conn:
+        rows = reader.call_rows(conn)
+    assert rows[1]["verdict"] != "tool menu differs from the previous call", (
+        "a mainline gap is not a claim"
+    )
+
+    # The same pair with an aux-shaped empty record: certain none.
+    aux = json.loads(json.dumps(ENVELOPE_A))
+    aux["messages"] = aux["messages"][:-1] + [{"role": "user", "content": "z"}]
+    aux["kwargs"] = {"system": "s", "json_mode": True}
+    conn = _writable(store.path)
+    try:
+        conn.execute("update llm_calls set repro_json = ? where id = 2",
+                     (json.dumps(aux),))
+        conn.commit()
+    finally:
+        conn.close()
+    with reader.open_run(store.path) as conn:
+        rows = reader.call_rows(conn)
+    assert rows[1]["verdict"] == "tool menu differs from the previous call"
+
+
 def test_aux_envelope_hoists_the_kwargs_system(tmp_path):
     """The metered aux lane nests the system under kwargs; the panel sees it."""
     store = _store_with_history(tmp_path)

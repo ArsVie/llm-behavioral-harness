@@ -121,7 +121,7 @@
                   <th title="which leg of the turn made the call — the chat reply, a pop-up decision, or a metered auxiliary — and its lane">leg</th>
                   <th>prompt</th><th>cached</th>
                   <th title="the provider's billed cache hit for this call: cached ÷ prompt tokens">hit</th>
-                  <th title="measured shared prefix — this request's bytes byte-identical to the call before it; high shared with low hit means the prefix was reused but not billed as cached">shared</th>
+                  <th title="leading bytes shared with the call before it, in provider order — system block, tool schemas, conversation. A tool-menu difference breaks the prefix at the schemas; high shared with low hit means the prefix was reused but not billed as cached">shared</th>
                   <th>out</th><th>note</th></tr>
             </thead>
             <tbody></tbody>

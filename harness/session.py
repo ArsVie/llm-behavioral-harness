@@ -3092,8 +3092,13 @@ class Session(NegotiationMixin):
 
         The fork rule: an auxiliary call READS the exact request the last
         mainline turn sent — same stable system, same stamped stream, same
-        card — and folds its task into the trailing system block. Only the
-        request bytes are shared; the output is engine input and never
+        card, and the same tool schemas — and folds its task into the
+        trailing system block. The schemas ride because a provider banks the
+        prompt as one token stream (system block, schemas, conversation):
+        the fork used to drop them, so the prefix broke at the schemas and
+        never banked the conversation (live 2026-09-20: the nightly judge
+        hit 7% while its no-tool sibling hit 88% off the same bytes). Only
+        the request bytes are shared; the output is engine input and never
         re-enters the stream (judge -> judgement row, planner -> agenda
         text), so nothing about her own context changes.
 
@@ -3105,8 +3110,9 @@ class Session(NegotiationMixin):
         if self._last_stable_system:
             messages = stamped_stream(self._context_turns(), self._real_time_anchor())
             messages = append_system(messages, task_text)
-            return self._last_stable_system, messages
-        return self._stable_system_now(), [{"role": "user", "content": task_text}]
+            return self._last_stable_system, messages, self._last_request_tools
+        return (self._stable_system_now(), [{"role": "user", "content": task_text}],
+                self._last_request_tools)
 
     def _popup_request_call(self, request: PopupRequest) -> RawReply:
         """One pop-up model call (the callable injected into the runner).

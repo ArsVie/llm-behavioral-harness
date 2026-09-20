@@ -181,6 +181,85 @@ def shared_message_count(prev: dict[str, Any] | None,
     return shared_count, shared_chars, bool(system_stable)
 
 
+def provider_prefix_share(prev: dict[str, Any] | None,
+                          cur: dict[str, Any]) -> tuple[float, bool, str]:
+    """Leading byte-identical fraction in the order the provider renders it.
+
+    A provider banks a prompt as one token stream: the stable system block,
+    then the tool schemas when the call carries any, then the conversation. A
+    system drift breaks it first; a tools/no-tools (or changed menu) pair
+    breaks it AT THE SCHEMAS, so everything after is billed fresh no matter
+    how identical the conversation is. Returns ``(fraction, system_stable,
+    break_at)`` with ``break_at`` in ``"system" | "tools" | "messages" | ""``.
+
+    Tool identity comes from what the envelope records (a literal ``tools``,
+    or the ``tools_hash``/``tool_names`` pair). A menu difference — or a menu
+    against a PROVEN empty (aux-shaped record: the fork ran tool-less by
+    construction) — breaks the prefix at the schemas. An empty MAINLINE
+    record is a gap, not a claim: old builds wrote None for chat legs that
+    did ride the menu, so it is treated as matching. Same conventions as
+    :func:`shared_message_count`: the previous envelope's trailing card block
+    is dropped before the message walk.
+    """
+    prev = prev or {}
+    prev_messages = list(prev.get("messages") or [])
+    cur_messages = list(cur.get("messages") or [])
+    body = prev_messages[:-1] if prev_messages else []
+
+    def size(value: Any) -> int:
+        return len(json.dumps(value, sort_keys=True, ensure_ascii=False))
+
+    def menu_class(env: dict[str, Any]) -> tuple:
+        """(class, value): ``menu`` carries schemas; ``none`` is a PROVEN
+        empty menu (aux-shaped record — the fork ran tool-less by job);
+        ``gap`` is an empty mainline record, which proves nothing either way."""
+        tools = env.get("tools")
+        if isinstance(tools, list) and tools:
+            return ("menu", json.dumps(tools, sort_keys=True, ensure_ascii=False))
+        if env.get("tools_hash") or env.get("tool_names"):
+            return ("menu", (env.get("tools_hash"), tuple(env.get("tool_names") or ())))
+        return ("none",) if "kwargs" in env else ("gap",)
+
+    cur_system = cur.get("system")
+    total_chars = sum(size(m) for m in cur_messages)
+    if cur_system:
+        total_chars += size(cur_system)
+    cur_tools = cur.get("tools")
+    cur_tools = cur_tools if isinstance(cur_tools, list) else None
+    if cur_tools:
+        total_chars += size(cur_tools)
+    system_stable = prev.get("system") == cur_system
+    if not total_chars:
+        return 0.0, bool(system_stable), ""
+    if not system_stable:
+        return 0.0, False, "system"
+
+    shared_chars = size(cur_system) if cur_system else 0
+    index = 0
+    while index < len(cur_messages) and cur_messages[index].get("role") == "system":
+        if index >= len(body) or body[index] != cur_messages[index]:
+            return shared_chars / total_chars, True, "system"
+        shared_chars += size(cur_messages[index])
+        index += 1
+    prev_menu, cur_menu = menu_class(prev), menu_class(cur)
+    if prev_menu[0] == "menu" and cur_menu[0] == "menu":
+        if prev_menu[1] != cur_menu[1]:
+            return shared_chars / total_chars, True, "tools"
+    elif prev_menu[0] == "menu" or cur_menu[0] == "menu":
+        # One side carried schemas; "none" proves the other did not (an aux
+        # record is tool-less by construction), a gap proves nothing.
+        other = cur_menu if prev_menu[0] == "menu" else prev_menu
+        if other[0] == "none":
+            return shared_chars / total_chars, True, "tools"
+    if cur_tools:
+        shared_chars += size(cur_tools)
+    for offset in range(index, len(body)):
+        if offset >= len(cur_messages) or cur_messages[offset] != body[offset]:
+            return shared_chars / total_chars, True, "messages"
+        shared_chars += size(body[offset])
+    return shared_chars / total_chars, True, ""
+
+
 def message_nodes(envelope: dict[str, Any], shared_count: int) -> list[dict[str, Any]]:
     """The ordered message surface, each node priced and cache-marked."""
     nodes: list[dict[str, Any]] = []

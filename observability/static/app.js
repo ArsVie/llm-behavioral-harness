@@ -414,8 +414,14 @@ function renderCalls(calls, selectedId) {
     row.append(
       el("td", null, `#${call.id}`),
       whenCell,
-      (() => { const cell = el("td", "leg"); cell.append(leg,
-        el("span", null, ` ${call.lane || ""}`)); return cell; })(),
+      (() => {
+        const cell = el("td", "leg");
+        cell.append(leg);
+        // The lane rides the hover, not a second line: the tag alone names
+        // the call's leg.
+        if (call.lane) cell.title = call.lane;
+        return cell;
+      })(),
       el("td", null, fmtTokens(call.prompt_tokens)),
       el("td", null, fmtTokens(call.cached_tokens)),
       el("td", hitClass, fmtPct(call.cache_hit_pct)),

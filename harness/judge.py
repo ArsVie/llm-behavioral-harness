@@ -79,21 +79,23 @@ def judge_day(
     JSON mode is gated on the client's capability: the harness never assumes an
     endpoint accepts ``response_format``.
 
-    ``fork``: a callable(rubric) -> (system, messages) | None that extends the
-    mainline request — the judge reads the exact context the companion's last turn
-    sent, so the whole prefix banks on the provider cache. None (a fork that could
-    not build, or a direct caller) keeps the standalone one-shot prompt.
+    ``fork``: a callable(rubric) -> (system, messages, tools) | None that extends
+    the mainline request — the judge reads the exact context (and tool schemas)
+    the companion's last turn sent, so the whole prefix banks on the provider
+    cache. None (a fork that could not build, or a direct caller) keeps the
+    standalone one-shot prompt.
     """
     if json_mode is None:
         json_mode = bool(getattr(client, "supports_json", True))
     pair = fork(rubric) if fork is not None else None
     if pair is not None:
-        system, messages = pair
+        system, messages, tools = pair
         result = client.chat_with_meta(
             messages,
             system=system,
             temperature=0.0,
             json_mode=json_mode,
+            tools=tools,
         )
         raw = getattr(result, "content", None) or (
             result if isinstance(result, str) else ""
