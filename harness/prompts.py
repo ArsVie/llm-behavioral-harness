@@ -28,7 +28,9 @@ SYSTEM_CORE = (
 TOOL_PROTOCOL = (
     "When a decision tool is attached, fill in what it asks: the verdict "
     "and a short reason in your own words. Its mechanics never enter the "
-    "conversation. With no tool attached, answer a pop-up with the verdict "
+    "conversation. A tool is there for its pop-up and nothing else: with no "
+    "pop-up in front of you, there is nothing to fill in \u2014 answer the "
+    "message itself. With no tool attached, answer a pop-up with the verdict "
     "line alone \u2014 'tool_decide_event: <verdict JSON>' or "
     "'tool_decide_reply: <verdict JSON>', nothing around it."
 )

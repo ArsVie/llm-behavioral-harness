@@ -55,8 +55,17 @@ G3_EPOCH0_S = datetime(2026, 8, 15, 13, 30, 0, tzinfo=timezone.utc).timestamp()
 
 #: Pinned sha256 of the assembled prompts on this fixture; an unlabelled change
 #: to the assembled prompt fails here.
-PINNED_FULL = "602f5f3d7dec0ad2e4388e56e73ea1dc3c313ce54e0d3dcb8a373335abf45a60"
-PINNED_BARE_FULL = "7a8505643aef0c1c2190200348522ad08c03a06ee302965c74342089ad750978"
+#: Regenerated 2026-09-20: the tool protocol now scopes a decision tool to its
+#: pop-up ("with no pop-up in front of you, there is nothing to fill in"), and
+#: the event tool's own text says an upcoming event is not the model's to
+#: announce — the live run kept burning reasoning on whether to mention a
+#: plan item hours out, because the inform clause read as a standing
+#: instruction. The same edit fixed a doubled escape on the protocol's last
+#: line. Verified against the previous pin's tree: substituting the old
+#: protocol text back reproduced 602f5f3d… and 7a850564… exactly, so nothing
+#: but the protocol bytes moved.
+PINNED_FULL = "6c5ef6115cf0c3cfcf757a24c75999c81a2efc8d8c6d40fb75a8e6213279e745"
+PINNED_BARE_FULL = "77eea6a77af1ec7da27e14a3f38cf2b0a20280bf2a83ae73285a2e00f2ce7966"
 
 
 def test_prefix_break_is_none_when_the_request_only_appends():

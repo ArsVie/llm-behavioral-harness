@@ -31,7 +31,10 @@ TOOL_SCHEMAS: list[dict] = [
             "carries the context (Event, State, Time, Phase, ...) — do NOT "
             "echo it back. Phase inform: the event is coming up; mention it "
             "naturally in message and give no verdict. Otherwise fill ONLY "
-            "the verdict — skippable no means the event is a commitment: go."
+            "the verdict — skippable no means the event is a commitment: go. "
+            "The pop-up is the whole of this tool's job: with none in front "
+            "of you, an upcoming event is not yours to announce and there is "
+            "no verdict to fill in."
         ),
         "parameters": {
             "type": "object",
