@@ -328,8 +328,16 @@ axis, with the verdict's reason), mood (M/m_level over the day; the bearing
 texts reconstruct from the card's own rows), the cycle + circadian state
 (`daily_state.cycle_day`/`phase_label` and the engine's intraday parameters),
 and a matching view (two tracks on one day-hour grid, a lag slider, descriptive
-per-phase means/counts). Design agreed in chat before building; agenda +
-proactive first.
+per-phase means/counts). Shape agreed 2026-09-20: a two-column row at the bottom
+of the page — the DISTRIBUTIONS panel on the left (one lever per button:
+agenda / mood / cycle / proactive / spend, each a histogram with n, mean and
+range, plus a "by:" conditioner row for the pattern hunt) and the CALENDAR on
+the right carrying the agenda and the proactive markers, with a Month / Week /
+Day switch in the Ledger-Surface idiom. The Day view is VERTICAL with
+horizontal hour stripes (owner call: the standard calendar-app shape), Week is
+7 columns x 24h stripes, Month is day cells with the 28-day cycle ring around
+them. Build order: day view + agenda/proactive first, then week + the cycle
+strip, then month, then the conditioner splits.
 
 ### Photos over Telegram reach nothing (2026-09-20)
 > "do you know what would happen if I send an image through telegram? Would it
