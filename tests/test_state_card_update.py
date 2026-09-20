@@ -11,6 +11,7 @@ from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.assembler import (
     AFFECTIVE_HEADER,
     STATE_UPDATE_LEAD,
+    apply_state_update,
     card_blocks,
     render_state_card,
     render_state_update,
@@ -201,3 +202,79 @@ def test_a_restart_without_the_memo_diffs_instead_of_resending(tmp_path):
     assert rows[1].startswith(STATE_UPDATE_LEAD)
     assert "Current bearing: stormy." in rows[1]
     assert "CURRENT INTENT" not in rows[1]
+
+
+def test_a_memo_without_its_day_reads_the_stream(tmp_path):
+    """A missing ``state_card.day`` — a key a deploy just introduced, a
+    partial kv — used to read as "the day's first card" and re-send the full
+    card mid-day (the live 02:09 restart's duplicate). The stream names the
+    day even when the cache cannot."""
+    store, session = _session(tmp_path)
+    snapshot = _snapshot()
+    session._ensure_state_card(snapshot, "Current bearing: calm.", 1, 25.0)
+    assert len(_rows(store, 1)) == 1
+
+    store.conn.execute("DELETE FROM kv_store WHERE key = 'state_card.day'")
+    store.conn.commit()
+
+    fresh = Session(
+        store, persona=PersonaParams(), timing=TimingParams(),
+        variant=MoodVariant.DECOUPLED_OFFSETS, seed=4242,
+        client=FakeClient(responses=[]), clock=VirtualClock(t_h=26.0),
+        decision_config=DecisionConfig(),
+    )
+    fresh._ensure_state_card(snapshot, "Current bearing: calm.", 1, 26.0)
+    assert len(_rows(store, 1)) == 1, "the day already had its card"
+
+    fresh._ensure_state_card(snapshot, "Current bearing: stormy.", 1, 27.0)
+    rows = _rows(store, 1)
+    assert len(rows) == 2
+    assert rows[1].startswith(STATE_UPDATE_LEAD)
+
+
+def test_a_wiped_memo_rebuilds_from_the_stream(tmp_path):
+    """Both halves gone: the newest full card row plus the update rows after
+    it rebuild the accumulated text, so a wiped cache costs no bytes at all
+    (verified against the live run's own memo: 625 chars, byte-identical)."""
+    store, session = _session(tmp_path)
+    snapshot = _snapshot()
+    session._ensure_state_card(snapshot, "Current bearing: calm.", 1, 25.0)
+    session._ensure_state_card(snapshot, "Current bearing: stormy.", 1, 26.0)
+    assert len(_rows(store, 1)) == 2
+
+    store.conn.execute("DELETE FROM kv_store WHERE key LIKE 'state_card.%'")
+    store.conn.commit()
+
+    fresh = Session(
+        store, persona=PersonaParams(), timing=TimingParams(),
+        variant=MoodVariant.DECOUPLED_OFFSETS, seed=4242,
+        client=FakeClient(responses=[]), clock=VirtualClock(t_h=27.0),
+        decision_config=DecisionConfig(),
+    )
+    fresh._ensure_state_card(snapshot, "Current bearing: stormy.", 1, 27.0)
+    assert len(_rows(store, 1)) == 2, "the rebuilt memo matched the render"
+
+    fresh._ensure_state_card(snapshot, "Current bearing: calm.", 1, 28.0)
+    rows = _rows(store, 1)
+    assert len(rows) == 3 and rows[2].startswith(STATE_UPDATE_LEAD)
+    assert "Current bearing: calm." in rows[2]
+
+
+def test_an_update_applies_back_onto_the_card():
+    """``apply_state_update`` inverts ``render_state_update`` — that is what
+    lets the loader rebuild the memo from the stream. Changed sections
+    replace, cleared ones drop, a key the update introduces lands last."""
+    changed = CARD.replace("bright, calm.", "bright, stormy.")
+    assert apply_state_update(CARD, render_state_update(CARD, changed)) == changed
+
+    without = "\n\n".join(
+        b for b in CARD.split("\n\n") if not b.startswith("CURRENT INTENT")
+    )
+    assert apply_state_update(CARD, render_state_update(CARD, without)) == without
+
+    added = CARD + "\n\nCurrent activity: read history"
+    assert apply_state_update(CARD, render_state_update(CARD, added)) == added
+
+    # A row that is not an update (a full card, a day-start block) is skipped.
+    assert apply_state_update(CARD, added) == CARD
+    assert apply_state_update(CARD, "Sunday's plan:\n- read history") == CARD

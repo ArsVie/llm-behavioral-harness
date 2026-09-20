@@ -65,6 +65,7 @@ def sqlite_synchronous() -> str:
 
 # Schema, DDL and the migration chain live in harness.store_schema.
 # Re-exported so harness.store stays the single import surface.
+from harness.assembler import AFFECTIVE_HEADER  # the full-card marker
 from harness.store_schema import (  # noqa: E402,F401 - compat re-export
     SCHEMA_VERSION,
     _LEGACY_PREFIX_CATEGORIES,
@@ -314,19 +315,35 @@ class SQLiteStore:
         ).fetchone()
         return str(row[0]) if row else None
 
-    def last_system_row(self) -> tuple[str, int | None] | None:
-        """Newest system row as ``(text, day)`` — the text a restart diffs
-        against, and the day it belongs to. Without the day a restart reads
-        an already-carded day as the day's first card and re-sends the full
-        card mid-day."""
+    def last_card_state(self) -> tuple[str, int | None, tuple[str, ...]] | None:
+        """The stream's own copy of the card memo.
+
+        ``(full card text, its day, the system rows that follow it)`` — the
+        newest FULL card row (an ``AFFECTIVE BEARING:``-headed one) plus
+        every system row after it. The kv memo is a CACHE: a deploy that adds
+        a key with nothing behind it, or a wiped kv, leaves a loader that
+        trusts it unable to name the card's day — and a mid-day restart then
+        reads an already-carded day as the day's first card and re-sends the
+        full card. The stream is the record, so the loader rebuilds from
+        here (applying the update rows it finds).
+        """
         row = self.conn.execute(
-            "SELECT content, day FROM messages WHERE role = 'system' "
-            "ORDER BY id DESC LIMIT 1"
+            "SELECT id, content, day FROM messages WHERE role = 'system' "
+            "AND content LIKE ? ORDER BY id DESC LIMIT 1",
+            (AFFECTIVE_HEADER + "%",),
         ).fetchone()
         if row is None:
             return None
-        day = int(row[1]) if row[1] is not None else None
-        return str(row[0]), day
+        after = tuple(
+            str(r["content"])
+            for r in self.conn.execute(
+                "SELECT content FROM messages WHERE role = 'system' "
+                "AND id > ? ORDER BY id",
+                (row["id"],),
+            )
+        )
+        day = int(row["day"]) if row["day"] is not None else None
+        return str(row["content"]), day, after
 
     def repair_placeholder_steers(self) -> int:
         """Rewrite the legacy literal ``"?"`` event name; rows changed."""

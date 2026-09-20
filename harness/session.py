@@ -78,6 +78,7 @@ from harness.assembler import (
     append_system,
     assemble_snapshot,
     prefix_break,
+    apply_state_update,
     build_context_messages,
     harness_text_in_user_roles,
     proactive_block,
@@ -85,7 +86,6 @@ from harness.assembler import (
     render_day_start_block,
     render_state_card,
     render_state_update,
-    STATE_UPDATE_LEAD,
     stable_system,
     stamped_stream,
 )
@@ -634,42 +634,7 @@ class Session(NegotiationMixin):
         #: updates against (an UPDATE row is never a baseline itself). The
         #: stream is append-only: an unchanged card is never re-sent, and a
         #: day's first card is always the full one.
-        self._card_full: str | None = None
-        self._card_day: int | None = None
-        raw_day: str | None = None
-        try:
-            self._card_full = self.store.get_kv("state_card.full")
-            raw_day = self.store.get_kv("state_card.day")
-        except AttributeError:  # minimal stores (tests/fakes) keep working
-            pass
-        try:
-            self._card_day = int(raw_day) if raw_day is not None else None
-        except (TypeError, ValueError):
-            self._card_day = None
-        if self._card_full is None:
-            # No memo (a store written by a build that predates it, or a
-            # wiped kv): recover the baseline FROM THE STREAM, its day
-            # included. Text alone cannot tell an already-carded day from
-            # the day's first card, so a restart mid-day re-sent the full
-            # card (live run, 02:09 restart). A legacy row is a full card; a
-            # mid-day UPDATE row is not a baseline.
-            last_text: str | None = None
-            last_day: int | None = None
-            try:
-                row = self.store.last_system_row()
-            except AttributeError:
-                row = None
-            if row is not None:
-                last_text, last_day = row
-            else:
-                try:
-                    last_text = self.store.last_system_row_text()
-                except AttributeError:
-                    last_text = None
-            if last_text and not last_text.startswith(STATE_UPDATE_LEAD):
-                self._card_full = last_text
-                if self._card_day is None:
-                    self._card_day = last_day
+        self._card_full, self._card_day = self._load_card_memo()
         #: System prompt of the turn in progress — shared with pop-up calls.
         self._last_system_prompt: str = ""
         # WS-D cache order: the pop-up aux call must be a byte-identical
@@ -1563,6 +1528,48 @@ class Session(NegotiationMixin):
             return
         for item in transition_past_windows(agenda, t_h, day):
             self.store.update_agenda_item_status(item.id, item.status)
+
+    def _load_card_memo(self) -> tuple[str | None, int | None]:
+        """The card memo a fresh process starts from: ``(full text, day)``.
+
+        The kv pair is the fast path. Either half can be missing — a wiped
+        kv, or a deploy that introduces a key with nothing behind it — and a
+        loader that then cannot name the day reads an already-carded day as
+        the day's FIRST card and re-sends the full card mid-day (the live
+        run's 02:09 restart did exactly that). The stream is the record and
+        backs the cache up: the newest FULL card row plus the update rows
+        after it rebuild both halves.
+        """
+        try:
+            full = self.store.get_kv("state_card.full")
+            raw_day = self.store.get_kv("state_card.day")
+        except AttributeError:  # minimal stores (tests/fakes) keep working
+            return None, None
+        try:
+            day = int(raw_day) if raw_day is not None else None
+        except (TypeError, ValueError):
+            day = None
+        if full is not None and day is not None:
+            return full, day
+        stream = None
+        try:
+            stream = self.store.last_card_state()
+        except AttributeError:
+            pass
+        if stream is None:
+            return full, day
+        text, stream_day, updates = stream
+        if full is None:
+            # Rebuild the accumulated text: the full card, then every update
+            # row the stream carries after it, applied in order.
+            for row in updates:
+                text = apply_state_update(text, row)
+            full = text
+        if day is None or (stream_day is not None and stream_day > day):
+            # The stream outranks the cache: a card row that landed without
+            # its kv write must not read as an already-carded day's successor.
+            day = stream_day
+        return full, day
 
     def _ensure_state_card(
         self,

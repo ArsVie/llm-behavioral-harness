@@ -597,6 +597,31 @@ def render_state_update(prev_card: str, card: str) -> str:
     return update if len(update) < len(card) else card
 
 
+def apply_state_update(prev_card: str, update: str) -> str:
+    """The full card a section-level update row leaves behind.
+
+    The inverse of :func:`render_state_update` for the rows the stream
+    carries: changed sections replace by key, ``(cleared)`` sections drop, a
+    key the update introduces lands at the end. A row that is not an update
+    row — a full card, a day-start block, anything else the stream holds —
+    leaves ``prev_card`` untouched, so a loader can walk a stream and apply
+    whatever it finds.
+    """
+    if not prev_card or not update.startswith(STATE_UPDATE_LEAD):
+        return prev_card
+    blocks = dict(card_blocks(prev_card))
+    order = [key for key, _ in card_blocks(prev_card)]
+    for key, block in card_blocks(update)[1:]:
+        if block == f"{key}: (cleared)":
+            blocks.pop(key, None)
+            order = [k for k in order if k != key]
+            continue
+        if key not in blocks:
+            order.append(key)
+        blocks[key] = block
+    return "\n\n".join(blocks[key] for key in order)
+
+
 def _day_plan_header(t_h: float | None, anchor) -> str:
     """Header for a day's plan, dated with the real weekday when anchored."""
     if t_h is None or anchor is None:
