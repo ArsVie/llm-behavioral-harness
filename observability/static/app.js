@@ -1040,11 +1040,9 @@ const STATUS_COLOR = {
   skipped: ["var(--grey-soft)", "var(--grey)"],
 };
 
-function esc(text) {
-  return String(text).replace(/[&<>"']/g, (ch) => ({
-    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
-  }[ch]));
-}
+//: The day chart's height in pixels — keep in step with --cal-h in app.css.
+//: A block only gets its time line when there is room for two lines.
+const CAL_DAY_H = 620;
 
 function hourText(hour) {
   const h = Math.max(0, Math.floor(hour));
@@ -1055,11 +1053,6 @@ function hourText(hour) {
 // A day's last stripe is 24:00, not a second 00:00.
 function hourLabel(hour) {
   return hour === 24 ? "24:00" : hourText(hour);
-}
-
-// Long labels end in an ellipsis; a cut mid-word reads as a typo.
-function shortened(text, limit) {
-  return text.length > limit ? `${text.slice(0, limit - 1)}…` : text;
 }
 
 function plural(count, noun) {
@@ -1195,7 +1188,7 @@ function renderLevers() {
       ["cost", fmtUsd(totals.cost_usd ?? totals.total_cost_usd)],
     ]));
     host.append(leverGroup("per role", leverBars(
-      payload.spend.by_role.map((row) => [row.role, row.calls]))));
+      payload.spend.by_role.map((row) => [row.key, row.calls]))));
     host.append(el("p", "lever-note",
       "the same spend math as the calls card — harness.spend, not a second count."));
   }
@@ -1224,260 +1217,467 @@ function sparkline(values) {
 }
 
 /* -------------------------------------------------------- the calendar */
+/* Hand-built HTML on a fixed type scale: a chart's labels must not grow
+   because the window did, and an SVG stretched to the card scales every
+   label with it. Only the wave and the wheel are SVG — no text inside. */
 function renderCalendar() {
   const host = $("cal-panel");
   const title = $("cal-title");
   const foot = $("cal-foot");
   host.textContent = "";
   foot.hidden = true;
+  foot.textContent = "";
   const view = study.view;
   for (const button of $("cal-switch").querySelectorAll(".vbtn")) {
     button.setAttribute("aria-pressed", String(button.dataset.cal === study.cal));
   }
+  if (!view.span.length && !view.agenda.length) {
+    host.append(el("p", "cal-empty", "this run has nothing recorded yet"));
+    return;
+  }
   if (study.cal === "day") {
     title.textContent = `day ${view.day}`;
-    host.innerHTML = daySvg(view);
+    host.append(dayChart(view));
     foot.hidden = false;
-    foot.innerHTML = dayFoot(view);
+    foot.className = "panel-foot cal-foot";
+    for (const chip of dayChips(view)) foot.append(chip);
+    const legend = el("p", "cal-legend");
+    for (const [label, mark] of dayLegend()) {
+      const key = el("span", "key");
+      key.append(mark, el("span", null, label));
+      legend.append(key);
+    }
+    foot.append(legend);
   } else if (study.cal === "week") {
     title.textContent = "the run's days";
-    host.innerHTML = weekSvg(view);
+    host.append(weekChart(view));
     foot.hidden = false;
-    foot.textContent = "each column is a day of the run, hour stripes shared; " +
-      "click a column for its day view";
+    foot.className = "panel-foot cal-foot";
+    foot.append(el("p", "cal-legend",
+      "each column is a day of the run on the same hour stripes — " +
+      "click one for its day view"));
   } else {
     title.textContent = "every day so far";
-    host.innerHTML = monthSvg(view);
+    host.append(monthChart(view));
     foot.hidden = false;
-    foot.textContent = "a cell's tint is the day's mood; its squares are agenda " +
-      "blocks, oldest first. Click a cell for that day.";
+    foot.className = "panel-foot cal-foot";
+    foot.append(el("p", "cal-legend",
+      "a cell's tint is that day's mood; the squares are its agenda blocks " +
+      "in status colours. Click a cell for its day."));
   }
 }
 
-/* The day: vertical, hours running down, one column — the standard shape. */
-function daySvg(view) {
-  const top = 26, unit = 23;
-  const colX = 52, colW = 560;
-  const waveX = colX + colW + 18, waveW = 74;
-  const y = (hour) => top + hour * unit;
-  const height = y(24) + 12;
-  const parts = [`<svg viewBox="0 0 720 ${height}" role="img" aria-label="day ${view.day}">`];
-
-  // quiet hours first, so everything else reads on top of them
-  const [quietFrom, quietTo] = view.quiet_hours;
-  for (const [from, to] of quietFrom > quietTo
-    ? [[quietFrom, 24], [0, quietTo]] : [[quietFrom, quietTo]]) {
-    parts.push(`<rect x="${colX}" y="${y(from)}" width="${colW}" ` +
-      `height="${(to - from) * unit}" style="fill:var(--grey-soft)" opacity="0.45"/>`);
-  }
-  for (let hour = 0; hour <= 24; hour++) {
-    const strong = hour % 2 === 0;
-    parts.push(`<line x1="${colX}" y1="${y(hour).toFixed(1)}" x2="${colX + colW}" ` +
-      `y2="${y(hour).toFixed(1)}" style="stroke:var(--grey-soft)" ` +
-      `stroke-width="${strong ? 1 : 0.5}"/>`);
-    if (strong) {
-      parts.push(`<text x="${colX - 8}" y="${(y(hour) + 4).toFixed(1)}" ` +
-        `text-anchor="end" font-size="11" style="fill:var(--ink-faint)">` +
-        `${hourLabel(hour)}</text>`);
+/* Blocks as bare boxes: lanes exist only where two blocks would overlap. */
+function laidOut(items, day) {
+  const placed = items.map((item) => ({
+    ...item,
+    hour: Number(item.start_t_h) - day * 24,
+    end: Number(item.end_t_h) - day * 24,
+  })).sort((a, b) => a.hour - b.hour);
+  let group = [];
+  let groupEnd = -Infinity;
+  const flush = () => {
+    const lanes = [];
+    for (const item of group) {
+      let lane = lanes.findIndex((last) => last <= item.hour);
+      if (lane === -1) { lanes.push(item.end); lane = lanes.length - 1; }
+      lanes[lane] = item.end;
+      item.lane = lane;
     }
+    for (const item of group) item.lanes = lanes.length;
+    group = [];
+  };
+  for (const item of placed) {
+    if (group.length && item.hour >= groupEnd) { flush(); groupEnd = -Infinity; }
+    group.push(item);
+    groupEnd = Math.max(groupEnd, item.end);
   }
-
-  // the circadian wave: value right, hour down
-  const wave = view.circadian.map(([hour, value]) =>
-    `${(waveX + waveW - value * waveW).toFixed(1)} ${y(hour).toFixed(1)}`);
-  parts.push(`<polyline points="${wave.join(" ")}" fill="none" ` +
-    `style="stroke:var(--plum)" stroke-width="1.6" opacity="0.75"/>`);
-  parts.push(`<text x="${waveX + waveW}" y="${top - 10}" text-anchor="end" ` +
-    `font-size="10" style="fill:var(--plum)">energy</text>`);
-
-  // agenda blocks: lanes only where two blocks would overlap
-  const lanes = [];
-  for (const item of view.agenda) {
-    const hour = Number(item.start_t_h) - view.day * 24;
-    let lane = lanes.findIndex((last) => last <= hour);
-    if (lane === -1) { lanes.push(hour); lane = lanes.length - 1; }
-    lanes[lane] = Number(item.end_t_h) - view.day * 24;
-    item._lane = lane;
-    item._hour = hour;
-    item._end = Number(item.end_t_h) - view.day * 24;
-  }
-  const laneW = lanes.length ? colW / lanes.length : colW;
-  for (const item of view.agenda) {
-    const [fill, edge] = statusColors(item.status);
-    const x = colX + item._lane * laneW + 3;
-    const boxW = laneW - 6;
-    const boxY = y(item._hour) + 1;
-    const boxH = Math.max(12, (item._end - item._hour) * unit - 2);
-    parts.push(`<rect x="${x.toFixed(1)}" y="${boxY.toFixed(1)}" ` +
-      `width="${boxW.toFixed(1)}" height="${boxH.toFixed(1)}" rx="4" ` +
-      `style="fill:${fill};stroke:${edge}" stroke-width="1"/>`);
-    parts.push(`<rect x="${(x + 1).toFixed(1)}" y="${(boxY + 2).toFixed(1)}" ` +
-      `width="2.5" height="${(boxH - 4).toFixed(1)}" style="fill:${edge}"/>`);
-    const label = `${hourText(item._hour)}–${hourText(item._end)} · ${item.activity}`;
-    parts.push(`<text x="${(x + 8).toFixed(1)}" y="${(boxY + 14).toFixed(1)}" ` +
-      `font-size="11" style="fill:var(--ink)">${esc(shortened(label, 46))}</text>`);
-    if (boxH >= 34) {
-      parts.push(`<text x="${(x + 8).toFixed(1)}" y="${(boxY + 28).toFixed(1)}" ` +
-        `font-size="10" style="fill:var(--ink-faint)">` +
-        `${esc([item.status, item.source_type, item.salience === null ? "" :
-          `salience ${item.salience}`].filter(Boolean).join(" · "))}</text>`);
-    }
-    parts.push(`<title>${esc(label)}</title>`);
-  }
-
-  // message ticks: what arrived, and when, on the column's left edge
-  for (const message of view.messages) {
-    const color = message.proactive ? "var(--rose)"
-      : message.role === "user" ? "var(--ink)" : "var(--sky)";
-    parts.push(`<rect x="${colX - 7}" y="${(y(message.hour) - 1.5).toFixed(1)}" ` +
-      `width="5" height="3" style="fill:${color}"/>`);
-  }
-
-  // reach-outs: a flag at the hour the decision landed
-  for (const reach of view.proactive) {
-    const flagX = colX + colW + 2;
-    const flagY = y(reach.hour);
-    parts.push(`<line x1="${colX + colW}" y1="${flagY.toFixed(1)}" ` +
-      `x2="${flagX + 4}" y2="${flagY.toFixed(1)}" ` +
-      `style="stroke:${reach.fired ? "var(--rose)" : "var(--grey)"}" stroke-width="1"/>`);
-    parts.push(`<polygon points="${flagX + 9},${(flagY - 5).toFixed(1)} ` +
-      `${flagX + 9},${(flagY + 5).toFixed(1)} ${flagX + 1},${flagY.toFixed(1)}" ` +
-      `style="fill:${reach.fired ? "var(--rose)" : "var(--grey-soft)"}"` +
-      `${reach.fired ? "" : ` stroke="var(--grey)"`}/>`);
-    parts.push(`<title>${reach.fired ? "reached out" : "held back"}: ` +
-      `${esc(reach.reason || reach.hook || "(no reason recorded)")}</title>`);
-  }
-
-  if (view.now_hour !== null) {
-    parts.push(`<line x1="${colX - 10}" y1="${y(view.now_hour).toFixed(1)}" ` +
-      `x2="${colX + colW + 12}" y2="${y(view.now_hour).toFixed(1)}" ` +
-      `style="stroke:var(--rose)" stroke-width="1" stroke-dasharray="4 3"/>`);
-    parts.push(`<text x="${colX + colW + 14}" y="${(y(view.now_hour) - 4).toFixed(1)}" ` +
-      `font-size="10" style="fill:var(--rose)">now ${hourText(view.now_hour)}</text>`);
-  }
-  parts.push("</svg>");
-  return parts.join("");
+  flush();
+  return placed;
 }
 
-function dayFoot(view) {
-  const cycle = view.cycle.phase_label
-    ? `cycle day ${view.cycle.cycle_day ?? "—"} · ${esc(view.cycle.phase_label)}` : "";
-  const mood = view.mood.M === null ? "" :
-    `mood M <b>${view.mood.M}</b> (${Number(view.mood.m_level).toFixed(3)})`;
-  const sent = view.proactive.filter((reach) => reach.fired).length;
-  return [
-    `agenda <b>${view.agenda.length}</b>`,
-    `messages <b>${view.messages.length}</b>`,
-    `reach-outs <b>${sent}/${view.proactive.length}</b>`,
-    mood, cycle,
-    `<span class="legend-key"><span class="key"><span class="sq" ` +
-      `style="background:var(--rose)"></span>flag = reached out</span> ` +
-      `<span class="key"><span class="sq" ` +
-      `style="background:var(--grey-soft);border:1px solid var(--grey)"></span>` +
-      `held back</span></span>`,
-  ].filter(Boolean).join(" · ");
-}
-
-/* The week: the same hour stripes, one column per day of the run. */
-function weekSvg(view) {
-  const days = view.span.slice(-7);
-  const top = 30, unit = 19, gutterX = 52;
-  const colW = (720 - gutterX) / Math.max(days.length, 1);
-  const y = (hour) => top + hour * unit;
-  const height = y(24) + 16;
-  const parts = [`<svg viewBox="0 0 720 ${height}" role="img" aria-label="the run's days">`];
+function hourGutter() {
+  const box = el("div", "cal-hours");
   for (let hour = 0; hour <= 24; hour += 2) {
-    parts.push(`<line x1="${gutterX}" y1="${y(hour).toFixed(1)}" x2="720" ` +
-      `y2="${y(hour).toFixed(1)}" style="stroke:var(--grey-soft)" stroke-width="0.6"/>`);
-    parts.push(`<text x="${gutterX - 8}" y="${(y(hour) + 4).toFixed(1)}" ` +
-      `text-anchor="end" font-size="10" style="fill:var(--ink-faint)">` +
-      `${hourText(hour)}</text>`);
+    const label = el("span", null, hourLabel(hour));
+    label.style.top = `${(hour / 24) * 100}%`;
+    box.append(label);
   }
-  days.forEach((day, index) => {
-    const x = gutterX + index * colW;
-    const [, edge] = statusColors("completed");
-    if (day.day === view.day) {
-      parts.push(`<rect x="${x}" y="${top - 20}" width="${colW}" ` +
-        `height="${(24 * unit + 20).toFixed(1)}" style="fill:var(--lav-soft)" ` +
-        `opacity="0.5"/>`);
+  return box;
+}
+
+function quietBands([from, to]) {
+  return from > to ? [[from, 24], [0, to]] : [[from, to]];
+}
+
+function dayChart(view) {
+  const chart = el("div", "cal-chart");
+  const marks = el("div", "cal-marks");
+  // A burst of messages is one mark per quarter hour, not five overlapping
+  // ticks: the count rides on the mark, the detail on its tooltip.
+  const buckets = new Map();
+  for (const message of view.messages) {
+    const key = Math.floor(message.hour * 4);
+    const bucket = buckets.get(key) || { hour: key / 4, count: 0, users: 0 };
+    bucket.count += 1;
+    if (message.role === "user") bucket.users += 1;
+    buckets.set(key, bucket);
+  }
+  for (const bucket of buckets.values()) {
+    const tick = el("span", "cal-tick");
+    tick.style.top = `calc(${(bucket.hour / 24) * 100}% - 3.5px)`;
+    tick.style.height = `${Math.min(12, 5 + bucket.count)}px`;
+    tick.style.background = bucket.users === bucket.count
+      ? "var(--ink)" : bucket.users ? "var(--rose-soft)" : "var(--sky)";
+    if (bucket.users && bucket.users < bucket.count) {
+      tick.style.background = "var(--sky)";
+      tick.style.borderLeft = "2px solid var(--ink)";
     }
-    parts.push(`<line x1="${x}" y1="${top - 16}" x2="${x}" y2="${y(24)}" ` +
-      `style="stroke:var(--line)" stroke-width="1"/>`);
-    parts.push(`<text x="${(x + 6).toFixed(1)}" y="${top - 6}" font-size="11" ` +
-      `style="fill:var(--ink)">day ${day.day}</text>`);
-    parts.push(`<text x="${(x + 6).toFixed(1)}" y="${top + 6}" font-size="9" ` +
-      `style="fill:var(--ink-faint)">${day.messages} msg` +
-      `${day.M === null ? "" : ` · M ${day.M}`}</text>`);
-    for (const item of day.agenda) {
-      const [fill, color] = statusColors(item.status);
-      const boxY = y(item.hour) + 1;
-      parts.push(`<rect x="${(x + 4).toFixed(1)}" y="${boxY.toFixed(1)}" ` +
-        `width="${(colW - 8).toFixed(1)}" ` +
-        `height="${Math.max(8, (item.end - item.hour) * unit - 2).toFixed(1)}" ` +
-        `rx="3" style="fill:${fill};stroke:${color}" stroke-width="1"/>`);
+    tick.title = `${hourText(bucket.hour)}–${hourText(bucket.hour + 0.25)} · ` +
+      `${plural(bucket.count, "message")} (you ${bucket.users}, she ${bucket.count - bucket.users})`;
+    marks.append(tick);
+  }
+
+  const column = el("div", "cal-col");
+  for (const [from, to] of quietBands(view.quiet_hours)) {
+    const band = el("div", "cal-quiet");
+    band.style.top = `${(from / 24) * 100}%`;
+    band.style.height = `${((to - from) / 24) * 100}%`;
+    band.title = `quiet hours ${hourText(from)}–${hourText(to)}`;
+    column.append(band);
+  }
+  for (const item of laidOut(view.agenda, view.day)) {
+    const block = el("div", "cal-block");
+    const [fill, edge] = statusColors(item.status);
+    const tall = ((item.end - item.hour) / 24) * CAL_DAY_H >= 34;
+    block.style.top = `calc(${(item.hour / 24) * 100}% + 1px)`;
+    block.style.height = `calc(${((item.end - item.hour) / 24) * 100}% - 2px)`;
+    block.style.minHeight = "17px";
+    block.style.left = `${(item.lane / item.lanes) * 100}%`;
+    block.style.width = `calc(${100 / item.lanes}% - 6px)`;
+    block.style.background = fill;
+    block.style.borderColor = edge;
+    if (tall) block.append(el("span", "cal-when",
+      `${hourText(item.hour)}–${hourText(item.end)}`));
+    block.append(el("span", "cal-what", item.activity));
+    block.title = `${hourText(item.hour)}–${hourText(item.end)} · ${item.activity}\n` +
+      [item.status, item.source_type,
+       item.salience === null ? "" : `salience ${Number(item.salience).toFixed(2)}`,
+      item.outcome].filter(Boolean).join(" · ");
+    column.append(block);
+  }
+  if (view.now_hour !== null) {
+    const now = el("div", "cal-now");
+    now.style.top = `${(view.now_hour / 24) * 100}%`;
+    now.append(el("b", null, `now ${hourText(view.now_hour)}`));
+    column.append(now);
+  }
+
+  const flags = el("div", "cal-flags");
+  for (const reach of view.proactive) {
+    const flag = el("span", `cal-flag${reach.fired ? "" : " held"}`);
+    flag.style.top = `calc(${(reach.hour / 24) * 100}% - 5px)`;
+    flag.title = `${reach.fired ? "reached out" : "held back"} · ` +
+      hourText(reach.hour) +
+      (reach.reason ? `\n${reach.reason}` : "") +
+      (reach.hook ? `\n${reach.hook}` : "");
+    flags.append(flag);
+  }
+
+  const energy = el("div", "cal-energy");
+  energy.append(el("span", "cal-energy-cap", "energy"), energyWave(view.circadian));
+
+  chart.append(hourGutter(), marks, column, flags, energy);
+  const wrap = el("div", "cal-day-wrap");
+  wrap.append(chart, agendaList(view));
+  return wrap;
+}
+
+/* Beside the chart, the same day as plain lines: the chart shows the shape,
+   the list says what each block actually was. */
+function agendaList(view) {
+  const box = el("div", "cal-list");
+  box.append(el("h4", null, "the day's items"));
+  const rows = laidOut(view.agenda, view.day);
+  if (!rows.length) box.append(el("p", "cal-empty", "nothing on the agenda"));
+  for (const item of rows) {
+    const row = el("div", "cal-item");
+    const [fill, edge] = statusColors(item.status);
+    const mark = el("span", "sq");
+    mark.style.background = fill;
+    mark.style.borderColor = edge;
+    row.append(mark,
+      el("span", "cal-item-when", `${hourText(item.hour)}–${hourText(item.end)}`),
+      el("span", "cal-item-what", item.activity));
+    row.append(el("span", "cal-item-meta",
+      [String(item.status).replace("_", " "), item.source_type,
+       item.salience === null ? "" : `salience ${Number(item.salience).toFixed(2)}`,
+       item.outcome].filter(Boolean).join(" · ")));
+    box.append(row);
+  }
+  if (view.proactive.length) {
+    box.append(el("h4", null, "reach-outs decided"));
+    for (const reach of view.proactive) {
+      const row = el("div", "cal-item");
+      const mark = el("span", `tri${reach.fired ? "" : " held"}`);
+      row.append(mark, el("span", "cal-item-when", hourText(reach.hour)),
+        el("span", "cal-item-what",
+          reach.fired ? "she reached out" : "she held back"));
+      if (reach.reason) {
+        row.append(el("span", "cal-item-meta", reach.reason));
+      }
+      box.append(row);
+    }
+  }
+  box.append(messagesByHour(view));
+  return box;
+}
+
+/* When did the two of them actually talk? One bar per hour of the day. */
+function messagesByHour(view) {
+  const box = el("div", "cal-byhour");
+  box.append(el("h4", null, "messages by hour"));
+  const counts = new Array(24).fill(0);
+  for (const message of view.messages) {
+    counts[Math.max(0, Math.min(23, Math.floor(message.hour)))] += 1;
+  }
+  const top = Math.max(1, ...counts);
+  const strip = el("div", "cal-byhour-strip");
+  counts.forEach((count, hour) => {
+    const bar = el("span");
+    const share = Math.round((count / top) * 100);
+    bar.style.height = `${count ? Math.max(8, share) : 0}%`;
+    bar.title = `${hourText(hour)} — ${plural(count, "message")}`;
+    strip.append(bar);
+  });
+  box.append(strip);
+  return box;
+}
+
+/* The wave carries no text: it is the one thing that may stretch. */
+function energyWave(points) {
+  const ns = "http://www.w3.org/2000/svg";
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", "0 0 100 480");
+  svg.setAttribute("preserveAspectRatio", "none");
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "the engine's intraday energy, noon high to night low");
+  const path = points.map(([hour, value]) =>
+    `${(100 - value * 92).toFixed(1)} ${((hour / 24) * 480).toFixed(1)}`);
+  const area = document.createElementNS(ns, "polygon");
+  area.setAttribute("points",
+    ["100 0", ...path, "100 480"].join(" "));
+  area.setAttribute("style", "fill:var(--plum);opacity:0.14");
+  svg.append(area);
+  const line = document.createElementNS(ns, "polyline");
+  line.setAttribute("points", path.join(" "));
+  line.setAttribute("fill", "none");
+  line.setAttribute("vector-effect", "non-scaling-stroke");
+  line.setAttribute("style", "stroke:var(--plum)");
+  line.setAttribute("stroke-width", "1.6");
+  svg.append(line);
+  return svg;
+}
+
+function dayChips(view) {
+  const sent = view.proactive.filter((reach) => reach.fired).length;
+  const chips = [
+    ["items today", view.agenda.length],
+    ["messages", view.messages.length],
+    ["reach-outs", `${sent} of ${view.proactive.length}`],
+  ];
+  if (view.mood.M !== null) {
+    chips.push(["mood M", `${view.mood.M} (${Number(view.mood.m_level).toFixed(2)})`]);
+  }
+  if (view.cycle.phase_label) {
+    chips.push(["cycle", `day ${view.cycle.cycle_day} · ${view.cycle.phase_label}`]);
+  }
+  return chips.map(([label, value]) => {
+    const chip = el("span", "cal-chip");
+    chip.append(el("b", null, value), document.createTextNode(` ${label}`));
+    return chip;
+  });
+}
+
+function dayLegend() {
+  const square = (fill, edge) => {
+    const mark = el("span", "sq");
+    mark.style.background = fill;
+    mark.style.borderColor = edge;
+    return mark;
+  };
+  const both = el("span", "sq");
+  both.style.background = "var(--sky)";
+  both.style.borderColor = "var(--sky)";
+  both.style.borderLeft = "2px solid var(--ink)";
+  return [
+    ["completed", square("var(--mint-soft)", "var(--mint)")],
+    ["planned", square("var(--lav-soft)", "var(--lav)")],
+    ["you wrote", square("var(--ink)", "var(--ink)")],
+    ["she wrote", square("var(--sky)", "var(--sky)")],
+    ["both", both],
+    ["reached out", el("span", "tri")],
+    ["held back", el("span", "tri held")],
+    ["quiet hours", el("span", "swatch-quiet")],
+    ["energy", el("span", "swatch-wave")],
+  ];
+}
+
+/* Week: the same gutter, one column per day of the run. */
+function weekChart(view) {
+  const days = view.span.slice(-7);
+  const chart = el("div", "cal-week");
+  const columns = el("div", "cal-days");
+  for (const day of days) {
+    const holder = el("div");
+    holder.append(el("h4", null, `day ${day.day}`));
+    holder.append(el("p", "cal-sub",
+      `${day.messages} msg · ${day.agenda.length} items` +
+      (day.M === null ? "" : ` · M ${day.M}`)));
+    const column = el("div", "cal-col");
+    if (day.day === view.day) column.classList.add("is-open");
+    column.dataset.day = day.day;
+    for (const item of laidOut(day.agenda.map((block) => ({
+      ...block,
+      start_t_h: block.hour + day.day * 24,
+      end_t_h: block.end + day.day * 24,
+    })), day.day)) {
+      const [, edge] = statusColors(item.status);
+      const block = el("div", "cal-block");
+      block.style.top = `calc(${(item.hour / 24) * 100}% + 1px)`;
+      block.style.height = `calc(${((item.end - item.hour) / 24) * 100}% - 2px)`;
+      block.style.minHeight = "8px";
+      block.style.left = "2px";
+      block.style.width = "calc(100% - 4px)";
+      block.style.background = statusColors(item.status)[0];
+      block.style.borderColor = edge;
+      block.title = `${hourText(item.hour)}–${hourText(item.end)} · ${item.status}`;
+      column.append(block);
     }
     for (const reach of day.reach_outs) {
-      parts.push(`<polygon points="${(x + colW - 5).toFixed(1)},` +
-        `${(y(reach.hour) - 4).toFixed(1)} ${(x + colW - 5).toFixed(1)},` +
-        `${(y(reach.hour) + 4).toFixed(1)} ${(x + colW - 13).toFixed(1)},` +
-        `${y(reach.hour).toFixed(1)}" style="fill:${reach.fired ?
-          "var(--rose)" : "var(--grey-soft)"}"/>`);
+      const flag = el("span", `cal-flag aside${reach.fired ? "" : " held"}`);
+      flag.style.top = `calc(${(reach.hour / 24) * 100}% - 5px)`;
+      flag.title = `${reach.fired ? "reached out" : "held back"} · ` +
+        hourText(reach.hour);
+      column.append(flag);
     }
-    parts.push(`<rect x="${x}" y="${top - 20}" width="${colW}" ` +
-      `height="${(24 * unit + 20).toFixed(1)}" fill="transparent" ` +
-      `class="cal-hit" data-day="${day.day}"/>`);
-  });
-  parts.push("</svg>");
-  return parts.join("");
+    holder.append(column);
+    columns.append(holder);
+  }
+  chart.append(hourGutter(), columns);
+  return chart;
 }
 
-/* The month: every day of the run as a cell, tinted by mood. */
-function monthSvg(view) {
-  const days = view.span;
-  const cellW = 96, cellH = 78, cols = 7;
-  const rows = Math.max(1, Math.ceil(days.length / cols));
-  const width = 720, height = rows * (cellH + 10) + 16;
-  const moods = days.map((day) => day.M).filter((value) => value !== null);
+/* Month: a cell per day, tinted by mood, with the phase wheel beside it. */
+function monthChart(view) {
+  const wrap = el("div", "cal-months-wrap");
+  const grid = el("div", "cal-months");
+  const moods = view.span.map((day) => day.M).filter((value) => value !== null);
   const low = moods.length ? Math.min(...moods) : 0;
   const high = moods.length ? Math.max(...moods) : 1;
-  const span = high - low || 1;
-  const parts = [`<svg viewBox="0 0 ${width} ${height}" role="img" ` +
-    `aria-label="every day of the run">`];
-  days.forEach((day, index) => {
-    const x = 8 + (index % cols) * (cellW + 4);
-    const y = 8 + Math.floor(index / cols) * (cellH + 10);
-    const tint = day.M === null ? "var(--paper-2)"
-      : `color-mix(in srgb, var(--plum-soft) ${Math.round(
-        20 + ((day.M - low) / span) * 80)}%, var(--paper-2))`;
-    parts.push(`<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" ` +
-      `rx="8" style="fill:${tint};stroke:${day.day === view.day ?
-        "var(--lav)" : "var(--line)"}" stroke-width="1"/>`);
-    parts.push(`<text x="${x + 8}" y="${y + 17}" font-size="12" ` +
-      `style="fill:var(--ink)">day ${day.day}</text>`);
-    parts.push(`<text x="${x + 8}" y="${y + 31}" font-size="10" ` +
-      `style="fill:var(--ink-faint)">` +
-      `${day.agenda.length} item${day.agenda.length === 1 ? "" : "s"} · ` +
-      `${day.messages} msg</text>`);
-    day.agenda.slice(0, 8).forEach((item, slot) => {
-      const [, color] = statusColors(item.status);
-      parts.push(`<rect x="${x + 8 + slot * 10}" y="${y + 40}" width="7" ` +
-        `height="7" style="fill:${color}"/>`);
-    });
+  for (const day of view.span) {
+    const cell = el("div", "cal-cell");
+    cell.dataset.day = day.day;
+    if (day.day === view.day) cell.classList.add("is-open");
+    if (day.M !== null) {
+      const tone = (day.M - low) / (high - low || 1);
+      cell.style.background = `rgba(140, 92, 156, ${(0.04 + tone * 0.18).toFixed(3)})`;
+      cell.title = `day ${day.day} · mood M ${day.M}`;
+    }
+    cell.append(el("div", "cal-day-n", `day ${day.day}`));
+    cell.append(el("div", "cal-meta",
+      `${plural(day.agenda.length, "item")} · ${plural(day.messages, "msg")}`));
+    const squares = el("div", "cal-sq");
+    for (const item of day.agenda.slice(0, 12)) {
+      const square = el("i");
+      square.style.background = statusColors(item.status)[1];
+      square.title = `${hourText(item.hour)} ${item.status}`;
+      squares.append(square);
+    }
+    cell.append(squares);
     const sent = day.reach_outs.filter((reach) => reach.fired).length;
     const held = day.reach_outs.length - sent;
-    parts.push(`<text x="${x + 8}" y="${y + 62}" font-size="10" ` +
-      `style="fill:var(--ink-faint)">` +
-      `${sent} reach${held ? ` · ${held} held` : ""}` +
-      `${day.M === null ? "" : ` · M ${day.M}`}</text>`);
-    parts.push(`<rect x="${x}" y="${y}" width="${cellW}" height="${cellH}" ` +
-      `fill="transparent" class="cal-hit" data-day="${day.day}"/>`);
-  });
-  parts.push("</svg>");
-  return parts.join("");
+    cell.append(el("div", "cal-meta",
+      held ? `${sent} reach · ${held} held` : `${sent} reach`));
+    grid.append(cell);
+  }
+  const side = el("div", "cal-month-side");
+  side.append(cycleWheel(view.cycle), cycleLegend(view.cycle));
+  wrap.append(grid, side);
+
+  const foot = el("div", "cal-month-foot");
+  const moodDays = view.span.filter((day) => day.M !== null);
+  foot.append(el("p", "cal-empty", moodDays.length === view.span.length
+    ? "mood M across the run, oldest day at the left"
+    : `mood M for the ${moodDays.length} days that carry an engine row ` +
+      `(of ${view.span.length})`), sparkline(moodDays.map((day) => day.M)));
+  wrap.append(foot);
+  return wrap;
+}
+
+/* The wheel's own key: the same five phases, named, with their share. */
+function cycleLegend(cycle) {
+  const box = el("div", "cal-ring-key");
+  for (const phase of cycle.phases) {
+    const key = el("span", "key");
+    const mark = el("span", "sq");
+    mark.style.background = phase.label === cycle.phase_label
+      ? "var(--plum)" : "var(--plum-soft)";
+    mark.style.borderColor = "var(--plum)";
+    key.append(mark, el("span", null,
+      `${phase.label.replace("_", " ")} · ${Math.round((phase.to - phase.from) * 100)}%`));
+    box.append(key);
+  }
+  return box;
+}
+
+/* The wheel is the engine's own phase table, never an invented day count:
+   the engine draws each cycle's length afresh and does not store it. */
+function cycleWheel(cycle) {
+  const ns = "http://www.w3.org/2000/svg";
+  const box = el("div", "cal-ring");
+  const size = 132, radius = 50, stroke = 14;
+  const svg = document.createElementNS(ns, "svg");
+  svg.setAttribute("viewBox", `0 0 ${size} ${size}`);
+  svg.setAttribute("role", "img");
+  svg.setAttribute("aria-label", "the cycle's phases, current one filled");
+  const circumference = 2 * Math.PI * radius;
+  const PHASE_TONE = {
+    menstrual: "var(--rose-soft)", follicular: "var(--mint-soft)",
+    ovulatory: "var(--sun-soft)", luteal_early: "var(--lav-soft)",
+    luteal_late: "var(--plum-soft)",
+  };
+  for (const phase of cycle.phases) {
+    const arc = document.createElementNS(ns, "circle");
+    const span = phase.to - phase.from;
+    arc.setAttribute("cx", size / 2);
+    arc.setAttribute("cy", size / 2);
+    arc.setAttribute("r", radius);
+    arc.setAttribute("fill", "none");
+    arc.setAttribute("stroke-width", stroke);
+    arc.setAttribute("stroke-dasharray",
+      `${(span * circumference - 3).toFixed(2)} ${circumference.toFixed(2)}`);
+    arc.setAttribute("stroke-dashoffset",
+      `${(-phase.from * circumference).toFixed(2)}`);
+    arc.setAttribute("style", `stroke:${
+      phase.label === cycle.phase_label ? "var(--plum)" : (PHASE_TONE[phase.label] || "var(--grey-soft)")}`);
+    arc.setAttribute("transform", `rotate(-90 ${size / 2} ${size / 2})`);
+    arc.append(document.createElementNS(ns, "title"));
+    arc.lastChild.textContent = `${phase.label} · phase ` +
+      `${Math.round(phase.from * 100)}–${Math.round(phase.to * 100)}% of the cycle`;
+    svg.append(arc);
+  }
+  const label = el("div", "cal-ring-label",
+    cycle.phase_label ? cycle.phase_label.replace("_", " ") : "no cycle row");
+  const sub = el("div", "cal-ring-sub",
+    cycle.cycle_day === null ? "this day has no engine row"
+      : `day ${cycle.cycle_day} of the cycle`);
+  box.append(svg, label, sub);
+  return box;
 }
 
 function onCalendarClick(event) {
-  const hit = event.target.closest(".cal-hit");
+  const hit = event.target.closest("[data-day]");
   if (!hit) return;
   study.day = Number(hit.dataset.day);
   study.cal = "day";

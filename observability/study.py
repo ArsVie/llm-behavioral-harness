@@ -16,7 +16,7 @@ from collections import Counter
 from typing import Any
 
 from engine.circadian import energy as circadian_energy
-from engine.types import TimingParams
+from engine.types import PHASE_FRACTIONS, TimingParams
 
 from observability.calls import usage_payload
 from observability.db import rows as db_rows
@@ -199,7 +199,13 @@ def day_view(conn: sqlite3.Connection, *, day: int,
         "proactive": proactive,
         "messages": messages,
         "cycle": {"cycle_day": state.get("cycle_day"),
-                  "phase_label": phase},
+                  "phase_label": phase,
+                  # The engine draws each cycle's length afresh and does not
+                  # persist it, so the wheel shows the phases themselves —
+                  # the engine's own table — not absolute days.
+                  "phases": [{"label": label, "from": round(start, 4),
+                              "to": round(end, 4)}
+                             for label, start, end in PHASE_FRACTIONS]},
         "mood": {"M": state.get("M"), "m_level": state.get("m_level")},
         "circadian": _curve(phase, timing),
         "quiet_hours": [float(x) for x in timing.quiet_hours],

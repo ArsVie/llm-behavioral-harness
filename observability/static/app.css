@@ -553,66 +553,204 @@ pre.aside {
 }
 
 /* ------------------------------------------------- the study panels */
-/* The long view: distributions on the left, one lever at a time, and the
-   calendar on the right. The calendar is hand-rolled SVG — no chart
-   dependency — so the colours here are the only styling it needs. */
+/* The long view: distributions on the left, the run's calendar on the right.
+   Everything that carries text is plain HTML on the app's own type scale —
+   an SVG stretched to the card's width scales its labels up with it, and a
+   chart's labels must not grow because the window did. */
 .study-card { grid-column: 1 / -1; display: flex; flex-direction: column; }
 
 .study-split {
   display: grid;
-  grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 252px) minmax(0, 1fr);
+  gap: 18px;
   align-items: start;
   padding: 0 18px 16px;
 }
-@media (max-width: 980px) {
+@media (max-width: 1020px) {
   .study-split { grid-template-columns: minmax(0, 1fr); }
   .study-levers { border-right: 0; border-bottom: 1px solid var(--line);
                   padding: 0 0 14px; }
 }
 
-.study-levers { display: flex; flex-direction: column; gap: 10px;
+.study-levers { display: flex; flex-direction: column; gap: 12px;
                 border-right: 1px solid var(--line); padding-right: 16px; }
 .study-levers .viewswitch { flex-wrap: wrap; }
 .study-calendar { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
 .cal-head { display: flex; align-items: center; justify-content: space-between;
             gap: 12px; flex-wrap: wrap; }
 .cal-panel { min-width: 0; }
-.cal-panel svg { display: block; width: 100%; height: auto; }
 .cal-empty { margin: 0; font-size: 12px; color: var(--ink-faint); }
 
-/* A distribution: label, bar, value. The bar is a share of the biggest
-   bucket, so a two-row histogram still reads as a shape. */
-.lever-panel { display: flex; flex-direction: column; gap: 9px; }
-.lever-note { margin: 0; font-size: 12px; color: var(--ink-faint); }
-.lever-row { display: grid; grid-template-columns: minmax(0, 92px) minmax(0, 1fr) auto;
+/* A distribution: label, bar, value. Each bar is a share of its own group's
+   biggest bucket, so a two-row histogram still reads as a shape. */
+.lever-panel { display: flex; flex-direction: column; gap: 8px; }
+.lever-note { margin: 0; font-size: 11px; letter-spacing: 0.04em;
+              text-transform: uppercase; color: var(--ink-faint); }
+.lever-row { display: grid; grid-template-columns: minmax(0, 82px) minmax(0, 1fr) 30px;
              align-items: center; gap: 8px; }
-.lever-row .lever-label { font-size: 12px; color: var(--ink-soft);
-                          overflow-wrap: anywhere; }
-.lever-row .lever-bar { height: 10px; background: var(--paper-2);
+.lever-row .lever-label { font-size: 11.5px; color: var(--ink-soft);
+                          white-space: nowrap; overflow: hidden;
+                          text-overflow: ellipsis; }
+.lever-row .lever-bar { height: 12px; background: var(--grey-soft);
                         border-radius: 3px; overflow: hidden; }
 .lever-row .lever-bar span { display: block; height: 100%; background: var(--lav); }
-.lever-row .lever-value { font-family: var(--mono); font-size: 12px;
-                          color: var(--ink); }
-.lever-tiles { display: flex; flex-wrap: wrap; gap: 8px; }
-.lever-tile { flex: 1 1 84px; min-width: 0; border: 1px solid var(--line);
-              border-radius: var(--radius-sm); padding: 7px 10px;
+.lever-row .lever-value { font-family: var(--mono); font-size: 11.5px;
+                          text-align: right; color: var(--ink); }
+.lever-tiles { display: flex; gap: 6px; }
+.lever-tile { flex: 1 1 0; min-width: 0; border: 1px solid var(--line);
+              border-radius: var(--radius-sm); padding: 6px 8px 7px;
               background: var(--paper-2); }
-.lever-tile b { display: block; font-size: 17px; color: var(--ink); }
-.lever-tile span { font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase;
+.lever-tile b { display: block; font-size: 16px; line-height: 1.15; color: var(--ink); }
+.lever-tile span { font-size: 9.5px; letter-spacing: 0.04em; text-transform: uppercase;
                    color: var(--ink-faint); }
 
-/* The calendar's own legend: solid squares, never round dots. */
-.cal-legend { display: flex; flex-wrap: wrap; gap: 10px; font-size: 11px;
+/* The chart: a fixed height and a fixed type scale, in columns —
+   gutter, message marks, the day, reach-out flags, the energy strip. */
+.cal-chart { --cal-h: 620px; display: flex; gap: 6px; flex: 0 1 560px;
+             max-width: 560px; }
+.cal-hours, .cal-col, .cal-marks, .cal-flags, .cal-energy {
+  position: relative; height: var(--cal-h);
+}
+.cal-hours { flex: 0 0 40px; width: 40px; }
+.cal-hours span { position: absolute; right: 4px; transform: translateY(-50%);
+                  font-size: 10px; font-variant-numeric: tabular-nums;
+                  color: var(--ink-faint); }
+.cal-marks { flex: 0 0 12px; width: 12px; background: var(--paper-2);
+             border-radius: 3px; }
+.cal-flags { flex: 0 0 12px; width: 12px; }
+.cal-col {
+  flex: 1 1 auto; min-width: 0;
+  border-left: 1px solid var(--line); border-right: 1px solid var(--line);
+  background-image:
+    repeating-linear-gradient(to bottom, var(--line) 0 1px,
+      transparent 1px calc(100% / 12)),
+    repeating-linear-gradient(to bottom, var(--grey-soft) 0 1px,
+      transparent 1px calc(100% / 24));
+}
+.cal-energy { flex: 0 0 46px; width: 46px; background: var(--paper-2);
+              border-radius: 3px; }
+.cal-energy svg { display: block; width: 100%; height: 100%; }
+.cal-energy-cap { position: absolute; left: 0; right: 0; top: -14px;
+                  text-align: center; font-size: 9.5px; color: var(--plum); }
+
+.cal-quiet { position: absolute; left: 0; right: 0;
+             background: var(--grey-soft); opacity: 0.55; }
+.cal-now { position: absolute; left: -4px; right: -4px;
+           border-top: 2px dashed var(--rose); }
+.cal-now b { position: absolute; right: -2px; top: -14px; font-size: 10px;
+             color: var(--rose); font-weight: 600; background: var(--card);
+             padding: 0 3px; border-radius: 3px; }
+.cal-block { position: absolute; display: flex; flex-direction: column;
+             border: 1px solid; border-radius: 6px; padding: 1px 6px 2px;
+             overflow: hidden; font-size: 11.5px; line-height: 1.25; }
+.cal-block .cal-when { font-size: 10px; font-variant-numeric: tabular-nums;
+                       color: var(--ink-soft); }
+.cal-block .cal-what { color: var(--ink); white-space: nowrap; overflow: hidden;
+                       text-overflow: ellipsis; }
+.cal-tick { position: absolute; left: 3px; width: 7px; height: 7px;
+            border-radius: 2px; }
+.cal-flag { position: absolute; left: 1px; width: 0; height: 0;
+            border-top: 5px solid transparent; border-bottom: 5px solid transparent;
+            border-left: 8px solid var(--rose); }
+/* The flag hangs off the day's edge: the stem says it belongs to this hour. */
+.cal-flag::before { content: ""; position: absolute; left: -10px; top: 4px;
+                    width: 10px; height: 1px; background: var(--rose);
+                    opacity: 0.6; }
+.cal-flag.held { border-left-color: var(--grey); opacity: 0.55; }
+.cal-flag.held::before { background: var(--grey); }
+.cal-flag.aside { left: auto; right: 1px; }
+.cal-flag.aside::before { display: none; }
+
+/* The day beside its own list: chart = the shape, list = what each block
+   actually was, at full title length (the blocks only have room for one
+   line, so a cut word there would be a lie about the data). */
+.cal-day-wrap { display: flex; gap: 20px; align-items: flex-start;
+                flex-wrap: wrap; }
+.cal-list { flex: 1 1 280px; min-width: 240px; max-width: 460px;
+            display: flex; flex-direction: column; gap: 7px; }
+.cal-list h4 { margin: 2px 0 0; font-size: 11px; font-weight: 600;
+               letter-spacing: 0.04em; text-transform: uppercase;
+               color: var(--ink-faint); }
+.cal-item { display: grid; grid-template-columns: 10px 88px minmax(0, 1fr);
+            gap: 8px; align-items: baseline; font-size: 11.5px; }
+.cal-item .sq { width: 9px; height: 9px; border-radius: 2px; border: 1px solid; }
+.cal-item .tri { width: 0; height: 0; border-top: 4px solid transparent;
+                 border-bottom: 4px solid transparent;
+                 border-left: 7px solid var(--rose); }
+.cal-item .tri.held { border-left-color: var(--grey); opacity: 0.6; }
+.cal-item .cal-item-when { font-variant-numeric: tabular-nums;
+                           color: var(--ink-soft); font-size: 11px; }
+.cal-item .cal-item-what { color: var(--ink); }
+.cal-item .cal-item-meta { grid-column: 2 / -1; font-size: 10px;
+                           color: var(--ink-faint); }
+.cal-byhour { margin-top: auto; }
+.cal-byhour-strip { display: flex; align-items: flex-end; gap: 2px;
+                    height: 46px; border-bottom: 1px solid var(--line); }
+.cal-byhour-strip span { flex: 1 1 0; min-width: 0; background: var(--sky);
+                         border-radius: 2px 2px 0 0; }
+
+/* Week: the same gutter and stripes, one column per day of the run. */
+.cal-week { display: flex; gap: 8px; max-width: 900px; }
+.cal-week .cal-days { display: flex; gap: 10px; flex: 1 1 auto; min-width: 0; }
+.cal-week .cal-days > div { flex: 1 1 0; min-width: 0; }
+.cal-week h4 { margin: 0 0 3px; font-size: 11.5px; font-weight: 600;
+               color: var(--ink); }
+.cal-week .cal-sub { margin: 0 0 5px; font-size: 10px; color: var(--ink-faint); }
+.cal-week .cal-col, .cal-week .cal-flags { --cal-h: 420px; }
+.cal-week .cal-col[data-day] { cursor: pointer; }
+
+/* Month: a cell per day, tinted by mood, with the phase wheel beside it. */
+.cal-months-wrap { display: flex; gap: 18px; align-items: flex-start;
+                   flex-wrap: wrap; }
+.cal-months { display: grid; grid-template-columns: repeat(auto-fit, minmax(124px, 1fr));
+              gap: 6px; flex: 1 1 420px; min-width: 0; }
+.cal-cell { border: 1px solid var(--line); border-radius: 10px;
+            padding: 7px 8px 8px; background: var(--card); cursor: pointer;
+            min-width: 0; min-height: 84px; }
+.cal-cell:hover { border-color: var(--lav); }
+.cal-cell.is-open { border-color: var(--lav); box-shadow: inset 0 0 0 1px var(--lav); }
+.cal-cell .cal-day-n { font-size: 12px; color: var(--ink); }
+.cal-cell .cal-meta { font-size: 10px; color: var(--ink-faint); }
+.cal-cell .cal-sq { display: flex; flex-wrap: wrap; gap: 3px; margin: 5px 0 4px; }
+.cal-cell .cal-sq i { display: block; width: 8px; height: 8px; border-radius: 2px; }
+
+.cal-ring { flex: 0 0 132px; text-align: center; }
+.cal-ring svg { display: block; width: 132px; height: 132px; }
+.cal-ring .cal-ring-label { font-size: 11px; color: var(--ink); }
+.cal-ring .cal-ring-sub { font-size: 10px; color: var(--ink-faint); }
+.cal-month-side { flex: 0 1 220px; min-width: 180px; display: flex;
+                  gap: 14px; align-items: flex-start; }
+.cal-ring-key { display: flex; flex-direction: column; gap: 5px;
+                font-size: 10.5px; color: var(--ink-faint); }
+.cal-ring-key .key { display: inline-flex; align-items: center; gap: 5px; }
+.cal-ring-key .sq { width: 9px; height: 9px; border-radius: 2px;
+                    display: inline-block; border: 1px solid; }
+.cal-month-foot { flex: 1 1 100%; margin-top: 2px; }
+.cal-month-foot svg { width: 100%; height: auto; }
+
+/* The legend names every mark; a mark that needs a guess is a bug. */
+.cal-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 10.5px;
               color: var(--ink-faint); }
 .cal-legend .key { display: inline-flex; align-items: center; gap: 5px; }
-.cal-legend .sq, .cal-legend .flag { width: 10px; height: 10px; border-radius: 2px;
-                                     display: inline-block; }
-.cal-legend .flag { width: 0; height: 0; border-radius: 0;
-                    border-left: 6px solid transparent;
-                    border-right: 6px solid transparent; }
-.cal-foot { display: flex; flex-wrap: wrap; gap: 12px; align-items: baseline; }
-.cal-foot b { font-family: var(--mono); font-weight: 500; }
+.cal-legend .sq { width: 9px; height: 9px; border-radius: 2px;
+                  display: inline-block; border: 1px solid; }
+.cal-legend .tri { width: 0; height: 0; display: inline-block;
+                   border-top: 4px solid transparent;
+                   border-bottom: 4px solid transparent;
+                   border-left: 7px solid var(--rose); }
+.cal-legend .tri.held { border-left-color: var(--grey); opacity: 0.6; }
+.cal-legend .swatch-quiet { width: 14px; height: 9px; display: inline-block;
+                            background: var(--grey-soft); border-radius: 2px; }
+.cal-legend .swatch-wave { width: 16px; height: 2px; display: inline-block;
+                           background: var(--plum); border-radius: 2px; }
+
+/* The day's own numbers, as chips instead of one debug line. */
+.cal-foot { display: flex; flex-wrap: wrap; gap: 6px; }
+.cal-chip { font-size: 10.5px; color: var(--ink-soft); background: var(--paper-2);
+            border: 1px solid var(--line); border-radius: 999px;
+            padding: 2px 9px; }
+.cal-chip b { color: var(--ink); font-variant-numeric: tabular-nums; }
+
 
 
 

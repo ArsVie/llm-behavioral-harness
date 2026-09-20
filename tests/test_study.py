@@ -48,7 +48,13 @@ def test_the_day_view_carries_the_day(tmp_path):
     assert [a["status"] for a in view["agenda"]] == ["completed", "planned"]
     assert [(m["role"], m["hour"]) for m in view["messages"]] == [
         ("user", 9.5), ("assistant", 9.6), ("assistant", 12.1)]
-    assert view["cycle"] == {"cycle_day": 3.0, "phase_label": "follicular"}
+    assert view["cycle"]["cycle_day"] == 3.0
+    assert view["cycle"]["phase_label"] == "follicular"
+    # The wheel's phases are the engine's own table, not a made-up wheel.
+    phases = view["cycle"]["phases"]
+    assert [phase["label"] for phase in phases][0] == "menstrual"
+    assert phases[0]["from"] == 0.0 and phases[-1]["to"] == 1.0
+    assert all(0.0 <= phase["from"] < phase["to"] <= 1.0 for phase in phases)
     assert view["mood"] == {"M": 7, "m_level": -0.4}
     assert view["quiet_hours"] == [23.0, 8.0]
     assert view["now_hour"] == 12.1          # the newest row is the run's present
