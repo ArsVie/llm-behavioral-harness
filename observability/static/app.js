@@ -339,8 +339,8 @@ function renderContext(payload) {
   for (const tool of payload.tools) {
     // A section titled "Tool schemas" that shows names and prices only is the
     // title lying: the schema is what the call actually sent, so the row
-    // opens it the same way a system block opens its text. A row whose
-    // schema this build does not hold says so instead of pretending.
+    // opens it the same way a system block opens its text. A row with no
+    // recorded body says so instead of pretending.
     const row = el("li", tool.schema ? "clickable" : null);
     row.append(el("span", "name", tool.name),
       el("span", "tokens", fmtEstimate(tool.tokens)));
@@ -350,7 +350,7 @@ function renderContext(payload) {
       row.addEventListener("click", () => showRawPayload(
         `tool schema · ${schema.name || tool.name}`, schema));
     } else if (tool.tokens === null) {
-      row.title = "the schema body is not in this build — the call's record kept the name only";
+      row.title = "no schema body on record for this tool";
     }
     tools.append(row);
   }
@@ -792,24 +792,17 @@ function envelopeNodes(detail) {
   nodes.push(el("h3", null, "System prompt"));
   nodes.push(el("pre", null, envelope.system || ""));
   nodes.push(el("h3", null, `Tool schemas — ${detail.tools_source}`));
-  // Two shapes reach here: the OpenAI {type, function} wrapper when the
-  // envelope persisted them, and the plain Hermes schema ({name, ...}) when
-  // they are rebuilt from harness.tools. The names alone listed WHICH tools
-  // the call carried, never what they are — the section's whole subject — so
-  // each schema renders as sent.
+  // Two shapes reach here: the OpenAI {type, function} wrapper the call's
+  // own wire dump holds, and the plain Hermes schema ({name, ...}) of this
+  // build's menu. Each schema renders as sent.
   const tools = detail.tools || [];
   if (!tools.length) {
     nodes.push(el("pre", null, "none"));
   }
   for (const tool of tools) {
     const schema = tool.function || tool;
-    // A recorded name whose schemas this build does not hold has no body to
-    // render — say that instead of drawing a degenerate one-key object.
-    const bodyless = schema.description === undefined && schema.parameters === undefined;
     nodes.push(el("h3", null, `Schema · ${schema.name || "(unnamed)"}`));
-    nodes.push(el("pre", null, bodyless
-      ? "the schema body is not in this build — the call's record kept the name only"
-      : JSON.stringify(schema, null, 2)));
+    nodes.push(el("pre", null, JSON.stringify(schema, null, 2)));
   }
   nodes.push(el("h3", null, `Messages (${(envelope.messages || []).length})`));
   let index = 0;
@@ -1015,9 +1008,12 @@ function wireDiffNodes(aName, bName, aText, bText) {
    (right) — the same pair the context window and the model calls make above.
    Everything is HTML plus text-free SVG geometry on the app's own type scale:
    a chart's labels must not grow because the window did.
-   The panels mark the run's events ON its state functions — reach-outs on the
-   energy curve, on the mood line, one mark per message — and leave counting
-   to the day the run is long enough to earn it. */
+   The panels mark the run's events ON its state functions; a count is never
+   the default reading — the contact raster only becomes a grid once the run
+   is a month old. Every colour the row paints carries a key: the calendar
+   gets the same `.legend-key` idiom the event flow uses for its exceptions,
+   and every panel says what it is in one line under its levers. Only what
+   the two of them said reaches these charts — a state card is machinery. */
 const study = {
   runId: null,
   day: null,          // null follows the run's newest day
@@ -1025,6 +1021,27 @@ const study = {
   panel: "mood",      // "mood" | "rhythm" | "contact"
   view: null,
 };
+
+const PANELS = [
+  { key: "mood", label: "Mood" },
+  { key: "rhythm", label: "Rhythm" },
+  { key: "contact", label: "Contact" },
+];
+
+/* One line per panel, in the app's own voice: a chart the reader has to
+   decode from the project's vocabulary has already failed. */
+const PANEL_NOTE = {
+  mood: "her mood at each day's point on the cycle — the dashed line is her 7-day trend",
+  rhythm: "her energy across the day, one curve per cycle phase lived — her words sit on the curve, reach-outs marked on top",
+  contact: "one mark per message, at its hour — you wrote, she replied, or she reached out first",
+};
+
+const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+
+//: The calendar columns' pixel heights, matching app.css (--cal-h), so a
+//: block's on-screen size decides whether its label fits.
+const DAY_PX = 470;
+const WEEK_PX = 720;
 
 function hourText(hour) {
   const h = Math.max(0, Math.floor(hour));
@@ -1049,24 +1066,9 @@ const STATUS_COLOR = {
   skipped: ["var(--grey-soft)", "var(--grey)"],
 };
 
-function statusColors(status) {
-  return STATUS_COLOR[status] || ["var(--paper-2)", "var(--grey)"];
-}
-
-const PANELS = [
-  { key: "mood", label: "Mood" },
-  { key: "rhythm", label: "Rhythm" },
-  { key: "contact", label: "Contact" },
-];
-
-const WEEKDAYS = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
-
-//: A run this long turns the contact panel's marks into a density grid —
-//: counts earn their place only once a month of days makes a shape.
-const CONTACT_DENSE_DAYS = 21;
-
 /* Cycle phases in the app's own palette: pink is the cycle's colour and also
-   the app's "meaning" colour, so the phase tones stay soft. */
+   the app's "meaning" colour, so the phase tones stay soft — which is why a
+   reach-out mark is ink here, never rose, or it would vanish on its curve. */
 const PHASE_TONE = {
   menstrual: ["var(--rose-soft)", "var(--rose)"],
   follicular: ["var(--mint-soft)", "var(--mint)"],
@@ -1075,8 +1077,20 @@ const PHASE_TONE = {
   luteal_late: ["var(--plum-soft)", "var(--plum)"],
 };
 
+/* The cycle's own shape, in days: the engine's PHASE_FRACTIONS table over the
+   nominal 28-day cycle it is written against. */
+const PHASE_DAYS = [
+  ["menstrual", 0, 5], ["follicular", 5, 12], ["ovulatory", 12, 16],
+  ["luteal_early", 16, 23], ["luteal_late", 23, 28],
+];
+const CYCLE_DAYS = 28;
+
 function phaseTone(label) {
   return PHASE_TONE[label] || ["var(--grey-soft)", "var(--grey)"];
+}
+
+function statusColors(status) {
+  return STATUS_COLOR[status] || ["var(--paper-2)", "var(--grey)"];
 }
 
 function svgNode(tag, attrs = {}) {
@@ -1085,15 +1099,80 @@ function svgNode(tag, attrs = {}) {
   return node;
 }
 
-function titled(node, text) {
-  node.append(svgNode("title"));
-  node.lastChild.textContent = text;
-  return node;
+/* ------------------------------------------------------------- tooltips */
+/* The browser's own black box is not this app's voice: one styled layer for
+   the whole study row, fed by data-tip. */
+function tipLayer() {
+  let layer = document.getElementById("tip-layer");
+  if (!layer) {
+    layer = el("div", "tip");
+    layer.id = "tip-layer";
+    layer.hidden = true;
+    document.body.append(layer);
+  }
+  return layer;
 }
 
-function shortened(text, limit) {
-  const value = String(text || "");
-  return value.length > limit ? `${value.slice(0, limit - 1)}…` : value;
+function attachTip(node, text) {
+  node.dataset.tip = text;
+  node.addEventListener("mouseenter", () => {
+    const layer = tipLayer();
+    layer.textContent = text;
+    layer.hidden = false;
+  });
+  node.addEventListener("mousemove", (event) => {
+    const layer = tipLayer();
+    const edge = 12;
+    const width = layer.offsetWidth;
+    const left = Math.min(event.clientX + 14, window.innerWidth - width - edge);
+    layer.style.left = `${Math.max(edge, left)}px`;
+    layer.style.top = `${event.clientY + 16}px`;
+  });
+  node.addEventListener("mouseleave", () => { tipLayer().hidden = true; });
+}
+
+function legendKeys(entries) {
+  const row = el("p", "cal-legend legend-key");
+  for (const [label, swatch] of entries) {
+    const key = el("span", "key");
+    key.append(swatch, el("span", null, label));
+    row.append(key);
+  }
+  return row;
+}
+
+function swatch(color, { border, dashed, hatch } = {}) {
+  const square = el("span", "sq");
+  if (hatch) {
+    square.classList.add("sq-hatch");
+    return square;
+  }
+  square.style.background = color;
+  if (border) square.style.borderColor = border;
+  else if (!String(color).startsWith("linear-gradient")) {
+    square.style.borderColor = color;
+  }
+  if (dashed) {
+    square.style.background = "transparent";
+    square.style.borderStyle = "dashed";
+  }
+  return square;
+}
+
+/* The agenda's own words for its statuses, in the calendar's canonical order,
+   so a legend only ever names a colour the reader can actually see. */
+const STATUS_WORD = {
+  completed: "completed", planned: "planned", in_progress: "in progress",
+  shifted: "shifted", skipped: "skipped",
+};
+
+function statusKeys(statuses) {
+  return Object.keys(STATUS_WORD)
+    .filter((key) => statuses.has(key))
+    .map((key) => {
+      const [fill, edge] = statusColors(key);
+      return [STATUS_WORD[key], swatch(fill, { border: edge })];
+    });
 }
 
 /* A run day's date as "Sat 19" — a calendar needs dates, not ordinals. */
@@ -1137,6 +1216,7 @@ function renderPanel() {
       String(button.dataset.panel === study.panel));
   }
   if (!study.view) return;
+  host.append(el("p", "panel-sub", PANEL_NOTE[study.panel] || ""));
   if (study.panel === "rhythm") host.append(rhythmChart(study.view));
   else if (study.panel === "contact") host.append(contactChart(study.view));
   else host.append(moodChart(study.view));
@@ -1189,6 +1269,19 @@ function hourGutter(futureAfter) {
   return box;
 }
 
+function quietBandsInto(column, quietHours) {
+  for (const [from, to] of quietBands(quietHours)) {
+    const band = el("div", "cal-quiet");
+    band.style.top = `${(from / 24) * 100}%`;
+    band.style.height = `${((to - from) / 24) * 100}%`;
+    attachTip(band, `quiet hours ${hourText(from)}–${hourText(to)}`);
+    // A grey band this tall would otherwise read as time that never
+    // happened; the calm grey says why, in place.
+    if (to - from >= 4) band.append(el("span", "cal-quiet-tag", "quiet"));
+    column.append(band);
+  }
+}
+
 function renderCalendar() {
   const host = $("cal-panel");
   const title = $("cal-title");
@@ -1205,56 +1298,69 @@ function renderCalendar() {
   if (study.cal === "day") {
     title.textContent = `day ${view.day} · ${dayLabel(view.day)}`;
     host.append(dayChart(view));
+    const keys = statusKeys(new Set(view.agenda.map((item) => item.status)));
+    keys.push(
+      ["you", swatch("var(--ink)")],
+      ["her", swatch("var(--sky)")],
+      ["reach-out", swatch("var(--rose)")],
+      ["quiet hours", swatch("var(--grey-soft)")],
+    );
+    if (view.now_hour !== null && view.now_hour !== undefined) {
+      keys.push(["not yet", swatch(null, { hatch: true })]);
+    }
+    host.append(legendKeys(keys));
   } else if (study.cal === "week") {
-    title.textContent = "this week";
+    title.textContent = weekTitle(view);
     host.append(weekChart(view));
+    const statuses = new Set();
+    for (const entry of view.span) {
+      for (const item of entry.agenda) statuses.add(item.status);
+    }
+    const keys = statusKeys(statuses);
+    keys.push(
+      ["reach-out", swatch("var(--rose)")],
+      ["quiet hours", swatch("var(--grey-soft)")],
+      ["not yet", swatch(null, { hatch: true })],
+    );
+    host.append(legendKeys(keys));
   } else {
     title.textContent = monthTitle(view);
     host.append(monthChart(view));
+    host.append(legendKeys([
+      ["cycle phase", swatch("linear-gradient(90deg, var(--rose-soft), " +
+        "var(--mint-soft), var(--sun-soft), var(--lav-soft), var(--plum-soft))")],
+      ["you", swatch("var(--ink)")],
+      ["her", swatch("var(--sky)")],
+      ["reach-out", swatch("var(--rose)")],
+    ]));
   }
 }
 
 function dayChart(view) {
   const chart = el("div", "cal-chart");
   const now = view.now_hour;
+
+  // One mark per message, at its own minute — you on the lane's left, her on
+  // the right — so two marks at the same instant sit side by side and a
+  // burst is a streak, never ticks stacked on top of each other.
   const marks = el("div", "cal-marks");
   marks.append(el("span", "cal-lane", "msg"));
-  // A burst of messages is one mark per quarter hour, not five overlapping
-  // ticks: the count rides on the mark, the detail on its tooltip.
-  const buckets = new Map();
   for (const message of view.messages) {
-    const key = Math.floor(message.hour * 4);
-    const bucket = buckets.get(key) || { hour: key / 4, count: 0, users: 0 };
-    bucket.count += 1;
-    if (message.role === "user") bucket.users += 1;
-    buckets.set(key, bucket);
-  }
-  for (const bucket of buckets.values()) {
-    const tick = el("span", "cal-tick");
-    tick.style.top = `calc(${(bucket.hour / 24) * 100}% - 3.5px)`;
-    tick.style.height = `${Math.min(12, 5 + bucket.count)}px`;
-    tick.style.background = bucket.users && bucket.users < bucket.count
-      ? "var(--sky)" : bucket.users ? "var(--ink)" : "var(--sky)";
-    if (bucket.users && bucket.users < bucket.count) {
-      tick.style.borderLeft = "2px solid var(--ink)";
-    }
-    tick.title = `${hourText(bucket.hour)}–${hourText(bucket.hour + 0.25)} · ` +
-      `${plural(bucket.count, "message")} (you ${bucket.users}, she ` +
-      `${bucket.count - bucket.users})`;
-    marks.append(tick);
+    const kind = message.proactive ? "reach"
+      : message.role === "user" ? "you" : "her";
+    const mark = el("span", `cal-mark ${kind}`);
+    mark.style.top = `${(message.hour / 24) * 100}%`;
+    attachTip(mark, `${hourText(message.hour)} — ${kind === "you" ? "you wrote"
+      : kind === "her" ? "she replied" : "she reached out"}`);
+    marks.append(mark);
   }
 
   const column = el("div", "cal-col");
-  for (const [from, to] of quietBands(view.quiet_hours)) {
-    const band = el("div", "cal-quiet");
-    band.style.top = `${(from / 24) * 100}%`;
-    band.style.height = `${((to - from) / 24) * 100}%`;
-    band.title = `quiet hours ${hourText(from)}–${hourText(to)}`;
-    column.append(band);
-  }
+  quietBandsInto(column, view.quiet_hours);
   if (now !== null && now < 24) {
     const ahead = el("div", "cal-ahead");
     ahead.style.top = `${(now / 24) * 100}%`;
+    attachTip(ahead, "the rest of the day");
     column.append(ahead);
   }
 
@@ -1262,12 +1368,12 @@ function dayChart(view) {
     const block = el("div", "cal-block");
     const [fill, edge] = statusColors(item.status);
     const future = now !== null && item.hour > now;
-    const tall = ((item.end - item.hour) / 24) * 460 >= 30;
+    const tall = ((item.end - item.hour) / 24) * DAY_PX >= 30;
     if (future) block.classList.add("is-future");
     if (item.status === "in_progress") block.classList.add("is-active");
     block.style.top = `calc(${(item.hour / 24) * 100}% + 1px)`;
     block.style.height = `calc(${((item.end - item.hour) / 24) * 100}% - 2px)`;
-    block.style.minHeight = "16px";
+    block.style.minHeight = "18px";
     block.style.left = `${(item.lane / item.lanes) * 100}%`;
     block.style.width = `calc(${100 / item.lanes}% - 6px)`;
     block.style.background = future ? "var(--paper-2)" : fill;
@@ -1277,10 +1383,12 @@ function dayChart(view) {
         `${hourText(item.hour)}–${hourText(item.end)}`));
     }
     block.append(el("span", "cal-what", item.activity));
-    block.title = `${hourText(item.hour)}–${hourText(item.end)} · ${item.activity}\n` +
-      [item.status, item.source_type,
-       item.salience === null ? "" : `salience ${Number(item.salience).toFixed(2)}`,
-       item.outcome].filter(Boolean).join(" · ");
+    attachTip(block, [
+      `${hourText(item.hour)}–${hourText(item.end)} · ${item.activity}`,
+      item.status, item.source_type,
+      item.salience === null ? "" : `salience ${Number(item.salience).toFixed(2)}`,
+      item.outcome,
+    ].filter(Boolean).join("\n"));
     column.append(block);
   }
 
@@ -1292,21 +1400,39 @@ function dayChart(view) {
   }
 
   const flags = el("div", "cal-flags");
+  // No label on the flag rail: the legend chip names the colour, and a
+  // second caption only collided with the msg one at this width.
   for (const reach of view.proactive) {
     const flag = el("span", `cal-flag${reach.fired ? "" : " held"}`);
     flag.style.top = `calc(${(reach.hour / 24) * 100}% - 5px)`;
-    flag.title = `${reach.fired ? "reached out" : "held back"} · ` +
+    attachTip(flag, `${reach.fired ? "reached out" : "held back"} · ` +
       hourText(reach.hour) + (reach.reason ? `\n${reach.reason}` : "") +
-      (reach.hook ? `\n${reach.hook}` : "");
+      (reach.hook ? `\n${reach.hook}` : ""));
     flags.append(flag);
   }
 
-  chart.append(hourGutter(now), marks, column, flags);
+  chart.append(hourGutter(now), column, marks, flags);
   return chart;
 }
 
-/* Week: Sunday to Saturday of the run's current week, the whole day laid
-   out, days and hours that have not happened yet left grey. */
+function weekTitle(view) {
+  const current = view.today === null || view.today === undefined
+    ? view.day : view.today;
+  const stamp = view.dates ? view.dates[current] : null;
+  if (!stamp) return "this week";
+  const base = new Date(`${stamp.date}T00:00:00`);
+  const start = new Date(base);
+  start.setDate(start.getDate() - start.getDay());
+  const end = new Date(start);
+  end.setDate(start.getDate() + 6);
+  const short = { month: "short", day: "numeric" };
+  return `this week · ${start.toLocaleString(undefined, short)} – ` +
+    `${end.toLocaleString(undefined, short)}`;
+}
+
+/* Week: Sunday to Saturday of the run's current week, as a calendar is read:
+   the hours that carry the run start on screen, headers stay put while the
+   day scrolls, and a block that is tall enough says what it is. */
 function weekChart(view) {
   const current = view.today === null || view.today === undefined
     ? view.day : view.today;
@@ -1333,16 +1459,18 @@ function weekChart(view) {
   week.forEach((date, index) => {
     const holder = el("div");
     const entry = date ? byDate[isoOf(date)] : view.span[index];
-    const head = el("h4", null, date
-      ? `${WEEKDAYS[date.getDay()]} ${date.getDate()}` : `day ${entry ? entry.day : index}`);
-    holder.append(head);
+    holder.append(el("h4", null, date
+      ? `${WEEKDAYS[date.getDay()]} ${date.getDate()}`
+      : `day ${entry ? entry.day : index}`));
     const column = el("div", "cal-col");
     if (entry && entry.day === current) column.classList.add("is-today");
     if (entry && entry.day > current) column.classList.add("is-future-day");
     if (!entry) column.classList.add("is-empty");
     if (entry) {
       column.dataset.day = entry.day;
-      column.title = `day ${entry.day}${entry.M === null ? "" : ` · mood M ${entry.M}`}`;
+      attachTip(column, `day ${entry.day} · ${dayLabel(entry.day)}` +
+        (entry.M === null ? "" : `\nmood M ${entry.M}`));
+      quietBandsInto(column, view.quiet_hours);
       for (const item of laidOut(entry.agenda.map((block) => ({
         ...block,
         start_t_h: block.hour + entry.day * 24,
@@ -1353,21 +1481,35 @@ function weekChart(view) {
         const future = entry.day > current ||
           (entry.day === current &&
             view.now_hour !== null && item.hour > view.now_hour);
+        const px = ((item.end - item.hour) / 24) * WEEK_PX;
         block.style.top = `calc(${(item.hour / 24) * 100}% + 1px)`;
         block.style.height = `calc(${((item.end - item.hour) / 24) * 100}% - 2px)`;
-        block.style.minHeight = "7px";
+        block.style.minHeight = "9px";
         block.style.left = "2px";
         block.style.width = "calc(100% - 4px)";
         block.style.background = future ? "var(--paper-2)" : fill;
         block.style.borderColor = future ? "var(--line)" : edge;
-        block.title = `${hourText(item.hour)}–${hourText(item.end)} · ${item.status}`;
+        if (px >= 34) {
+          block.append(el("span", "cal-when",
+            `${hourText(item.hour)}–${hourText(item.end)}`));
+        }
+        if (px >= 20) {
+          block.append(el("span", "cal-what", item.activity));
+        }
+        attachTip(block, `${hourText(item.hour)}–${hourText(item.end)} · ` +
+          `${item.activity}\n${item.status}`);
         column.append(block);
+      }
+      if (entry.day === current && view.now_hour !== null) {
+        const line = el("div", "cal-now");
+        line.style.top = `${(view.now_hour / 24) * 100}%`;
+        column.append(line);
       }
       for (const reach of entry.reach_outs) {
         const flag = el("span", `cal-flag aside${reach.fired ? "" : " held"}`);
         flag.style.top = `calc(${(reach.hour / 24) * 100}% - 5px)`;
-        flag.title = `${reach.fired ? "reached out" : "held back"} · ` +
-          hourText(reach.hour);
+        attachTip(flag, `${reach.fired ? "reached out" : "held back"} · ` +
+          hourText(reach.hour));
         column.append(flag);
       }
     }
@@ -1375,7 +1517,37 @@ function weekChart(view) {
     columns.append(holder);
   });
 
-  chart.append(hourGutter(), columns);
+  const body = el("div", "cal-scroll");
+  body.append(hourGutter(), columns);
+  chart.append(body);
+  // A scrollbar the reader can actually see: this engine paints only
+  // overlay scrollbars, which show nothing until touched, so the rail is
+  // drawn — and the day opens on the week's first morning, not midnight.
+  const rail = el("div", "cal-rail");
+  const thumb = el("div", "cal-thumb");
+  rail.append(thumb);
+  chart.append(rail);
+  const sync = () => {
+    const span = body.scrollHeight - body.clientHeight;
+    const height = span > 4
+      ? Math.max(10, (body.clientHeight / body.scrollHeight) * 100) : 0;
+    rail.classList.toggle("on", height > 0);
+    if (!height) return;
+    thumb.style.height = `${height}%`;
+    thumb.style.top = `${(body.scrollTop / span) * (100 - height)}%`;
+  };
+  body.addEventListener("scroll", sync);
+  requestAnimationFrame(() => {
+    let earliest = null;
+    for (const entry of view.span) {
+      for (const item of entry.agenda) {
+        if (earliest === null || item.hour < earliest) earliest = item.hour;
+      }
+    }
+    const top = earliest === null ? 7 : Math.max(0, earliest - 0.5);
+    body.scrollTop = (top / 24) * body.scrollHeight;
+    sync();
+  });
   return chart;
 }
 
@@ -1388,8 +1560,9 @@ function monthTitle(view) {
   return date.toLocaleString(undefined, { month: "long", year: "numeric" });
 }
 
-/* Month: a real month grid — weekday columns, dates — with the cycle marked
-   on the dates the run lived and its days along a capsule strip below. */
+/* Month: a real month grid — weekday columns, dates — with each day the run
+   lived carrying its phase, how much the two of them talked (her words above
+   yours), and whether she reached out first. */
 function monthChart(view) {
   const wrap = el("div", "cal-month");
   const current = view.today === null || view.today === undefined
@@ -1400,6 +1573,7 @@ function monthChart(view) {
   const grid = el("div", "cal-grid");
   const byDate = {};
   for (const entry of view.span) if (entry.date) byDate[entry.date] = entry;
+  const peak = Math.max(1, ...view.span.map((entry) => entry.messages));
   const todayIso = stamp ? stamp.date : null;
 
   if (stamp) {
@@ -1417,18 +1591,32 @@ function monthChart(view) {
       cell.append(el("span", "cal-date-n", day));
       const entry = byDate[iso];
       if (entry) {
-        const [tone, edge] = phaseTone(entry.phase_label);
-        const dot = el("span", "cal-date-dot");
-        dot.style.background = edge;
-        dot.style.boxShadow = `0 0 0 3px ${tone}`;
-        cell.append(dot);
+        const [tone] = phaseTone(entry.phase_label);
+        cell.style.background = tone;
         cell.classList.add("has-run");
         cell.dataset.day = entry.day;
-        cell.title = `day ${entry.day} · ` +
-          `${String(entry.phase_label || "no engine row").replace("_", " ")}` +
-          `${entry.M === null ? "" : ` · mood M ${entry.M}`}`;
+        const bars = el("span", "cal-date-bars");
+        for (const [who, count] of [["her", entry.her], ["you", entry.you]]) {
+          if (!count) continue;
+          const bar = el("i", who);
+          bar.style.height = `${Math.max(2, 22 * (count / peak))}px`;
+          bars.append(bar);
+        }
+        cell.append(bars);
+        if (entry.sent) {
+          const flag = el("span", "cal-date-flag");
+          attachTip(flag, `${plural(entry.sent, "reach-out")} sent`);
+          cell.append(flag);
+        }
         if (entry.day === current) cell.classList.add("is-today");
         else if (entry.day > current) cell.classList.add("is-future");
+        attachTip(cell, `day ${entry.day} (${dayLabel(entry.day)}) · ` +
+          `${String(entry.phase_label || "no engine row").replace("_", " ")}` +
+          `${entry.cycle_day === null ? "" : `\ncycle day ${entry.cycle_day}`}` +
+          `\n${plural(entry.messages, "message")} — you ${entry.you}, ` +
+          `her ${entry.her}` +
+          `\n${plural(entry.agenda.length, "agenda item")}` +
+          (entry.M === null ? "" : `\nmood M ${entry.M}`));
       } else if (todayIso && iso > todayIso) {
         cell.classList.add("is-future");
       }
@@ -1436,52 +1624,16 @@ function monthChart(view) {
     }
   }
   wrap.append(head, grid);
-
-  // The cycle band is a second grid over the same weekday columns, so a
-  // capsule sits under the date it belongs to — a wrapped grid cannot be
-  // reached by a proportional timeline.
-  const strip = el("div", "cal-cycle");
-  if (stamp) {
-    const date = new Date(`${stamp.date}T00:00:00`);
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const first = new Date(year, month, 1);
-    const length = new Date(year, month + 1, 0).getDate();
-    for (let blank = 0; blank < first.getDay(); blank++) {
-      strip.append(el("span", "cal-cap-blank"));
-    }
-    for (let day = 1; day <= length; day++) {
-      const entry = byDate[isoOf(new Date(year, month, day))];
-      const cell = el("span", "cal-cap");
-      if (entry) {
-        const [, edge] = phaseTone(entry.phase_label);
-        if (entry.phase_label) cell.style.background = edge;
-        cell.title = `day ${entry.day} (${dayLabel(entry.day)}) · ` +
-          `${String(entry.phase_label || "no engine row").replace("_", " ")}` +
-          `${entry.cycle_day === null ? "" : ` · day ${entry.cycle_day}`}`;
-        if (entry.day === current) cell.classList.add("is-today");
-      }
-      strip.append(cell);
-    }
-  } else {
-    view.span.forEach((entry) => {
-      const [, edge] = phaseTone(entry.phase_label);
-      const cell = el("span", "cal-cap");
-      cell.style.background = edge;
-      cell.style.opacity = entry.phase_label ? "1" : "0.25";
-      strip.append(cell);
-    });
-  }
-  wrap.append(strip);
   return wrap;
 }
 
 /* ----------------------------------------------------------- the panels */
 /* A panel is a plot box on the app's type scale: HTML for everything with
    text, one text-free SVG under the marks for the geometry. */
-function panelFrame({ yTicks = [], xLabels = [] }) {
+function panelFrame({ yTicks = [], xLabels = [], yName = "" }) {
   const box = el("div", "panel-chart");
   const axis = el("div", "panel-y");
+  if (yName) axis.append(el("span", "panel-y-name", yName));
   for (const [label, at] of yTicks) {
     const span = el("span", null, label);
     span.style.top = `${at}%`;
@@ -1516,112 +1668,143 @@ function nearestValue(points, hour) {
   return best;
 }
 
-/* Mood: the run's line, the trend it deviates from, phase bands behind it,
-   and every reach-out marked on the day it happened. */
+/* Mood: the run's line and the trend it deviates from, laid on the cycle's
+   own frame — the whole wheel of phases behind it — with every reach-out
+   marked at the day it happened. */
 function moodChart(view) {
   const series = view.mood_series;
-  const days = series.days;
   const frame = panelFrame({
     yTicks: [["10", 0], ["5", 50], ["0", 100]],
-    xLabels: days.map((day, index) => ({
-      text: dayLabel(day), at: ((index + 0.5) / days.length) * 100,
+    yName: "mood",
+    xLabels: [0, 7, 14, 21, 28].map((day) => ({
+      text: String(day), at: (day / CYCLE_DAYS) * 100,
     })),
   });
-  const n = days.length;
+  const n = series.days.length;
   if (!n) {
     frame.plot.append(el("p", "cal-empty", "no engine rows yet"));
     return frame.box;
   }
-  const x = (index) => ((index + 0.5) / n) * 100;
+  // Where each day sits on the wheel: its cycle day when the run says, else
+  // its own day number.
+  const at = series.days.map((day, index) => {
+    const cycle = series.cycle_day ? series.cycle_day[index] : null;
+    return Math.min(CYCLE_DAYS, cycle === null || cycle === undefined
+      ? index : cycle);
+  });
+  const x = (cycleDay) => (cycleDay / CYCLE_DAYS) * 100;
   const y = (value) => (1 - Math.max(0, Math.min(10, Number(value))) / 10) * 100;
 
-  const bands = [];
-  series.phase.forEach((phase, index) => {
-    const [tone] = phaseTone(phase);
-    frame.lines.append(titled(svgNode("rect", {
-      x: `${(index / n) * 100}`, y: "0", width: `${100 / n}`, height: "100",
-      style: `fill:${tone}`, opacity: "0.5",
-    }), String(phase || "no engine row").replace("_", " ")));
-    const run = bands[bands.length - 1];
-    if (run && run.phase === phase) run.length += 1;
-    else bands.push({ phase, start: index, length: 1 });
-  });
-  for (const band of bands) {
-    if (!band.phase || (band.length * 100) / n < 11) continue;
-    const tag = el("span", "panel-tag", String(band.phase).replace("_", " "));
-    tag.style.left = `${((band.start + band.length / 2) / n) * 100}%`;
+  for (const [phase, from, to] of PHASE_DAYS) {
+    const [tone, edge] = phaseTone(phase);
+    frame.lines.append(svgNode("rect", {
+      x: `${x(from)}`, y: "0", width: `${((to - from) / CYCLE_DAYS) * 100}%`,
+      height: "100%", style: `fill:${tone}`, opacity: "0.5",
+    }));
+    const tag = el("span", "panel-tag", phase.replace("_", " "));
+    tag.style.left = `${x((from + to) / 2)}%`;
     tag.style.top = "2px";
-    tag.style.color = phaseTone(band.phase)[1];
+    tag.style.color = edge;
     frame.marks.append(tag);
   }
-  const points = series.M.map((value, index) => [x(index), y(value)]);
-  frame.lines.append(svgNode("polygon", {
-    points: [[x(0), 100], ...points, [x(n - 1), 100]]
-      .map((pair) => pair.join(" ")).join(" "),
-    style: "fill:var(--peach)", opacity: "0.13",
-  }));
-  frame.lines.append(svgNode("polyline", {
-    points: points.map((pair) => pair.join(" ")).join(" "),
-    fill: "none", "vector-effect": "non-scaling-stroke",
-    style: "stroke:var(--peach)", "stroke-width": "2",
-  }));
-  if (series.expected && series.expected.length === n) {
-    frame.lines.append(svgNode("polyline", {
-      points: series.expected
-        .map((value, index) => [x(index), y(value)].join(" ")).join(" "),
-      fill: "none", "vector-effect": "non-scaling-stroke",
-      style: "stroke:var(--sky)", "stroke-width": "1.6",
-      "stroke-dasharray": "5 4",
+  // Weeklines: a young run still reads against the cycle's own ruler.
+  for (let week = 7; week < CYCLE_DAYS; week += 7) {
+    frame.lines.append(svgNode("line", {
+      x1: `${x(week)}`, y1: "0", x2: `${x(week)}`, y2: "100%",
+      "vector-effect": "non-scaling-stroke",
+      style: "stroke:var(--line)", opacity: "0.55",
     }));
   }
 
+  const points = series.M.map((value, index) => [x(at[index]), y(value)]);
+  // A line needs two distinct positions to be a line. While every recorded
+  // day sits at the same cycle day, the days are dots — honest, not broken.
+  const spread = points.some((pair, index) =>
+    index > 0 && pair[0] > points[index - 1][0]);
+  if (n > 1 && spread) {
+    frame.lines.append(svgNode("polygon", {
+      points: [[points[0][0], 100], ...points, [points[n - 1][0], 100]]
+        .map((pair) => pair.join(" ")).join(" "),
+      style: "fill:var(--peach)", opacity: "0.13",
+    }));
+    frame.lines.append(svgNode("polyline", {
+      points: points.map((pair) => pair.join(" ")).join(" "),
+      fill: "none", "vector-effect": "non-scaling-stroke",
+      style: "stroke:var(--peach)", "stroke-width": "2",
+    }));
+    if (series.expected && series.expected.length === n) {
+      frame.lines.append(svgNode("polyline", {
+        points: series.expected
+          .map((value, index) => [x(at[index]), y(value)].join(" ")).join(" "),
+        fill: "none", "vector-effect": "non-scaling-stroke",
+        style: "stroke:var(--sky)", "stroke-width": "1.6",
+        "stroke-dasharray": "5 4",
+      }));
+    }
+  }
+  series.M.forEach((value, index) => {
+    const dot = el("span", "mood-dot");
+    dot.style.left = `${x(at[index])}%`;
+    dot.style.top = `${y(value)}%`;
+    attachTip(dot, `day ${series.days[index]} (${dayLabel(series.days[index])})` +
+      `\nmood M ${value}`);
+    frame.marks.append(dot);
+  });
   const name = el("span", "panel-series", "mood");
   name.style.color = "var(--peach)";
-  name.style.left = `${x(n - 1)}%`;
+  name.style.left = `${x(at[n - 1])}%`;
   name.style.top = `${y(series.M[n - 1])}%`;
+  // Keep the label on the chart: a point in the left half grabs it on the
+  // right, or the name lands in the y-axis gutter.
+  if (at[n - 1] < CYCLE_DAYS / 2) name.style.transform = "translate(0, -50%)";
   frame.marks.append(name);
-  if (series.expected && series.expected.length === n) {
-    const trend = el("span", "panel-series", "trend");
-    trend.style.color = "var(--sky)";
-    trend.style.left = `${x(n - 1)}%`;
-    trend.style.top = `${y(series.expected[n - 1])}%`;
-    frame.marks.append(trend);
-  }
 
   for (const event of view.panels.proactive) {
-    const index = days.indexOf(event.day);
+    const index = series.days.indexOf(event.day);
     if (index < 0) continue;
-    if (event.fired) {
-      frame.lines.append(titled(svgNode("line", {
-        x1: x(index), y1: "0", x2: x(index), y2: y(series.M[index]),
-        "vector-effect": "non-scaling-stroke",
-        style: "stroke:var(--rose)", "stroke-width": "1",
-        "stroke-dasharray": "3 3", opacity: "0.55",
-      }), `reached out ${hourText(event.hour)}`));
-    }
+    frame.lines.append(svgNode("line", {
+      x1: x(at[index]), y1: "0", x2: x(at[index]), y2: "100",
+      "vector-effect": "non-scaling-stroke",
+      style: `stroke:${event.fired ? "var(--rose)" : "var(--grey)"}`,
+      "stroke-width": "1", "stroke-dasharray": "3 3",
+      opacity: event.fired ? "0.6" : "0.35",
+    }));
     const mark = el("span", `ev${event.fired ? "" : " held"}`);
-    mark.style.left = `${x(index)}%`;
-    mark.title = `day ${event.day} · ${hourText(event.hour)} — ` +
+    mark.style.left = `${x(at[index])}%`;
+    attachTip(mark, `day ${event.day} · ${hourText(event.hour)} — ` +
       `${event.fired ? "reached out" : "held back"}` +
       (event.reason ? `\n${event.reason}` : "") +
-      (event.hook ? `\n${event.hook}` : "");
+      (event.hook ? `\n${event.hook}` : ""));
     frame.events.append(mark);
     if (event.fired && event.hook) {
-      const label = el("span", "ev-label", shortened(event.hook, 24));
-      label.style.left = `${x(index)}%`;
-      label.title = event.hook;
+      const label = el("span", "ev-label",
+        `${hourText(event.hour)} · ` +
+        `"${String(event.hook).replace(/^[^:]*:\s*/, "").slice(0, 20)}"`);
+      label.style.left = `${x(at[index])}%`;
       frame.events.append(label);
     }
   }
+  // Every colour the panel paints is keyed: the line, its trend, both
+  // reach-out verdicts. A key for a line the run cannot draw yet (both days
+  // still at the same cycle day) waits until the line exists.
+  const keys = [["her mood", swatch("var(--peach)")]];
+  if (n > 1 && spread) keys.push(["trend", swatch("var(--sky)")]);
+  keys.push(
+    ["reached out", swatch("var(--rose)")],
+    ["held back", swatch("var(--grey-soft)", { border: "var(--grey)" })],
+  );
+  frame.box.append(legendKeys(keys));
   return frame.box;
 }
 
 /* Rhythm: the engine's energy curve for each phase the run has lived, with
-   every reach-out decision placed at its own hour on that day's curve. */
+   every reach-out decision placed at its own hour on that day's curve.
+   The marks are ink, never the curve's own colour. */
 function rhythmChart(view) {
   const { curves, current } = view.rhythm;
   const frame = panelFrame({
     yTicks: [["1", 0], ["", 50], ["0", 100]],
+    yName: "energy",
     xLabels: [0, 6, 12, 18, 24].map((hour) => ({
       text: String(hour), at: (hour / 24) * 100,
     })),
@@ -1634,11 +1817,13 @@ function rhythmChart(view) {
   const widest = quiet.reduce((best, band) =>
     (band[1] - band[0] > best[1] - best[0] ? band : best), quiet[0]);
   for (const [from, to] of quiet) {
-    const band = titled(svgNode("rect", {
+    const band = svgNode("rect", {
       x: `${(from / 24) * 100}`, y: "0",
-      width: `${((to - from) / 24) * 100}`, height: "100",
+      width: `${((to - from) / 24) * 100}`, height: "100%",
       style: "fill:var(--grey-soft)", opacity: "0.45",
-    }), `quiet hours ${hourText(from)}–${hourText(to)}`);
+    });
+    // The app's own popover, not the browser's black box.
+    attachTip(band, `quiet hours ${hourText(from)}–${hourText(to)}`);
     frame.lines.append(band);
     if (from === widest[0]) {
       const tag = el("span", "panel-tag", "quiet");
@@ -1646,6 +1831,18 @@ function rhythmChart(view) {
       tag.style.top = "2px";
       frame.marks.append(tag);
     }
+  }
+  // Her day's shape, filled in: the curve alone read as an empty box; the
+  // area under it is the same reading with body. Drawn before every line.
+  const currentCurve = curves.find((curve) => curve.phase === current);
+  if (currentCurve) {
+    const [, edge] = phaseTone(currentCurve.phase);
+    frame.lines.append(svgNode("polygon", {
+      points: `0 100 ${currentCurve.points
+        .map(([hour, value]) => [(hour / 24) * 100, (1 - value) * 100].join(" "))
+        .join(" ")} 100 100`,
+      style: `fill:${edge}`, opacity: "0.13", stroke: "none",
+    }));
   }
   for (const curve of curves) {
     const [, edge] = phaseTone(curve.phase);
@@ -1657,11 +1854,33 @@ function rhythmChart(view) {
       fill: "none", "vector-effect": "non-scaling-stroke",
       style: `stroke:${edge}`,
       "stroke-width": isCurrent ? "2" : "1.1",
-      opacity: isCurrent ? "0.95" : "0.45",
+      opacity: isCurrent ? "0.9" : "0.4",
     }));
+    if (isCurrent) {
+      const label = el("span", "panel-series",
+        String(curve.phase).replace("_", " "));
+      label.style.color = edge;
+      label.style.left = "100%";
+      label.style.top = "6px";
+      frame.marks.append(label);
+    }
   }
   const phases = {};
   for (const entry of view.span) phases[entry.day] = entry.phase_label;
+  // Her words, at their hour, on the curve they were said under: the panel
+  // answers "when does she talk" against "what energy had she".
+  for (const [day, hour, kind] of view.panels.marks) {
+    if (kind !== 1) continue;
+    const curve = curves.find((item) => item.phase === phases[day]);
+    if (!curve) continue;
+    const value = nearestValue(curve.points, hour);
+    const dot = el("span", "rh-msg");
+    dot.style.left = `${(hour / 24) * 100}%`;
+    dot.style.top = `${(1 - value) * 100}%`;
+    attachTip(dot, `day ${day} · ${hourText(hour)} · energy ` +
+      `${value.toFixed(2)}\nshe wrote`);
+    frame.marks.append(dot);
+  }
   for (const event of view.panels.proactive) {
     const phase = phases[event.day];
     const curve = curves.find((item) => item.phase === phase);
@@ -1670,22 +1889,26 @@ function rhythmChart(view) {
     const dot = el("span", `rh-dot${event.fired ? "" : " held"}`);
     dot.style.left = `${(event.hour / 24) * 100}%`;
     dot.style.top = `${(1 - value) * 100}%`;
-    dot.style.borderColor = phaseTone(phase)[1];
-    dot.title = `day ${event.day} · ${hourText(event.hour)} · energy ` +
-      `${value.toFixed(2)} — ${event.fired ? "reached out" : "held back"}` +
+    attachTip(dot, `day ${event.day} · ${hourText(event.hour)} · energy ` +
+      `${value.toFixed(2)}\n${event.fired ? "reached out" : "held back"}` +
       (event.reason ? `\n${event.reason}` : "") +
-      (event.hook ? `\n${event.hook}` : "");
+      (event.hook ? `\n${event.hook}` : ""));
     frame.marks.append(dot);
   }
+  frame.box.append(legendKeys([
+    ["her words", swatch("var(--sky)")],
+    ["reached out", swatch("var(--ink)")],
+    ["held back", swatch("transparent", { border: "var(--ink)", dashed: true })],
+    ["quiet hours", swatch("var(--grey-soft)")],
+  ]));
   return frame.box;
 }
 
-/* Contact: one mark per message — who spoke, and at what hour — until the
-   run is long enough for a density grid to say something. */
+/* Contact: one mark per message — who spoke, and at what hour. Binned into a
+   density grid only once the run is a month long and a shape exists. */
 function contactChart(view) {
   const days = view.panels.contact_days;
-  const grid = view.panels.contact;
-  const dense = days.length >= CONTACT_DENSE_DAYS;
+  const dense = view.panels.mode === "grid";
   const frame = panelFrame({
     yTicks: [],
     xLabels: [0, 6, 12, 18, 24].map((hour) => ({
@@ -1698,60 +1921,75 @@ function contactChart(view) {
   }
   const byDay = {};
   for (const entry of view.span) byDay[entry.day] = entry;
-  const peak = Math.max(1, ...grid.flat().map((cell) =>
-    cell[0] + cell[1] + cell[2]));
+  const peak = dense
+    ? Math.max(1, ...view.panels.contact.flat()
+      .map((cell) => cell[0] + cell[1] + cell[2]))
+    : 1;
   days.forEach((day, index) => {
     const entry = byDay[day] || {};
-    const label = dayLabel(day);
-    const caption = el("span", null, label);
+    const caption = el("span", null, dayLabel(day));
     caption.style.top = `${((index + 0.5) / days.length) * 100}%`;
     const [, edge] = phaseTone(entry.phase_label || "");
     const chip = el("span", "ct-chip");
-    chip.style.background = edge;
-    chip.style.opacity = entry.phase_label ? "1" : "0.3";
+    chip.style.background = entry.phase_label ? edge : "var(--grey-soft)";
     caption.prepend(chip);
     frame.box.querySelector(".panel-y").append(caption);
 
     const row = el("div", "ct-row");
     row.style.top = `${(index / days.length) * 100}%`;
     row.style.height = `${100 / days.length}%`;
-    grid[index].forEach((cell, hour) => {
-      const total = cell[0] + cell[1] + cell[2];
-      if (!total) return;
-      const left = (hour / 24) * 100;
-      const width = 100 / 24;
-      if (dense) {
+    if (dense) {
+      view.panels.contact[index].forEach((cell, hour) => {
+        const total = cell[0] + cell[1] + cell[2];
+        if (!total) return;
         const block = el("span", "ct-cell");
-        block.style.left = `${left}%`;
-        block.style.width = `${width}%`;
+        block.style.left = `${(hour / 24) * 100}%`;
+        block.style.width = `${100 / 24}%`;
         block.style.opacity = String(0.15 + 0.75 * (total / peak));
-        block.title = `${label} · ${hourText(hour)} — ` +
-          `${plural(total, "message")}`;
+        attachTip(block, `${dayLabel(day)} · ${hourText(hour)} — ` +
+          `${plural(total, "message")}`);
         row.append(block);
-        return;
+      });
+    } else {
+      // The talk comes first, behind its marks: the exchange reads as one
+      // thing on the day's own time band, not a scatter of ticks.
+      for (const talk of view.panels.talks) {
+        if (talk.day !== day) continue;
+        const from = Math.max(0, talk.from - 0.05);
+        const to = Math.min(24, talk.to + 0.05);
+        const band = el("span", "ct-talk");
+        band.style.left = `${(from / 24) * 100}%`;
+        band.style.width = `${Math.max(0.6, ((to - from) / 24) * 100)}%`;
+        attachTip(band, `${dayLabel(day)} · ${hourText(talk.from)}–` +
+          `${hourText(talk.to)} — ${plural(talk.turns, "turn")} together`);
+        row.append(band);
       }
-      const marks = cell[0] + cell[1] + cell[2];
-      const perRow = 4;
-      const lines = Math.ceil(marks / perRow);
-      for (let i = 0; i < marks; i++) {
-        const mark = el("span", "ct-mark");
-        const column = i % perRow;
-        const line = Math.floor(i / perRow);
-        mark.style.left = `calc(${left}% + ${(column + 0.5) * (width / perRow)}%)`;
-        mark.style.top = `calc(50% + ${((line - (lines - 1) / 2) * 9).toFixed(1)}px - 2px)`;
-        mark.style.background = i < cell[0] ? "var(--ink)"
-          : i < cell[0] + cell[1] ? "var(--sky)" : "var(--rose)";
+      for (const [markDay, hour, kind] of view.panels.marks) {
+        if (markDay !== day) continue;
+        const mark = el("span", `ct-mark ${kind === 0 ? "you"
+          : kind === 1 ? "her" : "reach"}`);
+        // You and her a breath apart: when a reply lands the same minute as
+        // the message, the two marks read as the pair they are. Reach-outs
+        // keep the centre so her decisions never hide inside a cluster.
+        const nudge = kind === 0 ? -3 : kind === 1 ? 3 : 0;
+        mark.style.left = `calc(${(hour / 24) * 100}% + ${nudge}px)`;
+        attachTip(mark, `${dayLabel(day)} · ${hourText(hour)} — ` +
+          `${kind === 0 ? "you wrote" : kind === 1 ? "she replied"
+            : "she reached out"}`);
         row.append(mark);
       }
-      const tip = el("span", "ct-hit");
-      tip.style.left = `${left}%`;
-      tip.style.width = `${width}%`;
-      tip.title = `${label} · ${hourText(hour)}–${hourText(hour + 1)} — ` +
-        `${cell[0]} you, ${cell[1]} her, ${cell[2]} reached out`;
-      row.append(tip);
-    });
+    }
     frame.plot.append(row);
   });
+  frame.box.append(legendKeys(dense ? [
+    ["fewer", swatch("var(--plum-soft)")],
+    ["more", swatch("var(--plum)")],
+  ] : [
+    ["conversation", swatch("var(--lav-soft)")],
+    ["you", swatch("var(--ink)")],
+    ["her", swatch("var(--sky)")],
+    ["reach-out", swatch("var(--rose)")],
+  ]));
   return frame.box;
 }
 

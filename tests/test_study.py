@@ -27,6 +27,9 @@ def _store(tmp_path):
     })
     store.add_message("user", "hi", 9.5, 0)
     store.add_message("assistant", "hello", 9.6, 0)
+    # A state card is the machinery talking to the model, not a message
+    # between the two of them: it must never reach the study panels.
+    store.add_message("system", "STATE UPDATE — only what changed", 9.7, 0)
     # One reach-out the model talked itself out of, and one it sent.
     for t_h, verdict in ((10.0, {"initiate": False, "reason": "quiet hour"}),
                          (12.0, {"initiate": True, "reason": "she finished"})):
@@ -36,6 +39,11 @@ def _store(tmp_path):
             None, json.dumps(verdict), "model", "native", t_h, 0,
         )
     store.add_message("assistant", "the proof came out clean", 12.1, 0, proactive=True)
+    # One conversation around the afternoon exchange: the contact panel
+    # bands its span, from its first turn to its last.
+    store.open_conversation("conv-a", 9.5, "user")
+    store.add_conversation_turn("conv-a", "user", "hi", 9.5, 0)
+    store.add_conversation_turn("conv-a", "companion", "hello", 12.1, 1)
     return store
 
 
@@ -46,6 +54,8 @@ def test_the_day_view_carries_the_day(tmp_path):
     assert view["day"] == 0
     assert [a["id"] for a in view["agenda"]] == ["ag1", "ag2"]
     assert [a["status"] for a in view["agenda"]] == ["completed", "planned"]
+    # The day's messages are what the two of them said; the system row at
+    # 9.7 is the machinery and is not in the lane.
     assert [(m["role"], m["hour"]) for m in view["messages"]] == [
         ("user", 9.5), ("assistant", 9.6), ("assistant", 12.1)]
     assert view["cycle"]["cycle_day"] == 3.0
@@ -90,6 +100,12 @@ def test_the_panels_mark_the_whole_run(tmp_path):
     assert panels["contact"][0][9] == [1, 1, 0]    # you wrote, she replied
     assert panels["contact"][0][12] == [0, 0, 1]   # her reach-out
     assert panels["contact"][1][1] == [1, 0, 0]
+    # The marks carry the same three kinds, system rows never among them.
+    assert panels["mode"] == "marks"
+    assert [(day, hour, who) for day, hour, who in panels["marks"]
+            if day == 0][:3] == [(0, 9.5, 0), (0, 9.6, 1), (0, 12.1, 2)]
+    # The band encloses the talk's own span, not the day's whole row.
+    assert panels["talks"] == [{"day": 0, "from": 9.5, "to": 12.1, "turns": 2}]
     store.close()
 
 
@@ -135,16 +151,22 @@ def test_the_span_rolls_the_run_up_per_day(tmp_path):
     first, second = view["span"]
     assert [entry["day"] for entry in view["span"]] == [0, 1]
     assert first["agenda"] == [
-        {"hour": 8.0, "end": 9.0, "status": "completed", "source": "interest"},
-        {"hour": 14.0, "end": 15.0, "status": "planned", "source": "routine"},
+        {"hour": 8.0, "end": 9.0, "status": "completed", "source": "interest",
+         "activity": "pottery"},
+        {"hour": 14.0, "end": 15.0, "status": "planned", "source": "routine",
+         "activity": "history reading"},
     ]
     assert first["sent"] == 1 and first["suppressed"] == 1
     assert first["reach_outs"] == [{"hour": 10.0, "fired": False},
                                    {"hour": 12.0, "fired": True}]
     assert first["messages"] == 3 and first["M"] == 7
+    # The split the month bar draws: what each of the two said, the system
+    # row absent from both.
+    assert first["you"] == 1 and first["her"] == 2
     assert first["phase_label"] == "follicular" and first["cycle_day"] == 3.0
     # Day 1 only has the one message, and no row of its own.
     assert second["messages"] == 1 and second["agenda"] == []
+    assert second["you"] == 1 and second["her"] == 0
     assert second["M"] is None and second["phase_label"] == ""
     store.close()
 
@@ -168,8 +190,8 @@ def test_an_empty_run_reads_empty_but_whole(tmp_path):
     assert view["span"] == [] and view["days"] == []
     assert view["mood_series"]["expected"] == []
     assert view["rhythm"]["curves"] == []
-    assert view["panels"] == {"proactive": [], "contact": [],
-                              "contact_days": []}
+    assert view["panels"] == {"proactive": [], "mode": "marks", "marks": [],
+                              "talks": [], "contact": [], "contact_days": []}
     assert view["now_hour"] is None and view["today"] == 0
     assert study.run_now(store.conn) is None
     store.close()

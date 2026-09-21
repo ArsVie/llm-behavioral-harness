@@ -238,7 +238,9 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
 
 /* Scrollable panels: a visible pastel scrollbar, so a cut-off row reads as
-   "there is more", never as a broken layout. */
+   "there is more", never as a broken layout. The week column opts out of the
+   standard properties: Chromium then honours the ::-webkit-scrollbar rules
+   below and paints a real scrollbar instead of an invisible overlay. */
 .surface, .table-wrap, .flow-track, .drawer-body, .raw {
   scrollbar-width: thin;
   scrollbar-color: #9481cb transparent;
@@ -556,14 +558,42 @@ pre.aside {
 /* Two cards in the same pair the context window and the model calls make:
    the calendar (left) and the run's functions with its events on them
    (right). Everything that carries text is HTML on the app's own type scale;
-   the SVG under the marks is geometry only, so nothing scales with the card. */
+   the SVG under the marks is geometry only, so nothing scales with the card.
+   The charts FILL their cards — a reading surface, not a thumbnail — and
+   every colour they paint carries a key in the event flow's own idiom. */
 .cal-card, .study-card { display: flex; flex-direction: column; }
+/* One body height for every granularity: Month / Week / Day must not resize
+   this card, the row it sits in, or the panel beside it. A view that wants
+   more room scrolls inside the box, the way the week already does. */
+.cal-body { height: 520px; display: flex; flex-direction: column; }
+.cal-body > .cal-chart, .cal-body > .cal-week,
+.cal-body > .cal-month { flex: 1 1 auto; min-height: 0; }
 .cal-body, .study-body { padding: 2px 18px 18px; min-width: 0; }
 .study-body { flex: 1 1 auto; display: flex; flex-direction: column; }
 .cal-empty { margin: 0; font-size: 12px; color: var(--ink-faint); }
 
+.cal-legend { flex-wrap: wrap; gap: 6px 14px; margin: 12px 0 0; }
+.legend-key .key { white-space: nowrap; }
+.legend-key .sq { border: 1px solid transparent; }
+/* The wash after *now*: a hatch, never a second grey that reads as quiet
+   hours — the legend shows the same weave. */
+.sq-hatch {
+  background-image: repeating-linear-gradient(135deg,
+    var(--grey-soft) 0 1.5px, transparent 1.5px 5px);
+}
+
+/* One styled voice for every hover in the study row; the browser's own black
+   box is never shown. attachTip() feeds this layer. */
+.tip {
+  position: fixed; z-index: 40; max-width: 300px; padding: 7px 10px;
+  background: var(--card); color: var(--ink); border: 1px solid var(--line);
+  border-radius: 8px; box-shadow: var(--shadow-soft);
+  font-size: 11.5px; line-height: 1.35; white-space: pre-line;
+  pointer-events: none;
+}
+
 /* ---- the calendar: day */
-.cal-chart { --cal-h: 470px; display: flex; gap: 6px; max-width: 560px;
+.cal-chart { --cal-h: 100%; display: flex; gap: 6px;
              padding-top: 13px; }
 .cal-hours, .cal-col, .cal-marks, .cal-flags { position: relative;
                                               height: var(--cal-h); }
@@ -574,9 +604,11 @@ pre.aside {
 .cal-hours span.is-future { opacity: 0.45; }
 .cal-marks { flex: 0 0 12px; width: 12px; background: var(--paper-2);
              border-radius: 3px; }
-.cal-marks .cal-lane { position: absolute; top: -13px; left: 0; font-size: 9px;
-                       color: var(--ink-faint); }
-.cal-flags { flex: 0 0 12px; width: 12px; }
+.cal-marks .cal-lane, .cal-flags .cal-lane {
+                       position: absolute; top: -13px; left: 0; font-size: 9px;
+                       white-space: nowrap; color: var(--ink-faint); }
+.cal-flags { flex: 0 0 12px; width: 12px; background: var(--paper-2);
+             border-radius: 3px; }
 .cal-col {
   flex: 1 1 auto; min-width: 0;
   border-left: 1px solid var(--line); border-right: 1px solid var(--line);
@@ -588,9 +620,12 @@ pre.aside {
 }
 .cal-quiet { position: absolute; left: 0; right: 0;
              background: var(--grey-soft); opacity: 0.5; }
+.cal-quiet-tag { position: absolute; top: 3px; left: 6px; font-size: 9px;
+                 letter-spacing: 0.03em; color: var(--ink-soft); }
 /* The part of the day that has not happened yet: washed, never hidden. */
 .cal-ahead { position: absolute; left: 0; right: 0; bottom: 0;
-             background: var(--paper-2); opacity: 0.75; }
+             background-image: repeating-linear-gradient(135deg,
+               var(--grey-soft) 0 2px, transparent 2px 8px); opacity: 0.8; }
 .cal-now { position: absolute; left: -4px; right: -4px;
            border-top: 2px dashed var(--rose); }
 .cal-now b { position: absolute; right: -2px; top: -14px; font-size: 10px;
@@ -609,63 +644,99 @@ pre.aside {
 /* The one block happening right now is the one bright thing on the day. */
 .cal-block.is-active { box-shadow: 0 0 0 2px var(--sun-soft),
                                    inset 0 0 0 1px var(--sun); }
-.cal-tick { position: absolute; left: 3px; width: 7px; border-radius: 2px; }
+/* Messages: one mark each — you on the lane's left, her on the right. */
+.cal-mark { position: absolute; width: 4px; height: 3px; border-radius: 1px;
+            transform: translateY(-50%); }
+.cal-mark.you { left: 2px; background: var(--ink); }
+.cal-mark.her { left: 6px; background: var(--sky); }
+.cal-mark.reach { left: 6px; background: var(--rose); }
+.cal-mark::after { content: ""; position: absolute; inset: -3px -2px; }
+/* The flag is a marker pointed at its own day, never at the card edge; a
+   thin trail crosses the rails to the moment it marks. The trail centres on
+   the arrow's point with a negative top: a 0-height box's ::before lays out
+   from the padding box, which already sits below the 5px border-top. */
 .cal-flag { position: absolute; left: 1px; width: 0; height: 0;
-            border-top: 5px solid transparent; border-bottom: 5px solid transparent;
-            border-left: 8px solid var(--rose); }
-.cal-flag::before { content: ""; position: absolute; left: -10px; top: 4px;
-                    width: 10px; height: 1px; background: var(--rose);
-                    opacity: 0.6; }
-.cal-flag.held { border-left-color: var(--grey); opacity: 0.55; }
-.cal-flag.held::before { background: var(--grey); }
+            border-top: 5px solid transparent;
+            border-bottom: 5px solid transparent;
+            border-right: 8px solid var(--rose); }
+.cal-flag:not(.aside)::before { content: ""; position: absolute; top: -1px;
+            left: -27px; width: 27px; height: 2px;
+            background: var(--rose); opacity: 0.4; }
+.cal-flag.held { border-right-color: var(--grey); opacity: 0.55; }
+.cal-flag.held:not(.aside)::before { background: var(--grey); }
 .cal-flag.aside { left: auto; right: 1px; }
-.cal-flag.aside::before { display: none; }
 
 /* ---- the calendar: week */
-.cal-week { display: flex; gap: 8px; max-width: 660px; }
+.cal-week { min-width: 0; position: relative;
+            display: flex; flex-direction: column; }
+/* The day runs to 24h but the run lives in the waking hours — the night is a
+   scroll away, the headers stay while the day moves. The box height is the
+   calendar's, fixed per granularity. */
+.cal-scroll { display: flex; gap: 8px; flex: 1 1 auto; min-height: 0;
+              overflow-y: auto; }
+.cal-scroll::-webkit-scrollbar { width: 10px; }
+.cal-scroll::-webkit-scrollbar-thumb { background: #d9cdf3; border-radius: 6px; }
+.cal-scroll::-webkit-scrollbar-track { background: transparent; }
+/* The drawn rail: whatever the engine does with native scrollbars, the week
+   always shows where it is and that there is more below. */
+.cal-rail { position: absolute; top: 0; right: 2px; bottom: 0; width: 8px;
+            display: none; pointer-events: none; }
+.cal-rail.on { display: block; }
+.cal-thumb { position: absolute; left: 0; right: 0; border-radius: 5px;
+             background: #d9cdf3; opacity: 0.85; }
 .cal-week .cal-days { display: flex; gap: 8px; flex: 1 1 auto; min-width: 0; }
 .cal-week .cal-days > div { flex: 1 1 0; min-width: 0; }
-.cal-week h4 { margin: 0 0 4px; font-size: 10.5px; font-weight: 600;
+.cal-week h4 { position: sticky; top: 0; z-index: 3; margin: 0 0 4px;
+               padding: 2px 0 3px; background: var(--card);
+               font-size: 10.5px; font-weight: 600;
                color: var(--ink); text-align: center; }
-.cal-week .cal-hours, .cal-week .cal-col { --cal-h: 420px; }
+.cal-week .cal-hours, .cal-week .cal-col { --cal-h: 720px; }
 .cal-week .cal-col.is-today { background-color: rgba(185, 167, 240, 0.14); }
 .cal-week .cal-col.is-future-day { opacity: 0.5; }
 .cal-week .cal-col[data-day] { cursor: pointer; }
 .cal-week .cal-col[data-day]:hover { border-color: var(--lav); }
 
 /* ---- the calendar: month */
-.cal-month { max-width: 620px; }
+.cal-month { min-width: 0; display: flex; flex-direction: column;
+             min-height: 0; }
 .cal-weekdays { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
                 gap: 4px; margin-bottom: 4px; }
 .cal-weekdays span { font-size: 9.5px; letter-spacing: 0.04em;
                      text-transform: uppercase; color: var(--ink-faint);
                      text-align: center; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
-            gap: 4px; }
-.cal-date { position: relative; display: flex; align-items: center;
-            justify-content: center; min-height: 40px; border-radius: 8px;
+            gap: 4px; flex: 1 1 auto; min-height: 0;
+            grid-auto-rows: minmax(46px, 1fr); }
+.cal-date { position: relative; min-height: 46px; border-radius: 8px;
             border: 1px solid transparent; font-size: 11.5px;
             color: var(--ink-faint); }
-.cal-blank { min-height: 40px; }
+.cal-date-n { position: absolute; top: 3px; left: 6px; font-size: 10px;
+              font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.cal-blank { min-height: 46px; }
 .cal-date.has-run { border-color: var(--line); background: var(--paper-2);
                     color: var(--ink); cursor: pointer; }
 .cal-date.has-run:hover { border-color: var(--lav); }
 .cal-date.is-today { border-color: var(--lav); box-shadow: inset 0 0 0 1px var(--lav); }
 .cal-date.is-future { opacity: 0.4; }
-.cal-date-dot { position: absolute; bottom: 5px; width: 7px; height: 7px;
-                border-radius: 3px; }
-/* The cycle band mirrors the month grid, so a capsule sits under its date. */
-.cal-cycle { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
-             gap: 4px; margin-top: 8px; }
-.cal-cap, .cal-cap-blank { height: 9px; border-radius: 3px; }
-.cal-cap { background: var(--grey-soft); opacity: 0.55; }
-.cal-cap[title] { opacity: 1; }
-.cal-cap.is-today { box-shadow: inset 0 0 0 1px var(--lav); }
+/* How much the two of them talked: her words above yours, scaled to the
+   month's fullest day. */
+.cal-date-bars { position: absolute; left: 6px; right: 6px; bottom: 5px;
+                 height: 22px; display: flex; flex-direction: column;
+                 justify-content: flex-end; gap: 1px; }
+.cal-date-bars i { display: block; border-radius: 2px; }
+.cal-date-bars .you { background: var(--ink); }
+.cal-date-bars .her { background: var(--sky); }
+.cal-date-flag { position: absolute; top: 4px; right: 5px; width: 7px; height: 7px;
+                 border-radius: 2px; background: var(--rose); }
 
 /* ---- the panels: a plot box on the app's own type scale */
+.panel-sub { margin: 0 0 6px; font-size: 11px; color: var(--ink-faint); }
 .panel-chart { display: grid; grid-template-columns: 44px minmax(0, 1fr);
                grid-template-rows: auto minmax(180px, 1fr) auto; gap: 3px 6px;
-               flex: 1 1 auto; max-width: 620px; }
+               flex: 1 1 auto; }
+/* The panel legend spans the whole grid: in the 44px axis column it stacked
+   one key per line and wasted the card. */
+.panel-chart .cal-legend { grid-column: 1 / -1; }
 .panel-y { grid-column: 1; grid-row: 2; position: relative; }
 .panel-y span { position: absolute; right: 2px; transform: translateY(-50%);
                 display: inline-flex; align-items: center; gap: 4px;
@@ -692,23 +763,43 @@ pre.aside {
 .panel-x span { position: absolute; transform: translateX(-50%);
                 font-size: 10px; font-variant-numeric: tabular-nums;
                 color: var(--ink-soft); white-space: nowrap; }
+/* The y axis says what it counts, above its top tick. */
+.panel-y .panel-y-name { position: absolute; top: -15px; left: 0; right: auto;
+                         transform: none; font-size: 10px; letter-spacing: 0.02em;
+                         color: var(--ink-faint); }
 .panel-tag { position: absolute; transform: translateX(-50%); font-size: 9px;
              letter-spacing: 0.03em; color: var(--ink-faint); white-space: nowrap; }
 .panel-series { position: absolute; transform: translate(-100%, -50%);
                 font-size: 10px; padding-left: 8px; }
+.mood-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%;
+            transform: translate(-50%, -50%); background: var(--peach);
+            box-shadow: 0 0 0 2px var(--card); }
+/* The marks are ink, never the curve's own colour — a rose dot on the
+   menstrual curve was invisible. */
 .rh-dot { position: absolute; width: 9px; height: 9px; border-radius: 2px;
-          transform: translate(-50%, -50%); background: var(--rose);
-          border: 1px solid var(--rose); box-shadow: 0 0 0 2px var(--card); }
-.rh-dot.held { background: transparent; border: 1px dashed var(--grey); }
+          transform: translate(-50%, -50%); background: var(--ink);
+          border: 1px solid var(--ink); box-shadow: 0 0 0 2px var(--card); }
+.rh-dot.held { background: transparent; border: 1px dashed var(--ink); }
+/* Her words where they fell on the day's curve. */
+.rh-msg { position: absolute; width: 5px; height: 5px; border-radius: 1px;
+          transform: translate(-50%, -50%); background: var(--sky);
+          box-shadow: 0 0 0 1.5px var(--card); }
 
 /* ---- the panels: contact marks */
 .ct-row { position: absolute; left: 0; right: 0; }
-.ct-row + .ct-row { border-top: 1px solid var(--grey-soft); }
-.ct-mark { position: absolute; width: 4px; height: 4px; border-radius: 1px;
-           transform: translateX(-50%); }
+.ct-row:nth-child(even) { background: var(--paper-2); }
 .ct-cell { position: absolute; top: 12%; bottom: 12%; border-radius: 2px;
            background: var(--plum); }
-.ct-hit { position: absolute; top: 0; bottom: 0; }
+.ct-mark { position: absolute; top: 50%; width: 4px; height: 5px;
+           border-radius: 1px; transform: translate(-50%, -50%); }
+.ct-mark.you { background: var(--ink); }
+.ct-mark.her { background: var(--sky); }
+.ct-mark.reach { background: var(--rose); }
+.ct-mark::after { content: ""; position: absolute; inset: -4px; }
+/* One pill per conversation, on the day's own time band: the marks inside
+   it are the talk. */
+.ct-talk { position: absolute; top: 27%; bottom: 27%; border-radius: 5px;
+           background: var(--lav-soft); }
 .ct-chip { display: inline-block; width: 8px; height: 8px; border-radius: 2px;
            flex: 0 0 auto; }
 .panel-y .ct-chip { position: static; }

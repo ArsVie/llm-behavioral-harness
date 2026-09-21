@@ -143,12 +143,13 @@ def _day_span(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         return []
     span: dict[int, dict[str, Any]] = {
         day: {"day": day, "agenda": [], "reach_outs": [], "sent": 0,
-              "suppressed": 0, "messages": 0, "M": None, "m_level": None,
-              "cycle_day": None, "phase_label": ""}
+              "suppressed": 0, "messages": 0, "you": 0, "her": 0, "M": None,
+              "m_level": None, "cycle_day": None, "phase_label": ""}
         for day in days
     }
     for row in conn.execute(
-            "select start_t_h, end_t_h, status, source_type from agenda_items"):
+            "select activity, start_t_h, end_t_h, status, source_type "
+            "from agenda_items"):
         day = int(float(row["start_t_h"]) // DAY_H)
         entry = span.get(day)
         if entry is None:
@@ -158,6 +159,8 @@ def _day_span(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             "end": round(float(row["end_t_h"]) - day * DAY_H, 3),
             "status": str(row["status"] or ""),
             "source": str(row["source_type"] or ""),
+            # The pill's own words: a week of colour-only blocks reads void.
+            "activity": str(row["activity"] or ""),
         })
     for row in conn.execute(
             "select t_h, verdict_json from decision_records "
@@ -170,11 +173,15 @@ def _day_span(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         entry["reach_outs"].append(
             {"hour": round(float(row["t_h"]) - day * DAY_H, 3), "fired": fired})
         entry["sent" if fired else "suppressed"] += 1
-    for row in conn.execute("select t_h, role from messages"):
+    # Only what the two of THEM said: a state card is the machinery talking
+    # to the model, not a message between them.
+    for row in conn.execute(
+            "select t_h, role from messages where role in ('user', 'assistant')"):
         day = int(float(row["t_h"]) // DAY_H)
         entry = span.get(day)
         if entry is not None:
             entry["messages"] += 1
+            entry["you" if str(row["role"]) == "user" else "her"] += 1
     for row in conn.execute(
             "select day, M, m_level, cycle_day, phase_label from daily_state"):
         entry = span.get(int(row["day"]))
@@ -194,7 +201,8 @@ def _mood_series(conn: sqlite3.Connection) -> dict[str, Any]:
     """
     rows = [
         dict(row) for row in conn.execute(
-            "select day, M, m_level, phase_label from daily_state order by day")
+            "select day, M, m_level, cycle_day, phase_label from daily_state "
+            "order by day")
     ]
     values = [float(row["M"]) for row in rows if row["M"] is not None]
     expected: list[float | None] = []
@@ -210,6 +218,7 @@ def _mood_series(conn: sqlite3.Connection) -> dict[str, Any]:
         "days": [int(row["day"]) for row in rows],
         "M": [row["M"] for row in rows],
         "m_level": [row["m_level"] for row in rows],
+        "cycle_day": [row["cycle_day"] for row in rows],
         "phase": [str(row["phase_label"] or "") for row in rows],
         "expected": expected,
         "window": window,
@@ -237,15 +246,57 @@ def _panels(conn: sqlite3.Connection) -> dict[str, Any]:
     days = day_numbers(conn)
     index = {day: i for i, day in enumerate(days)}
     contact = [[[0, 0, 0] for _ in range(24)] for _ in days]
-    for row in conn.execute("select t_h, role, proactive from messages"):
+    marks = []
+    for row in conn.execute(
+            "select t_h, role, proactive from messages "
+            "where role in ('user', 'assistant')"):
         day = int(float(row["t_h"]) // DAY_H)
         slot = index.get(day)
         if slot is None:
             continue
-        hour = int(float(row["t_h"]) % DAY_H)
+        hour = float(row["t_h"]) % DAY_H
         who = 2 if row["proactive"] else (0 if str(row["role"]) == "user" else 1)
-        contact[slot][hour][who] += 1
-    return {"proactive": proactive, "contact": contact, "contact_days": days}
+        contact[slot][int(hour)][who] += 1
+        marks.append([day, round(hour, 3), who])
+    # Conversations: a band per talk, so the run's marks read as the
+    # exchanges they formed. The span comes from the turn rows — an open
+    # conversation ends at its last turn, never at a guess — and a talk that
+    # crosses midnight is clipped into each day it touched.
+    talk_hours: dict[str, list[float]] = {}
+    for row in conn.execute(
+            "select conversation_id, t_h from conversation_turns order by t_h"):
+        talk_hours.setdefault(str(row["conversation_id"]), []).append(
+            float(row["t_h"]))
+    talks = []
+    for hours in talk_hours.values():
+        lo, hi = min(hours), max(hours)
+        for day in range(int(lo // DAY_H), int(hi // DAY_H) + 1):
+            if day not in index:
+                continue
+            start = max(lo, day * DAY_H) - day * DAY_H
+            end = min(hi, (day + 1) * DAY_H - 1e-6) - day * DAY_H
+            turns = sum(1 for hour in hours
+                        if day * DAY_H <= hour < (day + 1) * DAY_H)
+            if turns == 0:
+                continue
+            talks.append({
+                "day": day,
+                "from": round(start, 3),
+                "to": round(end, 3),
+                "turns": turns,
+            })
+    talks.sort(key=lambda talk: (talk["day"], talk["from"]))
+    # One mark per message while the run is short — a raster of the actual
+    # events. Past a month the same fact is a shape only a grid can show.
+    dense = len(days) >= 21
+    return {
+        "proactive": proactive,
+        "mode": "grid" if dense else "marks",
+        "marks": [] if dense else marks,
+        "talks": talks,
+        "contact": contact,
+        "contact_days": days,
+    }
 
 
 def day_view(conn: sqlite3.Connection, *, day: int,
@@ -286,7 +337,8 @@ def day_view(conn: sqlite3.Connection, *, day: int,
          "role": str(row["role"]),
          "proactive": bool(row["proactive"])}
         for row in conn.execute(
-            "select t_h, role, proactive from messages where t_h >= ? and t_h < ? "
+            "select t_h, role, proactive from messages "
+            "where role in ('user', 'assistant') and t_h >= ? and t_h < ? "
             "order by t_h", (start, end))
     ]
 
