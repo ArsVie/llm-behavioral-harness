@@ -710,17 +710,15 @@ def test_call_rows_flag_a_tool_menu_break(tmp_path):
     assert rows[1]["prefix_share_pct"] < CACHE_FLOOR * 100
 
 
-def test_a_menu_record_gap_claims_only_when_the_empty_side_is_proven(tmp_path):
-    """Old mainline builds wrote None for chat legs that DID ride the menu: a
-    gap proves nothing and must not claim a break. An aux-shaped record with
-    no schemas is certain — the fork ran tool-less by construction."""
+def test_a_menu_record_gap_proves_nothing(tmp_path):
+    """Only two literal menus can claim a change. A record without one — an
+    old mainline envelope, or an aux-shaped record — proves nothing either
+    way, and the walk treats it as matching."""
     store = _store_with_history(tmp_path)
     first = json.loads(json.dumps(ENVELOPE_A))
     first["tools"] = [{"type": "function", "function": {"name": "probe"}}]
     gap = json.loads(json.dumps(ENVELOPE_A))
     gap["messages"] = gap["messages"][:-1] + [{"role": "user", "content": "z"}]
-    gap["tools_hash"] = None
-    gap["tool_names"] = []
     conn = _writable(store.path)
     try:
         conn.execute("update llm_calls set repro_json = ? where id = 1",
@@ -733,10 +731,10 @@ def test_a_menu_record_gap_claims_only_when_the_empty_side_is_proven(tmp_path):
     with reader.open_run(store.path) as conn:
         rows = reader.call_rows(conn)
     assert rows[1]["verdict"] != "tool menu differs from the previous call", (
-        "a mainline gap is not a claim"
+        "a menu gap is not a claim"
     )
 
-    # The same pair with an aux-shaped empty record: certain none.
+    # An aux-shaped record is a gap too: its shape proves nothing.
     aux = json.loads(json.dumps(ENVELOPE_A))
     aux["messages"] = aux["messages"][:-1] + [{"role": "user", "content": "z"}]
     aux["kwargs"] = {"system": "s", "json_mode": True}
@@ -749,7 +747,7 @@ def test_a_menu_record_gap_claims_only_when_the_empty_side_is_proven(tmp_path):
         conn.close()
     with reader.open_run(store.path) as conn:
         rows = reader.call_rows(conn)
-    assert rows[1]["verdict"] == "tool menu differs from the previous call"
+    assert rows[1]["verdict"] != "tool menu differs from the previous call"
 
 
 def test_aux_envelope_hoists_the_kwargs_system(tmp_path):
@@ -815,70 +813,45 @@ def test_call_payload_reads_a_json_meta_blob(tmp_path):
     assert reader.call_payload(dict(rows[0], meta="{not json"), None)["reasoning_chars"] == 0
 
 
-def test_tool_schemas_report_the_recorded_menu_or_name_the_rebuild():
-    """The panel shows what the call's own record says, and says so.
+def test_tool_schemas_come_from_the_wire_dump_or_the_build_menu(tmp_path):
+    """The call's own wire dump comes first, the build's menu after it.
 
-    A recorded hash that matches this build rebuilds the schemas; a recorded
-    menu from another build keeps the names it has and admits the bodies are
-    not here; a row whose record kept no menu falls back to the leg's rule,
-    named as the inference it is. The panel used to pin one menu to every
-    mainline role and call that the answer.
+    The dump holds the request bytes as they went out, so the schemas come
+    back verbatim. A call with no dump falls back to the menu every
+    canonical call rides — read from the code that defines it, never a
+    name-only guess.
     """
-    from harness.tools import TOOL_PAYLOAD, TOOL_SCHEMAS, tools_identity
-
+    store = _store_with_history(tmp_path)
     whole = [tool["name"] for tool in TOOL_SCHEMAS]
-    digest, _ = tools_identity(TOOL_PAYLOAD)
+    sent = [{"type": "function", "function": tool} for tool in TOOL_SCHEMAS]
 
-    def row(role, record=None):
-        if record is None:
-            return {"role": role}
-        return {"role": role, "repro_json": json.dumps({"system": "s", **record})}
+    with reader.open_run(store.path) as conn:
+        row = db.rows(conn, "select * from llm_calls where id = 1")[0]
 
-    # The call's own record wins, and the hash gates the rebuild.
-    tools, source = reader.tool_schemas_for(
-        row("chat", {"tool_names": whole, "tools_hash": digest}))
+    # No wire dump on disk: the build's menu, and the label says why.
+    tools, source = calls.tool_schemas_for(row, run_path=store.path)
     assert [tool["name"] for tool in tools] == whole
-    assert "recorded on the call" in source
-    assert "rebuilt from harness.tools" in source
+    assert "harness/tools.py" in source and "no wire dump" in source
 
-    # A menu from a build this one does not hold: the names on record, no bodies.
-    tools, source = reader.tool_schemas_for(
-        row("chat", {"tool_names": ["calendar", "memory", "remind"],
-                     "tools_hash": "0" * 64}))
-    assert tools == [{"name": "calendar"}, {"name": "memory"}, {"name": "remind"}]
-    assert "not in this build" in source
+    # The call's own dump wins, verbatim (the OpenAI wrapper, as sent).
+    wire_dir = Path(store.path).parent / "wire"
+    wire_dir.mkdir(parents=True, exist_ok=True)
+    body = {"messages": [{"role": "system", "content": ENVELOPE_A["system"]},
+                         *ENVELOPE_A["messages"]],
+            "tools": sent}
+    (wire_dir / "00001_20260101-000000.json").write_text(
+        json.dumps(body), encoding="utf-8")
+    tools, source = calls.tool_schemas_for(row, run_path=store.path)
+    assert tools == sent
+    assert "wire dump" in source and "3 schemas as sent" in source
 
-    # A record with no menu: the leg's rule, admitted as a rebuild. The
-    # verbatim wire dumps carry all three functions on every mainline request,
-    # chat included.
-    for role in ("chat", "tool_decide_event", "tool_decide_reply",
-                 "tool_decide_unknown"):
-        tools, source = reader.tool_schemas_for(
-            row(role, {"tool_names": [], "tools_hash": None}))
-        assert [tool["name"] for tool in tools] == whole, role
-        assert "every mainline call" in source and "rebuilt from this build" in source, role
-    tools, source = reader.tool_schemas_for(row("chat"))
-    assert [tool["name"] for tool in tools] == whole
-    assert "no envelope on the row" in source
-
-    tools, source = reader.tool_schemas_for({"role": "day_plan"})
-    assert tools == [] and "unknown leg" in source
-    # An aux row with no record at all: pre-fix history. The label says so —
-    # the legs mirror the mainline menu since 2026-09-20 and record it.
-    for role in ("aux_day_planner", "aux_interest_extension",
-                 "aux_routine_setup", "aux_judge"):
-        tools, source = reader.tool_schemas_for({"role": role})
-        assert tools == [] and "predates the fork fix" in source, role
-        assert "mirror the mainline menu" in source and "unknown" not in source
-    # A post-fix aux record whose mirrored request carried no menu.
-    tools, source = reader.tool_schemas_for(
-        row("aux_judge", {"tool_names": [], "tools_hash": None}))
-    assert tools == [] and "mirrored mainline request carried no menu" in source
-    # A post-fix aux record with the mirrored trio: rebuilt like any call.
-    tools, source = reader.tool_schemas_for(
-        row("aux_judge", {"tool_names": whole, "tools_hash": digest}))
-    assert [tool["name"] for tool in tools] == whole
-    assert "recorded on the call" in source
+    # A dump without a menu says exactly that, never a code-menu guess.
+    body["tools"] = None
+    (wire_dir / "00001_20260101-000000.json").write_text(
+        json.dumps(body), encoding="utf-8")
+    tools, source = calls.tool_schemas_for(row, run_path=store.path)
+    assert tools == []
+    assert "no tool menu" in source
 
 
 def test_find_runs_ignores_a_dangling_symlink(tmp_path):
@@ -938,12 +911,12 @@ def test_context_payload_reports_the_latest_call_and_its_provenance(tmp_path):
     assert payload["call"]["id"] == 2
     assert payload["prefix"]["shared_messages"] == len(_MESSAGES) - 1
     assert payload["prefix"]["system_stable"] is True
-    # The chat leg carries the constant menu, rebuilt from the code that
-    # sends it — whatever ``TOOL_SCHEMAS`` holds in this build.
+    # No wire dump beside this store: the constant menu comes from the code
+    # that sends it — whatever ``TOOL_SCHEMAS`` holds in this build.
     assert [tool["name"] for tool in payload["tools"]] == [
         t["name"] for t in TOOL_SCHEMAS
     ]
-    assert "every mainline call" in payload["tools_source"]
+    assert "harness/tools.py" in payload["tools_source"]
 
 
 def test_context_payload_without_any_call_is_explicit(tmp_path):
@@ -1269,7 +1242,8 @@ def test_study_endpoints_answer_from_the_run(live_server):
     assert day["quiet_hours"] == [23.0, 8.0]
     assert {"agenda", "proactive", "messages", "cycle", "mood_series",
             "rhythm", "panels", "dates", "span"} <= set(day)
-    assert set(day["panels"]) == {"proactive", "contact", "contact_days"}
+    assert set(day["panels"]) == {"proactive", "mode", "marks", "talks",
+                                  "contact", "contact_days"}
 
     status, _ = _get(f"{base}/api/study/day?id={tmp_path}/nope.db")
     assert status == 404

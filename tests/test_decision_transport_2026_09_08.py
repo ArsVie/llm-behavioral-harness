@@ -17,7 +17,7 @@ from harness.steering import (
     wrap_steer_marker,
 )
 from harness.store import SQLiteStore
-from harness.tools import PopupRequest, TOOL_PAYLOAD, TOOL_SCHEMAS, tools_identity
+from harness.tools import PopupRequest
 
 from tests.helpers.store import make_store
 
@@ -62,13 +62,9 @@ def test_logged_decide_call_records_the_payload_that_went_out(tmp_path):
     )["repro"]
     store.close()
 
-    assert repro["tool_names"] == [
-        "tool_decide_event", "tool_decide_reply", "tool_decide_proactive",
-    ], "one constant menu on every call (ruling 2026-09-13)"
+    assert "tools_hash" not in repro and "tool_names" not in repro, (
+        "the tool menu is read from the call's wire dump, never recorded")
     assert repro["tool_choice"] is None, "the identity records what went out"
-    assert repro["tools_hash"] == tools_identity(
-        [{"type": "function", "function": t} for t in TOOL_SCHEMAS]
-    )[0]
     assert repro["reasoning_effort"] == session._thinking_effort
 
 
@@ -171,9 +167,7 @@ def test_the_chat_leg_stores_its_wire_identity(tmp_path):
     assert row is not None and row[0], "the chat leg logged no reconstructable call"
     repro = json.loads(row[0])
     assert "reasoning_effort" in repro
-    menu_hash, menu_names = tools_identity(TOOL_PAYLOAD)
-    assert repro["tools_hash"] == menu_hash
-    assert repro["tool_names"] == menu_names
+    assert "tools_hash" not in repro and "tool_names" not in repro
     assert repro["tool_choice"] is None
 
 
@@ -186,9 +180,8 @@ def test_a_textual_decision_records_that_it_offered_nothing(tmp_path):
     )
     repro = session._popup_repro(request, [], 4, 60.0)["repro"]
     store.close()
-    assert (repro["tools_hash"], repro["tool_names"], repro["tool_choice"]) == (
-        None, [], None
-    )
+    assert "tools_hash" not in repro and "tool_names" not in repro
+    assert repro["tool_choice"] is None
 
 
 # -- the requested tool is the only one offered ---------------------------- #

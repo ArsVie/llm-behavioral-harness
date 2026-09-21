@@ -50,9 +50,8 @@ def estimate_message(message: dict[str, Any]) -> int:
 def estimate_tools(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     """Per-schema prices: ``[{name, tokens, chars}]`` in declared order.
 
-    An entry with no schema body — a recorded name whose build this one does
-    not hold (``observability.calls.tool_schemas_for``) — prices ``None``:
-    off the name alone any number would be fabricated.
+    An entry with no schema body — a name-only leftover in an old store —
+    prices ``None``: off the name alone any number would be fabricated.
     """
     import json
 

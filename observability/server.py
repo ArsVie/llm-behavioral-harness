@@ -189,6 +189,7 @@ class Handler(BaseHTTPRequestHandler):
                 conn, reader.load_anchor(conn),
                 call_id=int(call_id) if call_id else None,
                 context_window=self.state.context_window,
+                run_path=ref.path,
             )
         self._send_json(payload)
 
@@ -198,7 +199,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         with reader.open_run(ref.path) as conn:
             payload = reader.call_detail(
-                conn, reader.load_anchor(conn), self._int_param(params, "call", 0))
+                conn, reader.load_anchor(conn), self._int_param(params, "call", 0),
+                run_path=ref.path)
         if payload is None:
             self._send_json({"error": "no such call"}, status=404)
             return

@@ -106,23 +106,7 @@ def test_malformed_native_arguments_are_salvaged_not_rejected():
         parse_native_reply("tool_decide_event", call("just prose, no payload"))
 
 
-def test_tools_identity_hashes_the_payload_and_names_the_tools():
-    from harness.tools import TOOL_SCHEMAS, tools_identity
 
-    wrapped = [{"type": "function", "function": TOOL_SCHEMAS[0]}]
-    first_hash, first_names = tools_identity(wrapped)
-    again, _ = tools_identity(wrapped)
-    assert first_hash and len(first_hash) == 64
-    assert first_hash == again, "the same payload must hash the same"
-    assert first_names == [TOOL_SCHEMAS[0]["name"]]
-
-    # The raw Hermes shape names itself too: both shapes reach the renderers.
-    assert tools_identity(TOOL_SCHEMAS)[1] == [t["name"] for t in TOOL_SCHEMAS]
-    # A different payload is a different identity.
-    assert tools_identity(TOOL_SCHEMAS)[0] != first_hash
-    # No tools is (None, []): a fact, never an absent key.
-    assert tools_identity(None) == (None, [])
-    assert tools_identity([]) == (None, [])
 
 
 def test_parse_native_reply_event():

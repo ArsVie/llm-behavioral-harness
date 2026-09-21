@@ -142,7 +142,6 @@ from harness.tools import (
     PopupRequest,
     RawReply,
     load_decision_config,
-    tools_identity,
 )
 
 #: Steer-application outcomes (``_apply_steer`` return codes).
@@ -699,9 +698,13 @@ class Session(NegotiationMixin):
         self.current_record = self._record_from_row(latest)
         self._records[day] = self.current_record
         # Reconstruct the day RNG at the post-rollover position by
-        # consuming the same draws the rollover consumed.
+        # consuming the same draws the rollover consumed — and keep the
+        # advance the rollover kept: `_rollover` leaves `cycle_state` at the
+        # NEXT day's start, so dropping it here stalled the cycle on every
+        # restart (day d repeated day d-1's cycle_day and engine draws).
         rng_t = rng_mod.day_rng(self.seed, day)
-        m, g, _phase, _next = cycle.step(self.cycle_state, self.persona, rng_t)
+        m, g, _phase, cycle_next = cycle.step(self.cycle_state, self.persona, rng_t)
+        self.cycle_state = cycle_next
         mood.step(self.mood_state, self.persona, m, g, self.variant, rng_t)
         self._day_rng = rng_t
         # If the latest day was already finalized, re-apply its end-of-day
@@ -2283,10 +2286,6 @@ class Session(NegotiationMixin):
         """
         if not self._accepts_repro:
             return {}
-        # The mainline hands every generation the constant menu and that is
-        # what the wire carries; the identity goes on record from the same
-        # generation, so a stored call and a replay of it are provably equal.
-        tools_hash, tool_names = tools_identity(self._last_request_tools)
         return {"repro": {
             "model": getattr(self.client, "model", None),
             "system": system,
@@ -2297,8 +2296,6 @@ class Session(NegotiationMixin):
             # Wire identity of the request beyond the prompt text: without
             # these, a stored call and a replay of it were only assumed equal.
             "reasoning_effort": self._thinking_effort,
-            "tools_hash": tools_hash,
-            "tool_names": tool_names,
             "tool_choice": None,
             "controls": {
                 "response_delay_s": controls.response_delay_s,
@@ -3113,14 +3110,9 @@ class Session(NegotiationMixin):
                      day: int, t_h: float) -> dict:
         """The decide leg's stored request identity, wire-exact.
 
-        The ledger used to record the request WITHOUT ``tools``, so a stored
-        call could never be proven identical to what went out — which is how a
-        cache reading survived three wrong explanations. Tools ride as a hash
-        plus their names (the schemas rebuild from ``harness.tools``); the
-        decode controls ride by value.
+        The request's tools live in the call's own wire dump, which is where
+        the ledger reads them from; the decode controls ride by value here.
         """
-        wire_tools = TOOL_PAYLOAD if request.native else None
-        tools_hash, tool_names = tools_identity(wire_tools)
         return {"repro": {
             "model": getattr(self.client, "model", None),
             "system": self._last_stable_system or self._last_system_prompt,
@@ -3129,8 +3121,6 @@ class Session(NegotiationMixin):
             "temperature": 0.8,
             "json_mode": False,
             "reasoning_effort": self._thinking_effort,
-            "tools_hash": tools_hash,
-            "tool_names": tool_names,
             "tool_choice": None,   # never sent: see _popup_request_call
             "popup_kind": request.popup_kind,
             "timestamp": {"day": day, "t_h": t_h},

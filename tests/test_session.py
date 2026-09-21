@@ -234,6 +234,43 @@ def test_resume_from_finalized_latest_day(tmp_path):
     store2.close()
 
 
+def test_restart_does_not_stall_the_cycle(tmp_path):
+    """Cycle parity across a restart: day 1 in a fresh process must match an
+    uninterrupted run with the same seed — same cycle_day, same engine draws.
+
+    The resume replay used to drop the rollover's cycle advance, so every
+    restart repeated the last cycle day (the live run stored day 1 at
+    cycle_day 0.0)."""
+    def two_days(path, *, restart):
+        store = SQLiteStore(path)
+        session = Session(
+            store, persona=PERSONA, timing=TIMING, variant=VARIANT, seed=SEED,
+            client=FakeClient(responses=["a", "b"]), clock=VirtualClock(t_h=19.0),
+            judge=ScriptedJudge(score=0.5).judge_day, feedback=True,
+        )
+        session.on_message("hi")
+        if restart:
+            store.close()
+            store = SQLiteStore(path)
+            session = Session(
+                store, persona=PERSONA, timing=TIMING, variant=VARIANT, seed=SEED,
+                client=FakeClient(responses=["b"]), clock=VirtualClock(t_h=19.0),
+                judge=ScriptedJudge(score=0.5).judge_day, feedback=True,
+            )
+        session.clock.advance_to_day(1)
+        session.ensure_day(1)
+        session.on_message("day one")
+        row = store.load_daily_state(1)
+        store.close()
+        return row
+
+    straight = two_days(tmp_path / "straight.db", restart=False)
+    resumed = two_days(tmp_path / "resumed.db", restart=True)
+    assert resumed["cycle_day"] == straight["cycle_day"]
+    assert math.isclose(resumed["m"], straight["m"], abs_tol=1e-12)
+    assert math.isclose(resumed["g"], straight["g"], abs_tol=1e-12)
+
+
 def test_synthetic_mode_no_interaction_day_parity(tmp_path):
     """Synthetic mode with a silent day still replicates run_daily: the score
     draw happens with no transcript."""

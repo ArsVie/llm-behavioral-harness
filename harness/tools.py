@@ -4,7 +4,6 @@ verdict + reason; both are recorded as state and a replay never re-rolls.
 
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -133,16 +132,6 @@ TOOL_SCHEMAS: list[dict] = [
 #: The wire form of the menu: wrapped the way every call sends it.
 TOOL_PAYLOAD: list[dict] = [{"type": "function", "function": t}
                             for t in TOOL_SCHEMAS]
-
-
-def tools_identity(tools: list[dict] | None) -> tuple[str | None, list[str]]:
-    """(stable hash of the ``tools`` payload, tool names); ``(None, [])`` when empty."""
-    if not tools:
-        return None, []
-    canonical = json.dumps(tools, sort_keys=True, ensure_ascii=False,
-                           separators=(",", ":"))
-    names = [((t.get("function") or t).get("name") or "") for t in tools]
-    return hashlib.sha256(canonical.encode()).hexdigest(), names
 
 
 #: Verdict keys for a ``tool_decide_event`` call (decide phase).

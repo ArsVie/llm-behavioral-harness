@@ -201,5 +201,6 @@ def run_detail(ref: RunRef, *, context_window: int, call_id: int | None = None,
             "calls": [call_payload(row, anchor) for row in rows[-limit:]],
             "events": events_payload(conn, anchor, after=0, limit=limit),
             "context": context_payload(conn, anchor, call_id=call_id,
-                                       context_window=context_window),
+                                       context_window=context_window,
+                                       run_path=ref.path),
         }

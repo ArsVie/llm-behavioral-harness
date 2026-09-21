@@ -7,22 +7,19 @@ or the harness' own (``harness.spend``'s formula, ``harness.tools``' schemas).
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 from harness.spend import GroupStats, aggregate, aggregate_by
-from harness.tools import TOOL_PAYLOAD, TOOL_SCHEMAS, tools_identity
+from harness.tools import TOOL_SCHEMAS
 from harness.trace import CACHE_FLOOR
 
 from observability import context as context_mod
+from observability import wire
 from observability.db import rows, rows as db_rows
 
 #: Fallback context window when the model's capacity is not known locally.
 DEFAULT_CONTEXT_WINDOW: int = 1_000_000
-
-#: This build's constant tool menu, hashed: a call whose recorded tools_hash
-#: matches this is reconstructable here; a hash that matches nothing means the
-#: call's schemas are not in this build.
-_MENU_HASH: str | None = tools_identity(TOOL_PAYLOAD)[0]
 
 
 def stats_json(stats: GroupStats) -> dict[str, Any]:
@@ -199,54 +196,26 @@ def stamp(anchor: Any, t_h: Any) -> str | None:
         return None
 
 
-def tool_schemas_for(row: dict[str, Any] | None) -> tuple[list[dict[str, Any]], str]:
-    """The tool menu one call sent, with the provenance of the claim.
+def tool_schemas_for(row: dict[str, Any] | None,
+                     *, run_path: Any | None = None) -> tuple[list[dict[str, Any]], str]:
+    """The tool menu one call sent, and where the schemas come from.
 
-    The call's OWN record comes first: ``tool_names``/``tools_hash`` ride the
-    envelope (the stored request body drops ``tools``), and the schemas
-    rebuild from ``harness.tools`` only when the recorded hash proves the
-    payload is this build's menu — the menu changed over the trial (the
-    pre-reset live run sent calendar/memory/remind on chat calls), and
-    rebuilding today's schemas onto such a call would label it with tools it
-    never carried. Those calls keep their recorded names, nothing more.
-
-    A row whose record kept no menu — older stores, or a mainline row written
-    by a build whose recorder stubbed these keys — falls back to the leg's
-    rule, named as the inference it is: ONE constant menu rides every
-    CANONICAL mainline call (``session._chat`` passes the whole
-    ``TOOL_PAYLOAD`` to ``_generate``; the verbatim wire dumps carry all
-    three actuation functions on every chat request, round trips included).
-    The auxiliary legs mirror that same menu since 2026-09-20 (their records
-    carry it; a fork without the schemas broke the shared prefix), so an
-    empty aux panel is HISTORY — it belongs to the pre-fix fork, not to
-    today's design.
+    The call's own wire dump comes first: it holds the request bytes exactly
+    as they went out, ``tools`` included. Without a dump — an old run, or a
+    store copied without its ``wire/`` directory — the schemas come from this
+    build's menu (``harness.tools``), which every canonical call rides.
     """
-    env = envelope_of(row) if row else None
-    names = [str(name) for name in (env.get("tool_names") or [])] if env else []
-    if names:
-        if env.get("tools_hash") == _MENU_HASH:
-            whole = list(TOOL_SCHEMAS)
-            return whole, f"recorded on the call — {len(whole)} rebuilt from harness.tools"
-        return [{"name": name} for name in names], (
-            f"recorded on the call — {len(names)} names; their schemas are "
-            "not in this build")
-    kind = str((row or {}).get("role") or "")
-    if kind.startswith("aux_"):
-        # Modern aux calls mirror the mainline menu and record it (the fork
-        # used to drop the schemas, breaking the shared prefix at them). An
-        # empty panel here is history, and it says which history.
-        if env is not None and ("tools_hash" in env or "tool_names" in env):
-            return [], "none — the mirrored mainline request carried no menu"
-        return [], ("none — this call predates the fork fix: aux legs ran "
-                    "tool-less before 2026-09-20, and mirror the mainline "
-                    "menu on every call since")
-    if kind == "chat" or kind.startswith("tool_decide"):
-        chosen = list(TOOL_SCHEMAS)
-        note = ("the call's record kept no menu" if env is not None
-                else "no envelope on the row")
-        return chosen, (f"the same {len(chosen)} on every mainline call"
-                        f" — rebuilt from this build; {note}")
-    return [], "unknown leg — not reconstructable"
+    if row is None:
+        return [], "no call to read"
+    if run_path is not None:
+        found, tools = wire.tools_for_call(Path(run_path), int(row.get("id") or 0),
+                                           envelope_of(row))
+        if found:
+            if tools:
+                return tools, f"the call's wire dump — {len(tools)} schemas as sent"
+            return [], "the call's wire dump — no tool menu on it"
+    return list(TOOL_SCHEMAS), (f"this build's menu — {len(TOOL_SCHEMAS)} schemas "
+                                "from harness/tools.py; no wire dump for this call")
 
 
 def usage_of(row: dict[str, Any]) -> dict[str, Any]:
@@ -287,13 +256,14 @@ def _previous_envelope(conn: Any, call_id: int) -> dict[str, Any] | None:
 
 
 def context_payload(conn: Any, anchor: Any, *, call_id: int | None,
-                    context_window: int) -> dict[str, Any]:
+                    context_window: int,
+                    run_path: Any | None = None) -> dict[str, Any]:
     """Context composition for one call (the newest by default)."""
     row = call_by_id(conn, call_id)
     if row is None:
         return {"available": False, "reason": "no model call recorded yet",
                 "context_window": context_window}
-    tools, tools_source = tool_schemas_for(row)
+    tools, tools_source = tool_schemas_for(row, run_path=run_path)
     payload = context_mod.build_context(
         envelope=envelope_of(row),
         tools=tools,
@@ -356,13 +326,14 @@ def decision_for_call(conn: Any, row: dict[str, Any]) -> dict[str, Any] | None:
     }
 
 
-def call_detail(conn: Any, anchor: Any, call_id: int) -> dict[str, Any] | None:
+def call_detail(conn: Any, anchor: Any, call_id: int,
+                *, run_path: Any | None = None) -> dict[str, Any] | None:
     """The full request/response of one call, for the inspector panel."""
     row = call_by_id(conn, call_id)
     if row is None:
         return None
     meta = _meta_of(row)
-    tools, tools_source = tool_schemas_for(row)
+    tools, tools_source = tool_schemas_for(row, run_path=run_path)
     return {
         "call": call_payload(row, anchor),
         "envelope": envelope_of(row),

@@ -187,17 +187,14 @@ def provider_prefix_share(prev: dict[str, Any] | None,
 
     A provider banks a prompt as one token stream: the stable system block,
     then the tool schemas when the call carries any, then the conversation. A
-    system drift breaks it first; a tools/no-tools (or changed menu) pair
-    breaks it AT THE SCHEMAS, so everything after is billed fresh no matter
-    how identical the conversation is. Returns ``(fraction, system_stable,
-    break_at)`` with ``break_at`` in ``"system" | "tools" | "messages" | ""``.
+    system drift breaks it first; a changed menu breaks it AT THE SCHEMAS, so
+    everything after is billed fresh no matter how identical the conversation
+    is. Returns ``(fraction, system_stable, break_at)`` with ``break_at`` in
+    ``"system" | "tools" | "messages" | ""``.
 
-    Tool identity comes from what the envelope records (a literal ``tools``,
-    or the ``tools_hash``/``tool_names`` pair). A menu difference — or a menu
-    against a PROVEN empty (aux-shaped record: the fork ran tool-less by
-    construction) — breaks the prefix at the schemas. An empty MAINLINE
-    record is a gap, not a claim: old builds wrote None for chat legs that
-    did ride the menu, so it is treated as matching. Same conventions as
+    Tool identity comes from what the envelope records: a literal ``tools``
+    list. Anything else is a gap — it proves nothing either way, and the walk
+    treats it as matching. Same conventions as
     :func:`shared_message_count`: the previous envelope's trailing card block
     is dropped before the message walk.
     """
@@ -210,15 +207,12 @@ def provider_prefix_share(prev: dict[str, Any] | None,
         return len(json.dumps(value, sort_keys=True, ensure_ascii=False))
 
     def menu_class(env: dict[str, Any]) -> tuple:
-        """(class, value): ``menu`` carries schemas; ``none`` is a PROVEN
-        empty menu (aux-shaped record — the fork ran tool-less by job);
-        ``gap`` is an empty mainline record, which proves nothing either way."""
+        """(class, value): ``menu`` carries the schemas the envelope itself
+        holds; anything else is a ``gap`` that proves nothing either way."""
         tools = env.get("tools")
         if isinstance(tools, list) and tools:
             return ("menu", json.dumps(tools, sort_keys=True, ensure_ascii=False))
-        if env.get("tools_hash") or env.get("tool_names"):
-            return ("menu", (env.get("tools_hash"), tuple(env.get("tool_names") or ())))
-        return ("none",) if "kwargs" in env else ("gap",)
+        return ("gap",)
 
     cur_system = cur.get("system")
     total_chars = sum(size(m) for m in cur_messages)
@@ -242,15 +236,9 @@ def provider_prefix_share(prev: dict[str, Any] | None,
         shared_chars += size(cur_messages[index])
         index += 1
     prev_menu, cur_menu = menu_class(prev), menu_class(cur)
-    if prev_menu[0] == "menu" and cur_menu[0] == "menu":
-        if prev_menu[1] != cur_menu[1]:
-            return shared_chars / total_chars, True, "tools"
-    elif prev_menu[0] == "menu" or cur_menu[0] == "menu":
-        # One side carried schemas; "none" proves the other did not (an aux
-        # record is tool-less by construction), a gap proves nothing.
-        other = cur_menu if prev_menu[0] == "menu" else prev_menu
-        if other[0] == "none":
-            return shared_chars / total_chars, True, "tools"
+    if (prev_menu[0] == "menu" and cur_menu[0] == "menu"
+            and prev_menu[1] != cur_menu[1]):
+        return shared_chars / total_chars, True, "tools"
     if cur_tools:
         shared_chars += size(cur_tools)
     for offset in range(index, len(body)):
@@ -405,9 +393,9 @@ def build_context(*, envelope: dict[str, Any] | None,
     parts = system_parts(str(envelope.get("system") or ""))
     priced_tools = tokens.estimate_tools(tools)
     # A row shows the tool's price; the drawer shows what was priced, so the
-    # schema itself rides along the way a system block's text does. Whatever
-    # could not be priced has no body to show either (a recorded name whose
-    # schemas this build does not hold), so it stays schema-less.
+    # schema itself rides along the way a system block's text does. An entry
+    # with no schema body (a name-only leftover in an old store) carries no
+    # price and no body to show.
     for priced, schema in zip(priced_tools, tools or [], strict=True):
         priced["schema"] = schema if priced["tokens"] is not None else None
     nodes = message_nodes(envelope, shared_count)

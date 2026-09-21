@@ -119,6 +119,12 @@ def describe(row: dict) -> str:
         pass
     kw = repro.get("kwargs") or {}
     tools = repro.get("tool_names") or kw.get("tool_names") or []
+    if not tools and str(row.get("role") or "").startswith(("chat", "tool_decide")):
+        # Mainline rows written after the tool-name record was dropped ride
+        # the constant menu; read it from the code that defines it.
+        from harness.tools import TOOL_SCHEMAS
+
+        tools = [t["name"] for t in TOOL_SCHEMAS]
     has_tools = kw.get("tools") is not None or bool(tools)
     return (
         f"#{row['id']:<4} {str(row.get('role')):<22} prompt={prompt:>6} "

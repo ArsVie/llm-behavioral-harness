@@ -7,6 +7,7 @@ request can reach outside the wire directory.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
@@ -100,3 +101,32 @@ def correlate(run_path: Path, files: list[dict],
             continue
         if isinstance(body, dict):
             entry["call_id"] = wanted.get(_fingerprint_dump(body))
+
+
+def tools_for_call(run_path: Path, call_id: int,
+                   envelope: dict | None) -> tuple[bool, list[dict] | None]:
+    """The tool menu one call's own wire dump carried.
+
+    ``(found, tools)``: whether the call's dump is on disk at all, and what
+    its ``tools`` field holds — a dump without a menu returns ``(True, None)``,
+    a call with no dump ``(False, None)``.
+    """
+    if envelope is None:
+        return False, None
+    files = wire_listing(run_path)["files"]
+    if not files:
+        return False, None
+    correlate(run_path, files, [(call_id, envelope)])
+    matching = [entry for entry in files if entry.get("call_id") == call_id]
+    for entry in reversed(matching):
+        text = wire_read(run_path, entry["name"])
+        if text is None:
+            continue
+        try:
+            body = json.loads(text)
+        except ValueError:
+            continue
+        if isinstance(body, dict):
+            tools = body.get("tools")
+            return True, tools if isinstance(tools, list) else None
+    return False, None
