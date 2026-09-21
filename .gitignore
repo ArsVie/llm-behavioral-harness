@@ -29,3 +29,7 @@ complexipy.json
 mutants/
 mutants.sqlite
 .mutmut-cache
+
+# Internal working notes — on disk for the agents, never in the tree.
+docs/BACKLOG.md
+docs/plans/
