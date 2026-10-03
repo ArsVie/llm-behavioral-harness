@@ -35,8 +35,8 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
 
 ## Headline
 
-1. **The 31B carries the live lane cleanly.** 100/100 generations open with a valid sprite tag,
-   no condition leaks card text (0/100), no emoji, tone and content in-line with the recorded
+1. **The 31B carries the live lane cleanly.** 160/160 generations (all runs) open with a valid
+   sprite tag, none leaks card text (0/160), no emoji, tone and content in-line with the recorded
    deepseek replies — e.g. call 162 in both: "I do not snore, you liar. ♡ [smug] Weekend, then…".
    Replies stay short (≈190 chars, comparable to the recorded ones).
 
@@ -65,7 +65,7 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
 
 ## Verdict against the pre-registered criteria
 
-- P1 format (sprite tag): **met** — 100/100 generations.
+- P1 format (sprite tag): **met** — 160/160 generations.
 - P2 card (valence A > B2, |Δ| ≥ 0.05): **not met on 31B** (−0.012 greedy; +0.009 ± 0.020
   under temp-0.8 sampling). Directionally met on e2b (+0.056) and 12b (+0.099), not on e4b
   (−0.024). Extension finding, not pre-registered for those models.
@@ -73,7 +73,7 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
   e2b/e4b/12b (+0.015/+0.049/+0.037). The dose sweep (post-hoc extension) shows the
   effect is real but dose-gated: +0.036..+0.085 for s in 21.2..56.5.
 - P4 steering on top of the card (D vs A): **null** (+0.006).
-- P5 no card leaks: **met** — 0/100.
+- P5 no card leaks: **met** — 0/160.
 - P6 persona (tone, name-calling, ♡, no emoji): **met**.
 
 Greedy decoding; no sampling seeds. Thresholds as frozen in the pre-registration.
