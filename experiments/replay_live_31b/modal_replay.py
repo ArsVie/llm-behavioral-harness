@@ -30,7 +30,8 @@ image = (
         "numpy==2.5.2",
         "hf_transfer",
     )
-    .env({"HF_HOME": HF_HOME, "TOKENIZERS_PARALLELISM": "false"})
+    .env({"HF_HOME": HF_HOME, "TOKENIZERS_PARALLELISM": "false",
+          "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True"})
     .add_local_file(str(SCEN), "/in/scenarios.json")
     .add_local_file(str(DIRS), "/in/dirs.npz")
 )
@@ -43,7 +44,7 @@ MAX_NEW = 200
 
 
 @app.function(
-    image=image, gpu="L4", cpu=4.0, memory=65536,
+    image=image, gpu="L40S", cpu=4.0, memory=65536,
     volumes={"/models": models_volume, "/out": out_volume},
     secrets=[modal.Secret.from_name("huggingface")],
     timeout=3600, retries=0, max_containers=1,
