@@ -69,11 +69,19 @@ def replay() -> str:
     print(f"[replay] model loaded in {time.time() - t0:.0f}s", flush=True)
 
     layers = None
-    obj = model
-    for part in "language_model.layers".split("."):
-        obj = getattr(obj, part)
-    layers = list(obj)
-    print(f"[replay] layers={len(layers)}", flush=True)
+    for name in ("model.layers", "model.language_model.layers", "language_model.model.layers",
+                 "language_model.layers"):
+        try:
+            obj = model
+            for part in name.split("."):
+                obj = getattr(obj, part)
+            layers = list(obj)
+            print(f"[replay] layers={len(layers)} via {name}", flush=True)
+            break
+        except AttributeError:
+            continue
+    if layers is None:
+        raise RuntimeError("decoder layers not found")
 
     z = np.load("/in/dirs.npz")
     d_val = z[f"L{HL}"][3].astype(np.float64)  # valence row, oriented
