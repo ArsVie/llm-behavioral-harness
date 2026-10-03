@@ -39,7 +39,7 @@ image = (
 MODEL_ID = "google/gemma-4-31B-it"
 MODEL_REV = "842da3794eaa0b77d5f08bae87a17459d91ff475"
 HL = 36          # headline layer (hs index)
-S = 14.12        # disp scale, P2d native 31B chat run
+S = 14.12        # disp scale, P2d native 31B chat run (default)
 MAX_NEW = 200
 
 
@@ -49,7 +49,7 @@ MAX_NEW = 200
     secrets=[modal.Secret.from_name("huggingface")],
     timeout=3600, retries=0, max_containers=1,
 )
-def replay() -> str:
+def replay(scale_s: float = S, tag: str = "disp", only: str = "") -> str:
     import json
     import time
 
@@ -108,9 +108,12 @@ def replay() -> str:
 
     from contextlib import nullcontext
 
-    delta = (1.0 * S) * torch.tensor(d_val, dtype=torch.float32, device="cuda")
+    delta = (1.0 * scale_s) * torch.tensor(d_val, dtype=torch.float32, device="cuda")
     conds = [("A", "A", False), ("B", "B", False), ("B2", "B2", False),
              ("C", "B2", True), ("D", "A", True)]
+    if only:
+        keep = set(only.split(","))
+        conds = [c for c in conds if c[0] in keep]
     results = []
     for s in scenarios:
         for cname, vname, steer in conds:
@@ -128,15 +131,15 @@ def replay() -> str:
                             "n_in": n_in, "text": out, "seconds": round(dt, 1)})
             print(f"[replay] call {s['call_id']} {cname}: {n_in} in, {dt:.0f}s -> {out[:90]!r}", flush=True)
             torch.cuda.empty_cache()
-    payload = {"model": MODEL_ID, "revision": MODEL_REV, "hl": HL, "scale_s": S,
-               "conditions": [c[0] for c in conds], "results": results}
-    Path("/out/generations.json").write_text(json.dumps(payload, indent=1) + "\n")
+    payload = {"model": MODEL_ID, "revision": MODEL_REV, "hl": HL, "scale_s": scale_s,
+               "tag": tag, "conditions": [c[0] for c in conds], "results": results}
+    Path(f"/out/generations-{tag}.json").write_text(json.dumps(payload, indent=1) + "\n")
     out_volume.commit()
-    print(f"[replay] saved /out/generations.json ({len(results)} gens)", flush=True)
+    print(f"[replay] saved /out/generations-{tag}.json ({len(results)} gens)", flush=True)
     return f"done: {len(results)} generations in {time.time() - t0:.0f}s"
 
 
 @app.local_entrypoint()
-def main():
-    print("[local] launching companion replay on gemma-4-31B")
-    print(replay.remote())
+def main(scale_s: float = S, tag: str = "disp", only: str = ""):
+    print(f"[local] launching companion replay on gemma-4-31B (scale_s={scale_s}, tag={tag}, only={only or 'all'})")
+    print(replay.remote(scale_s=scale_s, tag=tag, only=only))
