@@ -1,3 +1,11 @@
+---
+type: experiment-preregistration
+title: replay-live-31b — replaying live companion calls on gemma-4-31B (card ablation + valence steering)
+description: "Five frozen live-run chat calls replayed on gemma-4-31B: full context, minus the latest behavioral card, minus all bearing blocks, and with a valence control vector added."
+tags: [llm-behavioral-harness, live-run, replay, steering, gemma-4-31b, emotion-geometry]
+timestamp: 2026-10-03
+---
+
 # replay-live-31b — pre-registration (FROZEN before run)
 
 Date: 2026-10-03. Owner request: replay certain calls from the current live companion run
