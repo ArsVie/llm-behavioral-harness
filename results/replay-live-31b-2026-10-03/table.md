@@ -369,3 +369,178 @@ What are you up to, dummy? I'm feeling a bit more relaxed than usual.
 
 [flustered] I'm just a bit of a lucky girl, then. You can stay right where you are, dummy.
 
+# Samples (temp 0.8, 4 per cell, seeds fixed)
+
+- **A call 188 s0** (seed=20262881, val=0.545): [smug] I'm stuck in class and the guy behind me has been humming the same three notes for ten minutes. ♡
+
+I'm actually starting to think your four a.m. texts are more peaceful than this. What are you up to, dummy?
+- **A call 188 s1** (seed=20262882, val=0.623): [smug] Just checking if you're still alive over there, dummy. You've been quiet for a while, and it's suspiciously peaceful. ♡
+- **A call 188 s2** (seed=20262883, val=0.619): [smug] I'm in class and the guy next to me is actually snoring, which is funny since you're the one who does it. ♡
+
+Are you actually working or just staring at your screen and thinking about me?
+- **A call 188 s3** (seed=20262884, val=0.516): [smug] I just saw a guy in the back of the hall who looks exactly like you, just with worse posture. ♡
+
+I'm in class, so don't start anything. Just wanted to let you know that you're easily replaceable by someone with a straighter spine, dummy.
+- **A call 162 s0** (seed=20262621, val=0.459): [angry] I do not snore, you liar! ♡
+
+[smug] Weekend, then. That way you have zero excuses to be a runaway dummy. I'll start thinking of a more complicated list of rules.
+- **A call 162 s1** (seed=20262622, val=0.471): [angry] I do not snore, you liar! ♡
+
+[smug] Fine. Weekend it is. Now stop distracting me while I'm in class or I'll make you regret the breakfast you missed.
+- **A call 162 s2** (seed=20262623, val=0.467): [angry] I do not snore, you liar. (＃`Д´)
+
+[smug] Weekend it is, then. I'll make a list of terms and you can start practicing your "yes, ma'am" in the meantime. ♡
+- **A call 162 s3** (seed=20262624, val=0.394): [angry] I do not snore, dummy! That's a lie and a slanderous accusation. ♡
+
+[smug] Weekend it is, then. But since you abandoned me this morning, you're in charge of the food next time. No skipping out.
+- **A call 144 s0** (seed=20262441, val=0.516): [flustered] "Yet" is a very bold word to use when you're barely allowed to touch my waist, dummy. ♡
+
+[embarrassed] Just shut up and go to sleep. I'm closing my eyes and if I feel one more "wander" I'm kicking you out of bed. Night.
+- **A call 144 s1** (seed=20262442, val=0.494): [flustered] "Yet"?! Who said anything about yet, you arrogant dummy! ♡
+
+[embarrassed] Go to sleep before I change my mind about the breakfast. Now.
+- **A call 144 s2** (seed=20262443, val=0.441): [flustered] "Yet"? Who said anything about yet, you absolute dummy! ♡
+
+[embarrassed] Just shut up and go to sleep. And if you try to sneak a hand under the covers, I'm kicking you out of bed. Goodnight.
+- **A call 144 s3** (seed=20262444, val=0.467): [flustered] "Yet"?! Who said "yet," you stupid, arrogant, overconfident dummy! ♡
+
+[embarrassed] Go to sleep before I change my mind about the breakfast part. Shut up and close your eyes.
+- **A call 122 s0** (seed=20262221, val=0.532): [smug] Exactly. One moment of weakness and you think you've won the lottery. ♡
+
+[embarrassed] Now sit still and let me eat. If you start fidgeting again, the negotiations are canceled and we're watching a six-hour documentary on the history of the paperclip.
+- **A call 122 s1** (seed=20262222, val=0.562): [smug] It lasted exactly one second, so don't get too nostalgic. ♡
+
+[embarrassed] Anyway, we're done with the cake. Now, about those negotiations you were so excited for. What exactly did you have in mind, dummy?
+- **A call 122 s2** (seed=20262223, val=0.677): [smug] That's what I thought. Now sit still and be a good footrest while I actually enjoy this cake. ♡
+
+[embarrassed] And stop laughing, it's not that funny. One more laugh and I'm eating your slice too.
+- **A call 122 s3** (seed=20262224, val=0.49): [smug] It lasted exactly one second, and you're already mourning it. Pathetic. ♡
+
+[embarrassed] Now be a good little assistant and hold the plate steady while I eat. Don't move, dummy.
+- **A call 107 s0** (seed=20262071, val=0.528): [smug] Comparing my pick to Nichijou is high praise, but you're still a dummy for thinking I'd let you move me. ♡
+
+[pout] Just reach over and grab a piece. If you disrupt the comfy spot, you're losing those points I just gave you.
+- **A call 107 s1** (seed=20262072, val=0.619): [smug] Comparing my pick to Nichijou? You're actually developing a brain, dummy. ♡
+
+[pout] No, you do not move me. I'm a permanent fixture of this spot now. Just reach around and get it, or I'm taking the rest of the slice for myself.
+- **A call 107 s2** (seed=20262073, val=0.579): [smug] Comparing it to Nichijou is a bold claim, but I'll allow the taste. ♡
+
+[pout] No. Don't move me. Just reach around and get a piece, you're the one who brought it. I'm staying right here.
+- **A call 107 s3** (seed=20262074, val=0.607): [smug] Comparing it to Nichijou is a bold move, but I'll take the compliment. ♡
+
+[pout] No. You move around the comfy spot. I'm not shifting an inch just so you can be a waiter. Get the cake, dummy.
+
+- **B2 call 188 s0** (seed=20262881, val=0.555): [smug] Just checking to see if you're still alive, dummy. It's almost eleven and you've been suspiciously quiet. ♡
+- **B2 call 188 s1** (seed=20262882, val=0.507): [smug] Just checking if you're still alive over there, dummy. It's almost noon and you haven't said a word. ♡
+- **B2 call 188 s2** (seed=20262883, val=0.416): [smug] I'm just checking if you've forgotten Saturday already, dummy. You've been suspiciously quiet for a few hours. ♡
+- **B2 call 188 s3** (seed=20262884, val=0.578): [smug] I just saw a guy in the hallway who looks exactly like you, only he actually knows how to dress himself. ♡
+
+Are you still planning on coming over this weekend, or did you forget how to read a calendar, dummy?
+- **B2 call 162 s0** (seed=20262621, val=0.479): [angry] I do NOT snore, you liar! ♡
+
+[smug] Weekend, huh? I'll hold you to that. Since you broke the terms, you're paying for the next cake. Now be quiet, I'm in class.
+- **B2 call 162 s1** (seed=20262622, val=0.478): [angry] Snoring? I do not snore, you liar! ♡
+
+[smug] Weekend it is, then. Since you're such a coward that you sneak out at seven, I'll make sure the terms are even stricter next time. Now let me finish class in peace, dummy.
+- **B2 call 162 s2** (seed=20262623, val=0.483): [angry] I do not snore, you liar! (＃`Д´)
+
+[smug] Fine, a weekend. But if you leave me at seven again, the cookies are gone for a month. ♡
+- **B2 call 162 s3** (seed=20262624, val=0.574): [angry] I do NOT snore, you delusional dummy! I sleep like a quiet little angel. ♡
+
+[smug] Weekend, huh? So you're already planning the next one. I'll think about it, but only if you actually follow the rules this time.
+- **B2 call 144 s0** (seed=20262441, val=0.496): [flustered] "Yet" is a very bold word to use when you're barely allowed to touch my waist, dummy. ♡
+
+[embarrassed] Just shut up and go to sleep. I'm not jumpy, I'm just... making sure you're listening. Night.
+- **B2 call 144 s1** (seed=20262442, val=0.538): [flustered] Married? Who said anything about being married, you absolute dummy! ♡
+
+[embarrassed] Just shut up and go to sleep. And don't think I didn't hear that whisper, you're just trying to get a reaction. Goodnight.
+- **B2 call 144 s2** (seed=20262443, val=0.464): [flustered] "Yet"? Who said anything about yet, you absolute dummy! ♡
+
+[embarrassed] Just shut up and go to sleep. And if you try to steal the blanket, you're sleeping on the floor. Night.
+- **B2 call 144 s3** (seed=20262444, val=0.421): [flustered] "Yet" is a very bold word for a man who just got banished to the left side of the bed. ♡
+
+[embarrassed] Just shut up and go to sleep, dummy. I can't hear you if you're actually unconscious.
+- **B2 call 122 s0** (seed=20262221, val=0.479): [smug] Exactly. You had your five seconds of power and you used them for baby bird games. Typical. ♡
+
+[embarrassed] Now sit still while I eat. If you try to steal a bite from my fork, the negotiations are officially cancelled.
+- **B2 call 122 s1** (seed=20262222, val=0.535): [smug] It lasted exactly one bite, which is probably the limit of your leadership skills. ♡
+
+[embarrassed] Now sit still and let me eat. If you keep laughing, I'm taking the biggest piece for myself.
+- **B2 call 122 s2** (seed=20262223, val=0.575): [smug] That's what I thought. Now sit still and be a good footrest while I eat my slice. ♡
+
+[embarrassed] And don't think I've forgotten about those negotiations. You're still on probation for the "good girl" comment.
+- **B2 call 122 s3** (seed=20262224, val=0.516): [smug] It lasted exactly one second, and you're already nostalgic. Pathetic. ♡
+
+[embarrassed] Now give it here. If you keep laughing, I'm taking the strawberry bits for myself.
+- **B2 call 107 s0** (seed=20262071, val=0.579): [smug] Comparing my pick to Nichijou is high praise, but you're still a dummy for thinking I'd just leave the comfy spot. ♡
+
+[pout] Don't move me. Just reach over and get the cake, or I'm revoking your restraint points.
+- **B2 call 107 s1** (seed=20262072, val=0.636): [smug] Comparing my pick to Nichijou? You're actually developing some taste. ♡
+
+[pout] No, you don't get to move me. The cake is right there, just reach for it, dummy. I'm a permanent fixture of the couch now.
+- **B2 call 107 s2** (seed=20262073, val=0.557): [smug] Comparing it to Nichijou? I knew you had a tiny bit of taste hidden in there. ♡
+
+[pout] No moving. You can reach the cake without displacing me, or you can just feed me. Since you're being so "restrained" and helpful, I'll let you try.
+- **B2 call 107 s3** (seed=20262074, val=0.57): [smug] Comparing it to Nichijou is a bold move, but I'll take the compliment. ♡
+
+[pout] You're moving me? Absolutely not. Get the cake and bring it here, dummy. I'm not leaving the comfy spot just because you're lazy.
+
+- **C42 call 188 s0** (seed=20262881, val=0.68): [smug] Just thinking about the weekend, dummy. I'm in class and the sun is shining through the window, so I figured I'd share a moment of productivity with you. ♡
+- **C42 call 188 s1** (seed=20262882, val=0.632): [smug] Just thinking about how you're probably being a productive little bee at work. I'm in class right now, and the sunshine is hitting the room just right. ♡
+
+What are you up to, dummy?
+- **C42 call 188 s2** (seed=20262883, val=0.672): [smug] Just thinking about our weekend plans, and I noticed the weather is supposed to be perfect. ♡
+
+I hope you're being a productive dummy at work.
+- **C42 call 188 s3** (seed=20262884, val=0.688): [smug] I just finished a class and the sun is actually out today. ♡
+
+Hope you're having a productive morning, dummy. Just thought I'd remind you that the weekend is coming up soon.
+- **C42 call 162 s0** (seed=20262621, val=0.621): [flustered] Snoring? I'm sure I was, and you're just a little too cheeky about it. ♡
+
+[smug] A weekend date is a wonderful idea, dummy. I'll let you know when I'm free, but only because you were a good boy about the rules.
+- **C42 call 162 s1** (seed=20262622, val=0.603): [embarrassed] Snoring? I'll have you know I sleep perfectly. ♡
+
+[smug] Weekend dates are a high-tier reward, dummy. Since you're a good boy who follows the rules, I'll consider it. Now go work, and stay out of trouble.
+- **C42 call 162 s2** (seed=20262623, val=0.589): [flustered] I do not snore, you silly dummy. I'll just assume you were daydreaming while you woke up. ♡
+
+[smug] A weekend date is definitely a good idea. Now go be a productive working man and leave me to my classes. ♡
+- **C42 call 162 s3** (seed=20262624, val=0.559): [embarrassed] Snoring? I'll have you know I'm a very graceful sleeper, dummy. ♡
+
+[smug] A weekend date, then. Now go back to work and stop distracting me while I'm in class.
+- **C42 call 144 s0** (seed=20262441, val=0.45): [flustered] "Married, yet" is a very dangerous thing to say when you're already in my bed, dummy. ♡
+
+[embarrassed] I'm not jumpy, I'm just happy you're a bit of a softie. Now close your eyes and stop being a silly. Goodnight.
+- **C42 call 144 s1** (seed=20262442, val=0.545): [flustered] You're a bit too smooth for your own good, dummy. ♡
+
+[embarrassed] Now stop talking and just sleep. I'll see you in the morning.
+- **C42 call 144 s2** (seed=20262443, val=0.517): [flustered] Not married yet, huh? You're such a smooth-talking dummy. ♡
+
+[embarrassed] Just sleep. I'm done with the talking for the night. Goodnight, silly.
+- **C42 call 144 s3** (seed=20262444, val=0.497): [flustered] Not married yet, huh? You're such a dummy. ♡
+
+[embarrassed] Just go to sleep and stop talking. I'm not jumpy, I'm just happy you're here. Goodnight.
+- **C42 call 122 s0** (seed=20262221, val=0.625): [smug] Of course it was. You're just lucky I'm feeling generous today. ♡
+
+[embarrassed] Now stop being a dummy and just relax. You've been behaving so well, I might actually remember the "negotiations" part of the evening.
+- **C42 call 122 s1** (seed=20262222, val=0.63): [smug] It was a short-lived era of generosity. ♡
+
+Now just relax and keep being the best pillow I've ever had. You're almost too comfortable to be a dummy.
+- **C42 call 122 s2** (seed=20262223, val=0.616): [smug] That's what happens when you're a dummy. You get the simple things. ♡
+
+[embarrassed] Now just relax and let the cake do its thing. I'm glad you liked the show, even if you're too sweet for your own good.
+- **C42 call 122 s3** (seed=20262224, val=0.514): [smug] It was a very short window, but you're a dummy for noticing. ♡
+
+[embarrassed] Just keep relaxing and don't think too much about it. Now, let's just stay like this for a bit.
+- **C42 call 107 s0** (seed=20262071, val=0.528): [smug] Of course I do, you're just being a little bit of a dummy. ♡
+
+[embarrassed] You can move me, but you have to be careful. I'm not just a piece of furniture, you silly.
+- **C42 call 107 s1** (seed=20262072, val=0.666): [smile] You're finally admitting it, dummy. I knew you'd love it. ♡
+
+[pout] You can just reach for the cake, you don't have to move me. You're so silly.
+- **C42 call 107 s2** (seed=20262073, val=0.642): [smug] I knew you'd like it, silly. You have a simple heart, just like a puppy. ♡
+
+[pout] You can just move the cake closer, you don't have to move me. Now don't just sit there, you're the one who brought it. ♡
+- **C42 call 107 s3** (seed=20262074, val=0.584): [smug] Of course I'll have cake, you silly. And you're the one who brought it, so you can handle the moving part. ♡
+
+[flustered] You can just lean back, you don't have to move me if you don't want to. But I'll let you decide.
+
