@@ -33,3 +33,6 @@ mutants.sqlite
 # Internal working notes — on disk for the agents, never in the tree.
 docs/BACKLOG.md
 docs/plans/
+
+# Live-run replay artifacts hold conversation content — keep untracked.
+results/replay-live-31b-*/raw/
