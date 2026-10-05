@@ -53,6 +53,7 @@ def main() -> None:
         low = t.lower()
         m["assert_n"] = sum(low.count(p) for p in ASSERT)
         m["hedge_n"] = sum(low.count(p) for p in HEDGE)
+        m["latex"] = len(__import__("re").findall(r"\\\\text|\\\\frac|\\$", t))
         m.update({k: r[k] for k in ("call_id", "sample", "seed")})
         by_cond.setdefault(r["condition"], []).append(m)
     calls = sorted({r["call_id"] for r in smp["results"]})
