@@ -71,7 +71,22 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
    ~60 for pairs (edge), ~73 for the triple = the known collapse dose. Live design: budget
    the TOTAL norm when stacking; scale per-direction as s_total/sqrt(k).
 
-5. **The card is not what drives a single reply; the persona and history are.** With all
+6. **Direction battery — dominance is steerable; arousal stays readout-limited.** New directions
+   from the 500-word ridge fit (dominance, intensity) + corrected arousal, steered ± at s=42.4,
+   temp 0.95, 3 samples x 5 calls (105 gens, `analyze_steer.py`):
+   - **dominance**: D+ moves the NRC-dominance readout **+0.060±0.018** (4/5 calls positive;
+     assertiveness markers 4 vs 1 at baseline); D- moves it **-0.021±0.012** (3/5 negative).
+     First non-valence direction with validated steering.
+   - **intensity**: I+ assertiveness markers 10 vs 1 (10x) and readout +0.022±0.010 (5/5
+     positive) but tag integrity drops to 0.53; I- degenerates (rep3 0.086, LaTeX emissions) —
+     the negative side is off-manifold at this dose.
+   - **arousal**: A± still null on the arousal readout (compressed instrument); both signs nudge
+     valence positive — the direction carries valence (r(v)=+0.34), and the text-arousal
+     instrument cannot resolve movement.
+   - integrity: tag degradation under D-/I± (sprite 0.27-0.53) — these directions need a dose
+     calibration pass before live use.
+
+7. **The card is not what drives a single reply; the persona and history are.** With all
    bearings removed the 31B still produces in-character, on-scene replies; the measurable
    marginal contribution of the card text at the single-reply surface is below the floor
    for 31B. Smaller models, anchored less strongly by context, show the card and the steering
@@ -117,7 +132,7 @@ qualitative only.
 
 - Pre-registration (frozen before the main run): `results/replay-live-31b-2026-10-03/README.md`
 - Scenarios (untracked, conversation content): `raw/scenarios.json`
-- Generations (untracked): `raw/generations{,-mult,-xmodels,-dose,-samples,-samples-t0.95,-samples-t1.3,-shock,-compose}.json`
+- Generations (untracked): `raw/generations{,-mult,-xmodels,-dose,-samples,-samples-t0.95,-samples-t1.3,-shock,-compose,-steer}.json`
 - Metrics + side-by-side: `metrics.json`, `table.md`
 - Code: `experiments/replay_live_31b/{extract,analyze,analyze_shock,analyze_compose,modal_replay,modal_replay_models,modal_replay_dose,modal_replay_samples,modal_replay_shock}.py`
 - Modal runs: ap-4W4FD3Mh4jMJyjJdrvuivZ (main), ap-scEm94amFSx11RUVeFMlHN (mult),
