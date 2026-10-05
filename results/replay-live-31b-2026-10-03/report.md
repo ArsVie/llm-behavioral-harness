@@ -117,7 +117,7 @@ qualitative only.
 
 - Pre-registration (frozen before the main run): `results/replay-live-31b-2026-10-03/README.md`
 - Scenarios (untracked, conversation content): `raw/scenarios.json`
-- Generations (untracked): `raw/generations{,-mult,-xmodels,-dose,-samples,-samples-t0.95,-samples-t1.3,-shock}.json`
+- Generations (untracked): `raw/generations{,-mult,-xmodels,-dose,-samples,-samples-t0.95,-samples-t1.3,-shock,-compose}.json`
 - Metrics + side-by-side: `metrics.json`, `table.md`
 - Code: `experiments/replay_live_31b/{extract,analyze,analyze_shock,analyze_compose,modal_replay,modal_replay_models,modal_replay_dose,modal_replay_samples,modal_replay_shock}.py`
 - Modal runs: ap-4W4FD3Mh4jMJyjJdrvuivZ (main), ap-scEm94amFSx11RUVeFMlHN (mult),
