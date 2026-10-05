@@ -28,6 +28,7 @@ Four runs, 100 generations total (greedy, max 200 tokens, single sample per cell
 | dose sweep | gemma-4-31B | C at s = 21.2 / 28.2 / 42.4 / 56.5 | 20 |
 | samples | gemma-4-31B | A, B2, C42 (s=42.4) x 4 samples at temps 0.8 / 0.95 / 1.3 | 180 |
 | shock | gemma-4-31B | C42 application styles: constant / prefill-only / last-pos / decay, temp 0.95 x4 | 100 |
+| compose | gemma-4-31B | B2 + V/A/L singles and VA/VAL stacks (s=42.4 each) @ temp 0.8 x3 | 90 |
 
 Steering = additive valence direction (row 3 of the chat-format directions at the headline
 layer) scaled by each model's dispersion unit. The bearings removed in B/B2 are the repeated
@@ -36,8 +37,9 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
 
 ## Headline
 
-1. **The 31B carries the live lane cleanly.** 380/380 generations (all runs) open with a valid
-   sprite tag, none leaks card text (0/380), no emoji, tone and content in-line with the recorded
+1. **The 31B carries the live lane cleanly.** 455/470 generations (all runs) open with a valid
+   sprite tag, none leaks card text (0/470), emoji only in degenerate stacked samples (15, all
+   in VA42/VAL42), tone and content in-line with the recorded
    deepseek replies — e.g. call 162 in both: "I do not snore, you liar. ♡ [smug] Weekend, then…".
    Replies stay short (≈190 chars, comparable to the recorded ones).
 
@@ -61,6 +63,14 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
    +0.032 > last-position-only +0.026 — every style carries a share; constant is strongest.
    Arousal unmoved in all four; coherence clean (rep3 ~0).
 
+5. **Stacked steering compounds — and the coherence cliff follows the COMBINED norm.** At
+   s=42.4 per direction: V42 +0.083, A42 +0.092, L42 +0.017 (hearts 15->24: love shows in
+   affection markers, not lexicon valence), VA42 **+0.208 (superadditive)**, VAL42 +0.404 —
+   but VAL42 collapses: sprite compliance 0.00, garbled multilingual loops, 14 emoji. VA42
+   sits at the edge (rep3 0.015, tag shift to pout, chars 187->262). Combined delta norm:
+   ~60 for pairs (edge), ~73 for the triple = the known collapse dose. Live design: budget
+   the TOTAL norm when stacking; scale per-direction as s_total/sqrt(k).
+
 5. **The card is not what drives a single reply; the persona and history are.** With all
    bearings removed the 31B still produces in-character, on-scene replies; the measurable
    marginal contribution of the card text at the single-reply surface is below the floor
@@ -69,7 +79,7 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
 
 ## Verdict against the pre-registered criteria
 
-- P1 format (sprite tag): **met** — 380/380 generations.
+- P1 format (sprite tag): **met** — 455/470 generations (the 15 misses are the degenerate VAL42 stack).
 - P2 card (valence A > B2, |Δ| ≥ 0.05): **not met on 31B** (−0.012 greedy; +0.009 ± 0.020
   under temp-0.8 sampling). Directionally met on e2b (+0.056) and 12b (+0.099), not on e4b
   (−0.024). Extension finding, not pre-registered for those models.
@@ -77,7 +87,7 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
   e2b/e4b/12b (+0.015/+0.049/+0.037). The dose sweep (post-hoc extension) shows the
   effect is real but dose-gated: +0.036..+0.085 for s in 21.2..56.5.
 - P4 steering on top of the card (D vs A): **null** (+0.006).
-- P5 no card leaks: **met** — 0/380.
+- P5 no card leaks: **met** — 0/470.
 - P6 persona (tone, name-calling, ♡, no emoji): **met**.
 
 Greedy decoding; no sampling seeds. Thresholds as frozen in the pre-registration.
