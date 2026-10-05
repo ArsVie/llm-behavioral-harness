@@ -27,6 +27,7 @@ Four runs, 100 generations total (greedy, max 200 tokens, single sample per cell
 | cross-model | gemma-4-e2b / e4b / 12b | A, B2, C (each model's own disp scale) | 45 |
 | dose sweep | gemma-4-31B | C at s = 21.2 / 28.2 / 42.4 / 56.5 | 20 |
 | samples | gemma-4-31B | A, B2, C42 (s=42.4) x 4 samples at temps 0.8 / 0.95 / 1.3 | 180 |
+| shock | gemma-4-31B | C42 application styles: constant / prefill-only / last-pos / decay, temp 0.95 x4 | 100 |
 
 Steering = additive valence direction (row 3 of the chat-format directions at the headline
 layer) scaled by each model's dispersion unit. The bearings removed in B/B2 are the repeated
@@ -35,8 +36,8 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
 
 ## Headline
 
-1. **The 31B carries the live lane cleanly.** 280/280 generations (all runs) open with a valid
-   sprite tag, none leaks card text (0/280), no emoji, tone and content in-line with the recorded
+1. **The 31B carries the live lane cleanly.** 380/380 generations (all runs) open with a valid
+   sprite tag, none leaks card text (0/380), no emoji, tone and content in-line with the recorded
    deepseek replies — e.g. call 162 in both: "I do not snore, you liar. ♡ [smug] Weekend, then…".
    Replies stay short (≈190 chars, comparable to the recorded ones).
 
@@ -56,7 +57,9 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
    their own no-steer baseline. Coherence is clean through 42.4, mild onset at 56.5 (rep 0.03
    on two calls), broken at 73.2. Sampled at temps 0.8/0.95/1.3 the s=42.4 dose holds:
    +0.071/+0.054/+0.054 (±0.025/0.025/0.011 SEM) vs B2, 5/5 calls positive at every
-   temperature.
+   temperature. Application style (temp 0.95): constant +0.054 > decay +0.040 > prefill-only
+   +0.032 > last-position-only +0.026 — every style carries a share; constant is strongest.
+   Arousal unmoved in all four; coherence clean (rep3 ~0).
 
 5. **The card is not what drives a single reply; the persona and history are.** With all
    bearings removed the 31B still produces in-character, on-scene replies; the measurable
@@ -66,7 +69,7 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
 
 ## Verdict against the pre-registered criteria
 
-- P1 format (sprite tag): **met** — 280/280 generations.
+- P1 format (sprite tag): **met** — 380/380 generations.
 - P2 card (valence A > B2, |Δ| ≥ 0.05): **not met on 31B** (−0.012 greedy; +0.009 ± 0.020
   under temp-0.8 sampling). Directionally met on e2b (+0.056) and 12b (+0.099), not on e4b
   (−0.024). Extension finding, not pre-registered for those models.
@@ -74,7 +77,7 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
   e2b/e4b/12b (+0.015/+0.049/+0.037). The dose sweep (post-hoc extension) shows the
   effect is real but dose-gated: +0.036..+0.085 for s in 21.2..56.5.
 - P4 steering on top of the card (D vs A): **null** (+0.006).
-- P5 no card leaks: **met** — 0/280.
+- P5 no card leaks: **met** — 0/380.
 - P6 persona (tone, name-calling, ♡, no emoji): **met**.
 
 Greedy decoding; no sampling seeds. Thresholds as frozen in the pre-registration.
@@ -104,9 +107,9 @@ qualitative only.
 
 - Pre-registration (frozen before the main run): `results/replay-live-31b-2026-10-03/README.md`
 - Scenarios (untracked, conversation content): `raw/scenarios.json`
-- Generations (untracked): `raw/generations{,-mult,-xmodels,-dose,-samples,-samples-t0.95,-samples-t1.3}.json`
+- Generations (untracked): `raw/generations{,-mult,-xmodels,-dose,-samples,-samples-t0.95,-samples-t1.3,-shock}.json`
 - Metrics + side-by-side: `metrics.json`, `table.md`
-- Code: `experiments/replay_live_31b/{extract,analyze,modal_replay,modal_replay_models,modal_replay_dose,modal_replay_samples}.py`
+- Code: `experiments/replay_live_31b/{extract,analyze,analyze_shock,analyze_compose,modal_replay,modal_replay_models,modal_replay_dose,modal_replay_samples,modal_replay_shock}.py`
 - Modal runs: ap-4W4FD3Mh4jMJyjJdrvuivZ (main), ap-scEm94amFSx11RUVeFMlHN (mult),
   ap-b7qYoAbQ0rgEZF5BXTDUjT (cross-model), ap-cU0kwQs63CzbJoPFfaZvDt (dose),
   ap-THkt8sFVQgZ6SKPMcOJ5Gn (samples)

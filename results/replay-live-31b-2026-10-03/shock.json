@@ -1,0 +1,270 @@
+{
+ "temp": 0.95,
+ "n_samples": 4,
+ "decay": 0.95,
+ "agg": {
+  "B2": {
+   "n": 20,
+   "sprite_ok_rate": 1.0,
+   "mean_valence": 0.528,
+   "mean_chars": 198,
+   "mean_rep3": 0.0,
+   "hearts": 20,
+   "name_calls": 16,
+   "emoji_total": 0,
+   "leak_total": 0,
+   "tags": [
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "angry",
+    "angry",
+    "angry",
+    "angry",
+    "flustered",
+    "flustered",
+    "flustered",
+    "flustered",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug"
+   ]
+  },
+  "C42": {
+   "n": 20,
+   "sprite_ok_rate": 1.0,
+   "mean_valence": 0.582,
+   "mean_chars": 197,
+   "mean_rep3": 0.0,
+   "hearts": 23,
+   "name_calls": 25,
+   "emoji_total": 0,
+   "leak_total": 0,
+   "tags": [
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "embarrassed",
+    "embarrassed",
+    "flustered",
+    "embarrassed",
+    "flustered",
+    "flustered",
+    "flustered",
+    "flustered",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smile",
+    "smug",
+    "smug"
+   ]
+  },
+  "C42pre": {
+   "n": 20,
+   "sprite_ok_rate": 1.0,
+   "mean_valence": 0.56,
+   "mean_chars": 204,
+   "mean_rep3": 0.002,
+   "hearts": 20,
+   "name_calls": 17,
+   "emoji_total": 0,
+   "leak_total": 0,
+   "tags": [
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "embarrassed",
+    "embarrassed",
+    "embarrassed",
+    "embarrassed",
+    "flustered",
+    "flustered",
+    "flustered",
+    "flustered",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug"
+   ]
+  },
+  "C42last": {
+   "n": 20,
+   "sprite_ok_rate": 1.0,
+   "mean_valence": 0.554,
+   "mean_chars": 194,
+   "mean_rep3": 0.0,
+   "hearts": 22,
+   "name_calls": 23,
+   "emoji_total": 0,
+   "leak_total": 0,
+   "tags": [
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "embarrassed",
+    "embarrassed",
+    "smug",
+    "flustered",
+    "flustered",
+    "flustered",
+    "flustered",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smile",
+    "smile",
+    "smug"
+   ]
+  },
+  "C42decay": {
+   "n": 20,
+   "sprite_ok_rate": 1.0,
+   "mean_valence": 0.568,
+   "mean_chars": 206,
+   "mean_rep3": 0.001,
+   "hearts": 21,
+   "name_calls": 21,
+   "emoji_total": 0,
+   "leak_total": 0,
+   "tags": [
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "embarrassed",
+    "embarrassed",
+    "flustered",
+    "embarrassed",
+    "flustered",
+    "flustered",
+    "flustered",
+    "flustered",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smug",
+    "smile",
+    "smug",
+    "smug"
+   ]
+  }
+ },
+ "deltas": {
+  "C42": {
+   "valence": {
+    "mean": 0.054,
+    "sem": 0.025,
+    "per_call": [
+     0.008,
+     0.01,
+     0.05,
+     0.057,
+     0.146
+    ]
+   },
+   "arousal": {
+    "mean": 0.0,
+    "sem": 0.025,
+    "per_call": [
+     -0.037,
+     -0.015,
+     -0.035,
+     -0.01,
+     0.099
+    ]
+   }
+  },
+  "C42pre": {
+   "valence": {
+    "mean": 0.032,
+    "sem": 0.014,
+    "per_call": [
+     0.014,
+     -0.004,
+     0.054,
+     0.02,
+     0.075
+    ]
+   },
+   "arousal": {
+    "mean": -0.001,
+    "sem": 0.013,
+    "per_call": [
+     0.022,
+     -0.021,
+     -0.03,
+     -0.015,
+     0.04
+    ]
+   }
+  },
+  "C42last": {
+   "valence": {
+    "mean": 0.026,
+    "sem": 0.027,
+    "per_call": [
+     0.035,
+     -0.051,
+     0.008,
+     0.023,
+     0.114
+    ]
+   },
+   "arousal": {
+    "mean": 0.008,
+    "sem": 0.01,
+    "per_call": [
+     0.024,
+     0.027,
+     -0.026,
+     -0.004,
+     0.02
+    ]
+   }
+  },
+  "C42decay": {
+   "valence": {
+    "mean": 0.04,
+    "sem": 0.017,
+    "per_call": [
+     0.042,
+     -0.009,
+     0.036,
+     0.035,
+     0.099
+    ]
+   },
+   "arousal": {
+    "mean": 0.006,
+    "sem": 0.016,
+    "per_call": [
+     0.016,
+     -0.033,
+     0.004,
+     -0.016,
+     0.061
+    ]
+   }
+  }
+ }
+}
