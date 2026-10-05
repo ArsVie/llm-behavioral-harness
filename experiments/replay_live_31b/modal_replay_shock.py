@@ -64,7 +64,7 @@ image = (
     image=image, gpu="L40S", cpu=4.0, memory=65536,
     volumes={"/models": models_volume, "/out": out_volume},
     secrets=[modal.Secret.from_name("huggingface")],
-    timeout=3600, retries=0, max_containers=1,
+    timeout=3600, retries=1, max_containers=1,
 )
 def replay_shock() -> str:
     import json
@@ -143,6 +143,12 @@ def replay_shock() -> str:
     from contextlib import nullcontext
 
     results = []
+
+    def build_payload(complete: bool) -> dict:
+        return {"model": MODEL_ID, "revision": MODEL_REV, "hl": HL, "s42": S42, "temp": TEMP,
+                "decay": DECAY, "n_samples": N_SAMPLES, "master_seed": MASTER_SEED,
+                "conditions": [c[0] for c in CONDS], "complete": complete, "results": results}
+
     for s in scenarios:
         for cname, vname, mode in CONDS:
             msgs = [{"role": "system", "content": s["persona"]}] + s["variants"][vname]
@@ -163,10 +169,10 @@ def replay_shock() -> str:
                                 "seconds": round(time.time() - tg, 1)})
                 print(f"[shock] call {s['call_id']} {cname} s{si}: {out[:70]!r}", flush=True)
                 torch.cuda.empty_cache()
-    payload = {"model": MODEL_ID, "revision": MODEL_REV, "hl": HL, "s42": S42, "temp": TEMP,
-               "decay": DECAY, "n_samples": N_SAMPLES, "master_seed": MASTER_SEED,
-               "conditions": [c[0] for c in CONDS], "results": results}
-    Path("/out/generations-shock.json").write_text(json.dumps(payload, indent=1) + "\n")
+        Path("/out/generations-shock.json").write_text(json.dumps(build_payload(False), indent=1) + "\n")
+        out_volume.commit()
+        print(f"[shock] checkpoint: call {s['call_id']} done ({len(results)} gens)", flush=True)
+    Path("/out/generations-shock.json").write_text(json.dumps(build_payload(True), indent=1) + "\n")
     out_volume.commit()
     print(f"[shock] saved ({len(results)} gens) in {time.time() - t0:.0f}s", flush=True)
     return f"done: {len(results)} generations in {time.time() - t0:.0f}s"
@@ -175,4 +181,5 @@ def replay_shock() -> str:
 @app.local_entrypoint()
 def main():
     print("[local] launching shock-variant replay (B2 / C42 const / prefill / last / decay @ 0.95)")
-    print(replay_shock.remote())
+    fc = replay_shock.spawn()  # fire-and-forget: no client stream to lose mid-run
+    print(f"[local] spawned (call id: {fc.object_id}); safe to disconnect")
