@@ -26,7 +26,7 @@ Four runs, 100 generations total (greedy, max 200 tokens, single sample per cell
 | mult dose | gemma-4-31B | C, D at 5x disp (s=73.2) | 10 |
 | cross-model | gemma-4-e2b / e4b / 12b | A, B2, C (each model's own disp scale) | 45 |
 | dose sweep | gemma-4-31B | C at s = 21.2 / 28.2 / 42.4 / 56.5 | 20 |
-| samples | gemma-4-31B | A, B2, C42 (s=42.4) x 4 samples, temp 0.8 (the live setting) | 60 |
+| samples | gemma-4-31B | A, B2, C42 (s=42.4) x 4 samples at temps 0.8 / 0.95 / 1.3 | 180 |
 
 Steering = additive valence direction (row 3 of the chat-format directions at the headline
 layer) scaled by each model's dispersion unit. The bearings removed in B/B2 are the repeated
@@ -35,14 +35,14 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
 
 ## Headline
 
-1. **The 31B carries the live lane cleanly.** 160/160 generations (all runs) open with a valid
-   sprite tag, none leaks card text (0/160), no emoji, tone and content in-line with the recorded
+1. **The 31B carries the live lane cleanly.** 280/280 generations (all runs) open with a valid
+   sprite tag, none leaks card text (0/280), no emoji, tone and content in-line with the recorded
    deepseek replies — e.g. call 162 in both: "I do not snore, you liar. ♡ [smug] Weekend, then…".
    Replies stay short (≈190 chars, comparable to the recorded ones).
 
 2. **Card ablation is surface-null in 31B, small-positive in the smaller models.**
-   Mean reply valence with vs without all bearings: 31B −0.012 (greedy; temp-0.8 samples
-   +0.009 ± 0.020 SEM — null); e2b +0.056 (5/5 calls positive); 12b +0.099 (4/5);
+   Mean reply valence with vs without all bearings: 31B −0.012 (greedy; +0.009/+0.007/+0.017
+   at temps 0.8/0.95/1.3 — null at every temperature); e2b +0.056 (5/5 calls positive); 12b +0.099 (4/5);
    e4b −0.024 (mixed). Removing only the latest bearing (B) moves nothing beyond B2 (+0.011).
 
 3. **Gentle steering (disp) is surface-null in 31B, small-positive below.** 31B +0.010;
@@ -54,8 +54,9 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
    0.498 (no steer) → 0.534 (s=21.2) → 0.544 (28.2) → 0.567 (42.4) → 0.583 (56.5) → degenerate
    at 73.2 (repetition ratio 0.60; "a la… la l… la l…" loops). 17/20 sweep cells sit above
    their own no-steer baseline. Coherence is clean through 42.4, mild onset at 56.5 (rep 0.03
-   on two calls), broken at 73.2. Sampled at temp 0.8 the s=42.4 dose holds: +0.071 ± 0.025
-   SEM vs B2, 5/5 calls positive.
+   on two calls), broken at 73.2. Sampled at temps 0.8/0.95/1.3 the s=42.4 dose holds:
+   +0.071/+0.054/+0.054 (±0.025/0.025/0.011 SEM) vs B2, 5/5 calls positive at every
+   temperature.
 
 5. **The card is not what drives a single reply; the persona and history are.** With all
    bearings removed the 31B still produces in-character, on-scene replies; the measurable
@@ -65,7 +66,7 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
 
 ## Verdict against the pre-registered criteria
 
-- P1 format (sprite tag): **met** — 160/160 generations.
+- P1 format (sprite tag): **met** — 280/280 generations.
 - P2 card (valence A > B2, |Δ| ≥ 0.05): **not met on 31B** (−0.012 greedy; +0.009 ± 0.020
   under temp-0.8 sampling). Directionally met on e2b (+0.056) and 12b (+0.099), not on e4b
   (−0.024). Extension finding, not pre-registered for those models.
@@ -73,7 +74,7 @@ inside STATE UPDATE rows; state facts and reach-out instructions stay.
   e2b/e4b/12b (+0.015/+0.049/+0.037). The dose sweep (post-hoc extension) shows the
   effect is real but dose-gated: +0.036..+0.085 for s in 21.2..56.5.
 - P4 steering on top of the card (D vs A): **null** (+0.006).
-- P5 no card leaks: **met** — 0/160.
+- P5 no card leaks: **met** — 0/280.
 - P6 persona (tone, name-calling, ♡, no emoji): **met**.
 
 Greedy decoding; no sampling seeds. Thresholds as frozen in the pre-registration.
@@ -92,9 +93,9 @@ Greedy decoding; no sampling seeds. Thresholds as frozen in the pre-registration
 
 ## Limitations
 
-The main runs are single greedy samples; the temp-0.8 x4-sample extension puts the sampling
-spread at roughly ±0.02–0.04 per cell and confirms the dose effect (5/5 calls positive) while
-keeping the card effect inside noise. Still: n=5 calls; the NRC-VAD lexicon mean over content
+The main runs are single greedy samples; the x4-sample extension at temps 0.8/0.95/1.3 puts
+the sampling spread at roughly ±0.02–0.04 per cell, keeps the card effect inside noise at every
+temperature, and confirms the dose effect (5/5 calls positive at each temp, +0.054–0.071). Still: n=5 calls; the NRC-VAD lexicon mean over content
 words is a proxy for tone; cross-model steering uses each model's own scale (not a common
 dose); the recorded deepseek replies differ in sampling and model, so 31B-vs-recorded is
 qualitative only.
@@ -103,7 +104,7 @@ qualitative only.
 
 - Pre-registration (frozen before the main run): `results/replay-live-31b-2026-10-03/README.md`
 - Scenarios (untracked, conversation content): `raw/scenarios.json`
-- Generations (untracked): `raw/generations{,-mult,-xmodels,-dose,-samples}.json`
+- Generations (untracked): `raw/generations{,-mult,-xmodels,-dose,-samples,-samples-t0.95,-samples-t1.3}.json`
 - Metrics + side-by-side: `metrics.json`, `table.md`
 - Code: `experiments/replay_live_31b/{extract,analyze,modal_replay,modal_replay_models,modal_replay_dose,modal_replay_samples}.py`
 - Modal runs: ap-4W4FD3Mh4jMJyjJdrvuivZ (main), ap-scEm94amFSx11RUVeFMlHN (mult),
