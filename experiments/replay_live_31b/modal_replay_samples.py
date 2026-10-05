@@ -1,9 +1,12 @@
-"""Sampling-variance extension: A / B2 / C42 at temperature 0.8 (the live setting), 4 samples.
+"""Sampling-variance extension: A / B2 / C42 at multiple temperatures, 4 samples per cell.
 
 Answers the main run's biggest limitation (single greedy sample per cell): how large is the
 sampling spread relative to the card effect and the dose effect? Seeds are fixed per sample
 (MASTER_SEED + call*10 + sample) and paired across conditions.
-Run: modal run --detach experiments/replay_live_31b/modal_replay_samples.py
+
+Temps run sequentially in ONE container (avoids the Modal concurrent-commit race on the
+shared output volume). Live run parity was temp 0.8; the recommended lane temp is 0.95.
+Run: modal run --detach experiments/replay_live_31b/modal_replay_samples.py --temps 0.95,1.3
 """
 from __future__ import annotations
 
@@ -22,7 +25,7 @@ MODEL_REV = "842da3794eaa0b77d5f08bae87a17459d91ff475"
 HL = 36
 S42 = 42.4
 N_SAMPLES = 4
-TEMP = 0.8
+DEFAULT_TEMPS = "0.95,1.3"
 MASTER_SEED = 20261001
 CONDS = [("A", "A", False), ("B2", "B2", False), ("C42", "B2", True)]
 MAX_NEW = 200
@@ -55,7 +58,7 @@ image = (
     secrets=[modal.Secret.from_name("huggingface")],
     timeout=3600, retries=0, max_containers=1,
 )
-def replay_samples() -> str:
+def replay_samples(temps: str = DEFAULT_TEMPS) -> str:
     import json
     import time
 
@@ -63,6 +66,7 @@ def replay_samples() -> str:
     import torch
     from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
+    temp_list = [float(t) for t in temps.split(",")]
     t0 = time.time()
     tok = AutoTokenizer.from_pretrained(MODEL_ID, revision=MODEL_REV)
     model = AutoModelForCausalLM.from_pretrained(
@@ -113,37 +117,42 @@ def replay_samples() -> str:
 
     from contextlib import nullcontext
 
-    results = []
-    for s in scenarios:
-        for cname, vname, steer in CONDS:
-            msgs = [{"role": "system", "content": s["persona"]}] + s["variants"][vname]
-            text = tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
-            enc = tok(text, return_tensors="pt").to("cuda")
-            n_in = enc["input_ids"].shape[1]
-            for si in range(N_SAMPLES):
-                seed = MASTER_SEED + s["call_id"] * 10 + si
-                torch.manual_seed(seed)
-                ctx = SteerHook(layers[HL - 1], delta) if steer else nullcontext()
-                tg = time.time()
-                with ctx:
-                    gen = model.generate(**enc, max_new_tokens=MAX_NEW, do_sample=True,
-                                         temperature=TEMP)
-                out = tok.decode(gen[0][n_in:], skip_special_tokens=True).strip()
-                results.append({"call_id": s["call_id"], "condition": cname, "sample": si,
-                                "seed": seed, "steer": steer, "n_in": n_in, "text": out,
-                                "seconds": round(time.time() - tg, 1)})
-                print(f"[samples] call {s['call_id']} {cname} s{si}: {out[:70]!r}", flush=True)
-                torch.cuda.empty_cache()
-    payload = {"model": MODEL_ID, "revision": MODEL_REV, "hl": HL, "s42": S42,
-               "temperature": TEMP, "n_samples": N_SAMPLES, "master_seed": MASTER_SEED,
-               "conditions": [c[0] for c in CONDS], "results": results}
-    Path("/out/generations-samples.json").write_text(json.dumps(payload, indent=1) + "\n")
+    n_total = 0
+    for temp in temp_list:
+        results = []
+        for s in scenarios:
+            for cname, vname, steer in CONDS:
+                msgs = [{"role": "system", "content": s["persona"]}] + s["variants"][vname]
+                text = tok.apply_chat_template(msgs, tokenize=False, add_generation_prompt=True)
+                enc = tok(text, return_tensors="pt").to("cuda")
+                n_in = enc["input_ids"].shape[1]
+                for si in range(N_SAMPLES):
+                    seed = MASTER_SEED + s["call_id"] * 10 + si
+                    torch.manual_seed(seed)
+                    ctx = SteerHook(layers[HL - 1], delta) if steer else nullcontext()
+                    tg = time.time()
+                    with ctx:
+                        gen = model.generate(**enc, max_new_tokens=MAX_NEW, do_sample=True,
+                                             temperature=temp)
+                    out = tok.decode(gen[0][n_in:], skip_special_tokens=True).strip()
+                    results.append({"call_id": s["call_id"], "condition": cname, "sample": si,
+                                    "seed": seed, "steer": steer, "n_in": n_in, "text": out,
+                                    "seconds": round(time.time() - tg, 1)})
+                    print(f"[samples t{temp:g}] call {s['call_id']} {cname} s{si}: {out[:70]!r}",
+                          flush=True)
+                    torch.cuda.empty_cache()
+        payload = {"model": MODEL_ID, "revision": MODEL_REV, "hl": HL, "s42": S42,
+                   "temperature": temp, "n_samples": N_SAMPLES, "master_seed": MASTER_SEED,
+                   "conditions": [c[0] for c in CONDS], "results": results}
+        Path(f"/out/generations-samples-t{temp:g}.json").write_text(json.dumps(payload, indent=1) + "\n")
+        n_total += len(results)
+        print(f"[samples] temp {temp:g} saved ({len(results)} gens) at {time.time() - t0:.0f}s",
+              flush=True)
     out_volume.commit()
-    print(f"[samples] saved ({len(results)} gens) in {time.time() - t0:.0f}s", flush=True)
-    return f"done: {len(results)} generations in {time.time() - t0:.0f}s"
+    return f"done: {n_total} generations in {time.time() - t0:.0f}s"
 
 
 @app.local_entrypoint()
-def main():
-    print("[local] launching sampling-variance replay")
-    print(replay_samples.remote())
+def main(temps: str = DEFAULT_TEMPS):
+    print(f"[local] launching sampling-variance replay (temps={temps})")
+    print(replay_samples.remote(temps=temps))

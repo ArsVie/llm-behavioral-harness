@@ -91,7 +91,7 @@ def main() -> None:
     mult = json.loads((raw / "generations-mult.json").read_text()) if (raw / "generations-mult.json").exists() else None
     xm = json.loads((raw / "generations-xmodels.json").read_text()) if (raw / "generations-xmodels.json").exists() else None
     dose = json.loads((raw / "generations-dose.json").read_text()) if (raw / "generations-dose.json").exists() else None
-    smp = json.loads((raw / "generations-samples.json").read_text()) if (raw / "generations-samples.json").exists() else None
+    smp_files = sorted(raw.glob("generations-samples*.json"))
 
     out = {"per_generation": [], "aggregates": {}, "deltas": {}, "recorded": {}}
     for r in gens["results"]:
@@ -133,35 +133,40 @@ def main() -> None:
             out["dose"].setdefault(r["scale_s"], []).append(
                 {**{k: r[k] for k in ("call_id", "seconds")}, **metrics(r["text"], lex), "text": r["text"]})
         out["dose_agg"] = {s_: _agg(rows) for s_, rows in out["dose"].items()}
-    if smp:
-        out["samples"] = {"temperature": smp["temperature"], "n_samples": smp["n_samples"],
-                          "master_seed": smp["master_seed"]}
-        by_cond: dict = {}
-        for r in smp["results"]:
-            by_cond.setdefault(r["condition"], []).append(
-                {**{k: r[k] for k in ("call_id", "sample", "seed", "seconds")}, **metrics(r["text"], lex), "text": r["text"]})
-        out["samples_by_cond"] = by_cond
-        out["samples_agg"] = {c: _agg(rows) for c, rows in by_cond.items()}
-        # paired per-call analysis: mean per call, then deltas across calls
+    if smp_files:
         import statistics as st
-        calls = sorted({r["call_id"] for r in smp["results"]})
-        per_call = {c: {sid: [g["nrc_valence"] for g in rows if g["call_id"] == sid] for sid in calls}
-                    for c, rows in by_cond.items()}
-        def cmean(c, sid):
-            vs = [v for v in per_call[c][sid] if v is not None]
-            return sum(vs) / len(vs) if vs else None
-        d_card = [cmean("A", s) - cmean("B2", s) for s in calls]
-        d_dose = [cmean("C42", s) - cmean("B2", s) for s in calls]
-        d_card = [x for x in d_card if x is not None]
-        d_dose = [x for x in d_dose if x is not None]
-        out["samples_deltas"] = {
-            "card_A_minus_B2_mean": round(sum(d_card) / len(d_card), 3),
-            "card_sem": round(st.stdev(d_card) / len(d_card) ** 0.5, 3) if len(d_card) > 1 else None,
-            "dose_C42_minus_B2_mean": round(sum(d_dose) / len(d_dose), 3),
-            "dose_sem": round(st.stdev(d_dose) / len(d_dose) ** 0.5, 3) if len(d_dose) > 1 else None,
-            "per_call_card": [round(x, 3) for x in d_card],
-            "per_call_dose": [round(x, 3) for x in d_dose],
-        }
+        out["samples"] = {}
+        for fp in smp_files:
+            smp = json.loads(fp.read_text())
+            tkey = f"{smp['temperature']:g}"
+            by_cond: dict = {}
+            for r in smp["results"]:
+                by_cond.setdefault(r["condition"], []).append(
+                    {**{k: r[k] for k in ("call_id", "sample", "seed", "seconds")}, **metrics(r["text"], lex), "text": r["text"]})
+            # paired per-call analysis: mean per call, then deltas across calls
+            calls = sorted({r["call_id"] for r in smp["results"]})
+            per_call = {c: {sid: [g["nrc_valence"] for g in rows if g["call_id"] == sid] for sid in calls}
+                        for c, rows in by_cond.items()}
+            def cmean(c, sid):
+                vs = [v for v in per_call[c][sid] if v is not None]
+                return sum(vs) / len(vs) if vs else None
+            d_card = [cmean("A", s) - cmean("B2", s) for s in calls]
+            d_dose = [cmean("C42", s) - cmean("B2", s) for s in calls]
+            d_card = [x for x in d_card if x is not None]
+            d_dose = [x for x in d_dose if x is not None]
+            out["samples"][tkey] = {
+                "temperature": smp["temperature"], "n_samples": smp["n_samples"],
+                "master_seed": smp["master_seed"], "file": fp.name,
+                "by_cond": by_cond, "agg": {c: _agg(rows) for c, rows in by_cond.items()},
+                "deltas": {
+                    "card_A_minus_B2_mean": round(sum(d_card) / len(d_card), 3),
+                    "card_sem": round(st.stdev(d_card) / len(d_card) ** 0.5, 3) if len(d_card) > 1 else None,
+                    "dose_C42_minus_B2_mean": round(sum(d_dose) / len(d_dose), 3),
+                    "dose_sem": round(st.stdev(d_dose) / len(d_dose) ** 0.5, 3) if len(d_dose) > 1 else None,
+                    "per_call_card": [round(x, 3) for x in d_card],
+                    "per_call_dose": [round(x, 3) for x in d_dose],
+                },
+            }
 
     (RES / "metrics.json").write_text(json.dumps(out, indent=1) + "\n")
 
@@ -181,11 +186,11 @@ def main() -> None:
         print("\n== dose sweep ==")
         for s_, g in out["dose_agg"].items():
             print(f"s={s_:6.1f} val={g['mean_valence']} rep3={g['mean_rep3']} chars={g['mean_chars']} sprite={g['sprite_ok_rate']:.2f}")
-    if smp:
-        print("\n== samples (temp %.1f, n=%d) ==" % (smp["temperature"], smp["n_samples"]))
-        for c, g in out["samples_agg"].items():
+    for tkey, s_ in (out.get("samples") or {}).items():
+        print("\n== samples temp %s (n=%d/cell) ==" % (tkey, s_["n_samples"]))
+        for c, g in s_["agg"].items():
             print(f"{c:4s} val={g['mean_valence']} rep3={g['mean_rep3']} chars={g['mean_chars']} sprite={g['sprite_ok_rate']:.2f}")
-        print("paired deltas:", json.dumps(out["samples_deltas"]))
+        print("paired deltas:", json.dumps(s_["deltas"]))
 
     lines = ["---",
              "type: reference",
@@ -223,10 +228,10 @@ def main() -> None:
             for g in rows:
                 lines.append(f"- **s={s_} call {g['call_id']}** (val={g['nrc_valence']}, rep3={g['rep3']}): {g['text'][:300]}")
             lines.append("")
-    if smp:
-        lines.append(f"# Samples (temp {smp['temperature']}, {smp['n_samples']} per cell, seeds fixed)")
+    for tkey, s_ in (out.get("samples") or {}).items():
+        lines.append(f"# Samples (temp {tkey}, {s_['n_samples']} per cell, seeds fixed)")
         lines.append("")
-        for c, rows in out["samples_by_cond"].items():
+        for c, rows in s_["by_cond"].items():
             for g in rows:
                 lines.append(f"- **{c} call {g['call_id']} s{g['sample']}** (seed={g['seed']}, val={g['nrc_valence']}): {g['text'][:300]}")
             lines.append("")
