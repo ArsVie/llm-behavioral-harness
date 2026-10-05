@@ -162,5 +162,13 @@
    ]
   }
  },
- "complete": true
+ "complete": true,
+ "latex_counts": {
+  "Im42": {
+   "tokens": 191,
+   "gens_affected": 10,
+   "of": 15
+  },
+  "all_others": 0
+ }
 }
