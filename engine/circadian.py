@@ -51,18 +51,10 @@ def envelope(h: float, params: TimingParams) -> float:
 
     if in_quiet:
         return 0.0
-
-    if quiet_ini > quiet_fin:
-        in_ramp_up = quiet_fin <= h_norm <= quiet_fin + ramp_h
-        in_ramp_down = quiet_ini - ramp_h <= h_norm < quiet_ini
-    else:
-        in_ramp_up = quiet_fin <= h_norm <= quiet_fin + ramp_h
-        in_ramp_down = quiet_ini - ramp_h <= h_norm < quiet_ini
-
-    if in_ramp_up:
+    if quiet_fin <= h_norm <= quiet_fin + ramp_h:
         alpha = (h_norm - quiet_fin) / ramp_h
         return 0.5 * (1.0 - math.cos(math.pi * alpha))
-    if in_ramp_down:
+    if quiet_ini - ramp_h <= h_norm < quiet_ini:
         alpha = (h_norm - (quiet_ini - ramp_h)) / ramp_h
         return 0.5 * (1.0 + math.cos(math.pi * alpha))
     return 1.0

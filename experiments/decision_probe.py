@@ -20,10 +20,8 @@ Design:
   verdict is dual-persisted (raw reply + parsed verdict), parse failures
   are LOUD (state event + requeue), replay would read the recorded verdict.
 - Real mode: env LLM_BASE_URL / LLM_MODEL + the research-lane token
-  (JUDGE_GENERATOR_TOKEN via harness.credentials; the small _load_env
-  pattern from experiments/cvs_matrix.py loads the repo-root .env).
-  --fake mode: scripted model, full end-to-end, no network (used by
-  tests/test_decision_probe.py).
+  (JUDGE_GENERATOR_TOKEN via harness.credentials, from the repo-root .env).
+  --fake mode: scripted model, full end-to-end, no network.
 - Outputs: results/decision-probe-2026-08-14/ with report.md (OKF
   frontmatter + per-evaluation table + plain-language verbatim answers),
   probe.json (raw records) and decision_probe.db (the store).
@@ -51,7 +49,7 @@ import httpx
 
 import engine.rng as rng_mod
 from harness.assembler import assemble_snapshot
-from harness.client import DEFAULT_BASE_URL
+from harness.client import DEFAULT_BASE_URL, request_headers
 from harness.credentials import load_env_file, resolve_credentials
 from harness.domain import (
     AgendaItem,
@@ -77,7 +75,7 @@ DECISION_STREAM = 9
 
 DEFAULT_OUT = Path("results/decision-probe-2026-08-14")
 
-MODEL = os.environ.get("LLM_MODEL", "deepseek/deepseek-v4-flash")
+MODEL = os.environ.get("LLM_MODEL", "deepseek-v4-flash")
 
 # State variants (the "state" dimension of {past turns, state, event}).
 
@@ -322,25 +320,14 @@ SAMPLES: list[dict] = [
     },
 ]
 
-# env loading
-
-
-def _load_env() -> None:
-    """Load the repo-root .env (lane tokens; values never printed)."""
-    repo_root = Path(__file__).resolve().parents[1]
-    load_env_file(repo_root / ".env")
-
-
 # model callables
 
 
 @dataclass
 class _CallContext:
-    """Per-call capture (reasoning presence, raw response) for the report."""
+    """Per-call capture (reasoning presence) for the report."""
 
     reasoning_present: bool = False
-    raw_response: dict | None = None
-    error: str | None = None
 
 
 def make_real_callable() -> tuple:
@@ -378,12 +365,11 @@ def make_real_callable() -> tuple:
         with httpx.Client(timeout=120.0) as client:
             resp = client.post(
                 f"{base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
+                headers=request_headers(api_key),
                 json=payload,
             )
             resp.raise_for_status()
         data = resp.json()
-        ctx.raw_response = data
         message = (data.get("choices") or [{}])[0].get("message") or {}
         ctx.reasoning_present = bool(message.get("reasoning_content"))
         tool_calls = message.get("tool_calls")
@@ -409,7 +395,6 @@ class FakeModel:
     requeued evaluations still record the raw answer (loud, never silent)."""
 
     def __init__(self) -> None:
-        self.reasoning_present = False
         self.last_raw: str | None = None
 
     def _verdict_for(self, request) -> RawReply:
@@ -472,7 +457,6 @@ def _system_for(request) -> str:
     t_h = float(request.inputs.get("time", "12.0"))
     kind = request.popup_kind
     event_label = request.inputs.get("event_label", "event")
-    request.inputs.get("state_label", "start")
 
     item = AgendaItem(
         id=f"evt-{event_label}",
@@ -509,15 +493,8 @@ def _system_for(request) -> str:
 # runner plumbing
 
 
-def _evaluate(
-    runner: DecisionRunner,
-    sample: dict,
-    state: str,
-    transport: str,
-    call,
-    store: SQLiteStore,
-) -> dict:
-    """Run one evaluation (one pop-up) through the real DecisionRunner."""
+def _inputs(sample: dict, state: str) -> dict:
+    """The pop-up's inputs for one sample under one state variant."""
     inputs = {
         "sample_id": sample["sample_id"],
         "state_variant": state,
@@ -536,8 +513,11 @@ def _evaluate(
             state_label=sample["state_label"],
             latest_user_message=sample["latest_user_message"],
         )
-    decision_id = f"{sample['sample_id']}:{state}:{transport}"
-    row = {
+    return inputs
+
+
+def _row_head(sample: dict, decision_id: str, state: str, transport: str) -> dict:
+    return {
         "decision_id": decision_id,
         "sample_id": sample["sample_id"],
         "sample": sample["name"],
@@ -548,9 +528,21 @@ def _evaluate(
         "event_label": sample["event_label"],
         "time": sample["time"],
     }
+
+
+def _evaluate(
+    runner: DecisionRunner,
+    sample: dict,
+    state: str,
+    transport: str,
+    call,
+) -> dict:
+    """Run one evaluation (one pop-up) through the real DecisionRunner."""
+    decision_id = f"{sample['sample_id']}:{state}:{transport}"
+    row = _row_head(sample, decision_id, state, transport)
     try:
         res = runner.execute(
-            decision_id, sample["kind"], inputs,
+            decision_id, sample["kind"], _inputs(sample, state),
             Capabilities(has_native_tools=True), call,
         )
         row.update(
@@ -579,43 +571,17 @@ def _evaluate(
     return row
 
 
-def _draw_evaluation(runner: DecisionRunner, sample: dict, store) -> dict:
+def _draw_evaluation(runner: DecisionRunner, sample: dict) -> dict:
     """One server-draw evaluation (no LLM call; seeded dedicated stream)."""
-    inputs = {
-        "sample_id": sample["sample_id"],
-        "state_variant": "neutral",
-        "time": sample["time"],
-        "conversation_context": sample["conversation_context"],
-    }
-    if sample["kind"] == "tool_decide_event":
-        inputs.update(
-            event_id=sample["event_id"],
-            event_label=sample["event_label"],
-            state_label=sample["state_label"],
-        )
-    else:
-        inputs.update(
-            event_label=sample["event_label"],
-            state_label=sample["state_label"],
-            latest_user_message=sample["latest_user_message"],
-        )
     decision_id = f"{sample['sample_id']}:draw"
     res = runner.execute(
-        decision_id, sample["kind"], inputs, Capabilities(False),
+        decision_id, sample["kind"], _inputs(sample, "neutral"), Capabilities(False),
         lambda _request: (_ for _ in ()).throw(
             AssertionError("server_draw must not call the model")
         ),
     )
     return {
-        "decision_id": decision_id,
-        "sample_id": sample["sample_id"],
-        "sample": sample["name"],
-        "description": sample["description"],
-        "state": "server_draw",
-        "popup_kind": sample["kind"],
-        "transport": "server_draw",
-        "event_label": sample["event_label"],
-        "time": sample["time"],
+        **_row_head(sample, decision_id, "server_draw", "server_draw"),
         "source": res.source,
         "verdict": res.verdict,
         "reply": res.verdict.get("reply", res.verdict.get("initiate")),
@@ -784,7 +750,7 @@ def run_probe(
         call = FakeModel()
         reasoning_ctx = None
     else:
-        _load_env()
+        load_env_file(Path(__file__).resolve().parents[1] / ".env")
         try:
             call, reasoning_ctx = make_real_callable()
         except RuntimeError as exc:
@@ -806,7 +772,7 @@ def run_probe(
                     tool_mode=transport,
                     name="Lily",
                 )
-                row = _evaluate(runner, sample, state, transport, call, store)
+                row = _evaluate(runner, sample, state, transport, call)
                 if reasoning_ctx is not None:
                     row["reasoning_present"] = reasoning_ctx.reasoning_present
                 rows.append(row)
@@ -822,7 +788,7 @@ def run_probe(
             rng=draw_rng,
             name="Lily",
         )
-        rows.append(_draw_evaluation(draw_runner, sample, store))
+        rows.append(_draw_evaluation(draw_runner, sample))
 
     meta = {
         "model": model_name,

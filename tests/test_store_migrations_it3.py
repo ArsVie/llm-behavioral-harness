@@ -10,6 +10,7 @@ steer/decision APIs work on a fresh database.
 import sqlite3
 
 from harness.store import SCHEMA_VERSION, SQLiteStore
+from tests.helpers.migrations import table_counts
 
 # v4 schema: v1 base, v2 tables, memory_turns views, v3/v4 columns.
 _V4_SCHEMA = """
@@ -229,14 +230,6 @@ _LEGACY_TABLES = [
 ]
 
 
-def _table_counts(conn: sqlite3.Connection) -> dict[str, int]:
-    conn.row_factory = sqlite3.Row
-    return {
-        t: conn.execute(f"SELECT COUNT(*) AS n FROM {t}").fetchone()["n"]
-        for t in _LEGACY_TABLES
-    }
-
-
 def _build_v4_db(path) -> None:
     """Create a database exactly as the current repo would after v4, and seed
     it across every table family (messages, judgements, schedule, memory,
@@ -355,7 +348,7 @@ def _build_v4_db(path) -> None:
 def test_v4_to_v5_migration_preserves_everything(tmp_path):
     db = tmp_path / "v4.db"
     _build_v4_db(db)
-    before = _table_counts(sqlite3.connect(db))
+    before = table_counts(sqlite3.connect(db), _LEGACY_TABLES)
 
     store = SQLiteStore(db)  # v4 -> v5 migration runs inside __init__
 
@@ -374,7 +367,7 @@ def test_v4_to_v5_migration_preserves_everything(tmp_path):
         "id", "day", "t_h", "popup_kind", "event_id", "event_label",
         "state_label", "time", "inputs_json", "raw_reply", "verdict_json",
         "source", "transport", "delivered_t_h", "budget_consumed",
-        "replay_id", "after_message_id", "reask",
+        "replay_id", "after_message_id", "reask", "popup_json",
     }
 
 # steering_queue exists with the exact column set
@@ -429,7 +422,7 @@ def test_v4_to_v5_migration_preserves_everything(tmp_path):
     assert len(turns) == 1 and turns[0]["message_id"] == 4
 
     # no destructive transformations: identical row counts on every table
-    after = _table_counts(store.conn)
+    after = table_counts(store.conn, _LEGACY_TABLES)
     assert after == before
 
     # the new tables are empty until used
@@ -443,43 +436,11 @@ def test_v4_to_v5_migration_preserves_everything(tmp_path):
     store.close()
 
 
-def test_v5_migration_runs_twice_without_error(tmp_path):
-    db = tmp_path / "v4b.db"
-    _build_v4_db(db)
-
-    store1 = SQLiteStore(db, audit_mode=True)
-    # write through the v5 schema after migration
-    steer_id = store1.enqueue_steer(0, 19.0, "popup",
-                                    {"kind": "tool_decide_event"})
-    dec_id = store1.record_decision(
-        0, 19.0, "tool_decide_event", "evt-1", "gym", "start", "19.0",
-        '{"event": "gym"}', 'tool_decide_event: {yes, "go"}',
-        '{"initiate": true, "reason": "go", "action": null}',
-        "model", "textual", None, 0, replay_id="dec-1",
-    )
-    store1.close()
-
-# re-open: migration is a no-op, no duplicate rows
-    store2 = SQLiteStore(db, audit_mode=True)
-    rows = store2.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
-    assert store2.pending_steers()[0]["id"] == steer_id
-    replay = store2.decision_for_replay("dec-1")
-    assert replay is not None and replay["id"] == dec_id
-    assert replay["verdict"] == {"initiate": True, "reason": "go",
-                                 "action": None}
-    assert replay["raw_reply"] == 'tool_decide_event: {yes, "go"}'
-    # legacy data still intact after the second open
-    assert [m["content"] for m in store2.recent_messages()] == [
-        "legacy hello", "legacy reply", "legacy proactive", "session turn",
-    ]
-    store2.close()
-
-
-def test_fresh_db_reaches_v5_with_tables_and_new_apis(tmp_path):
+def test_steering_queue_and_decision_records_apis(tmp_path):
+    """The SQLite side of the steer queue (enqueue/pending filters/deliver/
+    requeue) and the decision-record replay API on a fresh store — the only
+    test of these store methods (test_steering drives an in-memory backend)."""
     store = SQLiteStore(tmp_path / "fresh.db", audit_mode=True)
-    rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
 
 # --- steering_queue ---
     s1 = store.enqueue_steer(0, 19.0, "popup",

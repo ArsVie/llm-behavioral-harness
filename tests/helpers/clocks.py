@@ -79,6 +79,6 @@ async def no_wait(delay: float) -> None:
     before a reply, ~30 s at the default persona. A runtime built without an
     injected sleeper therefore really sleeps that long per turn, which is
     what made a handful of lifecycle tests cost 17-30 s each. Tests that
-    assert on the delay VALUE use ``helpers.runtime.run``'s recorder; tests
+    assert on the delay VALUE use ``helpers.runtime.run_runtime``'s recorder; tests
     that only care about the resulting messages/events take this.
     """

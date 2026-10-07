@@ -17,6 +17,7 @@ from harness.domain import UserProfile
 from harness.interests import MAX_ADJACENCY_HOPS, build_catalog
 from harness.persona import build_persona
 from harness.store import SQLiteStore
+from tests.helpers.misc import bucket_counts
 
 #: The plan's Gate-2 user (plan §8): mathematics, lifting, movies, metal.
 PLAN_USER = UserProfile(
@@ -81,13 +82,6 @@ def test_graph_distance_consistent_with_path_exists():
 # -- user-relative persona (brief §T2) ---------------------------------------
 
 
-def _bucket_counts(profile):
-    counts = {"exact": 0, "adjacent": 0, "independent": 0}
-    for interest in profile.interests:
-        counts[interest.bucket] += 1
-    return counts
-
-
 def _user_relative_profiles(user, n=N_SEEDS):
     g = build_catalog()
     return [build_persona(seed, graph=g, user_interests=user.interests) for seed in range(n)]
@@ -140,7 +134,7 @@ def test_user_relative_population_fractions_plan_user():
     profiles = _user_relative_profiles(PLAN_USER)
     fracs = {b: [] for b in TARGETS}
     for p in profiles:
-        c = _bucket_counts(p)
+        c = bucket_counts(p)
         total = sum(c.values())
         for b in c:
             fracs[b].append(c[b] / total)
@@ -156,7 +150,7 @@ def test_user_relative_population_counts_all_hubs():
     counts = {b: [] for b in TARGETS}
     fracs = {b: [] for b in TARGETS}
     for p in profiles:
-        c = _bucket_counts(p)
+        c = bucket_counts(p)
         total = sum(c.values())
         for b in c:
             counts[b].append(c[b])

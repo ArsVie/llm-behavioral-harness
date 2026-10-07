@@ -65,10 +65,6 @@ CLEAR_TABLES: tuple[str, ...] = (
     "reminders", "tool_records",
 )
 
-#: Tables seeded by ``init_life`` / the engine from the seed alone, so clearing
-#: them costs nothing: the same seed rebuilds them byte-for-byte.
-REGENERATED_TABLES: tuple[str, ...] = ("life_arcs",)
-
 
 class ResetRefused(RuntimeError):
     """The reset was not safe to run; nothing was touched."""
@@ -87,22 +83,6 @@ class ResetPlan:
     unlisted: list[str] = field(default_factory=list)
     writer: str | None = None
     bytes_before: int = 0
-
-    @property
-    def keep_learned_facts(self) -> bool:
-        return bool(self.learned)
-
-    def as_dict(self) -> dict:
-        return {
-            "db": str(self.db),
-            "archive_dir": str(self.archive_dir),
-            "keep": list(self.keep),
-            "learned": list(self.learned),
-            "clear": list(self.clear),
-            "rows": dict(self.rows),
-            "writer": self.writer,
-            "bytes_before": self.bytes_before,
-        }
 
 
 def _ro(path: Path) -> sqlite3.Connection:
@@ -191,7 +171,7 @@ def plan_reset(
     plan = ResetPlan(
         db=db,
         archive_dir=Path(archive_dir) if archive_dir else db.parent / "archive" / f"pre-reset-{when}",
-        keep=[t for t in PRESERVE_TABLES],
+        keep=list(PRESERVE_TABLES),
         learned=list(LEARNED_TABLES) if keep_learned_facts else [],
         bytes_before=sum(
             f.stat().st_size for f in _sidecars(db) if f.exists()
@@ -217,7 +197,7 @@ def _sidecars(db: Path) -> list[Path]:
     return [db, Path(f"{db}-wal"), Path(f"{db}-shm")]
 
 
-def apply_reset(plan: ResetPlan, *, force: bool = False, writer: str | None = None) -> dict:
+def apply_reset(plan: ResetPlan, *, force: bool = False) -> dict:
     """Do it: build the fresh database, archive the old one, swap.
 
     The new database is completed BEFORE anything moves, so an error here
@@ -226,10 +206,9 @@ def apply_reset(plan: ResetPlan, *, force: bool = False, writer: str | None = No
     from harness.store import SQLiteStore
 
     db = plan.db
-    writer = plan.writer if writer is None else writer
-    if writer and not force:
+    if plan.writer and not force:
         raise ResetRefused(
-            f"a live process has this database open:\n  {writer}\n"
+            f"a live process has this database open:\n  {plan.writer}\n"
             "stop it first (systemctl --user stop lily-telegram.service) "
             "or pass force=True / --force"
         )
@@ -270,18 +249,15 @@ def apply_reset(plan: ResetPlan, *, force: bool = False, writer: str | None = No
             if sidecar.exists():
                 shutil.move(str(sidecar), str(plan.archive_dir / sidecar.name))
         shutil.move(str(staging), str(db))
+    finally:
         for leftover in _sidecars(staging):
             leftover.unlink(missing_ok=True)
-    except Exception:
-        for leftover in _sidecars(staging):
-            leftover.unlink(missing_ok=True)
-        raise
 
     return {
         "db": str(db),
         "archive_dir": str(plan.archive_dir),
         "copied": copied,
-        "cleared": [t for t in plan.clear],
+        "cleared": list(plan.clear),
         "bytes_before": plan.bytes_before,
         "bytes_after": sum(f.stat().st_size for f in _sidecars(db) if f.exists()),
     }

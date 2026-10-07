@@ -88,7 +88,7 @@ correctly refuses.
   safe-boundary steering, and replay records.
 - `runtime.py`: inbound messages, proactive scheduling, lifecycle, locking, and
   real-time anchoring.
-- `channels/` and `client.py`: Telegram/CLI delivery and LLM transport.
+- `channels/` and `client.py`: Telegram/CLI/web delivery and LLM transport. `channels/multi.py` puts the web chat (`channels/web.py`, 127.0.0.1:8791, on with `HARNESS_WEB_CHAT=1`) next to Telegram: one session and one history; a reply goes back where the message came from, proactive messages go to Telegram.
 
 ## External delivery contract
 
@@ -110,15 +110,17 @@ Exactly-once delivery is not assumed. See the backlog entry for the outbox work.
 ## Prompt layout
 
 The stable prefix leads with the persona, then the card-handling rules and the
-tool protocol. Everything per-turn lives after the transcript, in a trailing
-system message. Model-visible time is always a 24-hour wall clock (`clock.hhmm`);
+tool protocol. Everything per-turn is a row in the stream after it: the state
+card is stored as a system row when it changes (a smaller update row when it
+can be), so it sits in the transcript at the point it changed rather than
+trailing it. Model-visible time is always a 24-hour wall clock (`clock.hhmm`);
 absolute virtual hours are an engine coordinate and never reach the prompt.
 
 ```text
 system:  persona → card rules + tool protocol      (stable, cached)
-messages: transcript turns and past decisions      (append-only in intent)
-          → trailing system message: the state card (volatile)
-          → pop-up block, when one is being decided (volatile)
+messages: transcript turns, state-card rows and past decisions (append-only)
+          → pop-up block, when one is being decided (saved with its
+            decision, replayed ahead of the tool call)
 ```
 
 Deliberately absent from the prefix, each recorded in the backlog: the closing
@@ -126,24 +128,36 @@ guidance, the steer trust prose, and the mood-brief label.
 
 The transcript is read from a stored compaction epoch, not a rolling tail, so
 between boundaries request N+1 is request N plus what was appended. The epoch
-moves at day rollover only, and records a `context_compacted` event.
-`tests/test_cache_prefix_gate.py` is the pre-run check.
+moves at day rollover only, and records a `context_compacted` event. The
+first request after 2 h or more with no model call prunes once: state cards
+older than the newest full card and decision tool pairs from before his last
+message, with the pop-up blocks they were asked with (`Session._cold_prune`,
+`context_pruned`; the provider's cache is gone by then). Idle is measured
+from when each call actually went out (`llm_calls.called_at`). `tests/test_cache_prefix_gate.py` is the pre-run check.
+
+Her replies open with a face tag, `[smug] …` (`harness/faces.py`). Her stored
+row keeps it, and every channel strips it: `TurnResult.face`, a `{"face"}`
+event ahead of the call's first sentence, and `face` on the `/chat` history
+rows.
 
 ## Current implementation gaps
 
 - Day-scoped material (agenda plan, life arcs) is rebuilt into the volatile
   tail every turn instead of being appended once at rollover.
-- The decision lane is projected back into context as prose, not as
-  provider-native `tool_calls` plus `tool` results.
 - Outstanding steers are not drained before day finalize or conversation
-  close.
+  close. Since 2026-10-03 the day's unanswered pop-ups and proactive fires are
+  abandoned when it finalizes (`steers_expired`), so they no longer pop up the
+  next day; asking them before finalize is still open.
+- A pop-up that never parsed leaves no decision, so its block is not saved
+  and the next request does not extend that one (owner ruling 2026-10-03
+  saves blocks with their decisions).
 - Idle decisions and their relationship to visible conversation turns need the
   final runtime wiring.
 
 ## Pointers
 
-- Current gaps and decisions: [spec-context-events-time-2026-08-15.md](spec-context-events-time-2026-08-15.md)
-- Verbatim design record: [internal/verbatim-design-internal-context.md](internal/verbatim-design-internal-context.md)
-- Operational flow: [context-flow-2026-08-14.md](context-flow-2026-08-14.md)
+- Earlier spec (dated): [reports/spec-context-events-time-2026-08-15.md](reports/spec-context-events-time-2026-08-15.md)
+- Verbatim design record: [../VERBATIM.md](../VERBATIM.md)
+- Operational flow (dated): [reports/context-flow-2026-08-14.md](reports/context-flow-2026-08-14.md)
 - Lifecycle policy: see the lifecycle section above.
-- Backlog: [internal/BACKLOG.md](internal/BACKLOG.md)
+- Backlog: [BACKLOG.md](BACKLOG.md)

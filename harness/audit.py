@@ -41,13 +41,14 @@ _HASH_ONLY_MSG = (
 _T_H_EPS = 1e-9
 
 
-def _reasoning_of(row: dict[str, Any]) -> str | None:
-    """Reasoning text stored on the call row (``meta`` or ``repro``), or None."""
+def _thinking_lines(row: dict[str, Any]) -> list[str]:
+    """The ``#Thinking`` block for the reasoning stored on the call row
+    (``meta`` or ``repro``); empty when there is none."""
     for source in ("meta", "repro"):
         payload = row.get(source) or {}
         if isinstance(payload, dict) and payload.get("reasoning"):
-            return str(payload["reasoning"])
-    return None
+            return ["", HEADER_THINKING, str(payload["reasoning"])]
+    return []
 
 
 def _message_headers(message: dict[str, Any]) -> list[str]:
@@ -107,15 +108,8 @@ def render_call_extract(store: SQLiteStore, call_id: int) -> str:
         lines.extend(_message_headers(message))
         lines.append(str(message.get("content", "")))
 
-    thinking = _reasoning_of(row)
-    if thinking:
-        lines.append("")
-        lines.append(HEADER_THINKING)
-        lines.append(thinking)
-
-    lines.append("")
-    lines.append(HEADER_REPLY)
-    lines.append(row["response"] or "")
+    lines.extend(_thinking_lines(row))
+    lines += ["", HEADER_REPLY, row["response"] or ""]
     return "\n".join(lines)
 
 
@@ -183,40 +177,24 @@ def render_conversation_export(store: SQLiteStore, conversation_id: str) -> str:
 
     for turn in conv.turns:
         if turn.speaker == "user":
-            lines.append(HEADER_USER)
-            lines.append(turn.text)
-            lines.append("")
+            lines += [HEADER_USER, turn.text, ""]
             continue
         day = int(turn.t_h // 24.0)
         call_id = _call_id_for_turn(store, index, day, turn.t_h, turn.text)
         if call_id is None:
-            lines.append(HEADER_REPLY)
-            lines.append(turn.text)
-            lines.append("")
-            lines.append("_no llm_call row logged for this turn_")
-            lines.append("")
+            lines += [HEADER_REPLY, turn.text, "",
+                      "_no llm_call row logged for this turn_", ""]
             continue
         row = store.get_llm_call(call_id)
         assert row is not None
         if row.get("repro") is None:
-            lines.append(HEADER_REPLY)
-            lines.append(turn.text)
-            lines.append("")
-            lines.append(f"_hash-only row (llm_call {call_id}); no persisted "
-                         "payload to reconstruct (invariant 19)_")
-            lines.append("")
+            lines += [HEADER_REPLY, turn.text, "",
+                      f"_hash-only row (llm_call {call_id}); no persisted "
+                      "payload to reconstruct (invariant 19)_", ""]
             continue
-        lines.append(HEADER_SYSTEM)
-        lines.append(str(row["repro"].get("system", "")))
-        thinking = _reasoning_of(row)
-        if thinking:
-            lines.append("")
-            lines.append(HEADER_THINKING)
-            lines.append(thinking)
-        lines.append("")
-        lines.append(HEADER_REPLY)
-        lines.append(turn.text)
-        lines.append("")
+        lines += [HEADER_SYSTEM, str(row["repro"].get("system", ""))]
+        lines.extend(_thinking_lines(row))
+        lines += ["", HEADER_REPLY, turn.text, ""]
 
     return "\n".join(lines).rstrip()
 

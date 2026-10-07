@@ -1,5 +1,7 @@
 # Provider switch: commandcode.ai (2026-08-28)
 
+> Superseded 2026-09-26 by `provider-opencode-go-2026-09-26.md`.
+
 Status: DONE — both lanes now resolve to the commandcode provider.
 
 ## What changed

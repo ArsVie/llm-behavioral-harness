@@ -7,6 +7,8 @@ and ``stream_rng(seed, LIFE_STREAM, day)`` per day — never ``day_rng``.
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, replace
 from typing import Protocol
 
@@ -18,7 +20,6 @@ from harness.domain import (
     AgendaItem,
     CurrentActivity,
     DailyAgenda,
-    Interest,
     LifeArc,
     PersonaProfile,
 )
@@ -31,12 +32,10 @@ DAY_HOURS = 24.0
 AWAKE_START_H = 8.0
 AWAKE_END_H = 23.0
 
-#: Probability that an active arc's next_intention lands on a given day's agenda.
-_ARC_ITEM_PROB = 0.8
 #: Daily probability that an active arc is abandoned.
 _ABANDON_PROB = 0.005
-#: Daily progress gain of an active arc: ``0.01 + rng.random() * 0.04``.
-_PROGRESS_MIN = 0.01
+#: Progress one completed session gives its arc: ``0.03 + rng.random() * 0.04``.
+_PROGRESS_MIN = 0.03
 _PROGRESS_SPAN = 0.04
 
 #: Spawn policy while ``N_active < N_MIN_ACTIVE``: probability ``_SPAWN_PROB``,
@@ -101,6 +100,13 @@ BUCKET_WEIGHT: dict[str, float] = {
     "independent": 1.5,
 }
 
+#: A taste is enjoyed, never practised: its own fallback templates.
+_TASTE_ACTIVITIES = (
+    "some {interest}",
+    "catch up on {interest}",
+    "unwind with {interest}",
+)
+
 #: Standalone interest-activity templates; one draw per interest item.
 #: FALLBACK ONLY: ``harness.day_planner`` supplies the text when available.
 _INTEREST_ACTIVITIES = (
@@ -121,7 +127,6 @@ class LifeStore(Protocol):
     def upsert_life_arc(self, arc: LifeArc) -> None: ...
     def get_life_arc(self, arc_id: str) -> LifeArc | None: ...
     def list_life_arcs(self, status: str | None = None) -> list[LifeArc]: ...
-    def update_life_arc_status(self, arc_id: str, status: str) -> None: ...
     def save_agenda(self, day: int, agenda: DailyAgenda) -> None: ...
     def load_agenda(self, day: int) -> DailyAgenda | None: ...
     def update_agenda_item_status(self, item_id: str, status: str) -> None: ...
@@ -132,18 +137,10 @@ class LifeStore(Protocol):
 
 @dataclass(frozen=True)
 class LifeStepResult:
-    """Outcome of one day's life step.
-
-    ``updated_arcs`` and ``agenda`` are the persisted post-step state. With
-    ``t_h`` (NOW semantics), ``current_activity`` is the item active at
-    ``t_h``, ``None`` when nothing is active; without it, the day-level MAIN
-    activity — the highest-salience completed item, falling back to the
-    highest-salience item when nothing completed; ``None`` for an empty agenda.
-    """
+    """Outcome of one day's life step: the persisted post-step state."""
 
     updated_arcs: list[LifeArc]
     agenda: DailyAgenda
-    current_activity: CurrentActivity | None
 
 
 def init_life(
@@ -203,6 +200,73 @@ def init_life(
     return arcs
 
 
+#: Hobby sessions on a day with her commitment, and on a free day.
+HOBBIES_ON_COMMITMENT_DAY = 2
+HOBBIES_ON_FREE_DAY = 3
+#: An interest with an active project comes up once more a week, and at
+#: least this often: a project is what she is working on.
+ARC_EXTRA_PER_WEEK = 1
+ARC_MIN_PER_WEEK = 3
+
+#: Fixed commitments skip rarely, and the day records why.
+COMMITMENT_SKIP_PROB = 0.03
+COMMITMENT_SKIP_CAUSE = {"job": "called in sick", "school": "class cancelled",
+                         "home": "took the day off"}
+
+#: At most one errand a day, afternoon to evening.
+ERRAND_PROB = 0.4
+ERRANDS = ("groceries", "laundry", "a trip to the pharmacy",
+           "tidying the flat", "the post office")
+ERRAND_WINDOW = (15.0, 20.0)
+ERRAND_MIN = (30, 60)
+ERRAND_SALIENCE = 0.25
+COMMITMENT_SALIENCE = 0.6
+
+#: Starts sit on a 15-minute grid.
+GRID_H = 0.25
+
+#: Source types that are background: no pop-up, no decision.
+BACKGROUND_SOURCES = frozenset({"errand"})
+
+
+def _on_grid(t: float) -> float:
+    return round(t / GRID_H) * GRID_H
+
+
+def _fits(taken: list[tuple[float, float]], start: float, end: float) -> bool:
+    return all(end <= a or start >= b for a, b in taken)
+
+
+def _place(rng, taken: list[tuple[float, float]], window: tuple[float, float],
+           length: float) -> float | None:
+    """A free start on the grid with the whole session inside ``window``
+    (local hours) and waking hours, or None. One draw picks among the fits."""
+    low = max(window[0], AWAKE_START_H)
+    high = min(window[1], AWAKE_END_H) - length
+    fits = []
+    t = _on_grid(low)
+    while t <= high + 1e-9:
+        if t >= low - 1e-9 and _fits(taken, t, t + length):
+            fits.append(t)
+        t += GRID_H
+    if not fits:
+        return None
+    return fits[int(rng.integers(len(fits)))]
+
+
+def _minutes(rng, span: tuple[int, int]) -> float:
+    low, high = span
+    return round((low + float(rng.random()) * (high - low)) / 5.0) * 5.0 / 60.0
+
+
+def weekday_index_of(name: str, day: int) -> int:
+    """0 = Monday; an unknown name counts days from a Monday."""
+    days = ("monday", "tuesday", "wednesday", "thursday", "friday",
+            "saturday", "sunday")
+    name = (name or "").lower()
+    return days.index(name) if name in days else day % 7
+
+
 def generate_agenda(
     day: int,
     persona: PersonaProfile,
@@ -214,110 +278,157 @@ def generate_agenda(
     fork=None,
     weekday: str = "today",
     logger=None,
+    plan=None,
+    seed: int = 0,
 ) -> DailyAgenda:
-    """Build and persist the day's agenda, predominantly from persona sources.
+    """Build and persist the day's agenda from her saved habits.
 
-    Sources in draw order: each routine whose cadence draw succeeds; each
-    ACTIVE arc that has already STARTED (``started_day <= day``), with
-    probability 0.8 — a future ``started_day`` must NOT generate activities
-    before its start; then exactly 2 standalone interest items, weighted by
-    ``salience * BUCKET_WEIGHT[bucket]``.
+    In placement order: her commitment (job, school or housework, on its
+    days, rarely skipped with the cause recorded), her routines, at most one
+    errand, then one to three hobby sessions in the gaps. A hobby comes up
+    by its weekly frequency; an interest with an active project comes up as
+    that project. Each session lasts what its kind and stage say, starts on
+    a 15-minute grid inside its part of the day, and nothing overlaps.
 
-    Items live inside the awake window, are sorted by start time, carry status
-    "planned" and are persisted via ``store.save_agenda``. All draws come from
-    the passed ``rng`` — callers must hand in ``stream_rng(seed, LIFE_STREAM,
-    day)``, never ``day_rng``. ``planner_client`` (optional) hands the arc and
-    interest slots to ``harness.day_planner`` for concrete activity text; the
-    engine keeps selection, windows, salience and ids either way, any planner
-    failure keeps the template text, and the RNG draw order is identical with
-    and without a planner.
+    ``plan`` is the persona's :class:`harness.habits.LifePlan`; without one
+    it is derived from ``seed``. All draws come from ``rng`` — callers hand
+    in ``stream_rng(seed, LIFE_STREAM, day)``, never ``day_rng``. The planner
+    (optional) names the hobby sessions after every draw, so the seeded
+    schedule is identical with and without it.
     """
-    items: list[AgendaItem] = []
-    day_start = day * DAY_HOURS
+    from harness import habits as hb
 
+    if plan is None:
+        plan = hb.derive_plan(seed, persona)
+    day_start = day * DAY_HOURS
+    items: list[AgendaItem] = []
+    taken: list[tuple[float, float]] = []
+
+    def add(item_id, start_local, length, activity, source_type, source_id,
+            salience, status="planned", outcome=None):
+        start = day_start + start_local
+        end = min(start + length, day_start + AWAKE_END_H)
+        items.append(AgendaItem(
+            id=item_id, start_t_h=round(start, 4), end_t_h=round(end, 4),
+            activity=activity, source_type=source_type, source_id=source_id,
+            salience=round(salience, 3), status=status, outcome=outcome,
+        ))
+        if status == "planned":
+            taken.append((start_local, start_local + length))
+
+    weekday_index = weekday_index_of(weekday, day)
+    commitment = plan.commitment
+    if commitment.on(weekday_index):
+        skipped = float(rng.random()) < COMMITMENT_SKIP_PROB
+        add(f"ag_{day}_c", commitment.start_h, commitment.hours,
+            commitment.text, "commitment", commitment.kind,
+            COMMITMENT_SALIENCE,
+            status="skipped" if skipped else "planned",
+            outcome=COMMITMENT_SKIP_CAUSE[commitment.kind] if skipped else None)
+    busy_day = any(it.source_type == "commitment" and it.status == "planned"
+                   for it in items)
+
+    routined: set[str] = set()
     for routine in persona.routines:
         if rng.random() >= routine.cadence:
             continue
-        start = day_start + round(routine.start_frac * DAY_HOURS, 2)
-        end = min(start + routine.duration_h, day_start + AWAKE_END_H)
-        if end <= start:  # routine scheduled past the awake window: skip
+        start = max(_on_grid(routine.start_frac * DAY_HOURS), AWAKE_START_H)
+        length = min(routine.duration_h, AWAKE_END_H - start)
+        if length <= 0 or not _fits(taken, start, start + length):
             continue
-        items.append(
-            AgendaItem(
-                id=f"ag_{day}_r_{len(items):02d}",
-                start_t_h=start,
-                end_t_h=round(end, 2),
-                activity=routine.name,
-                source_type="routine",
-                source_id=routine.name,
-                salience=routine.salience,
-                status="planned",
-            )
-        )
+        add(f"ag_{day}_r_{len(items):02d}", start, length, routine.name,
+            "routine", routine.name, routine.salience)
+        routined.add(routine.name)
 
-    for arc in arcs:
-        if arc.status != "active" or arc.started_day > day or rng.random() >= _ARC_ITEM_PROB:
+    if float(rng.random()) < ERRAND_PROB:
+        errand = ERRANDS[int(rng.integers(len(ERRANDS)))]
+        length = _minutes(rng, ERRAND_MIN)
+        start = _place(rng, taken, ERRAND_WINDOW, length)
+        if start is not None:
+            add(f"ag_{day}_e", start, length, errand, "errand", errand,
+                ERRAND_SALIENCE)
+
+    arc_for = {}
+    for arc in started_arcs(arcs, day):
+        arc_for.setdefault(arc.interest, arc)
+    # An interest her routine already covers today (math practice ->
+    # mathematics) gets no second session; its project still can.
+    pool = [i for i in persona.interests
+            if i.salience > 0 and i.name in plan.habits
+            and (i.name in arc_for
+                 or not any(routine_covers(r, i.name) for r in routined))]
+    def weight(interest):
+        return max(float(interest.salience), 1e-3) * BUCKET_WEIGHT.get(interest.bucket, 1.0)
+
+    picked = []
+    for interest in sorted(pool, key=lambda i: i.name):
+        habit = plan.habits[interest.name]
+        per_week = habit.per_week
+        if interest.name in arc_for:
+            per_week = max(per_week + ARC_EXTRA_PER_WEEK, ARC_MIN_PER_WEEK)
+        chance = per_week / 7.0 * BUCKET_WEIGHT.get(interest.bucket, 1.0)
+        if float(rng.random()) < min(1.0, chance):
+            picked.append(interest)
+    cap = HOBBIES_ON_COMMITMENT_DAY if busy_day else HOBBIES_ON_FREE_DAY
+    # None came up: one still happens. More than the day holds: a weighted
+    # draw without replacement keeps a low-weight interest in the running.
+    keep = min(len(picked), cap)
+    if not picked:
+        picked, keep = list(pool), min(1, len(pool))
+    if picked:
+        weights = [weight(i) for i in picked]
+        total = sum(weights)
+        order = rng.choice(len(picked), size=keep, replace=False,
+                           p=[w / total for w in weights])
+        picked = [picked[int(i)] for i in order]
+    for interest in picked:
+        habit = plan.habits[interest.name]
+        length = hb.duration_h(habit, rng)
+        low, high = habit.window
+        start = _place(rng, taken, (low, high), length)
+        if start is None:  # a long session or a full window: widen once
+            start = _place(rng, taken, (low - 2.0, high + 2.0), length)
+        if start is None:
             continue
-        start = day_start + float(rng.integers(9, 21))  # 09:00..20:00 local
-        end = min(start + 1.0 + float(rng.random()) * 1.5, day_start + AWAKE_END_H)
-        interest = _interest_by_name(persona, arc.interest)
-        items.append(
-            AgendaItem(
-                id=f"ag_{day}_a_{arc.id}",
-                start_t_h=start,
-                end_t_h=round(end, 2),
-                activity=arc.next_intention,
-                source_type="arc",
-                source_id=arc.id,
-                salience=round(interest.salience if interest else 0.5, 3),
-                status="planned",
-            )
-        )
+        arc = arc_for.get(interest.name)
+        if arc is not None:
+            add(f"ag_{day}_a_{arc.id}", start, length, arc.next_intention,
+                "arc", arc.id, interest.salience)
+        else:
+            templates = (_TASTE_ACTIVITIES if habit.kind == hb.TASTE
+                         else _INTEREST_ACTIVITIES)
+            add(f"ag_{day}_i_{interest.name}", start, length,
+                templates[int(rng.integers(len(templates)))]
+                .format(interest=interest.name),
+                "interest", interest.name, interest.salience)
 
-    pool = [i for i in persona.interests if i.salience > 0] or list(persona.interests)
-    if not pool:  # interest-less persona: agenda from routines/arcs only
-        items.sort(key=lambda it: it.start_t_h)
-        agenda = DailyAgenda(day=day, items=tuple(items))
-        store.save_agenda(day, agenda)
-        return agenda
-    n_interest = min(2, len(pool))
-    weights = [
-        max(float(i.salience), 1e-3) * BUCKET_WEIGHT.get(i.bucket, 1.0)
-        for i in pool
-    ]
-    total = sum(weights)
-    picks = rng.choice(
-        len(pool), size=n_interest, replace=False, p=[w / total for w in weights]
-    )
-    for idx in picks:
-        interest = pool[int(idx)]
-        start = day_start + float(rng.integers(8, 21))  # 08:00..20:00 local
-        end = min(start + 0.5 + float(rng.random()) * 1.5, day_start + AWAKE_END_H)
-        activity = _INTEREST_ACTIVITIES[
-            int(rng.integers(len(_INTEREST_ACTIVITIES)))
-        ].format(interest=interest.name)
-        items.append(
-            AgendaItem(
-                id=f"ag_{day}_i_{interest.name}",
-                start_t_h=start,
-                end_t_h=round(end, 2),
-                activity=activity,
-                source_type="interest",
-                source_id=interest.name,
-                salience=interest.salience,
-                status="planned",
-            )
-        )
-
+    items.sort(key=lambda it: it.start_t_h)
     items = _apply_plan(
         day, persona, arcs, items, store,
         planner_client=planner_client, fork=fork, weekday=weekday,
-        logger=logger,
+        logger=logger, plan=plan,
     )
-    items.sort(key=lambda it: it.start_t_h)
     agenda = DailyAgenda(day=day, items=tuple(items))
     store.save_agenda(day, agenda)
     return agenda
+
+
+def _words(text: str) -> list[str]:
+    return [w for w in re.findall(r"[a-z]+", text.lower()) if len(w) >= 4]
+
+
+def routine_covers(routine_name: str, interest_name: str) -> bool:
+    """Whether a routine is a session of an interest: a word of one opens a
+    word of the other ("math practice" / "mathematics", "read history" /
+    "history")."""
+    return any(a.startswith(b) or b.startswith(a)
+               for a in _words(routine_name) for b in _words(interest_name))
+
+
+def started_arcs(arcs, day: int) -> list[LifeArc]:
+    """The arcs she is working on by ``day``: active and already begun. An
+    arc seeded to start later is invisible to her and the planner until then."""
+    return [a for a in arcs if a.status == "active" and a.started_day <= day]
 
 
 def _apply_plan(
@@ -331,45 +442,44 @@ def _apply_plan(
     fork=None,
     weekday: str,
     logger,
+    plan=None,
 ) -> list[AgendaItem]:
     """Replace template activity text with planned text, where available.
 
-    Only arc and interest items are planned; a routine is the same thing every
-    day by definition. Returns the items unchanged whenever planning does not
-    happen. Runs AFTER every RNG draw, so a planner never perturbs the seeded
-    schedule.
+    Only hobby sessions (arc and interest items) are planned; the commitment,
+    routines and errands are what they are. The planner is told each
+    session's interest, kind, stage and hours — never the bucket. Returns the
+    items unchanged whenever planning does not happen. Runs AFTER every RNG
+    draw, so a planner never perturbs the seeded schedule.
     """
     if planner_client is None:
         return items
     from harness import day_planner as planner
+    from harness.clock import hhmm
 
+    habits = plan.habits if plan is not None else {}
+    arc_by_id = {a.id: a for a in arcs}
     slots: list[planner.PlanSlot] = []
     indices: list[int] = []
-    by_name = {i.name: i for i in persona.interests}
-    arc_by_id = {a.id: a for a in arcs}
+    fixed: list[str] = []
     for index, item in enumerate(items):
-        if item.source_type == "arc":
-            arc = arc_by_id.get(item.source_id)
-            label = (
-                f"her project '{arc.name}' (next: {arc.next_intention})"
-                if arc is not None else f"her project {item.source_id}"
-            )
-            slots.append(planner.PlanSlot(
-                source_type="arc", source_id=item.source_id,
-                fallback=item.activity, label=label,
-            ))
-            indices.append(index)
-        elif item.source_type == "interest":
-            interest = by_name.get(item.source_id)
-            bucket = interest.bucket if interest is not None else None
-            tag = "HERS" if bucket == "independent" else "SHARED"
-            slots.append(planner.PlanSlot(
-                source_type="interest", source_id=item.source_id,
-                fallback=item.activity,
-                label=f"her interest in {item.source_id} ({tag})",
-                bucket=bucket,
-            ))
-            indices.append(index)
+        hours = f"{hhmm(item.start_t_h)}–{hhmm(item.end_t_h)}"
+        if item.source_type not in ("arc", "interest"):
+            if item.status == "planned":
+                fixed.append(f"{item.activity}, {hours}")
+            continue
+        arc = arc_by_id.get(item.source_id) if item.source_type == "arc" else None
+        interest = arc.interest if arc is not None else item.source_id
+        habit = habits.get(interest)
+        level = f"{habit.stage} ({habit.kind})" if habit is not None else ""
+        label = ", ".join(x for x in (interest, level, hours) if x)
+        if arc is not None:
+            label += f", her project '{arc.name}', next: {arc.next_intention}"
+        slots.append(planner.PlanSlot(
+            source_type=item.source_type, source_id=item.source_id,
+            fallback=item.activity, label=label,
+        ))
+        indices.append(index)
     if not slots:
         return items
 
@@ -382,8 +492,10 @@ def _apply_plan(
             outcomes = []
 
     planned = planner.plan_day(
-        name=persona.name, weekday=weekday, arcs=arcs, slots=slots,
+        name=persona.name, weekday=weekday, arcs=started_arcs(arcs, day),
+        slots=slots,
         outcomes=outcomes, client=planner_client, fork=fork, logger=logger,
+        fixed=fixed,
     )
     if planned is None:
         return items
@@ -398,19 +510,20 @@ def _apply_plan(
     return out
 
 
-def _step_arc(arc: LifeArc, day: int, store: LifeStore,
+def _step_arc(arc: LifeArc, day: int, sessions: int, store: LifeStore,
               rng: np.random.Generator) -> LifeArc:
-    """One day of progress for one arc.
-
-    An arc that is not active or has not started yet is returned untouched and
-    consumes NO draws. Reaching 1.0 completes the arc; an active arc is then
-    abandoned with ``_ABANDON_PROB``.
+    """One day of an arc: each session she actually did moves it
+    ``_PROGRESS_MIN + rng.random() * _PROGRESS_SPAN``; a day without one
+    moves nothing. Reaching 1.0 completes the arc; an active arc is then
+    abandoned with ``_ABANDON_PROB``. An arc that is not active or has not
+    started yet is returned untouched and consumes NO draws.
     """
     if arc.status != "active" or arc.started_day > day:
         return arc
-    progress = min(
-        1.0, arc.progress + _PROGRESS_MIN + float(rng.random()) * _PROGRESS_SPAN
-    )
+    progress = arc.progress
+    for _ in range(sessions):
+        progress += _PROGRESS_MIN + float(rng.random()) * _PROGRESS_SPAN
+    progress = min(1.0, progress)
     status = "completed" if progress >= 1.0 else arc.status
     if status == "active" and rng.random() < _ABANDON_PROB:
         status = "abandoned"
@@ -419,45 +532,15 @@ def _step_arc(arc: LifeArc, day: int, store: LifeStore,
     return new_arc
 
 
-def _step_item(item: AgendaItem, store: LifeStore,
-               rng: np.random.Generator) -> AgendaItem:
-    """Resolve one planned agenda item: ~80% completed, ~10% skipped,
-    ~10% shifted. An item that is no longer ``planned`` is already resolved
-    and consumes no draw."""
+def _step_item(item: AgendaItem, store: LifeStore) -> AgendaItem:
+    """Resolve an item still planned at the day's end: it happened. A skip
+    only ever comes from a cause — her own decision, or the commitment's
+    rare recorded one — never from a flat draw."""
     if item.status != "planned":
         return item
-    draw = float(rng.random())
-    if draw < 0.80:
-        status = "completed"
-    elif draw < 0.90:
-        status = "skipped"
-    else:
-        status = "shifted"
-    new_item = replace(item, status=status)
-    store.update_agenda_item_status(new_item.id, status)
+    new_item = replace(item, status="completed")
+    store.update_agenda_item_status(new_item.id, "completed")
     return new_item
-
-
-def _current_activity_for(agenda: DailyAgenda, items: list[AgendaItem],
-                          t_h: float | None) -> "CurrentActivity | None":
-    """What she is doing, under whichever of the two semantics applies.
-
-    With ``t_h`` (NOW semantics) only an item actually in progress counts — a
-    plan for later today is not what she is doing now. Without it (legacy seam
-    callers) the answer is the day's MAIN activity: the highest-salience
-    completed item, falling back to the highest-salience item when nothing
-    completed.
-    """
-    if t_h is not None:
-        return current_activity_now(agenda, t_h)
-    completed = [it for it in items if it.status == "completed"]
-    candidates = completed or items
-    if not candidates:
-        return None
-    main = max(candidates, key=lambda it: (it.salience, it.start_t_h))
-    return CurrentActivity(
-        t_h=main.start_t_h, item=main, description=main.activity
-    )
 
 
 def step_life(
@@ -468,39 +551,57 @@ def step_life(
     store: LifeStore,
     rng: np.random.Generator,
     *,
-    t_h: float | None = None,
+    plan=None,
 ) -> LifeStepResult:
-    """Advance one day: arc progress/status, item statuses, replenishment.
+    """Advance one day from what happened in it.
 
-    * Arcs: each ACTIVE, already-STARTED arc gains ``0.01 + rng.random() *
-      0.04``, completing at 1.0; a small daily chance abandons it. Arcs with a
-      future ``started_day`` are untouched (no progress, no status change, no
-      draws). Persisted via ``store.upsert_life_arc``.
-    * Items: planned items deviate modestly — ~80% completed, ~10% skipped,
-      ~10% shifted — persisted via ``store.update_agenda_item_status``.
-    * Replenishment: see ``_maybe_spawn_arc``; the spawn roll and its draws
-      happen AFTER all other draws of the day, so a day with enough active
-      arcs is byte-identical to the pre-replenishment behaviour.
-    * ``current_activity`` follows the ``t_h`` / no-``t_h`` semantics of
-      ``_current_activity_for``.
+    * Items still planned at the day's end completed (``_step_item``).
+    * Arcs move by the sessions she completed for them today
+      (``_step_arc``); arcs with a future ``started_day`` are untouched.
+    * Habits (with ``plan``): each completed hobby session counts toward its
+      interest's next stage, saved with the plan.
+    * Replenishment: see ``_maybe_spawn_arc``; its roll and draws happen
+      AFTER all other draws of the day.
 
-    Draw order is fixed (started arcs in given order, then items in agenda
-    order, then the optional replenishment roll), so the outcome is
-    deterministic per (seed, day) when ``rng`` is
-    ``stream_rng(seed, LIFE_STREAM, day)``.
+    Draw order is fixed (arcs in given order, then the optional
+    replenishment roll), so the result is deterministic per (seed, day)
+    when ``rng`` is ``stream_rng(seed, LIFE_STREAM, day)``.
     """
-    updated_arcs = [_step_arc(arc, day, store, rng) for arc in arcs]
-    updated_items = [_step_item(item, store, rng) for item in agenda.items]
+    updated_items = [_step_item(item, store) for item in agenda.items]
+    done_for_arc: dict[str, int] = {}
+    done_for_interest: dict[str, int] = {}
+    arc_interest = {a.id: a.interest for a in arcs}
+    for item in updated_items:
+        if item.status != "completed":
+            continue
+        if item.source_type == "arc":
+            done_for_arc[item.source_id] = done_for_arc.get(item.source_id, 0) + 1
+            name = arc_interest.get(item.source_id)
+        elif item.source_type == "interest":
+            name = item.source_id
+        else:
+            continue
+        if name:
+            done_for_interest[name] = done_for_interest.get(name, 0) + 1
+    updated_arcs = [
+        _step_arc(arc, day, done_for_arc.get(arc.id, 0), store, rng)
+        for arc in arcs
+    ]
+    if plan is not None and done_for_interest:
+        from harness import habits as hb
+
+        for name, count in done_for_interest.items():
+            habit = plan.habits.get(name)
+            if habit is not None:
+                plan.habits[name] = hb.record_sessions(habit, count)
+        hb.save_habits(store, plan.habits)
     updated_agenda = DailyAgenda(day=agenda.day, items=tuple(updated_items))
-    current = _current_activity_for(updated_agenda, updated_items, t_h)
 
     spawned = _maybe_spawn_arc(day, persona, updated_arcs, store, rng)
     if spawned is not None:
         updated_arcs.append(spawned)
 
-    return LifeStepResult(
-        updated_arcs=updated_arcs, agenda=updated_agenda, current_activity=current
-    )
+    return LifeStepResult(updated_arcs=updated_arcs, agenda=updated_agenda)
 
 
 def current_activity_now(agenda: DailyAgenda, t_h: float) -> CurrentActivity | None:
@@ -552,9 +653,9 @@ def _recent_good_days(store: LifeStore, day: int) -> int:
     days with score >= ``_GOOD_DAY_SCORE``. Stores without the audit-log seam
     (``events_since``) contribute 0; derived from persisted state only.
     """
-    if not hasattr(store, "events_since"):
+    events_since = getattr(store, "events_since", None)
+    if events_since is None:
         return 0
-    events_since = getattr(store, "events_since")
     good = 0
     for event in events_since(max(0, day - _EVENT_WINDOW_DAYS)):
         if event.get("event") != "day_finalized":
@@ -656,11 +757,3 @@ def _spawn_pool(persona: PersonaProfile, store: LifeStore,
             pool.append((interest.name, "companion"))
             seen.add(interest.name)
     return pool
-
-
-def _interest_by_name(persona: PersonaProfile, name: str) -> Interest | None:
-    """Look up a persona interest by name (used to derive arc-item salience)."""
-    for interest in persona.interests:
-        if interest.name == name:
-            return interest
-    return None

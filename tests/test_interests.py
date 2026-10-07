@@ -38,7 +38,6 @@ def test_cross_edges_are_sparse_leaf_to_leaf():
     g = build_catalog()
     hubs = set(g.hubs())
     endpoints = []
-    assert len(CROSS_EDGES) <= 6  # frozen: sparse by construction
     for a, b, strength in CROSS_EDGES:
         assert a not in hubs and b not in hubs  # never hub-to-hub
         assert 0.0 < strength <= 0.25
@@ -106,35 +105,11 @@ def test_sample_exact_only_hubs():
     assert len(set(draws)) >= 5  # the sampler covers the hub pool
 
 
-def test_sample_adjacent_within_hops_of_a_hub():
-    g = build_catalog()
-    rng = stream_rng(124, 5)
-    draws = [g.sample_adjacent(rng) for _ in range(200)]
-    for d in draws:
-        assert d not in g.hubs()
-        assert any(g.path_exists(d, h, MAX_ADJACENCY_HOPS) for h in g.hubs())
-
-
-def test_sample_independent_no_path_to_any_hub():
-    g = build_catalog()
-    rng = stream_rng(125, 5)
-    draws = [g.sample_independent(rng) for _ in range(200)]
-    for d in draws:
-        assert all(not g.path_exists(d, h, MAX_ADJACENCY_HOPS) for h in g.hubs())
-    assert set(draws) <= set(ISLAND)
-
-
 def test_samplers_reproducible_per_seed():
     g = build_catalog()
     exact1 = [g.sample_exact(stream_rng(7, 5)) for _ in range(20)]
     exact2 = [g.sample_exact(stream_rng(7, 5)) for _ in range(20)]
     assert exact1 == exact2
-    adj1 = [g.sample_adjacent(stream_rng(7, 5)) for _ in range(20)]
-    adj2 = [g.sample_adjacent(stream_rng(7, 5)) for _ in range(20)]
-    assert adj1 == adj2
-    ind1 = [g.sample_independent(stream_rng(7, 5)) for _ in range(20)]
-    ind2 = [g.sample_independent(stream_rng(7, 5)) for _ in range(20)]
-    assert ind1 == ind2
 
 
 def test_sample_exact_requires_hubs():

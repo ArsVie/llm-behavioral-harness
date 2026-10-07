@@ -8,8 +8,7 @@ The two original helpers had different signatures and return shapes:
   start_day=1, arcs=None) -> (arcs, active_counts, agendas)
 
 ``run_life_days`` is the superset (long-horizon signature + agendas dict);
-the two test_life call sites only unpack two values, so the third return
-value is harmless there.
+the test_life call sites discard the third value.
 """
 
 from __future__ import annotations
@@ -37,3 +36,30 @@ def run_life_days(
         agendas[day] = result.agenda
         active_counts.append(sum(1 for a in arcs if a.status == "active"))
     return arcs, active_counts, agendas
+
+
+def life_persona():
+    """Luna: six interests across all three buckets and two routines — the
+    persona test_life and test_life_long_horizon both drive."""
+    from harness import domain
+
+    interests = (
+        domain.Interest(name="photography", bucket="exact", salience=0.9),
+        domain.Interest(name="pottery", bucket="exact", salience=0.7),
+        domain.Interest(name="novels", bucket="adjacent", salience=0.6),
+        domain.Interest(name="running", bucket="adjacent", salience=0.5),
+        domain.Interest(name="plants", bucket="independent", salience=0.4),
+        domain.Interest(name="cooking", bucket="independent", salience=0.55),
+    )
+    routines = (
+        domain.Routine(name="morning coffee", start_frac=8.5 / 24.0, duration_h=0.5,
+                       cadence=1.0, salience=0.3),
+        domain.Routine(name="evening walk", start_frac=20.0 / 24.0, duration_h=0.75,
+                       cadence=0.6, salience=0.4),
+    )
+    return domain.PersonaProfile(
+        name="Luna",
+        core="A curious soul who collects hobbies.",
+        interests=interests,
+        routines=routines,
+    )

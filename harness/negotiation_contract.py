@@ -22,11 +22,6 @@ class NegotiationPhase(str, Enum):
     RESOLVED_FORCED = "resolved_forced"  # terminal: backstop (missed it)
 
 
-GO = "follow"          # go -> follow
-SKIP = "abandon"       # skip -> abandon
-DELAY = "defer"        # delay -> defer (+ N payload)
-
-
 # triggers
 
 #: How far AHEAD of an event's window the heads-up fires (default 15 min).
@@ -40,8 +35,6 @@ SHORT_AFK_H = SHORT_AFK_MIN / 60.0
 
 #: Default defer turns for a vague "a bit longer" request.
 DEFAULT_DEFER_TURNS = 2
-
-#: User-away threshold is read from harness.tunables at the call sites.
 
 #: Weight added toward "go" after each delay (steerable, linear default).
 PULL_PER_DELAY = 0.15
@@ -67,7 +60,7 @@ DEFER_N_MAX = 4
 # skippable / unskippable
 
 #: Source types treated as unskippable commitments; other types are skippable.
-UNSKIPPABLE_SOURCE_TYPES: frozenset[str] = frozenset({"routine"})
+UNSKIPPABLE_SOURCE_TYPES: frozenset[str] = frozenset({"routine", "commitment"})
 
 
 def is_skippable(source_type: str) -> bool:
@@ -76,9 +69,6 @@ def is_skippable(source_type: str) -> bool:
 
 
 # episode emission shape
-
-#: MemoryKind category for negotiation outcomes (companion-side episodes).
-EPISODE_CATEGORY = "companion_episode"
 
 #: Episode tags for retrieving go/skip/delay outcomes later.
 TAG_GO = "negotiation_go"

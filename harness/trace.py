@@ -17,14 +17,17 @@ import itertools
 import json
 import sqlite3
 import sys
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-
-from harness.assembler import STATE_UPDATE_LEADS
-from harness.pricing import DEFAULT_MODEL_PRICING, MODELS, price_for
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from harness import images
+from harness.assembler import STATE_UPDATE_LEADS
+from harness.cache_audit import divergence, envelope_of, provider_prefix_share
+from harness.pricing import DEFAULT_MODEL_PRICING, MODELS, price_for
 
 VIEWS = (
     "timeline", "checks", "negotiations", "decisions", "steers",
@@ -41,12 +44,12 @@ _RANK = {ERROR: 0, WARN: 1, INFO: 2}
 #: this fraction of its tokens.
 CACHE_FLOOR = 0.6
 
+#: The provider drops a cached prefix after 105-135 idle minutes (probed
+#: 2026-09-29). A miss after an idle gap this long is expiry, not a break.
+CACHE_TTL_H = 1.75
+
 #: First bytes of a rendered state card (``assembler.AFFECTIVE_HEADER``).
 _CARD_HEADER = "AFFECTIVE BEARING:"
-
-#: First bytes of a mid-day state UPDATE row — both leads, because a stream
-#: spans the 2026-09-20 rename (``assembler.STATE_UPDATE_LEADS``).
-_UPDATE_HEADERS = STATE_UPDATE_LEADS
 
 #: Cards in the stream before the superseded copies are worth reporting.
 _CARD_COPIES_WARN = 3
@@ -175,6 +178,12 @@ def _head(title: str) -> str:
     return f"\n{'=' * 78}\n{title}\n{'=' * 78}"
 
 
+def _ran_late(r: sqlite3.Row) -> bool:
+    """The row was delivered at another instant than its boundary."""
+    return r["delivered_t_h"] is not None and abs(
+        float(r["delivered_t_h"]) - float(r["t_h"])) > 1e-6
+
+
 # ---------------------------------------------------------------- timeline
 
 
@@ -216,9 +225,7 @@ def timeline(ctx: Ctx) -> list[str]:
             f"STEER  {r['kind']} #{r['id']} state={pay.get('state', '-')} "
             f"status={r['status']} attempts={r['attempts']} "
             f"[{ctx.clip(what)}]")
-        if r["delivered_t_h"] is not None and abs(
-            float(r["delivered_t_h"]) - float(r["t_h"])
-        ) > 1e-6:
+        if _ran_late(r):
             add(r["delivered_t_h"], 3,
                 f"STEER  delivered #{r['id']} "
                 f"(boundary t={float(r['t_h']):.3f}) turn={r['seen_turn_id']}")
@@ -226,11 +233,8 @@ def timeline(ctx: Ctx) -> list[str]:
     for r in rows(conn, "decision_records"):
         verdict = _loads(r["verdict_json"]) or {}
         keys = ", ".join(f"{k}={verdict[k]}" for k in sorted(verdict))
-        late = ""
-        if r["delivered_t_h"] is not None and abs(
-            float(r["delivered_t_h"]) - float(r["t_h"])
-        ) > 1e-6:
-            late = f" (ran at t={float(r['delivered_t_h']):.3f})"
+        late = (f" (ran at t={float(r['delivered_t_h']):.3f})"
+                if _ran_late(r) else "")
         add(r["t_h"], 5,
             f"DECIDE {r['popup_kind']} #{r['id']} state={r['state_label']} "
             f"src={r['source']}{late} {{{ctx.clip(keys)}}}")
@@ -420,55 +424,6 @@ def _is_fork(row: sqlite3.Row) -> bool:
     return str(row["role"] or "").startswith(_FORK_PREFIX)
 
 
-def _envelope(row: sqlite3.Row) -> dict | None:
-    """The call's request envelope, flattened.
-
-    The session persists the payload flat; ``metering.MeteredClient`` wraps
-    it as ``{"messages", "kwargs"}``, so ``system`` sits one level down.
-    """
-    env = _loads(row["repro_json"])
-    if not isinstance(env, dict):
-        return None
-    kwargs = env.get("kwargs")
-    if isinstance(kwargs, dict):
-        env = {**kwargs, **{k: v for k, v in env.items() if k != "kwargs"}}
-    return env
-
-
-def _prefix_share(prev: dict, cur: dict) -> tuple[int, int, bool]:
-    """Characters of ``cur`` provably identical to a prefix of ``prev``.
-
-    ``prev`` minus its trailing (last) message is what an append-only stream
-    re-sends. Returns ``(shared_chars, total_chars, system_stable)``.
-    """
-    pm = prev.get("messages") or []
-    cm = cur.get("messages") or []
-    body = pm[:-1] if pm else []
-    shared = 0
-    for i, msg in enumerate(body):
-        if i >= len(cm) or cm[i] != msg:
-            break
-        shared += len(json.dumps(msg, sort_keys=True, ensure_ascii=False))
-    total = sum(
-        len(json.dumps(m, sort_keys=True, ensure_ascii=False)) for m in cm
-    )
-    sys_prev, sys_cur = prev.get("system") or "", cur.get("system") or ""
-    return shared, total, sys_prev == sys_cur
-
-
-def _divergence(prev: dict, cur: dict) -> int:
-    """Index of the first message where ``cur`` stops repeating ``prev``.
-
-    ``len(prev)`` means ``cur`` repeats all of ``prev`` and appends.
-    """
-    pm = prev.get("messages") or []
-    cm = cur.get("messages") or []
-    i = 0
-    while i < min(len(pm), len(cm)) and pm[i] == cm[i]:
-        i += 1
-    return i
-
-
 def cache(ctx: Ctx) -> list[str]:
     """Prefix-cache accounting per call; the shared prefix is measured from
     the persisted envelopes rather than assumed."""
@@ -497,8 +452,9 @@ def cache(ctx: Ctx) -> list[str]:
     )
     # A fork is skipped as a predecessor, never compared against.
     prev_env: dict | None = None
+    prev_t = 0.0
     for r in calls:
-        env = _envelope(r)
+        env = envelope_of(r)
         prompt = r["prompt_tokens"] or 0
         cached = r["cached_tokens"] or 0
         hit = (cached / prompt * 100.0) if prompt else 0.0
@@ -508,19 +464,22 @@ def cache(ctx: Ctx) -> list[str]:
         if fork:
             verdict = "fork (not a stream extension)"
         elif env is not None and prev_env is not None:
-            shared, total, sys_stable = _prefix_share(prev_env, env)
-            frac = (shared / total) if total else 0.0
+            frac, sys_stable, break_at = provider_prefix_share(prev_env, env)
             share_s = f"{frac * 100:8.1f}%"
             stable = " ok" if sys_stable else " !!"
             kept = len(prev_env.get("messages") or []) - 1
-            at = _divergence(prev_env, env)
+            at = divergence(prev_env, env)
             grow = "    ok" if at >= kept else f"  @{at}/{kept}"
             if not sys_stable:
                 verdict = "stable prefix CHANGED"
+            elif break_at == "tools":
+                verdict = "tool menu CHANGED"
             elif at < kept:
                 verdict = f"stream REWRITTEN at message {at}"
             elif frac >= CACHE_FLOOR and hit / 100.0 < CACHE_FLOOR:
-                verdict = "prefix shared but not cached"
+                idle = (r["t_h"] or 0.0) - prev_t
+                verdict = (f"cache expired after {idle:.1f} h idle"
+                           if idle >= CACHE_TTL_H else "prefix shared but not cached")
         elif env is None:
             share_s, verdict = "  no repro", "envelope not persisted"
         lines.append(
@@ -529,6 +488,7 @@ def cache(ctx: Ctx) -> list[str]:
         )
         if env is not None and not fork:
             prev_env = env
+            prev_t = r["t_h"] or 0.0
     return lines
 
 
@@ -560,10 +520,6 @@ def memory(ctx: Ctx) -> list[str]:
 # ------------------------------------------------------------------ checks
 
 
-def _message_stream(conn: sqlite3.Connection) -> list[sqlite3.Row]:
-    return rows(conn, "messages", "order by id")
-
-
 def _check_decision_lane(ctx: Ctx) -> list[Finding]:
     found: list[Finding] = []
     fails = rows(ctx.conn, "state_events",
@@ -573,11 +529,8 @@ def _check_decision_lane(ctx: Ctx) -> list[Finding]:
     if fails:
         rate = len(fails) / total * 100.0 if total else 0.0
         sev = ERROR if rate >= 25.0 else WARN
-        by_id: dict[str, int] = {}
-        for r in fails:
-            d = _loads(r["detail"]) or {}
-            by_id[str(d.get("decision_id"))] = by_id.get(
-                str(d.get("decision_id")), 0) + 1
+        by_id = Counter(str((_loads(r["detail"]) or {}).get("decision_id"))
+                        for r in fails)
         found.append(Finding(
             sev, "decision-prose-reply",
             f"{len(fails)} of {total} decision calls came back as prose "
@@ -651,13 +604,13 @@ def _check_negotiations(ctx: Ctx) -> list[Finding]:
 
 def _check_stream(ctx: Ctx) -> list[Finding]:
     found: list[Finding] = []
-    stream = _message_stream(ctx.conn)
+    stream = rows(ctx.conn, "messages", "order by id")
     # Adjacent system rows are the architecture since the card became a
     # stream row. What is worth reporting is how many are superseded copies.
     cards = [r for r in stream
              if r["role"] == "system"
              and str(r["content"] or "").startswith(
-                 (_CARD_HEADER, *_UPDATE_HEADERS))]
+                 (_CARD_HEADER, *STATE_UPDATE_LEADS))]
     if len(cards) > _CARD_COPIES_WARN:
         found.append(Finding(
             WARN, "superseded-state-cards",
@@ -701,6 +654,7 @@ def _check_stream(ctx: Ctx) -> list[Finding]:
         (a["id"], b["id"]) for a, b in itertools.pairwise(convo)
         if a["role"] == b["role"] == "user"
         and (a["content"] or "").strip() == (b["content"] or "").strip()
+        and images.of(a) == images.of(b)
     ]
     if dupes:
         found.append(Finding(
@@ -734,7 +688,7 @@ def _check_agenda(ctx: Ctx) -> list[Finding]:
     calls = rows(ctx.conn, "llm_calls", "order by id desc")
     tail = ""
     for r in calls:
-        env = _envelope(r)
+        env = envelope_of(r)
         msgs = (env or {}).get("messages") or []
         if msgs and msgs[-1].get("role") == "system":
             tail = msgs[-1].get("content") or ""
@@ -852,6 +806,44 @@ def _transient_slots(role: str) -> int:
     return _DECIDE_TRANSIENTS if role.startswith("tool_decide") else 0
 
 
+#: Events that sanction a stream rebuild: the stream sheds stale cards and
+#: old decision pairs once when the provider's cache went cold, and the day
+#: boundary compacts it. Both break the byte chain on purpose, both are
+#: logged with what they did.
+_REBUILD_EVENTS = ("context_pruned", "context_compacted")
+
+
+def stream_rebuilds(conn: sqlite3.Connection) -> list[tuple[float, str, str]]:
+    """Logged sanctioned rebuilds, oldest first: ``(t_h, event, note)``.
+
+    ``note`` names the sanction for a reader: "cold prune, idle 7.8 h" (the
+    prune's own idle figure) or "context compaction".
+    """
+    out: list[tuple[float, str, str]] = []
+    for row in rows(conn, "state_events",
+                    "where event in ('context_pruned', 'context_compacted') "
+                    "order by t_h"):
+        event = str(row["event"])
+        detail = _loads(row["detail"])
+        if event == "context_pruned":
+            idle = detail.get("idle_h") if isinstance(detail, dict) else None
+            note = (f"cold prune, idle {float(idle):.1f} h"
+                    if isinstance(idle, (int, float)) else "cold prune")
+        else:
+            note = "context compaction"
+        out.append((float(row["t_h"] or 0.0), event, note))
+    return out
+
+
+def rebuild_note(events: list[tuple[float, str, str]],
+                 t0: float, t1: float) -> str | None:
+    """The sanction note for a rebuild logged in ``(t0, t1]``, or None."""
+    for t_h, _event, note in events:
+        if t0 < t_h <= t1:
+            return note
+    return None
+
+
 def _check_cache(ctx: Ctx) -> list[Finding]:
     """The append-only invariant, over the mainline chain only.
 
@@ -864,44 +856,81 @@ def _check_cache(ctx: Ctx) -> list[Finding]:
     found: list[Finding] = []
     calls = [r for r in rows(ctx.conn, "llm_calls", "order by id")
              if not _is_fork(r)]
+    rebuilds = stream_rebuilds(ctx.conn)
     prev_env: dict | None = None
     prev_id = 0
     prev_role = ""
     drift: list[str] = []
     wasted: list[str] = []
+    short: list[str] = []
+    expired: list[str] = []
     rewritten: list[str] = []
+    sanctioned: list[str] = []
+    prev_t = 0.0
+    prev_prompt = 0
     for r in calls:
-        env = _envelope(r)
+        env = envelope_of(r)
         if env is None:
             continue
         if prev_env is not None:
-            shared, total, sys_stable = _prefix_share(prev_env, env)
-            frac = (shared / total) if total else 0.0
+            frac, sys_stable, break_at = provider_prefix_share(prev_env, env)
             prompt = r["prompt_tokens"] or 0
             hit = ((r["cached_tokens"] or 0) / prompt) if prompt else 0.0
             sent = len(prev_env.get("messages") or [])
             kept = sent - _transient_slots(prev_role)
-            at = _divergence(prev_env, env)
+            at = divergence(prev_env, env)
             if not sys_stable:
                 drift.append(f"#{r['id']}")
+            elif break_at == "tools":
+                drift.append(f"#{r['id']} (tool menu)")
             elif at < kept:
-                rewritten.append(
-                    f"#{prev_id} -> #{r['id']}: diverges at message {at}, "
-                    f"but #{prev_id} sent {sent} and a {prev_role} call may "
-                    f"drop only its last {sent - kept}"
-                )
-            elif frac >= CACHE_FLOOR and hit < CACHE_FLOOR:
-                wasted.append(
-                    f"#{r['id']} shared={frac * 100:.0f}% "
-                    f"cached={hit * 100:.0f}% ({prompt} prompt tokens)"
-                )
+                note = rebuild_note(rebuilds, prev_t, float(r["t_h"] or 0.0))
+                if note:
+                    sanctioned.append(
+                        f"#{prev_id} -> #{r['id']}: diverges at message {at} "
+                        f"— {note}"
+                    )
+                else:
+                    rewritten.append(
+                        f"#{prev_id} -> #{r['id']}: diverges at message {at}, "
+                        f"but #{prev_id} sent {sent} and a {prev_role} call may "
+                        f"drop only its last {sent - kept}"
+                    )
+            elif prompt and frac >= CACHE_FLOOR and hit < CACHE_FLOOR:
+                idle = (r["t_h"] or 0.0) - prev_t
+                line = (f"#{r['id']} shared={frac * 100:.0f}% "
+                        f"cached={hit * 100:.0f}% ({prompt} prompt tokens)")
+                if idle >= CACHE_TTL_H:
+                    expired.append(f"{line} after {idle:.1f} h idle")
+                else:
+                    wasted.append(line)
+            elif (prev_prompt and prev_role == "chat" and r["role"] == "chat"
+                  and at >= kept and hit >= CACHE_FLOOR):
+                # The warm law holds exactly for chat-to-chat full carries:
+                # cached is ``128 * floor(previous prompt / 128)``. A full
+                # block or more below it means an older backend re-billed
+                # tokens the provider had already seen (#131). Decide rounds
+                # drop their trailing steer, so the banked floor can sit a
+                # block or two lower on purpose — not flagged here.
+                expected = 128 * (prev_prompt // 128)
+                cached = int(r["cached_tokens"] or 0)
+                if expected >= 128 and cached <= expected - 128:
+                    short.append(
+                        f"#{r['id']} cached {cached:,} vs block floor "
+                        f"{expected:,} (from #{prev_id}'s prompt) — "
+                        f"{(expected - cached) // 128} block(s), "
+                        f"{expected - cached:,} token(s) re-billed"
+                    )
         prev_env = env
+        prev_t = r["t_h"] or 0.0
+        prev_prompt = r["prompt_tokens"] or 0
         prev_id = int(r["id"])
         prev_role = str(r["role"] or "")
     if drift:
         found.append(Finding(
             ERROR, "stable-prefix-changed",
-            "the persona/system prefix is not byte-identical across calls",
+            "the persona/system prefix or the tool menu is not byte-identical "
+            "across calls",
             drift[:8],
         ))
     if rewritten:
@@ -913,13 +942,41 @@ def _check_cache(ctx: Ctx) -> list[Finding]:
             "lost from that message on",
             rewritten[:8],
         ))
+    if sanctioned:
+        found.append(Finding(
+            INFO, "context-rebuilt-by-design",
+            f"{len(sanctioned)} mainline call(s) diverged right after a "
+            "logged stream rebuild (cold prune / compaction) — the prune "
+            "sheds stale cards and old decision pairs once, and the "
+            "provider's cache was cold anyway: the rebuild is paid for, "
+            "not a lost cache",
+            sanctioned[:8],
+        ))
     if wasted:
         found.append(Finding(
             ERROR, "prefix-shared-but-not-cached",
             f"{len(wasted)} call(s) re-sent a proven byte-identical prefix "
-            "that the provider did not report as cached — either caching "
-            "stops after the system field or the proxy under-reports it",
+            "that the provider did not serve from cache — the request landed "
+            "on a backend holding none of it (routing / cold start), so the "
+            "whole prompt was re-billed",
             wasted[:8],
+        ))
+    if short:
+        found.append(Finding(
+            WARN, "cache-rebilled-below-floor",
+            f"{len(short)} call(s) cached fewer blocks than the previous "
+            "request had banked — a warm pair matches the 128-token block "
+            "floor exactly, so an older backend re-billed tokens that were "
+            "already sent",
+            short[:8],
+        ))
+    if expired:
+        found.append(Finding(
+            INFO, "cache-expired-after-idle",
+            f"{len(expired)} call(s) came after the provider's cache had "
+            f"expired (idle >= {CACHE_TTL_H} h): the prefix was sound, the "
+            "provider no longer held it",
+            expired[:8],
         ))
     return found
 
@@ -979,9 +1036,7 @@ def run_checks(ctx: Ctx) -> tuple[list[str], int]:
     lines = [_head("CHECKS")]
     if not found:
         return lines + ["  all clear"], 0
-    counts: dict[str, int] = {}
-    for f in found:
-        counts[f.severity] = counts.get(f.severity, 0) + 1
+    counts = Counter(f.severity for f in found)
     lines.append(
         "  " + ", ".join(f"{counts.get(s, 0)} {s}"
                          for s in (ERROR, WARN, INFO) if counts.get(s))

@@ -12,11 +12,13 @@ import hashlib
 import json
 import os
 import sqlite3
+import time
 from array import array
 from dataclasses import asdict
 from pathlib import Path
 from typing import Sequence
 
+from harness.assembler import AFFECTIVE_HEADER  # the full-card marker
 from harness.domain import (
     AffectMetadata,
     AgendaItem,
@@ -36,6 +38,24 @@ from harness.domain import (
     UserModelCategory,
     UserProfile,
 )
+# Schema, DDL and the migration chain live in harness.store_schema; these are
+# re-exported so harness.store stays the single import surface.
+from harness.store_schema import (  # noqa: F401
+    _SCHEMA,
+    _V2_TABLES,
+    SCHEMA_VERSION,
+    _category_from_key,
+    _migrate,
+    _migrate_v2,
+    _migrate_v3,
+    _migrate_v4,
+    _migrate_v5,
+    _migrate_v6,
+    _migrate_v7,
+    _usage_columns,
+    schema_meta,
+)
+from harness.summarization import _judgement_score
 
 #: PRAGMA synchronous level for every connection this module opens.
 #: Production keeps SQLite's FULL default; the test suite exports OFF.
@@ -61,33 +81,6 @@ def sqlite_synchronous() -> str:
     return level
 
 
-
-
-# Schema, DDL and the migration chain live in harness.store_schema.
-# Re-exported so harness.store stays the single import surface.
-from harness.assembler import AFFECTIVE_HEADER  # the full-card marker
-from harness.store_schema import (  # noqa: E402,F401 - compat re-export
-    SCHEMA_VERSION,
-    _LEGACY_PREFIX_CATEGORIES,
-    _SCHEMA,
-    _SCHEMA_META,
-    _V2_TABLES,
-    _category_from_key,
-    _current_version,
-    _ensure_column,
-    _migrate,
-    _migrate_v2,
-    _migrate_v3,
-    _migrate_v4,
-    _migrate_v5,
-    _migrate_v6,
-    _migrate_v7,
-    _migrate_v8,
-    _usage_columns,
-    schema_meta,
-)
-
-
 def _hash(prompt: str) -> str:
     return hashlib.sha256(prompt.encode("utf-8")).hexdigest()[:16]
 
@@ -107,6 +100,20 @@ def _unjson(raw: str | None, default):
     return json.loads(raw)
 
 
+def _where(**equal) -> tuple[str, list]:
+    """``WHERE col = ? AND ...`` over the arguments that are not None."""
+    cols = [col for col, value in equal.items() if value is not None]
+    if not cols:
+        return "", []
+    return ("WHERE " + " AND ".join(f"{col} = ?" for col in cols),
+            [equal[col] for col in cols])
+
+
+def _row_id(cur: sqlite3.Cursor) -> int:
+    """The id of the row an INSERT just wrote (-1 when there is none)."""
+    return int(cur.lastrowid) if cur.lastrowid is not None else -1
+
+
 def _message_row(row) -> dict:
     """One ``messages`` row as a dict, with ``tool_calls_json`` decoded onto
     the wire key ``tool_calls`` (what :func:`assembler.wire_message` reads)."""
@@ -120,16 +127,13 @@ def _message_row(row) -> dict:
     return out
 
 
-# UserModel group names (assertion key prefix convention "<group>:<name>").
-_USER_MODEL_GROUPS = (
-    "stable_preferences",
-    "current_preferences",
-    "boundaries",
-    "vulnerabilities",
-    "recurring_interests",
-    "relationship_patterns",
-    "important_entities",
-)
+def _decision_row(row) -> dict:
+    """One ``decision_records`` row with ``inputs`` and ``verdict`` parsed."""
+    out = dict(row)
+    out["inputs"] = _unjson(out["inputs_json"], {})
+    out["verdict"] = _unjson(out["verdict_json"], {})
+    return out
+
 
 # Maps each canonical UserModelCategory to its UserModel group field.
 _CATEGORY_TO_GROUP = {
@@ -157,6 +161,8 @@ class SQLiteStore:
         self.path = str(path)
         self.audit_mode = bool(audit_mode)
         self._anchor = None
+        #: Wall clock for ``llm_calls.called_at`` (injectable in tests).
+        self._wall = time.time
         self.conn = sqlite3.connect(self.path, timeout=10.0)
         self.conn.row_factory = sqlite3.Row
         self.conn.execute("PRAGMA journal_mode=WAL")
@@ -262,13 +268,16 @@ class SQLiteStore:
         conversation_id: str | None = None,
         tool_calls: list[dict] | None = None,
         tool_call_id: str | None = None,
+        meta: dict | None = None,
     ) -> int:
         """Append a message; returns the row id. ``session_id``,
         ``intent_id`` (proactive provenance — the validated intent id that
         produced an outgoing message) and ``conversation_id`` are optional.
         ``tool_calls`` marks her assistant row of a tool exchange (kept as
         its wire payload); ``tool_call_id`` links a ``role="tool"`` result
-        row back to the call it answers.
+        row back to the call it answers. ``meta`` is stored as JSON in the
+        row's ``meta`` column (a message held during a voice call keeps its
+        arrival time there as ``stamp_t_h``).
         """
         if role == "system":
             skipped = self._skip_duplicate_system_tail(content)
@@ -277,15 +286,14 @@ class SQLiteStore:
         cur = self.conn.execute(
             "INSERT INTO messages (role, content, t_h, day, proactive, "
             "session_id, intent_id, conversation_id, sent_at, "
-            "tool_calls_json, tool_call_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "tool_calls_json, tool_call_id, meta) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (role, content, t_h, day, int(proactive), session_id, intent_id,
              conversation_id, self._real_at(t_h), _json(tool_calls),
-             tool_call_id),
+             tool_call_id, json.dumps(meta) if meta else None),
         )
         self.conn.commit()
-        last_id = cur.lastrowid
-        return int(last_id) if last_id is not None else -1
+        return _row_id(cur)
 
     def _skip_duplicate_system_tail(self, content: str) -> int | None:
         """Append-only guard: an identical system row as the tail is a no-op.
@@ -296,24 +304,15 @@ class SQLiteStore:
         last = self.conn.execute(
             "SELECT id, role, content FROM messages ORDER BY id DESC LIMIT 1"
         ).fetchone()
-        if last is None:
-            return -1 if not str(content or "").strip() else None
-        row_id, row_role, row_content = last[0], last[1], last[2]
         text = str(content or "").strip()
+        if last is None:
+            return None if text else -1
         if not text:
             # The request path drops an empty block, so the stream must too.
-            return int(row_id)
-        if row_role == "system" and text == str(row_content or "").strip():
-            return int(row_id)
+            return int(last["id"])
+        if last["role"] == "system" and text == str(last["content"] or "").strip():
+            return int(last["id"])
         return None
-
-    def last_system_row_text(self) -> str | None:
-        """Newest system row the stream carried (last card, or day block)."""
-        row = self.conn.execute(
-            "SELECT content FROM messages WHERE role = 'system' "
-            "ORDER BY id DESC LIMIT 1"
-        ).fetchone()
-        return str(row[0]) if row else None
 
     def last_card_state(self) -> tuple[str, int | None, tuple[str, ...]] | None:
         """The stream's own copy of the card memo.
@@ -345,43 +344,6 @@ class SQLiteStore:
         day = int(row["day"]) if row["day"] is not None else None
         return str(row["content"]), day, after
 
-    def repair_placeholder_steers(self) -> int:
-        """Rewrite the legacy literal ``"?"`` event name; rows changed."""
-        import json as _json
-
-        from harness.steering import NO_ACTIVE_EVENT
-
-        changed = 0
-        for row in list(self.conn.execute(
-                "SELECT id, payload_json FROM steering_queue")):
-            payload = _json.loads(row[1] or "{}")
-            if not isinstance(payload, dict) or payload.get("event") != "?":
-                continue
-            payload["event"] = NO_ACTIVE_EVENT
-            self.conn.execute(
-                "UPDATE steering_queue SET payload_json = ? WHERE id = ?",
-                (_json.dumps(payload, sort_keys=True), row[0]),
-            )
-            changed += 1
-        self.conn.commit()
-        return changed
-
-    def prune_thin_user_facts(self, max_words: int = 5) -> int:
-        """Delete keyword-shaped user facts; rows removed.
-
-        A user fact is recalled as a fact, so a five-word blob is prompt
-        noise, not memory.
-        """
-        rows = list(self.conn.execute(
-            "SELECT id, summary FROM memory_episodes WHERE category = ?",
-            ("user_fact",)))
-        thin = [r[0] for r in rows if len(str(r[1]).split()) <= max_words]
-        for row_id in thin:
-            self.conn.execute("DELETE FROM memory_episodes WHERE id = ?",
-                              (row_id,))
-        self.conn.commit()
-        return len(thin)
-
     def recent_messages(self, limit: int = 12) -> list[dict]:
         rows = self.conn.execute(
             "SELECT * FROM messages ORDER BY id DESC LIMIT ?", (limit,)
@@ -398,15 +360,10 @@ class SQLiteStore:
         ``limit`` is a SAFETY CAP, not a window (the caller keeps the OLDEST
         rows).
         """
-        if limit is None:
-            rows = self.conn.execute(
-                "SELECT * FROM messages WHERE id > ? ORDER BY id", (since_id,)
-            ).fetchall()
-        else:
-            rows = self.conn.execute(
-                "SELECT * FROM messages WHERE id > ? ORDER BY id LIMIT ?",
-                (since_id, limit),
-            ).fetchall()
+        rows = self.conn.execute(
+            "SELECT * FROM messages WHERE id > ? ORDER BY id LIMIT ?",
+            (since_id, -1 if limit is None else limit),  # -1: no limit
+        ).fetchall()
         return [_message_row(r) for r in rows]
 
     def max_message_id(self) -> int:
@@ -482,8 +439,7 @@ class SQLiteStore:
             (conversation_id, speaker, text, t_h, turn_index, message_id),
         )
         self.conn.commit()
-        last_id = cur.lastrowid
-        return int(last_id) if last_id is not None else -1
+        return _row_id(cur)
 
     @staticmethod
     def _row_to_conversation_turn(row: dict) -> ConversationTurn:
@@ -707,18 +663,8 @@ class SQLiteStore:
 
     def load_judgement_score(self, day: int) -> float | None:
         """Score of one day's judgement as a float, or ``None`` when absent
-        or non-numeric (the single canonical float-parse — consumers never
-        re-parse ``score`` themselves)."""
-        j = self.load_judgement(day)
-        if j is None:
-            return None
-        raw = j.get("score")
-        if raw is None:
-            return None
-        try:
-            return float(raw)
-        except (TypeError, ValueError):
-            return None
+        or non-numeric."""
+        return _judgement_score(self.load_judgement(day))
 
     def latest_interaction_t_h(self) -> float | None:
         """Virtual hour of the user's most recent message (None if never)."""
@@ -773,8 +719,9 @@ class SQLiteStore:
         cur = self.conn.execute(
             "INSERT INTO llm_calls (day, t_h, role, model, prompt_hash, "
             "response, meta, repro_json, prompt_tokens, completion_tokens, "
-            "total_tokens, cached_tokens, cache_miss_tokens, lane, raw_cost) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            "total_tokens, cached_tokens, cache_miss_tokens, lane, raw_cost, "
+            "called_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             (
                 day,
                 t_h,
@@ -787,11 +734,33 @@ class SQLiteStore:
                 pt, ct, tt, cached, miss,
                 lane,
                 raw_cost,
+                self._wall(),
             ),
         )
         self.conn.commit()
-        last_id = cur.lastrowid
-        return int(last_id) if last_id is not None else -1
+        return _row_id(cur)
+
+    def last_llm_call_t_h(self, now_h: float | None = None) -> float | None:
+        """Virtual time of the newest model call (any role), or None.
+
+        A call's time is the later of its ``t_h`` stamp and, with an anchor
+        attached, the virtual hour its ``called_at`` wall instant maps to: a
+        fork run late keeps its boundary stamp, but the provider saw it when
+        it actually went out. (The max of each column is the max of the
+        per-row max.) A wall reading past ``now_h`` is not this run's time
+        (a synthetic anchor in a test or a sim) and is ignored.
+        """
+        row = self.conn.execute(
+            "SELECT MAX(t_h) AS t, MAX(called_at) AS at FROM llm_calls"
+        ).fetchone()
+        if row is None or row["t"] is None:
+            return None
+        last = float(row["t"])
+        if self._anchor is not None and row["at"] is not None:
+            wall = float(self._anchor.t_h_at(float(row["at"])))
+            if now_h is None or wall <= now_h:
+                last = max(last, wall)
+        return last
 
     def get_llm_call(self, call_id: int) -> dict | None:
         """One audit row by id, with ``repro`` and ``meta`` parsed back to
@@ -840,6 +809,17 @@ class SQLiteStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
+    def negotiation_informed_items(self) -> set[str]:
+        """Agenda item ids she has announced to him in a negotiation's
+        inform leg (``negotiation_inform`` events, detail ``item=<id>``)."""
+        rows = self.conn.execute(
+            "SELECT detail FROM state_events WHERE event = 'negotiation_inform'"
+        ).fetchall()
+        return {
+            str(r["detail"]).split("item=", 1)[1].split()[0]
+            for r in rows if "item=" in str(r["detail"])
+        }
+
     # -- schedule_events (persisted proactive schedule) ----------------------
 
     def save_schedule_events(self, seed: int, events: list[dict]) -> None:
@@ -880,6 +860,18 @@ class SQLiteStore:
         )
         self.conn.commit()
 
+    def mark_schedule_suppressed(self, seed: int, t_h: float,
+                                 at_t_h: float) -> None:
+        """Set status='suppressed', fired_t_h=<at_t_h> for the row (seed, t_h):
+        the slot was consumed but nothing reached him (no grounded reason, a
+        gate, or her decline), so it is not a contact for the cooldown."""
+        self.conn.execute(
+            "UPDATE schedule_events SET status = 'suppressed', fired_t_h = ? "
+            "WHERE seed = ? AND t_h = ?",
+            (at_t_h, seed, t_h),
+        )
+        self.conn.commit()
+
     def mark_schedule_expired(self, seed: int, t_h: float) -> None:
         """Set status='expired' for the row (seed, t_h)."""
         self.conn.execute(
@@ -899,57 +891,6 @@ class SQLiteStore:
         ).fetchone()
         return float(row["m"]) if row["m"] is not None else None
 
-    # -- reminders (her own alarm clock) -------------------------------------
-
-    def save_reminder(
-        self,
-        created_t_h: float,
-        fire_t_h: float,
-        note: str,
-        *,
-        about: str | None = None,
-        origin_conversation: str | None = None,
-    ) -> int:
-        """Persist one pending reminder; returns its id."""
-        cur = self.conn.execute(
-            "INSERT INTO reminders (created_t_h, fire_t_h, note, about, "
-            "origin_conversation, status) VALUES (?, ?, ?, ?, ?, 'pending')",
-            (created_t_h, fire_t_h, note, about, origin_conversation),
-        )
-        self.conn.commit()
-        last_id = cur.lastrowid
-        return int(last_id) if last_id is not None else -1
-
-    def get_reminder(self, reminder_id: int) -> dict | None:
-        row = self.conn.execute(
-            "SELECT * FROM reminders WHERE id = ?", (reminder_id,)
-        ).fetchone()
-        return dict(row) if row else None
-
-    def list_reminders(self, status: str | None = "pending") -> list[dict]:
-        """Reminders by status (default: pending), soonest fire first."""
-        if status is None:
-            rows = self.conn.execute(
-                "SELECT * FROM reminders ORDER BY fire_t_h, id"
-            ).fetchall()
-        else:
-            rows = self.conn.execute(
-                "SELECT * FROM reminders WHERE status = ? "
-                "ORDER BY fire_t_h, id", (status,),
-            ).fetchall()
-        return [dict(r) for r in rows]
-
-    def update_reminder_status(
-        self, reminder_id: int, status: str, *, fired_t_h: float | None = None
-    ) -> bool:
-        """Move a reminder's status; True when a row changed."""
-        cur = self.conn.execute(
-            "UPDATE reminders SET status = ?, fired_t_h = ? WHERE id = ?",
-            (status, fired_t_h, reminder_id),
-        )
-        self.conn.commit()
-        return bool(cur.rowcount)
-
     # -- persona + interests ------------------------------------------------
 
     def save_persona(self, profile: PersonaProfile) -> None:
@@ -967,12 +908,7 @@ class SQLiteStore:
                 json.dumps([asdict(r) for r in profile.routines]),
             ),
         )
-        self.conn.execute("DELETE FROM interests")
-        self.conn.executemany(
-            "INSERT INTO interests (name, bucket, salience) VALUES (?, ?, ?)",
-            [(i.name, i.bucket, i.salience) for i in profile.interests],
-        )
-        self.conn.commit()
+        self.save_interests(list(profile.interests))
 
     def load_persona(self) -> PersonaProfile | None:
         row = self.conn.execute("SELECT * FROM persona WHERE id = 1").fetchone()
@@ -1023,51 +959,31 @@ class SQLiteStore:
         )
         self.conn.commit()
 
-    def get_life_arc(self, arc_id: str) -> LifeArc | None:
-        row = self.conn.execute(
-            "SELECT * FROM life_arcs WHERE id = ?", (arc_id,)
-        ).fetchone()
-        if row is None:
-            return None
+    @staticmethod
+    def _row_to_life_arc(row) -> LifeArc:
         return LifeArc(
             id=row["id"], name=row["name"], interest=row["interest"],
             started_day=int(row["started_day"]), progress=float(row["progress"]),
             status=row["status"], next_intention=row["next_intention"],
         )
 
+    def get_life_arc(self, arc_id: str) -> LifeArc | None:
+        row = self.conn.execute(
+            "SELECT * FROM life_arcs WHERE id = ?", (arc_id,)
+        ).fetchone()
+        return self._row_to_life_arc(row) if row else None
+
     def list_life_arcs(self, status: str | None = None) -> list[LifeArc]:
-        if status is None:
-            rows = self.conn.execute(
-                "SELECT * FROM life_arcs ORDER BY started_day, id"
-            ).fetchall()
-        else:
-            rows = self.conn.execute(
-                "SELECT * FROM life_arcs WHERE status = ? ORDER BY started_day, id",
-                (status,),
-            ).fetchall()
-        return [
-            LifeArc(
-                id=r["id"], name=r["name"], interest=r["interest"],
-                started_day=int(r["started_day"]), progress=float(r["progress"]),
-                status=r["status"], next_intention=r["next_intention"],
-            )
-            for r in rows
-        ]
+        where, params = _where(status=status)
+        rows = self.conn.execute(
+            f"SELECT * FROM life_arcs {where} ORDER BY started_day, id", params
+        ).fetchall()
+        return [self._row_to_life_arc(r) for r in rows]
 
     def update_life_arc_status(self, arc_id: str, status: str) -> None:
         self.conn.execute(
             "UPDATE life_arcs SET status = ? WHERE id = ?", (status, arc_id)
         )
-        self.conn.commit()
-
-    def wipe_life_arcs(self) -> None:
-        """Delete every life-arc row (NO_LIFE day-boundary wipe).
-
-        The life layer re-seeds on the next ``Session._ensure_life``, so a
-        wiped generation's arc ids are never reused. Agenda items are NOT
-        touched: past days' items keep their (now-historical) arc references.
-        """
-        self.conn.execute("DELETE FROM life_arcs")
         self.conn.commit()
 
     # -- agenda --------------------------------------------------------------
@@ -1082,9 +998,7 @@ class SQLiteStore:
             source_id=row["source_id"],
             salience=float(row["salience"]),
             status=row["status"],
-            outcome=(
-                row["outcome"] if "outcome" in row.keys() else None
-            ),
+            outcome=row["outcome"],
         )
 
     def save_agenda(self, day: int, agenda: DailyAgenda) -> None:
@@ -1126,12 +1040,16 @@ class SQLiteStore:
         self.conn.commit()
 
     def recent_outcomes(self, *, before_day: int, limit: int = 8) -> list[dict]:
-        """Recorded outcomes from days before ``before_day``, newest first —
-        the day planner's continuity input."""
+        """What came of her hobby sessions on days before ``before_day``,
+        newest first — the day planner's continuity input. Every resolved
+        session counts (done, skipped); ``outcome`` carries her own words
+        or the recorded cause when there are any."""
         rows = self.conn.execute(
             "SELECT id, day, activity, source_type, source_id, status, outcome "
-            "FROM agenda_items WHERE day < ? AND outcome IS NOT NULL "
-            "AND TRIM(outcome) <> '' ORDER BY day DESC, start_t_h DESC LIMIT ?",
+            "FROM agenda_items WHERE day < ? "
+            "AND (status <> 'planned' OR TRIM(COALESCE(outcome, '')) <> '') "
+            "AND source_type IN ('arc', 'interest') "
+            "ORDER BY day DESC, start_t_h DESC LIMIT ?",
             (before_day, limit),
         ).fetchall()
         return [dict(r) for r in rows]
@@ -1142,28 +1060,10 @@ class SQLiteStore:
         )
         self.conn.commit()
 
-    def move_agenda_item(self, item_id: str, start_t_h: float, end_t_h: float) -> None:
-        """Re-window one item (returns the rows changed, 0 when unknown)."""
-        cur = self.conn.execute(
-            "UPDATE agenda_items SET start_t_h = ?, end_t_h = ?, start_at = ?, "
-            "end_at = ? WHERE id = ?",
-            (start_t_h, end_t_h, self._real_at(start_t_h),
-             self._real_at(end_t_h), item_id),
-        )
-        self.conn.commit()
-        return int(cur.rowcount or 0)
-
     def list_agenda_items(
         self, day: int | None = None, status: str | None = None
     ) -> list[AgendaItem]:
-        clauses, params = [], []
-        if day is not None:
-            clauses.append("day = ?")
-            params.append(day)
-        if status is not None:
-            clauses.append("status = ?")
-            params.append(status)
-        where = f"WHERE {' AND '.join(clauses)}" if clauses else ""
+        where, params = _where(day=day, status=status)
         rows = self.conn.execute(
             f"SELECT * FROM agenda_items {where} ORDER BY start_t_h", params
         ).fetchall()
@@ -1361,18 +1261,14 @@ class SQLiteStore:
         self, limit: int = 500, category: str | MemoryKind | None = None
     ) -> list[EpisodicMemory]:
         """Most recent episodes first; optionally filtered by category."""
-        if category is None:
-            rows = self.conn.execute(
-                "SELECT * FROM memory_episodes ORDER BY created_at_t_h DESC LIMIT ?",
-                (limit,),
-            ).fetchall()
-        else:
-            cat = category.value if isinstance(category, MemoryKind) else category
-            rows = self.conn.execute(
-                "SELECT * FROM memory_episodes WHERE category = ? "
-                "ORDER BY created_at_t_h DESC LIMIT ?",
-                (cat, limit),
-            ).fetchall()
+        if isinstance(category, MemoryKind):
+            category = category.value
+        where, params = _where(category=category)
+        rows = self.conn.execute(
+            f"SELECT * FROM memory_episodes {where} "
+            "ORDER BY created_at_t_h DESC LIMIT ?",
+            params + [limit],
+        ).fetchall()
         return [self._row_to_episode(r) for r in rows]
 
     def touch_episode(self, episode_id: str, t_h: float) -> int:
@@ -1542,22 +1438,6 @@ class SQLiteStore:
         ).fetchone()
         return self._row_to_assertion(row) if row else None
 
-    def _stored_category(self, key: str) -> UserModelCategory:
-        """Canonical category of the most recent row of ``key``.
-
-        Reads the stored ``category`` column; the legacy key-prefix
-        derivation is a fallback for rows with a NULL category (hand-edited
-        databases only). Loads never parse arbitrary keys.
-        """
-        row = self.conn.execute(
-            "SELECT category FROM user_model_assertions WHERE key = ? "
-            "ORDER BY seq DESC LIMIT 1",
-            (key,),
-        ).fetchone()
-        if row is not None and row["category"] is not None:
-            return UserModelCategory(row["category"])
-        return _category_from_key(key)
-
     def load_user_model(self) -> UserModel:
         """Project current assertions into the L4 UserModel.
 
@@ -1565,25 +1445,17 @@ class SQLiteStore:
         category is ever inferred from string prefixes or free-form keys.
         Keys remain visible for provenance but are not parsed for grouping.
         """
-        current = self.list_assertions(status="current")
         identity = ""
-        groups: dict[str, list[UserModelAssertion]] = {g: [] for g in _USER_MODEL_GROUPS}
-        for a in current:
-            cat = self._stored_category(a.key)
+        groups: dict[str, list[UserModelAssertion]] = {
+            g: [] for g in _CATEGORY_TO_GROUP.values()}
+        for a in self.list_assertions(status="current"):
+            cat = self.get_assertion_category(a.key) or _category_from_key(a.key)
             if cat is UserModelCategory.IDENTITY:
                 identity = a.value
             else:
                 groups[_CATEGORY_TO_GROUP[cat]].append(a)
-        return UserModel(
-            identity=identity,
-            stable_preferences=tuple(groups["stable_preferences"]),
-            current_preferences=tuple(groups["current_preferences"]),
-            boundaries=tuple(groups["boundaries"]),
-            vulnerabilities=tuple(groups["vulnerabilities"]),
-            recurring_interests=tuple(groups["recurring_interests"]),
-            relationship_patterns=tuple(groups["relationship_patterns"]),
-            important_entities=tuple(groups["important_entities"]),
-        )
+        return UserModel(identity=identity,
+                         **{g: tuple(rows) for g, rows in groups.items()})
 
     # -- proactive intents ---------------------------------------------------
 
@@ -1614,12 +1486,8 @@ class SQLiteStore:
         )
         self.conn.commit()
 
-    def load_proactive_intent(self, intent_id: str) -> ProactiveIntent | None:
-        row = self.conn.execute(
-            "SELECT * FROM proactive_intents WHERE id = ?", (intent_id,)
-        ).fetchone()
-        if row is None:
-            return None
+    @staticmethod
+    def _row_to_intent(row) -> ProactiveIntent:
         return ProactiveIntent(
             id=row["id"], reason=row["reason"], source_type=row["source_type"],
             source_id=row["source_id"], hook=row["hook"],
@@ -1628,29 +1496,21 @@ class SQLiteStore:
             salience=float(row["salience"]), evidence=row["evidence"],
         )
 
+    def load_proactive_intent(self, intent_id: str) -> ProactiveIntent | None:
+        row = self.conn.execute(
+            "SELECT * FROM proactive_intents WHERE id = ?", (intent_id,)
+        ).fetchone()
+        return self._row_to_intent(row) if row else None
+
     def list_proactive_intents(
         self, status: str | None = None
     ) -> list[ProactiveIntent]:
-        if status is None:
-            rows = self.conn.execute(
-                "SELECT * FROM proactive_intents ORDER BY created_t_h DESC"
-            ).fetchall()
-        else:
-            rows = self.conn.execute(
-                "SELECT * FROM proactive_intents WHERE status = ? "
-                "ORDER BY created_t_h DESC",
-                (status,),
-            ).fetchall()
-        return [
-            ProactiveIntent(
-                id=r["id"], reason=r["reason"], source_type=r["source_type"],
-                source_id=r["source_id"], hook=r["hook"],
-                created_t_h=float(r["created_t_h"]),
-                valid_until_t_h=float(r["valid_until_t_h"]),
-                salience=float(r["salience"]), evidence=r["evidence"],
-            )
-            for r in rows
-        ]
+        where, params = _where(status=status)
+        rows = self.conn.execute(
+            f"SELECT * FROM proactive_intents {where} ORDER BY created_t_h DESC",
+            params,
+        ).fetchall()
+        return [self._row_to_intent(r) for r in rows]
 
     def update_proactive_intent_status(self, intent_id: str, status: str) -> None:
         self.conn.execute(
@@ -1702,8 +1562,7 @@ class SQLiteStore:
             (day, t_h, kind, payload_json),
         )
         self.conn.commit()
-        last_id = cur.lastrowid
-        return int(last_id) if last_id is not None else -1
+        return _row_id(cur)
 
     def pending_steers(
         self, day: int | None = None, limit: int = 50
@@ -1711,18 +1570,11 @@ class SQLiteStore:
         """Undelivered steers, oldest first; ``payload`` parsed back to a
         dict when it is JSON. ``day`` filters the queue to one day (None =
         all days)."""
-        if day is None:
-            rows = self.conn.execute(
-                "SELECT * FROM steering_queue WHERE status = 'pending' "
-                "ORDER BY id LIMIT ?",
-                (limit,),
-            ).fetchall()
-        else:
-            rows = self.conn.execute(
-                "SELECT * FROM steering_queue WHERE status = 'pending' "
-                "AND day = ? ORDER BY id LIMIT ?",
-                (day, limit),
-            ).fetchall()
+        where, params = _where(status="pending", day=day)
+        rows = self.conn.execute(
+            f"SELECT * FROM steering_queue {where} ORDER BY id LIMIT ?",
+            params + [limit],
+        ).fetchall()
         out = []
         for r in rows:
             row = dict(r)
@@ -1767,12 +1619,10 @@ class SQLiteStore:
         )
         self.conn.commit()
 
-    def defer_steer(self, steer_id: int) -> None:
-        """Return a steer to 'pending' WITHOUT spending retry budget.
-
-        The steer was delivered but never asked: the turn was already
-        carrying a pop-up. ``attempts`` stays put — see ``SteeringQueue.defer``.
-        """
+    def release_steer(self, steer_id: int) -> None:
+        """Return a delivered steer to 'pending' unasked: delivery fields
+        cleared, ``attempts`` untouched (one pop-up per turn; this one
+        deferred)."""
         self.conn.execute(
             "UPDATE steering_queue SET status = 'pending', delivered_t_h = "
             "NULL, boundary = NULL, seen_turn_id = NULL WHERE id = ?",
@@ -1839,8 +1689,7 @@ class SQLiteStore:
             ),
         )
         self.conn.commit()
-        last_id = cur.lastrowid
-        return int(last_id) if last_id is not None else -1
+        return _row_id(cur)
 
     def decision_for_replay(self, decision_id: str) -> dict | None:
         """The latest decision recorded for a natural key (``replay_id``),
@@ -1851,12 +1700,16 @@ class SQLiteStore:
             "ORDER BY id DESC LIMIT 1",
             (decision_id,),
         ).fetchone()
-        if row is None:
-            return None
-        out = dict(row)
-        out["inputs"] = _unjson(out["inputs_json"], {})
-        out["verdict"] = _unjson(out["verdict_json"], {})
-        return out
+        return _decision_row(row) if row else None
+
+    def set_decision_popup(self, record_id: int, blocks: list[str]) -> None:
+        """Store the pop-up block(s) decision ``record_id`` was asked with,
+        exactly as sent, so its replay in the stream carries them."""
+        self.conn.execute(
+            "UPDATE decision_records SET popup_json = ? WHERE id = ?",
+            (json.dumps(blocks, ensure_ascii=False), record_id),
+        )
+        self.conn.commit()
 
     def decisions_since(self, since_t_h: float) -> list[dict]:
         """Decision rows at or after ``since_t_h``, oldest first (a TIME
@@ -1867,17 +1720,6 @@ class SQLiteStore:
         ).fetchall()
         return [dict(r) for r in rows]
 
-    def recent_decisions(self, limit: int = 12) -> list[dict]:
-        """The most recent decision rows, oldest-first (context projection).
-
-        Merged with ``recent_messages`` by ``t_h`` so a decision appears in
-        later turns where it was made.
-        """
-        rows = self.conn.execute(
-            "SELECT * FROM decision_records ORDER BY id DESC LIMIT ?", (limit,)
-        ).fetchall()
-        return [dict(r) for r in reversed(rows)]
-
     def decisions_for_day(self, day: int) -> list[dict]:
         """All decision records for one day, oldest first, with ``inputs``
         and ``verdict`` parsed back to dicts (the budget window key)."""
@@ -1885,61 +1727,4 @@ class SQLiteStore:
             "SELECT * FROM decision_records WHERE day = ? ORDER BY id",
             (day,),
         ).fetchall()
-        out = []
-        for r in rows:
-            row = dict(r)
-            row["inputs"] = _unjson(row["inputs_json"], {})
-            row["verdict"] = _unjson(row["verdict_json"], {})
-            out.append(row)
-        return out
-
-    # -- tool records (the actuation replay ledger) --------------------------
-
-    def record_tool_call(
-        self,
-        call_id: str,
-        day: int,
-        t_h: float,
-        tool: str,
-        op: str | None,
-        arguments_json: str | None,
-        result: str | None,
-        status: str,
-        *,
-        message_id: int | None = None,
-    ) -> int:
-        """Append one tool call to the ledger; returns its row id."""
-        cur = self.conn.execute(
-            "INSERT INTO tool_records (call_id, day, t_h, tool, op, "
-            "arguments_json, result, status, message_id) "
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (call_id, day, t_h, tool, op, arguments_json, result, status,
-             message_id),
-        )
-        self.conn.commit()
-        last_id = cur.lastrowid
-        return int(last_id) if last_id is not None else -1
-
-    def tool_record_for_replay(
-        self, call_id: str, tool: str, arguments_json: str | None
-    ) -> dict | None:
-        """The recorded outcome of THIS exact call, or None.
-
-        A re-run of a day replays the ledger instead of acting twice: same
-        call id, same tool, same arguments is the same call — a genuine new
-        call colliding on an id and arguments would be the same request.
-        """
-        row = self.conn.execute(
-            "SELECT * FROM tool_records WHERE call_id = ? AND tool = ? "
-            "AND COALESCE(arguments_json, '') = COALESCE(?, '') "
-            "ORDER BY id DESC LIMIT 1",
-            (call_id, tool, arguments_json),
-        ).fetchone()
-        return dict(row) if row else None
-
-    def tool_records_for_day(self, day: int) -> list[dict]:
-        """Ledger rows for one day, oldest first."""
-        rows = self.conn.execute(
-            "SELECT * FROM tool_records WHERE day = ? ORDER BY id", (day,)
-        ).fetchall()
-        return [dict(r) for r in rows]
+        return [_decision_row(r) for r in rows]

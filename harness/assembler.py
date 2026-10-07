@@ -6,12 +6,13 @@ and dropped whole over ``MAX_PROMPT_CHARS`` (pinned ones never).
 
 from __future__ import annotations
 
+import json
 import re
 
+from harness import images
 from harness.clock import hhmm
 from harness.domain import BehaviorBrief, CompanionSnapshot, GenerationControls
 from harness.prompts import (
-    ABOUT_YOU_HEADER,
     ACTIVITY_HEADER,
     AGENDA_HEADER,
     ARCS_HEADER,
@@ -19,12 +20,12 @@ from harness.prompts import (
     AVAILABILITY_LOW,
     AVAILABILITY_MID,
     CLOSING_HEADER,
+    FICTION_FRAME,
+    FREE_WILL,
     HARNESS_PROMPT_MARKERS,
-    MEMORIES_HEADER,
-    MEMORY_EVIDENCE_HEADER,
     SYSTEM_CORE_WITH_TOOLS,
 )
-from harness.steering import STEER_MARKER_CLOSE, STEER_MARKER_OPEN
+from harness.steering import STEER_MARKER_CLOSE, STEER_MARKER_LEAD
 
 #: Default persona core used when the caller provides none (real personas live in ``persona.core``).
 DEFAULT_PERSONA_CORE = (
@@ -36,37 +37,23 @@ DEFAULT_PERSONA_CORE = (
 RECENT_TURNS = 12
 
 # --------------------------------------------------------------------------- #
-AGENDA_ITEMS_MAX = 4
+AGENDA_ITEMS_MAX = 10
 """Cap on today's agenda items rendered into the prompt."""
 
 LIFE_ARCS_MAX = 3
 """Cap on active life arcs rendered (plan: 1-3)."""
 
-MEMORY_EPISODES_MAX = 6
-"""Hard budget N on relevant memories rendered into the prompt."""
-
-MEMORY_ANCHOR_CHAR_BUDGET = 400
-"""Total characters of verbatim evidence anchors rendered (never truncated —
-anchors that do not fit whole are dropped)."""
-
-USER_MODEL_ASSERTIONS_MAX = 6
-"""Cap on L4 user-model facts rendered into the prompt."""
-
 MAX_PROMPT_CHARS = 12000
 """Overall character budget of the assembled system prompt."""
 
-#: Proactive opening template.
-PROACTIVE_OPENING = (
-    "You are reaching out first. {hook}\n"
-    "State what you are reaching out about naturally in your FIRST sentence, "
-    "then open with a concrete, verifiable observation."
-)
+#: Proactive opening: why she thought of him, and nothing about what to
+#: write (owner, 2026-10-03: "just give her why she thought of the user and
+#: let her send whatever she wants").
+PROACTIVE_OPENING = "You are reaching out first. {hook}"
 
 #: Fallback hook used when no grounded proactive intent is available.
-DEFAULT_PROACTIVE_HOOK = (
-    "Something from your own day is worth sharing — a small moment, a "
-    "finished task, or a thought that surfaced."
-)
+DEFAULT_PROACTIVE_HOOK = "Something from your own day"
+_PROACTIVE_STARTER = PROACTIVE_OPENING.split("{hook}", 1)[0].strip()
 
 # --------------------------------------------------------------------------- #
 TEMPORAL_HEADER = "TEMPORAL FRAME:"
@@ -79,9 +66,6 @@ TEMPORAL_DONE_LABEL = "Done earlier"
 TEMPORAL_MISSED_LABEL = "Did not happen"
 TEMPORAL_NOW_LABEL = "Happening now"
 TEMPORAL_LATER_LABEL = "Later today"
-
-#: Placeholder text for the CURRENT INTENT slot.
-CURRENT_INTENT_PLACEHOLDER = "No active intent."
 
 #: Behavioral band prose templates.
 _BEHAVIOR_INITIATIVE_HIGH = (
@@ -109,11 +93,8 @@ _PRIO_AGENDA = 0
 _PRIO_AFFECTIVE = 2
 _PRIO_AVAILABILITY = 2  #: sibling of the mood brief — same eviction band
 _PRIO_BEHAVIORAL = 3
-_PRIO_CURRENT_INTENT = 4
 _PRIO_ACTIVITY = 5
 _PRIO_ARCS = 6
-_PRIO_MEMORIES = 7
-_PRIO_USER_MODEL = 8
 _PRIO_PROACTIVE = 9
 _PRIO_CLOSING = 10
 _PRIO_POPUP = 11
@@ -126,7 +107,6 @@ _PINNED = True
 _DAY_SCOPED_PRIOS: frozenset[int] = frozenset({
     _PRIO_AGENDA,       # today's plan
     _PRIO_ARCS,         # active life arcs
-    _PRIO_USER_MODEL,   # L4 conclusions about him
 })
 
 #: First line of a mid-day state UPDATE row: a changed card appends only the
@@ -148,13 +128,30 @@ def is_state_update(text: str) -> bool:
 
 
 def proactive_block(hook: str | None = None) -> str:
-    """The proactive block — opening + grounded hook verbatim (``None`` -> default hook)."""
-    return PROACTIVE_OPENING.format(hook=(hook or DEFAULT_PROACTIVE_HOOK).strip())
+    """The proactive block: what reminded her of him, from the grounded hook
+    (``proactive.compose_hook``; ``None`` -> the default hook)."""
+    return PROACTIVE_OPENING.format(hook=_thought_of_him(
+        (hook or DEFAULT_PROACTIVE_HOOK).strip()))
 
 
-#: Message keys carried through to the provider beyond role/content — a decision
-#: replay breaks without ``tool_calls``/``tool_call_id``; blocks join on "\n\n".
-SYSTEM_BLOCK_SEPARATOR = "\n\n"
+def _thought_of_him(hook: str) -> str:
+    """"<what> reminded you of him." for a hook; a memory hook is something
+    she remembered about him."""
+    label, sep, rest = hook.partition(": ")
+    if not sep:
+        label, rest = "", hook
+    if label == "Arc":
+        rest = "your project " + rest.split(", next: ", 1)[0]
+    elif label == "Agenda":
+        # "pottery (09:30–10:30), happening now" -> "pottery (09:30–10:30, happening now)"
+        m = re.fullmatch(r"(.*)\), (.+)", rest)
+        rest = f"{m[1]}, {m[2]})" if m else rest
+    elif label == "Finished":
+        m = re.fullmatch(r"(.*), (.+ ago|just now)", rest)
+        rest = "finishing " + (f"{m[1]} ({m[2]})" if m else rest)
+    elif label in ("Callback", "Shared", "Memory", "Check in"):
+        return f"You remembered this about him: {rest}"
+    return f"{rest[:1].upper()}{rest[1:]} reminded you of him."
 
 
 def wire_pair(message: dict) -> tuple:
@@ -173,7 +170,7 @@ def prefix_break(previous: list, current: list) -> int | None:
 #: Tokens ONLY the harness writes: ``[STEER ...]`` and the labelled section
 #: vocabulary. A hit inside a USER-role message means the convention broke.
 HARNESS_MARKER_TOKENS = (
-    STEER_MARKER_OPEN,            # harness.steering: steers AND pop-ups
+    STEER_MARKER_LEAD,            # harness.steering: steers AND pop-ups
     STEER_MARKER_CLOSE,
     *HARNESS_PROMPT_MARKERS,      # prompts.py: the labelled section vocabulary
     TEMPORAL_HEADER,
@@ -233,13 +230,29 @@ def stamp_time(text: str, t_h: float | None, anchor) -> str:
     return f"{text} | Time: {real.hour:02d}:{real.minute:02d}"
 
 
-def _stamp_user_turn(text: str, t_h: float | None, anchor) -> str:
-    """The user-turn spelling of :func:`stamp_time`."""
-    return stamp_time(text, t_h, anchor)
+def user_content(text: str, t_h: float | None, anchor,
+                 photos: list[str] | None = None) -> str | list[dict]:
+    """A user turn's wire content: the stamped text, or with photos the
+    multimodal part list (:func:`harness.images.parts`).
+
+    ONE spelling for the turn as it is first sent and as it is replayed from
+    its row, so request N+1 still starts with request N byte for byte. A
+    photo without a caption still carries its time.
+    """
+    if not photos:
+        return stamp_time(text, t_h, anchor)
+    if text:
+        stamped = stamp_time(text, t_h, anchor)
+    elif anchor is not None and t_h is not None:
+        real = anchor.real_at(t_h)
+        stamped = f"Time: {real.hour:02d}:{real.minute:02d}"
+    else:
+        stamped = ""
+    return images.parts(stamped, photos)
 
 
 def stamped_stream(turns: list[dict], anchor) -> list[dict]:
-    """The context stream as it goes on the wire — user turns carry their clock.
+    """The context stream as it goes on the wire: user turns carry their clock.
 
     ONE builder for every request that reads the store; unanchored runs stamp
     nothing (replay parity).
@@ -248,8 +261,9 @@ def stamped_stream(turns: list[dict], anchor) -> list[dict]:
     for turn in turns:
         message = wire_message(turn)
         if message.get("role") == "user":
-            message["content"] = _stamp_user_turn(
-                str(message.get("content", "")), _row_t(turn), anchor
+            message["content"] = user_content(
+                str(message.get("content", "")), _stamp_t(turn), anchor,
+                images.of(turn),
             )
         out.append(message)
     return out
@@ -257,24 +271,40 @@ def stamped_stream(turns: list[dict], anchor) -> list[dict]:
 
 def build_messages(
     recent_turns: list[dict],
-    user_request: str,
+    user_request: str | None,
     limit: int | None = RECENT_TURNS,
     *,
     anchor=None,
     t_h: float | None = None,
+    photos: list[str] | None = None,
 ) -> list[dict]:
     """Transcript (oldest→newest) + current user request.
 
     ``limit=None`` takes the turns AS GIVEN (the caller already bounded the
-    span); the user request is always last.
+    span); the user request is always last, with its ``photos`` (stored
+    references, :mod:`harness.images`).
     """
     pairs = recent_turns if limit is None else recent_turns[-limit:]
     messages = stamped_stream(pairs, anchor)
     if user_request is not None:
-        messages.append(
-            {"role": "user", "content": _stamp_user_turn(user_request, t_h, anchor)}
-        )
+        content = user_content(user_request, t_h, anchor, photos)
+        messages.append({"role": "user", "content": content})
     return messages
+
+
+def _stamp_t(turn: dict) -> float | None:
+    """The time a user turn is stamped with: its arrival time when the row
+    carries one (a message held during a voice call and answered after it,
+    ``meta.stamp_t_h``), else the row's own time."""
+    meta = turn.get("meta") if isinstance(turn, dict) else None
+    if isinstance(meta, str) and "stamp_t_h" in meta:
+        try:
+            meta = json.loads(meta)
+        except ValueError:
+            meta = None
+    if isinstance(meta, dict) and isinstance(meta.get("stamp_t_h"), (int, float)):
+        return float(meta["stamp_t_h"])
+    return _row_t(turn)
 
 
 def _row_t(turn: dict) -> float | None:
@@ -286,66 +316,9 @@ def _row_t(turn: dict) -> float | None:
 # --------------------------------------------------------------------------- #
 
 
-def _local_hour(t_h: float) -> str:
-    """HH:MM of the local hour for an absolute t_h (see ``clock.hhmm``)."""
-    return hhmm(t_h)
-
-
-def _agenda_lines(items) -> list[str]:
-    lines = []
-    for it in items:
-        lines.append(f"- {it.activity} ({_local_hour(it.start_t_h)}–{_local_hour(it.end_t_h)})")
-    return lines
-
-
-def _memory_lines(snapshot: CompanionSnapshot) -> tuple[list[str], list[str]]:
-    """(episode lines, anchor lines) — both capped by their budgets.
-
-    Anchors are verbatim excerpts; the caller renders the evidence header first.
-    """
-    episodes = snapshot.memory_context.episodes[:MEMORY_EPISODES_MAX]
-    ep_lines = [f"- {e.summary}" for e in episodes]
-    anchor_lines: list[str] = []
-    chars = 0
-    for e in episodes:
-        for a in e.verbatim_anchors:
-            if chars + len(a) > MEMORY_ANCHOR_CHAR_BUDGET:
-                continue
-            anchor_lines.append(f'  anchor: "{a}"')
-            chars += len(a)
-    return ep_lines, anchor_lines
-
-
-def _user_model_lines(snapshot: CompanionSnapshot) -> list[str]:
-    """L4 user-model facts — derived conclusions, not verbatim quotes (no marker)."""
-    um = snapshot.memory_context.user_model
-    if um is None:
-        return []
-    facts: list = []
-    for bucket in (
-        um.stable_preferences,
-        um.current_preferences,
-        um.boundaries,
-        um.vulnerabilities,
-        um.recurring_interests,
-        um.relationship_patterns,
-        um.important_entities,
-    ):
-        facts.extend(bucket)
-    return [f"- {a.value}" for a in facts[:USER_MODEL_ASSERTIONS_MAX]]
-
-
-def _availability_line(brief: BehaviorBrief) -> str | None:
-    """Energy/availability prose — template selection only, never a raw number."""
-    if brief.energy > 0.7:
-        return AVAILABILITY_HIGH
-    if brief.energy < 0.35:
-        return AVAILABILITY_LOW
-    return AVAILABILITY_MID
-
-
 def _band_line(value: float, high: str, mid: str, low: str) -> str:
-    """Band-template selection shared by the availability/behavioral lines."""
+    """Band-template selection shared by the availability/behavioral lines:
+    prose only, never a raw number."""
     if value > 0.7:
         return high
     if value < 0.35:
@@ -386,7 +359,7 @@ def _agenda_plan_lines(snapshot: CompanionSnapshot) -> list[str]:
     agenda = [
         it for it in snapshot.agenda if it.status in ("planned", "shifted")
     ][:AGENDA_ITEMS_MAX]
-    return _agenda_lines(agenda)
+    return [f"- {it.activity} ({hhmm(it.start_t_h)}–{hhmm(it.end_t_h)})" for it in agenda]
 
 
 def render_day_block(snapshot: CompanionSnapshot) -> str:
@@ -394,8 +367,7 @@ def render_day_block(snapshot: CompanionSnapshot) -> str:
 
     No per-moment state and no agenda — those live in the state card.
     """
-    core = (snapshot.persona.core or DEFAULT_PERSONA_CORE).strip()
-    return core
+    return (snapshot.persona.core or DEFAULT_PERSONA_CORE).strip()
 
 
 def stable_system(day_block: str | None, snapshot: CompanionSnapshot | None = None) -> str:
@@ -409,7 +381,7 @@ def stable_system(day_block: str | None, snapshot: CompanionSnapshot | None = No
     else:
         assert snapshot is not None, "a day block needs the cache or a snapshot"
         block = render_day_block(snapshot)
-    return "\n\n".join([block, SYSTEM_CORE_WITH_TOOLS])
+    return "\n\n".join([FREE_WILL, block, FICTION_FRAME, SYSTEM_CORE_WITH_TOOLS])
 
 
 def assemble_snapshot(
@@ -431,8 +403,10 @@ def assemble_snapshot(
         popup=popup,
     )
     # Stable parts first, then the budget-trimmed state card.
-    parts = [day_block if day_block is not None else render_day_block(snapshot)]
-    parts.append(SYSTEM_CORE_WITH_TOOLS)
+    parts = [FREE_WILL,
+             day_block if day_block is not None else render_day_block(snapshot),
+             FICTION_FRAME,
+             SYSTEM_CORE_WITH_TOOLS]
     return _join_stable_plus_sections(parts, sections)
 
 
@@ -461,22 +435,11 @@ def _state_card_sections(
             _PRIO_AFFECTIVE, False,
             AFFECTIVE_HEADER + "\n" + prompt_brief.strip(),
         ))
-    if snapshot.current_behavior is not None:
-        availability = _availability_line(snapshot.current_behavior)
-        if availability:
-            sections.append((_PRIO_AVAILABILITY, False, availability))
-
-    if snapshot.current_behavior is not None:
-        sections.append((_PRIO_BEHAVIORAL, False, _behavioral_bearing(snapshot.current_behavior)))
-
-    # CURRENT INTENT: reserved placeholder slot, exempt from budget eviction.
-    sections.append(
-        (
-            _PRIO_CURRENT_INTENT,
-            _PINNED,
-            CURRENT_INTENT_HEADER + "\n" + CURRENT_INTENT_PLACEHOLDER,
-        )
-    )
+    brief = snapshot.current_behavior
+    if brief is not None:
+        sections.append((_PRIO_AVAILABILITY, False, _band_line(
+            brief.energy, AVAILABILITY_HIGH, AVAILABILITY_MID, AVAILABILITY_LOW)))
+        sections.append((_PRIO_BEHAVIORAL, False, _behavioral_bearing(brief)))
 
     if snapshot.current_activity is not None:
         # Current activity is exempt from budget eviction.
@@ -486,26 +449,12 @@ def _state_card_sections(
 
     arcs = [a for a in snapshot.life_arcs if a.status == "active"][:LIFE_ARCS_MAX]
     if arcs:
-        lines = [f"- {a.name} — {a.next_intention}" for a in arcs]
+        lines = [f"- {a.name}: {a.next_intention}" for a in arcs]
         sections.append((_PRIO_ARCS, False, ARCS_HEADER + "\n" + "\n".join(lines)))
 
-    ep_lines, anchor_lines = _memory_lines(snapshot)
-    if ep_lines:
-        sections.append(
-            (
-                _PRIO_MEMORIES,
-                False,
-                MEMORIES_HEADER
-                + "\n"
-                + MEMORY_EVIDENCE_HEADER
-                + "\n"
-                + "\n".join(ep_lines + anchor_lines),
-            )
-        )
-
-    um_lines = _user_model_lines(snapshot)
-    if um_lines:
-        sections.append((_PRIO_USER_MODEL, False, ABOUT_YOU_HEADER + "\n" + "\n".join(um_lines)))
+    # No memories and no user model here: what she remembers comes from the
+    # memory system (not built yet), never from the card (owner call
+    # 2026-09-28).
 
     if snapshot.proactive_intent is not None:
         sections.append(
@@ -593,6 +542,19 @@ def card_blocks(text: str) -> list[tuple[str, str]]:
 _CLEARED_SUFFIX = ": (cleared)"
 
 
+def _leaves_quietly(key: str, block: str) -> bool:
+    """A block that leaves the card without a ``(cleared)`` row: a reach-out
+    is answered by her message right after it, and the CURRENT INTENT slot
+    (retired 2026-10-03) only ever held a placeholder."""
+    return key == CURRENT_INTENT_HEADER[:-1] or block.startswith(_PROACTIVE_STARTER)
+
+
+def without_quiet_blocks(card: str) -> str:
+    """``card`` minus the blocks that leave it quietly."""
+    return "\n\n".join(block for key, block in card_blocks(card)
+                       if not _leaves_quietly(key, block))
+
+
 def render_state_update(prev_card: str, card: str) -> str:
     """The stream bytes for a changed card: only what changed.
 
@@ -606,7 +568,8 @@ def render_state_update(prev_card: str, card: str) -> str:
     blocks = card_blocks(card)
     keys = {key for key, _ in blocks}
     changed = [block for key, block in blocks if prev.get(key) != block]
-    cleared = [key for key in prev if key not in keys]
+    cleared = [key for key, block in prev.items()
+               if key not in keys and not _leaves_quietly(key, block)]
     if not changed and not cleared:
         return card
     update = "\n\n".join(
@@ -645,14 +608,17 @@ def apply_state_update(prev_card: str, update: str) -> str:
     return "\n\n".join(blocks[key] for key in order)
 
 
-def _day_plan_header(t_h: float | None, anchor) -> str:
-    """Header for a day's plan, dated with the real weekday when anchored."""
+def day_plan_header(t_h: float | None, anchor, name: str | None = None) -> str:
+    """Header for a day's plan, dated with the real weekday when anchored:
+    "Lily's Saturday plan:" (owner, 2026-10-03), or "Saturday's plan:"
+    without a ``name`` (the rows written before)."""
     if t_h is None or anchor is None:
         return AGENDA_HEADER
     try:
-        return f"{anchor.real_at(t_h).strftime('%A')}'s plan:"
+        weekday = anchor.real_at(t_h).strftime('%A')
     except Exception:  # noqa: BLE001 - a broken anchor must not lose the plan
         return AGENDA_HEADER
+    return f"{name}'s {weekday} plan:" if name else f"{weekday}'s plan:"
 
 
 def render_day_start_block(
@@ -670,7 +636,7 @@ def render_day_start_block(
         )
         if s[0] in _DAY_SCOPED_PRIOS
     ]
-    header = _day_plan_header(t_h, anchor)
+    header = day_plan_header(t_h, anchor, snapshot.persona.name)
     if header != AGENDA_HEADER:
         sections = [
             (prio, pinned, text.replace(AGENDA_HEADER, header, 1)
@@ -689,6 +655,7 @@ def build_context_messages(
     anchor=None,
     day_block: str | None = None,
     limit: int | None = RECENT_TURNS,
+    photos: list[str] | None = None,
 ) -> tuple[str, list[dict]]:
     """(stable system, messages) — the cache-ordered request pair.
 
@@ -696,13 +663,7 @@ def build_context_messages(
     Messages: the context stream, then the user request when given. The state
     card is a stream row (:meth:`Session._ensure_state_card`), never a tail.
     """
-    system = stable_system(day_block, snapshot)
-    if user_request is not None:
-        messages = build_messages(
-            recent_turns, user_request, limit=limit, anchor=anchor, t_h=t_h,
-        )
-    else:
-        messages = stamped_stream(
-            recent_turns if limit is None else recent_turns[-limit:], anchor
-        )
-    return system, messages
+    return stable_system(day_block, snapshot), build_messages(
+        recent_turns, user_request, limit=limit, anchor=anchor, t_h=t_h,
+        photos=photos,
+    )

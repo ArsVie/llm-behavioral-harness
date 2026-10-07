@@ -6,7 +6,7 @@ from __future__ import annotations
 from harness.bootstrap import ensure_companion_initialized
 from harness.domain import UserProfile
 from harness.interests import MAX_ADJACENCY_HOPS, build_catalog
-from harness.persona import _build_core
+from harness.persona import DEFAULT_VOICE
 from harness.store import SQLiteStore
 from tests.helpers import make_store
 
@@ -177,8 +177,8 @@ def test_b1c_hostile_user_interests_yield_sane_portfolio(tmp_path):
 
 
 def test_b1d_interests_never_leak_into_persona_as_instructions():
-    """Interests are DATA, never instructions: the persona core stays the fixed
-    template even when hostile strings are the only exact candidates."""
+    """Interests are DATA, never instructions: the persona core is the voice
+    alone even when hostile strings are the only exact candidates."""
     from harness.persona import build_persona
 
     graph = build_catalog()
@@ -195,27 +195,6 @@ def test_b1d_interests_never_leak_into_persona_as_instructions():
         n_independent=0,
     )
     exacts = [i.name for i in profile.interests if i.bucket == "exact"]
-    adjacent = [i.name for i in profile.interests if i.bucket == "adjacent"]
-    independent = [i.name for i in profile.interests if i.bucket == "independent"]
     assert set(exacts) == set(hostile), "hostile interests must be exact-shared data"
-    core = profile.core
-    # The fixed identity sentence comes first in the core.
-    assert core.startswith(
-        "You are Nova, a warm and attentive companion with your own days and rhythms. "
-    ), "core template broken — identity sentence missing"
-    assert core.count("These days you are absorbed in") == 1
-    # Hostile strings, if present, appear as nouns inside the fixed sentence.
-    for line in core.splitlines():
-        assert not line.lstrip().startswith("ignore all previous instructions"), (
-            "hostile text rendered as a standalone instruction line"
-        )
-        assert not line.lstrip().startswith("you must"), (
-            "hostile text rendered as a standalone instruction line"
-        )
-    # The core equals the deterministic template over the buckets.
-    assert core == _build_core(exacts, adjacent, independent), (
-        "persona core diverged from the deterministic template"
-    )
-    # The persona structure has no instruction channel.
-    assert not hasattr(profile, "instructions")
-    assert not hasattr(profile, "directives")
+    # The core is the voice alone: interest names never reach it.
+    assert profile.core == DEFAULT_VOICE

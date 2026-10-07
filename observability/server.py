@@ -1,8 +1,16 @@
-"""The observability web app: read-only JSON + Server-Sent Events + one page.
+"""The companion's web app: /chat, /debug and /setup.
 
-Standard library only. Every handler reads through ``observability.reader``,
-which opens the database read-only; the run id in a request is matched against
-the discovered run list, so no path from the URL reaches the filesystem.
+- ``/debug`` (also ``/``): the observability dashboard, read-only JSON +
+  Server-Sent Events.
+- ``/chat``: the live conversation with her sprite and a call button.
+- ``/setup``: the owner commands (/status, /tz, /mute, ...) as a page.
+
+Standard library only. Every read goes through ``observability.reader`` or
+``observability.chat``, which open the database read-only; the run id in a
+request is matched against the discovered run list, so no path from the URL
+reaches the filesystem. The only writes are the chat's and the setup page's,
+and the server does not make them: it forwards them to the bot's web channel
+(``harness.channels.web``), which hands them to the runtime like any message.
 """
 
 from __future__ import annotations
@@ -10,11 +18,13 @@ from __future__ import annotations
 import json
 import time
 import urllib.parse
+from collections.abc import Callable
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
-from observability import reader, study, wire
+from harness.channels import web
+from observability import chat, reader, study, wire
 from observability.calls import envelope_of
 from observability.db import rows as db_rows
 
@@ -31,7 +41,21 @@ _CONTENT_TYPES = {".html": "text/html; charset=utf-8",
                   ".js": "text/javascript; charset=utf-8",
                   ".svg": "image/svg+xml",
                   ".png": "image/png",
-                  ".ico": "image/x-icon"}
+                  ".ico": "image/x-icon",
+                  ".json": "application/json; charset=utf-8",
+                  ".webp": "image/webp"}
+
+#: Her sprites and the face player live in the amadeus tree; only these two
+#: directories under it are served.
+AMADEUS_DIR: Path = Path.home() / "amadeus"
+_AMADEUS_SERVED = ("face", "sprites")
+
+#: The pages, by path.
+_PAGES = {"/": "index.html", "/debug": "index.html",
+          "/chat": "chat.html", "/setup": "setup.html"}
+
+#: POST routes forwarded to the bot's web channel.
+_CHAT_WRITES = {"/api/chat/send": "/web/send", "/api/chat/command": "/web/command"}
 
 
 class AppState:
@@ -62,7 +86,7 @@ def _json_bytes(payload: Any) -> bytes:
 
 
 class Handler(BaseHTTPRequestHandler):
-    """GET-only JSON/SSE/static endpoints."""
+    """JSON/SSE/static endpoints; POST only for the forwarded chat writes."""
 
     protocol_version = "HTTP/1.1"
     server_version = "harness-observability/1.0"
@@ -71,7 +95,7 @@ class Handler(BaseHTTPRequestHandler):
     def state(self) -> AppState:
         return self.server.state  # type: ignore[attr-defined]
 
-    def log_message(self, format: str, *args: Any) -> None:  # noqa: A002
+    def log_message(self, format: str, *args: Any) -> None:
         """Quiet: the harness' own log is the record of interest.
 
         ``format``/``args`` are unused, required by the base class contract.
@@ -101,14 +125,30 @@ class Handler(BaseHTTPRequestHandler):
             return default
 
     # -- routes -----------------------------------------------------------
-    def do_GET(self) -> None:  # noqa: N802 (http.server API)
+    def do_GET(self) -> None:
         parsed = urllib.parse.urlparse(self.path)
         path = parsed.path.rstrip("/") or "/"
-        if path == "/":
-            self._send_static("index.html")
+        if path in _PAGES:
+            self._send_static(_PAGES[path])
             return
         if path.startswith("/static/"):
             self._send_static(path[len("/static/"):])
+            return
+        if path.split("/")[1] in _AMADEUS_SERVED:
+            self._send_amadeus(path.lstrip("/"))
+            return
+        if path == "/api/chat/history":
+            self._chat_history(self._params())
+            return
+        if path.startswith("/api/chat/photo/"):
+            target = chat.photo(path[len("/api/chat/photo/"):])
+            if target is None:
+                self._send_json({"error": "no such photo"}, status=404)
+            else:
+                self._send(200, target.read_bytes(), "image/jpeg")
+            return
+        if path == "/api/chat/state":
+            self._send(*self._forward("GET", "/web/state"))
             return
         if path.startswith("/api/"):
             routes: dict[str, Callable[[dict[str, str]], None]] = {
@@ -133,13 +173,49 @@ class Handler(BaseHTTPRequestHandler):
             return
         self._send_json({"error": "not found"}, status=404)
 
-    def _send_static(self, name: str) -> None:
-        target = (STATIC_DIR / name).resolve()
-        if not str(target).startswith(str(STATIC_DIR)) or not target.is_file():
+    def do_POST(self) -> None:
+        path = urllib.parse.urlparse(self.path).path.rstrip("/")
+        target = _CHAT_WRITES.get(path)
+        if target is None:
+            self._send_json({"error": "not found"}, status=404)
+            return
+        length = int(self.headers.get("Content-Length") or 0)
+        if length > (web.SEND_BODY_MAX if target == "/web/send" else web.BODY_MAX):
+            self._send_json({"error": "too large"}, status=413)
+            return
+        body = self.rfile.read(length) if length > 0 else b"{}"
+        self._send(*self._forward("POST", target, body))
+
+    def _forward(self, method: str, target: str,
+                 body: bytes | None = None) -> tuple[int, bytes, str]:
+        status, data = chat.proxy(method, target, body, timeout=30.0)
+        return status, data, "application/json; charset=utf-8"
+
+    def _chat_history(self, params: dict[str, str]) -> None:
+        path = chat.chat_db()
+        if not path.is_file():
+            self._send_json({"error": f"no chat database at {path}"}, status=404)
+            return
+        with reader.open_run(path) as conn:
+            payload = chat.history(conn, reader.load_anchor(conn),
+                                   after=self._int_param(params, "after", 0))
+        self._send_json(payload)
+
+    def _send_file(self, target: Path, roots: tuple[Path, ...]) -> None:
+        """A file under one of ``roots``; anything resolving outside is a 404."""
+        target = target.resolve()
+        if not any(target.is_relative_to(root) for root in roots) or not target.is_file():
             self._send_json({"error": "no such asset"}, status=404)
             return
         self._send(200, target.read_bytes(),
                    _CONTENT_TYPES.get(target.suffix, "application/octet-stream"))
+
+    def _send_amadeus(self, rel: str) -> None:
+        root = AMADEUS_DIR.resolve()
+        self._send_file(root / rel, tuple(root / d for d in _AMADEUS_SERVED))
+
+    def _send_static(self, name: str) -> None:
+        self._send_file(STATIC_DIR / name, (STATIC_DIR,))
 
     def _run_or_404(self, params: dict[str, str]) -> reader.RunRef | None:
         ref = self.state.resolve_run(params.get("id"))
@@ -259,7 +335,7 @@ class Handler(BaseHTTPRequestHandler):
         while time.monotonic() < deadline:
             probe = self._probe(ref)
             if probe != last:
-                self.wfile.write(f"data: {json.dumps(probe)}\n\n".encode("utf-8"))
+                self.wfile.write(f"data: {json.dumps(probe)}\n\n".encode())
                 self.wfile.flush()
                 last = probe
             time.sleep(STREAM_INTERVAL_S)

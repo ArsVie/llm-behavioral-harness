@@ -13,7 +13,7 @@ import sqlite3
 
 from harness.domain import UserModelCategory
 
-SCHEMA_VERSION = 14
+SCHEMA_VERSION = 15
 
 # --- v1 base schema ---
 _SCHEMA = """
@@ -72,7 +72,7 @@ CREATE TABLE IF NOT EXISTS schedule_events (
     t_h      REAL    NOT NULL,        -- absolute virtual hour of the planned firing
     day      INTEGER NOT NULL,        -- int(t_h // 24)
     reason   TEXT    NOT NULL,        -- one of VALID_REASONS
-    status   TEXT    NOT NULL DEFAULT 'pending',  -- 'pending' | 'fired' | 'expired'
+    status   TEXT    NOT NULL DEFAULT 'pending',  -- 'pending' | 'fired' | 'suppressed' | 'expired'
     fired_t_h REAL,                   -- actual virtual hour it fired (may differ slightly)
     UNIQUE(seed, t_h)
 );
@@ -474,58 +474,30 @@ def _migrate_v9(conn: sqlite3.Connection) -> None:
     conn.executescript(_V9_TABLES)
 
 
-# Migration v9 -> v10 (additive): agenda_items.outcome.
-# Records what came of an item, not just its status.
-_V10_COLUMNS = (
-    ("agenda_items", "outcome", "TEXT"),
-)
-
-
 def _migrate_v10(conn: sqlite3.Connection) -> None:
-    """v9 -> v10: additive agenda_items.outcome column."""
-    for table, column, decl in _V10_COLUMNS:
-        _ensure_column(conn, table, column, decl)
-
-
-# Migration v10 -> v11 (additive): steering_queue.attempts.
-# Bounds how often a requeued steer is retried.
-_V11_COLUMNS = (
-    ("steering_queue", "attempts", "INTEGER NOT NULL DEFAULT 0"),
-)
+    """v9 -> v10: agenda_items.outcome, what came of an item beyond its
+    status."""
+    _ensure_column(conn, "agenda_items", "outcome", "TEXT")
 
 
 def _migrate_v11(conn: sqlite3.Connection) -> None:
-    """v10 -> v11: additive steering_queue.attempts column."""
-    for table, column, decl in _V11_COLUMNS:
-        _ensure_column(conn, table, column, decl)
-
-
-# Migration v11 -> v12 (additive): decision_records.after_message_id.
-# The message row a decision was recorded behind, so the context stream can
-# be merged in arrival order instead of by a non-unique virtual hour.
-_V12_COLUMNS = (
-    ("decision_records", "after_message_id", "INTEGER"),
-)
+    """v10 -> v11: steering_queue.attempts, which bounds how often a
+    requeued steer is retried."""
+    _ensure_column(conn, "steering_queue", "attempts", "INTEGER NOT NULL DEFAULT 0")
 
 
 def _migrate_v12(conn: sqlite3.Connection) -> None:
-    """v11 -> v12: additive decision_records.after_message_id column."""
-    for table, column, decl in _V12_COLUMNS:
-        _ensure_column(conn, table, column, decl)
-
-
-# Migration v12 -> v13 (additive): decision_records.reask.
-# Whether the round needed NATIVE_REASK; the nudge text is derived from
-# ``popup_kind``, so the flag is enough to replay the round as it ran.
-_V13_COLUMNS = (
-    ("decision_records", "reask", "INTEGER NOT NULL DEFAULT 0"),
-)
+    """v11 -> v12: decision_records.after_message_id, the message row a
+    decision was recorded behind, so the context stream merges in arrival
+    order instead of by a non-unique virtual hour."""
+    _ensure_column(conn, "decision_records", "after_message_id", "INTEGER")
 
 
 def _migrate_v13(conn: sqlite3.Connection) -> None:
-    """v12 -> v13: additive decision_records.reask column."""
-    for table, column, decl in _V13_COLUMNS:
-        _ensure_column(conn, table, column, decl)
+    """v12 -> v13: decision_records.reask, whether the round needed
+    NATIVE_REASK; the nudge text derives from ``popup_kind``, so the flag is
+    enough to replay the round as it ran."""
+    _ensure_column(conn, "decision_records", "reask", "INTEGER NOT NULL DEFAULT 0")
 
 
 # Migration v13 -> v14 (additive): the actuation transport. ``messages``
@@ -563,17 +535,34 @@ CREATE TABLE IF NOT EXISTS reminders (
 CREATE INDEX IF NOT EXISTS idx_reminders_status ON reminders(status);
 """
 
-_V14_COLUMNS = (
-    ("messages", "tool_calls_json", "TEXT"),
-    ("messages", "tool_call_id", "TEXT"),
-)
-
 
 def _migrate_v14(conn: sqlite3.Connection) -> None:
     """v13 -> v14: additive tool-transport columns, tool_records, reminders."""
     conn.executescript(_V14_TABLES)
-    for table, column, decl in _V14_COLUMNS:
-        _ensure_column(conn, table, column, decl)
+    _ensure_column(conn, "messages", "tool_calls_json", "TEXT")
+    _ensure_column(conn, "messages", "tool_call_id", "TEXT")
+
+
+def _migrate_v15(conn: sqlite3.Connection) -> None:
+    """v14 -> v15: the pop-up block(s) a decision was asked with, as sent,
+    and the wall-clock instant of each model call.
+
+    Owner ruling 2026-10-03: pop-up blocks are saved in the stream and only
+    dropped by the cold-point prune; the decision's replay carries them.
+    ``llm_calls.called_at`` (UTC epoch seconds) is when the request actually
+    went out: a fork run late is stamped at its boundary in ``t_h``, and the
+    cold-point idle clock measured from that stamp pruned a warm cache (live
+    2026-10-01, t=98.04: 2.04 h "idle" against a real 0.8 h)."""
+    _ensure_column(conn, "decision_records", "popup_json", "TEXT")
+    _ensure_column(conn, "llm_calls", "called_at", "REAL")
+
+
+#: The chain in order: entry ``i`` brings a database to version ``i + 2``.
+_MIGRATIONS = (
+    _migrate_v2, _migrate_v3, _migrate_v4, _migrate_v5, _migrate_v6,
+    _migrate_v7, _migrate_v8, _migrate_v9, _migrate_v10, _migrate_v11,
+    _migrate_v12, _migrate_v13, _migrate_v14, _migrate_v15,
+)
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
@@ -584,32 +573,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
     collapses to a single row at the current version.
     """
     version = _current_version(conn)
-    if version < 2:
-        _migrate_v2(conn)
-    if version < 3:
-        _migrate_v3(conn)
-    if version < 4:
-        _migrate_v4(conn)
-    if version < 5:
-        _migrate_v5(conn)
-    if version < 6:
-        _migrate_v6(conn)
-    if version < 7:
-        _migrate_v7(conn)
-    if version < 8:
-        _migrate_v8(conn)
-    if version < 9:
-        _migrate_v9(conn)
-    if version < 10:
-        _migrate_v10(conn)
-    if version < 11:
-        _migrate_v11(conn)
-    if version < 12:
-        _migrate_v12(conn)
-    if version < 13:
-        _migrate_v13(conn)
-    if version < 14:
-        _migrate_v14(conn)
+    for target, step in enumerate(_MIGRATIONS, start=2):
+        if version < target:
+            step(conn)
     if version < SCHEMA_VERSION:
         conn.execute("DELETE FROM schema_meta")
         conn.execute(
@@ -625,16 +591,11 @@ def _usage_columns(usage) -> tuple:
     with the same keys; anything else (or None) yields all-NULLs. Never
     raises on malformed shapes — usage capture is best-effort.
     """
-    if usage is None:
-        return (None, None, None, None, None)
     if isinstance(usage, dict):
-        get = lambda k: usage.get(k)  # noqa: E731
+        get = usage.get
     else:
-        get = lambda k: getattr(usage, k, None)  # noqa: E731
-    return (
-        get("prompt_tokens"),
-        get("completion_tokens"),
-        get("total_tokens"),
-        get("cached_tokens"),
-        get("cache_miss_tokens"),
-    )
+        def get(key):
+            return getattr(usage, key, None)
+    return tuple(get(key) for key in (
+        "prompt_tokens", "completion_tokens", "total_tokens",
+        "cached_tokens", "cache_miss_tokens"))

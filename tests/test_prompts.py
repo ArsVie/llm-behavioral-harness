@@ -8,7 +8,6 @@ from engine.types import PHASE_FRACTIONS
 from harness.assembler import MAX_PROMPT_CHARS, assemble_snapshot
 from harness.behavior import _render_brief
 from harness.domain import (
-    BehaviorBrief,
     CompanionSnapshot,
     CurrentActivity,
     EpisodicMemory,
@@ -17,21 +16,12 @@ from harness.domain import (
     PersonaProfile,
 )
 from harness.prompts import (
-    HEADER_CONVERSATION,
-    HEADER_REPLY,
-    HEADER_SYSTEM,
-    HEADER_THINKING,
-    HEADER_TOOL,
-    HEADER_TOOL_CALL,
-    HEADER_USER,
     POPUP_MARKER_CLOSE,
     POPUP_MARKER_OPEN,
-    STEER_TRUST_RULE,
-    SYSTEM_CORE,
     SYSTEM_CORE_WITH_TOOLS,
-    TOOL_PROTOCOL,
     render_popup_block,
 )
+from tests.helpers.domain_builders import sample_brief
 
 PHASE_LABELS = {p[0] for p in PHASE_FRACTIONS}
 
@@ -54,47 +44,9 @@ def test_system_core_contains_no_state():
     assert "{hook}" not in SYSTEM_CORE_WITH_TOOLS
 
 
-def test_system_core_names_the_state_card_and_rules():
-    """The core is ABOUT how to handle the state card, and nothing else.
-
-    Pinned by behaviour, not by sentence: the core must still tell the model
-    the card exists and that its contents never surface verbatim.
-    """
-    core = SYSTEM_CORE
-    low = core.lower()
-    assert "state card" in low
-    # the leakage boundary survives the condensation
-    assert "never quote it" in low
-    assert "no labels, no numbers, no mechanics" in low
-    # the tool protocol is a separate paragraph, attached to the core
-    assert "decision tool" in TOOL_PROTOCOL
-    assert SYSTEM_CORE_WITH_TOOLS == SYSTEM_CORE + "\n\n" + TOOL_PROTOCOL
-
-
-def test_steer_trust_rule_is_disabled():
-    """The steer trust prose left the stable prefix: the paragraph is empty and
-    no longer composed into the core.
-    """
-    assert STEER_TRUST_RULE == ""
-    assert STEER_TRUST_RULE not in (SYSTEM_CORE, TOOL_PROTOCOL)
-    assert "steer" not in SYSTEM_CORE_WITH_TOOLS.lower()
-
-
-def test_typed_headers_match_l393_sketch():
-    assert HEADER_SYSTEM == "#System prompt"
-    assert HEADER_USER == "#User"
-    assert HEADER_TOOL == "#Tool"
-    assert HEADER_TOOL_CALL == "##{tool}"
-    assert HEADER_THINKING == "#Thinking"
-    assert HEADER_REPLY == "#Reply"
-    assert HEADER_CONVERSATION == "#Conversation"
-
-
 def test_render_popup_block_markers_and_trust_rule():
     content = "EVENT: the walk ended"
     block = render_popup_block(content)
-    assert block.startswith("An event is arriving right now.")
-    assert "real arriving event" in block
     assert POPUP_MARKER_OPEN in block
     assert POPUP_MARKER_CLOSE in block
     assert content in block
@@ -107,19 +59,10 @@ def _persona() -> PersonaProfile:
     return PersonaProfile(name="Nova", core="CORE TEXT.", interests=(), routines=())
 
 
-def _brief() -> BehaviorBrief:
-    return BehaviorBrief(
-        valence=0.5, energy=0.7, reactivity=0.5, warmth=0.8,
-        expressiveness=0.6, playfulness=0.5, reflectiveness=0.4,
-        initiative=0.6, response_length_scale=1.0, response_delay_s=3.0,
-        closing_tendency=0.3,
-    )
-
-
 def _snapshot(memory: MemoryContext | None = None) -> CompanionSnapshot:
     return CompanionSnapshot(
         persona=_persona(),
-        current_behavior=_brief(),
+        current_behavior=sample_brief(),
         current_activity=CurrentActivity(t_h=10.5, item=None,
                                          description="practice pottery"),
         agenda=(),

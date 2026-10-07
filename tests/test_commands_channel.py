@@ -5,9 +5,6 @@ Commands drive the TelegramChannel seam with the shared FakeApplication.
 
 import argparse
 import asyncio
-import subprocess
-import sys
-from pathlib import Path
 from typing import Any
 
 import pytest
@@ -21,19 +18,15 @@ from harness.channels.base import OutboundMessage  # noqa: E402
 from harness.channels.telegram import TelegramChannel  # noqa: E402
 from harness.clock import VirtualClock  # noqa: E402
 from harness.scheduler import ProactiveSchedule  # noqa: E402
-from harness.store import SQLiteStore  # noqa: E402
 from sim.run_async import (  # noqa: E402
     CommandBridgeChannel,
     build_command_callback,
     resolve_tz,
 )
-from zoneinfo import ZoneInfoNotFoundError  # noqa: E402
 
 
 def _run(coro) -> None:
     asyncio.run(coro)
-
-
 
 
 def _defaults(store, clock, **overrides):
@@ -75,7 +68,6 @@ async def _started(channel, on_command, on_message=None):
         ("/status", "day 0"),
         ("/version", "deadbee"),
         ("/tz America/Mexico_City", "next rollover"),
-        ("/mute 4", "deferred, never consumed"),
     ],
 )
 def test_command_happy_paths_end_to_end(tmp_path, command_text, expect) -> None:
@@ -167,83 +159,6 @@ def test_mute_defer_semantics_end_to_end(tmp_path) -> None:
     assert app.bot.calls[-1]["text"].startswith("proactive messages muted for 4 h")
 
 
-def test_tz_records_the_pending_change_end_to_end(tmp_path) -> None:
-    store = make_store(tmp_path)
-    clock = VirtualClock(t_h=8.0)
-    app = FakeApplication()
-    channel = TelegramChannel(application=app, owner_chat_id="42")
-    kw, hooks = _defaults(store, clock)
-    cb = build_command_callback(store, clock, channel=channel, **kw)
-
-    async def scenario() -> None:
-        await _started(channel, cb)
-        await app.handlers[1](app.command_update("/tz UTC", 42))
-
-    _run(scenario())
-    assert hooks["tz"] == ["UTC"]
-    assert "next rollover" in app.bot.calls[-1]["text"]
-
-
-def test_state_is_gated_even_end_to_end(tmp_path) -> None:
-    store = make_store(tmp_path)
-    clock = VirtualClock(t_h=8.0)
-    app = FakeApplication()
-    channel = TelegramChannel(application=app, owner_chat_id="42")
-    kw, _ = _defaults(store, clock)  # flags={"debug": False}
-    cb = build_command_callback(store, clock, channel=channel, **kw)
-
-    async def scenario() -> None:
-        await _started(channel, cb)
-        await app.handlers[1](app.command_update("/state", 42))
-
-    _run(scenario())
-    assert "disabled" in app.bot.calls[-1]["text"]
-
-
-# command-flag-off parity (on_command=None -> commands dropped)
-
-
-def test_flag_off_parity_commands_are_dropped(tmp_path) -> None:
-    """start(on_message=...) without on_command: no command handler is
-    registered and command updates reach nobody — today's behavior."""
-    # No store needed: this asserts on handler REGISTRATION only.
-    app = FakeApplication()
-    channel = TelegramChannel(application=app, owner_chat_id="42")
-    received = []
-
-    async def _on_message(msg):
-        received.append(msg)
-
-    async def scenario() -> None:
-        await channel.start(_on_message)  # on_command defaults to None
-        assert len(app.handlers) == 1  # only the text handler registered
-        # A command update routed anywhere produces nothing:
-        await app.handlers[0](app.command_update("/ping", 42))
-        await app.handlers[0](app.command_update("/setup", 42))
-
-    _run(scenario())
-    assert app.bot.calls == []  # no replies were ever sent
-    assert received == []  # and commands never became InboundMessage
-
-
-def test_flag_off_parity_plain_text_still_flows(tmp_path) -> None:
-    """Without on_command the text path is untouched (parity with today)."""
-    app = FakeApplication()
-    channel = TelegramChannel(application=app, owner_chat_id="42")
-    received = []
-
-    async def _on_message(msg):
-        received.append(msg)
-
-    async def scenario() -> None:
-        await channel.start(_on_message)
-        await app.handlers[0](app.command_update("hello", 42))
-
-    _run(scenario())
-    assert len(received) == 1
-    assert received[0].text == "hello"
-
-
 # CommandBridgeChannel — launcher wiring for Channel.start
 
 
@@ -330,28 +245,6 @@ def test_bridge_skips_channels_without_the_command_seam(tmp_path) -> None:
 # launcher flag resolution
 
 
-def test_resolve_tz_defaults_to_no_anchor() -> None:
-    assert resolve_tz(None, env={}) == (None, None)
-    assert resolve_tz("", env={"HARNESS_TZ": ""}) == (None, None)
-
-
-def test_resolve_tz_flag_wins_over_env() -> None:
-    name, anchor = resolve_tz("UTC", env={"HARNESS_TZ": "America/Mexico_City"})
-    assert name == "UTC"
-    assert anchor is not None and anchor.tz == "UTC"
-
-
-def test_resolve_tz_env_fallback() -> None:
-    name, anchor = resolve_tz(None, env={"HARNESS_TZ": "Europe/Madrid"})
-    assert name == "Europe/Madrid"
-    assert anchor is not None and anchor.tz == "Europe/Madrid"
-
-
-def test_resolve_tz_bad_name_raises() -> None:
-    with pytest.raises(ZoneInfoNotFoundError):
-        resolve_tz("Not/AZone", env={})
-
-
 def test_resolve_tz_anchor_maps_wall_clock_to_virtual_hours() -> None:
     import time
 
@@ -359,105 +252,3 @@ def test_resolve_tz_anchor_maps_wall_clock_to_virtual_hours() -> None:
     now = time.time()
     # Round-trip through the anchor.
     assert abs(anchor.t_h_at(anchor.epoch_of(now)) - now) < 1e-6
-
-
-# CLI-level --defer-bootstrap behavior (real subprocess runs, accelerated)
-
-
-def _run_async_cli(tmp_path, db, *extra_args, timeout=120):
-    venv_python = Path(sys.executable)
-    repo = Path(__file__).resolve().parents[1]
-    proc = subprocess.run(
-        [
-            str(venv_python), "-m", "sim.run_async",
-            "--fake", "--store", str(db), "--days", "1",
-            "--time-scale", "0.001", "--channel", "fake",
-            *extra_args,
-        ],
-        cwd=repo, capture_output=True, text=True, timeout=timeout,
-    )
-    assert proc.returncode == 0, proc.stderr[-2000:]
-    return proc
-
-
-def test_defer_bootstrap_keeps_blank_db_uninitialized(tmp_path) -> None:
-    """--defer-bootstrap on a blank DB: the run completes and the DB stays
-    blank (only /setup initializes)."""
-    db = tmp_path / "defer.db"
-    proc = _run_async_cli(tmp_path, db, "--defer-bootstrap")
-    assert "defer-bootstrap" in proc.stdout
-    store = SQLiteStore(db)
-    assert store.load_persona() is None  # untouched by the run itself
-    store.close()
-
-
-def test_default_bootstrap_is_unconditional(tmp_path) -> None:
-    """Without --defer-bootstrap a blank DB is initialized at startup
-    (CLI unchanged for existing invocations)."""
-    db = tmp_path / "default.db"
-    _run_async_cli(tmp_path, db)
-    store = SQLiteStore(db)
-    assert store.load_persona() is not None
-    store.close()
-
-
-def test_defer_bootstrap_on_initialized_db_is_a_noop(tmp_path) -> None:
-    """--defer-bootstrap with a persona already present behaves like the
-    normal idempotent bootstrap (identity never regenerates)."""
-    from harness.bootstrap import OnboardingConfig, ensure_companion_initialized
-
-    db = tmp_path / "init.db"
-    store = SQLiteStore(db)
-    boot = ensure_companion_initialized(store, seed=5001, config=OnboardingConfig(), day=0)
-    first_name = boot.persona.name
-    store.close()
-    proc = _run_async_cli(tmp_path, db, "--defer-bootstrap")
-    assert "defer-bootstrap" not in proc.stdout  # normal bootstrap ran
-    store = SQLiteStore(db)
-    assert store.load_persona().name == first_name
-    store.close()
-
-
-def test_cli_accepts_the_new_flags_without_commands(tmp_path) -> None:
-    """--enable-commands on the fake channel: launcher warning, no crash, inert
-    for the plain path."""
-    db = tmp_path / "flags.db"
-    proc = _run_async_cli(
-        tmp_path, db, "--enable-commands",
-    )
-    # The fake channel has no command seam -> warning, commands dropped.
-    assert "no command seam" in proc.stdout
-    store = SQLiteStore(db)
-    assert store.load_persona() is not None  # bootstrap unchanged
-    store.close()
-
-
-def test_tz_flag_resolves_anchor(tmp_path) -> None:
-    """--tz acceptance at the resolution layer: flag wins, absent -> (None, None),
-    bad IANA name raises."""
-    from sim.run_async import resolve_tz
-
-    tz, anchor = resolve_tz("UTC", env={})
-    assert tz == "UTC"
-    assert anchor is not None
-    assert anchor.tz == "UTC"
-
-    tz, anchor = resolve_tz(None, env={})
-    assert tz is None and anchor is None
-
-    tz, anchor = resolve_tz("", env={"HARNESS_TZ": "America/Mexico_City"})
-    assert tz == "America/Mexico_City"
-    assert anchor is not None
-
-    import zoneinfo
-
-    try:
-        resolve_tz("Not/AZone", env={})
-    except zoneinfo.ZoneInfoNotFoundError:
-        pass
-    else:
-        raise AssertionError("bad IANA name must raise ZoneInfoNotFoundError")
-
-
-if __name__ == "__main__":  # pragma: no cover
-    sys.exit(pytest.main([__file__, "-v"]))

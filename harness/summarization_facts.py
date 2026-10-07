@@ -2,8 +2,7 @@
 
 Regex-based, and never guesses: this is the layer whose output can become an
 authoritative L4 assertion. Every fact carries its canonical
-``UserModelCategory`` and the exact source excerpt; ``harness.summarization``
-re-exports every name here.
+``UserModelCategory`` and the exact source excerpt.
 """
 
 from __future__ import annotations
@@ -12,6 +11,7 @@ import re
 from dataclasses import dataclass
 
 from harness.domain import UserModelCategory
+
 
 @dataclass(frozen=True)
 class _Fact:
@@ -128,31 +128,21 @@ def _extract_facts(messages: list[dict]) -> list[_Fact]:
     """
     facts: list[_Fact] = []
     seen: set[tuple[str, str]] = set()
-
-    def add(key: str, value: str, kind: str, turn_id: int, anchor: str) -> None:
-        value = _clean(value)
-        if not value or (key, value) in seen:
-            return
-        seen.add((key, value))
-        facts.append(
-            _Fact(
-                key=key,
-                value=value,
-                kind=kind,
-                category=_FACT_CATEGORY[kind],
-                turn_id=turn_id,
-                anchor=anchor,
-            )
-        )
-
     for msg in messages:
         if msg.get("role") != "user":
             continue
         text = str(msg.get("content", ""))
         matched = _match_user_turn(text)
-        if matched is not None:
-            key, value, kind = matched
-            add(key, value, kind, int(msg.get("id", -1)), text)
+        if matched is None:
+            continue
+        key, value, kind = matched
+        value = _clean(value)
+        if not value or (key, value) in seen:
+            continue
+        seen.add((key, value))
+        facts.append(_Fact(key=key, value=value, kind=kind,
+                           category=_FACT_CATEGORY[kind],
+                           turn_id=int(msg.get("id", -1)), anchor=text))
     return facts
 
 
@@ -166,8 +156,3 @@ def _callbacks(messages: list[dict]) -> list[Callback]:
         if _CALLBACK_RE.search(text):
             out.append((text[:80], int(msg.get("id", -1)), text))
     return out
-
-
-# Affect observations.
-
-

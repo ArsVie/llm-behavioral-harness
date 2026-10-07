@@ -7,12 +7,12 @@ to :func:`heuristic_extension`.
 
 from __future__ import annotations
 
-import concurrent.futures
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 from harness import proposal_cache
+from harness.concurrency import run_with_deadline
 from harness.interests import InterestGraph
 
 #: Edge strength for a new interest to one of its own proposed neighbours.
@@ -51,33 +51,6 @@ CACHE_NAMESPACE = "interest-extension"
 CACHE_SCHEMA = "v2-exact-counts"
 
 
-def _cache_payload(known, unknown) -> dict:
-    """The inputs that define this question, for the cache key."""
-    return {
-        "known": list(known),
-        "unknown": list(unknown),
-        "n": NEIGHBOURS_PER_INTEREST,
-        "b": BRIDGES_PER_INTEREST,
-    }
-
-
-def load_cached_proposal(known, unknown) -> dict | None:
-    """A previously accepted proposal for this exact question, or None."""
-    cached = proposal_cache.load(
-        CACHE_NAMESPACE, CACHE_SCHEMA, _cache_payload(known, unknown)
-    )
-    return cached if isinstance(cached, dict) else None
-
-
-def store_cached_proposal(known, unknown, proposal: dict) -> None:
-    """Cache an accepted proposal. Best-effort: failures are swallowed."""
-    if not isinstance(proposal, dict) or not proposal:
-        return
-    proposal_cache.store(
-        CACHE_NAMESPACE, CACHE_SCHEMA, _cache_payload(known, unknown), proposal
-    )
-
-
 _NAME_OK = re.compile(r"^[a-z0-9][a-z0-9 \-'&/]*$")
 
 #: Bare words that mean two different things: a proposal naming one of these
@@ -106,7 +79,7 @@ For each of these: {unknown}
 give exactly {n} "neighbours" (related pursuits a person into it would also
 be into) and exactly {b} "bridges" chosen FROM the existing list above.
 
-Names: lowercase, one to three words, each meaning one thing on its own —
+Names: lowercase, one to three words, each meaning one thing on its own:
 "metal music" not "metal", "oil painting" not "art". Something a person does.
 
 JSON only:
@@ -128,8 +101,9 @@ class ExtensionResult:
         return bool(self.added_nodes) or self.added_edges > 0
 
 
-def _clean_name(raw: object) -> str | None:
-    """Normalize a proposed name, or None when it is not usable."""
+def clean_name(raw: object) -> str | None:
+    """Normalize a proposed name, or None when it is not usable (shared with
+    ``routine_setup``)."""
     if not isinstance(raw, str):
         return None
     name = " ".join(raw.strip().lower().split())
@@ -147,7 +121,7 @@ def unknown_interests(graph: InterestGraph, interests) -> tuple[str, ...]:
     known = set(graph.nodes())
     out: list[str] = []
     for raw in interests:
-        name = _clean_name(raw)
+        name = clean_name(raw)
         if name is None or name in known or name in out:
             continue
         out.append(name)
@@ -186,7 +160,7 @@ def apply_proposal(
     known_before = set(graph.nodes())
     body_by_root: dict[str, dict] = {}
     for raw_root, raw_body in (proposal or {}).items():
-        name = _clean_name(raw_root)
+        name = clean_name(raw_root)
         if name is not None and name not in body_by_root:
             body_by_root[name] = raw_body if isinstance(raw_body, dict) else {}
 
@@ -198,7 +172,7 @@ def apply_proposal(
             added_nodes.append(name)
 
     for asked_root in unknown:
-        root = _clean_name(asked_root)
+        root = clean_name(asked_root)
         if root is None or root not in body_by_root:
             continue
         body = body_by_root[root]
@@ -208,7 +182,7 @@ def apply_proposal(
         neighbours = body.get("neighbours")
         neighbours = neighbours if isinstance(neighbours, list) else []
         for raw in neighbours[:NEIGHBOURS_PER_INTEREST]:
-            name = _clean_name(raw)
+            name = clean_name(raw)
             if name is None or name == root:
                 continue
             if len(added_nodes) >= MAX_NEW_NODES and name not in known_before:
@@ -220,7 +194,7 @@ def apply_proposal(
         bridges = body.get("bridges")
         bridges = bridges if isinstance(bridges, list) else []
         for raw in bridges[:BRIDGES_PER_INTEREST]:
-            name = _clean_name(raw)
+            name = clean_name(raw)
             # A bridge must land on a pre-existing node and the root is new, so
             # the edge always touches a new node.
             if name is None or name == root or name not in known_before:
@@ -292,25 +266,6 @@ def _make_call(client):
     return _call
 
 
-def _call_within_budget(call, prompt: str, budget_s: float):
-    """Run the model call with a hard wall-clock deadline.
-
-    A worker thread makes the deadline enforceable without touching the shared
-    client's configuration; it raises nothing while it waits, so the wait itself
-    is what gets bounded. Returns the reply text, or raises TimeoutError /
-    whatever the call raised; on timeout the thread is left to finish on its own.
-    """
-    # not a `with` block: its __exit__ blocks on shutdown(wait=True).
-    pool = concurrent.futures.ThreadPoolExecutor(
-        max_workers=1, thread_name_prefix="interest-extension"
-    )
-    try:
-        future = pool.submit(call, prompt)
-        return future.result(timeout=budget_s)
-    finally:
-        pool.shutdown(wait=False, cancel_futures=True)
-
-
 def extend_graph_for_user(
     graph: InterestGraph,
     interests,
@@ -330,18 +285,18 @@ def extend_graph_for_user(
     if not unknown:
         return ExtensionResult(graph=graph, added_nodes=(), added_edges=0, source="none")
 
-    known = tuple(graph.nodes())
-    cached = load_cached_proposal(known, unknown)
-    if cached is not None:
+    # The inputs that define this question are the cache key.
+    payload = {
+        "known": list(graph.nodes()),
+        "unknown": list(unknown),
+        "n": NEIGHBOURS_PER_INTEREST,
+        "b": BRIDGES_PER_INTEREST,
+    }
+    cached = proposal_cache.load(CACHE_NAMESPACE, CACHE_SCHEMA, payload)
+    if isinstance(cached, dict):
         if logger is not None:
             logger("interest extension: reusing the cached proposal (no call)")
-        result = apply_proposal(graph, unknown, cached)
-        return ExtensionResult(
-            graph=result.graph,
-            added_nodes=result.added_nodes,
-            added_edges=result.added_edges,
-            source="cache",
-        )
+        return replace(apply_proposal(graph, unknown, cached), source="cache")
 
     call = _make_call(client)
     if call is None:
@@ -354,8 +309,9 @@ def extend_graph_for_user(
         b=BRIDGES_PER_INTEREST,
     )
     try:
-        reply = _call_within_budget(call, prompt, budget_s)
-    except concurrent.futures.TimeoutError:
+        reply = run_with_deadline(
+            lambda: call(prompt), budget_s, thread_name="interest-extension")
+    except TimeoutError:
         if logger is not None:
             logger(
                 f"interest extension: no reply within {budget_s:.0f}s; "
@@ -373,5 +329,6 @@ def extend_graph_for_user(
             logger("interest extension: unparseable reply; using fallback")
         return heuristic_extension(graph, unknown)
     # Cached only once it parsed: a fallback reply is not worth replaying.
-    store_cached_proposal(known, unknown, proposal)
+    if proposal:
+        proposal_cache.store(CACHE_NAMESPACE, CACHE_SCHEMA, payload, proposal)
     return apply_proposal(graph, unknown, proposal)

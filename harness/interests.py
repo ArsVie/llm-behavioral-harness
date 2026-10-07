@@ -30,8 +30,7 @@ CROSS_EDGES: tuple[tuple[str, str, float], ...] = (
     ("running", "cooking", 0.20),  # outdoors x food
 )
 
-#: Hubless island: nodes with no path to any hub — always independent
-#: candidates. Guarantees ``sample_independent`` is never empty.
+#: Hubless island: nodes with no path to any hub — always independent.
 ISLAND: tuple[str, ...] = ("gardening", "birdwatching", "woodworking")
 
 #: Internal island edges (from, to, strength); keep the island connected to
@@ -105,28 +104,15 @@ class InterestGraph:
 
         ``a == b`` counts as zero hops; unknown nodes are unreachable unless equal.
         """
-        if a == b:
-            return True
-        if max_hops < 1:
-            return False
-        seen = {a}
-        frontier = [a]
-        for _ in range(max_hops):
-            nxt: list[str] = []
-            for node in frontier:
-                for nb in self._adj.get(node, ()):
-                    if nb == b:
-                        return True
-                    if nb not in seen:
-                        seen.add(nb)
-                        nxt.append(nb)
-            frontier = nxt
-        return False
+        return b in self.reachable_within(a, max_hops)
 
-    def _reachable_within(self, start: str, max_hops: int) -> set[str]:
-        """All nodes reachable from ``start`` in <= ``max_hops`` edges."""
-        seen = {start}
-        frontier = [start]
+    def reachable_within(self, name: str, max_hops: int) -> set[str]:
+        """Every node within ``max_hops`` edges of ``name``, ``name`` included.
+
+        Unknown nodes have no edges, so the set is ``{name}`` for them.
+        """
+        seen = {name}
+        frontier = [name]
         for _ in range(max_hops):
             nxt: list[str] = []
             for node in frontier:
@@ -136,13 +122,6 @@ class InterestGraph:
                         nxt.append(nb)
             frontier = nxt
         return seen
-
-    def reachable_within(self, name: str, max_hops: int) -> set[str]:
-        """Every node within ``max_hops`` edges of ``name``, ``name`` included.
-
-        Unknown nodes have no edges, so the set is ``{name}`` for them.
-        """
-        return self._reachable_within(name, max_hops)
 
     def distance(self, a: str, b: str) -> int | None:
         """Shortest path length between ``a`` and ``b``; ``None`` if unreachable.
@@ -177,26 +156,6 @@ class InterestGraph:
         if not hubs:
             raise ValueError("graph has no hub nodes; call add_hub() first")
         return hubs[int(rng.integers(0, len(hubs)))]
-
-    def sample_adjacent(self, rng) -> str:
-        """Uniform random node within ``MAX_ADJACENCY_HOPS`` of a hub (never a hub)."""
-        reachable: set[str] = set()
-        for hub in self.hubs():
-            reachable |= self._reachable_within(hub, MAX_ADJACENCY_HOPS)
-        candidates = sorted(reachable - self._hubs)
-        if not candidates:
-            raise ValueError("no node is within adjacency range of any hub")
-        return candidates[int(rng.integers(0, len(candidates)))]
-
-    def sample_independent(self, rng) -> str:
-        """Uniform random node with NO path of <= ``MAX_ADJACENCY_HOPS`` to any hub."""
-        reachable: set[str] = set()
-        for hub in self.hubs():
-            reachable |= self._reachable_within(hub, MAX_ADJACENCY_HOPS)
-        candidates = sorted(set(self._adj) - reachable)
-        if not candidates:
-            raise ValueError("no node is independent of every hub")
-        return candidates[int(rng.integers(0, len(candidates)))]
 
 
 def build_catalog() -> InterestGraph:

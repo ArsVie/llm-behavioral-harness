@@ -214,7 +214,7 @@ def _cell_stats(records: list[dict]) -> dict:
     leaks = [name for r in records for name in r["leaks"]]
     ms = [r["M"] for r in records if r["M"] is not None]
     directives = [r["directive"] for r in records if r["directive"]]
-    stats = {
+    return {
         "n": len(records),
         "mean_words": round(_mean([t["words"] for t in tones]), 2),
         "exclamations": sum(t["exclamations"] for t in tones),
@@ -226,7 +226,6 @@ def _cell_stats(records: list[dict]) -> dict:
         "mean_playfulness": round(_mean([d["playfulness"] for d in directives]), 3)
         if directives else None,
     }
-    return stats
 
 
 def _evaluate_cell(records: list[dict], client, model: str | None) -> dict:

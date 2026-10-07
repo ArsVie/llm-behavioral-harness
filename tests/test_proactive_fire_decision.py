@@ -101,28 +101,6 @@ def test_decline_suppresses_reply_and_marks_intent(tmp_path):
     store.close()
 
 
-def test_decline_replays_without_new_model_call(tmp_path):
-    store = SQLiteStore(tmp_path / "s.db")
-    clock = VirtualClock(t_h=10.0)
-    client = FakeClient(responses=[
-        {"content": "",
-         "tool_calls": [{"id": "c3", "name": "tool_decide_proactive",
-                         "arguments_json": "{\"initiate\": false, \"reason\": \"later\"}"}]},
-    ])
-    session = _session(store, client, clock, decision=DecisionConfig())
-    store.save_proactive_intent(_intent())
-    session.fire_proactive("pi_1")
-    n_calls = len(client.calls)
-    # Re-enqueue the same steer shape with a fresh store-backed intent and
-    # drain again: the recorded verdict replays (no new model call).
-    store.save_proactive_intent(_intent("pi_2"))
-    session.enqueue_proactive_decision("pi_2")
-    # The id is steer-scoped, so the replay path cannot be forced from here;
-    # assert the decline path consumed one pop-up call and left no message.
-    assert n_calls == 1
-    store.close()
-
-
 def test_decision_off_fires_undecided_parity(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=10.0)

@@ -13,7 +13,6 @@ from pathlib import Path
 from typing import Any
 
 from harness.trace import Ctx, collect_findings, load_anchor
-
 from observability.calls import (
     DEFAULT_CONTEXT_WINDOW,
     call_detail,
@@ -22,7 +21,6 @@ from observability.calls import (
     context_payload,
     stamp,
     stats_json,
-    tool_schemas_for,
     usage_payload,
 )
 from observability.db import (
@@ -30,25 +28,21 @@ from observability.db import (
     RunRef,
     deployed_runs,
     deployment_for,
-    count as _count,
     find_runs,
     live_processes,
     open_run,
     repo_root,
-    rows as _rows,
 )
-from observability.events import (
-    DEFAULT_LIMIT,
-    collect_events,
-    events_payload,
-)
+from observability.db import count as _count
+from observability.db import rows as _rows
+from observability.events import DEFAULT_LIMIT, events_payload
 
 __all__ = [
     "DEFAULT_CONTEXT_WINDOW", "DEFAULT_LIMIT", "RunRef",
-    "call_detail", "call_payload", "call_rows", "clock_payload", "collect_events",
+    "call_detail", "call_payload", "call_rows", "clock_payload",
     "context_payload", "counters", "events_payload", "find_runs", "latest_ids",
     "live_processes", "load_anchor", "open_run", "repo_root", "run_detail",
-    "run_summary", "stats_json", "tool_schemas_for", "usage_payload",
+    "run_summary", "stats_json", "usage_payload",
 ]
 
 #: Domain tables the counters panel reports (missing tables read 0).
@@ -179,7 +173,7 @@ def run_summary(ref: RunRef, *, now: float, context_window: int,
             "messages": _count(conn, "messages"),
             "events": _count(conn, "state_events"),
             "context_window": context_window,
-            "usage": usage_payload(calls)["totals"],
+            "usage": usage_payload(calls, load_anchor(conn))["totals"],
         }
 
 
@@ -194,7 +188,7 @@ def run_detail(ref: RunRef, *, context_window: int, call_id: int | None = None,
             "summary": run_summary(ref, now=time.time(), context_window=context_window,
                                    deployments=deployments),
             "clock": clock_payload(conn, anchor),
-            "usage": usage_payload(rows),
+            "usage": usage_payload(rows, anchor),
             "counters": counters(conn),
             "checks": checks_payload(conn, anchor),
             "latest": latest_ids(conn),

@@ -1,8 +1,8 @@
 """Daily activity planner — concrete days instead of verb x noun.
 
-One model call per day turns the persona's arcs, interests and the outcomes
-recorded on previous days into concrete activity text; the engine keeps all
-scheduling (sources, counts, windows, salience, ids). Opt-in via
+One model call per day turns the day's hobby sessions (interest, kind, stage,
+hours), her projects and what came of recent days into one plain line each;
+the engine keeps all scheduling (sources, counts, windows, salience, ids). Opt-in via
 ``HARNESS_DAY_PLANNER`` (default OFF — the planner shares the conversation
 client). Failure is never fatal: ``plan_day`` returns None and the caller keeps
 the template behaviour.
@@ -10,16 +10,18 @@ the template behaviour.
 
 from __future__ import annotations
 
-import concurrent.futures
 import json
 from dataclasses import dataclass
 
-#: Longest accepted activity string. Bounds an activity well below paragraph
-#: length so no paragraph can reach the agenda or the state card.
-MAX_ACTIVITY_CHARS = 90
+from harness.client import fresh_session
+from harness.concurrency import run_with_deadline
 
-#: Most activities one plan may supply, whatever the reply contains.
-MAX_PLANNED = 8
+#: The length the prompt asks for.
+ASK_ACTIVITY_CHARS = 90
+#: Longest accepted activity string: a line somewhat over the ask is kept
+#: (live 2026-09-27: three lines of 99-100 chars all dropped). Still well
+#: below paragraph length, so no paragraph reaches the agenda or the card.
+MAX_ACTIVITY_CHARS = 140
 
 #: Recorded outcomes handed to the planner as continuity material.
 OUTCOME_CONTEXT = 6
@@ -34,32 +36,29 @@ PLANNER_BUDGET_S = 90.0
 PLANNER_PROMPT = """\
 {name} is planning her own day. It is {weekday}.
 
+Already fixed today:
+{fixed}
+
 Her ongoing projects:
 {arcs}
 
-Her interests:
-{interests}
-
-What actually came of recent days:
+What came of recent days:
 {outcomes}
 
-Write {n} things she does today — one per source listed below, in order:
+Write one plain line for each of these, in order, saying what she does in it:
 {slots}
 
-Each one must be a SPECIFIC thing with a real object: not "practice guitar"
-but "work out the bridge of a song she keeps half-finishing"; not "read about
-history" but "get through the chapter on the Antonine plague". Invent the
-specific object; that is the point.
+Keep it ordinary and concrete, the way she would write it in her own
+planner: "squats and a couple of accessory sets", "the next two episodes".
+Fit it to how far along she is: someone curious or starting does beginner
+things, someone practised does the real thing. A taste is watching,
+listening or reading, never practice or drills. No counts, weights,
+measurements or other numbers. Where a recent day gives something to follow
+on from, follow on from it; a project moves on rather than restarts.
 
-Where the outcomes above give you something to follow on from, follow on from
-it. A project should visibly move rather than restart.
+It is her day on her own: no activity needs him or assumes he will be there.
 
-Marked HERS is something she does on her own; marked SHARED is an interest he
-shares too. Either way this is HER day: write what SHE does and phrase it so
-it stands without him — she has a life of her own, and no activity may need
-him or assume he will be there. Do not explain the difference, just let it
-read differently.
-
+Each line names the activity, not who does it: no "i", "my" or "me".
 Lowercase, no trailing period, at most {chars} characters each, no names of
 people. Reply with JSON only:
 {{"activities": ["...", "..."]}}
@@ -68,16 +67,16 @@ people. Reply with JSON only:
 
 @dataclass(frozen=True)
 class PlanSlot:
-    """One thing the engine has already decided to schedule.
+    """One hobby session the engine has already scheduled.
 
     The planner fills in ``activity``; everything else is the engine's.
+    ``label`` reads "lifting, practised (skill), 18:30–19:40".
     """
 
     source_type: str  # "arc" | "interest"
     source_id: str
     fallback: str  # the template text, used when planning is unavailable
-    label: str  # human description of the source, for the request
-    bucket: str | None = None  # interest bucket, when source_type == "interest"
+    label: str  # interest, stage, kind and hours, for the request
 
 
 def _clean_activity(raw: object) -> str | None:
@@ -94,32 +93,38 @@ def _clean_activity(raw: object) -> str | None:
 
 
 def _render_arcs(arcs) -> str:
-    if not arcs:
+    active = [a for a in arcs if getattr(a, "status", "active") == "active"]
+    if not active:
         return "  (none)"
     return "\n".join(
-        f"  - {a.name} — next: {a.next_intention}" for a in arcs
+        f"  - {a.name}, next: {a.next_intention}" for a in active
     )
 
 
-def _render_interests(slots: list[PlanSlot]) -> str:
-    seen: dict[str, str] = {}
-    for slot in slots:
-        if slot.source_type == "interest" and slot.source_id not in seen:
-            seen[slot.source_id] = "HERS" if slot.bucket == "independent" else "SHARED"
-    if not seen:
-        return "  (none)"
-    return "\n".join(f"  - {name} ({tag})" for name, tag in seen.items())
+def _render_fixed(fixed) -> str:
+    return "\n".join(f"  - {line}" for line in fixed) if fixed else "  (nothing)"
+
+
+#: How a resolved status reads to the planner.
+_STATUS_WORDS = {"completed": "done", "skipped": "skipped", "shifted": "moved"}
 
 
 def _render_outcomes(outcomes) -> str:
+    """What came of recent sessions: the status, and her own words or the
+    recorded cause when there are any."""
     if not outcomes:
         return "  (nothing recorded yet)"
     lines = []
     for row in outcomes[:OUTCOME_CONTEXT]:
         activity = str(row.get("activity") or "").strip()
+        if not activity:
+            continue
+        status = _STATUS_WORDS.get(str(row.get("status") or ""), "")
         outcome = str(row.get("outcome") or "").strip()
-        if activity and outcome:
-            lines.append(f"  - {activity} → {outcome}")
+        if outcome.startswith("stopped early"):
+            status = ""  # the outcome already says what happened
+        said = ": ".join(x for x in (status, outcome) if x)
+        lines.append(f"  - {activity} → {said}" if said else f"  - {activity}")
     return "\n".join(lines) or "  (nothing recorded yet)"
 
 
@@ -128,17 +133,16 @@ def _render_slots(slots: list[PlanSlot]) -> str:
 
 
 def build_request(name: str, weekday: str, arcs, slots: list[PlanSlot],
-                  outcomes) -> str:
+                  outcomes, fixed=()) -> str:
     """The plan prompt for one day (pure — no I/O, no clock read)."""
     return PLANNER_PROMPT.format(
         name=name,
         weekday=weekday,
+        fixed=_render_fixed(fixed),
         arcs=_render_arcs(arcs),
-        interests=_render_interests(slots),
         outcomes=_render_outcomes(outcomes),
-        n=len(slots),
         slots=_render_slots(slots),
-        chars=MAX_ACTIVITY_CHARS,
+        chars=ASK_ACTIVITY_CHARS,
     )
 
 
@@ -176,7 +180,7 @@ def parse_plan(reply: str, expected: int) -> list[str] | None:
 
 def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
     """One bounded model call. The wait itself has to be bounded, not merely
-    guarded (see ``interest_extension._call_within_budget``).
+    guarded (see ``concurrency.run_with_deadline``).
 
     ``fork``: a callable(task) -> (system, messages, tools) | None that extends
     the mainline request instead of a standalone prompt, so the whole prefix
@@ -205,7 +209,7 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
         system = "You return JSON only."
     rich = getattr(client, "chat_with_meta", None)
     if rich is not None:
-        def _run():
+        def _ask():
             result = rich(
                 messages,
                 system=system,
@@ -219,6 +223,17 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
                 tools=tools,
             )
             return getattr(result, "content", result) or ""
+
+        def _run():
+            # An empty or unparseable reply is asked once more, on another
+            # backend (harness.client.fresh_session), as the judge and the
+            # memory fork do: prose kept the templates on days 5 and 6 of the
+            # 2026-09-27 live run.
+            text = _ask()
+            if parse_plan(str(text), 1) is None:
+                with fresh_session(client, "planner1"):
+                    text = _ask()
+            return text
     else:
         plain = getattr(client, "chat", None)
         if plain is None:
@@ -231,14 +246,7 @@ def _call_within_budget(client, prompt: str, budget_s: float, fork=None) -> str:
                 temperature=0.9,
             ) or ""
 
-    # not a with block: __exit__ waits for the worker and would undo the deadline.
-    pool = concurrent.futures.ThreadPoolExecutor(
-        max_workers=1, thread_name_prefix="day-planner"
-    )
-    try:
-        return pool.submit(_run).result(timeout=budget_s)
-    finally:
-        pool.shutdown(wait=False, cancel_futures=True)
+    return run_with_deadline(_run, budget_s, thread_name="day-planner")
 
 
 def plan_day(
@@ -252,6 +260,7 @@ def plan_day(
     fork=None,
     logger=None,
     budget_s: float = PLANNER_BUDGET_S,
+    fixed=(),
 ) -> list[str] | None:
     """Concrete activity text for each slot, or None to keep the templates.
 
@@ -264,10 +273,10 @@ def plan_day(
     """
     if not slots or client is None:
         return None
-    prompt = build_request(name, weekday, arcs, slots, outcomes)
+    prompt = build_request(name, weekday, arcs, slots, outcomes, fixed)
     try:
         reply = _call_within_budget(client, prompt, budget_s, fork)
-    except concurrent.futures.TimeoutError:
+    except TimeoutError:
         if logger is not None:
             logger(f"day planner: no reply within {budget_s:.0f}s; keeping templates")
         return None

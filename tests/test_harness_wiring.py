@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.client import FakeClient
 from harness.clock import VirtualClock
@@ -13,9 +15,9 @@ from harness.steering import (
     KIND_USER_MESSAGE,
     STEER_MARKER_OPEN,
 )
-from harness.store import SQLiteStore
-from tests.helpers import make_store
 from harness.tools import DecisionConfig
+from tests.helpers import make_session, make_store
+from tests.helpers.store import booted
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -51,7 +53,7 @@ def _session(store, *, client, clock, decision=None):
 def test_event_popup_initiate_fires_proactive_out(tmp_path):
     """An agenda item started before the turn: the idle boundary enqueues an
     event pop-up; the decision and its delivery are persisted."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
@@ -93,7 +95,7 @@ def test_event_popup_initiate_fires_proactive_out(tmp_path):
 def test_event_popup_no_initiate_no_channel_output(tmp_path):
     """An initiate=no verdict (with a reason) records the decision and
     produces no channel output at all."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
@@ -118,7 +120,7 @@ def test_event_popup_no_initiate_no_channel_output(tmp_path):
 def test_backlog_initiate_omits_channel_send(tmp_path):
     """A steer enqueued before the conversation opened is decided and
     persisted, but its reason never reaches the channel."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     store.enqueue_steer(0, 8.0, KIND_EVENT_POPUP, {
         "event_id": "ag1", "event": "pottery", "state": "start",
@@ -150,7 +152,7 @@ def test_backlog_initiate_omits_channel_send(tmp_path):
 def test_start_no_marks_item_skipped_and_end_asks_nothing(tmp_path):
     """The decision is offered once, at the start; the END boundary makes
     no model call."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
@@ -164,6 +166,7 @@ def test_start_no_marks_item_skipped_and_end_asks_nothing(tmp_path):
     assert store.pending_steers() == []
     items = store.list_agenda_items(day=0)
     assert [it.status for it in items] == ["skipped"]
+    assert [it.outcome for it in items] == ["later"]  # her reason, about it
 
     clock.advance_hours(2.5)  # 12:00 — the window ended
     client.responses.append("main reply")
@@ -182,7 +185,7 @@ def test_start_no_marks_item_skipped_and_end_asks_nothing(tmp_path):
 def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
     """A user message during an event runs decide_reply; a no-reply verdict
     suppresses the ordinary reply and the notice rides out through TurnResult."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
@@ -213,10 +216,10 @@ def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
     assert result.proactive_out == ()
     assert len(client.calls) == 3  # T1 round + T1 generation + T2 decide round (the suppressed turn never generates)
     msgs = store.messages_for_day(0)
-    # Leading system rows: the day-start block (plan + arcs) and the state
-    # card, both emitted into the stream.
+    # Leading system rows: the day-start block (plan + arcs), the writing
+    # row (stored once) and the state card, all emitted into the stream.
     assert [m["role"] for m in msgs] == [
-        "system", "system", "user", "assistant", "user",
+        "system", "system", "system", "user", "assistant", "user",
     ]
     records = store.decisions_for_day(0)
     assert len(records) == 2
@@ -228,7 +231,7 @@ def test_decide_reply_no_reply_suppresses_ordinary_reply(tmp_path):
 def test_decide_reply_yes_proceeds_with_ordinary_reply(tmp_path):
     """A reply=yes verdict proceeds with the ordinary reply; terminate_event
     closes the event server-side (item -> skipped)."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
@@ -259,7 +262,7 @@ def test_decide_reply_yes_proceeds_with_ordinary_reply(tmp_path):
 
 def test_decide_reply_verbose_notice_carries_reason(tmp_path):
     """HARNESS_VERBOSE=1: the no-reply notice carries the model's reason."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
@@ -288,7 +291,7 @@ def test_decide_reply_verbose_notice_carries_reason(tmp_path):
 def test_parse_failure_requeues_steer_for_next_boundary(tmp_path):
     """A textual reply without a parseable marker requeues the steer; the
     next turn drains it again with a parseable reply."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
@@ -317,7 +320,7 @@ def test_parse_failure_requeues_steer_for_next_boundary(tmp_path):
 def test_interrupted_turn_requeues_delivered_steers(tmp_path):
     """If the pop-up call raises (abandoned turn), the steers delivered to
     that turn are re-queued and delivered again at the next boundary."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=9.5)
     client = FakeClient(responses=[
@@ -358,7 +361,7 @@ def test_thinking_effort_passthrough_and_reasoning_persistence(
     """HARNESS_THINKING_EFFORT=low reaches the client as reasoning_effort;
     the reasoning is persisted in the llm_call meta."""
     monkeypatch.setenv("HARNESS_THINKING_EFFORT", "low")
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[{
         "content": "hello back",
@@ -384,7 +387,7 @@ def test_thinking_effort_passthrough_and_reasoning_persistence(
 def test_defaults_inert_no_thinking_no_steering(tmp_path):
     """With no HARNESS_* env vars the harness is inert: one model call per
     turn, no reasoning_effort, no steering activity, no meta."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=["plain reply"])
     session = _session(store, client=client, clock=clock)
@@ -406,7 +409,7 @@ def test_defaults_inert_no_thinking_no_steering(tmp_path):
 def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
     """Tier 2 (day-start block) is cached: identical within a day, refreshed
     at rollover."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0, activity="pottery"),)))
     store.save_agenda(1, DailyAgenda(1, (_item(33.0, 35.0, activity="chess",
                                                 item_id="ag2"),)))
@@ -445,4 +448,22 @@ def test_day_start_block_stable_within_day_changes_across_days(tmp_path):
     block1 = _agenda_segment(client.calls[2])
     assert block1 != block0a, "day-start block must refresh at rollover"
     assert "chess" in block1
+    store.close()
+
+
+@pytest.mark.parametrize("env, enabled", [
+    ({"HARNESS_THINKING_EFFORT": "low"}, False),
+    ({"HARNESS_BUDGET": "2", "HARNESS_VERBOSE": "1"}, False),
+    ({"HARNESS_DECISIONS": "0"}, False),
+    ({"HARNESS_DECISIONS": "1"}, True),
+])
+def test_only_harness_decisions_switches_the_decision_layer(
+        tmp_path, monkeypatch, env, enabled):
+    """The per-knob variables tune the decision layer; only
+    ``HARNESS_DECISIONS`` turns it on (``THINKING_EFFORT=low`` used to)."""
+    for name, value in env.items():
+        monkeypatch.setenv(name, value)
+    store = booted(make_store(tmp_path))
+    session = make_session(store)
+    assert session._decision_enabled is enabled
     store.close()

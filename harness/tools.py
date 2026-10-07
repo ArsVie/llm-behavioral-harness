@@ -10,14 +10,14 @@ import re
 from dataclasses import dataclass, replace
 from typing import Any, Callable, Protocol
 
+from harness.clock import duration, hhmm
+from harness.env import env_bool as _env_bool
 from harness.negotiation_contract import (
     DEFER_N_MAX,
     DEFER_N_MIN,
     DEFER_TURNS_KEY,
 )
-from harness.clock import duration, hhmm
 from harness.negotiation_state import map_defer_n
-from harness.env import env_bool as _env_bool
 from harness.steering import NO_ACTIVE_EVENT
 
 # Tool schemas (Hermes-style {name, description, parameters})
@@ -27,10 +27,10 @@ TOOL_SCHEMAS: list[dict] = [
         "name": "tool_decide_event",
         "description": (
             "Your call on the event in the pop-up block above. The block "
-            "carries the context (Event, State, Time, Phase, ...) — do NOT "
+            "carries the context (Event, State, Time, Phase, ...); do NOT "
             "echo it back. Phase inform: the event is coming up; mention it "
             "naturally in message and give no verdict. Otherwise fill ONLY "
-            "the verdict — skippable no means the event is a commitment: go. "
+            "the verdict. Skippable no means the event is a commitment: go. "
             "The pop-up is the whole of this tool's job: with none in front "
             "of you, an upcoming event is not yours to announce and there is "
             "no verdict to fill in."
@@ -66,8 +66,8 @@ TOOL_SCHEMAS: list[dict] = [
         "name": "tool_decide_reply",
         "description": (
             "Pop-up decision fired when a user message arrives while an "
-            "event is in progress. The pop-up inputs {{Event, State, Time}} "
-            "and the latest user message are already in the pop-up block — "
+            "event is in progress. The pop-up inputs (Event, State, Time) "
+            "and the latest user message are already in the pop-up block; "
             "do NOT echo them back. Fill ONLY the verdict: whether to reply "
             "in context (e.g. \"I'm in class, what do you want\") or not "
             "reply (the server notifies the user), and whether the event "
@@ -100,12 +100,12 @@ TOOL_SCHEMAS: list[dict] = [
         "name": "tool_decide_proactive",
         "description": (
             "Pop-up decision fired when a grounded proactive intent is "
-            "due (the companion considering reaching out first). The "
+            "due (you considering reaching out first). The "
             "pop-up block already carries the intent context (Proactive "
             "hook, Reason, Source, Validity, and the Latest user message "
-            "when one exists) — do NOT echo it back. Fill ONLY the "
+            "when one exists); do NOT echo it back. Fill ONLY the "
             "verdict: whether to initiate the proactive message now, "
-            "with a prose reason. initiate=false declines this fire — "
+            "with a prose reason. initiate=false declines this fire: "
             "the opportunity is consumed quietly and no message goes "
             "out; nothing else happens."
         ),
@@ -127,6 +127,33 @@ TOOL_SCHEMAS: list[dict] = [
             "required": ["initiate", "reason"],
         },
     },
+    {
+        "name": "tool_decide_call",
+        "description": (
+            "Pop-up decision fired when he calls you (a voice call). The "
+            "pop-up block carries the time and what you are doing; do NOT "
+            "echo it back. Fill ONLY the verdict: answer=true picks up and "
+            "you talk to him by voice; answer=false lets it ring out, it "
+            "shows as a missed call and you text him instead. Decide the way "
+            "you would right now: your mood, your energy, how busy you are."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "answer": {
+                    "type": "boolean",
+                    "description": "true = pick up now, false = let it ring "
+                                   "out (a missed call).",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Short plain-language reason for the "
+                                   "verdict.",
+                },
+            },
+            "required": ["answer", "reason"],
+        },
+    },
 ]
 
 #: The wire form of the menu: wrapped the way every call sends it.
@@ -134,12 +161,11 @@ TOOL_PAYLOAD: list[dict] = [{"type": "function", "function": t}
                             for t in TOOL_SCHEMAS]
 
 
-#: Verdict keys for a ``tool_decide_event`` call (decide phase).
-EVENT_VERDICT_KEYS = ("initiate", "reason")
-#: Verdict keys for a ``tool_decide_reply`` call.
-REPLY_VERDICT_KEYS = ("reply", "reason")
-#: Verdict keys for a ``tool_decide_proactive`` call.
-PROACTIVE_VERDICT_KEYS = ("initiate", "reason")
+#: Every pop-up kind the runner accepts.
+DECISION_KINDS = (
+    "tool_decide_event", "tool_decide_reply", "tool_decide_proactive",
+    "tool_decide_call",
+)
 
 #: Canonical state-event names recorded by the decision layer.
 EVENT_DECISION_PARSE_FAILED = "decision_parse_failed"
@@ -197,6 +223,15 @@ class PopupRequest:
     #: Requirement restated for a re-ask (``NATIVE_REASK``); None on a first attempt.
     nudge: str | None = None
 
+
+#: The last line of every pop-up: the tool that answers it. All four decision
+#: tools are on every call (one constant menu), and the event and proactive
+#: pop-ups both ask for ``Initiate``, so without it she sometimes answers with
+#: the wrong tool and the decision is lost: replaying live call #71 (a
+#: proactive pop-up answered with tool_decide_event) 65 times each way, 7
+#: lost as sent (5 wrong tool, 2 no tool call) against 0 with this line
+#: (2026-09-30, amadeus/research §5).
+ANSWER_WITH = "Answer with: {tool}"
 
 #: Appended to a native pop-up whose reply carried no tool call AND no text;
 #: used for at most one extra call.
@@ -301,7 +336,8 @@ def render_popup(popup_kind: str, inputs: dict) -> str:
         )
         lines = [
             f"{{Proactive: {hook}, Reason: {reason}, "
-            f"Source: {source_type}:{source_id}, Validity: {validity}}}",
+            f"Source: {source_type}:{source_id}, Time: {time}, "
+            f"Validity: {validity}}}",
             '{Initiate:{yes,no}, Reason: ""}',
         ]
         latest = inputs.get("latest_user_message")
@@ -311,6 +347,13 @@ def render_popup(popup_kind: str, inputs: dict) -> str:
         if isinstance(silence_h, (int, float)):
             lines.append(f"User silence: {duration(float(silence_h))}")
         return "\n".join(lines)
+    if popup_kind == "tool_decide_call":
+        activity = inputs.get("current_activity") or "nothing scheduled"
+        return "\n".join([
+            f"{{Incoming call: he is calling you (voice), Time: {time}, "
+            f"You are: {activity}}}",
+            '{Answer:{yes,no}, Reason: ""}',
+        ])
     raise ValueError(f"unknown popup_kind: {popup_kind!r}")
 
 
@@ -346,7 +389,7 @@ def _brace_payload(text: str, start: int) -> str | None:
 
 #: Textual marker per tool, tolerant of quotes/whitespace/linebreaks.
 _TEXTUAL_MARKER = re.compile(
-    r"tool_(decide_event|decide_reply|decide_proactive)\s*:\s*(\{)",
+    r"tool_(decide_event|decide_reply|decide_proactive|decide_call)\s*:\s*(\{)",
     re.IGNORECASE,
 )
 
@@ -411,6 +454,8 @@ def _verdict_key(popup_kind: str) -> str:
         return "initiate"
     if popup_kind == "tool_decide_reply":
         return "reply"
+    if popup_kind == "tool_decide_call":
+        return "answer"
     raise ValueError(f"unknown popup_kind: {popup_kind!r}")
 
 
@@ -441,17 +486,21 @@ def _normalize_verdict(
         return _proactive_verdict(obj)
     if popup_kind == "tool_decide_reply":
         return _reply_verdict(obj)
+    if popup_kind == "tool_decide_call":
+        return _call_verdict(obj)
     raise ValueError(f"unknown popup_kind: {popup_kind!r}")
 
 
 def _inform_verdict(obj: dict) -> dict:
     """The inform leg: a natural mention, no action.
 
-    Legacy ``reason`` text normalizes onto ``message`` and is preserved.
+    Only ``message`` is her words. ``reason`` is the decision's own audit
+    field and never becomes a mention (VERBATIM "Decision reason and delay";
+    live 2026-10-02 sent "missed the window; not going to start it now").
     """
     message = obj.get("message")
     if not isinstance(message, str):
-        message = obj["reason"] if isinstance(obj.get("reason"), str) else ""
+        message = ""
     verdict: dict = {"message": message}
     if isinstance(obj.get("reason"), str):
         verdict["reason"] = obj["reason"]
@@ -517,6 +566,20 @@ def _proactive_verdict(obj: dict) -> dict:
     flag = _as_bool(obj.get("initiate", obj.get("verdict")))
     if flag is not None:
         verdict["initiate"] = flag
+    if isinstance(obj.get("reason"), str):
+        verdict["reason"] = obj["reason"]
+    return verdict
+
+
+def _call_verdict(obj: dict) -> dict:
+    """The pick-up decision for his call: ``{answer: bool, reason: str}``.
+
+    Defaults to not answering: a call is only picked up when she said so.
+    """
+    verdict: dict = {"answer": False, "reason": ""}
+    flag = _as_bool(obj.get("answer", obj.get("verdict")))
+    if flag is not None:
+        verdict["answer"] = flag
     if isinstance(obj.get("reason"), str):
         verdict["reason"] = obj["reason"]
     return verdict
@@ -620,21 +683,18 @@ def parse_native_reply(
 
 # Defer turns: the server fills N
 
-#: Re-export of negotiation_state.map_defer_n so both paths share one mapping.
-map_defer_turns = map_defer_n
-
 
 def fill_defer_turns(verdict: dict) -> dict:
     """Server-fill ``defer_turns`` on a defer verdict (``action == 'defer'``).
 
     The model's own ``turns`` wins; otherwise N is mapped from the reason text
-    (:func:`map_defer_turns`). Other verdicts pass through untouched.
+    (:func:`negotiation_state.map_defer_n`). Other verdicts pass through untouched.
     """
     if verdict.get("action") != "defer":
         return verdict
     out = dict(verdict)
     if not isinstance(out.get(DEFER_TURNS_KEY), int):
-        out[DEFER_TURNS_KEY] = map_defer_turns(str(verdict.get("reason", "")))
+        out[DEFER_TURNS_KEY] = map_defer_n(str(verdict.get("reason", "")))
     return out
 
 
@@ -682,8 +742,6 @@ class DecisionConfig:
                 f"HARNESS_TOOL_MODE must be one of auto|native|textual, "
                 f"got {self.tool_mode!r}"
             )
-
-
 
 
 def _env_budget() -> int | None:
@@ -749,7 +807,7 @@ class DecisionStore(Protocol):
 #: Server-drawn verdict reason (decision_source=server_draw).
 SERVER_DRAW_REASON = "server draw (decision_source=server_draw)"
 #: Reason attached to the forced reply at budget exhaustion.
-FORCED_REPLY_REASON = "budget exhausted — forced reply"
+FORCED_REPLY_REASON = "budget exhausted, forced reply"
 
 
 class DecisionRunner:
@@ -799,7 +857,8 @@ class DecisionRunner:
         transport = self._choose_transport(capabilities)
         request = PopupRequest(
             popup_kind=popup_kind,
-            popup=render_popup(popup_kind, inputs),
+            popup=(render_popup(popup_kind, inputs) + "\n"
+                   + ANSWER_WITH.format(tool=popup_kind)),
             # One constant menu on every call: tools are part of the
             # context and never toggle (ruling 2026-09-13).
             tools=TOOL_SCHEMAS,
@@ -813,7 +872,8 @@ class DecisionRunner:
             # stated before calling it a parse failure.
             raw = call(replace(request, nudge=NATIVE_REASK.format(
                 tool=popup_kind)))
-        raw_reply = self._raw_to_text(raw, transport)
+        raw_reply = (json.dumps(raw.tool_calls, ensure_ascii=False)
+                     if raw.tool_calls else raw.text)
         try:
             verdict = self._parse_raw(popup_kind, raw, transport, phase=phase)
         except DecisionParseError:
@@ -880,9 +940,7 @@ class DecisionRunner:
         it is replayed verbatim (never re-rolled). ``day``/``t_h`` default to
         the pop-up ``time`` input.
         """
-        if popup_kind not in (
-            "tool_decide_event", "tool_decide_reply", "tool_decide_proactive",
-        ):
+        if popup_kind not in DECISION_KINDS:
             raise ValueError(f"unknown popup_kind: {popup_kind!r}")
         # Phase: "inform" = mention-only verdict; "decide" = full verdict.
         phase = inputs.get("phase", "decide")
@@ -935,10 +993,6 @@ class DecisionRunner:
             replay_id=decision_id,
         )
 
-        notice = None
-        if popup_kind == "tool_decide_reply" and verdict.get("reply") is False:
-            notice = build_notice(self.name, verdict, self.verbose)
-
         return DecisionResult(
             decision_id=decision_id,
             popup_kind=popup_kind,
@@ -950,7 +1004,7 @@ class DecisionRunner:
             forced=forced,
             from_replay=False,
             raw_reply=raw_reply,
-            notice=notice,
+            notice=self._notice(popup_kind, verdict),
             parse_failed=parse_failed,
         )
 
@@ -966,10 +1020,8 @@ class DecisionRunner:
         return int(t_h // 24), t_h
 
     def _choose_transport(self, capabilities: Capabilities) -> str:
-        if self.tool_mode == "native":
-            return "native"
-        if self.tool_mode == "textual":
-            return "textual"
+        if self.tool_mode in ("native", "textual"):
+            return self.tool_mode
         return "native" if capabilities.has_native_tools else "textual"
 
     def _parse_raw(
@@ -986,11 +1038,11 @@ class DecisionRunner:
                 verdict = parse_textual_reply(popup_kind, raw.text, phase=phase)
             else:
                 raise ValueError("model returned no content at all")
-        except (ValueError, json.JSONDecodeError) as exc:
-            if phase == "inform" and raw.text and raw.text.strip():
-                # Inform mentions may arrive as plain prose with no marker;
-                # the model's own words are the mention.
-                return {"message": raw.text.strip()}
+        except ValueError as exc:  # json.JSONDecodeError included
+            # Prose with no tool call is a parse failure on every phase,
+            # inform included: a decision answers with the tool (VERBATIM
+            # "Internal decision lane"). Taking the prose as the mention sent
+            # him off-target chat text live (2026-10-01, messages 270/273).
             raise DecisionParseError(
                 f"{popup_kind} verdict parse failed ({transport}): {exc}"
             ) from exc
@@ -1000,12 +1052,6 @@ class DecisionRunner:
                 f"{verdict!r}"
             )
         return verdict
-
-    @staticmethod
-    def _raw_to_text(raw: RawReply, transport: str) -> str | None:
-        if raw.tool_calls:
-            return json.dumps(raw.tool_calls, ensure_ascii=False)
-        return raw.text
 
     def _record_parse_failure(
         self, decision_id: str, popup_kind: str, transport: str,
@@ -1057,6 +1103,8 @@ class DecisionRunner:
                 "initiate": affirmative,
                 "reason": SERVER_DRAW_REASON,
             }
+        if popup_kind == "tool_decide_call":
+            return {"answer": affirmative, "reason": SERVER_DRAW_REASON}
         return {
             "reply": affirmative,
             "reason": SERVER_DRAW_REASON,
@@ -1082,9 +1130,6 @@ class DecisionRunner:
                 sort_keys=True,
             ),
         )
-        notice = None
-        if popup_kind == "tool_decide_reply" and verdict.get("reply") is False:
-            notice = build_notice(self.name, verdict, self.verbose)
         return DecisionResult(
             decision_id=decision_id,
             popup_kind=popup_kind,
@@ -1096,5 +1141,10 @@ class DecisionRunner:
             forced=bool((verdict or {}).get("forced")),
             from_replay=True,
             raw_reply=record.get("raw_reply"),
-            notice=notice,
+            notice=self._notice(popup_kind, verdict),
         )
+
+    def _notice(self, popup_kind: str, verdict: dict) -> str | None:
+        if popup_kind != "tool_decide_reply":
+            return None
+        return build_notice(self.name, verdict, self.verbose)

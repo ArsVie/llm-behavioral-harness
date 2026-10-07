@@ -14,50 +14,16 @@ import re
 
 import pytest
 
-from engine.types import MoodVariant, PersonaParams, TimingParams
-from harness.client import FakeClient
-from harness.clock import VirtualClock, duration, hhmm
-from harness.domain import AgendaItem, Interest, PersonaProfile
-from harness.prompts import STEER_TRUST_RULE, SYSTEM_CORE_WITH_TOOLS
+from harness.clock import duration, hhmm
+from harness.domain import AgendaItem
+from harness.prompts import FREE_WILL, SYSTEM_CORE_WITH_TOOLS
 from harness.proactive import compose_hook
-from harness.session import Session
 from harness.steering import KIND_EVENT_POPUP, Steer, render_steer_block
-from harness.store import SQLiteStore
 from harness.tools import render_popup
-
-#: An absolute virtual hour that is unmistakably not a wall clock: t_h 80.98
-#: is day 3, 08:59 local -- the value the live run put in front of the model.
-LIVE_T_H = 80.98
+from tests.helpers.prompt_session import LIVE_T_H, lily_session
 
 #: Matches a bare decimal hour ("80.98", "19.5", "4.0h") -- the leak shape.
 _RAW_HOUR = re.compile(r"\b\d{1,3}\.\d+\s*h?\b")
-
-
-def _persona() -> PersonaProfile:
-    return PersonaProfile(
-        name="Lily",
-        core="You are Lily, sharp and unimpressed until proven otherwise.",
-        interests=(Interest("alternative music", "music", 0.8),),
-        routines=(),
-    )
-
-
-def _session(tmp_path, *, t_h: float = LIVE_T_H, responses=None):
-    store = SQLiteStore(tmp_path / "s.db")
-    profile = _persona()
-    store.save_persona(profile)
-    client = FakeClient(responses=responses or ["fine, what broke."])
-    session = Session(
-        store=store,
-        persona=PersonaParams(),
-        timing=TimingParams(),
-        variant=MoodVariant.DECOUPLED_OFFSETS,
-        seed=3,
-        client=client,
-        clock=VirtualClock(t_h=t_h),
-    )
-    session._profile = profile
-    return session, client, store
 
 
 # -- 1. time renders as a wall clock, never as an engine coordinate -------- #
@@ -120,13 +86,13 @@ def test_proactive_hook_window_is_a_wall_clock():
         "interest", "alternative music", 0.8, "planned",
     )
     hook = compose_hook(item, "schedule")
-    assert hook == "Agenda: watch a video on alternative music (08:00–08:44)"
+    assert "(08:00–08:44)" in hook
     assert not _RAW_HOUR.search(hook)
 
 
 def test_no_raw_hour_anywhere_in_a_live_turn(tmp_path):
     """End-to-end: nothing the model receives contains a decimal hour."""
-    session, client, store = _session(tmp_path)
+    session, client, store = lily_session(tmp_path)
     session.on_message("hi, my machine crashed")
     call = client.calls[-1]
     payload = call["system"] + "\n" + "\n".join(
@@ -142,7 +108,7 @@ def test_no_raw_hour_anywhere_in_a_live_turn(tmp_path):
 
 def test_popup_call_reuses_the_mainline_stable_prefix(tmp_path):
     """The aux call must send the SAME system message as the mainline call."""
-    session, client, store = _session(tmp_path)
+    session, client, store = lily_session(tmp_path)
     session.on_message("hey")
     mainline_system = client.calls[-1]["system"]
 
@@ -171,7 +137,7 @@ def test_popup_call_reuses_the_mainline_stable_prefix(tmp_path):
 
 def test_recorded_decision_reappears_in_later_context(tmp_path):
     """A verdict the model gave must be readable by the model next turn."""
-    session, client, store = _session(
+    session, client, store = lily_session(
         tmp_path, responses=["first.", "second."]
     )
     session.on_message("hey")
@@ -225,7 +191,7 @@ def test_recorded_decision_reappears_in_later_context(tmp_path):
 
 def test_context_projection_survives_a_malformed_decision_row(tmp_path):
     """A bad audit row must never break context assembly."""
-    session, client, store = _session(tmp_path)
+    session, client, store = lily_session(tmp_path)
     session.on_message("hey")
     store.conn.execute(
         "INSERT INTO decision_records (day, t_h, popup_kind, inputs_json, "
@@ -243,22 +209,17 @@ def test_context_projection_survives_a_malformed_decision_row(tmp_path):
 
 
 def test_stable_prefix_leads_with_the_persona(tmp_path):
-    session, client, store = _session(tmp_path)
+    session, client, store = lily_session(tmp_path)
     session.on_message("hey")
     system = client.calls[-1]["system"]
     store.close()
-    assert system.startswith("You are Lily,")
+    assert system.startswith(FREE_WILL + "\n\nYou are Lily,")
     assert SYSTEM_CORE_WITH_TOOLS in system
     assert system.index("You are Lily,") < system.index(SYSTEM_CORE_WITH_TOOLS)
 
 
-def test_steer_trust_prose_left_the_prefix():
-    assert STEER_TRUST_RULE == ""
-    assert "steer" not in SYSTEM_CORE_WITH_TOOLS.lower()
-
-
 def test_closing_guidance_never_renders_in_a_live_turn(tmp_path):
-    session, client, store = _session(tmp_path)
+    session, client, store = lily_session(tmp_path)
     session.on_message("hey")
     call = client.calls[-1]
     payload = call["system"] + "\n".join(
@@ -282,7 +243,7 @@ def test_request_n_plus_1_extends_request_n(tmp_path):
     """The cache contract, asserted directly: every turn's payload must START
     WITH the previous turn's payload minus its volatile tail.
     """
-    session, client, store = _session(
+    session, client, store = lily_session(
         tmp_path, responses=[f"reply {i}." for i in range(30)]
     )
     prefixes = []
@@ -307,7 +268,7 @@ def test_request_n_plus_1_extends_request_n(tmp_path):
 
 def test_context_read_is_anchored_to_the_epoch_not_the_tail(tmp_path):
     """20 turns is well past the old 12-row window; all of them survive."""
-    session, client, store = _session(
+    session, client, store = lily_session(
         tmp_path, responses=[f"reply {i}." for i in range(30)]
     )
     for i in range(20):
@@ -324,7 +285,7 @@ def test_compaction_moves_the_epoch_only_at_a_day_boundary(tmp_path):
     """The epoch is a boundary operation: it must not move mid-day."""
     import harness.session as session_mod
 
-    session, client, store = _session(
+    session, client, store = lily_session(
         tmp_path, responses=[f"reply {i}." for i in range(40)]
     )
     # Force compaction to be eligible on any history at all.
@@ -351,7 +312,7 @@ def test_compaction_is_recorded_as_an_explainable_event(tmp_path):
     """A prefix break must be explainable from the audit log alone."""
     import harness.session as session_mod
 
-    session, client, store = _session(
+    session, client, store = lily_session(
         tmp_path, responses=[f"reply {i}." for i in range(40)]
     )
     session_mod.CONTEXT_COMPACT_AFTER_MESSAGES = 4

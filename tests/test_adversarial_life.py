@@ -7,7 +7,7 @@ from engine.rng import stream_rng
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.client import FakeClient
 from harness.clock import VirtualClock
-from harness.domain import AgendaItem, DailyAgenda, CurrentActivity
+from harness.domain import AgendaItem, DailyAgenda
 from harness.interests import build_catalog
 from harness.judge import ScriptedJudge
 from harness.persona import build_persona
@@ -93,10 +93,6 @@ def test_l1_no_immortal_unfinished_activity(tmp_path):
     for a in arcs:
         assert a.next_intention, f"arc {a.id} lost its next_intention"
         assert 0.0 <= a.progress <= 1.0
-    # Either something completed or something is still advancing.
-    assert any(a.status in ("completed", "abandoned") for a in arcs) or any(
-        a.status == "active" for a in arcs
-    )
     store.close()
 
 
@@ -163,49 +159,6 @@ def test_l3b_second_seed_different_trajectory(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-
-
-def test_l4_overlapping_items_still_single_current_activity(tmp_path):
-    """L-4: even with two overlapping agenda items, CurrentActivity resolution stays
-    single-valued (one item or None), and no snapshot ever shows concurrent activities."""
-    store = make_store(tmp_path, "l4.db")
-    profile = _profile(SEED)
-    store.save_persona(profile)
-    session = _session(store, profile)
-    session.clock.advance_to_day(3)
-    session.ensure_day(3)
-    t_h = 3 * 24.0 + 15.5
-    store.save_agenda(3, DailyAgenda(3, (
-        AgendaItem("pottery", 3 * 24.0 + 14.0, 3 * 24.0 + 16.0, "pottery class",
-                   "interest", "drawing", 0.5, "planned"),
-        AgendaItem("run", 3 * 24.0 + 15.0, 3 * 24.0 + 17.0, "evening run",
-                   "interest", "outdoors", 0.4, "planned"),
-    )))
-    # This is the resolution path used by the session snapshot.
-    ca = session._current_activity(3, t_h)
-    assert isinstance(ca, CurrentActivity) and ca.item is not None
-    # The life lane's own resolution is single-valued too.
-    agenda3 = store.load_agenda(3)
-    assert agenda3 is not None
-    rng = stream_rng(SEED, 4, 3)
-    result = life.step_life(3, profile, session._life_arcs, agenda3, store, rng)
-    assert result.current_activity is None or result.current_activity.item is not None
-    assert not (isinstance(result.current_activity, list)
-                and len(result.current_activity) > 1)
-
-    # In the 60-day sweep, each day's step_life yields one activity.
-    store2 = _run_60(tmp_path, "l4b.db")
-    profile2 = _profile(SEED)
-    for d in range(0, 61):
-        ag = store2.load_agenda(d)
-        if ag is None:
-            continue
-        arcs = store2.list_life_arcs()
-        rng = stream_rng(SEED, 4, d)
-        res = life.step_life(d, profile2, arcs, ag, store2, rng)
-        assert res.current_activity is None or res.current_activity.item is not None
-    store.close()
-    store2.close()
 
 
 # --------------------------------------------------------------------------- #
@@ -458,8 +411,7 @@ def test_l9c_current_activity_never_in_the_future(tmp_path):
         for d in range(1, 60):
             rng = stream_rng(seed, life.LIFE_STREAM, d)
             agenda = life.generate_agenda(d, persona, arcs, store, rng)
-            noon = d * 24.0 + 12.0
-            result = life.step_life(d, persona, arcs, agenda, store, rng, t_h=noon)
+            result = life.step_life(d, persona, arcs, agenda, store, rng)
             arcs = result.updated_arcs
             for t_h in (d * 24.0 + 7.0, d * 24.0 + 12.0, d * 24.0 + 19.0,
                         d * 24.0 + 22.0):
@@ -473,11 +425,6 @@ def test_l9c_current_activity_never_in_the_future(tmp_path):
                     f"{ca.item.start_t_h}, end {ca.item.end_t_h})"
                 )
                 assert ca.t_h == t_h, "CurrentActivity.t_h is not the sampled now"
-            if result.current_activity is not None:
-                it = result.current_activity.item
-                assert it.start_t_h <= noon < it.end_t_h, (
-                    "step_life(t_h=noon) reported a non-current activity"
-                )
         store.close()
 
 

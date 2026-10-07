@@ -143,27 +143,20 @@ def test_the_park_is_sliced_so_a_retarget_is_noticed_within_a_slice():
     assert len(runtime._test_slices) == 5 * 3600 / RETARGET_SLICE_S
 
 
-def test_an_uninterruptible_sleep_is_still_one_request():
-    """The firing loop's sleeps are unsliced: one request for the whole
-    interval, so a scheduled event is gated at its own instant."""
+def test_an_uninterruptible_sleep_is_sliced_too_and_lands_on_its_instant():
+    """The firing and life loops' sleeps are sliced like the park, so a host
+    suspend is noticed within a slice, and still end exactly at the target:
+    a scheduled event is gated at its own instant."""
+    from harness.runtime import RETARGET_SLICE_S
+
     _store, _session, runtime = _armed_runtime()
 
     async def scenario():
         return await runtime._sleep_until_t_h(21.7 + 5.0, 21.7)
 
     assert asyncio.run(scenario()) is True
-    assert runtime._test_slices == [5 * 3600.0]
-
-
-def test_an_uninterrupted_park_sleep_still_reaches_its_target():
-    _store, _session, runtime = _armed_runtime()
-
-    async def scenario():
-        return await runtime._sleep_until_t_h(
-            21.7 + 1.0, 21.7, interruptible=True
-        )
-
-    assert asyncio.run(scenario()) is True
+    assert max(runtime._test_slices) <= RETARGET_SLICE_S
+    assert sum(runtime._test_slices) == pytest.approx(5 * 3600.0)
 
 
 def test_a_pending_request_is_consumed_by_exactly_one_park():
@@ -191,12 +184,3 @@ def test_the_firing_loops_sleeps_are_never_interruptible():
         return await runtime._sleep_until_t_h(21.7 + 1.0, 21.7)
 
     assert asyncio.run(scenario()) is True
-
-
-def test_a_turn_requests_a_retarget():
-    """The reactive path must announce it: a heads-up arms its deadline
-    inside the turn, while the loop is already asleep."""
-    _store, _session, runtime = _armed_runtime()
-    assert not runtime._retarget.is_set()
-    runtime.request_retarget()
-    assert runtime._retarget.is_set()

@@ -20,6 +20,7 @@ from harness.session import REPLY_NUDGE, Session
 from harness.steering import STEER_MARKER_OPEN
 from harness.tools import DecisionConfig, TOOL_PAYLOAD
 from tests.helpers import make_store
+from tests.helpers.store import booted
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -88,39 +89,8 @@ def _has_pair(messages: dict) -> bool:
     return any(row.get("role") == "tool" for row in messages["messages"])
 
 
-def test_a_steer_is_decided_in_its_own_round_before_the_generation(tmp_path):
-    store = make_store(tmp_path)
-    _anchor(store)
-    store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
-    client = FakeClient(responses=[
-        _decide_event("c1"),
-        {"content": "main reply"},
-    ])
-    session = _session(store, client=client)
-    assert session.steering_enabled()
-
-    result = session.on_message("hello")
-
-    assert result.reply == "main reply"
-    assert len(client.calls) == 2
-    round_call, generation = client.calls
-    # The round carries the question; the generation carries no steered block.
-    # Both ride the same constant tools menu (never toggled).
-    assert STEER_MARKER_OPEN in round_call["messages"][-1]["content"]
-    assert round_call["tools"] == TOOL_PAYLOAD
-    assert generation["tools"] == round_call["tools"], \
-        "one constant menu rides every call — never toggled"
-    assert STEER_MARKER_OPEN not in generation["messages"][-1]["content"]
-    records = store.decisions_for_day(0)
-    assert len(records) == 1
-    assert records[0]["popup_kind"] == "tool_decide_event"
-    assert records[0]["verdict"]["initiate"] is True
-    assert store.pending_steers() == []
-    store.close()
-
-
-def test_two_steers_take_two_rounds_and_pairs_extend_the_next(tmp_path):
-    store = make_store(tmp_path)
+def test_two_steers_take_two_turns_and_pairs_extend_the_next(tmp_path):
+    store = booted(make_store(tmp_path))
     _anchor(store)
     store.save_agenda(0, DailyAgenda(0, (
         _item(9.0, 11.0, "pottery", "ag1"),
@@ -128,22 +98,38 @@ def test_two_steers_take_two_rounds_and_pairs_extend_the_next(tmp_path):
     )))
     client = FakeClient(responses=[
         _decide_event("c1"),
-        _decide_event("c2", initiate=False, reason="not today"),
         {"content": "main reply"},
+        _decide_event("c2", initiate=False, reason="not today"),
+        {"content": "second reply"},
     ])
     session = _session(store, client=client)
 
     result = session.on_message("hello")
 
+    # One pop-up per turn (owner ruling 2026-10-03): the second waits.
     assert result.reply == "main reply"
-    assert len(client.calls) == 3
-    first, second, generation = client.calls
+    assert len(client.calls) == 2
+    first, generation = client.calls
     assert not _has_pair(first), "the first round has no earlier pair"
+    assert _has_pair(generation), "the generation reads the decision"
+    # The second is released untouched: no attempt spent on a turn that
+    # never asked it.
+    rows = [dict(r) for r in store.conn.execute(
+        "SELECT status, attempts FROM steering_queue ORDER BY id")]
+    assert rows == [{"status": "delivered", "attempts": 0},
+                    {"status": "pending", "attempts": 0}], rows
+    assert "popups_deferred" in [e["event"] for e in store.events_since(0)]
+
+    session.clock.advance_hours(0.05)
+    result = session.on_message("still there?")
+    assert result.reply == "second reply"
+    assert len(client.calls) == 4
+    second, generation = client.calls[2:]
     assert _has_pair(second), "the next round reads the earlier decision"
     assert STEER_MARKER_OPEN in second["messages"][-1]["content"]
     assert generation["tools"] == TOOL_PAYLOAD
-    # The generation reads both decisions this turn made, as rows and with
-    # their tool results — the same session and context decided them.
+    # The generation reads both decisions, as rows and with their tool
+    # results — the same session and context decided them.
     tool_rows = [r for r in generation["messages"] if r.get("role") == "tool"]
     assert len(tool_rows) == 2, "both pairs ride the generation"
     assert all((r.get("content") or "") for r in tool_rows), "results, not void"
@@ -153,7 +139,7 @@ def test_two_steers_take_two_rounds_and_pairs_extend_the_next(tmp_path):
 
 
 def test_a_plain_turn_still_makes_exactly_one_call(tmp_path):
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     client = FakeClient(responses=[{"content": "main reply"}])
     session = _session(store, client=client)
 
@@ -166,7 +152,7 @@ def test_a_plain_turn_still_makes_exactly_one_call(tmp_path):
 
 
 def test_a_prose_less_generation_is_reasked_once(tmp_path):
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     client = FakeClient(responses=[
         _decide_event("stray"),
         {"content": "the actual reply"},
@@ -182,7 +168,7 @@ def test_a_prose_less_generation_is_reasked_once(tmp_path):
 
 
 def test_a_still_empty_reply_is_dropped_not_persisted(tmp_path):
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     client = FakeClient(responses=[
         _decide_event("stray1"),
         _decide_event("stray2"),
@@ -201,9 +187,11 @@ def test_a_still_empty_reply_is_dropped_not_persisted(tmp_path):
 
 
 def test_a_decision_stamped_before_the_stream_head_still_replays(tmp_path):
-    """The live defect: a boundary stamped before the stream's first row (boot
-    after the boundary) must still ride the context — clamped, never dropped."""
-    store = make_store(tmp_path)
+    """The live defect: a boundary before the stream's first row (boot after
+    the boundary) must still ride the context — never dropped. The row is
+    stamped no earlier than the stream's last row (rule 3); the boundary
+    stays in ``time``."""
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     client = FakeClient(responses=[
         _decide_event("c1"),
@@ -216,7 +204,8 @@ def test_a_decision_stamped_before_the_stream_head_still_replays(tmp_path):
     records = store.decisions_for_day(0)
     assert len(records) == 1
     # premise: the boundary (9.0) precedes the stream head (the turn at 10.0)
-    assert float(records[0]["t_h"]) == 9.0
+    assert records[0]["time"] == "9.0"
+    assert float(records[0]["t_h"]) >= 10.0
 
     session.on_message("again")
     later = client.calls[-1]
@@ -227,49 +216,12 @@ def test_a_decision_stamped_before_the_stream_head_still_replays(tmp_path):
     store.close()
 
 
-def test_a_proactive_intent_is_decided_then_the_reply_is_the_message(tmp_path):
-    store = make_store(tmp_path)
-    store.save_proactive_intent(ProactiveIntent(
-        "pi1", "schedule", "agenda_item", "ag1",
-        "Agenda: pottery (9.0-11.0h)", 8.0, 14.0, 0.6, "agenda_item:ag1",
-    ))
-    client = FakeClient(responses=[
-        {
-            "content": "",
-            "tool_calls": [{
-                "id": "p1",
-                "name": "tool_decide_proactive",
-                "arguments_json": '{"initiate": true, "reason": "it fits"}',
-            }],
-        },
-        {"content": "hey, how did the pottery go?"},
-    ])
-    session = _session(store, client=client)
-
-    result = session.fire_proactive(intent_id="pi1")
-
-    assert result.reply == "hey, how did the pottery go?"
-    assert len(client.calls) == 2
-    round_call, generation = client.calls
-    assert STEER_MARKER_OPEN in round_call["messages"][-1]["content"]
-    assert generation["tools"] == TOOL_PAYLOAD
-    records = store.decisions_for_day(0)
-    assert len(records) == 1
-    assert records[0]["popup_kind"] == "tool_decide_proactive"
-    assert records[0]["verdict"]["initiate"] is True
-    delivered = store.conn.execute(
-        "SELECT COUNT(*) FROM messages WHERE role = 'assistant'"
-    ).fetchone()[0]
-    assert delivered == 1
-    store.close()
-
-
 # The reply pop-up restates the steer's message only when the transcript has
 # moved on since it arrived (live: the decide leg carried it twice).
 
 def _reply_round(tmp_path, *, steer_message: str, turn_message: str) -> str:
     """Run one turn whose steer is decided, return the round call's text."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     _anchor(store)
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     # An earlier boundary check: the item's start is old news, so the only
@@ -306,3 +258,36 @@ def test_a_late_reply_popup_keeps_the_message_line(tmp_path):
         tmp_path, steer_message="you there?", turn_message="hello",
     )
     assert 'Latest user message: "you there?"' in decided
+
+
+def test_a_proactive_fire_decides_its_own_steer_first(tmp_path):
+    """One pop-up per turn, and the turn's own comes first: a proactive fire
+    asks its own question, and an event pop-up already due waits."""
+    store = booted(make_store(tmp_path))
+    _anchor(store)
+    store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
+    store.save_proactive_intent(ProactiveIntent(
+        id="pi_1", reason="schedule", source_type="agenda_item",
+        source_id="ag_0", hook="Finished: a walk", created_t_h=9.9,
+        valid_until_t_h=12.0, salience=0.5, evidence="agenda_item:ag_0",
+    ))
+    client = FakeClient(responses=[
+        {"content": "", "tool_calls": [{
+            "id": "p1", "name": "tool_decide_proactive",
+            "arguments_json": json.dumps({"initiate": True, "reason": "say hi"}),
+        }]},
+        {"content": "back from my walk"},
+    ])
+    session = _session(store, client=client)
+
+    result = session.fire_proactive("pi_1")
+
+    assert result.reply == "back from my walk"
+    assert [r["popup_kind"] for r in store.decisions_for_day(0)] == [
+        "tool_decide_proactive"]
+    waiting = [dict(r) for r in store.conn.execute(
+        "SELECT kind, status, attempts FROM steering_queue "
+        "WHERE status = 'pending'")]
+    assert waiting == [{"kind": "event_popup", "status": "pending",
+                        "attempts": 0}], waiting
+    store.close()

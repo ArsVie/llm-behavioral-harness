@@ -12,58 +12,26 @@ budget.
 import re
 
 from engine.types import MoodVariant, PersonaParams, TimingParams
-from harness.assembler import MAX_PROMPT_CHARS
+from harness.assembler import AFFECTIVE_HEADER, MAX_PROMPT_CHARS
 from harness.client import FakeClient
+from harness.faces import FACE_INSTRUCTION
 from harness.clock import VirtualClock
 from harness.domain import AgendaItem, DailyAgenda, Interest, PersonaProfile, Routine
 from harness.judge import ScriptedJudge
+from harness.prompts import TURN_STYLE
 from harness.session import Session
 from harness.store import SQLiteStore
+from tests.helpers.forbidden import (
+    BATTERY_MESSAGES,
+    BATTERY_VARIANTS,
+    FORBIDDEN_FLOAT_RE,
+    FORBIDDEN_G_RE,
+    FORBIDDEN_SUBSTRINGS,
+    numeric_leak,
+)
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
-
-#: Substring check (lower-cased prompt). `g` is word-boundary only.
-FORBIDDEN_SUBSTRINGS = (
-    "phase_label",
-    "cycle_day",
-    "menstrual",
-    "follicular",
-    "ovulatory",
-    "luteal",
-    "mu",
-    "eta",
-)
-FORBIDDEN_G_RE = re.compile(r"\bg\b")
-
-#: Allowed numeric content: clock-shaped times and the temporal day index.
-FORBIDDEN_FLOAT_RE = re.compile(r"\d+\.\d+")
-CLOCK_TIME_RE = re.compile(r"\d{1,2}:\d{2}")
-DAY_INDEX_RE = re.compile(r"day \d+")
-
-
-def numeric_leak(prompt: str) -> list[str]:
-    """Digits remaining after masking clock times and the temporal line's
-    day index — the only numeric content allowed (G2)."""
-    masked = CLOCK_TIME_RE.sub("T:T", prompt)
-    masked = DAY_INDEX_RE.sub("day N", masked)
-    return re.findall(r"\d+", masked)
-
-#: Battery messages avoid words containing the forbidden tokens.
-BATTERY_MESSAGES = (
-    "hello there",
-    "My dog's name is Bruno.",
-    "I like hiking on weekends.",
-    "thanks for that",
-    "see you later",
-)
-
-BATTERY_VARIANTS = (
-    MoodVariant.DECOUPLED_OFFSETS,
-    MoodVariant.DECOUPLED,
-    MoodVariant.ORIGINAL,
-)
-
 
 def _profile() -> PersonaProfile:
     return PersonaProfile(
@@ -127,10 +95,27 @@ def _whole_request(call) -> str:
     return "\n\n".join(parts)
 
 
+def _state_rows(call) -> list[str]:
+    """Every harness-authored system row in the stream — the state card, the
+    day block, event and proactive blocks — minus the fixed writing guidance
+    (static prose that carries no engine state)."""
+    return [
+        m["content"] or "" for m in call["messages"]
+        if m["role"] == "system" and m["content"] != TURN_STYLE
+    ]
+
+
 def _check_prompt(call, *, seed: int, day: int) -> None:
-    system = call["system"]
-    tail = call["messages"][-1]["content"]
-    for prompt in (system, tail):
+    """Scan the stable system prompt and every state row for forbidden engine
+    tokens and raw numbers. The card rides the stream as system rows, so a
+    scan of the system prompt plus his last message would never see it."""
+    # the face tag instruction is fixed authored text (its "smug" holds "mu")
+    system = call["system"].replace("\n\n" + FACE_INSTRUCTION, "")
+    rows = _state_rows(call)
+    assert any(AFFECTIVE_HEADER in r for r in rows), (
+        "no state card among the scanned rows"
+    )
+    for prompt in (system, *rows):
         low = prompt.lower()
         for token in FORBIDDEN_SUBSTRINGS:
             assert token not in low, (
@@ -154,10 +139,11 @@ def _check_prompt(call, *, seed: int, day: int) -> None:
     whole = _whole_request(call)
     assert "Nova" in whole
     assert "Current activity:" in whole
-    assert "Active life arcs:" in whole
-    # The plan header is DATED on anchored runs ("Tuesday's plan:") so
+    # Arcs appear only once begun (``life.started_arcs``); the seeded arcs
+    # here may start later, so their presence is tested in test_life.
+    # The plan header is DATED on anchored runs ("Nova's Tuesday plan:") so
     # yesterday's block cannot be mistaken for today's; unanchored stays undated.
-    assert re.search(r"(Today's agenda:|\b\w+day's plan:)", whole), whole[:400]
+    assert re.search(r"(Today's agenda:|\b\w+day(?:'s)? plan:)", whole), whole[:400]
 
 
 def test_forbidden_tokens_never_reach_assembled_prompt(tmp_path):
@@ -206,7 +192,7 @@ def test_time_aware_anchored_battery_clean(tmp_path):
         prompt = _whole_request(client.calls[-1])
         # G3: the plan is dated from the real anchor; no temporal frame exists
         # and no partition labels render anywhere.
-        assert f"{weekdays[day]}'s plan:" in prompt, (
+        assert f"'s {weekdays[day]} plan:" in prompt, (
             f"plan header wrong (day={day}): {prompt[:600]}"
         )
         assert "Done earlier:" not in prompt and "Happening now:" not in prompt

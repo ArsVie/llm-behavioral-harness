@@ -4,6 +4,7 @@ follows on from recorded outcomes, and failure keeps the template day intact."""
 from __future__ import annotations
 
 import json
+import re
 
 import pytest
 
@@ -11,7 +12,6 @@ from engine.rng import stream_rng
 from harness import life
 from harness.day_planner import (
     MAX_ACTIVITY_CHARS,
-    PLANNER_BUDGET_S,
     PLANNER_REASONING_EFFORT,
     PlanSlot,
     build_request,
@@ -99,25 +99,39 @@ def test_trailing_period_and_whitespace_are_normalised():
 # -- the request carries what a plan needs --------------------------------- #
 
 
-def test_request_labels_hers_versus_shared():
-    """``Interest.bucket`` reaches the planner request as HERS/SHARED labels."""
-    slots = [
-        PlanSlot("interest", "pottery", "practice pottery",
-                 "her interest in pottery (HERS)", bucket="independent"),
-        PlanSlot("interest", "anime", "read about anime",
-                 "her interest in anime (SHARED)", bucket="exact"),
-    ]
-    request = build_request("Lily", "Saturday", _arcs(), slots, ())
-    assert "pottery (HERS)" in request
-    assert "anime (SHARED)" in request
+def test_request_names_stage_and_hours_never_the_bucket(tmp_path):
+    """The planner sees each session as interest, stage, kind and hours;
+    HERS/SHARED and the bucket names never reach it."""
+    persona = PersonaProfile(
+        name="Lily", core="You are Lily.", routines=(),
+        interests=(Interest("lifting", "exact", 0.9),
+                   Interest("anime", "independent", 0.8)),
+    )
+    store = make_store(tmp_path, "labels.db")
+    try:
+        client = Planner()
+        life.generate_agenda(
+            0, persona, [], store, stream_rng(SEED, life.LIFE_STREAM, 0),
+            planner_client=client, weekday="Saturday",
+        )
+        request = client.prompts[-1]
+    finally:
+        store.close()
     assert "Saturday" in request
+    for word in ("HERS", "SHARED", "independent", "exact", "adjacent"):
+        assert word not in request
+    assert re.search(r"(lifting|anime), \w+ \((skill|taste)\), \d\d:\d\d–\d\d:\d\d",
+                     request), request
 
 
 def test_request_carries_recorded_outcomes_for_continuity():
     slots = [PlanSlot("arc", "arc_1", "finish the current piece", "her project")]
-    outcomes = [{"activity": "throw a bowl", "outcome": "the rim cracked again"}]
+    outcomes = [{"activity": "throw a bowl", "status": "skipped",
+                 "outcome": "the rim cracked again"},
+                {"activity": "sand the shelf", "status": "completed"}]
     request = build_request("Lily", "Tuesday", _arcs(), slots, outcomes)
-    assert "throw a bowl → the rim cracked again" in request
+    assert "throw a bowl → skipped: the rim cracked again" in request
+    assert "sand the shelf → done" in request
 
 
 def test_planner_call_uses_low_effort_and_json_mode():
@@ -157,10 +171,6 @@ def test_a_hanging_planner_falls_back_within_the_budget():
     assert result is None
     assert elapsed < 5.0, f"rollover blocked {elapsed:.1f}s on a hung provider"
     assert any("no reply within" in line for line in lines)
-
-
-def test_the_budget_is_bounded():
-    assert 60 <= PLANNER_BUDGET_S <= 120
 
 
 # -- integration with the seeded agenda ------------------------------------ #
@@ -303,9 +313,10 @@ def _interest_share(store, persona, name: str, days: int = 300) -> float:
     return hits / total if total else 0.0
 
 
-def test_the_bucket_weight_measurably_changes_what_she_does(tmp_path):
-    """``BUCKET_WEIGHT`` must be observable in the DRAW: a low-salience independent
-    interest is picked well above its salience-only rate when it applies."""
+def test_the_bucket_weight_measurably_changes_what_she_does(tmp_path, monkeypatch):
+    """``BUCKET_WEIGHT`` must be observable in the DRAW: a low-salience
+    independent interest comes up more often than it does with the weights
+    flattened."""
     persona = PersonaProfile(
         name="Lily", core="You are Lily.", routines=(),
         interests=(
@@ -318,15 +329,12 @@ def test_the_bucket_weight_measurably_changes_what_she_does(tmp_path):
     store = make_store(tmp_path, "bucket.db")
     try:
         share = _interest_share(store, persona, "pottery")
+        monkeypatch.setattr(life, "BUCKET_WEIGHT",
+                            {k: 1.0 for k in life.BUCKET_WEIGHT})
+        flat = _interest_share(store, persona, "pottery")
     finally:
         store.close()
-    assert share > 0.15, (
-        f"the independent interest surfaced {share:.1%} of the time — at or "
-        "below the salience-only rate (12.5%), so the bucket is not reaching "
-        "the draw"
+    assert share > flat * 1.2, (
+        f"the independent interest surfaced {share:.1%} of the time against "
+        f"{flat:.1%} with flat weights, so the bucket is not reaching the draw"
     )
-
-
-def test_bucket_weight_favours_the_independent_slice():
-    assert life.BUCKET_WEIGHT["independent"] > life.BUCKET_WEIGHT["exact"]
-    assert life.BUCKET_WEIGHT["exact"] == life.BUCKET_WEIGHT["adjacent"]

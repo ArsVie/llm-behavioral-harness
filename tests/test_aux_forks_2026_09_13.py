@@ -10,17 +10,17 @@ from harness.client import FakeClient
 from harness.clock import VirtualClock
 from harness.day_planner import PlanSlot, plan_day
 from harness.domain import AgendaItem, DailyAgenda
-from harness.judge import RUBRIC, judge_day
+from harness.judge import judge_day, rubric_for
 from harness.session import Session
 from harness.tools import DecisionConfig
-from tests.helpers.store import make_store
+from tests.helpers.store import booted, make_store
 
 #: A stand-in tool schema for the fork-parity asserts.
 PROBE = {"type": "function", "function": {"name": "probe"}}
 
 
 def _session(tmp_path, client, *, t_h=10.0, agenda=True, anchored=True):
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     if anchored:
         store.attach_anchor(RealTimeAnchor(epoch0_s=0.0, t_h0=0.0, tz="UTC"))
     if agenda:
@@ -62,8 +62,10 @@ def test_the_popup_leg_reuses_the_stamped_mainline_bytes(tmp_path):
         )
         assert main["system"] == popup["system"] and main["system"]
         m, p = main["messages"], popup["messages"]
-        # Byte-identical head: the stamped user turn rides both lanes.
-        head = len(p) - 1
+        # Byte-identical head: the stamped user turn and the pop-up block ride
+        # both lanes (pop-up blocks are saved, owner ruling 2026-10-03).
+        head = len(p)
+        assert p[-1]["role"] == "system"
         assert m[:head] == p[:head]
         # The generation then carries the round's decision pair as rows...
         assert [x["role"] for x in m[head:head + 2]] == ["assistant", "tool"]
@@ -90,6 +92,7 @@ def test_aux_task_request_extends_the_last_mainline_request(tmp_path):
         # The stream AS OF NOW extends the mainline request: everything the
         # mainline sent stays at the head; the reply row follows, then the
         # task as its own appended block.
+        # (less the writing row, which is never stored).
         head = main["messages"]
         assert messages[: len(head)] == head
         assert messages[len(head)]["role"] == "assistant"
@@ -108,13 +111,15 @@ def test_no_mainline_still_carries_the_base_prefix(tmp_path):
         pair = session._aux_task_request("TASK")
         assert pair is not None, "a pre-turn call still gets the base prefix"
         system, messages, tools = pair
-        assert tools is None, "before any turn there is no menu to mirror"
         assert messages == [{"role": "user", "content": "TASK"}]
         assert session._day_block is not None
         session.on_message("hey")
         first_turn = client.calls[0]
         assert first_turn["system"] == system, (
             "the boot pair and the first turn share one base prefix"
+        )
+        assert first_turn["tools"] == tools, (
+            "the boot pair carries the schemas the first turn sends"
         )
     finally:
         store.close()
@@ -135,7 +140,7 @@ def test_judge_fork_sends_the_pair_and_parses():
 
     result = judge_day("", client, fork=fork)
     assert result.score == 0.5
-    assert seen == [RUBRIC], "the judge owns its task text"
+    assert seen == [rubric_for(forked=True)], "the judge owns its task text"
     call = client.calls[0]
     assert call["system"] == "SYS"
     assert call["messages"] == [
@@ -154,7 +159,7 @@ def test_judge_without_a_fork_keeps_the_standalone_prompt():
     result = judge_day("day-1: hi", client, fork=lambda rubric: None)
     assert result.score == 0.2
     call = client.calls[0]
-    assert call["system"] == "You are a careful interaction judge. Score precisely."
+    assert call["system"] == "You return JSON only."
     assert "Transcript:\nday-1: hi" in call["messages"][0]["content"]
     assert call["json_mode"] is True, "the standalone shape keeps strict JSON"
 
@@ -182,7 +187,6 @@ def test_finalize_day_judges_on_the_fork_and_appends_nothing(tmp_path):
         head = main["messages"]
         assert judge_call["messages"][: len(head)] == head
         assert judge_call["messages"][-1]["role"] == "system"
-        assert "Rate how the USER treated" in judge_call["messages"][-1]["content"]
         assert len(store.messages_for_day(0)) == before, (
             "the verdict is a judgement row, never a conversation message"
         )
@@ -218,7 +222,7 @@ def test_plan_day_uses_the_fork_pair_and_keeps_the_result_out():
     planned = plan_day(name="Lily", weekday="Sunday", arcs=[], slots=[_slot()],
                        client=client, fork=fork)
     assert planned == ["carve a chess knight"]
-    assert "planning her own day" in seen["task"], "the full task rides in"
+    assert "finish the current piece" in seen["task"], "the full task rides in"
     call = client.calls[0]
     assert call["system"] == "SYS"
     assert call["messages"] == [
@@ -251,3 +255,20 @@ def test_a_fork_that_cannot_build_falls_back_to_standalone():
                        client=client, fork=bad_fork)
     assert planned == ["x"]
     assert client.calls[0]["system"] == "You return JSON only."
+
+
+def test_the_forked_judge_sends_the_mainline_reasoning_effort(tmp_path, monkeypatch):
+    """reasoning_effort is part of what the provider caches on: a judge that
+    omitted it never banked her prefix (live 2026-09-29, 0 cached twice)."""
+    monkeypatch.setenv("HARNESS_THINKING_EFFORT", "low")
+    client = FakeClient(responses=[
+        "hi there", json.dumps({"score": 0.3, "justification": "fine"})])
+    store, session = _session(tmp_path, client, agenda=False)
+    try:
+        session.on_message("hey")
+        session.finalize_day(0)
+        main, judge_call = client.calls[0], client.calls[-1]
+        assert main["reasoning_effort"] == "low"
+        assert judge_call["reasoning_effort"] == main["reasoning_effort"]
+    finally:
+        store.close()

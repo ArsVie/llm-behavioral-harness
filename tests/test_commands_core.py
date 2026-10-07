@@ -6,7 +6,6 @@ The end-to-end channel path lives in tests/test_commands_channel.py.
 from harness.channels.telegram import ControlCommand
 from harness.clock import VirtualClock
 from harness.commands import CommandContext, handle_command
-from harness.store import SQLiteStore
 from tests.helpers import make_store
 
 

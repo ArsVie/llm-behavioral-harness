@@ -9,7 +9,7 @@ from harness.domain import AgendaItem, DailyAgenda
 from harness.negotiation_contract import HEADS_UP_LEAD_H
 from harness.negotiation_state import NegotiationState, decide_status_at
 from harness.tools import DecisionConfig, _event_verdict
-from tests.helpers.store import make_session, make_store
+from tests.helpers.store import booted, make_session, make_store
 
 
 def _item(start: float, end: float, activity: str = "gym",
@@ -75,7 +75,7 @@ def test_the_pre_tristate_shape_still_parses_for_replay():
 
 
 def test_heads_up_is_queued_ahead_of_the_window(tmp_path):
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(19.0, 21.0),)))
     clock = VirtualClock(t_h=18.9)      # inside the lead, before the window
     client = FakeClient(responses=[
@@ -99,7 +99,7 @@ def test_heads_up_is_queued_ahead_of_the_window(tmp_path):
 def test_no_heads_up_for_a_window_that_already_opened(tmp_path):
     # A lead instant for an event that already started is nothing to warn
     # about. Only the start (and end) boundaries are queued.
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0),)))
     clock = VirtualClock(t_h=10.0)
     client = FakeClient(responses=[
@@ -137,7 +137,7 @@ def test_nothing_decides_between_the_heads_up_and_the_window():
 def test_past_boundaries_replay_in_the_order_they_happened(tmp_path):
     """A resume mid-day: each pop-up is stamped with its OWN boundary and they queue in
     chronological order across items."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (
         _item(7.0, 9.0, "morning coffee", "ag-coffee"),
         _item(8.0, 12.0, "sketching", "ag-sketch"),
@@ -145,12 +145,18 @@ def test_past_boundaries_replay_in_the_order_they_happened(tmp_path):
     clock = VirtualClock(t_h=18.7)
     client = FakeClient(responses=[
         'tool_decide_event: {"initiate": "yes", "reason": "had it"}',
-        'tool_decide_event: {"initiate": "yes", "reason": "drew a bit"}',
         "reply",
+        'tool_decide_event: {"initiate": "yes", "reason": "drew a bit"}',
+        "reply again",
     ])
     session = make_session(store, client=client, clock=clock,
                            decision_config=DecisionConfig())
     session.on_message("hey, sorry — long day")
+    # One pop-up per turn (owner ruling 2026-10-03): the second start is
+    # asked on his next message.
+    assert len(store.decisions_for_day(0)) == 1
+    clock.advance_hours(0.05)
+    session.on_message("you there?")
 
     rows = _popups(store)
     stamps = [round(r["t_h"], 4) for r in rows]
@@ -163,16 +169,19 @@ def test_past_boundaries_replay_in_the_order_they_happened(tmp_path):
     # Only the two START boundaries asked anything; both ends were silent.
     records = store.decisions_for_day(0)
     assert len(records) == 2
-    assert [round(r["t_h"], 4) for r in records] == [7.0, 8.0]
-    # the model was shown the ORIGINAL time, not the drain instant
-    assert records[0]["time"] == "7.0"
+    # the model was shown the ORIGINAL time, not the drain instant ...
+    assert [r["time"] for r in records] == ["7.0", "8.0"]
+    # ... but the rows are stamped no earlier than his message, which is
+    # already in the stream they were decided on (rule 3)
+    his = [m for m in store.recent_messages(limit=20) if m["role"] == "user"]
+    assert [r["t_h"] >= m["t_h"] for r, m in zip(records, his)] == [True, True]
     store.close()
 
 
 def test_end_boundary_never_calls_the_model(tmp_path):
     """The window resolves server-side (planned -> completed) with no verdict and no
     captured "outcome" text."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (_item(9.0, 11.0, "pottery"),)))
     clock = VirtualClock(t_h=9.5)
     # ONE generation answers the pop-up AND speaks: the verdict is a tool call
@@ -193,7 +202,7 @@ def test_end_boundary_never_calls_the_model(tmp_path):
     # exactly one decision for the item, at its start
     records = store.decisions_for_day(0)
     assert len(records) == 1
-    assert round(records[0]["t_h"], 4) == 9.0
+    assert records[0]["time"] == "9.0"          # asked at its start
     item = store.list_agenda_items(day=0)[0]
     assert item.status == "completed"   # resolved by the passed window
     assert item.outcome is None         # no rationale masquerading as one

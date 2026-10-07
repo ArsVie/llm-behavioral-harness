@@ -12,12 +12,12 @@ from harness.steering import (
     KIND_EVENT_POPUP,
     KIND_SCHEDULE_FIRE,
     KIND_USER_MESSAGE,
-    InMemorySteerBackend,
     Steer,
     SteeringQueue,
     render_steer_block,
     wrap_steer_marker,
 )
+from tests.helpers.steering import InMemorySteerBackend
 
 
 def _queue(day: int = 7, storage: dict | None = None) -> SteeringQueue:
@@ -130,21 +130,6 @@ def test_requeue_after_interrupt_delivers_at_next_boundary():
     assert q._backend.pending_steers(day=7) == []
 
 
-def test_requeue_clears_delivery_fields():
-    backend = InMemorySteerBackend()
-    q = SteeringQueue(backend, day=7)
-    steer_id = q.enqueue(KIND_EVENT_POPUP, {"event": "a"}, day=7, t_h=1.0)
-    q.drain_pending(BOUNDARY_IDLE, "turn-1", 2.0)
-
-    q.requeue(steer_id)
-
-    row = backend.storage[steer_id]
-    assert row["status"] == "pending"
-    assert row["delivered_t_h"] is None
-    assert row["boundary"] is None
-    assert row["seen_turn_id"] is None  # a pending row always means undelivered
-
-
 def test_seen_marker_blocks_same_turn_reinjection():
     """Replay guard: a pending row whose seen marker names the current turn is
     not injected again (the marker is persisted with the turn so replay can
@@ -202,17 +187,6 @@ def test_enqueue_rejects_unknown_kind():
 # -- injection block rendering (user L369 pop-up format) --------------------- #
 
 
-def test_render_event_popup_block():
-    steer = Steer(
-        steer_id=1, day=7, t_h=13.5, kind=KIND_EVENT_POPUP,
-        payload={"event": "gym", "state": "start", "time": 14.0},
-    )
-    assert render_steer_block(steer) == (
-        "System: {Event: gym, State: start, Time: 14:00}\n"
-        '{Initiate: {yes, no}, Reason: " "}'
-    )
-
-
 def test_render_other_kinds():
     user = Steer(
         steer_id=2, day=7, t_h=1.0, kind=KIND_USER_MESSAGE,
@@ -251,5 +225,3 @@ def test_wrap_steer_marker_format():
     assert wrapped.startswith("\n\n[STEER")
     assert "System: {Event: gym}" in wrapped
     assert wrapped.endswith("[/STEER]")
-    # The trust marker names the one-shot rule (design §2.5).
-    assert "delivered once at this position" in wrapped

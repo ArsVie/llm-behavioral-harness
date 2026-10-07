@@ -1,9 +1,7 @@
-"""Temporización de mensajes espontáneos — hazard Weibull + thinning (W1.4).
+"""Temporización de mensajes espontáneos — hazard Weibull + thinning.
 
-PROPIEDAD: tarea W1.4 (este archivo + tests/test_timing.py). Implementar
-contra engine/types.py (CONGELADO). No importar engine.circadian: la
-modulación llega como `modulator: Callable[[float], float]` ya compuesta
-(envolvente × fase × adj — la composición es de los drivers de la Ola 2).
+No importa engine.circadian: la modulación llega como `modulator` ya compuesta
+(envolvente × fase × adj, compuesta por el llamador).
 
 Especificación (DESIGN.md §"Temporización", research/05 §3.3):
     h(τ, t) = (k_w/θ)·(τ/θ)^(k_w−1) · modulator(t)

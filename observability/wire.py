@@ -45,6 +45,25 @@ def wire_read(run_path: Path, name: str) -> str | None:
         return None
 
 
+def _canonical(value: object) -> str:
+    """A stable spelling of a message field, whatever order its dict keys
+    were built in.
+
+    Content is a plain string on most turns, but a picture turn carries a
+    list of parts, and the two writers spell equal parts differently: the
+    stored envelope is serialized with ``sort_keys=True`` (``harness.store``)
+    while the wire dump keeps the client's insertion order (``harness.images``
+    builds ``type`` first).  ``str()`` of a dict is order-sensitive, so
+    compare canonical JSON instead.
+    """
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        return value
+    return json.dumps(value, sort_keys=True, ensure_ascii=False,
+                      separators=(",", ":"))
+
+
 def _fingerprint_dump(body: dict) -> tuple | None:
     """The identity of a dump body, as the stored envelope also spells it.
 
@@ -59,8 +78,8 @@ def _fingerprint_dump(body: dict) -> tuple | None:
     head, tail = messages[0], messages[-1]
     if not isinstance(head, dict) or not isinstance(tail, dict):
         return None
-    return (len(messages) - 1, str(head.get("content") or ""),
-            str(tail.get("role") or ""), str(tail.get("content") or ""))
+    return (len(messages) - 1, _canonical(head.get("content")),
+            str(tail.get("role") or ""), _canonical(tail.get("content")))
 
 
 def _fingerprint_envelope(envelope: dict) -> tuple | None:
@@ -71,8 +90,8 @@ def _fingerprint_envelope(envelope: dict) -> tuple | None:
     tail = messages[-1]
     if not isinstance(tail, dict):
         return None
-    return (len(messages), str(envelope.get("system") or ""),
-            str(tail.get("role") or ""), str(tail.get("content") or ""))
+    return (len(messages), _canonical(envelope.get("system")),
+            str(tail.get("role") or ""), _canonical(tail.get("content")))
 
 
 def correlate(run_path: Path, files: list[dict],
@@ -94,8 +113,6 @@ def correlate(run_path: Path, files: list[dict],
     for entry in files:
         entry["call_id"] = None
         try:
-            import json
-
             body = json.loads((root / entry["name"]).read_text(encoding="utf-8"))
         except (OSError, ValueError):
             continue

@@ -12,7 +12,7 @@ import sqlite3
 
 import pytest
 
-from harness import trace
+from harness import cache_audit, trace
 
 
 def _db(tmp_path, name="run.db"):
@@ -86,7 +86,7 @@ def _call(env: dict, **kw) -> tuple:
             "role": "chat", "model": "deepseek/deepseek-v4-flash"}
     base.update(kw)
     return (
-        0, 1.0, base["role"], base["model"], "h", "r", None, json.dumps(env),
+        0, base.get("t", 1.0), base["role"], base["model"], "h", "r", None, json.dumps(env),
         base["prompt"], 10, base["prompt"] + 10, base["cached"], 0,
         base["lane"], base["cost"],
     )
@@ -448,6 +448,29 @@ def test_a_shared_prefix_the_provider_did_not_cache_is_an_error(tmp_path):
     assert _codes(path)["prefix-shared-but-not-cached"].severity == trace.ERROR
 
 
+def test_a_miss_after_the_provider_ttl_is_expiry_not_an_error(tmp_path):
+    conn, path = _db(tmp_path)
+    body = [{"role": "user", "content": "x" * 4000}]
+    env1 = {"system": "P", "messages": body + [
+        {"role": "system", "content": "card"}]}
+    env2 = {"system": "P", "messages": body + [
+        {"role": "system", "content": "card"},
+        {"role": "assistant", "content": "y"},
+        {"role": "system", "content": "card2"}]}
+    conn.executemany(
+        "insert into llm_calls (day,t_h,role,model,prompt_hash,response,meta,"
+        "repro_json,prompt_tokens,completion_tokens,total_tokens,"
+        "cached_tokens,cache_miss_tokens,lane,raw_cost) "
+        "values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [_call(env1, t=10.0), _call(env2, t=10.0 + trace.CACHE_TTL_H, prompt=1000, cached=100)],
+    )
+    conn.commit()
+    conn.close()
+    codes = _codes(path)
+    assert "prefix-shared-but-not-cached" not in codes
+    assert codes["cache-expired-after-idle"].severity == trace.INFO
+
+
 def test_a_changed_system_prefix_is_an_error(tmp_path):
     conn, path = _db(tmp_path)
     conn.executemany(
@@ -500,6 +523,88 @@ def test_a_request_that_drops_a_row_the_model_already_read_is_an_error(
     assert "diverges at message 2" in found.detail[0]
 
 
+def test_a_rewrite_right_after_a_logged_prune_is_sanctioned(tmp_path):
+    """The cold prune rebuilds the stream on purpose (stale cards and old
+    decision pairs shed once); the first call after it is cited as a design
+    break and leaves the error list."""
+    conn, path = _db(tmp_path)
+    head = [{"role": "system", "content": "plan"},
+            {"role": "user", "content": "hi"}]
+    long = [{"role": "assistant", "content": "", "tool_calls": [{"id": "t"}]},
+            {"role": "tool", "content": "recorded"}]
+    conn.execute(
+        "insert into state_events (day,t_h,event,detail) values (?,?,?,?)",
+        (0, 23.0, "context_pruned",
+         '{"cards": 3, "decisions": 1, "idle_h": 7.5}'),
+    )
+    _calls(
+        conn,
+        _call({"system": "P", "messages": [
+            *head, *long, {"role": "system", "content": "card"}]}, t=20.0),
+        _call({"system": "P", "messages": [
+            *head, {"role": "system", "content": "card"}]}, t=24.0),
+    )
+    found = _codes(path)
+    assert "context-stream-rewritten" not in found
+    sanctioned = found["context-rebuilt-by-design"]
+    assert sanctioned.severity == trace.INFO
+    assert "cold prune, idle 7.5 h" in sanctioned.detail[0]
+
+
+def test_a_rewrite_outside_any_prune_window_stays_an_error(tmp_path):
+    """A prune nowhere near the pair does not explain it."""
+    conn, path = _db(tmp_path)
+    head = [{"role": "system", "content": "plan"},
+            {"role": "user", "content": "hi"}]
+    long = [{"role": "assistant", "content": "", "tool_calls": [{"id": "t"}]},
+            {"role": "tool", "content": "recorded"}]
+    conn.execute(
+        "insert into state_events (day,t_h,event,detail) values (?,?,?,?)",
+        (0, 10.0, "context_pruned", '{"cards": 1, "decisions": 0, "idle_h": 3.0}'),
+    )
+    _calls(
+        conn,
+        _call({"system": "P", "messages": [
+            *head, *long, {"role": "system", "content": "card"}]}, t=20.0),
+        _call({"system": "P", "messages": [
+            *head, {"role": "system", "content": "card"}]}, t=24.0),
+    )
+    found = _codes(path)
+    assert found["context-stream-rewritten"].severity == trace.ERROR
+    assert "context-rebuilt-by-design" not in found
+
+
+def test_a_cache_short_of_the_block_floor_is_flagged(tmp_path):
+    """A warm pair matches 128 * floor(prev prompt / 128) exactly; a full
+    block below it means an older backend re-billed already-sent tokens."""
+    conn, path = _db(tmp_path)
+    conn.executemany(
+        "insert into messages (id,role,content,t_h,day) values (?,?,?,?,?)",
+        [(1, "user", "hi", 1.0, 0), (2, "assistant", "hey", 1.0, 0)],
+    )
+    env1 = {"system": "PERSONA", "messages": [
+        {"role": "user", "content": "hi"}, {"role": "system", "content": "c"}]}
+    env2 = {"system": "PERSONA", "messages": [
+        {"role": "user", "content": "hi"},
+        {"role": "system", "content": "c"},
+        {"role": "assistant", "content": "hey"},
+        {"role": "system", "content": "c2"}]}
+    conn.executemany(
+        "insert into llm_calls (day,t_h,role,model,prompt_hash,response,meta,"
+        "repro_json,prompt_tokens,completion_tokens,total_tokens,"
+        "cached_tokens,cache_miss_tokens,lane,raw_cost) "
+        "values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        [_call(env1), _call(env2, prompt=1200, cached=720)],
+    )
+    conn.commit()
+    conn.close()
+    found = _codes(path)
+    short = found["cache-rebilled-below-floor"]
+    assert short.severity == trace.WARN
+    assert "176 token(s) re-billed" in short.detail[0]
+    assert "block floor 896" in short.detail[0]
+
+
 def test_a_decide_round_may_drop_its_steer(tmp_path):
     """A round that records no decision re-queues its steer; everything the
     model already read is still there, in order."""
@@ -537,10 +642,30 @@ def test_a_fork_is_not_measured_against_the_mainline(tmp_path):
     assert "context-stream-rewritten" not in found
 
 
+def test_a_changed_tool_menu_is_a_prefix_break(tmp_path):
+    """The provider banks the schemas between the system block and the
+    conversation, so a different menu on the same system and stream breaks
+    the prefix (the 2026-09-20 failure); the offline check sees it."""
+    conn, path = _db(tmp_path)
+    body = [{"role": "system", "content": "plan"},
+            {"role": "user", "content": "hi"}]
+    _calls(
+        conn,
+        _call({"system": "P", "messages": [
+            *body, {"role": "system", "content": "card"}],
+            "tools": [{"name": "tool_decide_reply"}]}),
+        _call({"system": "P", "messages": [
+            *body, {"role": "system", "content": "card"}],
+            "tools": [{"name": "tool_decide_event"}]}),
+    )
+    found = _codes(path)["stable-prefix-changed"]
+    assert "(tool menu)" in found.detail[0]
+
+
 def test_the_aux_envelope_shape_is_normalized(tmp_path):
     """``MeteredClient`` persists ``{messages, kwargs}``, so ``system``
     sits one level down."""
-    env = trace._envelope({
+    env = cache_audit.envelope_of({
         "repro_json": json.dumps(
             {"messages": [{"role": "user", "content": "x"}],
              "kwargs": {"system": "PERSONA", "temperature": 0.8}}

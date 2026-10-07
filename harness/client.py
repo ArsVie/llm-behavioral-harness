@@ -12,10 +12,13 @@ tools are CAPABILITIES, not assumptions: clients advertise `supports_json` /
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import os
+import threading
 import time
+import uuid
 from collections import deque
 from collections.abc import Iterator
 from dataclasses import dataclass, field
@@ -23,18 +26,84 @@ from typing import Protocol
 
 import httpx
 
-from harness import wire
+from harness import images, wire
+from harness.gateway import WATCH
 from harness.credentials import resolve_credentials
 
-DEFAULT_BASE_URL = "https://api.commandcode.ai/provider/v1"
-DEFAULT_MODEL = "deepseek/deepseek-v4-flash"
+DEFAULT_BASE_URL = "https://opencode.ai/zen/go/v1"
+DEFAULT_MODEL = "deepseek-v4-flash"
 
-#: Retry budget for transient failures and empty completions.
+#: OpenCode Go asks every client to name itself (not a generic SDK name) and to
+#: send a stable ``x-opencode-session`` per conversation for routing and
+#: prompt caching; requests without the session header 400 (MissingSessionID).
+USER_AGENT = "llm-behavioral-harness/1.0"
+_PROCESS_SESSION = f"harness-{uuid.uuid4().hex}"
+
+
+def request_headers(api_key: str, session_id: str | None = None) -> dict[str, str]:
+    """Headers for a raw /chat/completions call outside the client class."""
+    return {
+        "Authorization": f"Bearer {api_key}",
+        "User-Agent": USER_AGENT,
+        "x-opencode-session": session_id or default_session_id(),
+    }
+
+
+def default_session_id() -> str:
+    """``LLM_SESSION_ID`` if set, else one id per process: every lane client in
+    a run shares it, so the judge fork routes to the mainline's cache."""
+    return os.environ.get("LLM_SESSION_ID") or _PROCESS_SESSION
+
+@contextlib.contextmanager
+def fresh_session(client, tag: str):
+    """Send the calls inside on a fresh gateway session id, then restore it.
+
+    The gateway pins a session to one backend. When that backend answers a
+    fork with nothing, asking the same session again lands on it again: at
+    the 2026-10-01 rollover the judge and the memory fork each came back
+    empty twice in a row, while the same requests on other sessions answered
+    17 of 17 times. A metered client is unwrapped to the client it wraps; a
+    client without a session id (fakes) is left alone.
+
+    On a real client the swap is local to the calling thread
+    (``session_override``): the id is shared by the mainline, and a fork
+    abandoned by its deadline worker must not lend its session to the next
+    mainline call.
+    """
+    # The innermost object that owns a session id: a metered wrapper forwards
+    # the attribute, and a real client's own ``_client`` is its httpx client.
+    target = None
+    node = client
+    while node is not None and node is not target:
+        if isinstance(getattr(node, "session_id", None), str):
+            target = node
+        node = getattr(node, "_client", None)
+    if target is None:
+        yield
+        return
+    override = getattr(target, "session_override", None)
+    if override is not None:
+        with override(f"{target.session_id}-{tag}"):
+            yield
+        return
+    original = target.session_id
+    target.session_id = f"{original}-{tag}"
+    try:
+        yield
+    finally:
+        target.session_id = original
+
+
+#: Retry budget for transient failures (transport errors, 429/5xx).
 _MAX_RETRIES = 6
 _RETRY_BASE_DELAY_S = 2.0
-#: SSE stream parsing: the 2xx retry budget on the initial connection, the
-#: line prefix for data events, and the end-of-stream sentinel.
-_STREAM_MAX_RETRIES = 2
+#: Re-asks for a 200 that carried no usable reply (null, empty, malformed).
+#: Each is a billed completion, and each re-post has its own transport budget
+#: above — sharing ``_MAX_RETRIES`` nested to 7 x 7 posts under the session
+#: lock (audit 2026-10-03).
+_CONTENT_RETRIES = 2
+#: SSE stream parsing: the line prefix for data events and the end-of-stream
+#: sentinel.
 _SSE_DATA_PREFIX = "data:"
 _STREAM_END = "[DONE]"
 
@@ -103,6 +172,69 @@ class ChatResult:
     usage: Usage | None = None
     raw_cost: float | None = None
     raw: dict = field(default_factory=dict)
+    #: Completions billed for this result, discarded re-asks included; their
+    #: usage is summed into ``usage`` so spend counts every one.
+    attempts: int = 1
+
+
+def _sum_usage(parts: list[Usage | None]) -> Usage | None:
+    """Field-wise sum of several completions' usage (None stays None)."""
+    present = [u for u in parts if u is not None]
+    if not present:
+        return None
+    if len(present) == 1:
+        return present[0]
+
+    def total(name: str) -> int | None:
+        values = [getattr(u, name) for u in present]
+        if all(v is None for v in values):
+            return None
+        return sum(v or 0 for v in values)
+
+    return Usage(**{name: total(name) for name in (
+        "prompt_tokens", "completion_tokens", "total_tokens",
+        "cached_tokens", "cache_miss_tokens", "reasoning_tokens",
+    )})
+
+
+class StreamCancel:
+    """Stops a running :meth:`OpenAICompatibleClient.chat_stream` from another
+    thread.
+
+    ``set()`` marks the stream cancelled and closes its HTTP response, so a
+    reader blocked waiting for the next line returns at once instead of at
+    the next token. A plain ``threading.Event`` also works as ``cancel``; it
+    is only noticed between lines.
+    """
+
+    def __init__(self) -> None:
+        self._event = threading.Event()
+        self._lock = threading.Lock()
+        self._response = None
+
+    def set(self) -> None:
+        with self._lock:
+            self._event.set()
+            response = self._response
+        if response is not None:
+            try:
+                response.close()
+            except Exception:  # noqa: BLE001 - closing a dead stream is fine
+                pass
+
+    def is_set(self) -> bool:
+        return self._event.is_set()
+
+    def attach(self, response) -> None:
+        """Bind the live response; a cancel that came first closes it now."""
+        with self._lock:
+            self._response = response
+            cancelled = self._event.is_set()
+        if cancelled:
+            try:
+                response.close()
+            except Exception:  # noqa: BLE001
+                pass
 
 
 class LLMClient(Protocol):
@@ -227,6 +359,22 @@ def _normalize_messages(messages: list[dict]) -> list[dict]:
     return out
 
 
+def _with_photos(payload: dict) -> dict:
+    """The body as posted: photo references inlined as data URLs.
+
+    The wire dump and every recorded envelope keep the reference
+    (:mod:`harness.images`); only the bytes on the HTTP request carry the
+    photo itself.
+    """
+    messages = payload.get("messages")
+    if not messages:
+        return payload
+    inlined = images.inline(messages)
+    if all(a is b for a, b in zip(inlined, messages)):
+        return payload
+    return {**payload, "messages": inlined}
+
+
 def _int_or_none(value: object) -> int | None:
     """Coerce a token count to int, tolerating bools/strs/None (never raises)."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -321,6 +469,9 @@ class OpenAICompatibleClient:
     supports_json: bool = True
     #: The endpoint accepts the `tools` parameter.
     supports_tools: bool = True
+    #: The endpoint continues a trailing assistant message sent with
+    #: ``"prefix": true`` (DeepSeek-style prefix completion).
+    supports_prefix: bool = True
 
     def __init__(
         self,
@@ -330,6 +481,7 @@ class OpenAICompatibleClient:
         timeout_s: float = 60.0,
         max_retries: int = _MAX_RETRIES,
         lane: str | None = None,
+        session_id: str | None = None,
     ):
         # Credentials: explicit args win, then lane resolver, then env vars.
         if lane is not None:
@@ -345,13 +497,55 @@ class OpenAICompatibleClient:
         self.model = model or os.environ.get("LLM_MODEL", DEFAULT_MODEL)
         self.timeout_s = timeout_s
         self.max_retries = max_retries
+        #: An explicit id stays fixed; without one the client follows the
+        #: run's session per request, so a rotation (``harness.gateway``)
+        #: moves every lane client at once.
+        self._session_id = session_id
+        #: Per-thread session id override (see ``fresh_session``).
+        self._local = threading.local()
         self._client = httpx.Client(timeout=timeout_s)
+        #: ``chat_stream`` extra fields the provider rejected (HTTP 400):
+        #: left off every later request of this process, so a voice turn
+        #: does not pay a failed request each time.
+        self._rejected_extra: set[str] = set()
 
     def close(self) -> None:
         self._client.close()
 
+    @property
+    def session_id(self) -> str:
+        return self._session_id or default_session_id()
+
+    @session_id.setter
+    def session_id(self, value: str | None) -> None:
+        self._session_id = value
+
+    @contextlib.contextmanager
+    def session_override(self, session_id: str):
+        """Send this thread's calls inside on ``session_id``; other threads
+        keep ``self.session_id``."""
+        previous = getattr(self._local, "session_id", None)
+        self._local.session_id = session_id
+        try:
+            yield
+        finally:
+            self._local.session_id = previous
+
+    def _note_gateway(self, usage, *, re_asks: int) -> None:
+        """Report a completed call on the run's session to the gateway watch.
+        A forked id or an explicit fixed one is another backend's business."""
+        if self._session_id or getattr(self._local, "session_id", None):
+            return
+        WATCH.note_call(getattr(usage, "prompt_tokens", None),
+                        getattr(usage, "cached_tokens", None), re_asks=re_asks)
+
+    def _headers(self) -> dict[str, str]:
+        session_id = getattr(self._local, "session_id", None) or self.session_id
+        return request_headers(self.api_key, session_id)
+
     def _post(self, payload: dict, stream: bool = False) -> httpx.Response:
         wire.save(payload)
+        payload = _with_photos(payload)
         last_error: Exception | None = None
         for attempt in range(self.max_retries + 1):
             try:
@@ -362,7 +556,7 @@ class OpenAICompatibleClient:
                         self._client.build_request(
                             "POST",
                             f"{self.base_url}/chat/completions",
-                            headers={"Authorization": f"Bearer {self.api_key}"},
+                            headers=self._headers(),
                             json=payload,
                         ),
                         stream=True,
@@ -370,7 +564,7 @@ class OpenAICompatibleClient:
                 else:
                     resp = self._client.post(
                         f"{self.base_url}/chat/completions",
-                        headers={"Authorization": f"Bearer {self.api_key}"},
+                        headers=self._headers(),
                         json=payload,
                     )
                 if resp.status_code in (429, 500, 502, 503, 504) and attempt < self.max_retries:
@@ -457,23 +651,21 @@ class OpenAICompatibleClient:
             payload["reasoning_effort"] = reasoning_effort
         return payload
 
-    def _empty_reply_verdict(self, content, text: str, tool_calls,
-                             reasoning) -> tuple[str | None,
-                                                 RuntimeError | None]:
-        """Whether this response is worth retrying, and what to raise if not.
+    @staticmethod
+    def _empty_reply(content, text: str, tool_calls, reasoning) -> str | None:
+        """``"null content"`` / ``"empty content"`` for a reply worth retrying.
 
         A tool call or a reasoning-only turn legitimately carries no content
         and must never be retried; only a reply empty in EVERY channel is a
         real empty completion.
         """
-        if content is None and not tool_calls and reasoning is None:
-            return "null content", RuntimeError("LLM response had null content")
-        if not text.strip() and not tool_calls and reasoning is None:
-            return "empty content", RuntimeError(
-                f"LLM returned empty/whitespace-only content after "
-                f"{self.max_retries + 1} attempts"
-            )
-        return None, None
+        if tool_calls or reasoning is not None:
+            return None
+        if content is None:
+            return "null content"
+        if not text.strip():
+            return "empty content"
+        return None
 
     def chat_with_meta(
         self,
@@ -508,9 +700,10 @@ class OpenAICompatibleClient:
             tool_choice=tool_choice, reasoning_effort=reasoning_effort,
         )
         resp = self._post(payload)
-        for attempt in range(self.max_retries + 1):
-            retry_reason: str | None = None
-            terminal: RuntimeError | None = None
+        retries = min(self.max_retries, _CONTENT_RETRIES)
+        discarded: list[Usage | None] = []
+        for attempt in range(retries + 1):
+            data = None
             try:
                 data = resp.json()
                 choice = data["choices"][0]
@@ -522,44 +715,53 @@ class OpenAICompatibleClient:
             except (ValueError, KeyError, IndexError, TypeError, AttributeError) as exc:
                 # Malformed response (e.g. 200 without 'content'): retry with
                 # the same bounded budget as empty completions.
-                if attempt < self.max_retries:
+                if attempt < retries:
                     _logger.warning(
                         "malformed LLM response (%s, attempt %d/%d) — retrying",
-                        exc, attempt + 1, self.max_retries + 1,
+                        exc, attempt + 1, retries + 1,
                     )
+                    discarded.append(_parse_usage(
+                        data.get("usage") if isinstance(data, dict) else None
+                    ))
                     resp = self._retry_post(payload, attempt)
                     continue
                 raise RuntimeError(f"malformed LLM response: {exc}") from exc
             text = "" if content is None else str(content)
-            retry_reason, terminal = self._empty_reply_verdict(
-                content, text, tool_calls, reasoning
-            )
-            if retry_reason is not None and terminal is not None:
-                if attempt < self.max_retries:
+            retry_reason = self._empty_reply(content, text, tool_calls, reasoning)
+            if retry_reason is not None:
+                if attempt < retries:
                     _logger.warning(
                         "LLM returned %s (attempt %d/%d) — retrying",
-                        retry_reason, attempt + 1, self.max_retries + 1,
+                        retry_reason, attempt + 1, retries + 1,
                     )
+                    discarded.append(_parse_usage(data.get("usage")))
                     resp = self._retry_post(payload, attempt)
                     continue
-                raise terminal
-            assert terminal is None  # set only together with retry_reason
+                if content is None:
+                    raise RuntimeError("LLM response had null content")
+                raise RuntimeError(
+                    f"LLM returned empty/whitespace-only content after "
+                    f"{retries + 1} attempts"
+                )
             if finish_reason == "length":
                 _logger.warning(
                     "LLM reply truncated (finish_reason=length, %d chars) — "
                     "content persisted, truncation recorded",
                     len(text),
                 )
+            final = _parse_usage(data.get("usage"))
+            self._note_gateway(final, re_asks=len(discarded))
             return ChatResult(
                 content=text,
                 reasoning=reasoning,
                 tool_calls=tool_calls,
                 finish_reason=finish_reason,
-                usage=_parse_usage(data.get("usage")),
+                usage=_sum_usage([*discarded, final]),
                 raw_cost=_cost_or_none(data.get("cost")),
                 raw=data,
+                attempts=len(discarded) + 1,
             )
-        raise RuntimeError(f"LLM call failed after {self.max_retries + 1} attempts")
+        raise RuntimeError(f"LLM call failed after {retries + 1} attempts")
 
     def chat_stream(
         self,
@@ -573,8 +775,27 @@ class OpenAICompatibleClient:
         tool_choice: dict | str | None = None,
         reasoning_effort: str | None = None,
         chunk_size: int = 64,
+        extra: dict | None = None,
+        cancel=None,
+        meta: dict | None = None,
     ) -> Iterator[str]:
         """Yield the reply text in pieces as they arrive (streaming).
+
+        Three optional additions, all off by default:
+
+        - ``extra``: fields merged into the request body as given (the call
+          lane sends ``{"thinking": {"type": "disabled"}}``). A 400 on a
+          request carrying them retries the stream once without them.
+        - ``cancel``: a :class:`StreamCancel` (or anything with ``is_set()``)
+          set from another thread stops the stream and closes the response;
+          the generator then returns quietly with what it had.
+        - ``meta``: a dict the stream fills in as it goes. Passing it also
+          asks for ``stream_options.include_usage``, so the final chunk's
+          ``usage`` lands in ``meta["usage"]`` (a :class:`Usage`) with
+          ``meta["raw_cost"]``, ``meta["reasoning"]``,
+          ``meta["finish_reason"]`` and ``meta["cancelled"]``. With ``meta``,
+          a stream that carried events but no content (a tool-call-only
+          reply) does not fall back to a second, non-streaming request.
 
         The request body is the non-streaming payload plus ``stream: true``,
         and the response is parsed as Server-Sent Events: each ``data:``
@@ -602,6 +823,15 @@ class OpenAICompatibleClient:
             tool_choice=tool_choice, reasoning_effort=reasoning_effort,
         )
         payload["stream"] = True
+        if extra:
+            extra = {k: v for k, v in extra.items() if k not in self._rejected_extra}
+            payload.update(extra)
+        if meta is not None:
+            payload["stream_options"] = {"include_usage": True}
+            meta.setdefault("cancelled", False)
+        if extra or cancel is not None or meta is not None:
+            yield from self._stream_with_options(payload, extra, cancel, meta)
+            return
         try:
             resp = self._post(payload, stream=True)
         except httpx.HTTPStatusError as exc:
@@ -610,29 +840,114 @@ class OpenAICompatibleClient:
                 "non-streaming completion",
                 exc.response.status_code,
             )
-            yield self.chat_with_meta(
-                messages, system=system, temperature=temperature,
-                json_mode=json_mode, max_tokens=max_tokens, tools=tools,
-                tool_choice=tool_choice,
-                reasoning_effort=reasoning_effort,
-            ).content
-            return
-        saw_content = False
-        for piece in self._iter_stream_events(resp):
-            saw_content = True
-            yield piece
-        if not saw_content:
+        else:
+            saw_content = False
+            for piece in self._iter_stream_events(resp):
+                saw_content = True
+                yield piece
+            if saw_content:
+                return
             # 2xx but no content deltas: the endpoint may not speak SSE.
             _logger.warning(
                 "LLM stream carried no content deltas — falling back to "
                 "a single non-streaming completion"
             )
-            yield self.chat_with_meta(
-                messages, system=system, temperature=temperature,
-                json_mode=json_mode, max_tokens=max_tokens, tools=tools,
-                tool_choice=tool_choice,
-                reasoning_effort=reasoning_effort,
-            ).content
+        yield self.chat_with_meta(
+            messages, system=system, temperature=temperature,
+            json_mode=json_mode, max_tokens=max_tokens, tools=tools,
+            tool_choice=tool_choice, reasoning_effort=reasoning_effort,
+        ).content
+
+    def _stream_with_options(self, payload: dict, extra: dict | None,
+                             cancel, meta: dict | None) -> Iterator[str]:
+        """:meth:`chat_stream` with ``extra``/``cancel``/``meta`` in play.
+
+        No non-streaming fallback: the caller of this path is reading
+        sentences as they arrive, and a second request would bill twice.
+        """
+        resp = self._send_stream(payload)
+        if resp.status_code == 400 and extra:
+            resp.read()
+            resp.close()
+            _logger.warning(
+                "LLM stream rejected extra fields %s (HTTP 400) — retrying "
+                "without them", sorted(extra),
+            )
+            payload = {k: v for k, v in payload.items() if k not in extra}
+            self._rejected_extra |= set(extra)
+            resp = self._send_stream(payload)
+        if resp.status_code in (429, 500, 502, 503, 504):
+            # One quick retry: a live voice turn cannot sit through the
+            # minute-long backoff the text lane uses.
+            resp.read()
+            resp.close()
+            time.sleep(1.0)
+            resp = self._send_stream(payload)
+        if resp.status_code != 200:
+            resp.read()
+            resp.close()
+            resp.raise_for_status()
+        if cancel is not None and hasattr(cancel, "attach"):
+            cancel.attach(resp)
+        reasoning: list[str] = []
+        usage = None
+        try:
+            for line in resp.iter_lines():
+                if cancel is not None and cancel.is_set():
+                    break
+                if not line.startswith(_SSE_DATA_PREFIX):
+                    continue
+                data = line[len(_SSE_DATA_PREFIX):].strip()
+                if not data or data == _STREAM_END:
+                    continue
+                try:
+                    event = json.loads(data)
+                except ValueError:
+                    continue
+                if not isinstance(event, dict):
+                    continue
+                if isinstance(event.get("usage"), dict):
+                    usage = _parse_usage(event["usage"])
+                if meta is not None:
+                    if usage is not None:
+                        meta["usage"] = usage
+                    if event.get("cost") is not None:
+                        meta["raw_cost"] = _cost_or_none(event.get("cost"))
+                choices = event.get("choices") or []
+                if not choices or not isinstance(choices[0], dict):
+                    continue
+                if meta is not None and choices[0].get("finish_reason"):
+                    meta["finish_reason"] = choices[0]["finish_reason"]
+                delta = choices[0].get("delta") or {}
+                thought = delta.get("reasoning_content") or delta.get("reasoning")
+                if isinstance(thought, str) and thought:
+                    reasoning.append(thought)
+                piece = delta.get("content")
+                if isinstance(piece, str) and piece:
+                    yield piece
+            if usage is not None:
+                self._note_gateway(usage, re_asks=0)
+        except Exception:
+            if cancel is None or not cancel.is_set():
+                raise
+        finally:
+            resp.close()
+            if meta is not None:
+                if reasoning:
+                    meta["reasoning"] = "".join(reasoning)
+                if cancel is not None and cancel.is_set():
+                    meta["cancelled"] = True
+
+    def _send_stream(self, payload: dict) -> httpx.Response:
+        """One streamed POST, no retries (see :meth:`_stream_with_options`)."""
+        wire.save(payload)
+        return self._client.send(
+            self._client.build_request(
+                "POST", f"{self.base_url}/chat/completions",
+                headers=self._headers(), json=_with_photos(payload),
+            ),
+            stream=True,
+        )
 
     def _iter_stream_events(self, resp: httpx.Response) -> Iterator[str]:
         """Yield non-empty content deltas from an SSE stream response.
@@ -784,8 +1099,15 @@ class FakeClient:
         tool_choice: dict | str | None = None,
         reasoning_effort: str | None = None,
         chunk_size: int = 64,
+        extra: dict | None = None,
+        cancel=None,
+        meta: dict | None = None,
     ) -> Iterator[str]:
         """Yield the next queued response's content in ``chunk_size`` slices.
+
+        ``extra`` is recorded on the call entry; ``cancel`` stops the slices
+        between chunks; ``meta`` receives the scripted usage/cost like the
+        real client's stream does.
 
         Records ONE call entry with the same wire shape as
         :meth:`chat_with_meta` and consumes one queued response; dict
@@ -799,7 +1121,18 @@ class FakeClient:
             json_mode=json_mode, max_tokens=max_tokens, tools=tools,
             tool_choice=tool_choice, reasoning_effort=reasoning_effort,
         )
-        yield from _chunk_text(result.content, chunk_size)
+        if extra is not None:
+            self.calls[-1]["extra"] = dict(extra)
+        if meta is not None:
+            meta["usage"] = result.usage
+            meta["raw_cost"] = result.raw_cost
+            meta.setdefault("cancelled", False)
+        for piece in _chunk_text(result.content, chunk_size):
+            if cancel is not None and cancel.is_set():
+                if meta is not None:
+                    meta["cancelled"] = True
+                return
+            yield piece
 
     def close(self) -> None:
         pass

@@ -29,17 +29,28 @@ a defect, and you say which — you do not quietly follow the code.
 
 ## The five rules that are easy to break
 
-1. **Only two forks.** The judge and the day planner are the only things
-   allowed a model call of their own. Everything else rides the turn's request.
-   If you are about to add a leg, you are about to be wrong.
-2. **A decision is not a call and not a tool.** It rides the turn's own request
-   as the last system block, ending in a question plus
-   `[DECIDE]{...}[/DECIDE]`, and she answers it inside the reply she was
-   writing anyway. One pop-up per turn; the rest defer.
+1. **Only three forks.** The judge, the day planner and the end-of-day memory
+   (`harness/memory_fork.py`, added 2026-09-26) are the only things allowed a
+   model call of their own. Everything else rides the turn's request. If you
+   are about to add a leg, you are about to be wrong. The memory fork reads
+   only the day it remembers (`memory_fork.day_view`, ruling 2026-10-03) and
+   writes its summary of the day over that day's session summaries.
+2. **A decision is a tool call on her own stream, not a fork.** The pop-up
+   rides as a system block at the tail of the mainline request, and she
+   answers with a decision tool (VERBATIM, "Event and decision roles"); the
+   exchange is appended to the stream. `reason` is the decision's audit field
+   and never her words; a decision outside a conversation is Telegram-silent.
+   Prose instead of a tool call is a parse failure, never a message. One
+   pop-up per turn, the turn's own first; the rest wait untouched. The block
+   is saved with its decision and dropped only by the cold-point prune
+   (VERBATIM, "Live-run audit rulings").
 3. **The stream is append-only.** Request N+1 is request N plus what happened.
    Never edit, reorder, re-render or front-truncate a message already sent —
    prefix caches match from token 0. `tests/test_cache_prefix_gate.py` is the
-   pre-run gate.
+   pre-run gate. Two breaks are sanctioned, both logged: compaction at day
+   rollover (`context_compacted`) and the cold-point prune after 2 h with no
+   model call, when the provider cache is gone anyway (`context_pruned`,
+   `Session._cold_prune`).
 4. **A verdict gates DELIVERY, not generation.** She always writes. A no-reply
    verdict keeps her words in the stream and sends nothing.
 5. **Her conversation never carries harness text in a user slot.** Events are
@@ -66,14 +77,20 @@ Experiment outputs are under `results/`, prior art under `research/`.
 
 - `engine/` — seeded mood, cycle, circadian, contact timing. Pure: no I/O, no
   real clock, no unseeded randomness.
-- `harness/session.py` — the turn. All three entry points (`on_message`,
-  `fire_proactive`, `self_turn`) go through `_chat`.
+- `harness/session.py` — the turn. The entry points `on_message`,
+  `fire_proactive` and `incoming_call` go through `_chat`; a voice-call turn
+  (`call_turn`) builds the same request without the pop-up drain.
 - `harness/steering.py` — the safe-boundary queue: what is asked, what defers.
-- `harness/tools.py` — the `[DECIDE]` protocol and the (empty) actuation menu.
+- `harness/tools.py` — the decision tools, their parsing and the (empty) actuation menu.
 - `harness/runtime.py` — inbound messages, proactive scheduling, the life loop,
-  locking, real-time anchoring.
+  locking, real-time anchoring, and the voice call (`/call`, `/hangup`, the
+  pauses while a call is on).
+- `harness/call.py` — the voice-call HTTP API live-talk talks to
+  (127.0.0.1:8790, `HARNESS_CALL_PORT`) and the live-talk launch command.
 - `harness/store.py`, `store_schema.py` — SQLite, migrations, replay records.
-- `observability/` — the run viewer (`python -m observability --port 8788`).
+- `harness/images.py` — photos he sends: stored by hash next to the database,
+  referenced in the stream, inlined only on the posted body.
+- `observability/` — the web app (`python -m observability --port 8788`): `/chat` (the live conversation, her sprite, the call button; writes are forwarded to the bot's web channel), `/debug` (also `/`, the run viewer) and `/setup` (the owner commands).
 - `experiments/`, `tests/` — probes and the suite.
 
 ## Working style

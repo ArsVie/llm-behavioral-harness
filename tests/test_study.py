@@ -152,9 +152,9 @@ def test_the_span_rolls_the_run_up_per_day(tmp_path):
     assert [entry["day"] for entry in view["span"]] == [0, 1]
     assert first["agenda"] == [
         {"hour": 8.0, "end": 9.0, "status": "completed", "source": "interest",
-         "activity": "pottery"},
+         "tag": "i1", "activity": "pottery"},
         {"hour": 14.0, "end": 15.0, "status": "planned", "source": "routine",
-         "activity": "history reading"},
+         "tag": "r1", "activity": "history reading"},
     ]
     assert first["sent"] == 1 and first["suppressed"] == 1
     assert first["reach_outs"] == [{"hour": 10.0, "fired": False},
@@ -195,3 +195,15 @@ def test_an_empty_run_reads_empty_but_whole(tmp_path):
     assert view["now_hour"] is None and view["today"] == 0
     assert study.run_now(store.conn) is None
     store.close()
+
+
+def test_the_span_carries_her_own_read_of_each_day(tmp_path):
+    """The month cell shows her verdict on the day; a day not yet judged has none."""
+    store = _store(tmp_path)
+    store.save_judgement(0, 0.6, "He checked in warmly, then went quiet.", None, False)
+    store.add_message("user", "morning", 33.0, 1)
+    span = {entry["day"]: entry for entry in study.day_view(store.conn, day=0)["span"]}
+    store.close()
+    assert span[0]["verdict"] == {"score": 0.6,
+                                  "text": "He checked in warmly, then went quiet."}
+    assert span[1]["verdict"] is None

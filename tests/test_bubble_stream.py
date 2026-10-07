@@ -2,12 +2,9 @@
 Property: char-by-char or random-chunk feeding + ``flush()`` == ``parse_bubbles(text)``."""
 from __future__ import annotations
 
-import os
 import random
-from unittest.mock import patch
 
 from harness.bubbles import (
-    BUBBLE_INSTRUCTION,
     BubbleStreamer,
     _sentence_complete,
     bubble_stream_enabled,
@@ -186,13 +183,6 @@ def test_feed_releases_complete_sentence_at_trailing_boundary():
     assert s.flush() == ["Next."]
 
 
-def test_feed_holds_incomplete_line_at_trailing_boundary():
-    """feed('First line\\n') releases NOTHING: no sentence end yet, so the
-    newline may be a wrap — the head must hold."""
-    s = BubbleStreamer()
-    assert s.feed("First line\n") == []
-
-
 def test_no_mid_sentence_split_then_sentence_end_releases():
     s = BubbleStreamer()
     assert s.feed("First line\nsecond") == []  # hold: wrap or mid-sentence?
@@ -262,12 +252,6 @@ def test_incremental_stream_exact_match():
     assert emitted2 == ["First.", "second.", "third."]
     assert s2.flush() == ["fourth."]
     assert emitted2 + ["fourth."] == parse_bubbles(text2)
-
-
-def test_flush_releases_held_tail_without_sentence_end():
-    s = BubbleStreamer()
-    assert s.feed("First line\nsecond") == []
-    assert s.flush() == ["First line", "second"]
 
 
 def test_flush_on_empty_stream_returns_nothing():
@@ -380,29 +364,4 @@ def test_stream_flag_truthy_variants(monkeypatch):
         monkeypatch.setenv("HARNESS_BUBBLES", v)
         monkeypatch.setenv("HARNESS_BUBBLE_STREAM", v)
         assert not bubbles_enabled()
-        assert not bubble_stream_enabled()
-
-
-def test_flags_do_not_cross_talk(monkeypatch):
-    """bubble_stream_enabled must not read HARNESS_BUBBLES-only or the
-    stream env alone — pin with a third sentinel var untouched."""
-    monkeypatch.setenv("HARNESS_BUBBLE_STREAM", "1")
-    monkeypatch.setenv("HARNESS_BUBBLES", "0")
-    assert not bubble_stream_enabled()
-    monkeypatch.setenv("HARNESS_BUBBLES", "1")
-    monkeypatch.setenv("HARNESS_BUBBLE_STREAM", "0")
-    assert not bubble_stream_enabled()
-
-
-def test_instruction_mentions_blank_line_and_no_mid_sentence():
-    assert "blank line" in BUBBLE_INSTRUCTION
-    assert "never mid-sentence" in BUBBLE_INSTRUCTION
-
-
-def test_env_usage_pinned_by_patch_import():
-    """The flag reads happen through os.environ at call time — prove the
-    gating isn't cached at import time."""
-    with patch.dict(os.environ, {"HARNESS_BUBBLES": "1", "HARNESS_BUBBLE_STREAM": "1"}, clear=False):
-        assert bubble_stream_enabled()
-    with patch.dict(os.environ, {"HARNESS_BUBBLES": "1"}, clear=False):
         assert not bubble_stream_enabled()

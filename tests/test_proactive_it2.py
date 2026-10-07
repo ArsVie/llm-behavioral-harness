@@ -9,6 +9,7 @@ sleeper is always injected.
 from __future__ import annotations
 
 import asyncio
+import functools
 import threading
 from dataclasses import replace
 
@@ -16,24 +17,20 @@ import numpy as np
 import pytest
 
 import engine.rng as rng_mod
-import harness.concurrency as conc
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.channels.base import FakeChannel
 from harness.client import FakeClient
 from harness.clock import VirtualClock
-from harness.domain import ContactOpportunity, ProactiveIntent
+from harness.domain import DailyAgenda, ProactiveIntent
 from harness.judge import ScriptedJudge
 from harness.proactive import SOURCE_AGENDA, IntentResolver, compose_hook
-from harness.runtime import AsyncRuntime, TimeScale
+from harness.runtime import TimeScale
 from harness.scheduler import (
-    OPPORTUNITY_VALIDITY_H,
     REASON_CHECK_IN,
     REASON_SCHEDULE,
     REASON_VALIDITY_H,
     ProactiveSchedule,
-    adj_from_score,
     build_opportunity,
-    initiative_factor,
     plan_proactive_events,
 )
 from harness.session import Session, TurnResult
@@ -45,6 +42,7 @@ from tests.helpers import (
     rows,
     suppressed_codes,
 )
+from tests.helpers.runtime import run_runtime
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -52,6 +50,9 @@ VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
 
 FAST = TimeScale(seconds_per_virtual_hour=0.02)
+
+#: The shared runtime driver at this file's own default scale.
+_run = functools.partial(run_runtime, scale=FAST)
 
 
 def _session(*, replies=None, session_cls=None):
@@ -76,27 +77,6 @@ SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 
 
 # helpers
-
-
-def _run(store, session, schedule, channel, *, max_hours, scale=FAST,
-         resolver=None, sleeper=None, seed=SEED):
-    delays: list[float] = []
-
-    async def record(delay: float) -> None:
-        delays.append(delay)
-
-    runtime = AsyncRuntime(
-        session, schedule, channel,
-        store=store, timing=TIMING, seed=seed,
-        time_scale=scale, max_virtual_hours=max_hours,
-        resolver=resolver if resolver is not None else IntentResolver(
-            store, rng=rng_mod.stream_rng(seed)
-        ),
-        sleeper=sleeper if sleeper is not None else record,
-    )
-    asyncio.run(runtime.run())
-    runtime._delays = delays
-    return runtime
 
 
 def _stored_intent(item, intent_id, t_h, *, reason=REASON_SCHEDULE):
@@ -160,37 +140,7 @@ class ExactIntentSession(Session):
         return super()._resolve_intent(reason)
 
 
-# the scheduler creates contact opportunities with no semantic reason
-
-
-def test_opportunity_has_no_semantic_reason():
-    opp = build_opportunity(
-        10.0, day=0, phase_label="follicular", timing=TIMING,
-        previous_score=None, initiative=0.5,
-    )
-    assert isinstance(opp, ContactOpportunity)
-    assert not hasattr(opp, "reason")          # no invented reason
-    assert "reason" not in opp.hazard_components
-
-
-def test_build_opportunity_shape_and_validity():
-    opp = build_opportunity(
-        10.0, day=0, phase_label="follicular", timing=TIMING,
-        previous_score=0.3, initiative=0.7,
-    )
-    assert opp.id == "opp_10.000"
-    assert opp.desired_t_h == 10.0
-    assert opp.created_t_h == 10.0
-    assert opp.valid_until_t_h == pytest.approx(10.0 + OPPORTUNITY_VALIDITY_H)
-    assert set(opp.hazard_components) == {
-        "base", "circadian", "phase", "initiative", "prior_score",
-    }
-    # the reported multipliers are exactly the frozen modulator factors
-    assert opp.initiative_multiplier == pytest.approx(initiative_factor(0.7))
-    assert opp.previous_score_multiplier == pytest.approx(adj_from_score(0.3, TIMING))
-    assert opp.hazard_components["initiative"] == opp.initiative_multiplier
-    assert opp.hazard_components["prior_score"] == opp.previous_score_multiplier
-    assert opp.hazard_components["phase"] == TIMING.phase_multipliers["follicular"]
+# contact opportunities: planned, persisted, restored
 
 
 def test_plan_and_persist_creates_opportunities_for_every_event():
@@ -347,34 +297,14 @@ def test_exact_intent_identity_two_same_reason_intents():
     # lane lists both items; the intent hook is #87's)
     tail = session.client.calls[-1]["messages"][-1]["content"]
     assert "reaching out first" in tail
-    assert "Agenda: pottery class" in tail
-    assert "Agenda: gym session" not in tail
+    assert "Pottery class (" in tail and "reminded you of him" in tail
+    assert "Gym session (" not in tail
     # lifecycle: #87 fired, #88 untouched
     assert {i.id for i in store.list_proactive_intents(status="fired")} == {"87"}
     assert "88" not in {
         i.id for i in store.list_proactive_intents(status="fired")
     }
     assert rows(store, SEED)[10.0]["status"] == "fired"
-
-
-def test_exact_identity_not_downgraded_to_reason_when_same_reason_pending():
-    """If the exact id were ever downgraded to its reason, the legacy
-    reason-lookup would pick the MOST RECENT same-reason intent (#88). The
-    runtime never does that: fire_proactive(intent_id) resolves by id only,
-    and the reason-only lookup demonstrably returns the wrong sibling."""
-    store, _, session = _session(session_cls=ExactIntentSession)
-    pottery = ground_agenda(store, 9.5, 10.5, item_id="pottery", salience=0.9)
-    gym = ground_agenda(store, 9.5, 10.5, item_id="gym", salience=0.7)
-    store.save_proactive_intent(_stored_intent(pottery, "87", t_h=9.9))
-    store.save_proactive_intent(_stored_intent(gym, "88", t_h=9.95))
-    # The legacy reason-lookup returns #88 (most recent 'schedule'),
-    # which is why identity is not downgraded to a reason
-    assert session._resolve_intent(REASON_SCHEDULE).id == "88"
-    session.fire_calls = []
-    result = session.fire_proactive("87")
-    assert session.fire_calls == ["87"]
-    assert result.reply == "ok!"
-    assert store.recent_messages()[-1]["intent_id"] == "87"
 
 
 # rollover clock: events near midnight fire, not expire
@@ -463,18 +393,6 @@ def test_runtime_shuts_down_owned_executor():
     assert not any(n.startswith("llh-runtime") for n in names)  # threads joined
 
 
-def test_runtime_uses_concurrency_sleeper_default():
-    store, clock, session = _session()
-    runtime = AsyncRuntime(
-        session, ProactiveSchedule.restore(SEED, store), FakeChannel(),
-        store=store, timing=TIMING, seed=SEED,
-    )
-    try:
-        assert isinstance(runtime.sleeper, conc.Sleeper)
-    finally:
-        runtime._executor.shutdown()
-
-
 def test_runtime_leaves_sqlite_store_usable_after_run(tmp_path):
     """The runtime re-opens the store connection thread-safe but must NOT close
     it -- the store's own ``close()`` owns its lifecycle.
@@ -527,3 +445,17 @@ def test_planned_opportunity_resolves_and_fires_end_to_end():
                   if e["event"] == "contact_opportunity"]
     assert any(f"id={opp.id}" in e["detail"] for e in opp_events)
     assert rows(store, SEED)[h]["status"] == "fired"
+
+
+def test_a_finished_activity_is_offered_once():
+    """Live 2026-09-24: a poem finished the day before came back as a second
+    "Finished:" reach-out after she had reported it. Once fired, skipped."""
+    store = SeamStore()
+    item = replace(ground_agenda(store, 9.5, 10.5), status="completed")
+    store.save_agenda(0, DailyAgenda(0, (item,)))
+    first = IntentResolver(store).resolve(11.0)
+    assert first is not None and first.source_id == item.id
+    store.save_proactive_intent(first)
+    store.update_proactive_intent_status(first.id, "fired")
+    again = IntentResolver(store).resolve(12.0)
+    assert again is None or again.source_id != item.id

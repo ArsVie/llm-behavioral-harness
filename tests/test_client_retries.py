@@ -1,6 +1,8 @@
 """Transport and response retries in the real HTTP client.
 
-Same budget for a retryable status, a transport error and a malformed 200."""
+Same budget for a retryable status, a transport error and a malformed 200.
+Empty and null content retries live in test_client and
+test_serializer_null_hardening."""
 
 from __future__ import annotations
 
@@ -110,39 +112,6 @@ def test_malformed_200_eventually_raises_a_named_error(monkeypatch):
         client.chat([{"role": "user", "content": "hi"}])
 
 
-def test_empty_content_is_retried_then_succeeds(monkeypatch):
-    client = _client(monkeypatch, [_ok("   "), _ok("hello")])
-    assert client.chat([{"role": "user", "content": "hi"}]) == "hello"
-
-
-def test_empty_content_eventually_raises(monkeypatch):
-    client = _client(monkeypatch, [_ok("")])
-    with pytest.raises(RuntimeError, match="empty/whitespace-only"):
-        client.chat([{"role": "user", "content": "hi"}])
-
-
-def test_null_content_eventually_raises(monkeypatch):
-    client = _client(monkeypatch, [_ok(None)])
-    with pytest.raises(RuntimeError, match="null content"):
-        client.chat([{"role": "user", "content": "hi"}])
-
-
-def test_reasoning_only_reply_is_not_retried(monkeypatch):
-    """A reasoning-only reply is a legitimate empty-content turn and must not be retried."""
-    resp = httpx.Response(
-        200,
-        json={"choices": [{"message": {"content": None,
-                                       "reasoning_content": "thinking"},
-                           "finish_reason": "stop"}]},
-        request=httpx.Request("POST", "https://x/v1/chat/completions"),
-    )
-    client = _client(monkeypatch, [resp])
-    result = client.chat_with_meta([{"role": "user", "content": "hi"}])
-    assert result.content == ""
-    assert result.reasoning == "thinking"
-    assert client.calls["n"] == 1
-
-
 def test_truncation_is_warned_but_persisted(monkeypatch, caplog):
     """finish_reason=length keeps the content: a truncated reply is still
     the model's turn, and dropping it would lose the transcript."""
@@ -160,8 +129,3 @@ def test_truncation_is_warned_but_persisted(monkeypatch, caplog):
     assert result.content == "half a sen"
     assert result.finish_reason == "length"
     assert "truncated" in caplog.text
-
-
-def test_close_is_safe(monkeypatch):
-    client = _client(monkeypatch, [_ok()])
-    client.close()

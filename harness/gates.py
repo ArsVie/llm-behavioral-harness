@@ -41,7 +41,8 @@ def content_gate(intent, store, *, now_h: float | None = None) -> GateDecision:
         carries stale truth                                  -> 'source_superseded'
       - an episode whose source session no longer exists has
         broken provenance                                    -> 'no_source'
-      - compose_hook(source, intent.reason) == intent.hook    -> 'hook_mismatch'
+      - compose_hook(source, intent.reason, intent.created_t_h) == intent.hook
+                                                               -> 'hook_mismatch'
 
     Checks run only against the seams the store exposes (duck-typed): fakes
     without ``list_assertions`` / ``session_exists`` are skipped, matching the
@@ -81,7 +82,7 @@ def content_gate(intent, store, *, now_h: float | None = None) -> GateDecision:
             and not session_exists(source.source_session_id)
         ):
             return GateDecision(allowed=False, code="no_source")
-    if compose_hook(source, intent.reason) != intent.hook:
+    if compose_hook(source, intent.reason, intent.created_t_h) != intent.hook:
         return GateDecision(allowed=False, code="hook_mismatch")
     return GateDecision(allowed=True, code="ok")
 

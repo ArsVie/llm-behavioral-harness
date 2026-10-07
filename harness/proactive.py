@@ -4,7 +4,7 @@ The contact opportunity (when) and its reason (why) are separate: the resolver
 returns a grounded :class:`ProactiveIntent`, or None (SUPPRESS — a legitimate
 outcome, never an error). Candidates come from the store only, and hooks are
 composed deterministically from source fields so the content gate can re-derive
-them. Ranking: salience × recency × validity, seeded tie-breaks.
+them. Ranking: salience × recency × reason weight (checkable reasons first), seeded tie-breaks.
 """
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ from dataclasses import dataclass
 import numpy as np
 
 import engine.rng as rng_mod
-from harness.clock import hhmm
+from harness.clock import duration, hhmm
 from harness.domain import (
     AgendaItem,
     ContactOpportunity,
@@ -56,26 +56,67 @@ CHECK_IN_WINDOWS: tuple[tuple[float, float], ...] = ((8.0, 11.0), (19.0, 22.0))
 CHECK_IN_MIN_GAP_H = 12.0
 CHECK_IN_RECENCY_NORM_H = 48.0
 CHECK_IN_SALIENCE = 0.5
-#: validity factor normalization: clip(validity_h[reason] / VALIDITY_WEIGHT_H, 0.25, 2.0)
-VALIDITY_WEIGHT_H = 6.0
+#: ranking weight per reason: a reason he can check (a slot on her agenda, a
+#: thing he said, an activity she finished) outranks one inferred from
+#: behaviour (a shared interest, a quiet stretch).
+REASON_WEIGHT: dict[str, float] = {
+    REASON_SCHEDULE: 1.0,
+    REASON_CALLBACK: 1.0,
+    REASON_EVENT: 1.0,
+    REASON_SHARED_INTEREST: 0.5,
+    REASON_CHECK_IN: 0.5,
+}
+#: source_type stored for each reason.
+_SOURCE_OF_REASON: dict[str, str] = {
+    REASON_SCHEDULE: SOURCE_AGENDA,
+    REASON_EVENT: SOURCE_LIFE_EVENT,
+    REASON_CALLBACK: SOURCE_CALLBACK,
+    REASON_SHARED_INTEREST: SOURCE_SHARED_INTEREST,
+    REASON_CHECK_IN: SOURCE_CHECK_IN,
+}
 
 
-def compose_hook(source, reason: str) -> str:
+def _ago(hours: float) -> str:
+    text = duration(hours)
+    return text if text == "just now" else f"{text} ago"
+
+
+def _relative(item: AgendaItem, now_h: float) -> str:
+    """Where a slot sits against now: ahead, under way, or over."""
+    if now_h < item.start_t_h:
+        left = duration(item.start_t_h - now_h)
+        return "starts now" if left == "just now" else f"starts in {left}"
+    if now_h <= item.end_t_h:
+        return "happening now"
+    return f"ended {_ago(now_h - item.end_t_h)}"
+
+
+def compose_hook(source, reason: str, now_h: float | None = None) -> str:
     """Deterministic hook composed from source fields (never invented free text).
-    The content gate re-derives it and rejects mismatches."""
+    The content gate re-derives it and rejects mismatches.
+
+    ``now_h`` is the intent's creation time: an agenda hook then says where
+    the slot sits against it ("starts in 1h 51m", "happening now", "ended
+    20m ago"), so an upcoming slot never reads as one under way (live
+    2026-09-27: 09:39, "Agenda: … cookie recipe … (11:30–11:55)" and she
+    wrote "So I'm making cookies"). Without it the hook has no relative part.
+    """
     if isinstance(source, AgendaItem):
         if reason == REASON_EVENT:
-            return f"Finished: {source.activity}"
+            if now_h is None:
+                return f"Finished: {source.activity}"
+            return f"Finished: {source.activity}, {_ago(now_h - source.end_t_h)}"
         # HH:MM, never raw t_h: the hook renders verbatim into the state card.
-        return (
+        hook = (
             f"Agenda: {source.activity} "
             f"({hhmm(source.start_t_h)}\u2013{hhmm(source.end_t_h)})"
         )
+        return hook if now_h is None else f"{hook}, {_relative(source, now_h)}"
     if isinstance(source, LifeArc):
-        return f"Arc: {source.name} — {source.next_intention}"
+        return f"Arc: {source.name}, next: {source.next_intention}"
     if isinstance(source, EpisodicMemory):
         if reason == REASON_CHECK_IN:
-            return f"Check in — last shared moment: {source.summary}"
+            return f"Check in: {source.summary}"
         if reason == REASON_CALLBACK:
             return f"Callback: {source.summary}"
         if reason == REASON_SHARED_INTEREST:
@@ -84,11 +125,7 @@ def compose_hook(source, reason: str) -> str:
     raise TypeError(f"cannot compose a hook for {type(source).__name__}")
 
 
-def _validity_factor(reason: str) -> float:
-    return float(np.clip(REASON_VALIDITY_H[reason] / VALIDITY_WEIGHT_H, 0.25, 2.0))
-
-
-def _evidence(source, now_h: float, *, extra: str = "") -> str:
+def _evidence(source, *, extra: str = "") -> str:
     """Provenance chain string: the exact store facts the intent is built on."""
     if isinstance(source, AgendaItem):
         base = (
@@ -121,10 +158,9 @@ class _Candidate:
     source: AgendaItem | LifeArc | EpisodicMemory
     salience: float
     recency: float
-    validity: float
 
     def score(self) -> float:
-        return self.salience * self.recency * self.validity
+        return self.salience * self.recency * REASON_WEIGHT[self.reason]
 
 
 class IntentResolver:
@@ -168,15 +204,39 @@ class IntentResolver:
     # candidate collection
 
     def _candidates(self, now_h: float) -> list[_Candidate]:
-        out: list[_Candidate] = []
-        out.extend(self._agenda_candidates(now_h))
-        out.extend(self._life_event_candidates(now_h))
-        out.extend(self._callback_candidates(now_h))
-        out.extend(self._shared_interest_candidates(now_h))
+        out = [
+            *self._agenda_candidates(now_h),
+            *self._life_event_candidates(now_h),
+            *self._callback_candidates(now_h),
+            *self._shared_interest_candidates(now_h),
+        ]
         check_in = self._check_in_candidate(now_h)
         if check_in is not None:
             out.append(check_in)
-        return out
+        return self._drop_already_offered(out)
+
+    def _drop_already_offered(self, cands: list[_Candidate]) -> list[_Candidate]:
+        """An activity is offered as a reach-out once: a slot on her agenda
+        once before it, a finished one once after. Live 2026-09-24: a poem
+        finished the day before came back as a second "Finished:" reach-out;
+        on day 5 the pottery slot was offered twice in an hour and she
+        declined the second ("Already flagged this twice today"). A slot she
+        already announced in a negotiation counts as offered too."""
+        list_fn = getattr(self.store, "list_proactive_intents", None)
+        offered = set()
+        if callable(list_fn):
+            offered = {
+                (i.source_type, i.source_id)
+                for i in list_fn(status="fired")
+            }
+        informed_fn = getattr(self.store, "negotiation_informed_items", None)
+        if callable(informed_fn):
+            offered |= {(SOURCE_AGENDA, item_id) for item_id in informed_fn()}
+        return [
+            c for c in cands
+            if c.reason not in (REASON_EVENT, REASON_SCHEDULE)
+            or (_SOURCE_OF_REASON[c.reason], c.source.id) not in offered
+        ]
 
     def _agenda_candidates(self, now_h: float) -> list[_Candidate]:
         out = []
@@ -193,8 +253,7 @@ class IntentResolver:
                 continue
             recency = math.exp(-dist / AGENDA_RECENCY_TAU_H)
             out.append(
-                _Candidate(REASON_SCHEDULE, item, item.salience, recency,
-                           _validity_factor(REASON_SCHEDULE))
+                _Candidate(REASON_SCHEDULE, item, item.salience, recency)
             )
         return out
 
@@ -206,8 +265,7 @@ class IntentResolver:
                 continue
             recency = math.exp(-age / LIFE_EVENT_RECENCY_TAU_H)
             out.append(
-                _Candidate(REASON_EVENT, item, item.salience, recency,
-                           _validity_factor(REASON_EVENT))
+                _Candidate(REASON_EVENT, item, item.salience, recency)
             )
         return out
 
@@ -219,8 +277,7 @@ class IntentResolver:
                 continue
             recency = math.exp(-age / EPISODE_RECENCY_TAU_H)
             out.append(
-                _Candidate(REASON_CALLBACK, ep, ep.importance, recency,
-                           _validity_factor(REASON_CALLBACK))
+                _Candidate(REASON_CALLBACK, ep, ep.importance, recency)
             )
         return out
 
@@ -239,8 +296,7 @@ class IntentResolver:
             salience = ep.importance * max(interests[t] for t in matched)
             recency = math.exp(-age / EPISODE_RECENCY_TAU_H)
             out.append(
-                _Candidate(REASON_SHARED_INTEREST, ep, salience, recency,
-                           _validity_factor(REASON_SHARED_INTEREST))
+                _Candidate(REASON_SHARED_INTEREST, ep, salience, recency)
             )
         return out
 
@@ -257,8 +313,7 @@ class IntentResolver:
             return None  # no episodes to ground a check-in on
         anchor = max(episodes, key=lambda e: (e.occurred_at_t_h, e.created_at_t_h))
         recency = float(np.clip(gap / CHECK_IN_RECENCY_NORM_H, 0.2, 1.0))
-        return _Candidate(REASON_CHECK_IN, anchor, CHECK_IN_SALIENCE, recency,
-                          _validity_factor(REASON_CHECK_IN))
+        return _Candidate(REASON_CHECK_IN, anchor, CHECK_IN_SALIENCE, recency)
 
     # ranking and intent construction
 
@@ -270,16 +325,6 @@ class IntentResolver:
             return tied[0]
         return tied[int(self._rng.integers(0, len(tied)))]
 
-    @staticmethod
-    def _source_kind(reason: str) -> str:
-        return {
-            REASON_SCHEDULE: SOURCE_AGENDA,
-            REASON_EVENT: SOURCE_LIFE_EVENT,
-            REASON_CALLBACK: SOURCE_CALLBACK,
-            REASON_SHARED_INTEREST: SOURCE_SHARED_INTEREST,
-            REASON_CHECK_IN: SOURCE_CHECK_IN,
-        }[reason]
-
     def _build_intent(
         self,
         candidate: _Candidate,
@@ -289,7 +334,7 @@ class IntentResolver:
     ) -> ProactiveIntent:
         source = candidate.source
         reason = candidate.reason
-        source_type = self._source_kind(reason)
+        source_type = _SOURCE_OF_REASON[reason]
         source_id = source.id
         if reason == REASON_CHECK_IN:
             last = self.store.latest_interaction_t_h()
@@ -306,10 +351,10 @@ class IntentResolver:
             reason=reason,
             source_type=source_type,
             source_id=source_id,
-            hook=compose_hook(source, reason),
+            hook=compose_hook(source, reason, now_h),
             created_t_h=now_h,
             valid_until_t_h=valid_until,
             salience=float(candidate.score()),
-            evidence=_evidence(source, now_h, extra=extra),
+            evidence=_evidence(source, extra=extra),
             opportunity_id=opportunity.id if opportunity is not None else None,
         )

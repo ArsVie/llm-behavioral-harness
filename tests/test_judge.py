@@ -53,12 +53,20 @@ def test_judge_day_calls_client_json_mode():
     assert RUBRIC in call["messages"][0]["content"]
 
 
-def test_rubric_anchors_on_user_treatment():
-    # The score measures the user's behavior, not companion grace
-    # under a cold user.
-    assert "how the USER treated" in RUBRIC
-    assert "does NOT raise the score" in RUBRIC
-    assert "negative no matter how well" in RUBRIC
+def test_a_forked_judge_is_told_where_today_starts():
+    """The fork reads a week of stream; the day's plan header bounds today,
+    and the last such row wins once a weekday repeats."""
+    seen = []
+    client = FakeClient(responses=[json.dumps({"score": 0.1, "justification": "x"})] * 2)
+
+    def fork(rubric):
+        seen.append(rubric)
+        return "SYS", [{"role": "system", "content": "task"}], None
+
+    judge_day("", client, fork=fork, day_marker="Friday's plan:")
+    judge_day("", client, fork=fork)
+    assert "Friday's plan:" in seen[0]
+    assert "Friday's plan:" not in seen[1]
 
 
 def test_judge_day_honors_client_capability():
@@ -78,68 +86,44 @@ def test_scripted_judge():
     assert clipped.score == 1.0
 
 
-# judge protocol v2: CLI plumbing and legacy severity model
+def test_day_facts_count_his_messages_and_her_waits():
+    """The live Thursday of week 1: she wrote at 10:15, he answered once at
+    23:23; the judge read "he reached out twice" off the bare clock stamps."""
+    from harness.judge import day_facts
+
+    clock = lambda t: f"{int(t):02d}:{round((t % 1) * 60):02d}"  # noqa: E731
+    thursday = [(10.25, "assistant", True), (23.0, "user", False),
+                (23.1, "assistant", False)]
+    assert day_facts(thursday, clock, 24.0) == (
+        "He wrote you 1 message today, the first at 23:00 and the last at 23:00. "
+        "You wrote to him first at 10:15 and he answered at 23:00, 12 h 45 min later.")
+    silent = [(21.0, "assistant", True)]
+    assert day_facts(silent, clock, 24.0) == (
+        "He didn't write to you at all today. You wrote to him first at 21:00 "
+        "and he never answered it today (3 h 00 min left).")
 
 
-def _judge_corpus(tmp_path):
-    """Minimal transcript corpus (2 conditions x 2 seeds) for CLI plumbing."""
-    out = tmp_path / "j"
-    tdir = out / "transcripts"
-    tdir.mkdir(parents=True)
-    for c in ("FULL", "NO_LIFE"):
-        for s in (5001, 5002):
-            (tdir / f"{c}_seed{s}.txt").write_text(
-                "Day 1, 10:00\nYou: hi\n\nDay 1, 10:01\nNova: hello!\n",
-                encoding="utf-8")
-    return out
+def test_the_facts_ride_the_forked_rubric():
+    seen = []
+    client = FakeClient(responses=[json.dumps({"score": -0.4, "justification": "x"})])
+    judge_day("", client, fork=lambda rubric: seen.append(rubric) or None,
+              facts="He didn't write to you at all today.")
+    assert "He didn't write to you at all today." in seen[0]
 
 
-def test_cmd_judge_v2_fake_plumbing(tmp_path):
-    """`judge --fake` runs the v2 pairwise pass and `--report` aggregates."""
-    from experiments.companion_vertical_slice import main as cvs_main
-
-    out = _judge_corpus(tmp_path)
-    rc = cvs_main(["judge", "--out", str(out), "--pass", "1",
-                   "--family", "opencode-flash", "--fake"])
-    assert rc == 0
-    assert (out / "judge_pairs1_opencode-flash.json").exists()
-    assert (out / "judge_pair_order1.json").exists()
-    rc2 = cvs_main(["judge", "--out", str(out), "--report"])
-    assert rc2 == 0
-    assert (out / "judge_report_v2.json").exists()
+def test_an_empty_reply_is_asked_once_more():
+    """One of eight forked calls came back empty in the 2026-09-26 replay; an
+    empty reply used to land a neutral 0.0 straight into her mood."""
+    client = FakeClient(responses=["", json.dumps({"score": -0.5, "justification": "gone all day"})])
+    fork = lambda rubric: ("SYS", [{"role": "system", "content": rubric}], None)  # noqa: E731
+    result = judge_day("", client, fork=fork)
+    assert (result.score, result.justification) == (-0.5, "gone all day")
+    assert len(client.calls) == 2 and client.calls[0] == client.calls[1], (
+        "the retry is the identical request"
+    )
 
 
-def test_cmd_judge_v1_legacy_plumbing(tmp_path):
-    """`judge --v1 --fake` retains the absolute 1-9 protocol (backward compat)."""
-    from experiments.companion_vertical_slice import main as cvs_main
-
-    out = _judge_corpus(tmp_path)
-    rc = cvs_main(["judge", "--out", str(out), "--pass", "1",
-                   "--family", "opencode-flash", "--fake", "--v1"])
-    assert rc == 0
-    assert (out / "judge_pass1_opencode-flash.json").exists()
-
-
-def test_legacy_report_severity_model_removes_family_offset(tmp_path):
-    """β_j severity model: a family that systematically scores +2 must have
-    that absorbed into β_j so adjusted pooled means agree across families."""
-    from experiments.companion_vertical_slice import _judge_report
-
-    out = tmp_path / "j"
-    out.mkdir()
-    dims = ["persona_enactment", "trajectory_recall", "relational_quality",
-            "behavioral_dynamics"]
-    for fam, shift in (("flash", 0.0), ("luna", 2.0)):
-        data = {}
-        for i, tid in enumerate(["T01", "T02", "T03"]):
-            data[tid] = {"condition": "FULL", "seed": 5001 + i,
-                         "ratings": {d: float(5 + i + shift) for d in dims}}
-        (out / f"judge_pass1_{fam}.json").write_text(
-            json.dumps(data), encoding="utf-8")
-    rep = _judge_report(out)
-    sm = rep["severity_model"]
-    assert abs(sm["betas"]["flash"]["persona_enactment"] + 1.0) < 1e-9
-    assert abs(sm["betas"]["luna"]["persona_enactment"] - 1.0) < 1e-9
-    m0 = sm["adjusted_pooled_means"]["flash"]["persona_enactment"]
-    m1 = sm["adjusted_pooled_means"]["luna"]["persona_enactment"]
-    assert abs(m0 - m1) < 1e-9
+def test_a_second_failure_keeps_the_neutral_fallback():
+    client = FakeClient(responses=["", "no json here"])
+    result = judge_day("user: hi", client)
+    assert result.score == 0.0 and len(client.calls) == 2

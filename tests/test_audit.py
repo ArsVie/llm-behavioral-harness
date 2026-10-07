@@ -183,3 +183,26 @@ def test_cli_call_and_conversation(tmp_path, capsys):
     assert main(["--store", str(tmp_path / "audit.db"),
                  "--call", str(call_id), "--out", str(out_file)]) == 0
     assert HEADER_SYSTEM in out_file.read_text(encoding="utf-8")
+
+
+def test_a_turn_ledger_hash_is_the_request_that_was_sent(tmp_path):
+    """The ledger records the stable system and messages the model received,
+    not a separately assembled prompt nobody sent."""
+    from harness.client import FakeClient
+    from harness.store import _hash
+    from tests.helpers.store import make_session
+
+    sent = []
+
+    class _Recording(FakeClient):
+        def chat_with_meta(self, messages, **kwargs):
+            sent.append(kwargs["system"] + "\n" + repr(messages))
+            return super().chat_with_meta(messages, **kwargs)
+
+    store = SQLiteStore(tmp_path / "audit.db", audit_mode=True)
+    make_session(store, client=_Recording(responses=["ok!"])).on_message("hey")
+    (prompt_hash,) = store.conn.execute(
+        "SELECT prompt_hash FROM llm_calls WHERE role = 'chat'"
+    ).fetchone()
+    store.close()
+    assert prompt_hash == _hash(sent[-1])

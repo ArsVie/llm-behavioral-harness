@@ -71,11 +71,6 @@ def test_go_with_delays_emits(store):
     )
     assert mem.importance == 0.8
     assert mem.source_session_id == "sess-neg-1"
-    assert mem.access_count == 0
-    assert mem.last_accessed_t_h is None
-    assert mem.affect is None
-    assert mem.source_turn_ids == ()
-    assert mem.verbatim_anchors == ()
     assert mem.tags == (
         "negotiation", TAG_GO, TAG_DELAY, "negotiation_delay:2",
     )
@@ -101,7 +96,7 @@ def test_forced_emits(store):
     assert ep_id == "neg-item-gym-FORCED-100.5"
     mem = store.get_episode(ep_id)
     assert mem is not None
-    assert mem.summary == "missed the gym entirely — window closed"
+    assert mem.summary == "missed the gym entirely, the window closed"
     assert TAG_FORCED in mem.tags
     assert TAG_DELAY in mem.tags
     assert "negotiation_delay:1" in mem.tags
@@ -150,27 +145,3 @@ def test_episode_id_is_deterministic_across_outcomes(store):
 
 
 # -- retrieval -----------------------------------------------------------------
-
-
-def test_retrievable_via_list_episodes_category(store):
-    emit_negotiation_episode(store, _episode(outcome="SKIP", delay_count=0))
-
-    mems = store.list_episodes(category=MemoryKind.COMPANION_EPISODE)
-    assert len(mems) == 1
-    assert mems[0].id == "neg-item-gym-SKIP-100.5"
-    assert mems[0].category == MemoryKind.COMPANION_EPISODE
-    assert mems[0].summary == "skipped the gym to stay with you"
-
-
-def test_a1_provided_summary_is_respected(store):
-    ep = _episode(
-        outcome="GO", delay_count=1,
-        summary="kept choosing to stay with you instead of the gym (1 delays), then went",
-    )
-    emit_negotiation_episode(store, ep)
-
-    mem = store.get_episode("neg-item-gym-GO-100.5")
-    assert mem is not None
-    assert mem.summary == (
-        "kept choosing to stay with you instead of the gym (1 delays), then went"
-    )

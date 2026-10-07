@@ -25,7 +25,13 @@ Modules:
 - ``memory``      — the memory-pipeline day driver (``run_day`` +
   ``save_day_judgement``, ex test_memory).
 - ``life``        — the life-lane day loop (``run_life_days``, the
-  superset of test_life/_run_days and test_life_long_horizon/_run_days).
+  superset of test_life/_run_days and test_life_long_horizon/_run_days)
+  and their shared ``life_persona``.
+
+Imported by module path only: ``runtime`` (run_runtime/ground_agenda/
+schedule_rows), ``tools`` (decision_store/call_from/native_call), ``client``
+(client_with), ``domain_builders``, ``prompt_session`` (lily_session),
+``migrations``, ``misc``, ``steering``.
 """
 
 from tests.helpers.store import make_session, make_store
@@ -76,6 +82,7 @@ __all__ = [
     "FakeApplication",
     "FakeBot",
     "StubUpdate",
+    "feed_when_started",
     "GateSleeper",
     "ManualClock",
     "AnchorManualClock",

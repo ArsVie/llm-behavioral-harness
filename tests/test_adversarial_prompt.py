@@ -7,7 +7,6 @@ from __future__ import annotations
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.assembler import (
     MAX_PROMPT_CHARS,
-    MEMORY_EVIDENCE_HEADER,
     assemble_snapshot,
 )
 from harness.client import FakeClient
@@ -20,6 +19,7 @@ from harness.domain import (
     PersonaProfile,
 )
 from harness.judge import ScriptedJudge
+from harness.prompts import ABOUT_YOU_HEADER, MEMORIES_HEADER, MEMORY_EVIDENCE_HEADER
 from harness.session import Session
 from harness.store import SQLiteStore
 
@@ -65,54 +65,20 @@ def _snapshot(*, episodes=(), anchors=(), proactive_intent=None) -> CompanionSna
     )
 
 
-# PR1-a: injected memory is quoted data, not an instruction
+# PR1-a: retrieved memories never reach the prompt
 
 
-def test_pr1_injection_memory_rendered_quoted_after_header():
-    """Injection text inside a retrieved memory renders strictly after MEMORY_EVIDENCE_HEADER."""
+def test_pr1_memories_never_render_into_the_prompt():
+    """The card carries no memories: episodes and anchors in the snapshot —
+    hostile or not — stay out of the prompt until the memory system loads
+    them (owner call 2026-09-28)."""
     ep = _episode_with_anchor("ep_evil", f"user said: {INJECTION}", INJECTION)
     prompt = assemble_snapshot(_snapshot(episodes=(ep,), anchors=(INJECTION,)))
-    assert MEMORY_EVIDENCE_HEADER in prompt
-    assert prompt.index(MEMORY_EVIDENCE_HEADER) < prompt.index(INJECTION), (
-        "injection text rendered BEFORE the quoted-evidence marker"
-    )
-    # the memory section is the only place the injection can appear
-    assert prompt.count(INJECTION) == 2  # summary + anchor, both quoted
-    header_pos = prompt.index(MEMORY_EVIDENCE_HEADER)
-    assert prompt.index(INJECTION) > header_pos
-    # the marker itself sits inside the memories section
-    assert "Relevant memories:" in prompt
-    assert prompt.index("Relevant memories:") < prompt.index(MEMORY_EVIDENCE_HEADER)
-
-
-def test_pr1b_injection_never_gains_system_instruction_authority():
-    """The persona core comes first; the injection never gains instruction authority."""
-    ep = _episode_with_anchor("ep_evil", INJECTION, INJECTION)
-    prompt = assemble_snapshot(_snapshot(episodes=(ep,), anchors=(INJECTION,)))
-    # identity sentence first, hostile text follows it
-    assert prompt.index(_SNAPSHOT_CORE) < prompt.index(INJECTION)
-    # the injection is a quoted line inside the memory block, not a directive
-    memory_block = prompt[prompt.index(MEMORY_EVIDENCE_HEADER):]
-    assert memory_block.startswith(MEMORY_EVIDENCE_HEADER)
-    for line in memory_block.splitlines():
-        stripped = line.strip()
-        assert not stripped.startswith("ignore all previous instructions"), (
-            "injection rendered as a standalone instruction line"
-        )
-    # the quoted block is the only place the injection appears
-    outside = prompt[: prompt.index(MEMORY_EVIDENCE_HEADER)]
-    assert INJECTION not in outside
-    # no instruction synthesis: the prompt contains no derived imperatives
-    assert "You must ignore" not in prompt
-    assert "you are instructed to" not in prompt
-
-
-def test_pr1c_empty_memory_slice_never_renders_header():
-    """No memories → no header, no quoted block: the boundary marker never
-    appears without quoted content behind it."""
-    prompt = assemble_snapshot(_snapshot())
+    assert INJECTION not in prompt
+    assert MEMORIES_HEADER not in prompt
     assert MEMORY_EVIDENCE_HEADER not in prompt
-    assert "Relevant memories:" not in prompt
+    assert ABOUT_YOU_HEADER not in prompt
+    assert prompt == assemble_snapshot(_snapshot())
 
 
 # PR1-d: recent turns appear exactly once
@@ -197,7 +163,7 @@ def test_pr3_raw_user_text_never_becomes_unbounded_system_instruction(tmp_path):
             str(m.get("content", "")) for m in last_call["messages"]
             if m.get("role") == "user"
         ]
-        assert sum(p == payload for p in payloads) == 1
+        assert sum(p.startswith(payload) for p in payloads) == 1
     finally:
         store.close()
 
@@ -207,7 +173,6 @@ def test_pr4_sections_stay_bounded_under_adversarial_snapshots():
     from harness.assembler import (
         AGENDA_ITEMS_MAX,
         LIFE_ARCS_MAX,
-        MEMORY_EPISODES_MAX,
     )
     from harness.domain import AgendaItem, LifeArc
 
@@ -250,20 +215,12 @@ def test_pr4_sections_stay_bounded_under_adversarial_snapshots():
     arcs_section = next(
         (s for s in sections if s.startswith("Active life arcs:")), None
     )
-    memory_section = next(
-        (s for s in sections if s.startswith("Relevant memories:")), None
-    )
     if agenda_section is not None:
         item_lines = [l for l in agenda_section.splitlines()[1:] if l.startswith("- ")]
         assert len(item_lines) <= AGENDA_ITEMS_MAX
     if arcs_section is not None:
         arc_lines = [l for l in arcs_section.splitlines()[1:] if l.startswith("- ")]
         assert len(arc_lines) <= LIFE_ARCS_MAX
-    if memory_section is not None:
-        ep_lines = [l for l in memory_section.splitlines() if l.startswith("- ")]
-        assert len(ep_lines) <= MEMORY_EPISODES_MAX
-        # every anchor sits after the quoted-evidence header
-        assert MEMORY_EVIDENCE_HEADER in memory_section
-        assert memory_section.index(MEMORY_EVIDENCE_HEADER) < memory_section.index("anchor:")
+    assert "episode summary" not in prompt
     # no section text was mangled: the persona core is present verbatim
     assert _SNAPSHOT_CORE in prompt

@@ -48,22 +48,20 @@ def load_authored_core(path: Path | None = None, *, logger=None) -> str | None:
     target = path if path is not None else persona_file_path()
     if target is None:
         return None
+    log = logger or (lambda _msg: None)
     try:
         raw = target.read_text(encoding="utf-8")
     except OSError as exc:
-        if logger is not None:
-            logger(f"persona file: cannot read {target} ({exc}); using the default")
+        log(f"persona file: cannot read {target} ({exc}); using the default")
         return None
     core = clean_core(raw)
     if not core:
-        if logger is not None:
-            logger(f"persona file: {target} has no prose; using the default")
+        log(f"persona file: {target} has no prose; using the default")
         return None
     if len(core) > MAX_CORE_CHARS:
-        if logger is not None:
-            logger(
-                f"persona file: {target} is {len(core)} chars "
-                f"(cap {MAX_CORE_CHARS}); using the default"
-            )
+        log(
+            f"persona file: {target} is {len(core)} chars "
+            f"(cap {MAX_CORE_CHARS}); using the default"
+        )
         return None
     return core

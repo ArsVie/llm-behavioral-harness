@@ -8,6 +8,7 @@ reconciliation was.
 
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from typing import Any
 
@@ -34,8 +35,6 @@ def _render(content: Any) -> str:
         return ""
     if isinstance(content, str):
         return content
-    import json
-
     return json.dumps(content, ensure_ascii=False, sort_keys=True)
 
 
@@ -53,8 +52,6 @@ def estimate_tools(tools: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
     An entry with no schema body — a name-only leftover in an old store —
     prices ``None``: off the name alone any number would be fabricated.
     """
-    import json
-
     priced: list[dict[str, Any]] = []
     for tool in tools or []:
         body = tool.get("function") or tool

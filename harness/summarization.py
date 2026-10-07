@@ -1,33 +1,17 @@
-"""L2 summarization interfaces.
-
-Two implementations of one callable contract (``Summarizer``):
-``DeterministicSummaryExtractor`` is the heuristic testing path;
-``SemanticSummaryExtractor`` is the LLM-backed path, where only the prose
-summary can come from the model.
+"""L2 session summarization: the ``Summarizer`` contract and its
+deterministic default, ``deterministic_summarizer`` (no LLM).
 """
 
 from __future__ import annotations
 
 import re
-from dataclasses import replace
-from typing import Callable, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 from harness.domain import AffectMetadata, SessionSummary
+from harness.summarization_facts import Callback, _callbacks, _extract_facts, _Fact
 
-__all__ = [
-    "Summarizer",
-    "DeterministicSummaryExtractor",
-    "SemanticSummaryExtractor",
-    "deterministic_summarizer",
-]
+__all__ = ["Summarizer", "deterministic_summarizer"]
 
-# Fact extraction lives in harness.summarization_facts; its names are re-exported here.
-from harness.summarization_facts import (  # noqa: E402
-    Callback,
-    _callbacks,
-    _extract_facts,
-    _Fact,
-)
 
 def _affect_observation(msg: dict, score: float | None) -> AffectMetadata:
     """Deterministic affect metadata for one user turn.
@@ -68,9 +52,6 @@ def _affect_observations(messages: list[dict], score: float | None) -> tuple[Aff
     return tuple(obs)
 
 
-# Deterministic session summarizer.
-
-
 @runtime_checkable
 class Summarizer(Protocol):
     """Callable contract shared by every L2 summary extractor."""
@@ -101,6 +82,8 @@ _STOP = frozenset(
 def _topics(messages: list[dict], n: int = 5) -> tuple[str, ...]:
     counts: dict[str, int] = {}
     for msg in messages:
+        if msg.get("role") not in ("user", "assistant"):
+            continue  # her state cards and plans are not what they talked about
         for tok in _TOKENS_RE.findall(str(msg.get("content", "")).lower()):
             if len(tok) >= 4 and tok not in _STOP:
                 counts[tok] = counts.get(tok, 0) + 1
@@ -230,83 +213,3 @@ def deterministic_summarizer(
         importance=_session_importance(facts, cbs, observations, len(messages)),
         source_turn_ids=tuple(int(m["id"]) for m in messages if "id" in m),
     )
-
-
-class DeterministicSummaryExtractor:
-    """Heuristic L2 extractor — the TESTING path (deterministic, no LLM).
-
-    Identical behavior to the module function ``deterministic_summarizer``;
-    the class form exists so both paths share one callable interface.
-    """
-
-    def __call__(
-        self,
-        session_id: str,
-        messages: list[dict],
-        judgement: dict | None,
-        started_at_t_h: float,
-        ended_at_t_h: float,
-    ) -> SessionSummary:
-        return deterministic_summarizer(
-            session_id, messages, judgement, started_at_t_h, ended_at_t_h
-        )
-
-
-class SemanticSummaryExtractor:
-    """LLM-backed L2 extractor — the research-quality path.
-
-    Takes an injectable client ``Callable[[str], str]`` (prompt -> completion
-    text). The model writes only the free-text ``summary``: ``source_turn_ids``
-    and every fact-derived field come from the REAL messages, so no
-    model-generated fact can become an L4 assertion.
-
-    On client failure or empty output the deterministic summary is returned
-    unchanged (degradation, never fabrication).
-    """
-
-    def __init__(
-        self,
-        client: Callable[[str], str],
-        *,
-        fallback: Callable[..., SessionSummary] | None = None,
-        prompt_template: str | None = None,
-    ) -> None:
-        self._client = client
-        self._fallback = fallback or deterministic_summarizer
-        self._prompt_template = prompt_template or (
-            "Summarize this companion-user conversation session in one "
-            "paragraph (2-4 sentences). Mention the user's disclosures, "
-            "preferences and emotional tone. Conversation:\n\n{turns}"
-        )
-
-    @staticmethod
-    def _render_turns(messages: list[dict], max_chars: int = 4000) -> str:
-        lines = []
-        used = 0
-        for m in messages:
-            line = f"{m.get('role', '?')}: {m.get('content', '')}"
-            if used + len(line) > max_chars:
-                break
-            lines.append(line)
-            used += len(line)
-        return "\n".join(lines)
-
-    def __call__(
-        self,
-        session_id: str,
-        messages: list[dict],
-        judgement: dict | None,
-        started_at_t_h: float,
-        ended_at_t_h: float,
-    ) -> SessionSummary:
-        base = self._fallback(session_id, messages, judgement, started_at_t_h, ended_at_t_h)
-        prompt = self._prompt_template.format(turns=self._render_turns(messages))
-        try:
-            text = self._client(prompt)
-        except Exception:  # noqa: BLE001
-            return base
-        text = (text or "").strip()
-        if not text:
-            return base
-        # The model replaces only the prose.
-        return replace(base, summary=text[:2000])

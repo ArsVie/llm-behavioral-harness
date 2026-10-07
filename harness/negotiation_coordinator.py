@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 
+from harness.faces import strip_face
 from harness.negotiation_contract import (
     DEFER_TURNS_KEY,
     SHORT_AFK_H,
@@ -15,6 +16,7 @@ from harness.negotiation_contract import (
     NegotiationPhase,
     is_skippable,
 )
+from harness.negotiation_episodes import emit_negotiation_episode
 from harness.negotiation_state import (
     NegotiationState,
     decide_status_at,
@@ -27,12 +29,6 @@ from harness.negotiation_state import (
     window_ending_at,
 )
 from harness.steering import KIND_EVENT_POPUP, Steer
-
-try:  # A3's episode hook; checkouts without it emit no episodes.
-    from harness.negotiation_episodes import emit_negotiation_episode
-except ImportError:  # pragma: no cover — A3 not merged in this checkout
-    emit_negotiation_episode = None
-
 
 #: Departure note appended to the turn when a go verdict resolves; says WHAT she
 #: decided and leaves the wording to her (the verdict's ``reason`` stays internal).
@@ -49,11 +45,11 @@ START_NOTE = (
 
 
 class NegotiationMixin:
+    """Session's availability-negotiation half. Never instantiated alone."""
+
     #: The drain of the turn currently being generated; a verdict resolving
     #: mid-turn writes its note here. None = clock-driven path (channel fallback).
     _active_drain = None
-
-    """Session's availability-negotiation half. Never instantiated alone."""
 
     def _restore_negotiations(self) -> dict[str, NegotiationState]:
         """Rebuild active negotiations from persisted ``negotiation_state`` state
@@ -97,10 +93,7 @@ class NegotiationMixin:
         conv = self._conversation
         if conv is None:
             return None
-        anchor = self._last_user_turn_t_h(conv)
-        if anchor is None:
-            anchor = conv.opened_t_h
-        return anchor
+        return self._user_anchor_t_h(conv)
 
     def next_negotiation_trigger_t_h(self, now: float) -> float | None:
         """Next strictly-future negotiation wake instant for the runtime's rollover
@@ -115,23 +108,27 @@ class NegotiationMixin:
 
     def check_negotiation(self, now: float) -> tuple[tuple[str, str], ...]:
         """Runtime wake hook: run event-boundary detection and every due decide leg
-        (AFK bomb or window close) of the active negotiations, returning the
-        proactive ``(reason, text)`` channel messages. At most one decide leg per
-        virtual instant per item."""
-        outs: list[tuple[str, str]] = []
+        (AFK bomb or window close) of the active negotiations. Returns the
+        channel messages, always none: a decision outside a conversation is
+        Telegram-silent. At most one decide leg per virtual instant per item,
+        and one decision call per wake (owner ruling 2026-10-03, one pop-up per
+        turn): a further due leg stays due and runs at the next wake."""
         if self._decision is None or self._steering is None:
             return ()
         day = int(now // 24.0)
         if self._decision_enabled:
             self._enqueue_event_popups(day, now)
+        calls_before = self._decision_calls
         for item_id in list(self._negotiations):
             st = self._negotiations[item_id]
             status = decide_status_at(st, now=now, companion_turn=False)
             if status == "forced":
                 self._resolve_forced(st, now)
+            elif status == "due" and self._decision_calls > calls_before:
+                continue
             elif status == "due":
-                self._run_decide_leg(st, day, now, outs, afk_path=True)
-        return tuple(outs)
+                self._run_decide_leg(st, day, now, afk_path=True)
+        return ()
 
     def _maybe_heads_up(
         self,
@@ -165,6 +162,11 @@ class NegotiationMixin:
             return
         if t_h >= item.start_t_h - 1e-12 or t_h >= item.end_t_h - 1e-12:
             return                      # not a lead-time instant any more
+        self._open_negotiation(item, day, t_h, steer, proactive_out)
+
+    def _open_negotiation(self, item, day: int, t_h: float, steer: Steer,
+                          proactive_out: list[tuple[str, str]]) -> None:
+        """Start a negotiation for ``item``, persist it and run its Inform leg."""
         st = NegotiationState(
             item_id=item.id,
             activity=item.activity,
@@ -194,9 +196,15 @@ class NegotiationMixin:
         if self._decision is None or self._steering is None:
             return False
         conv = self._conversation
+        st = self._negotiations.get(item_id)
+        if st is not None and conv is None and st.informed is True:
+            # Informed, it is the machine's to decide even after the
+            # conversation closed: handing the pop-up to plain semantics
+            # decided it twice (live 2026-09-21 21:50 — the pop-up here, then
+            # the negotiation's own decide leg at the next wake).
+            return True
         if conv is None:
             return False  # no open conversation: plain semantics
-        st = self._negotiations.get(item_id)
         if st is not None:
             if (
                 st.phase == NegotiationPhase.INFORM.value
@@ -216,17 +224,7 @@ class NegotiationMixin:
         if conv.opened_t_h > item.start_t_h + 1e-12:
             # Opened after the boundary: no negotiation, the start pop-up decides.
             return False
-        st = NegotiationState(
-            item_id=item.id,
-            activity=item.activity,
-            source_type=item.source_type,
-            start_t_h=item.start_t_h,
-            end_t_h=item.end_t_h,
-            salience=item.salience,
-        )
-        self._negotiations[item.id] = st
-        self._persist_negotiation(st, t_h)
-        self._run_inform(st, day, t_h, steer, proactive_out)
+        self._open_negotiation(item, day, t_h, steer, proactive_out)
         return True
 
     def _run_inform(
@@ -242,6 +240,18 @@ class NegotiationMixin:
         deterministic decision id makes a restart replay, not re-roll."""
         assert self._decision is not None
         decision_id = f"neg-{st.item_id}-inform"
+        if t_h >= st.end_t_h - 1e-12:
+            # The window is over: there is nothing left to mention, and a late
+            # inform answered about a missed event (live 2026-10-02 14:25).
+            # Informed without words; the backstop settles the item.
+            st.informed = True
+            st.phase = NegotiationPhase.DECIDE.value
+            self._persist_negotiation(st, t_h)
+            self.store.log_event(
+                int(t_h // 24.0), t_h, "negotiation_inform_skipped",
+                f"item={st.item_id} window_closed",
+            )
+            return
         inputs = {
             "event_id": st.item_id,
             "event_label": st.activity,
@@ -261,10 +271,16 @@ class NegotiationMixin:
         # ONLY the ``message`` key reaches the channel; the parser normalizes a
         # legacy ``{initiate, reason}`` verdict onto it.
         mention = str((result.verdict or {}).get("message") or "").strip()
-        if not mention:
-            mention = f"I've got {st.activity} coming up soon."
+        # A server-drawn verdict carries no words of hers, and an empty
+        # mention is not filled in with harness text: the inform goes silent.
+        if result.source == "server_draw" or not strip_face(mention).strip():
+            mention = ""
 
-        proactive_out.append(("event_popup", mention))
+        # Her row keeps her face tags; what reaches him has them cut.
+        if mention and self._record_channel_text(
+            mention, t_h, decision_id=decision_id,
+        ):
+            proactive_out.append(("event_popup", strip_face(mention)))
         # Responded-bool marker: checked as ``informed is True``, never key presence.
         st.informed = True
         st.phase = NegotiationPhase.DECIDE.value
@@ -284,23 +300,33 @@ class NegotiationMixin:
         self,
         day: int,
         t_h: float,
-        proactive_out: list[tuple[str, str]],
         *,
         active_before: set[str],
+        calls_before: int | None = None,
     ) -> bool:
-        """Companion-turn decide trigger: run the due decide leg of every
-        negotiation already in DECIDE before this turn. True when a ``go`` resolved
-        (the ordinary reply is suppressed — single reply-path invariant)."""
+        """Companion-turn decide trigger: run the due decide leg of the
+        negotiations already in DECIDE before this turn. True when a ``go``
+        resolved (the ordinary reply is suppressed — single reply-path
+        invariant).
+
+        One pop-up per turn (owner ruling 2026-10-03): once this turn has
+        made a decision call (``_decision_calls`` past ``calls_before``), a
+        due leg waits for the next turn. A forced resolution makes no call
+        and always runs."""
         suppress = False
-        for item_id in active_before:
+        for item_id in sorted(active_before):
             st = self._negotiations.get(item_id)
             if st is None or st.resolved:
                 continue
             status = decide_status_at(st, now=t_h, companion_turn=True)
             if status == "forced":
                 self._resolve_forced(st, t_h)
+            elif status == "due" and calls_before is not None and (
+                self._decision_calls > calls_before
+            ):
+                continue
             elif status == "due":
-                self._run_decide_leg(st, day, t_h, proactive_out)
+                self._run_decide_leg(st, day, t_h)
                 if (
                     st.phase == NegotiationPhase.RESOLVED_GO.value
                     and self._active_drain is None
@@ -315,7 +341,6 @@ class NegotiationMixin:
         st: NegotiationState,
         day: int,
         t_h: float,
-        proactive_out: list[tuple[str, str]],
         *,
         afk_path: bool = False,
     ) -> None:
@@ -364,7 +389,6 @@ class NegotiationMixin:
             # Parse failure: no queue row to requeue; the next instant retries.
             return
         verdict = result.verdict or {}
-        reason = str(verdict.get("reason") or "")
         action = verdict.get("action")
         if action not in ("follow", "abandon", "defer"):
             # Pre-A2 verdicts carry no action; fall back to ``initiate``
@@ -375,63 +399,69 @@ class NegotiationMixin:
                 else None
             )
         if action == "follow":
-            self._resolve_go(st, t_h, reason, proactive_out)
-        elif action == "abandon":
-            self._resolve_skip(st, t_h, reason)
+            self._resolve_go(st, t_h)
         elif action == "defer":
             self._resolve_delay(st, t_h, verdict)
-        else:  # pragma: no cover — defensive: terminal and bounded
-            self._resolve_skip(st, t_h, reason or "no actionable verdict")
+        else:  # abandon, or (defensive) no actionable verdict: terminal skip
+            self._resolve_skip(st, t_h)
 
-    def _resolve_go(
-        self,
-        st: NegotiationState,
-        t_h: float,
-        reason: str,
-        proactive_out: list[tuple[str, str]],
-    ) -> None:
+    def _mark_item(self, st: NegotiationState, status: str) -> None:
+        """Record the item's outcome status (a store without agenda items
+        keeps none)."""
+        if hasattr(self.store, "update_agenda_item_status"):
+            self.store.update_agenda_item_status(st.item_id, status)
+
+    def _finish_resolution(self, st: NegotiationState, t_h: float,
+                           phase: NegotiationPhase, action: str, label: str,
+                           source_session_id: str | None = None) -> None:
+        """The terminal tail every resolution shares: phase, action and time
+        on the state, persisted, logged, and the episode emitted (``label``
+        upper-cased is the episode outcome). ``source_session_id`` defaults
+        to the open conversation's memory session."""
+        st.phase = phase.value
+        st.resolved_action = action
+        st.resolved_t_h = t_h
+        self._persist_negotiation(st, t_h)
+        if hasattr(self.store, "log_event"):
+            self.store.log_event(
+                int(t_h // 24.0), t_h, "negotiation_resolved",
+                f"item={st.item_id} outcome={label} delays={st.delay_count}",
+            )
+        if source_session_id is None:
+            conv = self._conversation
+            source_session_id = (self._memory_session_id(conv.id)
+                                 if conv is not None else "")
+        self._emit_episode(st, label.upper(), t_h, source_session_id)
+
+    def _resolve_go(self, st: NegotiationState, t_h: float) -> None:
         """go (follow): the turn generates her leaving, then the conversation
         closes (``followed_event``), the item completes and the episode fires.
 
         The departure rides as a note on the turn (``drain.decided_notes``) with
         the close deferred past the reply (``drain.close_after``); no turn in
-        flight (clock-driven) -> the channel carries it instead."""
+        flight (clock-driven) -> she leaves silently: ``reason`` is the
+        decision's audit field, never her words (VERBATIM "Decision reason and
+        delay"; live 2026-09-30 message 238 sent the rationale to him)."""
         drain = self._active_drain
         if drain is not None:
             drain.decided_notes.append(GO_NOTE.format(activity=st.activity))
             drain.close_after = "followed_event"
-        else:
-            # No turn to carry it (clock-driven AFK path): the channel carries it.
-            text = (reason or "").strip() or f"Time to go to {st.activity}."
-            proactive_out.append(("event_popup", text))
         conv = self._conversation
         source_session_id = ""
         if conv is not None:
             source_session_id = self._memory_session_id(conv.id)
             if drain is None:
                 self._close_conversation(conv, t_h, "followed_event")
-        if hasattr(self.store, "update_agenda_item_status"):
-            self.store.update_agenda_item_status(st.item_id, "completed")
-        st.phase = NegotiationPhase.RESOLVED_GO.value
-        st.resolved_action = "follow"
-        st.resolved_t_h = t_h
-        self._persist_negotiation(st, t_h)
-        self._log_resolution(st, t_h, "go")
-        self._emit_episode(st, "GO", t_h, source_session_id)
+        self._mark_item(st, "completed")
+        self._finish_resolution(st, t_h, NegotiationPhase.RESOLVED_GO, "follow",
+                                "go", source_session_id)
 
-    def _resolve_skip(self, st: NegotiationState, t_h: float, reason: str) -> None:
+    def _resolve_skip(self, st: NegotiationState, t_h: float) -> None:
         """skip (abandon): the activity is dropped (status ``skipped``, recorded);
         the conversation continues. Terminal."""
-        if hasattr(self.store, "update_agenda_item_status"):
-            self.store.update_agenda_item_status(st.item_id, "skipped")
-        st.phase = NegotiationPhase.RESOLVED_SKIP.value
-        st.resolved_action = "abandon"
-        st.resolved_t_h = t_h
-        self._persist_negotiation(st, t_h)
-        self._log_resolution(st, t_h, "skip")
-        self._emit_episode(st, "SKIP", t_h, self._memory_session_id(
-            self._conversation.id
-        ) if self._conversation is not None else "")
+        self._mark_item(st, "skipped")
+        self._finish_resolution(st, t_h, NegotiationPhase.RESOLVED_SKIP, "abandon",
+                                "skip")
 
     def _resolve_forced(self, st: NegotiationState, t_h: float,
                         reason: str | None = None) -> None:
@@ -440,29 +470,22 @@ class NegotiationMixin:
         no model call. Recorded as a decision row (source ``backstop``). Terminal."""
         if st.resolved:
             return
-        if hasattr(self.store, "update_agenda_item_status"):
-            self.store.update_agenda_item_status(st.item_id, "skipped")
+        self._mark_item(st, "skipped")
         if hasattr(self.store, "record_decision"):
             self.store.record_decision(
                 int(t_h // 24.0), t_h, "tool_decide_event",
                 st.item_id, st.activity, "decide", str(t_h), None, None,
                 json.dumps({
                     "initiate": False,
-                    "reason": reason or "missed it entirely — window closed",
+                    "reason": reason or "missed it entirely, the window closed",
                     "action": "abandon",
                     "forced_skip": True,
                 }, sort_keys=True),
                 "backstop", "server_draw", t_h, 0,
                 replay_id=f"neg-{st.item_id}-decide-{st.delay_count}",
             )
-        st.phase = NegotiationPhase.RESOLVED_FORCED.value
-        st.resolved_action = "forced"
-        st.resolved_t_h = t_h
-        self._persist_negotiation(st, t_h)
-        self._log_resolution(st, t_h, "forced")
-        self._emit_episode(st, "FORCED", t_h, self._memory_session_id(
-            self._conversation.id
-        ) if self._conversation is not None else "")
+        self._finish_resolution(st, t_h, NegotiationPhase.RESOLVED_FORCED, "forced",
+                                "forced")
 
     def _resolve_delay(self, st: NegotiationState, t_h: float,
                        verdict: dict) -> None:
@@ -486,22 +509,11 @@ class NegotiationMixin:
             f"item={st.item_id} n={n} delays={st.delay_count}",
         )
 
-    def _log_resolution(self, st: NegotiationState, t_h: float,
-                        outcome: str) -> None:
-        if hasattr(self.store, "log_event"):
-            self.store.log_event(
-                int(t_h // 24.0), t_h, "negotiation_resolved",
-                f"item={st.item_id} outcome={outcome} "
-                f"delays={st.delay_count}",
-            )
-
     def _emit_episode(self, st: NegotiationState, outcome: str, t_h: float,
                       source_session_id: str) -> None:
-        """Call the A3 episode hook (no-op when not importable). The salience gate
-        lives in A3; the hook is replay-idempotent (deterministic id upsert)."""
-        if emit_negotiation_episode is None or not hasattr(
-            self.store, "insert_episode"
-        ):
+        """Emit the negotiation episode (no-op on a store without episodes). The
+        salience gate lives in the hook; it is replay-idempotent."""
+        if not hasattr(self.store, "insert_episode"):
             return
         try:
             emit_negotiation_episode(self.store, NegotiationEpisode(

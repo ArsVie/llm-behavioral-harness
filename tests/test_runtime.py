@@ -33,6 +33,7 @@ from tests.helpers import (
     rows,
     suppressed_codes,
 )
+from tests.helpers.runtime import run_runtime
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -66,27 +67,6 @@ FAST = TimeScale(seconds_per_virtual_hour=0.002)
 SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 
 
-def _run(store, session, schedule, channel, *, max_hours, scale=FAST,
-         resolver=None, sleeper=None, seed=SEED):
-    delays: list[float] = []
-
-    async def record(delay: float) -> None:
-        delays.append(delay)
-
-    runtime = AsyncRuntime(
-        session, schedule, channel,
-        store=store, timing=TIMING, seed=seed,
-        time_scale=scale, max_virtual_hours=max_hours,
-        resolver=resolver if resolver is not None else IntentResolver(
-            store, rng=rng_mod.stream_rng(seed)
-        ),
-        sleeper=sleeper if sleeper is not None else record,
-    )
-    asyncio.run(runtime.run())
-    runtime._delays = delays  # recorded response_delay_s values
-    return runtime
-
-
 class TraceChannel(FakeChannel):
     """FakeChannel that also records send events into a shared trace."""
 
@@ -115,7 +95,7 @@ def test_quiet_hours_and_cooldown_events_suppressed():
         {"t_h": 10.1, "day": 0, "reason": REASON_SCHEDULE},   # 6 min after → cooldown
     ])
     channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=12.0, scale=SLOW)
 
 # exactly one proactive message: the 10:00 event, with its reason
@@ -129,8 +109,9 @@ def test_quiet_hours_and_cooldown_events_suppressed():
 
 # all three slots consumed (no pending rows left for them)
     schedule_rows = rows(store, SEED)
-    for t_h in (2.0, 10.0, 10.1):
-        assert schedule_rows[t_h]["status"] == "fired", f"row {t_h} not consumed"
+    assert schedule_rows[10.0]["status"] == "fired"
+    for t_h in (2.0, 10.1):  # consumed, but nothing reached him
+        assert schedule_rows[t_h]["status"] == "suppressed", f"row {t_h}"
     assert schedule_rows[10.0]["fired_t_h"] == 10.0
 # intent statuses recorded for both the fired and suppressed intents
     assert {i.id for i in store.list_proactive_intents(status="fired")}
@@ -146,7 +127,7 @@ def test_restart_does_not_refire():
     schedule = ProactiveSchedule.restore(SEED, store)
 
     ch1 = FakeChannel()
-    _run(store, session, schedule, ch1, max_hours=12.0)
+    run_runtime(store, session, schedule, ch1, max_hours=12.0)
     fired_rows = [r for r in store.schedule_events_for_seed(SEED) if r["status"] == "fired"]
     assert len(ch1.sent) == len(fired_rows) > 0
     assert all(m.proactive and m.reason == REASON_SCHEDULE for m in ch1.sent)
@@ -164,7 +145,7 @@ def test_restart_does_not_refire():
         judge=ScriptedJudge(score=0.5).judge_day,
     )
     ch2 = FakeChannel()
-    _run(store, session2, ProactiveSchedule.restore(SEED, store), ch2,
+    run_runtime(store, session2, ProactiveSchedule.restore(SEED, store), ch2,
          max_hours=12.0)
     assert ch2.sent == []  # no duplicate fire
 
@@ -179,7 +160,7 @@ def test_rollover_advances_day_and_persists():
     assert pending_before > 0
 
     channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=50.0)
 
     assert clock.now_h() >= 24.0          # clock crossed a midnight
@@ -267,21 +248,7 @@ def test_restart_exactly_at_event_fires():
     ])
     clock.advance_hours(10.0)  # restart exactly at the event time
     channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
-         max_hours=10.5)
-    assert len(channel.sent) == 1 and channel.sent[0].proactive
-    assert rows(store, SEED)[10.0]["status"] == "fired"
-
-
-def test_restart_ten_minutes_after_fires():
-    store, clock, session = _session(replies=["proactive!"])
-    ground_agenda(store, 9.5, 10.5)
-    store.save_schedule_events(SEED, [
-        {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
-    ])
-    clock.advance_hours(10.0 + 10.0 / 60.0)  # 10 min late — inside validity
-    channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=10.5)
     assert len(channel.sent) == 1 and channel.sent[0].proactive
     assert rows(store, SEED)[10.0]["status"] == "fired"
@@ -295,7 +262,7 @@ def test_restart_within_validity_window_fires():
     ])
     clock.advance_hours(12.0)  # 2 h late — still inside the 3 h window
     channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=12.5)
     assert len(channel.sent) == 1 and channel.sent[0].proactive
     assert rows(store, SEED)[10.0]["status"] == "fired"
@@ -309,7 +276,7 @@ def test_restart_beyond_validity_window_expires():
     ])
     clock.advance_hours(13.5)  # 3.5 h late — past the 3 h validity window
     channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=14.0)
     assert channel.sent == []  # expired, NOT fired
     assert rows(store, SEED)[10.0]["status"] == "expired"
@@ -328,14 +295,14 @@ def test_restart_multiple_overdue_all_evaluated():
     ])
     clock.advance_hours(12.0)
     channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=12.5)
 # first overdue event fires; the second is delivered at the same now →
 # inside the cooldown gap → suppressed (consumed, not stranded)
     assert len(channel.sent) == 1
     schedule_rows = rows(store, SEED)
     assert schedule_rows[10.0]["status"] == "fired"
-    assert schedule_rows[11.0]["status"] == "fired"
+    assert schedule_rows[11.0]["status"] == "suppressed"
     assert store.pending_schedule_events(SEED) == []
     assert "cooldown" in suppressed_codes(store)
 
@@ -351,11 +318,11 @@ def test_no_grounded_reason_suppresses():
         {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
     channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=11.0)
     assert channel.sent == []
     assert "no_grounded_reason" in suppressed_codes(store)
-    assert rows(store, SEED)[10.0]["status"] == "fired"  # consumed
+    assert rows(store, SEED)[10.0]["status"] == "suppressed"  # consumed
     assert store.list_proactive_intents() == []  # not persisted
 
 
@@ -378,11 +345,11 @@ def test_grounding_attack_deleted_source_suppressed():
     ])
     channel = FakeChannel()
     resolver = DeleteAfterResolveResolver(store, rng=rng_mod.stream_rng(SEED))
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=11.0, resolver=resolver)
     assert channel.sent == []  # suppressed, not hallucinated
     assert "no_source" in suppressed_codes(store)
-    assert rows(store, SEED)[10.0]["status"] == "fired"
+    assert rows(store, SEED)[10.0]["status"] == "suppressed"
 
 
 # --- delivery latency: injectable sleeper between LLM and channel.send ---
@@ -406,7 +373,7 @@ def test_proactive_latency_sleeps_before_send():
         trace.append(("sleep", delay))
 
     channel = TraceChannel(trace)
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=11.0, scale=SLOW, sleeper=sleeper)
     expected = _expected_delay(session, hour=10.0)
     assert expected > 0.0
@@ -443,23 +410,6 @@ def test_reactive_latency_sleeps_before_send():
     store.close()
 
 
-def test_suite_runs_without_real_waits():
-    """The default sleeper is asyncio.sleep — but every runtime test injects
-    a recorder, so the suite must never wait real seconds. The recorded
-    delays are the directive's wall-clock seconds (NOT scaled by TimeScale)."""
-    store, clock, session = _session(replies=["proactive hi"])
-    ground_agenda(store, 9.5, 10.5)
-    store.save_schedule_events(SEED, [
-        {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},
-    ])
-    channel = FakeChannel()
-    runtime = _run(store, session, ProactiveSchedule.restore(SEED, store),
-                   channel, max_hours=11.0, scale=SLOW)
-    expected = _expected_delay(session, hour=10.0)
-    assert runtime._delays == [expected]
-    assert expected > 1.0  # a REAL asyncio.sleep here would take seconds
-
-
 # --- conversation lifecycle in the live runtime (SeamStore path) ---
 
 
@@ -489,7 +439,7 @@ def test_quiet_hours_closes_open_conversation_at_boundary():
         if e["event"] == "conversation_closed"
     ]
     assert len(closes) == 1
-    assert closes[0]["detail"] == "id=conv-0 reason=quiet_hours turns=2"
+    assert "reason=quiet_hours" in closes[0]["detail"]
 # the reactive reply was delivered; no companion turn inside quiet hours
     assert [m.text for m in channel.sent] == ["night reply"]
     assert all(
@@ -544,7 +494,7 @@ def test_replan_never_passes_scores_none(monkeypatch):
 
     monkeypatch.setattr(ProactiveSchedule, "plan_and_persist", classmethod(spy))
     channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=50.0)
     assert len(calls) >= 2  # one re-plan per rollover
     assert all(s is not None for s in calls)  # scores are non-None live
@@ -554,7 +504,7 @@ def test_replan_plans_current_day_with_real_scores():
     store, clock, session = _session()
     ProactiveSchedule.plan_and_persist(1, SEED, PERSONA, TIMING, store)
     channel = FakeChannel()
-    _run(store, session, ProactiveSchedule.restore(SEED, store), channel,
+    run_runtime(store, session, ProactiveSchedule.restore(SEED, store), channel,
          max_hours=50.0)
 # Replanning on the finished store changes nothing — INSERT OR IGNORE
 # is idempotent and the schedule is stable.

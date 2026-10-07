@@ -8,7 +8,9 @@ they are reconstructed from the current code (``harness.tools``).
 
 from __future__ import annotations
 
+import calendar
 import json
+import re
 from typing import Any
 
 from harness.assembler import (
@@ -17,31 +19,41 @@ from harness.assembler import (
     CURRENT_INTENT_HEADER,
     PROACTIVE_OPENING,
     TEMPORAL_HEADER,
+    is_state_update,
 )
-from harness.persona import INTEREST_SENTENCE_PREFIX
+from harness.cache_audit import shared_message_count
 from harness.prompts import (
+    CALL_END_OPENER,
+    CALL_START_OPENER,
     ABOUT_YOU_HEADER,
     ACTIVITY_HEADER,
     AGENDA_HEADER,
     ARCS_HEADER,
     CLOSING_HEADER,
+    FICTION_FRAME,
     MEMORIES_HEADER,
     MEMORY_EVIDENCE_HEADER,
     MOOD_BRIEF_HEADER,
     POPUP_MARKER_OPEN,
+    PRESENCE_END_OPENER,
+    PRESENCE_START_OPENER,
     STEER_TRUST_RULE,
-    SYSTEM_CORE,
+    SYSTEM_CORE_PARAGRAPHS,
     TOOL_PROTOCOL,
+    WRITING_HEADER,
 )
-
+from harness.steering import STEER_MARKER_LEAD
 from observability import tokens
 
 #: Paragraph marker for the split of the system prompt into priced blocks.
 _PARAGRAPH_SEP = "\n\n"
 
-#: The stable core's own paragraphs, as the harness renders them today — the
-#: one part of the assembly that is prose with no header to key on.
-_CORE_PARAGRAPHS: frozenset[str] = frozenset(SYSTEM_CORE.split(_PARAGRAPH_SEP))
+#: The stable core's own paragraphs → their names, as the harness renders them
+#: today — the one part of the assembly that is prose with no header to key on.
+_CORE_PARAGRAPHS: dict[str, str] = {
+    **{text: name for name, text in SYSTEM_CORE_PARAGRAPHS},
+    FICTION_FRAME: "fiction frame",
+}
 
 #: The steer trust rule, when the harness has one enabled ("" today).
 _STEER_TRUST_PARAGRAPHS: frozenset[str] = (
@@ -76,12 +88,13 @@ _SECTION_NAMES: tuple[tuple[str, str], ...] = (
 #: Retired wordings the archived runs still carry: the stable core and the
 #: tool protocol were rewritten mid-trial, and these opening words are the
 #: only handle left on those blocks.
-_RETIRED_CORE_STARTERS: tuple[str, ...] = (
-    "You are a companion with an inner life of your own.",
-    "Read the card before every reply",
-    "Show, do not announce",
-    "Never name the internal state",
-    "When the card and your character pull apart",
+_RETIRED_CORE_STARTERS: tuple[tuple[str, str], ...] = (
+    ("You are a companion with an inner life of your own.", "core: an inner life"),
+    ("Read the card before every reply", "card: read it every reply"),
+    ("Show, do not announce", "card: show, don't announce"),
+    ("Never name the internal state", "card: never name the state"),
+    ("When the card and your character pull apart", "card: your character wins"),
+    ("These days you are absorbed in", "interests"),
 )
 _RETIRED_STEER_STARTERS: tuple[str, ...] = (
     "Sometimes the harness delivers a real arriving event",
@@ -106,8 +119,11 @@ def _system_kind(paragraph: str) -> str:
     of the vocabulary claims stays unlabelled rather than guessed at.
     """
     probe = paragraph.strip()
-    if probe in _CORE_PARAGRAPHS or probe.startswith(_RETIRED_CORE_STARTERS):
-        return "system core"
+    if probe in _CORE_PARAGRAPHS:
+        return _CORE_PARAGRAPHS[probe]
+    for starter, name in _RETIRED_CORE_STARTERS:
+        if probe.startswith(starter):
+            return name
     # Both generations of the protocol open with these words.
     if probe == TOOL_PROTOCOL or probe.startswith("When a decision tool"):
         return "tool protocol"
@@ -116,8 +132,6 @@ def _system_kind(paragraph: str) -> str:
     for header, name in _SECTION_NAMES:
         if probe.startswith(header):
             return name
-    if probe.startswith(INTEREST_SENTENCE_PREFIX):
-        return "interests"
     if probe.startswith(_PROACTIVE_STARTER):
         return "proactive opening"
     if POPUP_MARKER_OPEN in probe:
@@ -128,11 +142,23 @@ def _system_kind(paragraph: str) -> str:
 
 
 def system_parts(system: str) -> list[dict[str, Any]]:
-    """The system prompt as ordered priced blocks."""
+    """The system prompt as ordered priced blocks.
+
+    A section spanning several paragraphs (a persona written in paragraphs)
+    names each one "name · i/n", so no two rows read the same.
+    """
     blocks = [b.strip() for b in (system or "").split(_PARAGRAPH_SEP)]
+    blocks = [b for b in blocks if b]
+    kinds = [_system_kind(block) for block in blocks]
+    totals = {kind: kinds.count(kind) for kind in kinds}
+    seen: dict[str, int] = {}
+    names = []
+    for kind in kinds:
+        seen[kind] = seen.get(kind, 0) + 1
+        names.append(kind if totals[kind] == 1 else f"{kind} · {seen[kind]}/{totals[kind]}")
     return [
         {
-            "kind": _system_kind(block),
+            "kind": name,
             "label": _clip(block.splitlines()[0] if block else "", 90),
             "tokens": tokens.estimate_text(block),
             "chars": len(block),
@@ -141,115 +167,78 @@ def system_parts(system: str) -> list[dict[str, Any]]:
             # the drawer can show what the model actually reads.
             "text": block,
         }
-        for block in blocks
-        if block
+        for block, name in zip(blocks, names, strict=True)
     ]
 
 
-def _message_label(message: dict[str, Any], index: int) -> str:
+#: How a day's plan row opens: ``assembler.day_plan_header`` dates it with
+#: the real weekday ("Lily's Saturday plan:", "Saturday's plan:" before
+#: 2026-10-03), and an unanchored run keeps the bare agenda header.
+_DAY_PLAN_OPENER = re.compile(
+    rf"^(?:[^\n:]*'s )?(?:{'|'.join(calendar.day_name)})(?:'s)? plan:"
+    rf"|^{re.escape(AGENDA_HEADER)}")
+
+#: What a message in the request is, in the context bar's order: the key, the
+#: row's own name, and the bar's plural.
+MESSAGE_KINDS: tuple[tuple[str, str, str], ...] = (
+    ("day_plan", "day plan", "day plans"),
+    ("state_card", "state card", "state cards"),
+    ("card_update", "card update", "card updates"),
+    ("writing", "writing guidance", "writing guidance"),
+    ("closing", "closing guidance", "closing guidance"),
+    ("event", "arriving event", "arriving events"),
+    ("voice_call", "voice call", "voice call start/end"),
+    ("presence", "presence", "presence"),
+    ("his", "user message", "his messages"),
+    ("hers", "companion reply", "her replies"),
+    ("tool_call", "tool call", "tool calls"),
+    ("tool_result", "tool result", "tool results"),
+)
+_KIND_LABEL = {key: label for key, label, _ in MESSAGE_KINDS}
+
+
+def _system_row_kind(content: Any) -> str:
+    text = str(content or "").lstrip()
+    if text.startswith(WRITING_HEADER):
+        return "writing"
+    if text.startswith(CLOSING_HEADER):
+        return "closing"
+    if STEER_MARKER_LEAD in text:
+        return "event"
+    if _DAY_PLAN_OPENER.match(text):
+        return "day_plan"
+    if text.startswith((CALL_START_OPENER, CALL_END_OPENER)):
+        return "voice_call"
+    if text.startswith((PRESENCE_START_OPENER, PRESENCE_END_OPENER)):
+        return "presence"
+    if is_state_update(text):
+        return "card_update"
+    return "state_card"
+
+
+def message_kind(message: dict[str, Any]) -> str:
+    """Which part of the request one message is (a ``MESSAGE_KINDS`` key)."""
     role = str(message.get("role") or "?")
     if role == "system":
-        return "internal card"
+        return _system_row_kind(message.get("content"))
     if role == "tool":
-        return "tool result"
-    if role == "assistant" and message.get("tool_calls"):
-        return "tool call"
+        return "tool_result"
     if role == "assistant":
-        return "companion reply"
-    return "user message"
+        return "tool_call" if message.get("tool_calls") else "hers"
+    return "his"
 
 
-def shared_message_count(prev: dict[str, Any] | None,
-                         cur: dict[str, Any]) -> tuple[int, int, bool]:
-    """Leading byte-identical messages between two envelopes.
+def system_row_label(content: Any) -> str:
+    """What one system-role message is, named by the harness' own openers."""
+    return _KIND_LABEL[_system_row_kind(content)]
 
-    Mirrors ``harness.trace._prefix_share``: the previous envelope's trailing
-    block is the per-turn card, so it is dropped before comparison. Returns
-    ``(shared_message_count, shared_chars, system_stable)``.
+
+def message_nodes(envelope: dict[str, Any]) -> list[dict[str, Any]]:
+    """The ordered message surface, each node priced.
+
+    Cache marks are not set here: they depend on numbers that only exist
+    after pricing (``mark_provider_states`` / ``mark_shared_states``).
     """
-    prev_messages = list((prev or {}).get("messages") or [])
-    cur_messages = list(cur.get("messages") or [])
-    body = prev_messages[:-1] if prev_messages else []
-    shared_count = 0
-    shared_chars = 0
-    for index, message in enumerate(body):
-        if index >= len(cur_messages) or cur_messages[index] != message:
-            break
-        shared_count += 1
-        shared_chars += len(json.dumps(message, sort_keys=True, ensure_ascii=False))
-    system_stable = (prev or {}).get("system") == cur.get("system")
-    return shared_count, shared_chars, bool(system_stable)
-
-
-def provider_prefix_share(prev: dict[str, Any] | None,
-                          cur: dict[str, Any]) -> tuple[float, bool, str]:
-    """Leading byte-identical fraction in the order the provider renders it.
-
-    A provider banks a prompt as one token stream: the stable system block,
-    then the tool schemas when the call carries any, then the conversation. A
-    system drift breaks it first; a changed menu breaks it AT THE SCHEMAS, so
-    everything after is billed fresh no matter how identical the conversation
-    is. Returns ``(fraction, system_stable, break_at)`` with ``break_at`` in
-    ``"system" | "tools" | "messages" | ""``.
-
-    Tool identity comes from what the envelope records: a literal ``tools``
-    list. Anything else is a gap — it proves nothing either way, and the walk
-    treats it as matching. Same conventions as
-    :func:`shared_message_count`: the previous envelope's trailing card block
-    is dropped before the message walk.
-    """
-    prev = prev or {}
-    prev_messages = list(prev.get("messages") or [])
-    cur_messages = list(cur.get("messages") or [])
-    body = prev_messages[:-1] if prev_messages else []
-
-    def size(value: Any) -> int:
-        return len(json.dumps(value, sort_keys=True, ensure_ascii=False))
-
-    def menu_class(env: dict[str, Any]) -> tuple:
-        """(class, value): ``menu`` carries the schemas the envelope itself
-        holds; anything else is a ``gap`` that proves nothing either way."""
-        tools = env.get("tools")
-        if isinstance(tools, list) and tools:
-            return ("menu", json.dumps(tools, sort_keys=True, ensure_ascii=False))
-        return ("gap",)
-
-    cur_system = cur.get("system")
-    total_chars = sum(size(m) for m in cur_messages)
-    if cur_system:
-        total_chars += size(cur_system)
-    cur_tools = cur.get("tools")
-    cur_tools = cur_tools if isinstance(cur_tools, list) else None
-    if cur_tools:
-        total_chars += size(cur_tools)
-    system_stable = prev.get("system") == cur_system
-    if not total_chars:
-        return 0.0, bool(system_stable), ""
-    if not system_stable:
-        return 0.0, False, "system"
-
-    shared_chars = size(cur_system) if cur_system else 0
-    index = 0
-    while index < len(cur_messages) and cur_messages[index].get("role") == "system":
-        if index >= len(body) or body[index] != cur_messages[index]:
-            return shared_chars / total_chars, True, "system"
-        shared_chars += size(cur_messages[index])
-        index += 1
-    prev_menu, cur_menu = menu_class(prev), menu_class(cur)
-    if (prev_menu[0] == "menu" and cur_menu[0] == "menu"
-            and prev_menu[1] != cur_menu[1]):
-        return shared_chars / total_chars, True, "tools"
-    if cur_tools:
-        shared_chars += size(cur_tools)
-    for offset in range(index, len(body)):
-        if offset >= len(cur_messages) or cur_messages[offset] != body[offset]:
-            return shared_chars / total_chars, True, "messages"
-        shared_chars += size(body[offset])
-    return shared_chars / total_chars, True, ""
-
-
-def message_nodes(envelope: dict[str, Any], shared_count: int) -> list[dict[str, Any]]:
-    """The ordered message surface, each node priced and cache-marked."""
     nodes: list[dict[str, Any]] = []
     for index, message in enumerate(envelope.get("messages") or []):
         content = message.get("content")
@@ -257,10 +246,10 @@ def message_nodes(envelope: dict[str, Any], shared_count: int) -> list[dict[str,
         nodes.append({
             "index": index,
             "role": message.get("role"),
-            "label": _message_label(message, index),
+            "kind": message_kind(message),
+            "label": _KIND_LABEL[message_kind(message)],
             "tokens": tokens.estimate_message(message),
             "chars": len(text or ""),
-            "cached": index < shared_count,
             "tool_calls": [tc.get("function", {}).get("name") or tc.get("name")
                            for tc in (message.get("tool_calls") or [])],
             # The full text rides along so the drawer can show the reply; the
@@ -269,6 +258,39 @@ def message_nodes(envelope: dict[str, Any], shared_count: int) -> list[dict[str,
             "preview": _clip(text or "", 220),
         })
     return nodes
+
+
+def mark_provider_states(nodes: list[dict[str, Any]], fresh_tokens: int) -> None:
+    """Mark ``state`` per node from the provider's own split.
+
+    Prefix caching serves a prefix, so the reported fresh tokens are the
+    SUFFIX of the request: walk the priced messages from the newest one until
+    the fresh amount is spent. The message the provider's block boundary cuts
+    is ``partial`` — its earlier bytes came from cache and its tail was
+    re-billed fresh; everything older is ``cached``.
+    """
+    remaining = max(int(fresh_tokens or 0), 0)
+    for node in reversed(nodes):
+        size = int(node.get("priced_tokens") or node.get("tokens") or 0)
+        if remaining <= 0:
+            node["state"] = "cached"
+        elif size <= remaining:
+            node["state"] = "fresh"
+            remaining -= size
+        else:
+            node["state"] = "partial"
+            remaining = 0
+
+
+def mark_shared_states(nodes: list[dict[str, Any]], shared_count: int) -> None:
+    """Byte-walk marking: the fallback when a call recorded no usage numbers.
+
+    ``shared_count`` leading messages of the current request are
+    byte-identical to the call before — "cacheable", not "was cached": with
+    no provider split on the record, shared is the strongest claim available.
+    """
+    for node in nodes:
+        node["state"] = "cached" if node["index"] < shared_count else "fresh"
 
 
 def _sum_priced(values: list[int | None]) -> int | None:
@@ -345,6 +367,30 @@ def _price_in_place(parts: list[dict[str, Any]], nodes: list[dict[str, Any]],
         bucket["share_pct"] = _share(bucket["priced_tokens"], provider)
 
 
+def _composition(buckets: list[dict[str, Any]], nodes: list[dict[str, Any]],
+                 provider: int | None) -> list[dict[str, Any]]:
+    """The bar's segments: the system prompt, the tool schemas, then the
+    conversation split by what each message is (``MESSAGE_KINDS`` order).
+
+    Runs after pricing, so the conversation's segments sum to its bucket.
+    """
+    by_key = {bucket["key"]: bucket for bucket in buckets}
+    segments = [
+        {"key": key, "label": by_key[key]["label"],
+         "tokens": by_key[key]["priced_tokens"], "count": by_key[key]["parts"],
+         "share_pct": by_key[key]["share_pct"]}
+        for key in ("system", "tools")
+    ]
+    for key, _, plural in MESSAGE_KINDS:
+        members = [node for node in nodes if node["kind"] == key]
+        if not members:
+            continue
+        priced = sum(node["priced_tokens"] for node in members)
+        segments.append({"key": key, "label": plural, "tokens": priced,
+                         "count": len(members), "share_pct": _share(priced, provider)})
+    return segments
+
+
 def _pressure(usage: dict[str, Any], provider: int | None,
               context_window: int) -> dict[str, Any]:
     """The headline figures: what was billed, cached, fresh and full."""
@@ -398,24 +444,45 @@ def build_context(*, envelope: dict[str, Any] | None,
     # price and no body to show.
     for priced, schema in zip(priced_tools, tools or [], strict=True):
         priced["schema"] = schema if priced["tokens"] is not None else None
-    nodes = message_nodes(envelope, shared_count)
+    nodes = message_nodes(envelope)
     buckets = _buckets(parts, priced_tools, nodes)
     anchor = _anchor_for(buckets, usage)
     _price_in_place(parts, nodes, buckets, anchor)
+    pressure = _pressure(usage, anchor.provider_tokens, context_window)
+    # The provider's own split decides the marks when the call recorded one:
+    # prefix caching serves a prefix, so its fresh tokens are this stream's
+    # suffix, on the provider's block grid. Without usage numbers the byte
+    # walk against the call before is the only story available.
+    if pressure["provider_prompt_tokens"]:
+        mark_provider_states(nodes, pressure["fresh_tokens"])
+        cache_source = "provider"
+    else:
+        mark_shared_states(nodes, shared_count)
+        cache_source = "bytes"
+    cached_messages = sum(1 for node in nodes if node["state"] == "cached")
+    partial_message = next(
+        (node["index"] for node in nodes if node["state"] == "partial"), None)
     return {
         "available": True,
         "context_window": context_window,
         "anchor": anchor.to_json(),
-        "pressure": _pressure(usage, anchor.provider_tokens, context_window),
+        "pressure": pressure,
         "buckets": buckets,
+        "composition": _composition(buckets, nodes, anchor.provider_tokens),
         "surface": nodes,
         "system_parts": parts,
         "tools": priced_tools,
         "tools_source": tools_source,
         "prefix": {
-            "shared_messages": shared_count,
+            "shared_messages": cached_messages,
             "shared_chars": shared_chars,
             "system_stable": system_stable,
             "total_messages": len(nodes),
+            # "provider": marks come from the call's own usage split;
+            # "bytes": from the byte walk (no usage on the record).
+            "source": cache_source,
+            "partial_message": partial_message,
+            "fresh_tokens": (pressure["fresh_tokens"]
+                             if cache_source == "provider" else None),
         },
     }

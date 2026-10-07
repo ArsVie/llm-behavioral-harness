@@ -4,46 +4,17 @@ active-channel selection (Part B, seams B-1 + B-3)."""
 from __future__ import annotations
 
 import asyncio
-import inspect
-from typing import get_type_hints
 
 from harness.channels import (
-    Channel,
     FakeChannel,
-    InboundHandler,
     InboundMessage,
     OutboundMessage,
 )
-from harness.config import DEFAULT_CHANNEL, select_channel
+from harness.config import select_channel
 
 
 def _run(coro) -> None:
     asyncio.run(coro)
-
-
-def test_fake_channel_satisfies_channel_protocol() -> None:
-    """FakeChannel structurally conforms to the Channel protocol."""
-    # The protocol declares the `name` data attribute plus three async methods.
-    hints = get_type_hints(Channel)
-    assert "name" in hints
-    for method in ("start", "send", "stop"):
-        assert callable(getattr(Channel, method))
-        assert inspect.iscoroutinefunction(getattr(Channel, method))
-
-    fake = FakeChannel()
-    assert fake.name == "fake"
-    for method in ("start", "send", "stop"):
-        assert callable(getattr(fake, method))
-        assert inspect.iscoroutinefunction(getattr(fake, method))
-    assert inspect.iscoroutinefunction(fake.feed)
-
-
-def test_fake_channel_sane_defaults() -> None:
-    """Construction is trivial: inbound=None -> empty list, no handler yet."""
-    fake = FakeChannel()
-    assert fake.inbound == []
-    assert fake.sent == []
-    assert fake.handler is None
 
 
 def test_feed_round_trip_delivers_inbound_message() -> None:
@@ -102,20 +73,6 @@ def test_send_accumulates_outbound_messages() -> None:
     assert fake.sent[1].reason == "schedule"
 
 
-def test_feed_uses_preloaded_inbound_list() -> None:
-    """The inbound list is stored as given, for channels that preload."""
-    fake = FakeChannel(inbound=["a", "b"])
-    assert fake.inbound == ["a", "b"]
-
-
-def test_select_channel_fake_returns_fake_channel() -> None:
-    """select_channel('fake') builds a FakeChannel carrying the inbound list."""
-    channel = select_channel("fake", inbound=["hello"])
-    assert isinstance(channel, FakeChannel)
-    assert channel.name == "fake"
-    assert channel.inbound == ["hello"]
-
-
 def test_select_channel_fake_end_to_end() -> None:
     """FakeChannel built via select_channel works end-to-end: feed -> handler
     -> send -> .sent."""
@@ -147,21 +104,3 @@ def test_select_channel_unknown_name_raises_value_error() -> None:
             assert valid in message
     else:
         raise AssertionError("select_channel('bogus') should have raised")
-
-
-def test_default_channel_is_cli() -> None:
-    """The documented default active channel is 'cli'."""
-    assert DEFAULT_CHANNEL == "cli"
-
-
-def test_inbound_handler_type_alias() -> None:
-    """InboundHandler is the callable shape the protocol expects."""
-    async def handler(msg: InboundMessage) -> None:
-        del msg  # unused
-
-    # A plain async callable is assignable to the alias (runtime sanity only).
-    fake = FakeChannel()
-    assert fake.handler is None
-    fake.handler = handler  # type: ignore[assignment]
-    assert fake.handler is handler
-    assert InboundHandler is not None

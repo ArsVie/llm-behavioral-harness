@@ -13,7 +13,7 @@ import pytest
 
 from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.channels.base import FakeChannel, OutboundMessage
-from harness.domain import DailyAgenda, EpisodicMemory, MemoryKind
+from harness.domain import EpisodicMemory, MemoryKind
 from harness.proactive import IntentResolver
 from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import (
@@ -21,8 +21,8 @@ from harness.scheduler import (
     REASON_SHARED_INTEREST,
     ProactiveSchedule,
 )
-from harness.store import SQLiteStore
 from tests.helpers import make_session, make_store
+from tests.helpers.runtime import ground_agenda, schedule_rows
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -34,22 +34,6 @@ SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 
 #: quiet hours: 23:00-08:00 + 1h ramps — fully awake from 09:00 local.
 QUIET_FIN_AWAKE_H = 33.0  # day-1 09:00 in absolute hours
-
-
-
-
-def _ground_agenda(store, start_t_h, end_t_h, *, item_id="g1", salience=0.8,
-                   activity="pottery class"):
-    from harness.domain import AgendaItem
-
-    item = AgendaItem(item_id, start_t_h, end_t_h, activity, "arc", "arc1",
-                      salience, "planned")
-    store.save_agenda(0, DailyAgenda(0, (item,)))
-    return item
-
-
-def _rows(store):
-    return {abs(float(r["t_h"])): r for r in store.schedule_events_for_seed(SEED)}
 
 
 def _run(store, session, schedule, channel, *, max_hours, scale=FAST,
@@ -87,8 +71,8 @@ def test_r1a_fast_clock_events_near_midnight_fire_not_expire(tmp_path):
     blocking sleeper: both must fire at their own hour, never spuriously expire."""
     store = make_store(tmp_path, "r1a.db")
     try:
-        _ground_agenda(store, 21.0, 22.0, item_id="slot_a", activity="evening a")
-        _ground_agenda(store, 22.0, 23.0, item_id="slot_b", activity="evening b")
+        ground_agenda(store, 21.0, 22.0, item_id="slot_a", activity="evening a")
+        ground_agenda(store, 22.0, 23.0, item_id="slot_b", activity="evening b")
         store.save_schedule_events(SEED, [
             {"t_h": 21.5, "day": 0, "reason": REASON_SCHEDULE},
             {"t_h": 22.5, "day": 0, "reason": REASON_SCHEDULE},
@@ -102,7 +86,7 @@ def test_r1a_fast_clock_events_near_midnight_fire_not_expire(tmp_path):
         _run(store, make_session(store), ProactiveSchedule.restore(SEED, store),
              channel, max_hours=25.5, scale=FAST, sleeper=blocking_sleeper)
 
-        rows = _rows(store)
+        rows = schedule_rows(store)
         assert rows[21.5]["status"] == "fired"
         assert rows[22.5]["status"] == "fired", (
             "near-midnight event spuriously expired by the midnight rollover"
@@ -125,9 +109,9 @@ def test_r1c_three_events_before_midnight_all_fire_at_own_times(tmp_path):
     own hour under FAST time; the run still crosses midnight."""
     store = make_store(tmp_path, "r1c.db")
     try:
-        _ground_agenda(store, 20.5, 21.5, item_id="s1", activity="evening one")
-        _ground_agenda(store, 21.0, 22.0, item_id="s2", activity="evening two")
-        _ground_agenda(store, 21.5, 22.5, item_id="s3", activity="evening three")
+        ground_agenda(store, 20.5, 21.5, item_id="s1", activity="evening one")
+        ground_agenda(store, 21.0, 22.0, item_id="s2", activity="evening two")
+        ground_agenda(store, 21.5, 22.5, item_id="s3", activity="evening three")
         store.save_schedule_events(SEED, [
             {"t_h": 21.0, "day": 0, "reason": REASON_SCHEDULE},
             {"t_h": 21.5, "day": 0, "reason": REASON_SCHEDULE},
@@ -141,7 +125,7 @@ def test_r1c_three_events_before_midnight_all_fire_at_own_times(tmp_path):
         _run(store, make_session(store), ProactiveSchedule.restore(SEED, store),
              channel, max_hours=25.5, scale=FAST, sleeper=blocking_sleeper)
 
-        rows = _rows(store)
+        rows = schedule_rows(store)
         for h in (21.0, 21.5, 22.0):
             assert rows[h]["status"] == "fired", f"event at {h} did not fire"
             assert rows[h]["fired_t_h"] == pytest.approx(h)
@@ -209,7 +193,7 @@ def test_r1b_quiet_deferral_of_parked_event_terminates_and_delivers(tmp_path):
                 "not advance the virtual clock while the rollover is parked "
                 "at the pending event (violates invariants 3/17; owner A3/A6)"
             )
-        rows = _rows(store)
+        rows = schedule_rows(store)
         assert rows[23.5]["status"] == "fired", (
             f"deferred event consumed as {rows[23.5]['status']!r}"
         )
@@ -250,7 +234,7 @@ def test_r1d_send_exception_propagates_but_terminates_cleanly(tmp_path):
         schedule = ProactiveSchedule.plan_and_persist(1, SEED, PERSONA, TIMING,
                                                       store)
         h = next(float(x) for x in schedule.event_hours if x < 20.0)
-        _ground_agenda(store, h - 0.5, h + 0.5)
+        ground_agenda(store, h - 0.5, h + 0.5)
         channel = _BoomChannel()
         with pytest.raises(RuntimeError, match="send exploded"):
             _run(store, make_session(store), schedule, channel, max_hours=h + 2.0)

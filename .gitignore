@@ -10,13 +10,14 @@ harness-bot.env
 
 # Live-trial databases hold real conversation content — never commit them.
 # (test_store_migrations_v6/v7 already assume this and skip when absent.)
-results/live-companion/**/*.db
+results/live-*/**/*.db
 # SQLite sidecars are runtime state, never commit-worthy — anywhere under results/.
 results/**/*.db-shm
 results/**/*.db-wal
 results/live-companion/**/*.log
 # Wire dumps are run artifacts too.
 results/**/wire/
+results/**/images/
 
 # Coverage artefacts
 .coverage
@@ -36,3 +37,16 @@ docs/plans/
 
 # Live-run replay artifacts hold conversation content — keep untracked.
 results/replay-live-31b-*/raw/
+
+# Personal content stays local: research notes, reports that quote the live
+# conversations, experiment scratch, and anything derived from a live run.
+research/
+docs/reports/
+experiments/
+review/
+docs/lily-app.png
+results/**/conversations-*.md
+results/replay-schedule-*/
+results/temp-*
+results/obs-shots/
+results/defer-probe-*

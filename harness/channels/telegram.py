@@ -21,7 +21,9 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
+from harness import images
 from harness.channels.base import InboundMessage, OutboundMessage
+from harness.bubbles import typing_pause_s
 from harness.concurrency import Sleeper, default_sleeper
 from harness.env import env_bool as _env_bool
 
@@ -135,6 +137,10 @@ def acquire_poller_lock(token: str):
 #: User-facing command menu registered via setMyCommands when commands
 #: are enabled; /state is not included.
 USER_COMMANDS: tuple[tuple[str, str], ...] = (
+    ("call", "Call Lily"),
+    ("hangup", "end the call"),
+    ("here", "he is here now (scenes in person)"),
+    ("leave", "he left (back to texting)"),
     ("help", "list of commands and usage"),
     ("ping", "alive check"),
     ("setup", "initialize a fresh database (pre-bootstrap only)"),
@@ -166,8 +172,6 @@ def _debounce_window(name: str, default: float) -> float:
     return value
 
 
-
-
 @dataclass(frozen=True)
 class ControlCommand:
     """Parsed slash-command delivered to ``start(on_command=...)``.
@@ -187,7 +191,8 @@ class TelegramChannel:
     and owner chat id (tests); no network access happens without the real
     library and token.
 
-    Inbound policy: with ``TELEGRAM_CHAT_ID`` set, only that chat's text is
+    Inbound policy: with ``TELEGRAM_CHAT_ID`` set, only that chat's text and
+    photos (a photo, or an image sent as a file, with its caption) are
     forwarded; UNSET means fail-open — any chat that finds the bot can talk to
     the companion (set the env var to lock it down).
     """
@@ -223,9 +228,10 @@ class TelegramChannel:
         self.debounce_max_wait_s: float = _debounce_window(
             "HARNESS_DEBOUNCE_MAX_WAIT_S", DEFAULT_DEBOUNCE_MAX_WAIT_S
         )
-        #: Debounce state: buffered (text, sender_id) pairs, monotonic times
-        #: of the first/last arrival, and the single flush task.
-        self._buffer: list[tuple[str, str | None]] = []
+        #: Debounce state: buffered (text, sender_id, photos) entries,
+        #: monotonic times of the first/last arrival, and the single flush
+        #: task.
+        self._buffer: list[tuple[str, str | None, list[bytes]]] = []
         self._buffer_first_at: float | None = None
         self._last_arrival_at: float | None = None
         self._flush_task: asyncio.Task | None = None
@@ -296,17 +302,16 @@ class TelegramChannel:
         """
         self._handler = on_message
         self._command_callback = on_command
-        app = self.application
-        if app is None:
-            raise RuntimeError(
-                "TelegramChannel has no application — build it via "
-                "from_env() or inject one in the constructor."
-            )
+        app = self._require_app()
         if _PTB_AVAILABLE and isinstance(app, Application):
             from telegram.ext import MessageHandler, filters
 
             app.add_handler(
-                MessageHandler(filters.TEXT & ~filters.COMMAND, self._on_update)
+                MessageHandler(
+                    (filters.TEXT & ~filters.COMMAND)
+                    | filters.PHOTO | filters.Document.IMAGE,
+                    self._on_update,
+                )
             )
             if on_command is not None:
                 # filters.COMMAND also matches unknown command names.
@@ -325,6 +330,14 @@ class TelegramChannel:
         if on_command is not None:
             await self._register_commands()
 
+    def _require_app(self):
+        if self.application is None:
+            raise RuntimeError(
+                "TelegramChannel has no application — build it via "
+                "from_env() or inject one in the constructor."
+            )
+        return self.application
+
     async def _on_handler_error(self, update: object, context: object) -> None:
         """Log an exception raised inside a ptb handler; polling continues."""
         error = getattr(context, "error", None)
@@ -337,21 +350,21 @@ class TelegramChannel:
 
         One send per paragraph, RP ``*span*`` rendered as MarkdownV2 italics. A
         failed Markdown send retries once as plain text; if that fails too the
-        error propagates.
+        error propagates. A ``paced`` message (her words) waits
+        ``typing_pause_s`` of each paragraph after the first, typing shown.
         """
         if self.owner_chat_id is None:
             raise RuntimeError(
                 "TELEGRAM_CHAT_ID is not set — cannot determine the owner "
                 "chat to send to. Export it before running live."
             )
-        app = self.application
-        if app is None:
-            raise RuntimeError(
-                "TelegramChannel has no application — build it via "
-                "from_env() or inject one in the constructor."
-            )
+        app = self._require_app()
+        first = True
         for paragraph in split_sends(message.text):
             for chunk in chunk_send(paragraph):
+                if message.paced and not first:
+                    await self.typing_pause(typing_pause_s(chunk))
+                first = False
                 try:
                     await app.bot.send_message(
                         chat_id=self.owner_chat_id,
@@ -362,6 +375,22 @@ class TelegramChannel:
                     _logger.warning('markdown send failed, retrying plain')
                     await app.bot.send_message(
                         chat_id=self.owner_chat_id, text=chunk)
+
+    async def typing_pause(self, seconds: float) -> None:
+        """Wait ``seconds`` between two of her messages with the "typing"
+        indicator shown (when HARNESS_TYPING is on), refreshed every
+        _TYPING_INTERVAL_S. Only this coroutine waits: the event loop keeps
+        serving inbound updates. A failed typing action is ignored."""
+        remaining = float(seconds)
+        while remaining > 1e-9:
+            if self.typing_enabled:
+                try:
+                    await self._send_typing()
+                except Exception:
+                    pass  # the indicator is cosmetic; the pause still runs
+            step = min(remaining, _TYPING_INTERVAL_S)
+            await self._sleeper(step)
+            remaining -= step
 
     @asynccontextmanager
     async def typing_context(self):
@@ -398,12 +427,7 @@ class TelegramChannel:
                 "TELEGRAM_CHAT_ID is not set — cannot send the typing "
                 "indicator to the owner chat."
             )
-        app = self.application
-        if app is None:
-            raise RuntimeError(
-                "TelegramChannel has no application — build it via "
-                "from_env() or inject one in the constructor."
-            )
+        app = self._require_app()
         await app.bot.send_chat_action(chat_id=self.owner_chat_id, action="typing")
 
     async def stop(self) -> None:
@@ -437,16 +461,23 @@ class TelegramChannel:
         ``context`` is optional (fakes call with a single argument). Commands
         are for the command handler only, never an InboundMessage. With
         HARNESS_DEBOUNCE on, owner text is buffered and flushed as ONE message.
+        A photo is downloaded here; one that cannot be fetched is dropped, and
+        so is its message when it has no caption either.
         """
         if self._stopped:
             return
         message = self._wrap_update(update)
         if message is None:
             return
-        if message.text.startswith("/"):
+        file_ids = _photo_file_ids(getattr(update, "message", None))
+        if message.text.startswith("/") and not file_ids:
             return  # commands route via _on_command_update, not here
+        if file_ids:
+            message.photos = await self._download(file_ids)
+            if not message.photos and not message.text.strip():
+                return
         if self.debounce_enabled:
-            self._buffer_text(message.text, message.sender_id)
+            self._buffer_text(message.text, message.sender_id, message.photos)
             return
         if self._handler is not None:
             await self._handler(message)
@@ -463,11 +494,9 @@ class TelegramChannel:
         text = getattr(message, "text", None) if message is not None else None
         if not text or not text.startswith("/"):
             return
-        chat_id = self._chat_id_of(update)
-        if chat_id is None:
-            return
-        if self.owner_chat_id is not None and str(chat_id) != self.owner_chat_id:
+        if not self._owner_message(update):
             return  # the owner filter applies to commands too
+        chat_id = self._chat_id_of(update)
         body = text[1:].strip()
         name, _, args = body.partition(" ")
         name = name.split("@", 1)[0]  # strip bot suffix: /tz@Lily_Vie_bot -> tz
@@ -514,20 +543,41 @@ class TelegramChannel:
             )
 
     def _wrap_update(self, update) -> InboundMessage | None:
-        """Map a raw update to an InboundMessage, or None when it is not a text
-        message from the owner (photos, stickers, strangers)."""
+        """Map a raw update to an InboundMessage, or None when it is neither
+        text nor a photo from the owner (stickers, strangers). A photo's
+        caption is the text; its bytes are fetched by :meth:`_on_update`."""
         message = getattr(update, "message", None)
         text = getattr(message, "text", None) if message is not None else None
-        if not text:
+        photo = not text and bool(_photo_file_ids(message))
+        if not (text or photo) or not self._owner_message(update):
             return None
+        if photo:
+            caption = getattr(message, "caption", None)
+            text = caption if isinstance(caption, str) else ""
+        else:
+            text = _with_quote_marks(message, text)
+        return InboundMessage(
+            text=text, sender_id=str(self._chat_id_of(update)),
+            received_at=time.time(),
+        )
+
+    def _owner_message(self, update) -> bool:
         chat_id = self._chat_id_of(update)
         if chat_id is None:
-            return None
-        if self.owner_chat_id is not None and str(chat_id) != self.owner_chat_id:
-            return None
-        return InboundMessage(
-            text=text, sender_id=str(chat_id), received_at=time.time()
-        )
+            return False
+        return self.owner_chat_id is None or str(chat_id) == self.owner_chat_id
+
+    async def _download(self, file_ids: list[str]) -> list[bytes]:
+        """The files' bytes, skipping (and logging) any that fail to fetch."""
+        bot = getattr(self.application, "bot", None)
+        out: list[bytes] = []
+        for file_id in file_ids:
+            try:
+                handle = await bot.get_file(file_id)
+                out.append(bytes(await handle.download_as_bytearray()))
+            except Exception as exc:  # noqa: BLE001 - one photo, not the chat
+                _logger.warning("photo download failed: %s", exc)
+        return out
 
     @staticmethod
     def _chat_id_of(update):
@@ -544,13 +594,14 @@ class TelegramChannel:
 
     # --- Debounce machinery (HARNESS_DEBOUNCE, default off) ---
 
-    def _buffer_text(self, text: str, sender_id: str | None) -> None:
-        """Buffer one owner text message; the single flush task is created on
+    def _buffer_text(self, text: str, sender_id: str | None,
+                     photos: list[bytes] | None = None) -> None:
+        """Buffer one owner message; the single flush task is created on
         the first buffered message and re-arms itself for later arrivals."""
         if self._buffer_first_at is None:
             self._buffer_first_at = self._monotonic()
         self._last_arrival_at = self._monotonic()
-        self._buffer.append((text, sender_id))
+        self._buffer.append((text, sender_id, list(photos or ())))
         if self._flush_task is None or self._flush_task.done():
             self._flush_task = asyncio.create_task(self._debounce_loop())
 
@@ -580,17 +631,21 @@ class TelegramChannel:
         # _flush_task is not cleared here; _buffer_text checks task.done().
 
     async def _flush(self) -> None:
-        """Deliver the buffered texts as ONE InboundMessage joined with \\n."""
+        """Deliver the buffered texts as ONE InboundMessage joined with \\n,
+        carrying every buffered photo (an album arrives as one per photo)."""
         if not self._buffer:
             return
-        texts = "\n".join(text for text, _ in self._buffer)
+        texts = "\n".join(text for text, _, photos in self._buffer
+                          if text or not photos)
+        photos = [p for _, _, ps in self._buffer for p in ps]
         sender_id = self._buffer[0][1]
         self._buffer = []
         self._buffer_first_at = None
         self._last_arrival_at = None
         if self._handler is not None:
             await self._handler(
-                InboundMessage(text=texts, sender_id=sender_id, received_at=time.time())
+                InboundMessage(text=texts, sender_id=sender_id,
+                               received_at=time.time(), photos=photos)
             )
 
     async def _flush_debounce(self) -> None:
@@ -604,3 +659,54 @@ class TelegramChannel:
                 await self._flush_task
             self._flush_task = None
         await self._flush()
+
+
+#: Entity types Telegram uses for a ``>`` quote typed into a message.
+_QUOTE_ENTITIES = ("blockquote", "expandable_blockquote")
+
+
+def _with_quote_marks(message, text: str) -> str:
+    """Put back the ``>`` the owner typed. Telegram strips it from ``text``
+    and marks the range with a blockquote entity instead, so without this a
+    quoted line of hers reads as his own words (live 2026-09-20 13:18).
+
+    Entity offsets count UTF-16 code units, so the slicing happens there.
+    Stubs without ``entities`` pass through unchanged.
+    """
+    entities = [
+        e for e in (getattr(message, "entities", None) or ())
+        if getattr(e, "type", None) in _QUOTE_ENTITIES
+    ]
+    if not entities:
+        return text
+    raw = text.encode("utf-16-le")
+    out: list[str] = []
+    pos = 0
+    for e in sorted(entities, key=lambda e: e.offset):
+        start, end = e.offset * 2, (e.offset + e.length) * 2
+        if start < pos:
+            continue  # overlapping entity: keep the first
+        out.append(raw[pos:start].decode("utf-16-le"))
+        quoted = raw[start:end].decode("utf-16-le")
+        out.append("\n".join(f"> {line}" for line in quoted.split("\n")))
+        pos = end
+    out.append(raw[pos:].decode("utf-16-le"))
+    return "".join(out)
+
+
+def _photo_file_ids(message) -> list[str]:
+    """The file to fetch for a photo message: the largest size of a photo,
+    or an image sent as a file (up to :data:`harness.images.MAX_UPLOAD_BYTES`)."""
+    if message is None:
+        return []
+    sizes = getattr(message, "photo", None)
+    if sizes:
+        largest = max(sizes, key=lambda p: (getattr(p, "width", 0) or 0)
+                      * (getattr(p, "height", 0) or 0))
+        return [largest.file_id]
+    doc = getattr(message, "document", None)
+    mime = str(getattr(doc, "mime_type", "") or "") if doc is not None else ""
+    size = getattr(doc, "file_size", None) or 0
+    if mime.startswith("image/") and size <= images.MAX_UPLOAD_BYTES:
+        return [doc.file_id]
+    return []

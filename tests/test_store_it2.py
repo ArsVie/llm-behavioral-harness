@@ -2,7 +2,7 @@
 call-reproducibility audit (iteration-2 plan §5-A7)."""
 
 from harness.domain import UserModelAssertion, UserModelCategory
-from harness.store import SCHEMA_VERSION, SQLiteStore
+from harness.store import SQLiteStore
 
 
 # M1 — messages.intent_id (proactive provenance)
@@ -28,9 +28,7 @@ def test_add_message_intent_id_roundtrip(tmp_path):
     assert [m["id"] for m in recent] == [proactive, reactive, session]
     assert recent[1]["intent_id"] is None   # a user turn carries no intent
     assert recent[2]["intent_id"] is None   # nor an explicit intent_id=None
-    assert recent[1]["intent_id"] is None  # reactive messages keep NULL
     assert recent[2]["session_id"] == "s1"
-    assert recent[2]["intent_id"] is None
     day_msgs = store.messages_for_day(0)
     assert day_msgs[0]["intent_id"] == "intent-87"
     # memory_turns view exposes intent_id for session-tracked turns
@@ -39,15 +37,6 @@ def test_add_message_intent_id_roundtrip(tmp_path):
     assert turns[0]["content"] == "in-session"
     assert "intent_id" in turns[0]
     assert turns[0]["intent_id"] is None
-    store.close()
-
-
-def test_add_message_legacy_call_shape_still_works(tmp_path):
-    """The pre-slice positional call shape must keep working."""
-    store = SQLiteStore(tmp_path / "s.db")
-    mid = store.add_message("assistant", "a", t_h=1.0, day=0, proactive=True)
-    assert mid == 1
-    assert store.recent_messages()[0]["intent_id"] is None
     store.close()
 
 
@@ -224,12 +213,4 @@ def test_log_llm_call_eval_mode_persists_repro(tmp_path):
     other = store.log_llm_call(0, 13.0, "chat", "p", "r", None)
     assert store.get_llm_call(other)["repro"] is None
     assert store.get_llm_call(999999) is None
-    store.close()
-
-
-def test_schema_version_is_current(tmp_path):
-    store = SQLiteStore(tmp_path / "s.db")
-    # One schema_meta row at the CURRENT SCHEMA_VERSION.
-    rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
     store.close()

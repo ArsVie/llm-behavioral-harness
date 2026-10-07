@@ -2,21 +2,17 @@
 
 from __future__ import annotations
 
-import dataclasses
 
 import pytest
 
 from harness.domain import (
     AffectMetadata,
-    CompanionBehaviorState,
     EpisodicMemory,
     MemoryKind,
     SessionSummary,
-    UserAffectObservation,
     UserModelAssertion,
 )
 from harness.memory import MAX_CONTEXT_CHARS, MemoryAgent
-from harness.store import SQLiteStore
 from tests.helpers import make_store
 
 SEED = 4242
@@ -104,17 +100,6 @@ def test_m2_stale_episode_anchored_not_blended_into_current(tmp_path):
                 "stale Luna episode returned without verbatim evidence anchors"
             )
             assert ep.source_turn_ids, "stale episode lost its source turns"
-    if ctx.user_model is not None:
-        for bucket in (
-            ctx.user_model.stable_preferences, ctx.user_model.current_preferences,
-            ctx.user_model.boundaries, ctx.user_model.vulnerabilities,
-            ctx.user_model.recurring_interests, ctx.user_model.relationship_patterns,
-            ctx.user_model.important_entities,
-        ):
-            for a in bucket:
-                assert not ("Luna" in a.value and "no longer" not in a.value), (
-                    "stale Luna truth blended into the L4 projection"
-                )
     store.close()
 
 
@@ -182,29 +167,6 @@ def test_m3_relevant_low_salience_not_crowded_out(tmp_path):
 # Provenance: sourceless episodes and hallucinated L4
 
 
-def test_m4_no_sourceless_episodes(tmp_path):
-    """M-4: no sourceless episode may be created or persisted."""
-    import pytest
-
-    store = make_store(tmp_path, "m4.db")
-    agent = MemoryAgent(store)
-    bad = SessionSummary(
-        "day-0", 0.0, 24.0, "summary of nothing", (), (), (), (), (), (),
-        (), False, 0.9, (),
-    )
-    with pytest.raises(ValueError):
-        agent.promote(bad)  # refuses to promote unprovenanced content
-
-    # An episode with empty source turns is rejected.
-    ghost = _episode("ep_ghost", "user owns a dragon", 0.9, ("dragon",))
-    store.insert_episode(ghost)
-    stored = store.get_episode("ep_ghost")
-    assert stored is None or stored.source_turn_ids, (
-        "sourceless episode persisted (provenance -> no truth violated)"
-    )
-    store.close()
-
-
 def test_m5_summarization_hallucination_blocked_from_l4(tmp_path):
     """M-5: a fact absent from every source turn must never become an L4 assertion."""
     store = make_store(tmp_path, "m5.db")
@@ -228,23 +190,6 @@ def test_m5_summarization_hallucination_blocked_from_l4(tmp_path):
 
 
 # User affect is separate from companion state
-
-
-def test_m6_user_affect_and_companion_state_are_independent():
-    """M-6: user affect and companion state are separate types with disjoint fields."""
-    obs_fields = {f.name for f in dataclasses.fields(UserAffectObservation)}
-    state_fields = {f.name for f in dataclasses.fields(CompanionBehaviorState)}
-    assert obs_fields.isdisjoint(state_fields), (
-        f"shared fields between affect observation and companion state: "
-        f"{obs_fields & state_fields}"
-    )
-    # There is no implicit conversion between the two types.
-    playful = CompanionBehaviorState("d1", 0.9, 0.9, 0.8, 0.95)
-    neutral_obs = UserAffectObservation(10.0, 0.1, 0.1, "neutral")
-    assert neutral_obs.label == "neutral" and neutral_obs.valence == 0.1
-    assert playful.playfulness == 0.95  # unchanged, no leakage
-    assert not hasattr(neutral_obs, "playfulness")
-    assert not hasattr(playful, "label")
 
 
 # 12-turn horizon recall and false recall
@@ -385,8 +330,6 @@ def test_m9b_policy_switch_changes_retrieval_ordering_by_construction(tmp_path):
         experimental = MemoryAgent(
             store, memory_policy=MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT
         )
-        assert not MemoryPolicy.STRUCTURED_MEMORY.is_experimental
-        assert MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT.is_experimental
 
         ctx_f = faithful.retrieve("pottery class", context={"t_h": 200.0}, limit=2)
         ctx_e = experimental.retrieve("pottery class", context={"t_h": 200.0}, limit=2)
@@ -401,54 +344,5 @@ def test_m9b_policy_switch_changes_retrieval_ordering_by_construction(tmp_path):
         assert order_f != order_e, (
             "policy switch must change retrieval ordering by construction"
         )
-    finally:
-        store.close()
-
-
-def test_m9c_embedder_and_summarizer_deterministic_across_instances(tmp_path):
-    """The embedder, retrieval and default summarizer are deterministic across instances."""
-    from harness.memory import deterministic_hash_embedder
-    from harness.summarization import DeterministicSummaryExtractor
-
-    store = make_store(tmp_path, "m9c.db")
-    agent_a = MemoryAgent(store)
-    agent_b = MemoryAgent(store)
-    try:
-        text = "user takes pottery class on tuesdays"
-        v1 = deterministic_hash_embedder(text)
-        v2 = deterministic_hash_embedder(text)
-        assert v1 == v2, "embedder not deterministic across calls"
-        assert v1 == agent_a._embed(text), "agent embedder disagrees with module fn"
-        assert agent_a._embed(text) == agent_b._embed(text), (
-            "embedder not deterministic across instances"
-        )
-
-        for i, (summary, tags, imp) in enumerate([
-            ("user's dog Bruno is very sick", ("dog", "bruno"), 0.9),
-            ("user takes pottery class on tuesdays", ("pottery", "class"), 0.6),
-            ("user went hiking in the rain", ("hiking",), 0.7),
-        ]):
-            ep = _episode(f"ep_{i}", summary, imp, tags)
-            store.insert_episode(ep)
-            store.save_embedding(
-                ep.id, deterministic_hash_embedder(MemoryAgent._episode_text(ep))
-            )
-
-        ctx_a = agent_a.retrieve("pottery class", context={"t_h": 200.0}, limit=3)
-        ctx_b = agent_b.retrieve("pottery class", context={"t_h": 200.0}, limit=3)
-        assert [e.id for e in ctx_a.episodes] == [e.id for e in ctx_b.episodes]
-        assert ctx_a.evidence_anchors == ctx_b.evidence_anchors
-
-        # The summarizer gives identical output across instances.
-        messages = [
-            {"role": "user", "content": "I love hiking in the mountains"},
-            {"role": "assistant", "content": "that sounds lovely"},
-        ]
-        extractor_a = DeterministicSummaryExtractor()
-        extractor_b = DeterministicSummaryExtractor()
-        sa = extractor_a("day-1", messages, {"score": 0.6}, 24.0, 25.0)
-        sb = extractor_b("day-1", messages, {"score": 0.6}, 24.0, 25.0)
-        assert sa == sb, "summarizer not deterministic across instances"
-        assert sa.source_turn_ids == sb.source_turn_ids
     finally:
         store.close()

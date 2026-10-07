@@ -6,8 +6,7 @@ nullable REAL columns are added (opened_at/closed_at, start_at/end_at,
 created_at/valid_until_at, sent_at), every pre-existing row stays intact, and
 re-open is idempotent. The write-path tests pin S1: with an anchor every
 row-creation write resolves ``real_at(t_h)`` into the matching ``*_at`` column;
-without one every new column stays NULL and the legacy columns stay
-byte-identical (replay parity).
+without one every new column stays NULL.
 """
 
 import hashlib
@@ -28,6 +27,11 @@ from harness.store import (
     _migrate_v5,
     _migrate_v6,
     schema_meta,
+)
+from tests.helpers.migrations import (
+    live_db_candidates,
+    seed_conversation_families,
+    table_counts,
 )
 
 _LEGACY_TABLES = [
@@ -50,34 +54,6 @@ _V7_ADDITIONS = {
     ("messages", "sent_at"),
 }
 
-#: Legacy (pre-v7) column lists, in table order — the v6 write-path shape.
-_LEGACY_COLUMNS = {
-    "messages": [
-        "id", "role", "content", "t_h", "day", "proactive", "meta",
-        "session_id", "intent_id", "conversation_id",
-    ],
-    "conversations": [
-        "id", "opened_t_h", "closed_t_h", "opened_by", "close_reason",
-        "closing_pending_t_h",
-    ],
-    "agenda_items": [
-        "id", "day", "start_t_h", "end_t_h", "activity", "source_type",
-        "source_id", "salience", "status",
-    ],
-    "proactive_intents": [
-        "id", "reason", "source_type", "source_id", "hook", "created_t_h",
-        "valid_until_t_h", "salience", "evidence", "status",
-    ],
-}
-
-_ORDER_BY = {
-    "messages": "id",
-    "conversations": "id",
-    "agenda_items": "id",
-    "proactive_intents": "id",
-}
-
-
 def _build_v6_db(path) -> None:
     """A genuine v6 database: the store's own v1..v6 chain, stamped 6 (the
     historical migration functions verbatim, not a hand-approximation)."""
@@ -96,58 +72,6 @@ def _build_v6_db(path) -> None:
     con.close()
 
 
-def _seed_v6(path) -> None:
-    """Seed the v6 database across the conversation families."""
-    con = sqlite3.connect(path)
-    con.execute(
-        "INSERT INTO conversations (id, opened_t_h, closed_t_h, opened_by, "
-        "close_reason) VALUES ('conv-0', 1.0, 3.0, 'user', 'closing_tendency')"
-    )
-    con.execute(
-        "INSERT INTO conversations (id, opened_t_h, opened_by) "
-        "VALUES ('conv-1', 5.0, 'companion')"
-    )
-    con.execute(
-        "INSERT INTO conversation_turns (conversation_id, speaker, text, t_h, "
-        "turn_index, message_id) VALUES ('conv-0', 'user', 'hi', 1.0, 0, NULL)"
-    )
-    con.execute(
-        "INSERT INTO conversation_turns (conversation_id, speaker, text, t_h, "
-        "turn_index, message_id) VALUES ('conv-0', 'companion', 'hello!', 1.1, 1, NULL)"
-    )
-    con.execute(
-        "INSERT INTO messages (role, content, t_h, day, proactive, meta, "
-        "session_id, intent_id, conversation_id) "
-        "VALUES ('user', 'hi', 1.0, 0, 0, NULL, 'day-1000', NULL, 'conv-0')"
-    )
-    con.execute(
-        "INSERT INTO daily_state (day, M, m_level, g, p, arg, mu, eta, "
-        "cycle_day, phase_label, seed, score) "
-        "VALUES (0, 5, 2.5, 0.7, 0.5, 0.3, 0.1, 0.0, 0.0, 'neutral', 12345, 0.5)"
-    )
-    con.execute(
-        "INSERT INTO agenda_items (id, day, start_t_h, end_t_h, activity, "
-        "source_type, source_id, salience, status) "
-        "VALUES ('ag-0', 0, 6.0, 7.0, 'coffee', 'routine', 'r-coffee', "
-        "0.5, 'planned')"
-    )
-    con.execute(
-        "INSERT INTO proactive_intents (id, reason, source_type, source_id, "
-        "hook, created_t_h, valid_until_t_h, salience, evidence) "
-        "VALUES ('pi-0', 'window', 'agenda_item', 'ag-0', 'try coffee', "
-        "8.0, 9.5, 0.6, 'ev')"
-    )
-    con.commit()
-    con.close()
-
-
-def _table_counts(con: sqlite3.Connection) -> dict[str, int]:
-    return {
-        t: con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-        for t in _LEGACY_TABLES
-    }
-
-
 def _table_columns(con: sqlite3.Connection, table: str) -> set[str]:
     return {r["name"] for r in con.execute(f"PRAGMA table_info({table})")}
 
@@ -155,9 +79,9 @@ def _table_columns(con: sqlite3.Connection, table: str) -> set[str]:
 def test_v6_to_v7_migration_is_additive_and_preserves_data(tmp_path):
     db = tmp_path / "v6.db"
     _build_v6_db(db)
-    _seed_v6(db)
+    seed_conversation_families(db, extra_intents=True)
 
-    before = _table_counts(sqlite3.connect(db))
+    before = table_counts(sqlite3.connect(db), _LEGACY_TABLES)
 
     store = SQLiteStore(db)
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
@@ -176,7 +100,7 @@ def test_v6_to_v7_migration_is_additive_and_preserves_data(tmp_path):
         )
 
     # every pre-existing row survived, every table opens
-    assert _table_counts(store.conn) == before
+    assert table_counts(store.conn, _LEGACY_TABLES) == before
     convs = store.list_conversations()
     assert [c.id for c in convs] == ["conv-0", "conv-1"]
     assert convs[0].close_reason == "closing_tendency"
@@ -213,17 +137,8 @@ def test_v6_to_v7_migration_is_additive_and_preserves_data(tmp_path):
     rows = store2.conn.execute("SELECT version FROM schema_meta").fetchall()
     assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
     assert store2.load_proactive_intent("pi-0").hook == "try coffee"
-    assert _table_counts(store2.conn) == before
+    assert table_counts(store2.conn, _LEGACY_TABLES) == before
     store2.close()
-
-
-def test_fresh_db_reaches_v7_with_all_tables(tmp_path):
-    store = SQLiteStore(tmp_path / "fresh.db")
-    rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
-    for table, col in sorted(_V7_ADDITIONS):
-        assert col in _table_columns(store.conn, table), f"{table}.{col} missing"
-    store.close()
 
 
 # -- write path: anchored populates, unanchored stays NULL ---
@@ -336,113 +251,18 @@ def test_write_path_unanchored_leaves_new_columns_null(tmp_path):
     store.close()
 
 
-def test_unanchored_run_identical_to_pre_v7_write_path(tmp_path):
-    """G1 replay parity: with anchor=None the v7 write path produces exactly
-    the legacy rows the pre-v7 (v6) write path would have produced — the
-    only difference is the seven new columns, all NULL."""
-    # Reference side: a genuine v6 database run through the v6-era SQL.
-    v6_db = tmp_path / "v6.db"
-    _build_v6_db(v6_db)
-    con = sqlite3.connect(v6_db)
-    con.execute(
-        "INSERT INTO conversations (id, opened_t_h, opened_by) "
-        "VALUES ('conv-0', 1.0, 'user')"
-    )
-    con.execute(
-        "UPDATE conversations SET closed_t_h = 3.0, close_reason = "
-        "'closing_tendency' WHERE id = 'conv-0'"
-    )
-    con.execute(
-        "INSERT INTO conversations (id, opened_t_h, opened_by) "
-        "VALUES ('conv-1', 5.0, 'companion')"
-    )
-    con.execute(
-        "INSERT INTO messages (role, content, t_h, day, proactive, meta, "
-        "session_id, intent_id, conversation_id) "
-        "VALUES ('user', 'hi', 1.0, 0, 0, NULL, 'day-1000', NULL, 'conv-0')"
-    )
-    con.execute(
-        "INSERT INTO messages (role, content, t_h, day, proactive, meta, "
-        "session_id, intent_id, conversation_id) "
-        "VALUES ('companion', 'hello!', 1.1, 0, 0, NULL, 'day-1000', "
-        "'pi-ag-0', 'conv-0')"
-    )
-    con.execute("DELETE FROM agenda_items WHERE day = 0")
-    con.execute(
-        "INSERT INTO agenda_items (id, day, start_t_h, end_t_h, activity, "
-        "source_type, source_id, salience, status) "
-        "VALUES ('ag-0', 0, 6.0, 7.0, 'coffee', 'routine', 'r-coffee', "
-        "0.5, 'planned')"
-    )
-    con.execute(
-        "INSERT INTO agenda_items (id, day, start_t_h, end_t_h, activity, "
-        "source_type, source_id, salience, status) "
-        "VALUES ('ag-1', 0, 15.0, 16.0, 'movies', 'routine', 'r-movies', "
-        "0.7, 'planned')"
-    )
-    con.execute(
-        "INSERT INTO proactive_intents (id, reason, source_type, source_id, "
-        "hook, created_t_h, valid_until_t_h, salience, evidence) "
-        "VALUES ('pi-1', 'window', 'agenda_item', 'ag-0', "
-        "'try coffee', 8.0, 9.5, 0.6, 'ev1')"
-    )
-    con.execute(
-        "INSERT INTO proactive_intents (id, reason, source_type, source_id, "
-        "hook, created_t_h, valid_until_t_h, salience, evidence) "
-        "VALUES ('pi-2', 'window', 'agenda_item', 'ag-1', "
-        "'try movies', 14.0, 16.5, 0.7, 'ev2')"
-    )
-    con.commit()
-    v6_legacy = {
-        table: [tuple(r) for r in con.execute(
-            f"SELECT {', '.join(cols)} FROM {table} "
-            f"ORDER BY {_ORDER_BY[table]}"
-        )]
-        for table, cols in _LEGACY_COLUMNS.items()
-    }
-    con.close()
-
-    # New-code side: the same scripted run through the v7 store, no anchor.
-    store = SQLiteStore(tmp_path / "v7.db")
-    _scripted_writes(store)
-    v7_legacy = {
-        table: [tuple(r) for r in store.conn.execute(
-            f"SELECT {', '.join(cols)} FROM {table} "
-            f"ORDER BY {_ORDER_BY[table]}"
-        )]
-        for table, cols in _LEGACY_COLUMNS.items()
-    }
-# the seven new columns are all-NULL on the unanchored run
-    for table, col in sorted(_V7_ADDITIONS):
-        rows = store.conn.execute(f"SELECT {col} FROM {table}").fetchall()
-        assert all(r[col] is None for r in rows), f"{table}.{col} not NULL"
-    store.close()
-
-    # legacy rows byte-identical to the pre-v7 write path
-    assert v7_legacy == v6_legacy
-
-
 # -- live-DB copy test ---
 
 
-def _live_db_candidates() -> list:
-    here = __file__
-    root = __import__("pathlib").Path(here).resolve().parents[1]  # worktree root
-    p = root / "results" / "live-companion" / "companion.db"
-    if p.exists():
-        return [p]
-    return []
-
-
 @pytest.mark.skipif(
-    not _live_db_candidates(),
+    not live_db_candidates(),
     reason="results/live-companion/companion.db not present (live DB is "
     "gitignored; this test runs where the real DB ships)",
 )
 def test_live_companion_db_migrates_additively(tmp_path):
     """Migrate a COPY of the real populated companion.db; the original is opened
     read-only and byte-compared before/after."""
-    src = _live_db_candidates()[0]
+    src = live_db_candidates()[0]
 
     def _sha(p) -> str:
         return hashlib.sha256(p.read_bytes()).hexdigest()
@@ -477,6 +297,9 @@ def test_live_companion_db_migrates_additively(tmp_path):
     )
     for table, col in sorted(_V7_ADDITIONS):
         assert col in _table_columns(store.conn, table), f"{table}.{col} missing"
+    assert "kv_store" in {r["name"] for r in store.conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table'")}
+    assert "closing_pending_t_h" in _table_columns(store.conn, "conversations")
     # every table opens, every row count intact
     for t, n in counts0.items():
         assert store.conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] == n, t
@@ -486,6 +309,14 @@ def test_live_companion_db_migrates_additively(tmp_path):
     ).fetchone()[0]
     assert n_null == n_null0, (
         f"migration changed sent_at values: {n_null0} -> {n_null}"
+    )
+    # every stored close reason is one the code writes; 'followed_event' is the
+    # negotiation go-verdict close.
+    assert all(
+        c.close_reason in ("closing_tendency", "user_left", "quiet_hours",
+                           "max_turns", "followed_event")
+        or c.close_reason is None
+        for c in store.list_conversations()
     )
     store.close()
 

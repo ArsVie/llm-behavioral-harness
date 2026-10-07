@@ -9,7 +9,6 @@ from harness.clock import VirtualClock
 from harness.judge import ScriptedJudge
 from harness.session import Session
 from harness.store import SQLiteStore
-from harness.tunables import USER_AWAY_THRESHOLD_H, USER_LEFT_THRESHOLD_H, WIND_DOWN_GRACE_H
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -174,11 +173,3 @@ def test_replay_parity_no_new_rng(tmp_path):
         return history
 
     assert run_one(False) == run_one(True)
-
-
-def test_tunables_values():
-    """Pin the tuned values."""
-    assert USER_AWAY_THRESHOLD_H == 0.25
-    assert USER_LEFT_THRESHOLD_H == 6.0
-    assert WIND_DOWN_GRACE_H < USER_LEFT_THRESHOLD_H
-    assert WIND_DOWN_GRACE_H == 0.0833

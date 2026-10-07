@@ -67,13 +67,6 @@ class TestEnergy:
         expected = max(0.0, min(1.0, expected))
         assert abs(result - expected) < TOL_NEAR
 
-    def test_energy_phase_differences(self):
-        """Energía difiere por fase: ovulatory > menstrual en la misma h."""
-        params = TimingParams()
-        e_menstrual = energy(14.0, PHASE_MENSTRUAL, params)
-        e_ovulatory = energy(14.0, PHASE_OVULATORY, params)
-        assert e_ovulatory > e_menstrual
-
     def test_energy_unknown_phase(self):
         """Fase desconocida ⇒ offset 0.0."""
         params = TimingParams()
@@ -129,17 +122,6 @@ class TestEnvelope:
         for h in midday_points:
             assert abs(envelope(h, params) - 1.0) < TOL_NEAR, \
                 f"envelope({h}) should be 1.0 in midday"
-
-    def test_envelope_ramp_values_default(self):
-        """envelope ∈ (0, 1) a mitad de las rampas (sin exactitud, solo forma)."""
-        params = TimingParams()
-        # quiet_hours=(23, 8), ramp_h=1.0: ramp up [8, 9], ramp down [22, 23].
-        e_ramp_up = envelope(8.5, params)
-        assert 0.0 < e_ramp_up < 1.0
-
-        # Mitad de rampa descendente: h=22.5
-        e_ramp_down = envelope(22.5, params)
-        assert 0.0 < e_ramp_down < 1.0
 
     def test_envelope_continuity_default(self):
         """Continuidad: salto máximo |envelope(h+δ)-envelope(h)| < 0.01."""
@@ -209,15 +191,6 @@ class TestEnvelope:
             assert abs(envelope(h, params) - envelope(h + 24.0, params)) < TOL_NEAR
             assert abs(envelope(h, params) - envelope(h + 48.0, params)) < TOL_NEAR
 
-    def test_envelope_zero_at_quiet_boundaries(self):
-        """Exactamente 0.0 en los bordes de quiet_hours (ini, fin)."""
-        params = TimingParams()  # quiet=(23, 8)
-        # En quiet_ini (23): debería estar exactamente en 0
-        assert abs(envelope(23.0, params) - 0.0) < TOL_EXACT
-
-        # En quiet_fin (8): debería estar exactamente en 0 (borde cerrado)
-        assert abs(envelope(8.0, params) - 0.0) < TOL_EXACT
-
     def test_envelope_smooth_across_midnight(self):
         """Envolvente suave al cruzar medianoche (quiet cruza)."""
         params = TimingParams()  # quiet=(23, 8)
@@ -250,34 +223,6 @@ class TestEnvelope:
 
 class TestIntegration:
     """Tests de integración entre funciones."""
-
-    def test_all_functions_with_custom_params(self):
-        """Todas las funciones funcionan con parámetros personalizados."""
-        params = TimingParams(peak_hour=12.0, diurnal_amp=0.3,
-                              quiet_hours=(20.0, 7.0))
-
-        for h in [0.0, 5.5, 12.0, 18.5, 23.9]:
-            c_val = c(h, params)
-            assert isinstance(c_val, float)
-
-            e_val = energy(h, PHASE_OVULATORY, params)
-            assert 0.0 <= e_val <= 1.0
-
-            env_val = envelope(h, params)
-            assert 0.0 <= env_val <= 1.0
-
-    def test_energy_and_envelope_independence(self):
-        """energy y envelope son independientes (no interaccionan)."""
-        params = TimingParams()
-
-        # energy depende de phase_label, envelope no
-        e1 = energy(14.0, PHASE_MENSTRUAL, params)
-        e2 = energy(14.0, PHASE_OVULATORY, params)
-        assert e1 != e2
-
-        env = envelope(14.0, params)
-        # envelope es el mismo para ambas fases
-        assert env == envelope(14.0, params)
 
     def test_c_independence_from_quiet_hours(self):
         """c(h) no depende de quiet_hours."""

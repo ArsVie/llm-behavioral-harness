@@ -30,12 +30,6 @@ def test_epoch_of_is_inverse_of_t_h_at():
         assert a.epoch_of(a.t_h_at(epoch_s)) == pytest.approx(epoch_s, abs=1e-6)
 
 
-def test_t_h_at_is_inverse_of_epoch_of():
-    a = RealTimeAnchor(epoch0_s=123_456.789, t_h0=7.25, tz="America/Mexico_City")
-    for t_h in (-5.0, 0.0, 7.25, 18.5, 1_000.0):
-        assert a.t_h_at(a.epoch_of(t_h)) == pytest.approx(t_h, abs=1e-9)
-
-
 def test_fresh_start_sanity_1830_local():
     now = _epoch(2026, 8, 15, 18, 30, tz="America/Mexico_City")
     a = anchor_for_fresh_start(now, "America/Mexico_City")
@@ -44,13 +38,6 @@ def test_fresh_start_sanity_1830_local():
     assert a.t_h0 == pytest.approx(18.5)
     assert a.t_h_at(now) == pytest.approx(18.5)
     assert a.epoch_of(a.t_h0) == pytest.approx(now)
-
-
-def test_fresh_start_default_tz():
-    now = _epoch(2026, 8, 15, 9, 0, tz="America/Mexico_City")
-    a = anchor_for_fresh_start(now)
-    assert a.tz == "America/Mexico_City"
-    assert a.t_h0 == pytest.approx(9.0)
 
 
 def test_fresh_start_various_times_of_day():

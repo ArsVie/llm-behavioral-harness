@@ -16,7 +16,7 @@ import argparse
 import json
 import sys
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Callable, Iterable
 
@@ -27,6 +27,7 @@ from harness.pricing import (
     rates_from_json,
 )
 from harness.store import SQLiteStore
+from harness.trace import load_anchor
 
 LANE_LABELS = {"product": "product (Lily live bot)", "research": "research (judges/experiments)"}
 
@@ -98,15 +99,22 @@ class GroupStats:
         self.savings_usd += uncached - actual
 
 
-def aggregate(rows: Iterable[dict], pricing: dict[str, dict[str, float]] | None = None) -> GroupStats:
+def _rates(row: dict, pricing, when) -> dict[str, float] | None:
+    return price_for(row.get("model"), pricing,
+                     at=when(row) if when is not None else None)
+
+
+def aggregate(rows: Iterable[dict], pricing: dict[str, dict[str, float]] | None = None,
+              when: Callable[[dict], datetime | None] | None = None) -> GroupStats:
     """Grand-total stats over an iterable of llm_calls rows.
 
     ``pricing`` overrides the module-level ``MODELS`` table for this call
-    only; ``None`` uses the built-in rates.
+    only; ``None`` uses the built-in rates. ``when(row)`` is the call's real
+    instant, for models priced by time of day.
     """
     out = GroupStats()
     for row in rows:
-        out.add(row, price_for(row.get("model"), pricing))
+        out.add(row, _rates(row, pricing, when))
     return out
 
 
@@ -114,18 +122,12 @@ def aggregate_by(
     rows: Iterable[dict],
     key: Callable[[dict], str],
     pricing: dict[str, dict[str, float]] | None = None,
+    when: Callable[[dict], datetime | None] | None = None,
 ) -> dict[str, GroupStats]:
-    """Stats grouped by ``key(row)``; groups appear in first-seen order.
-
-    ``pricing`` overrides the module-level ``MODELS`` table for this call
-    only; ``None`` uses the built-in rates.
-    """
+    """Stats grouped by ``key(row)``, in first-seen order (see ``aggregate``)."""
     groups: dict[str, GroupStats] = {}
     for row in rows:
-        k = key(row)
-        if k not in groups:
-            groups[k] = GroupStats()
-        groups[k].add(row, price_for(row.get("model"), pricing))
+        groups.setdefault(key(row), GroupStats()).add(row, _rates(row, pricing, when))
     return groups
 
 
@@ -263,24 +265,28 @@ def main(argv: list[str] | None = None) -> int:
     store = SQLiteStore(args.db)
     try:
         rows = _rows_for_window(store, args)
+        anchor = load_anchor(store.conn)
     finally:
         store.close()
 
-    total = aggregate(rows, pricing=pricing_override)
-    by_lane = aggregate_by(rows, lambda r: r.get("lane") or "unknown", pricing=pricing_override)
-    by_model = aggregate_by(rows, lambda r: r.get("model") or "unknown", pricing=pricing_override)
-    by_day = aggregate_by(rows, lambda r: f"day {r['day']}", pricing=pricing_override)
+    when = None if anchor is None else (lambda r: anchor.real(float(r["t_h"])))
+    priced = {"pricing": pricing_override, "when": when}
+    total = aggregate(rows, **priced)
+    by_lane = aggregate_by(rows, lambda r: r.get("lane") or "unknown", **priced)
+    by_model = aggregate_by(rows, lambda r: r.get("model") or "unknown", **priced)
+    by_day = aggregate_by(rows, lambda r: f"day {r['day']}", **priced)
 
     window_desc = "all time"
     if args.days is not None:
         window_desc = f"last {args.days} day(s)"
-    if args.day_start is not None or args.day_end is not None:
-        window_desc += f" [day {args.day_start}..{args.day_end}]" if args.day_start is not None and args.day_end is not None \
-            else f" [day >= {args.day_start}]" if args.day_start is not None else f" [day <= {args.day_end}]"
+    if args.day_start is not None and args.day_end is not None:
+        window_desc += f" [day {args.day_start}..{args.day_end}]"
+    elif args.day_start is not None:
+        window_desc += f" [day >= {args.day_start}]"
+    elif args.day_end is not None:
+        window_desc += f" [day <= {args.day_end}]"
 
-    report = render_report(total, by_lane, by_model, by_day,
-                           window_desc=window_desc,
-                           pricing_pending=PRICING_PENDING)
+    report = render_report(total, by_lane, by_model, by_day, window_desc=window_desc)
 
     out_path = Path(args.out) if args.out else (
         Path("results") / f"spend-report-{date.today().isoformat()}.txt"

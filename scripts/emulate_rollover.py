@@ -10,7 +10,7 @@ provider, WITHOUT touching the live trial:
   1. back up the source DB (opened read-only) into a scratch workdir;
   2. rewind the copy: delete ``daily_state`` rows past ``--day`` so the
      session resume lands on ``--day`` (the evening the rollover should run);
-  3. build the session exactly as the live launcher would (same condition,
+  3. build the session exactly as the live launcher would (same
      seed, lanes, persona file, anchor);
   4. run one real mainline turn (the day's last user message) — this warms
      the provider cache for [system][tool schemas][conversation] exactly as
@@ -143,7 +143,6 @@ def main() -> int:
     )
     parser.add_argument("--workdir", default=None)
     parser.add_argument("--seed", type=int, default=8001)
-    parser.add_argument("--condition", default="FULL")
     parser.add_argument("--skip-turn", action="store_true",
                         help="do not run the warming mainline turn")
     parser.add_argument("--skip-ab", action="store_true",
@@ -190,9 +189,8 @@ def main() -> int:
 
     # 3. build the session exactly as the launcher would
     sys.path.insert(0, str(REPO))
-    from engine.types import MoodVariant, PersonaParams, TimingParams
-    from experiments.cvs_common import make_session
-    from experiments.live_companion import bootstrap, build_store
+    from engine.types import PersonaParams, TimingParams
+    from experiments.live_companion import bootstrap, build_session, build_store
     from harness.client import OpenAICompatibleClient
     from harness.clock import VirtualClock
     from harness.judge import judge_day
@@ -205,11 +203,10 @@ def main() -> int:
         store.attach_anchor(anchor)
     client = OpenAICompatibleClient(lane="product")
     judge_client = OpenAICompatibleClient(lane="research")
-    session = make_session(
-        args.condition, args.seed, store,
-        VirtualClock(float(target) * 24.0 + 23.95),
+    session = build_session(
+        store, args.seed, VirtualClock(float(target) * 24.0 + 23.95),
         client, judge_day, PersonaParams(), TimingParams(),
-        MoodVariant.DECOUPLED_OFFSETS, judge_client=judge_client,
+        judge_client=judge_client,
     )
     print(f"session: day={session.current_day} t_h={session.clock.now_h():.2f} "
           f"anchor={'attached' if anchor else 'none'}")

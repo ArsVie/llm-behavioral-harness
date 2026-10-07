@@ -44,3 +44,19 @@ def persona() -> PersonaParams:
 def timing() -> TimingParams:
     """TimingParams con los defaults de DESIGN.md."""
     return TimingParams()
+
+
+@pytest.fixture(autouse=True)
+def _gateway_watch():
+    """Each test starts with a clean gateway watch, and a rotation inside a
+    test does not leak its session id into the next."""
+    from harness.gateway import WATCH
+
+    saved = os.environ.get("LLM_SESSION_ID")
+    WATCH.reset()
+    yield
+    WATCH.reset()
+    if saved is None:
+        os.environ.pop("LLM_SESSION_ID", None)
+    else:
+        os.environ["LLM_SESSION_ID"] = saved

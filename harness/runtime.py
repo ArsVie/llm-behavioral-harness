@@ -9,7 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
+import queue
+import subprocess
+import threading
 import time
+import uuid
 from dataclasses import dataclass, replace
 from typing import cast
 from zoneinfo import ZoneInfo
@@ -18,15 +23,23 @@ import engine.rng as rng_mod
 from engine.circadian import envelope
 from engine.types import ENVELOPE_RAMP_H, TimingParams
 from harness.anchor import RealTimeAnchor
+from harness.bubbles import typing_pause_s
+from harness.call import (
+    HEARTBEAT_TIMEOUT_S,
+    ActiveCall,
+    CallConflict,
+    CallServer,
+    launch_command,
+)
 from harness.channels.base import Channel, InboundMessage, OutboundMessage
-
+from harness.clock import hhmm
 from harness.concurrency import (
     ExecutorOwner,
-    ResourceRegistry,
     Sleeper,
     default_sleeper,
     ensure_thread_safe_connection,
 )
+from harness.env import env_bool as _env_bool
 from harness.gates import content_gate, context_gate
 from harness.proactive import IntentResolver
 from harness.scheduler import (
@@ -37,13 +50,16 @@ from harness.scheduler import (
 )
 from harness.session import Session
 from harness.store import SQLiteStore
-from harness.env import env_bool as _env_bool
 
 #: Poll cadence with no pending schedule event, in virtual hours.
 POLL_INTERVAL_H = 0.05
 
-#: Longest single sleep the rollover PARK takes before re-checking whether a
-#: nearer wake was armed (real seconds; anchor mode only).
+#: Longest single sleep any anchor-mode wait takes before re-reading the wall
+#: clock (real seconds). The park also checks for a nearer wake at each slice.
+#: asyncio sleeps on the monotonic clock, which stops while the host sleeps
+#: (WSL pauses the VM with Windows): one long sleep then wakes late by the
+#: whole pause. Live 2026-09-26: a sleep armed at midnight was still running
+#: at 16:00, 17 h of pauses behind, and her 12:00 event never fired.
 RETARGET_SLICE_S = 60.0
 
 #: Store kv keys that persist the RealTimeAnchor.
@@ -75,11 +91,9 @@ def persist_anchor(store, anchor: RealTimeAnchor) -> None:
     set_kv = getattr(store, "set_kv", None)
     if set_kv is None:
         return
-    set_kv("anchor.epoch0_s", str(anchor.epoch0_s))
-    set_kv("anchor.t_h0", str(anchor.t_h0))
-    set_kv("anchor.tz", anchor.tz)
-
-
+    values = (str(anchor.epoch0_s), str(anchor.t_h0), anchor.tz)
+    for key, value in zip(ANCHOR_KV_KEYS, values):
+        set_kv(key, value)
 
 
 @dataclass
@@ -117,6 +131,7 @@ class AsyncRuntime:
         now=None,
         enable_commands: bool = False,
         survive_turn_failures: bool = False,
+        plan_on_start: bool = False,
     ):
         self.session = session
         self.schedule = schedule
@@ -135,6 +150,10 @@ class AsyncRuntime:
         #: Turn-failure policy. False (default) = fail fast; True = report the
         #: failure and stay up.
         self.survive_turn_failures = bool(survive_turn_failures)
+        #: When True, run() re-plans through today after the startup settle:
+        #: a restart past a midnight it slept through gets that day's slots
+        #: (the rollover's re-plan never ran for it). Idempotent.
+        self.plan_on_start = bool(plan_on_start)
         #: Virtual hour the anchor resume set the clock to (None before start).
         self._t_h_start: float | None = None
         #: Queued /tz change, applied at the next rollover.
@@ -147,26 +166,44 @@ class AsyncRuntime:
         )
         #: Injectable delay function; default concurrency.default_sleeper.
         self.sleeper: Sleeper = sleeper if sleeper is not None else default_sleeper()
-        #: Owned executor and resource registry for this runtime.
+        #: Owned executor. The store and channel are injected: their creator
+        #: closes them.
         self._executor = ExecutorOwner("runtime").start()
-        self._registry = ResourceRegistry("runtime")
-        self._registry.register(store, owned=False)   # injected: creator owns it
-        self._registry.register(channel, owned=False)  # injected: creator owns it
         self._lock = asyncio.Lock()
         #: Set when the firing loop exits; the rollover stops parking events.
         self._firing_done = False
         #: Raised by :meth:`request_retarget` when a turn may have armed a
         #: nearer wake instant; cuts the rollover park short so it re-surveys.
         self._retarget = asyncio.Event()
+        #: Voice call. ``_call_mode`` is on from pick-up until the held
+        #: messages have been replayed; proactives, settling, negotiation
+        #: output, conversation closes and the rollover wait on
+        #: ``_call_idle`` meanwhile.
+        self._call: ActiveCall | None = None
+        self._last_call: ActiveCall | None = None
+        self._call_mode = False
+        self._call_idle = asyncio.Event()
+        self._call_idle.set()
+        #: His Telegram messages held during the call, with arrival t_h.
+        self._call_held: list[tuple[InboundMessage, float]] = []
+        self._call_server: CallServer | None = None
+        self._call_tasks: set[asyncio.Task] = set()
+        #: True from /call until her pick-up decision is in (ringing), and
+        #: the hang-up he sends meanwhile.
+        self._ringing = False
+        self._ring_cancel: threading.Event | None = None
+        #: Seconds between heartbeat checks (tests shorten it).
+        self.call_watch_interval_s = 1.0
+        self._loop: asyncio.AbstractEventLoop | None = None
         self._ensure_thread_safe_store()
 
     def _ensure_thread_safe_store(self) -> None:
         """Re-open the store connection for cross-thread use.
 
         ``session.*`` calls run on worker threads, so the thread-bound sqlite
-        connection is re-opened with ``check_same_thread=False`` and
-        registered owned=False — ``SQLiteStore.close()`` owns it. Stores with
-        no sqlite connection (test fakes) are skipped."""
+        connection is re-opened with ``check_same_thread=False``;
+        ``SQLiteStore.close()`` owns it. Stores with no sqlite connection
+        (test fakes) are skipped."""
         if not (hasattr(self.store, "path") and hasattr(self.store, "conn")):
             return
         old_conn = self.store.conn
@@ -174,13 +211,13 @@ class AsyncRuntime:
         if old_conn is not None:
             old_conn.close()  # schema-creation conn from SQLiteStore.__init__
         self.store.conn = conn
-        self._registry.register(conn, owned=False)
 
     # lifecycle
 
     async def run(self) -> None:
         """Start the channel, run rollover + firing until max_virtual_hours
-        (or cancelled), then finalize the current day, stop the channel and
+        (or cancelled), then finalize the current day (only when the horizon
+        was reached, never on a stop), stop the channel and
         shut down the owned executor (injected resources are never closed
         here). Cleanup runs on every exit path — cancellation included.
 
@@ -190,19 +227,33 @@ class AsyncRuntime:
         """
         if self.anchor is not None:
             self._apply_anchor_resume()
+        self._loop = asyncio.get_running_loop()
         started = False
+        ended = False
         try:
+            # A call the last run left open is over: close it with its end
+            # row before anything else writes to the stream.
+            recover = getattr(self.session, "recover_open_call", None)
+            if recover is not None:
+                await self._session_call(recover)
             # Her clock starts before the channel does: the pending backlog
             # resolves as initialization, independent of any user message.
-            await self._session_call(self.session.settle_pending, "startup")
+            settled = await self._session_call(
+                self.session.settle_pending, "startup"
+            )
+            if self.plan_on_start:
+                self._replan()
             if self.enable_commands:
                 await self.channel.start(self._on_inbound, on_command=self._on_command)
             else:
                 await self.channel.start(self._on_inbound)
             started = True
+            # What the backlog wrote to him goes out once the channel is up.
+            await self._send_settled(settled)
             await asyncio.gather(
                 self._rollover_loop(), self._firing_loop(), self._life_loop()
             )
+            ended = True
         finally:
             # The unwind survives cancellation: a cancelled await anywhere
             # above — including the startup settle, before the channel even
@@ -214,15 +265,17 @@ class AsyncRuntime:
             # work. Stop and close sit in nested finallys, so each runs even
             # when an earlier await raises CancelledError.
             try:
+                self._stop_call_server()
                 self._executor.shutdown()
-                if started:
+                if started and ended:
+                    # Only a run that reached its horizon closes its day. A
+                    # stop (Ctrl-C, SIGTERM, a deploy) lands mid-day: judging
+                    # then locked in a partial day (live day 7),
+                    # and the day's own midnight judges it whole instead.
                     self.session.finalize_current()
             finally:
-                try:
-                    if started:
-                        await self.channel.stop()
-                finally:
-                    self._registry.close()
+                if started:
+                    await self.channel.stop()
 
     async def _session_call(self, fn, *args):
         """Run one synchronous session call on the OWNED executor, locked."""
@@ -232,17 +285,15 @@ class AsyncRuntime:
     def _max_reached(self, now_h: float) -> bool:
         return self.max_virtual_hours is not None and now_h >= self.max_virtual_hours
 
-    def _poll_sleep(self) -> float:
-        return POLL_INTERVAL_H * self.time_scale.seconds_per_virtual_hour
-
     async def _poll_wait(self) -> None:
         """Wait one polling cadence. Unanchored: a real asyncio sleep; anchor
         mode: the injectable sleeper, so a fake wall clock consumes the poll
         time."""
+        seconds = POLL_INTERVAL_H * self.time_scale.seconds_per_virtual_hour
         if self.anchor is None:
-            await asyncio.sleep(self._poll_sleep())
+            await asyncio.sleep(seconds)
         else:
-            await self.sleeper(self._poll_sleep())
+            await self.sleeper(seconds)
 
     def request_retarget(self) -> None:
         """Announce that the set of future wake instants may have changed.
@@ -261,9 +312,10 @@ class AsyncRuntime:
         instead of landing on the stale target). Only the rollover PARK is
         interruptible.
 
-        Anchor mode sleeps the REMAINING real seconds to the target's epoch,
-        re-checking after every wake; the CALLER advances the virtual clock
-        after this returns. Unanchored: a paced asyncio sleep.
+        Anchor mode sleeps toward the target's epoch in slices of at most
+        ``RETARGET_SLICE_S``, re-reading the wall clock after every wake, so
+        a host suspend costs at most one slice; the CALLER advances the
+        virtual clock after this returns. Unanchored: a paced asyncio sleep.
         """
         if self.anchor is None:
             # Accelerated runs are never interrupted.
@@ -276,14 +328,11 @@ class AsyncRuntime:
             remaining = deadline - self._now()
             if remaining <= 0:
                 return True
-            if not interruptible:
-                await self.sleeper(remaining)
-                continue
-            if self._retarget.is_set():
+            if interruptible and self._retarget.is_set():
                 self._retarget.clear()
                 return False
             # Sliced, not raced: the sleeper is the only thing that moves
-            # time, and a slice still notices a retarget.
+            # time, and a slice still notices a retarget or a host suspend.
             await self.sleeper(min(remaining, RETARGET_SLICE_S))
 
     # anchor resume
@@ -338,16 +387,11 @@ class AsyncRuntime:
                 t = max(t, float(e.get("t_h", 0.0)))
         return t
 
-    def _horizon_days(self) -> int:
-        """Plan ONLY the current day: days 0..current_day, so the schedule
-        covers through today. Re-planning regenerates identical rows —
-        INSERT OR IGNORE never drifts."""
-        return self.session.clock.day() + 1
-
     def _replan(self) -> None:
         """Plan the CURRENT day with real timing feedback, persist it, and
         refresh the schedule from the store (already-fired/expired rows are
-        never re-selected).
+        never re-selected). The horizon is days 0..today: re-planning
+        regenerates identical rows, and INSERT OR IGNORE never drifts.
 
         Runs on the event loop directly — plan_and_persist holds no session
         state. ``scores`` must never be None in live scheduling.
@@ -355,7 +399,7 @@ class AsyncRuntime:
         day = self.session.clock.day()
         scores = day_scores(self.store, day, self.timing)
         ProactiveSchedule.plan_and_persist(
-            self._horizon_days(),
+            day + 1,
             self.seed,
             self.session.persona,
             self.timing,
@@ -367,7 +411,8 @@ class AsyncRuntime:
 
     # reactive path
 
-    async def _on_inbound(self, msg: InboundMessage) -> None:
+    async def _on_inbound(self, msg: InboundMessage, *,
+                          held_arrival_t_h: float | None = None) -> None:
         """Reactive path: advance the clock to the message's arrival hour if
         supplied (never backwards), reply via ``Session.on_message``, wait
         the requested ``response_delay_s``, then send the reply as a
@@ -380,9 +425,21 @@ class AsyncRuntime:
         Anchor mode advances the clock to ``anchor.t_h_at(msg.received_at)``
         (the REAL arrival time); otherwise ``msg.t_h`` applies, and no t_h
         means no advance.
+
+        During a voice call the message is held with its arrival time and
+        answered after the call (``held_arrival_t_h`` is that replay).
         """
+        if held_arrival_t_h is None and self._call_mode:
+            self._hold_inbound(msg)
+            return
         async with self._lock:
-            if self.anchor is not None and msg.received_at is not None:
+            if held_arrival_t_h is None and self._call_mode:
+                # The call was picked up while this message waited.
+                self._hold_inbound(msg)
+                return
+            if held_arrival_t_h is not None:
+                pass  # arrived in the past: the clock never goes back
+            elif self.anchor is not None and msg.received_at is not None:
                 arrival_t_h = self.anchor.t_h_at(msg.received_at)
                 if arrival_t_h > self.session.clock.now_h():
                     self.session.clock.advance_hours(
@@ -396,9 +453,18 @@ class AsyncRuntime:
             if enqueue is not None:
                 enqueue(msg.text, self.session.clock.now_h())
 
+            # Only a message with photos passes them: sessions that predate
+            # photos (fakes) keep their signature.
+            extra: dict = {"photos": msg.photos} if msg.photos else {}
+
             async def _gen():
+                if held_arrival_t_h is not None:
+                    return await self._executor.run_in_thread(
+                        self.session.on_message, msg.text,
+                        arrived_t_h=held_arrival_t_h, **extra,
+                    )
                 return await self._executor.run_in_thread(
-                    self.session.on_message, msg.text
+                    self.session.on_message, msg.text, **extra
                 )
 
             try:
@@ -429,7 +495,8 @@ class AsyncRuntime:
 
         async def _gen():
             result = await generation()
-            await self.sleeper(self._response_delay(result))
+            # Wall-clock seconds between the LLM completion and the send.
+            await self.sleeper(float(result.controls.response_delay_s))
             return result
 
         if typing_ctx is None:
@@ -455,7 +522,8 @@ class AsyncRuntime:
         self.request_retarget()
         for out_reason, text in getattr(result, "proactive_out", ()):
             await self.channel.send(
-                OutboundMessage(text=text, proactive=True, reason=out_reason)
+                OutboundMessage(text=text, proactive=True, reason=out_reason,
+                                paced=True)
             )
         for notice in getattr(result, "notices", ()):
             await self.channel.send(OutboundMessage(text=notice, proactive=False))
@@ -463,19 +531,33 @@ class AsyncRuntime:
         if bubbles:
             for i, part in enumerate(bubbles):
                 if i > 0:
-                    gap = 1.0 + 0.5 * len(part) / 80.0
-                    gap = max(0.6, min(gap, 2.5))
-                    await self.sleeper(gap)
+                    await self._typing_pause(typing_pause_s(part))
                 await self.channel.send(
-                    OutboundMessage(text=part, proactive=proactive, reason=reason)
+                    OutboundMessage(text=part, proactive=proactive, reason=reason,
+                                    paced=True)
                 )
             return
         if (result.reply or "").strip():
+            # paced: a channel that splits it into several sends pauses
+            # before each one after the first (TelegramChannel.send).
             await self.channel.send(
                 OutboundMessage(
-                    text=result.reply, proactive=proactive, reason=reason
+                    text=result.reply, proactive=proactive, reason=reason,
+                    paced=True,
                 )
             )
+
+    async def _typing_pause(self, seconds: float) -> None:
+        """The pause before one of her bubbles after the first: the
+        channel's ``typing_pause`` (typing shown) when it has one, else the
+        runtime sleeper. Runs under whatever lock the caller holds, so a
+        message he sends meanwhile waits and the remaining bubbles still go
+        out; the event loop is never blocked."""
+        pause = getattr(self.channel, "typing_pause", None)
+        if pause is None:
+            await self.sleeper(seconds)
+        else:
+            await pause(seconds)
 
     # day rollover
 
@@ -491,6 +573,7 @@ class AsyncRuntime:
         if not self.session.life_instants_enabled():
             return
         while True:
+            await self._call_idle.wait()
             now = self.session.clock.now_h()
             if self._max_reached(now):
                 return
@@ -503,10 +586,29 @@ class AsyncRuntime:
             if nxt > now:
                 await self._sleep_until_t_h(nxt, now)
             async with self._lock:
+                if self._call_mode:
+                    continue  # a call started meanwhile: wait for its end
                 at = self.session.clock.now_h()
                 if at < nxt:
                     self.session.clock.advance_hours(nxt - at)
-            await self._session_call(self.session.settle_pending, "event-instant")
+            try:
+                settled = await self._session_call(
+                    self.session.settle_pending, "event-instant"
+                )
+                await self._send_settled(settled)
+            except asyncio.CancelledError:
+                raise  # shutdown, not a settle failure
+            except Exception as exc:  # noqa: BLE001 - the run must outlive one instant
+                # Unguarded, one bad decision call (a 400, the client's final
+                # RuntimeError) ended the whole gather (live 2026-09-26 23:15).
+                _logger.exception("settling an event instant failed")
+                self.store.log_event(
+                    self.session.clock.day(), self.session.clock.now_h(),
+                    "settle_failed", f"error={type(exc).__name__}: {exc}",
+                )
+                if not self.survive_turn_failures:
+                    raise
+                await self._poll_wait()  # never spin on an instant that fails
 
     async def _rollover_loop(self) -> None:
         """Sleep until the next virtual midnight (paced), roll the session
@@ -519,12 +621,12 @@ class AsyncRuntime:
         recovery evaluation.
         """
         while True:
+            await self._call_idle.wait()
             now = self.session.clock.now_h()
             if self._max_reached(now):
                 return
             next_midnight = (self.session.clock.day() + 1) * 24.0
-            target, now, neg_outs = await self._survey_park_target(next_midnight)
-            await self._send_neg_outs(neg_outs)
+            target, now = await self._survey_park_target(next_midnight)
             if target <= now:
                 # Yield to the firing loop without advancing past the parked event hour.
                 await self._poll_wait()
@@ -541,14 +643,13 @@ class AsyncRuntime:
 
     async def _survey_park_target(
         self, next_midnight: float
-    ) -> tuple[float, float, list]:
+    ) -> tuple[float, float]:
         """Where the rollover may pace the clock to.
 
-        Returns ``(target, now, neg_outs)``. The target starts at the next
-        midnight (or the run end) and is pulled EARLIER by whichever of the
-        conversation's next close, the next negotiation wake, and the
-        earliest pending event lands first. ``neg_outs`` is returned unsent —
-        the caller delivers it after the lock releases.
+        Returns ``(target, now)``. The target starts at the next midnight (or
+        the run end) and is pulled EARLIER by whichever of the conversation's
+        next close, the next negotiation wake, and the earliest pending event
+        lands first.
         """
         if self.max_virtual_hours is not None:
             target = min(next_midnight, self.max_virtual_hours)
@@ -557,7 +658,7 @@ class AsyncRuntime:
         async with self._lock:
             # Re-read the clock under the lock; the firing loop may have advanced it.
             now = self.session.clock.now_h()
-            neg_outs = await self._due_hook_outputs(now)
+            await self._run_due_hooks(now)
             pending = self.schedule.next_pending(now)
             if pending is not None and pending < now - 1e-9:
                 # Overdue row: park only if the firing loop will consume it (verdict None).
@@ -582,7 +683,7 @@ class AsyncRuntime:
         ):
             # Park at the earliest pending event; the firing loop gates it there.
             target = pending
-        return target, now, neg_outs
+        return target, now
 
     async def _land_on_target(self, target: float,
                               next_midnight: float) -> None:
@@ -593,12 +694,14 @@ class AsyncRuntime:
         day or apply a queued timezone change.
         """
         async with self._lock:
+            if self._call_mode:
+                return  # the rollover waits for the call to end
             # Re-read the clock inside the lock so the advance cannot overshoot the target.
             now = self.session.clock.now_h()
             if now < target:
                 self.session.clock.advance_hours(target - now)
             now = self.session.clock.now_h()
-            neg_outs = await self._due_hook_outputs(now)
+            await self._run_due_hooks(now)
             day = self.session.clock.day()
             if target >= next_midnight:
                 # A real rollover crossed midnight; the run-end boundary does not re-plan.
@@ -606,16 +709,8 @@ class AsyncRuntime:
                 self._replan()
                 # Apply a queued /tz change at the next rollover.
                 self._apply_pending_tz()
-        # Send negotiation decide-leg outputs after the lock releases.
-        await self._send_neg_outs(neg_outs)
 
     # proactive firing
-
-    @staticmethod
-    def _response_delay(result) -> float:
-        """Wall-clock seconds to wait between LLM completion and
-        ``channel.send`` (``result.controls.response_delay_s``)."""
-        return float(result.controls.response_delay_s)
 
     async def _firing_loop(self) -> None:
         """Wait for the next pending event, advance the clock to it, resolve
@@ -630,6 +725,7 @@ class AsyncRuntime:
         instant so a parked event cannot livelock the run.
         """
         while True:
+            await self._call_idle.wait()
             now = self.session.clock.now_h()
             if self._max_reached(now):
                 self._firing_done = True
@@ -656,6 +752,10 @@ class AsyncRuntime:
         the event was consumed (fired, suppressed, expired or failed).
         """
         async with self._lock:
+            if self._call_mode:
+                # Deferred like /mute, with no end time: the row stays
+                # pending and the loop waits for the call to end.
+                return None, self.session.clock.now_h()
             now = self.session.clock.now_h()
             if now < nxt:
                 self.session.clock.advance_hours(nxt - now)
@@ -691,31 +791,40 @@ class AsyncRuntime:
         now = self.session.clock.now_h()
         return self._defer_verdict(nxt, now), now
 
-    async def _due_hook_outputs(self, now: float) -> list:
-        """Run the session hooks the clock's arrival at ``now`` makes due and
-        return the negotiation output UNSENT.
-
-        Delivery is the caller's business on purpose: the firing loop sends
-        while the lock is held, the rollover sends after releasing it.
+    async def _run_due_hooks(self, now: float) -> None:
+        """Run the session hooks the clock's arrival at ``now`` makes due:
+        conversation closes and negotiation decide legs. Their decisions are
+        Telegram-silent, so there is nothing to send. Nothing is due during a
+        voice call (both are held until it ends).
         """
+        if self._call_mode:
+            return
         await self._executor.run_in_thread(
             self.session.check_conversation_lifecycle, now
         )
-        return await self._executor.run_in_thread(
-            self.session.check_negotiation, now
-        )
+        await self._executor.run_in_thread(self.session.check_negotiation, now)
+
+    async def _send_settled(self, drain) -> None:
+        """Send what a settle wrote to him (heads-ups, no-reply notices).
+
+        A settle generates no reply, but a resolution in it can still speak —
+        the heads-up before an event. That text is already in the stream, so
+        dropping it here left her history saying something he never got
+        (live 2026-09-28)."""
+        if drain is None:
+            return
+        await self._send_neg_outs(getattr(drain, "proactive_out", ()))
+        for notice in getattr(drain, "notices", ()):
+            if notice:
+                await self.channel.send(OutboundMessage(text=notice, proactive=False))
 
     async def _send_neg_outs(self, neg_outs) -> None:
-        """Deliver negotiation decide-leg output as proactive messages."""
+        """Deliver a settle's ``proactive_out`` as proactive messages."""
         for out_reason, text in neg_outs:
             await self.channel.send(
-                OutboundMessage(text=text, proactive=True, reason=out_reason)
+                OutboundMessage(text=text, proactive=True, reason=out_reason,
+                                paced=True)
             )
-
-    async def _run_due_hooks(self, now: float) -> None:
-        """Run the due session hooks and send their output (firing-loop
-        order: delivery happens while the lock is still held)."""
-        await self._send_neg_outs(await self._due_hook_outputs(now))
 
     def _resolve_grounded_intent(self, nxt: float, now: float, day: int):
         """Resolve the contact opportunity into a grounded ProactiveIntent.
@@ -739,7 +848,9 @@ class AsyncRuntime:
             self.store.log_event(
                 day, now, "proactive_suppressed", "no_grounded_reason"
             )
-            self.schedule.mark_fired_persisted(nxt, now, self.seed, self.store)
+            self.schedule.mark_suppressed_persisted(
+                nxt, now, self.seed, self.store
+            )
             return None
         self.store.save_proactive_intent(intent)
         return intent
@@ -769,7 +880,9 @@ class AsyncRuntime:
             self.store.mark_schedule_expired(self.seed, nxt)
             self.schedule.mark_fired(nxt)
         else:
-            self.schedule.mark_fired_persisted(nxt, now, self.seed, self.store)
+            self.schedule.mark_suppressed_persisted(
+                nxt, now, self.seed, self.store
+            )
         return False
 
     async def _fire_or_record_failure(self, intent, nxt: float, now: float,
@@ -802,6 +915,13 @@ class AsyncRuntime:
                 )
                 raise
         else:
+            if getattr(result, "declined", False):
+                # She said no: the session already marked the intent
+                # suppressed, and nothing reached him, so no cooldown.
+                self.schedule.mark_suppressed_persisted(
+                    nxt, now, self.seed, self.store
+                )
+                return
             self.store.update_proactive_intent_status(intent.id, "fired")
         self.schedule.mark_fired_persisted(nxt, now, self.seed, self.store)
 
@@ -890,9 +1010,17 @@ class AsyncRuntime:
         """Route a :class:`ControlCommand` (the channel's ``on_command``
         seam) to ``harness.commands.handle_command`` UNDER the runtime lock —
         never ``session.on_message``. The handler runs on the owned executor;
-        its reply is sent as a plain non-proactive message."""
+        its reply is sent as a plain non-proactive message.
+
+        /hangup during a call skips the lock: a call turn may be holding it
+        while she talks, and the hangup cuts that reply off."""
         from harness.commands import CommandContext, handle_command
 
+        if (getattr(cmd, "name", "").lstrip("/") == "hangup"
+                and (self._call is not None or self._ringing)):
+            await self.channel.send(
+                OutboundMessage(text=self._request_hangup(), proactive=False))
+            return
         async with self._lock:
             ctx = CommandContext(
                 store=self.store,
@@ -904,18 +1032,57 @@ class AsyncRuntime:
                 request_tz_change=self._request_tz_change,
                 request_mute=self._request_mute,
                 request_setup=self._request_setup,
+                request_commitment=self._request_commitment,
+                request_day_edit=self._request_day_edit,
+                request_call=self._request_call,
+                request_hangup=self._request_hangup,
+                request_presence=self._request_presence,
             )
             reply = await self._executor.run_in_thread(handle_command, cmd, ctx)
         if reply:
             await self.channel.send(OutboundMessage(text=reply, proactive=False))
 
-    def _request_setup(self) -> str:
+    def _commitment_from(self, mode, kind, hours, start_h):
+        from harness import habits
+
+        if mode == habits.MODE_LIGHT:
+            return habits.LIGHT
+        if mode == habits.MODE_PERSONA:
+            persona = self.store.load_persona()
+            return habits.infer_commitment(self.seed, persona.core if persona else "")
+        return habits.user_commitment(self.seed, kind, hours, start_h)
+
+    def _request_commitment(self, mode, kind, hours, start_h) -> str:
+        """The /commitment hook: save the setting; tomorrow's agenda is the
+        first drawn from it (today's is already hers)."""
+        from harness import habits
+
+        commitment = self._commitment_from(mode, kind, hours, start_h)
+        habits.save_commitment(self.store, commitment)
+        self.store.log_event(
+            self.session.clock.day(), self.session.clock.now_h(),
+            "commitment_set",
+            f"mode={commitment.mode} kind={commitment.kind} "
+            f"hours={commitment.hours} start={commitment.start_h}",
+        )
+        if commitment.kind is None:
+            return "no fixed commitment from tomorrow — only the small things"
+        return (f"from tomorrow: {commitment.text}, {commitment.hours:g} h a day "
+                f"from {hhmm(commitment.start_h)}")
+
+    def _request_day_edit(self, off, start_h) -> str:
+        """The /today hook: runs on the session's executor under the lock
+        (``_on_command``), so the session call is serialized with turns."""
+        return self.session.edit_today(off=off, start_h=start_h)
+
+    def _request_setup(self, commitment=None) -> str:
         """The /setup hook: initialize identity on a blank database.
 
         ``handle_command`` only calls this pre-bootstrap, so it never
         regenerates an existing identity. The onboarding LLM call goes
         through the session's own client, falling back to the offline
-        heuristic when there is none.
+        heuristic when there is none. ``commitment`` is /setup's optional
+        ``(mode, kind, hours, start_h)``; without it her persona decides.
         """
         from harness.bootstrap import ensure_companion_initialized
 
@@ -926,6 +1093,8 @@ class AsyncRuntime:
             day=self.session.clock.day(),
             client=getattr(self.session, "client", None),
             logger=lines.append,
+            commitment=(self._commitment_from(*commitment)
+                        if commitment is not None else None),
         )
         for line in lines:
             _logger.info("setup: %s", line)
@@ -956,6 +1125,7 @@ class AsyncRuntime:
 
     #: Documented boolean HARNESS_* feature flags surfaced in CommandContext.
     _COMMAND_FLAG_ENV = (
+        "HARNESS_DECISIONS",
         "HARNESS_DEBOUNCE",
         "HARNESS_TWO_PHASE_CLOSE",
         "HARNESS_TYPING",
@@ -1008,3 +1178,317 @@ class AsyncRuntime:
             else (day + 1) * 24.0 + quiet_fin
         )
         return boundary + ENVELOPE_RAMP_H
+
+    # voice call (harness/call.py serves the API; these are its host methods)
+
+    def _in_call_text(self) -> str | None:
+        """Why a new call cannot start now, or None when it can."""
+        if self._ringing:
+            return "Already calling her…"
+        if self._call_mode:
+            if self._call is None:
+                # Ended; his held messages are still being answered.
+                return "Call in progress — try again in a moment."
+            return "You're already on a call — /hangup ends it."
+        if (getattr(self.session, "_steering", None) is None
+                or getattr(self.session, "_decision", None) is None):
+            return "Calls need the decision layer (HARNESS_DECISIONS=1)."
+        if self._loop is None:
+            return "The runtime is not running."
+        return None
+
+    def _request_call(self) -> str:
+        """The /call hook. Runs under the lock inside ``_on_command``, so it
+        only schedules the ring: the ring needs the lock, and the Telegram
+        loop must stay free for /hangup. Her answer is the reply (the call
+        itself, or a text about the missed call)."""
+        refusal = self._in_call_text()
+        if refusal is not None:
+            return refusal
+        assert self._loop is not None
+        self._ringing = True
+        self._ring_cancel = threading.Event()
+        self._loop.call_soon_threadsafe(self._spawn, self._ring())
+        return ""
+
+    def _request_hangup(self) -> str:
+        """The /hangup hook: end the call without waiting for it. While it
+        still rings, the ring is cancelled: if she picks up, it never opens."""
+        call = self._call
+        if call is None and self._ringing and self._ring_cancel is not None:
+            self._ring_cancel.set()
+            return "Hung up."
+        if call is None or not call.request_end("hangup"):
+            return "No call is on."
+        call.stop_reply()
+        assert self._loop is not None
+        self._loop.call_soon_threadsafe(self._spawn, self._end_call(call))
+        return "Call ended."
+
+    def _request_presence(self, mode: str) -> str:
+        """The /here and /leave hook: swap the presence mode. Runs on the
+        session's executor under the lock (``_on_command``), so the flip row
+        lands in the stream serialized with turns."""
+        return self.session.set_presence(mode)
+
+    def _spawn(self, coro) -> None:
+        task = asyncio.ensure_future(coro)
+        self._call_tasks.add(task)
+        task.add_done_callback(self._call_tasks.discard)
+
+    def _advance_to_real_now(self) -> None:
+        """Anchor mode: move the virtual clock to the wall clock (a call
+        row carries the time it happened). Never backwards; a no-op
+        unanchored."""
+        if self.anchor is None:
+            return
+        target = self.anchor.t_h_at(self._now())
+        now = self.session.clock.now_h()
+        if target > now:
+            self.session.clock.advance_hours(target - now)
+
+    async def _ring(self) -> None:
+        """He is calling: her pick-up decision, then the call or the text."""
+        call_id = uuid.uuid4().hex
+        cancelled = self._ring_cancel or threading.Event()
+        try:
+            await self._ring_locked(call_id, cancelled)
+        finally:
+            if self._ring_cancel is cancelled:   # not a newer ring's
+                self._ringing = False
+
+    async def _ring_locked(self, call_id: str, cancelled: threading.Event) -> None:
+        async with self._lock:
+            if self._call_mode:
+                return
+            self._advance_to_real_now()
+            try:
+                result = await self._executor.run_in_thread(
+                    self.session.incoming_call, call_id, cancelled=cancelled
+                )
+            except Exception as exc:  # noqa: BLE001 - the run outlives a ring
+                _logger.exception("incoming call turn failed")
+                self.store.log_event(
+                    self.session.clock.day(), self.session.clock.now_h(),
+                    "call_failed", f"error={type(exc).__name__}: {exc}",
+                )
+                await self.channel.send(OutboundMessage(
+                    text=f"The call didn't go through ({type(exc).__name__}).",
+                    proactive=False,
+                ))
+                return
+            if not getattr(result, "call_answered", False):
+                # A missed call: her text goes out like any reply (a ring he
+                # hung up on before she picked up has none).
+                await self._send_turn_outputs(
+                    result, proactive=True, reason="missed_call"
+                )
+                return
+            if cancelled.is_set():
+                # He hung up just after the session checked: close it at once.
+                await self._executor.run_in_thread(
+                    self.session.end_call, "hung_up_ringing"
+                )
+                return
+            call = ActiveCall(call_id)
+            self._ringing = False
+            self._call = call
+            self._call_mode = True
+            self._call_idle.clear()
+        try:
+            url = self._ensure_call_server().base_url(call_id)
+            self._launch_live_talk(url)
+        except Exception as exc:  # noqa: BLE001 - reported, then the call ends
+            _logger.exception("could not open the call")
+            self.store.log_event(
+                self.session.clock.day(), self.session.clock.now_h(),
+                "call_launch_failed", f"error={type(exc).__name__}: {exc}",
+            )
+            await self.channel.send(OutboundMessage(
+                text=f"Couldn't open the call window ({type(exc).__name__}: {exc}).",
+                proactive=False,
+            ))
+            if call.request_end("launch_failed"):
+                await self._end_call(call)
+            return
+        self._spawn(self._watch_call(call))
+
+    def _ensure_call_server(self) -> CallServer:
+        if self._call_server is None:
+            self._call_server = CallServer(self)
+        return self._call_server.start()
+
+    def _stop_call_server(self) -> None:
+        server, self._call_server = self._call_server, None
+        if server is not None:
+            server.stop()
+
+    def _launch_live_talk(self, url: str) -> None:
+        """Open live-talk on the Windows desktop (WSL interop). ``start``
+        returns at once, so the process is not watched: the call ends by
+        /end, /hangup or the heartbeat."""
+        argv = launch_command(url)
+        self.store.log_event(
+            self.session.clock.day(), self.session.clock.now_h(),
+            "call_launch", f"argv={argv[0]} url={url.rsplit('/', 1)[0]}/…",
+        )
+        # cwd on the Windows drive: cmd.exe refuses a UNC working directory.
+        subprocess.Popen(
+            argv, cwd="/mnt/c" if os.path.isdir("/mnt/c") else None,
+            stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL, start_new_session=True,
+        )
+
+    async def _watch_call(self, call: ActiveCall) -> None:
+        """End the call when live-talk goes quiet (no heartbeat, no
+        request) for ``HEARTBEAT_TIMEOUT_S``."""
+        while self._call is call and not call.ending:
+            await asyncio.sleep(self.call_watch_interval_s)
+            if call.idle_s() >= HEARTBEAT_TIMEOUT_S and call.request_end("rig_lost"):
+                await self._end_call(call)
+                return
+
+    async def _end_call(self, call: ActiveCall) -> None:
+        """Write the end row, run what waited, replay his held messages."""
+        call.stop_reply()
+        # A reply cut by the hangup is still reported by live-talk: give its
+        # /heard a moment so the end row comes after what he heard.
+        loop = asyncio.get_running_loop()
+        await loop.run_in_executor(None, call.heard_done.wait, 5.0)
+        # Call mode ends on every path: a failed end row or replay must not
+        # leave proactives, settling and the rollover paused for good (the
+        # next start's recover_open_call closes a call whose row failed).
+        try:
+            async with self._lock:
+                self._advance_to_real_now()
+                try:
+                    await self._executor.run_in_thread(
+                        self.session.end_call, call.reason or "hung_up"
+                    )
+                finally:
+                    call.ended = True
+                    call.heard_done.set()
+                    self._last_call = call
+                    if self._call is call:
+                        self._call = None
+                rolled = (self.session.current_day is not None
+                          and self.session.current_day < self.session.clock.day())
+                # What waited settles now, after the end row: the boundaries
+                # crossed during the call, and — when it ran past midnight —
+                # the rollover.
+                settled = await self._executor.run_in_thread(
+                    self.session.settle_pending, "call-end"
+                )
+                await self._send_settled(settled)
+                if rolled:
+                    self._replan()
+                    self._apply_pending_tz()
+        except Exception as exc:  # noqa: BLE001 - the run outlives a call
+            _logger.exception("ending the call failed")
+            self.store.log_event(
+                self.session.clock.day(), self.session.clock.now_h(),
+                "call_end_failed", f"error={type(exc).__name__}: {exc}",
+            )
+        try:
+            # His messages from during the call, in order, stamped with their
+            # arrival times. New ones keep queueing behind them until the
+            # queue is empty; one failed turn does not drop the rest.
+            while self._call_held:
+                msg, arrived = self._call_held.pop(0)
+                try:
+                    await self._on_inbound(msg, held_arrival_t_h=arrived)
+                except Exception:  # noqa: BLE001 - logged by _on_inbound
+                    _logger.exception("replaying a held message failed")
+        finally:
+            self._call_mode = False
+            self._call_idle.set()
+            self.request_retarget()
+
+    def _hold_inbound(self, msg: InboundMessage) -> None:
+        if self.anchor is not None and msg.received_at is not None:
+            arrived = self.anchor.t_h_at(msg.received_at)
+        elif msg.t_h is not None:
+            arrived = float(msg.t_h)
+        else:
+            arrived = self.session.clock.now_h()
+        self._call_held.append((msg, arrived))
+        self.store.log_event(
+            self.session.clock.day(), self.session.clock.now_h(),
+            "call_message_held", f"len={len(msg.text or '')}",
+        )
+
+    # host methods for CallServer (called on its request threads)
+
+    def call_lookup(self, call_id: str) -> ActiveCall | None:
+        for call in (self._call, self._last_call):
+            if call is not None and call.call_id == call_id:
+                return call
+        return None
+
+    def call_turn(self, call: ActiveCall, text: str | None, cancel):
+        """Her sentences for one /turn, generated on the runtime's executor
+        under the lock (briefly: one turn, not the whole call)."""
+        out: queue.Queue = queue.Queue()
+        done = object()
+        assert self._loop is not None
+        future = asyncio.run_coroutine_threadsafe(
+            self._call_turn_on_loop(call, text, cancel, out, done), self._loop
+        )
+        while True:
+            item = out.get()
+            if item is done:
+                break
+            if isinstance(item, BaseException):
+                raise item
+            yield item
+        future.result()
+
+    async def _call_turn_on_loop(self, call, text, cancel, out, done) -> None:
+        def work() -> None:
+            try:
+                for sentence in self.session.call_turn(text, cancel=cancel):
+                    out.put(sentence)
+            except BaseException as exc:  # noqa: BLE001 - reported on the stream
+                _logger.exception("call turn failed")
+                out.put(exc)
+            finally:
+                out.put(done)
+
+        try:
+            async with self._lock:
+                if call.ending or call.ended or self._call is not call:
+                    out.put(CallConflict("the call is not active"))
+                    out.put(done)
+                    return
+                self._advance_to_real_now()
+                await self._executor.run_in_thread(work)
+        except BaseException as exc:
+            out.put(exc)
+            out.put(done)
+            raise
+
+    def call_heard(self, call: ActiveCall, text: str, cut: bool) -> None:
+        call.check_heard()          # CallConflict -> 409
+        call.stop_reply()           # a reply still generating is over
+        try:
+            assert self._loop is not None
+            asyncio.run_coroutine_threadsafe(
+                self._call_heard_on_loop(call, text, cut), self._loop
+            ).result(60)
+        finally:
+            call.finish_heard()
+
+    async def _call_heard_on_loop(self, call, text, cut) -> None:
+        async with self._lock:
+            if call.ended or self._call is not call:
+                return  # the end row is written: too late to store it
+            active = self.session.call_active()
+            if active is None or active.get("id") != call.call_id:
+                return
+            self._advance_to_real_now()
+            await self._executor.run_in_thread(self.session.call_heard, text, cut)
+
+    def call_end(self, call: ActiveCall, reason: str) -> None:
+        if call.request_end(reason):
+            assert self._loop is not None
+            self._loop.call_soon_threadsafe(self._spawn, self._end_call(call))

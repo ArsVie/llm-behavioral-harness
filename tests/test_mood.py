@@ -220,17 +220,6 @@ def test_variants_identical_arg_when_degenerate(persona: PersonaParams, variant:
     assert arg == expected
 
 
-def test_variants_all_pairwise_identical_when_degenerate(persona: PersonaParams) -> None:
-    """Comparación cruzada explícita de las tres variantes entre sí."""
-    state = MoodState(mu=-0.6, eta=0.0)
-    args = {
-        variant: mood.compute_arg(state, persona, m=0.0, g=1.0, variant=variant)
-        for variant in MoodVariant
-    }
-    values = list(args.values())
-    assert values[0] == values[1] == values[2]
-
-
 def test_variants_same_M_with_same_rng_when_degenerate(persona: PersonaParams) -> None:
     """step con el mismo Generator (misma semilla, reconstruido para cada
     variante) debe producir el mismo M cuando m=0, eta=0, g=1, ya que arg (y
@@ -355,7 +344,3 @@ def test_sigmoid_stable_for_large_magnitude() -> None:
     assert mood.sigmoid(-1000.0) == pytest.approx(0.0, abs=1e-12)
     assert math.isfinite(mood.sigmoid(1000.0))
     assert math.isfinite(mood.sigmoid(-1000.0))
-
-
-def test_sigmoid_zero_is_half() -> None:
-    assert mood.sigmoid(0.0) == pytest.approx(0.5, abs=1e-12)

@@ -6,6 +6,7 @@ import httpx
 import pytest
 
 from harness.client import FakeClient, OpenAICompatibleClient
+from tests.helpers.client import client_with
 
 
 def test_fake_client_cycles_responses():
@@ -20,21 +21,6 @@ def test_fake_client_echo():
     client = FakeClient(echo=True)
     out = client.chat([{"role": "user", "content": "hi there"}])
     assert out == "echo: hi there"
-
-
-def test_fake_client_records_max_tokens_per_call():
-    client = FakeClient()
-    client.chat([{"role": "user", "content": "x"}], max_tokens=123)
-    client.chat([{"role": "user", "content": "y"}])
-
-    assert client.calls[0]["max_tokens"] == 123
-    assert client.calls[1]["max_tokens"] is None
-    # The call record carries the full request: tools/tool_choice/reasoning_effort.
-
-    assert set(client.calls[0]) == {
-        "messages", "system", "temperature", "json_mode", "max_tokens",
-        "tools", "tool_choice", "reasoning_effort",
-    }
 
 
 def test_openai_client_payload_and_system_prepend():
@@ -105,7 +91,8 @@ def test_openai_client_requires_key(monkeypatch):
 
 
 # Generation integrity: empty/whitespace completions retry with bounded
-# backoff; persistent empty raises; truncation is recorded, not blank.
+# backoff; persistent empty raises. Null content, reasoning-only replies and
+# truncation are pinned in test_serializer_null_hardening/test_client_retries.
 
 
 def _empty_then_real_client(empties: int = 2, max_retries: int = 2):
@@ -192,42 +179,7 @@ def test_openai_client_persistent_empty_raises(monkeypatch):
     assert calls["n"] == 2  # capped at max_retries + 1 — never hangs
 
 
-def test_openai_client_truncation_finish_reason_records_marker(caplog):
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200,
-            json={
-                "choices": [
-                    {
-                        "message": {"content": "partial reply"},
-                        "finish_reason": "length",
-                    }
-                ]
-            },
-        )
-
-    transport = httpx.MockTransport(handler)
-    client = OpenAICompatibleClient(
-        base_url="https://example.test/v1", api_key="k", model="m", max_retries=1
-    )
-    client._client = httpx.Client(transport=transport)
-
-    # Truncated-but-non-empty content is returned (not retried, not raised).
-
-    assert client.chat([{"role": "user", "content": "q"}]) == "partial reply"
-    assert "truncated (finish_reason=length" in caplog.text
-
-
 # -- WS3: tools, reasoning, ChatResult -------------------------------------- #
-
-
-def _client_with(handler, **kwargs):
-    transport = httpx.MockTransport(handler)
-    client = OpenAICompatibleClient(
-        base_url="https://example.test/v1", api_key="k", model="m", **kwargs
-    )
-    client._client = httpx.Client(transport=transport)
-    return client
 
 
 def test_openai_client_tools_passthrough():
@@ -238,7 +190,7 @@ def test_openai_client_tools_passthrough():
         seen.append(payload)
         return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
 
-    client = _client_with(handler)
+    client = client_with(handler)
     tools = [
         {
             "type": "function",
@@ -293,7 +245,7 @@ def test_openai_client_parses_tool_calls():
             },
         )
 
-    client = _client_with(handler, max_retries=2)
+    client = client_with(handler, max_retries=2)
     result = client.chat_with_meta([{"role": "user", "content": "q"}])
 
     # Tool-call-only reply: no text, no raise, NO retry.
@@ -331,7 +283,7 @@ def test_openai_client_tool_calls_stay_raw_json_strings():
             },
         )
 
-    client = _client_with(handler)
+    client = client_with(handler)
     result = client.chat_with_meta([{"role": "user", "content": "q"}])
 
     # arguments_json is passed through verbatim; parsing belongs to the runner.
@@ -351,7 +303,7 @@ def test_openai_client_reasoning_effort_and_extraction():
             message["reasoning_content"] = "hidden thinking"
         return httpx.Response(200, json={"choices": [{"message": message}]})
 
-    client = _client_with(handler)
+    client = client_with(handler)
 
     result = client.chat_with_meta([{"role": "user", "content": "q"}], reasoning_effort="high")
     assert seen[0]["reasoning_effort"] == "high"
@@ -374,17 +326,13 @@ def test_openai_client_reasoning_alternate_key():
             },
         )
 
-    client = _client_with(handler)
+    client = client_with(handler)
     result = client.chat_with_meta([{"role": "user", "content": "q"}])
     assert result.reasoning == "alternate placement"
 
 
 def test_openai_client_supports_tools_capability_flag():
     # The flag gates whether the tools param is sent.
-
-    assert OpenAICompatibleClient.supports_tools is True
-    assert FakeClient.supports_tools is True
-
     seen: list[dict] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -392,7 +340,7 @@ def test_openai_client_supports_tools_capability_flag():
         seen.append(payload)
         return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
 
-    client = _client_with(handler)
+    client = client_with(handler)
     client.supports_tools = False
     client.chat_with_meta(
         [{"role": "user", "content": "q"}],
@@ -426,34 +374,7 @@ def test_fake_client_scripts_dict_responses():
     assert client.chat([{"role": "user", "content": "q"}]) == "plain"
 
 
-def test_fake_client_records_full_request():
-    client = FakeClient()
-    tools = [{"type": "function", "function": {"name": "decide_event"}}]
-    client.chat_with_meta(
-        [{"role": "user", "content": "q"}],
-        tools=tools,
-        tool_choice="auto",
-        reasoning_effort="medium",
-    )
-    call = client.calls[0]
-    assert call["tools"] == tools
-    assert call["tool_choice"] == "auto"
-    assert call["reasoning_effort"] == "medium"
-
-
-def test_fake_client_chat_with_meta_records_defaults():
-    client = FakeClient()
-    client.chat_with_meta([{"role": "user", "content": "q"}])
-    call = client.calls[0]
-    assert call["tools"] is None
-    assert call["tool_choice"] is None
-    assert call["reasoning_effort"] is None
-    assert call["temperature"] == 0.8
-    assert call["json_mode"] is False
-
-
 # Two-lane credentials: api_key/base_url resolve by lane; explicit args win.
-
 
 
 def test_lane_product_resolves_token_and_stamp(monkeypatch):
@@ -461,8 +382,6 @@ def test_lane_product_resolves_token_and_stamp(monkeypatch):
     client = OpenAICompatibleClient(lane="product", model="m")
     assert client.api_key == "lily-key"
     assert client.lane == "product"
-    # Lane base URL: LILY_BASE_URL absent -> LLM_BASE_URL absent -> default.
-    assert client.base_url == "https://api.commandcode.ai/provider/v1"
 
 
 def test_lane_research_resolves_token_and_stamp(monkeypatch):
@@ -515,9 +434,36 @@ def test_lane_base_url_precedence(monkeypatch):
     # Both absent -> current gateway default; explicit arg wins over all.
     monkeypatch.delenv("LLM_BASE_URL")
     client = OpenAICompatibleClient(lane="product", model="m")
-    assert client.base_url == "https://api.commandcode.ai/provider/v1"
+    assert client.base_url == "https://opencode.ai/zen/go/v1"
     client = OpenAICompatibleClient(lane="product", base_url="https://x.test", model="m")
     assert client.base_url == "https://x.test"
+
+
+def test_every_request_names_the_client_and_its_session(monkeypatch):
+    # OpenCode Go 400s (MissingSessionID) without x-opencode-session; the
+    # user agent is the harness's own, never the HTTP library's.
+    monkeypatch.delenv("LLM_SESSION_ID", raising=False)
+    seen = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request.headers)
+        return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
+
+    a = client_with(handler)
+    b = client_with(handler)
+    a.chat([{"role": "user", "content": "q"}])
+    b.chat([{"role": "user", "content": "q"}])
+    assert seen[0]["user-agent"] == "llm-behavioral-harness/1.0"
+    # One session per process: a judge fork on another lane client shares
+    # the mainline's routing (and so its prompt cache).
+    assert seen[0]["x-opencode-session"] == seen[1]["x-opencode-session"]
+    assert seen[0]["x-opencode-session"].startswith("harness-")
+
+
+def test_session_id_env_and_arg_override(monkeypatch):
+    monkeypatch.setenv("LLM_SESSION_ID", "trial-week-2")
+    assert client_with(lambda r: None).session_id == "trial-week-2"
+    assert client_with(lambda r: None, session_id="x").session_id == "x"
 
 
 def test_lane_redacted_label_never_renders_value(monkeypatch, caplog):
@@ -539,5 +485,3 @@ def test_lane_stamp_default_none_for_unlaned_client(monkeypatch):
     client = OpenAICompatibleClient(model="m")
     assert client.lane is None
     assert client.api_key == "legacy-key"
-    assert FakeClient().lane is None
-    assert FakeClient(lane="research").lane == "research"

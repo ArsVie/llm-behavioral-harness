@@ -1,10 +1,10 @@
-"""Runtime/session builders shared across adversarial + runtime tests.
+"""Runtime builders shared by the runtime/adversarial test family.
 
-Consolidated from test_adversarial_runtime, test_adversarial_proactivity,
-test_runtime and test_proactive_it2 — all four files carried byte-identical
-module constants (PERSONA/TIMING/VARIANT/SEED/FAST) and identical
-``_session``/``_ground_agenda``/``_run``/``_rows`` builders. Nothing changes
-semantics: the builders are exactly the same code the four files already ran.
+``run_runtime`` is test_runtime's bounded AsyncRuntime driver (test_proactive_it2
+uses it at its own default scale). ``ground_agenda`` and ``schedule_rows`` are
+test_adversarial_runtime/_proactivity's positional agenda seed (source id
+``arc1``) and schedule-row map. test_adversarial_runtime/_proactivity keep their
+own ``_run``: theirs builds the IntentResolver without a seeded rng.
 """
 
 from __future__ import annotations
@@ -12,19 +12,12 @@ from __future__ import annotations
 import asyncio
 
 import engine.rng as rng_mod
-from engine.types import MoodVariant, PersonaParams, TimingParams
+from engine.types import TimingParams
 from harness.domain import AgendaItem, DailyAgenda
 from harness.proactive import IntentResolver
 from harness.runtime import AsyncRuntime, TimeScale
 
-# make_session lives in tests.helpers.store (the canonical superset); re-export
-# it here so the runtime module remains the single import surface for the
-# adversarial/runtime test family.
-from tests.helpers.store import make_session  # noqa: F401
-
-PERSONA = PersonaParams()
 TIMING = TimingParams()
-VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
 
 FAST = TimeScale(seconds_per_virtual_hour=0.002)
@@ -34,12 +27,15 @@ def ground_agenda(store, start_t_h, end_t_h, *, item_id="g1", salience=0.8,
                   activity="pottery class"):
     item = AgendaItem(item_id, start_t_h, end_t_h, activity, "arc", "arc1",
                       salience, "planned")
-    store.save_agenda(0, DailyAgenda(0, (item,)))
+    # Adds to the day: a second call must not wipe the first item.
+    existing = store.load_agenda(0)
+    kept = tuple(i for i in (existing.items if existing else ()) if i.id != item.id)
+    store.save_agenda(0, DailyAgenda(0, kept + (item,)))
     return item
 
 
-def run(store, session, schedule, channel, *, max_hours, scale=FAST,
-        resolver=None, sleeper=None, seed=SEED, clock_start_h=None):
+def run_runtime(store, session, schedule, channel, *, max_hours, scale=FAST,
+                resolver=None, sleeper=None, seed=SEED, clock_start_h=None):
     delays: list[float] = []
 
     async def record(delay: float) -> None:
@@ -61,5 +57,5 @@ def run(store, session, schedule, channel, *, max_hours, scale=FAST,
     return runtime
 
 
-def rows(store, seed=SEED):
+def schedule_rows(store, seed=SEED):
     return {abs(float(r["t_h"])): r for r in store.schedule_events_for_seed(seed)}

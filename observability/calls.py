@@ -10,13 +10,14 @@ import json
 from pathlib import Path
 from typing import Any
 
+from harness.cache_audit import divergence, envelope_of, provider_prefix_share
 from harness.spend import GroupStats, aggregate, aggregate_by
 from harness.tools import TOOL_SCHEMAS
-from harness.trace import CACHE_FLOOR
-
+from harness.trace import (CACHE_FLOOR, CACHE_TTL_H, _is_fork,
+                           _transient_slots, rebuild_note, stream_rebuilds)
 from observability import context as context_mod
 from observability import wire
-from observability.db import rows, rows as db_rows
+from observability.db import rows
 
 #: Fallback context window when the model's capacity is not known locally.
 DEFAULT_CONTEXT_WINDOW: int = 1_000_000
@@ -49,17 +50,20 @@ def _split_sums(row: dict[str, Any]) -> bool:
     return (row.get("cached_tokens") or 0) + (row.get("cache_miss_tokens") or 0) == prompt
 
 
-def usage_payload(rows_in: list[dict[str, Any]]) -> dict[str, Any]:
+def usage_payload(rows_in: list[dict[str, Any]], anchor=None) -> dict[str, Any]:
     """Totals plus per-lane and per-role spend (same math as harness.spend).
+
+    ``anchor`` dates each call, for models priced by time of day.
 
     Also reports the prompt-denominated hit share and counts rows whose ledger
     split does not sum to its prompt total.
     """
     if not rows_in:
         return {"totals": stats_json(GroupStats()), "by_lane": [], "by_role": []}
-    by_lane = aggregate_by(rows_in, lambda row: str(row.get("lane") or "?"))
-    by_role = aggregate_by(rows_in, lambda row: str(row.get("role") or "?"))
-    totals = stats_json(aggregate(rows_in))
+    when = None if anchor is None else (lambda row: anchor.real(float(row["t_h"])))
+    by_lane = aggregate_by(rows_in, lambda row: str(row.get("lane") or "?"), when=when)
+    by_role = aggregate_by(rows_in, lambda row: str(row.get("role") or "?"), when=when)
+    totals = stats_json(aggregate(rows_in, when=when))
     prompt = totals["prompt_tokens"]
     totals["prompt_hit_pct"] = (round(totals["cached_tokens"] / prompt * 100.0, 1)
                                 if prompt else None)
@@ -71,65 +75,82 @@ def usage_payload(rows_in: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def envelope_of(row: dict[str, Any]) -> dict[str, Any] | None:
-    """The persisted request envelope, or None for a hash-only row.
+def _annotate(rows_in: list[dict[str, Any]],
+              conn: Any | None = None) -> list[dict[str, Any]]:
+    """Add the measured prefix share, drift flag and cache verdict per call.
 
-    The metered auxiliary lane nests the client kwargs - the system prompt among
-    them - under ``kwargs``; the aux system is hoisted to the top level.
+    The same chain as ``harness.trace``'s cache check, so a note here and a
+    finding there name the same calls: a mainline call is compared with the
+    mainline call before it, and an ``aux_`` fork — not a stream extension —
+    is compared with the mainline it forked from but never
+    becomes the predecessor. With ``conn`` the note cites a logged stream
+    rebuild (cold prune / compaction) when one falls between the two calls.
     """
-    blob = row.get("repro_json")
-    if not blob:
-        return None
-    try:
-        loaded = json.loads(blob)
-    except (ValueError, TypeError):
-        return None
-    if not isinstance(loaded, dict):
-        return None
-    if "system" not in loaded and isinstance(loaded.get("kwargs"), dict):
-        aux_system = loaded["kwargs"].get("system")
-        if isinstance(aux_system, str):
-            loaded["system"] = aux_system
-    return loaded
-
-
-def _prefix_share(previous: dict[str, Any],
-                  current: dict[str, Any]) -> tuple[float, bool, str]:
-    """Provider-order shared prefix: fraction, system stability, first break.
-
-    Breaks live at ``"system" | "tools" | "messages"``: the schemas sit
-    between the system block and the conversation, so a tool-menu difference
-    kills more of the prefix than a late message ever could. See
-    :func:`observability.context.provider_prefix_share`.
-    """
-    return context_mod.provider_prefix_share(previous, current)
-
-
-def _annotate(rows_in: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Add the measured prefix share, drift flag and cache verdict per call."""
+    rebuilds = stream_rebuilds(conn) if conn is not None else []
     previous: dict[str, Any] | None = None
+    previous_t: float | None = None
+    previous_role = ""
+    previous_prompt = 0
     for row in rows_in:
         envelope = envelope_of(row)
+        fork = _is_fork(row)
         fraction = 0.0
         system_stable: bool | None = None
         verdict = ""
         if envelope is None:
             verdict = "no persisted envelope"
         elif previous is not None:
-            fraction, system_stable, break_at = _prefix_share(previous, envelope)
+            fraction, system_stable, break_at = provider_prefix_share(previous, envelope)
             prompt = int(row.get("prompt_tokens") or 0)
             hit = (int(row.get("cached_tokens") or 0) / prompt) if prompt else 0.0
+            kept = len(previous.get("messages") or []) - _transient_slots(previous_role)
+            at = divergence(previous, envelope)
+            missed = bool(prompt) and fraction >= CACHE_FLOOR and hit < CACHE_FLOOR
             if not system_stable or break_at == "system":
                 verdict = "stable prefix CHANGED"
             elif break_at == "tools":
                 verdict = "tool menu differs from the previous call"
-            elif fraction >= CACHE_FLOOR and hit < CACHE_FLOOR:
-                verdict = "prefix shared but not cached"
+            elif not fork and at < kept:
+                # An already-sent message was edited, dropped or reordered.
+                verdict = f"history rewritten at message {at}"
+                note = rebuild_note(rebuilds, previous_t or 0.0,
+                                    float(row.get("t_h") or 0.0))
+                if note:
+                    # Sanctioned: the prune/compaction is the rewrite.
+                    verdict = f"{verdict} — {note}"
+            elif missed:
+                idle = float(row.get("t_h") or 0.0) - (previous_t or 0.0)
+                if idle >= CACHE_TTL_H:
+                    verdict = f"cache expired after {idle:.1f} h idle"
+                else:
+                    # A fork is not a stream extension, so the cache check
+                    # does not hold it to the append-only rule; a miss here is
+                    # the provider's (the gateway can route a fork to a backend
+                    # without the prefix: #52 missed 5 s after #51 hit 86%).
+                    verdict = "fork, not cached" if fork else "prefix shared but not cached"
+            elif (prompt and previous_prompt and not fork and at >= kept
+                  and hit >= CACHE_FLOOR
+                  and previous_role == "chat"
+                  and str(row.get("role") or "") == "chat"):
+                # The warm law holds exactly for chat-to-chat full carries:
+                # cached is 128 * floor(prev prompt / 128). A full block or
+                # more below it means an older backend re-billed tokens that
+                # were already sent. Decide rounds drop their trailing steer,
+                # so their banked floor can sit a block or two lower on
+                # purpose — not flagged here.
+                expected = 128 * (previous_prompt // 128)
+                cached = int(row.get("cached_tokens") or 0)
+                if cached <= expected - 128:
+                    verdict = (f"re-billed {expected - cached:,} tokens past "
+                               f"the block floor")
         row["prefix_share_pct"] = round(fraction * 100.0, 1) if previous is not None else None
         row["system_stable"] = system_stable
         row["verdict"] = verdict
-        if envelope is not None:
+        if envelope is not None and not fork:
             previous = envelope
+            previous_t = float(row.get("t_h") or 0.0)
+            previous_role = str(row.get("role") or "")
+            previous_prompt = int(row.get("prompt_tokens") or 0)
     return rows_in
 
 
@@ -139,7 +160,7 @@ def call_rows(conn: Any, *, limit: int | None = None) -> list[dict[str, Any]]:
     if limit is not None:
         sql = (f"select * from (select * from llm_calls order by id desc limit {int(limit)})"
                " order by id")
-    return _annotate(rows(conn, sql))
+    return _annotate(rows(conn, sql), conn)
 
 
 def _head(text: Any, limit: int = 180) -> str:
@@ -231,10 +252,8 @@ def usage_of(row: dict[str, Any]) -> dict[str, Any]:
 def call_by_id(conn: Any, call_id: int | None) -> dict[str, Any] | None:
     """One call row by id, or the newest call when ``call_id`` is None.
 
-    Annotated like the ledger's rows. The prefix share and the drift flag are
-    MEASURED against the call before, so a row fetched on its own carried
-    neither, and the inspector reported "first call" and a null share for
-    every call it opened.
+    Annotated like the ledger's rows: the prefix share and the drift flag are
+    measured against the call before, so that call is fetched too.
     """
     found = (rows(conn, "select * from llm_calls where id = ?", (call_id,))
              if call_id is not None
@@ -246,7 +265,7 @@ def call_by_id(conn: Any, call_id: int | None) -> dict[str, Any] | None:
     # which is what the ledger's full walk also carries forward.
     before = rows(conn, "select * from llm_calls where id < ? and repro_json is not null "
                         "order by id desc limit 1", (int(row.get("id") or 0),))
-    return _annotate([*before, row])[-1]
+    return _annotate([*before, row], conn)[-1]
 
 
 def _previous_envelope(conn: Any, call_id: int) -> dict[str, Any] | None:
@@ -281,9 +300,7 @@ def decision_for_call(conn: Any, row: dict[str, Any]) -> dict[str, Any] | None:
 
     ``llm_calls.response`` is EMPTY for a decide leg: the answer left as a
     tool call, and only the function's NAME survives in ``meta``. The verdict
-    itself is a ``decision_records`` row, and the two tables share no id. The
-    panel used to render "(empty)" for these calls, which reads as a dropped
-    response when the call in fact answered.
+    itself is a ``decision_records`` row, and the two tables share no id.
 
     ``t_h`` does not join them either: the three legs that open a live day all
     ran at one virtual instant while their records carry each event's own hour
@@ -299,11 +316,10 @@ def decision_for_call(conn: Any, row: dict[str, Any]) -> dict[str, Any] | None:
         return None
     calls = [
         int(entry["id"])
-        for entry in db_rows(
-            conn, "select id, meta from llm_calls order by id")
+        for entry in rows(conn, "select id, meta from llm_calls order by id")
         if _meta_of(entry).get("popup_kind") == kind
     ]
-    records = db_rows(
+    records = rows(
         conn,
         "select * from decision_records where popup_kind = ? and source = 'model' "
         "order by id", (kind,))

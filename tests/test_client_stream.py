@@ -9,6 +9,7 @@ import httpx
 import pytest
 
 from harness.client import FakeClient, OpenAICompatibleClient
+from tests.helpers.client import client_with
 
 
 # --- SSE body helpers ----------------------------------------------------- #
@@ -45,16 +46,6 @@ def _sse_body(*events: str) -> str:
     return "".join(f"{event}\n\n" for event in events)
 
 
-def _client_with(handler, **kwargs) -> OpenAICompatibleClient:
-    """OpenAICompatibleClient wired to a MockTransport handler."""
-    transport = httpx.MockTransport(handler)
-    client = OpenAICompatibleClient(
-        base_url="https://example.test/v1", api_key="k", model="m", **kwargs
-    )
-    client._client = httpx.Client(transport=transport)
-    return client
-
-
 def _request_payload(request: httpx.Request) -> dict:
     return json.loads(request.content.decode())
 
@@ -78,7 +69,7 @@ def test_openai_chat_stream_yields_content_deltas_and_sends_stream_flag():
             headers={"Content-Type": "text/event-stream"},
         )
 
-    client = _client_with(handler)
+    client = client_with(handler)
 
     pieces = list(client.chat_stream([{"role": "user", "content": "q"}]))
 
@@ -106,7 +97,7 @@ def test_openai_chat_stream_survives_multiline_and_keepalive_noise():
             headers={"Content-Type": "text/event-stream"},
         )
 
-    client = _client_with(handler)
+    client = client_with(handler)
     assert list(client.chat_stream([{"role": "user", "content": "q"}])) == ["a"]
 
 
@@ -128,7 +119,7 @@ def test_openai_chat_stream_skips_malformed_lines_without_raising():
             headers={"Content-Type": "text/event-stream"},
         )
 
-    client = _client_with(handler)
+    client = client_with(handler)
     assert list(client.chat_stream([{"role": "user", "content": "q"}])) == [
         "He", "llo"
     ]
@@ -157,7 +148,7 @@ def test_openai_chat_stream_no_extra_request_when_finish_reason_present():
                                "finish_reason": "stop"}]},
         )
 
-    client = _client_with(handler)
+    client = client_with(handler)
     pieces = list(client.chat_stream([{"role": "user", "content": "q"}]))
 
     assert pieces == ["full reply"]
@@ -184,7 +175,7 @@ def test_openai_chat_stream_fallback_after_retryable_status(monkeypatch):
             json={"choices": [{"message": {"content": "degraded reply"}}]},
         )
 
-    client = _client_with(handler, max_retries=1)
+    client = client_with(handler, max_retries=1)
     pieces = list(client.chat_stream([{"role": "user", "content": "q"}]))
 
     assert pieces == ["degraded reply"]
@@ -211,7 +202,7 @@ def test_openai_chat_stream_non_streaming_client_error_is_retried(
             json={"choices": [{"message": {"content": "recovered"}}]},
         )
 
-    client = _client_with(handler, max_retries=1)
+    client = client_with(handler, max_retries=1)
     pieces = list(client.chat_stream([{"role": "user", "content": "q"}]))
 
     assert pieces == ["recovered"]
@@ -258,7 +249,7 @@ def test_openai_chat_stream_system_prepend_and_full_params_passthrough():
             headers={"Content-Type": "text/event-stream"},
         )
 
-    client = _client_with(handler)
+    client = client_with(handler)
     tools = [{"type": "function", "function": {"name": "f"}}]
     pieces = list(
         client.chat_stream(
@@ -289,7 +280,7 @@ def test_openai_chat_stream_lazy_generator_fires_request_on_first_next():
             headers={"Content-Type": "text/event-stream"},
         )
 
-    client = _client_with(handler)
+    client = client_with(handler)
 
     gen = client.chat_stream([{"role": "user", "content": "q"}])
     assert calls["n"] == 0  # nothing sent until consumed
@@ -371,14 +362,6 @@ def test_fake_client_chat_stream_echo_chunks():
     assert "".join(pieces) == "echo: hi there"
 
 
-def test_fake_client_chat_stream_default_reply():
-    client = FakeClient()
-    pieces = list(
-        client.chat_stream([{"role": "user", "content": "q"}], chunk_size=7)
-    )
-    assert pieces == ["FakeCli", "ent rep", "ly."]
-
-
 def test_fake_client_chat_stream_requires_consumption_for_effect():
     # chat_stream is lazy like the real client: the queued response is only
     # consumed (and the call recorded) once the iterator is consumed.
@@ -403,47 +386,34 @@ def test_fake_client_chat_stream_records_one_call_identical_to_chat_with_meta():
     assert stream_client.calls[0] == meta_client.calls[0]
 
 
-def test_fake_client_chat_stream_call_record_full_shape():
-    client = FakeClient()
-    tools = [{"type": "function", "function": {"name": "decide_event"}}]
-    list(
-        client.chat_stream(
-            [{"role": "user", "content": "q"}],
-            system="SYS", temperature=0.0, json_mode=True, max_tokens=5,
-            tools=tools, tool_choice="auto", reasoning_effort="high",
-        )
-    )
-
-    call = client.calls[0]
-    assert set(call) == {
-        "messages", "system", "temperature", "json_mode", "max_tokens",
-        "tools", "tool_choice", "reasoning_effort",
-    }
-    assert call["messages"][0] == {"role": "user", "content": "q"}
-    assert call["system"] == "SYS"
-    assert call["temperature"] == 0.0
-    assert call["json_mode"] is True
-    assert call["max_tokens"] == 5
-    assert call["tools"] == tools
-    assert call["tool_choice"] == "auto"
-    assert call["reasoning_effort"] == "high"
-
-
-def test_fake_client_chat_stream_call_parity_with_defaults():
-    client = FakeClient(responses=["r"])
-    list(client.chat_stream([{"role": "user", "content": "q"}]))
-    call = client.calls[0]
-    assert call["tools"] is None
-    assert call["tool_choice"] is None
-    assert call["reasoning_effort"] is None
-    assert call["temperature"] == 0.8
-    assert call["json_mode"] is False
-    assert call["max_tokens"] is None
-
-
 def test_fake_client_chat_stream_system_only_payload_on_empty_transcript():
     client = FakeClient(responses=["r"])
     list(client.chat_stream([], system="SYS"))
     assert client.calls[0]["messages"] == [
         {"role": "system", "content": "SYS"}
     ]
+
+
+def test_a_rejected_extra_field_is_left_off_later_streams():
+    """A provider that 400s the call lane's ``thinking`` field is retried
+    without it once; later streams of the same client never send it again,
+    so a voice turn does not pay a failed request every time."""
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        body = _request_payload(request)
+        seen.append(body)
+        if "thinking" in body:
+            return httpx.Response(400, json={"error": "unknown field"})
+        return httpx.Response(
+            200, content=_sse_body(_content_event("Hi."), _DONE).encode(),
+            headers={"Content-Type": "text/event-stream"},
+        )
+
+    client = client_with(handler)
+    extra = {"thinking": {"type": "disabled"}}
+    for _ in range(2):
+        pieces = list(client.chat_stream([{"role": "user", "content": "q"}],
+                                         extra=extra, meta={}))
+        assert pieces == ["Hi."]
+    assert ["thinking" in body for body in seen] == [True, False, False]

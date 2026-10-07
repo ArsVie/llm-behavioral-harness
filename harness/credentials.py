@@ -24,13 +24,12 @@ import sys
 from pathlib import Path
 from typing import Mapping
 
-LANES = ("product", "research")
-
 #: lane -> (token env var, base-url env var)
-_LANE_ENV: dict[str, tuple[str, str | None]] = {
+_LANE_ENV: dict[str, tuple[str, str]] = {
     "product": ("LILY_TOKEN", "LILY_BASE_URL"),
     "research": ("JUDGE_GENERATOR_TOKEN", "JUDGE_GENERATOR_BASE_URL"),
 }
+LANES = tuple(_LANE_ENV)
 
 _logger = logging.getLogger(__name__)
 
@@ -79,13 +78,8 @@ def resolve_credentials(
             "running live."
         )
     _logger.info("credentials: %s lane — token present (%s)", lane, token_var)
-    base_url: str | None = None
-    if base_url_var and src.get(base_url_var):
-        base_url = src[base_url_var]
-    elif src.get("LLM_BASE_URL"):
-        # Generic fallback for un-laned call sites.
-        base_url = src["LLM_BASE_URL"]
-    return token, base_url
+    # ``LLM_BASE_URL``: the generic fallback for un-laned call sites.
+    return token, src.get(base_url_var) or src.get("LLM_BASE_URL") or None
 
 
 def probe_lane(lane: str, *, timeout_s: float = 15.0, env: Mapping[str, str] | None = None) -> str:

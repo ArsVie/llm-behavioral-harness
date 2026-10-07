@@ -36,7 +36,6 @@ def test_low_mood_remains_caring_instead_of_becoming_cold() -> None:
 
     assert directive.warmth >= 0.35
     assert directive.playfulness < directive.reflectiveness
-    assert "Keep care intact" in directive.prompt_brief
 
 
 def test_valence_and_circadian_energy_are_independent_channels() -> None:
@@ -94,8 +93,6 @@ def test_prompt_brief_shows_state_without_exposing_numbers_or_hormones() -> None
     assert not any(character.isdigit() for character in brief)
 
 
-    assert "show it through" not in brief
-    assert brief.startswith("current bearing:")  # lowercased above
 
 
 

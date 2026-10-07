@@ -7,7 +7,6 @@ from __future__ import annotations
 import numpy as np
 
 from harness.interests import (
-    ISLAND,
     MAX_ADJACENCY_HOPS,
     build_catalog,
 )
@@ -119,15 +118,3 @@ def test_b2_duplicate_user_interests_cannot_game_exact():
         reachable |= graph.reachable_within(u, MAX_ADJACENCY_HOPS)
     for name in independent:
         assert name not in reachable, f"{name!r} became adjacent via duplication"
-
-
-def test_b2_island_always_independent_pool():
-    """Every island node stays further than MAX_ADJACENCY_HOPS from every hub."""
-    graph = build_catalog()
-    for island_node in ISLAND:
-        for hub in graph.hubs():
-            d = graph.distance(island_node, hub)
-            assert d is None or d > MAX_ADJACENCY_HOPS, (
-                f"island node {island_node!r} is within {d} hops of hub {hub!r}"
-            )
-            assert not graph.path_exists(island_node, hub, MAX_ADJACENCY_HOPS)

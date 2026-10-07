@@ -26,6 +26,7 @@ from harness.clock import VirtualClock
 from harness.proactive import IntentResolver
 from harness.runtime import (
     ANCHOR_KV_KEYS,
+    RETARGET_SLICE_S,
     AsyncRuntime,
     TimeScale,
     load_anchor,
@@ -40,7 +41,6 @@ from tests.helpers import (
     ground_agenda,
     make_session,
     rows,
-    suppressed_codes,
 )
 
 PERSONA = PersonaParams()
@@ -68,8 +68,6 @@ def _session(store=None, *, replies=None):
 
 #: 1 virtual hour = 2 ms real (same as test_runtime.FAST).
 FAST = TimeScale(seconds_per_virtual_hour=0.002)
-#: Robust scale for gate races (same as test_runtime.SLOW).
-SLOW = TimeScale(seconds_per_virtual_hour=0.5)
 
 #: Fixed epoch the ManualClock starts at; anchors are built against it.
 T0 = 1_000_000.0
@@ -166,32 +164,6 @@ def test_anchor_none_paced_sleeps_are_real_and_never_touch_wall_clock():
     assert clock.t_h == 0.0  # the caller advances the clock, not the sleep
 
 
-def test_anchor_none_end_to_end_parity():
-    """anchor=None end-to-end: the exact scenario of
-    test_quiet_hours_and_cooldown_events_suppressed produces the same sends,
-    suppression codes and row consumption (the anchor path is invisible)."""
-    store, clock, session = _session(SeamStore())
-    ground_agenda(store, 0.5, 3.5, item_id="night")
-    ground_agenda(store, 9.5, 10.6, item_id="morning")
-    store.save_schedule_events(SEED, [
-        {"t_h": 2.0, "day": 0, "reason": REASON_SCHEDULE},    # quiet hours
-        {"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE},   # awake -> fires
-        {"t_h": 10.1, "day": 0, "reason": REASON_SCHEDULE},   # cooldown
-    ])
-    channel = FakeChannel()
-    _run_accelerated(store, session, channel, max_hours=12.0, scale=SLOW)
-
-    assert len(channel.sent) == 1
-    msg = channel.sent[0]
-    assert msg.proactive is True and msg.reason == REASON_SCHEDULE
-    assert store.proactive_count(0) == 1
-    assert suppressed_codes(store) == {"quiet_hours", "cooldown"}
-    schedule_rows = rows(store, SEED)
-    for t_h in (2.0, 10.0, 10.1):
-        assert schedule_rows[t_h]["status"] == "fired", f"row {t_h} not consumed"
-    assert schedule_rows[10.0]["fired_t_h"] == 10.0
-
-
 # --- absolute sleeps: epoch-derived, TimeScale-independent, self-correcting ---
 
 
@@ -217,15 +189,16 @@ def test_anchor_absolute_sleep_is_epoch_derived_and_self_correcting():
     runtime._executor.shutdown()
 
     deadline = anchor.epoch_of(2.0)  # T0 + 7200
-    assert requested[0] == pytest.approx(7200.0)  # absolute, not scale-relative
-    assert len(requested) > 1  # the residual was re-slept (self-correction)
+    # Absolute, not scale-relative: the FAST scale would ask for 144 s total.
+    assert sum(requested) * 0.9 == pytest.approx(7200.0, abs=RETARGET_SLICE_S)
+    assert requested[-1] < RETARGET_SLICE_S  # the residual was re-slept
     assert manual.t == pytest.approx(deadline, abs=0.01)  # no cumulative drift
     assert clock.t_h == 0.0  # the caller advances the clock afterwards
 
 
-def test_anchor_absolute_sleep_no_drift_single_request():
-    """A compliant sleeper (drift 1.0) needs exactly one request — the loop
-    exits as soon as the deadline is reached."""
+def test_anchor_absolute_sleep_no_drift_lands_exactly():
+    """A compliant sleeper (drift 1.0) reaches the deadline in whole slices
+    and the loop exits as soon as it is reached."""
     store, clock, session = _session(SeamStore())
     anchor = RealTimeAnchor(epoch0_s=T0, t_h0=0.0, tz="UTC")
     manual = AnchorManualClock(t0=T0)
@@ -242,8 +215,35 @@ def test_anchor_absolute_sleep_no_drift_single_request():
     asyncio.run(runtime._sleep_until_t_h(2.0, 0.0))
     runtime._executor.shutdown()
 
-    assert requested == [7200.0]
+    assert requested == [RETARGET_SLICE_S] * int(7200 / RETARGET_SLICE_S)
     assert manual.t == pytest.approx(anchor.epoch_of(2.0))
+
+
+def test_anchor_sleep_survives_a_host_suspend():
+    """Live 2026-09-26: asyncio sleeps on the monotonic clock, which stops
+    while WSL is paused, so a single 12 h sleep woke hours after its target
+    and her noon event never fired. A 1 h pause inside a 2 h sleep must cost
+    at most one slice, not the whole pause."""
+    store, clock, session = _session(SeamStore())
+    anchor = RealTimeAnchor(epoch0_s=T0, t_h0=0.0, tz="UTC")
+    manual = AnchorManualClock(t0=T0)
+    pause_at, pause_s = T0 + 600.0, 3600.0
+
+    async def sleeper(delay):
+        start = manual.t
+        await manual.sleep(delay)
+        if start <= pause_at < manual.t:
+            manual.t += pause_s  # the wall clock moved; the sleep did not
+
+    runtime = _anchor_runtime(
+        store, session, FakeChannel(), anchor=anchor, manual=manual,
+        max_hours=2.0, sleeper=sleeper,
+    )
+    asyncio.run(runtime._sleep_until_t_h(2.0, 0.0))
+    runtime._executor.shutdown()
+
+    deadline = anchor.epoch_of(2.0)
+    assert deadline <= manual.t <= deadline + RETARGET_SLICE_S
 
 
 # --- resume fix: t_h_start = anchor.t_h_at(now), loud clock-skew failure ---

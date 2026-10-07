@@ -7,7 +7,7 @@ outbound leaves as OutboundMessage.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Awaitable, Callable, Protocol
 
 
@@ -17,6 +17,8 @@ class InboundMessage:
     sender_id: str | None = None      # channel-native id (chat id, "cli", ...)
     t_h: float | None = None          # virtual hour if the channel drives one; else None
     received_at: float | None = None  # real epoch seconds (optional, telemetry only)
+    #: Raw image files sent with the text (a photo's caption is ``text``).
+    photos: list[bytes] = field(default_factory=list)
 
 
 @dataclass
@@ -24,6 +26,10 @@ class OutboundMessage:
     text: str
     proactive: bool = False
     reason: str | None = None         # taxonomy tag when proactive
+    #: Her own words: a channel that splits the text into several sends
+    #: pauses (typing) before each one after the first. Harness text
+    #: (command replies, notices) leaves it False and goes out at once.
+    paced: bool = False
 
 
 InboundHandler = Callable[[InboundMessage], Awaitable[None]]
@@ -50,8 +56,7 @@ class FakeChannel:
 
     name = "fake"
 
-    def __init__(self, inbound: list[str] | None = None):
-        self.inbound: list[str] = inbound if inbound is not None else []
+    def __init__(self):
         self.sent: list[OutboundMessage] = []  # everything send() received
         self.handler: InboundHandler | None = None
 

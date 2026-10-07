@@ -14,9 +14,10 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Iterable
 
+from observability.calls import stamp
+from observability.context import system_row_label
 from observability.db import rows as _rows
 
 #: One page of the stream.
@@ -85,7 +86,6 @@ class Event:
 
     seq: int
     kind: str
-    rank: str
     severity: str
     day: int
     t_h: float
@@ -120,45 +120,36 @@ class Event:
         }
 
 
-def _real(anchor: Any, t_h: float) -> str | None:
-    """Local wall clock for a virtual hour, or None on an unanchored run."""
-    if anchor is None:
-        return None
-    try:
-        stamp: datetime = anchor.real(t_h)
-    except (ValueError, OverflowError, ZeroDivisionError):
-        return None
-    return stamp.isoformat(timespec="seconds")
+def _event(anchor: Any, kind: str, t_h: float, seq_id: int, label: str,
+           detail: str, raw: dict[str, Any], *, day: int | None = None,
+           severity: str | None = None) -> Event:
+    return Event(
+        seq=seq_of(t_h, kind, seq_id),
+        kind=kind,
+        severity=_severity(label, detail) if severity is None else severity,
+        day=int(t_h // 24.0) if day is None else day,
+        t_h=t_h,
+        real=stamp(anchor, t_h),
+        label=label,
+        detail=detail,
+        raw=raw,
+    )
 
 
-def _row_event(anchor: Any, row: dict[str, Any], kind: str, rank: str,
+def _row_event(anchor: Any, row: dict[str, Any], kind: str,
                label: str, detail: str, raw: dict[str, Any]) -> Event:
     t_h = float(row.get("t_h") or 0.0)
-    day_value = row.get("day")
     # The day comes from the SAME clock the row is ordered and stamped by.
     # A row's `day` column can name the day it is ABOUT while `t_h` is the
     # instant it happened — a day-0 finalize lands at t_h 24.0 — and a band
     # drawn from the raw column flipped back to "day 0" right after "day 1"
     # at the midnight boundary (live run). A row with no t_h at all (a
     # judgement) keeps its own day.
-    if row.get("t_h") is not None:
-        day = int(t_h // 24.0)
-    elif day_value is not None:
-        day = int(day_value)
-    else:
-        day = int(t_h // 24.0)
-    return Event(
-        seq=seq_of(t_h, rank, int(row.get("id") or 0)),
-        kind=kind,
-        rank=rank,
-        severity=_severity(label, detail),
-        day=day,
-        t_h=t_h,
-        real=_real(anchor, t_h),
-        label=label,
-        detail=detail,
-        raw=raw,
-    )
+    day = None
+    if row.get("t_h") is None and row.get("day") is not None:
+        day = int(row["day"])
+    return _event(anchor, kind, t_h, int(row.get("id") or 0), label, detail, raw,
+                  day=day)
 
 
 def from_messages(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
@@ -167,10 +158,11 @@ def from_messages(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
     for row in rows:
         role = str(row.get("role") or "?")
         text = _clip(row.get("content"), 200)
-        label = {"user": "user message", "assistant": "companion reply",
-                 "system": "internal card"}.get(role, f"{role} message")
+        label = ({"user": "user message", "assistant": "companion reply"}
+                 .get(role) or (system_row_label(row.get("content"))
+                                if role == "system" else f"{role} message"))
         out.append(_row_event(
-            anchor, row, "message", "message", label, text,
+            anchor, row, "message", label, text,
             {"role": role, "proactive": bool(row.get("proactive")),
              "chars": len(str(row.get("content") or "")),
              "conversation_id": row.get("conversation_id"),
@@ -182,7 +174,7 @@ def from_messages(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
 def from_state_events(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
     """Engine/state rows: lifecycle, memory, cache and parse outcomes."""
     return [
-        _row_event(anchor, row, "state", "state", str(row.get("event") or "?"),
+        _row_event(anchor, row, "state", str(row.get("event") or "?"),
                    _clip(row.get("detail")), {"raw": _loads(row.get("detail"))})
         for row in rows
     ]
@@ -195,7 +187,7 @@ def from_decisions(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
         verdict = _loads(row.get("verdict_json"))
         summary = verdict if isinstance(verdict, dict) else row.get("raw_reply")
         out.append(_row_event(
-            anchor, row, "decision", "decision", str(row.get("popup_kind") or "?"),
+            anchor, row, "decision", str(row.get("popup_kind") or "?"),
             _clip(summary, 200),
             {"source": row.get("source"), "transport": row.get("transport"),
              "event_label": row.get("event_label"), "state_label": row.get("state_label"),
@@ -214,7 +206,7 @@ def from_steering(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
         payload = _loads(row.get("payload_json"))
         status = str(row.get("status") or "?")
         out.append(_row_event(
-            anchor, row, "steer", "steer", f"{row.get('kind')} ({status})",
+            anchor, row, "steer", f"{row.get('kind')} ({status})",
             _clip(payload, 200),
             {"status": status, "boundary": row.get("boundary"),
              "delivered_t_h": row.get("delivered_t_h"), "payload": payload,
@@ -229,16 +221,10 @@ def from_proactive(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
     for row in rows:
         t_h = float(row.get("created_t_h") or 0.0)
         status = str(row.get("status") or "?")
-        out.append(Event(
-            seq=seq_of(t_h, "proactive", abs(hash(str(row.get("id")))) % 10_000),
-            kind="proactive",
-            rank="proactive",
+        out.append(_event(
+            anchor, "proactive", t_h, abs(hash(str(row.get("id")))) % 10_000,
+            f"intent {row.get('id')} ({status})", _clip(row.get("hook"), 200),
             severity=_severity(status, str(row.get("hook") or "")),
-            day=int(t_h // 24.0),
-            t_h=t_h,
-            real=_real(anchor, t_h),
-            label=f"intent {row.get('id')} ({status})",
-            detail=_clip(row.get("hook"), 200),
             raw={"reason": row.get("reason"), "source_type": row.get("source_type"),
                  "source_id": row.get("source_id"),
                  "valid_until_t_h": row.get("valid_until_t_h"),
@@ -253,7 +239,7 @@ def from_schedule(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
     out: list[Event] = []
     for row in rows:
         status = str(row.get("status") or "?")
-        caused = row.get("caused_by") if hasattr(row, "get") else None
+        caused = row.get("caused_by")
         planned = float(row.get("t_h") or 0.0)
         fired = row.get("fired_t_h")
         detail = f"{row.get('reason')} — {status}"
@@ -261,7 +247,7 @@ def from_schedule(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
             detail += f" at t_h {float(fired):.2f}"
         if caused:
             detail += f" ({caused})"
-        out.append(_row_event(anchor, row, "schedule", "schedule",
+        out.append(_row_event(anchor, row, "schedule",
                               _clip(row.get("reason")), detail,
                               {"status": status, "fired_t_h": fired,
                                "planned_t_h": planned, "seed": row.get("seed"),
@@ -281,16 +267,9 @@ def from_conversations(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Even
         # A lifecycle row marks its LAST state change, so its sort time must BE
         # the time it shows; the open instant is its own state event.
         at = float(closed) if closed is not None else opened
-        out.append(Event(
-            seq=seq_of(at, "conversation", abs(hash(str(row.get("id")))) % 10_000),
-            kind="conversation",
-            rank="conversation",
-            severity="info",
-            day=int(at // 24.0),
-            t_h=at,
-            real=_real(anchor, at),
-            label=f"conversation {row.get('id')}",
-            detail=detail,
+        out.append(_event(
+            anchor, "conversation", at, abs(hash(str(row.get("id")))) % 10_000,
+            f"conversation {row.get('id')}", detail, severity="info",
             raw={"opened_by": row.get("opened_by"),
                  "closed_t_h": closed, "close_reason": row.get("close_reason")},
         ))
@@ -304,16 +283,10 @@ def from_judgements(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
         day = int(row.get("day") or 0)
         t_h = day * 24.0
         mode = "shadow" if row.get("shadow") else "live"
-        out.append(Event(
-            seq=seq_of(t_h, "judgement", day),
-            kind="judgement",
-            rank="judgement",
-            severity="info",
-            day=day,
-            t_h=t_h,
-            real=_real(anchor, t_h),
-            label=f"judge score {row.get('score')} ({mode})",
-            detail=_clip(row.get("justification"), 200),
+        out.append(_event(
+            anchor, "judgement", t_h, day,
+            f"judge score {row.get('score')} ({mode})",
+            _clip(row.get("justification"), 200), severity="info",
             raw={"score": row.get("score"), "model": row.get("model"),
                  "shadow": bool(row.get("shadow"))},
         ))
@@ -329,7 +302,7 @@ def from_calls(anchor: Any, rows: Iterable[dict[str, Any]]) -> list[Event]:
         completion = int(row.get("completion_tokens") or 0)
         hit = (cached / prompt * 100.0) if prompt else 0.0
         out.append(_row_event(
-            anchor, row, "call", "call",
+            anchor, row, "call",
             f"{row.get('role')} call · {row.get('lane')}",
             f"prompt {prompt} ({hit:.0f}% cached) · out {completion}",
             {"model": row.get("model"), "prompt_tokens": prompt,

@@ -14,7 +14,8 @@ EVENTS_STREAM = 1  # temporización: stream continuo de eventos
 EXPERIMENT_STREAM = 2  # usos auxiliares de experimentos (scores guionados, etc.)
 INIT_STREAM = 3  # inicialización de estado (L_0 del ciclo, φ sorteada, ...)
 
-#: Harness stream keys (outside the frozen engine). Next free: 8.
+#: Harness stream keys (outside the engine): 4 life, 5 persona, 6 conversation,
+#: 7 decision, 8 habits; experiments/decision_probe uses 9. Next free: 10.
 
 
 def init_rng(master_seed: int) -> np.random.Generator:

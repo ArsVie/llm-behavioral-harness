@@ -10,7 +10,7 @@ from engine.types import ADJ_SLOPE, MoodVariant, PersonaParams, TimingParams
 from harness.channels.base import FakeChannel
 from harness.client import FakeClient
 from harness.clock import VirtualClock
-from harness.domain import AgendaItem, DailyAgenda, EpisodicMemory, MemoryKind
+from harness.domain import DailyAgenda, EpisodicMemory, MemoryKind
 from harness.gates import context_gate
 from harness.interests import build_catalog
 from harness.judge import ScriptedJudge
@@ -31,6 +31,7 @@ from harness.scheduler import (
 from harness.session import Session
 from harness.store import SQLiteStore
 from tests.helpers import make_store
+from tests.helpers.agenda import ground_item, suppressed_codes
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -40,8 +41,6 @@ LIFE_SEED = 12345
 
 #: 0.5 s per virtual hour
 SLOW = TimeScale(seconds_per_virtual_hour=0.5)
-
-
 
 
 def _session(store, *, clock=None, profile=None, replies=None):
@@ -56,12 +55,6 @@ def _session(store, *, clock=None, profile=None, replies=None):
         judge=ScriptedJudge(score=0.5).judge_day,
         persona_profile=profile,
     )
-
-
-def _ground_item(item_id: str, start_t_h: float, end_t_h: float,
-                 activity: str = "pottery", salience: float = 0.8) -> AgendaItem:
-    return AgendaItem(item_id, start_t_h, end_t_h, activity, "arc", "arc1",
-                      salience, "planned")
 
 
 def _run_runtime(store, session, schedule, channel, *, max_hours, clock_start_h=None,
@@ -90,14 +83,6 @@ def _rows(store):
     return {float(r["t_h"]): r for r in store.schedule_events_for_seed(SEED)}
 
 
-def _suppressed_codes(store):
-    return {
-        e["detail"]
-        for e in store.events_since(0)
-        if e["event"] == "proactive_suppressed"
-    }
-
-
 # R-1 .. R-6: restart timing attacks
 
 
@@ -108,7 +93,7 @@ def test_r1_restart_exactly_at_event_time_fires_once(tmp_path):
     sched = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store)
     H = next(float(h) for h in sched.event_hours if h < 20.0)
     store.save_agenda(0, DailyAgenda(0, (
-        _ground_item("g1", H - 1.0, H + 1.0),
+        ground_item("g1", H - 1.0, H + 1.0),
     )))
 
     # restart: fresh store instance (same file) + restored schedule, clock at H
@@ -139,7 +124,7 @@ def test_r2_restart_ten_minutes_after_event_fires(tmp_path):
     sched = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store)
     H = next(float(h) for h in sched.event_hours if h < 20.0)
     store.save_agenda(0, DailyAgenda(0, (
-        _ground_item("g1", H - 1.0, H + 1.0),
+        ground_item("g1", H - 1.0, H + 1.0),
     )))
 
     store2 = make_store(tmp_path, "r2.db")
@@ -163,7 +148,7 @@ def test_r3_restart_beyond_validity_expires_without_ghost(tmp_path):
     sched = ProactiveSchedule.plan_and_persist(3, SEED, PERSONA, TIMING, store)
     H = next(float(h) for h in sched.event_hours if h < 20.0)
     store.save_agenda(0, DailyAgenda(0, (
-        _ground_item("g1", H - 1.0, H + 1.0),
+        ground_item("g1", H - 1.0, H + 1.0),
     )))
 
     store2 = make_store(tmp_path, "r3.db")
@@ -177,7 +162,7 @@ def test_r3_restart_beyond_validity_expires_without_ghost(tmp_path):
 
     assert channel.sent == [], "expired event must not produce a message"
     assert _rows(store2)[H]["status"] == "expired"
-    assert "expired" in _suppressed_codes(store2)
+    assert "expired" in suppressed_codes(store2)
     # a later poll does not re-surface the expired row
     after = ProactiveSchedule.restore(SEED, store2)
     assert after.next_pending(H + 4.5) != H
@@ -192,7 +177,7 @@ def test_r4_restart_during_quiet_hours_expires_by_policy_no_retry(tmp_path):
         {"t_h": 14.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
     store.save_agenda(0, DailyAgenda(0, (
-        _ground_item("g1", 13.0, 15.0),
+        ground_item("g1", 13.0, 15.0),
     )))
 
     # context gate at 03:00 is quiet_hours by itself
@@ -262,8 +247,8 @@ def test_r5_two_missed_events_evaluated_independently(tmp_path):
         {"t_h": 12.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
     store.save_agenda(0, DailyAgenda(0, (
-        _ground_item("gA", 9.5, 10.5, activity="morning pottery"),
-        _ground_item("gB", 11.5, 12.5, activity="evening run"),
+        ground_item("gA", 9.5, 10.5, activity="morning pottery"),
+        ground_item("gB", 11.5, 12.5, activity="evening run"),
     )))
 
     store2 = make_store(tmp_path, "r5.db")
@@ -295,8 +280,8 @@ def test_r5b_two_missed_events_both_valid(tmp_path):
         {"t_h": 12.0, "day": 0, "reason": REASON_SCHEDULE},
     ])
     store.save_agenda(0, DailyAgenda(0, (
-        _ground_item("gA", 9.5, 10.5),
-        _ground_item("gB", 11.5, 12.5),
+        ground_item("gA", 9.5, 10.5),
+        ground_item("gB", 11.5, 12.5),
     )))
 
     store2 = make_store(tmp_path, "r5b.db")
@@ -308,9 +293,9 @@ def test_r5b_two_missed_events_both_valid(tmp_path):
 
     rows = _rows(store2)
     assert rows[10.0]["status"] == "fired"  # oldest valid fires first
-    assert rows[12.0]["status"] == "fired"  # consumed (fired or suppressed)
+    assert rows[12.0]["status"] == "suppressed"  # consumed, nothing sent
     assert len([m for m in channel.sent if m.proactive]) == 1
-    codes = _suppressed_codes(store2)
+    codes = suppressed_codes(store2)
     assert codes <= {"cooldown", "daily_cap", "quiet_hours"}
     store2.close()
 
@@ -331,10 +316,10 @@ def test_r6_restart_at_midnight_day_boundary(tmp_path):
         {"t_h": 33.0, "day": 1, "reason": REASON_SCHEDULE},   # 09:00 d+1 (past the 08:00 ramp)
     ])
     store.save_agenda(0, DailyAgenda(0, (
-        _ground_item("gN", 22.5, 24.5),
+        ground_item("gN", 22.5, 24.5),
     )))
     store.save_agenda(1, DailyAgenda(1, (
-        _ground_item("gM", 32.0, 34.0),
+        ground_item("gM", 32.0, 34.0),
     )))
 
     store2 = make_store(tmp_path, "r6.db")
@@ -346,7 +331,7 @@ def test_r6_restart_at_midnight_day_boundary(tmp_path):
                  clock_start_h=24.0)
 
     rows = _rows(store2)
-    assert rows[23.5]["status"] == "fired"  # evaluated (suppressed: quiet hours)
+    assert rows[23.5]["status"] == "suppressed"  # evaluated: quiet hours
     assert rows[33.0]["status"] == "fired"
     # the day-0 row fired at midnight took no day-1 cap slot
     assert store2.proactive_count(1) == 1, "only the day-1 09:00 message counts"
@@ -484,17 +469,18 @@ def test_r9b_restart_after_judge_finalization_score_feeds_hazard(tmp_path):
     s0.ensure_day(1)
     j0 = store.load_judgement(0)
     assert j0 is not None and float(j0["score"]) == 0.5
-    s0.finalize_current()  # finalizes the CURRENT day (1); idempotent re-run
+    s0.finalize_current()  # shutdown on a day with no messages yet: a no-op
     s0.finalize_current()
     rows = [(r["day"], r["score"]) for r in
             store.conn.execute("SELECT day, score FROM judgements ORDER BY day")]
-    # day 0 was judged on its transcript (0.5); day 1 has no interaction (0.0)
-    assert rows == [(0, 0.5), (1, 0.0)], (
-        "judge re-ran for an already-finalized day (duplicate judgement)"
+    # day 0 was judged once on its transcript (0.5); day 1 has no messages,
+    # so it waits for its own midnight instead of being judged empty
+    assert rows == [(0, 0.5)], (
+        "judge re-ran for a finalized day, or judged an empty one at shutdown"
     )
     finalized = [e for e in store.events_since(0)
                  if e["event"] == "day_finalized" and e["day"] == 1]
-    assert len(finalized) == 1
+    assert finalized == []
 
     scores = day_scores(store, 1, TIMING)
     a = 1.0 + ADJ_SLOPE * 0.5
@@ -632,9 +618,14 @@ FAST = TimeScale(seconds_per_virtual_hour=0.02)
 NOW_H = 300.0
 
 
-def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
+def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(
+        tmp_path, monkeypatch):
     """R-10: a 12h-validity shared-interest event at 23:30 survives three
     restarts and is delivered exactly once at 09:00."""
+    # Only the shared interest grounds the slot: her bootstrap agenda's
+    # items would outrank it (checkable reasons) and expire overnight.
+    monkeypatch.setattr(IntentResolver, "_agenda_candidates", lambda self, t: [])
+    monkeypatch.setattr(IntentResolver, "_life_event_candidates", lambda self, t: [])
     from harness.bootstrap import ensure_companion_initialized
     from harness.domain import EpisodicMemory, MemoryKind, UserProfile
 
@@ -657,7 +648,7 @@ def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
     # phase 1: run to 23:00 — the event is still in the future, untouched
     s1 = make_store(tmp_path, "r10.db")
     _run_runtime(s1, _session(s1), ProactiveSchedule.restore(SEED, s1),
-                 FakeChannel(), max_hours=23.0, clock_start_h=None)
+                 FakeChannel(), max_hours=23.0, clock_start_h=None, scale=FAST)
     assert _rows(s1)[23.5]["status"] == "pending", (
         "event consumed before its own time"
     )
@@ -666,7 +657,7 @@ def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
     s2 = make_store(tmp_path, "r10.db")
     chan2 = FakeChannel()
     _run_runtime(s2, _session(s2), ProactiveSchedule.restore(SEED, s2),
-                 chan2, max_hours=34.0, clock_start_h=26.0)
+                 chan2, max_hours=34.0, clock_start_h=26.0, scale=FAST)
     assert chan2.sent == [], "message sent during quiet hours"
     row2 = _rows(s2)[23.5]
     assert row2["status"] in ("pending", "fired"), (
@@ -678,12 +669,12 @@ def test_r10_restart_across_quiet_boundary_delivers_still_valid_event(tmp_path):
     s3 = make_store(tmp_path, "r10.db")
     chan3 = FakeChannel()
     _run_runtime(s3, _session(s3), ProactiveSchedule.restore(SEED, s3),
-                 chan3, max_hours=34.5, clock_start_h=33.0)
+                 chan3, max_hours=34.5, clock_start_h=33.0, scale=FAST)
     fired = [m for m in chan3.sent if m.proactive]
     assert len(fired) == 1, f"expected exactly one delivery, got {len(fired)}"
     row3 = _rows(s3)[23.5]
     assert row3["status"] == "fired"
-    assert "expired" not in _suppressed_codes(s3)
+    assert "expired" not in suppressed_codes(s3)
     # the delivered message carries the validated intent id, resolvable to a source
     last = s3.recent_messages()[-1]
     assert last["intent_id"], "delivered message missing intent provenance"
@@ -702,7 +693,7 @@ def test_v1_every_proactive_message_carries_real_intent_id(tmp_path):
     sched = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store)
     h = next(float(x) for x in sched.event_hours if x < 20.0)
     store.save_agenda(0, DailyAgenda(0, (
-        _ground_item("g1", h - 0.5, h + 0.5),
+        ground_item("g1", h - 0.5, h + 0.5),
     )))
     session = _session(store)
     session.on_message("hi there")  # one reactive row for the contrast leg
@@ -744,7 +735,7 @@ def test_v1b_intent_provenance_survives_restart(tmp_path):
     sched = ProactiveSchedule.plan_and_persist(2, SEED, PERSONA, TIMING, store)
     h = next(float(x) for x in sched.event_hours if x < 20.0)
     store.save_agenda(0, DailyAgenda(0, (
-        _ground_item("g1", h - 0.5, h + 0.5),
+        ground_item("g1", h - 0.5, h + 0.5),
     )))
     _run_runtime(store, _session(store), sched, FakeChannel(),
                  max_hours=h + 2.0, clock_start_h=None, scale=FAST)
@@ -809,9 +800,38 @@ def test_v1c_callback_provenance_required_end_to_end(tmp_path):
     assert channel.sent == [], (
         "callback with broken session provenance produced a message"
     )
-    assert "no_source" in _suppressed_codes(store2)
+    assert "no_source" in suppressed_codes(store2)
     # no message row carries the stale intent id
     for m in store2.recent_messages(limit=100):
         assert m["intent_id"] is None, "suppressed intent attached to a message"
     store.close()
     store2.close()
+
+
+def test_restart_after_a_slept_through_midnight_plans_that_day(tmp_path):
+    """The run was down across midnight, so the rollover's re-plan never ran
+    for day 1; ``plan_on_start`` plans it at startup, and doing it again on a
+    second restart adds nothing."""
+    store = make_store(tmp_path, "mid.db")
+    session = _session(store)
+    session.ensure_day(0)
+    ProactiveSchedule.plan_and_persist(1, SEED, PERSONA, TIMING, store)
+    assert {int(r["day"]) for r in store.schedule_events_for_seed(SEED)} == {0}
+
+    def _start(at_h):
+        s = make_store(tmp_path, "mid.db")
+        sess = _session(s, clock=VirtualClock(t_h=at_h))
+        runtime = AsyncRuntime(
+            sess, ProactiveSchedule.restore(SEED, s), FakeChannel(),
+            store=s, timing=TIMING, seed=SEED, time_scale=SLOW,
+            max_virtual_hours=at_h + 0.01, resolver=IntentResolver(s),
+            sleeper=lambda _d: asyncio.sleep(0), plan_on_start=True,
+        )
+        asyncio.run(runtime.run())
+        rows = [(r["t_h"], r["day"]) for r in s.schedule_events_for_seed(SEED)]
+        s.close()
+        return rows
+
+    first = _start(30.0)
+    assert 1 in {day for _, day in first}, "day 1 got no slots"
+    assert _start(31.0) == first

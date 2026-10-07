@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lily setup</title>
+<link rel="icon" type="image/png" href="/static/lily.png">
+<link rel="stylesheet" href="/static/app.css">
+</head>
+<body>
+<div class="page page-narrow">
+
+  <header class="topbar card">
+    <div class="topline">
+      <div class="brand">
+        <img class="mark" src="/static/lily.png" alt="" aria-hidden="true">
+        <div>
+          <h1>Setup</h1>
+          <p class="sub">the owner commands, as on Telegram</p>
+        </div>
+      </div>
+      <nav class="viewswitch pages" aria-label="Pages">
+        <a class="vbtn" href="/chat">Chat</a><a class="vbtn" href="/debug">Debug</a><a class="vbtn" href="/setup" aria-current="page">Setup</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="setup-grid">
+  <div>
+    <section class="card">
+      <div class="card-head"><h2>Now</h2></div>
+      <div class="cmd-row"><div><b>Status</b><p>Day, local hour, pending reach-outs</p></div><div></div>
+        <button type="button" class="btn" data-cmd="status">Check</button></div>
+      <div class="cmd-row"><div><b>Version</b><p>Commit, seed, flags</p></div><div></div>
+        <button type="button" class="btn" data-cmd="version">Show</button></div>
+      <div class="cmd-row"><div><b>Hang up</b><p>End a call, or stop it ringing</p></div><div></div>
+        <button type="button" class="btn" data-cmd="hangup">Hang up</button></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Presence</h2></div>
+      <div class="cmd-row"><div><b>He is here now</b><p>Together in person: scenes run in the room, not by text</p></div><div></div>
+        <button type="button" class="btn" data-cmd="here">Here</button></div>
+      <div class="cmd-row"><div><b>He left</b><p>Back to texting</p></div><div></div>
+        <button type="button" class="btn" data-cmd="leave">Leave</button></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Her schedule</h2></div>
+      <div class="cmd-row"><div><b>Mute</b><p>No reach-outs for this many hours</p></div><div><input id="mute" type="number" min="0.25" step="0.25" value="4" aria-label="Hours"></div>
+        <button type="button" class="btn" data-cmd="mute" data-arg="mute">Mute</button></div>
+      <div class="cmd-row"><div><b>Today</b><p>Her commitment today: off, or moved to a time</p></div><div><input id="today" placeholder="off or 14:30" aria-label="off or HH:MM"></div>
+        <button type="button" class="btn" data-cmd="today" data-arg="today">Apply</button></div>
+      <div class="cmd-row"><div><b>Commitment</b><p>From tomorrow: job|school|home &lt;hours&gt; [HH:MM], light, or persona</p></div><div><input id="commitment" placeholder="school 6 08:00" aria-label="Commitment"></div>
+        <button type="button" class="btn" data-cmd="commitment" data-arg="commitment">Set</button></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Run</h2></div>
+      <div class="cmd-row"><div><b>Timezone</b><p>IANA name, applied at the next rollover</p></div><div><input id="tz" placeholder="America/Chihuahua" aria-label="Timezone"></div>
+        <button type="button" class="btn" data-cmd="tz" data-arg="tz">Change</button></div>
+      <div class="cmd-row"><div><b>First setup</b><p>Only on a fresh database, before she exists</p></div><div><input id="setup" placeholder="optional commitment" aria-label="Commitment"></div>
+        <button type="button" class="btn" data-cmd="setup" data-arg="setup">Set up</button></div>
+    </section>
+  </div>
+  <section class="card answers">
+    <div class="card-head"><h2>Answers</h2><span class="chip" id="status" data-state="unknown">connecting…</span></div>
+    <div id="answers"><p class="hint">Each command answers here, the way it answers on Telegram.</p></div>
+  </section>
+  </main>
+
+</div>
+<script>
+// Each button sends one owner command through the bot's web channel; its
+// answer comes back as a note on /api/chat/state.
+const $ = (id) => document.getElementById(id);
+let seq = null, sent = [];
+function answer(text, label) {
+  $("answers").querySelector("p.hint")?.remove();
+  const el = document.createElement("div");
+  el.className = "ans";
+  el.innerHTML = "<small></small>";
+  el.firstChild.textContent = label;
+  el.append(text);
+  $("answers").prepend(el);
+}
+document.querySelectorAll("button[data-cmd]").forEach((b) => b.onclick = async () => {
+  const name = b.dataset.cmd, args = b.dataset.arg ? $(b.dataset.arg).value.trim() : "";
+  b.disabled = true;
+  try {
+    const r = await fetch("/api/chat/command", { method: "POST", headers: { "Content-Type": "application/json" },
+                                                 body: JSON.stringify({ name, args }) });
+    if (!r.ok) answer((await r.json().catch(() => ({}))).error || r.statusText, "/" + name + " failed");
+    else sent.push("/" + name + (args ? " " + args : ""));
+  } catch (e) { answer(String(e), "/" + name + " failed"); }
+  setTimeout(() => (b.disabled = false), 800);
+});
+async function poll() {
+  try {
+    const r = await fetch("/api/chat/state");
+    if (!r.ok) throw new Error();
+    const s = await r.json();
+    $("status").dataset.state = "live"; $("status").textContent = "bot running";
+    if (seq === null) seq = Math.max(0, ...s.notes.map((n) => n.seq));
+    for (const n of s.notes) if (n.seq > seq) { seq = n.seq; answer(n.text, sent.shift() || "note"); }
+  } catch (e) { $("status").dataset.state = "stale"; $("status").textContent = "the bot is not running"; }
+  setTimeout(poll, 1000);
+}
+poll();
+</script>
+</body>
+</html>

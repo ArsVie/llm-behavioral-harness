@@ -6,7 +6,6 @@ Deterministic: fixed seeds, injected clock/sleeper, no LLM.
 from __future__ import annotations
 
 import asyncio
-import dataclasses
 
 import pytest
 
@@ -14,8 +13,6 @@ from engine.types import MoodVariant, PersonaParams, TimingParams
 from harness.channels.base import FakeChannel
 from harness.clock import VirtualClock
 from harness.domain import (
-    ContactOpportunity,
-    DailyAgenda,
     EpisodicMemory,
     MemoryKind,
     ProactiveIntent,
@@ -32,10 +29,9 @@ from harness.scheduler import (
     REASON_SHARED_INTEREST,
     REASON_VALIDITY_H,
     ProactiveSchedule,
-    build_opportunity,
 )
-from harness.store import SQLiteStore
 from tests.helpers import make_session, make_store
+from tests.helpers.runtime import ground_agenda
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -45,22 +41,12 @@ SEED = 12345
 FAST = TimeScale(seconds_per_virtual_hour=0.02)
 
 
-def _ground_agenda(store, start_t_h, end_t_h, *, item_id="g1", salience=0.8,
-                   activity="pottery class"):
-    from harness.domain import AgendaItem
-
-    item = AgendaItem(item_id, start_t_h, end_t_h, activity, "arc", "arc1",
-                      salience, "planned")
-    store.save_agenda(0, DailyAgenda(0, (item,)))
-    return item
-
-
 def _stored_intent(item, intent_id: str, t_h: float, *,
                    reason: str = REASON_SCHEDULE) -> ProactiveIntent:
     """A fully-grounded ProactiveIntent with a caller-chosen id (#87/#88 setup)."""
     return ProactiveIntent(
         id=intent_id, reason=reason, source_type="agenda_item",
-        source_id=item.id, hook=compose_hook(item, reason),
+        source_id=item.id, hook=compose_hook(item, reason, t_h),
         created_t_h=t_h, valid_until_t_h=t_h + REASON_VALIDITY_H[reason],
         salience=0.8, evidence=f"agenda_item:{item.id}", opportunity_id=None,
     )
@@ -81,30 +67,6 @@ def _run(store, session, schedule, channel, *, max_hours, resolver=None):
     return runtime
 
 
-
-
-
-def test_p1_contact_opportunity_has_no_semantic_reason_field():
-    """ContactOpportunity carries no semantic reason field; fields stay timing-only."""
-    forbidden = {"reason", "justification", "motivation", "source", "source_id"}
-    fields = {f.name for f in dataclasses.fields(ContactOpportunity)}
-    assert forbidden.isdisjoint(fields), (
-        f"ContactOpportunity carries a semantic reason field: {forbidden & fields}"
-    )
-    opp = build_opportunity(
-        10.0, day=0, phase_label="follicular", timing=TIMING,
-        previous_score=None, initiative=0.5,
-    )
-    assert not hasattr(opp, "reason")
-    # The hazard vocabulary is timing mechanics only.
-    assert set(opp.hazard_components) <= {
-        "base", "circadian", "phase", "initiative", "prior_score",
-    }
-
-
-
-
-
 def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
     """Every reason the resolver can produce yields a consistent intent that
     resolves back to a real persisted source."""
@@ -113,25 +75,25 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
     # Schedule: a planned agenda item around now.
     s1 = make_store(tmp_path, "p1b_sched.db")
     try:
-        item = _ground_agenda(s1, 9.5, 10.5, item_id="slot_sched",
+        item = ground_agenda(s1, 9.5, 10.5, item_id="slot_sched",
                               activity="pottery class")
         intent = IntentResolver(s1).resolve(10.0)
         assert intent is not None and intent.reason == REASON_SCHEDULE
         assert s1.resolve_intent_source(intent) is not None
-        assert compose_hook(item, REASON_SCHEDULE) == intent.hook
+        assert compose_hook(item, REASON_SCHEDULE, intent.created_t_h) == intent.hook
     finally:
         s1.close()
 
     # Event: a completed agenda item within 48h.
     s2 = make_store(tmp_path, "p1b_event.db")
     try:
-        done = _ground_agenda(s2, 4.0, 5.0, item_id="slot_done", salience=0.9,
+        done = ground_agenda(s2, 4.0, 5.0, item_id="slot_done", salience=0.9,
                               activity="finished run")
         s2.update_agenda_item_status("slot_done", "completed")
         intent = IntentResolver(s2).resolve(5.5)
         assert intent is not None and intent.reason == REASON_EVENT
         assert s2.resolve_intent_source(intent) is not None
-        assert compose_hook(done, REASON_EVENT) == intent.hook
+        assert compose_hook(done, REASON_EVENT, intent.created_t_h) == intent.hook
     finally:
         s2.close()
 
@@ -184,9 +146,6 @@ def test_p1b_every_reason_intent_resolves_to_a_real_source(tmp_path):
         s5.close()
 
 
-
-
-
 def test_p1c_unknown_intent_id_raises_value_error_no_message(tmp_path):
     """An unknown intent id raises ValueError with no message row and no client call."""
     store = make_store(tmp_path, "p1c.db")
@@ -214,7 +173,7 @@ def test_p1d_expired_intent_id_raises_value_error_no_message(tmp_path):
                                "arg": 0.0, "mu": 0.0, "eta": 0.0,
                                "cycle_day": 0.0, "phase_label": "phase_a",
                                "seed": SEED, "score": None})
-    item = _ground_agenda(store, 9.5, 10.5, item_id="expired_slot")
+    item = ground_agenda(store, 9.5, 10.5, item_id="expired_slot")
     intent = _stored_intent(item, "expired-1", t_h=9.9)
     store.save_proactive_intent(intent)
     # Fire at 20:00, 10h after creation; validity is 3h.
@@ -232,17 +191,14 @@ def test_p1d_expired_intent_id_raises_value_error_no_message(tmp_path):
         store.close()
 
 
-
-
-
 def test_p1e_exact_id_isolation_between_same_reason_siblings(tmp_path):
     """Two intents with the same reason and hook are distinct rows; updates
     never touch the sibling."""
     store = make_store(tmp_path, "p1e.db")
     try:
-        pottery = _ground_agenda(store, 9.5, 10.5, item_id="pottery",
+        pottery = ground_agenda(store, 9.5, 10.5, item_id="pottery",
                                  activity="pottery class")
-        gym = _ground_agenda(store, 9.5, 10.5, item_id="gym",
+        gym = ground_agenda(store, 9.5, 10.5, item_id="gym",
                              activity="gym session")
         i87 = _stored_intent(pottery, "87", t_h=9.9)
         i88 = _stored_intent(gym, "88", t_h=9.95)
@@ -271,9 +227,9 @@ def test_p1g_session_fires_exact_id_not_reason_sibling(tmp_path):
                                "arg": 0.0, "mu": 0.0, "eta": 0.0,
                                "cycle_day": 0.0, "phase_label": "phase_a",
                                "seed": SEED, "score": None})
-    pottery = _ground_agenda(store, 9.5, 10.5, item_id="pottery", salience=0.9,
+    pottery = ground_agenda(store, 9.5, 10.5, item_id="pottery", salience=0.9,
                              activity="pottery class")
-    gym = _ground_agenda(store, 9.5, 10.5, item_id="gym", salience=0.7,
+    gym = ground_agenda(store, 9.5, 10.5, item_id="gym", salience=0.7,
                          activity="gym session")
     store.save_proactive_intent(_stored_intent(pottery, "87", t_h=9.9))
     store.save_proactive_intent(_stored_intent(gym, "88", t_h=9.95))
@@ -290,13 +246,10 @@ def test_p1g_session_fires_exact_id_not_reason_sibling(tmp_path):
         assert "88" not in {i.id for i in store.list_proactive_intents(status="fired")}
         # The prompt renders #87's hook (state card tail).
         tail = session.client.calls[-1]["messages"][-1]["content"]
-        assert "Agenda: pottery class" in tail
-        assert "Agenda: gym session" not in tail
+        assert "Pottery class (" in tail and "reminded you of him" in tail
+        assert "Gym session (" not in tail
     finally:
         store.close()
-
-
-
 
 
 def test_p1f_opportunity_without_intent_no_message(tmp_path):
@@ -307,7 +260,7 @@ def test_p1f_opportunity_without_intent_no_message(tmp_path):
     assert schedule.event_hours, "precondition: at least one opportunity today"
     h = float(schedule.event_hours[0])
     opp = schedule.opportunity_for(h)
-    assert opp is not None and not hasattr(opp, "reason")
+    assert opp is not None
     session = make_session(store)
     channel = FakeChannel()
     _run(store, session, schedule, channel, max_hours=h + 2.0)
@@ -321,4 +274,5 @@ def test_p1f_opportunity_without_intent_no_message(tmp_path):
     }
     assert "no_grounded_reason" in suppressed
     rows = {abs(float(r["t_h"])): r for r in store.schedule_events_for_seed(SEED)}
-    assert rows[h]["status"] == "fired", "suppressed opportunity row stranded"
+    assert rows[h]["status"] == "suppressed", "suppressed opportunity row stranded"
+    assert store.last_proactive_t_h(SEED) is None, "a suppression started the cooldown"

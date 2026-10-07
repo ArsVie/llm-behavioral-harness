@@ -6,7 +6,19 @@ timestamps are absolute float hours ``t_h``.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Callable, Literal
+from typing import Literal
+
+# Memory-layer types live in harness.domain_memory; re-exported here.
+from harness.domain_memory import (  # noqa: F401
+    AffectMetadata,
+    EpisodicMemory,
+    MemoryKind,
+    MemoryPolicy,
+    SessionSummary,
+    UserModel,
+    UserModelAssertion,
+    UserModelCategory,
+)
 
 
 @dataclass(frozen=True)
@@ -16,15 +28,6 @@ class Interest:
     name: str
     bucket: str  # "exact" | "adjacent" | "independent"
     salience: float  # 0..1
-
-
-@dataclass(frozen=True)
-class InterestRelation:
-    """Directed edge of the interest graph, with strength (0..1)."""
-
-    from_interest: str
-    to_interest: str
-    strength: float
 
 
 @dataclass(frozen=True)
@@ -97,6 +100,7 @@ class AgendaItem:
     of time, and never filled in just because a window elapsed.
     """
 
+
 @dataclass(frozen=True)
 class DailyAgenda:
     """The agenda of one day, as an immutable tuple of items."""
@@ -114,39 +118,6 @@ class CurrentActivity:
     description: str
 
 
-
-
-@dataclass(frozen=True)
-class CompanionBehaviorState:
-    """The companion's own behavioral state, derived from a BehaviorDirective.
-
-    Distinct from ``UserAffectObservation``: no shared fields, no implicit
-    conversion. ``directive_ref`` identifies the directive that produced it.
-    """
-
-    directive_ref: str
-    initiative: float
-    energy: float
-    warmth: float
-    playfulness: float
-
-
-
-
-# Memory-layer types live in harness.domain_memory; re-exported here so
-# existing imports keep working unchanged.
-from harness.domain_memory import (  # noqa: F401 - compat re-export
-    AffectMetadata,
-    EpisodicMemory,
-    MemoryKind,
-    MemoryPolicy,
-    SessionSummary,
-    UserAffectObservation,
-    UserModel,
-    UserModelAssertion,
-    UserModelCategory,
-)
-
 @dataclass(frozen=True)
 class MemoryContext:
     """The bounded memory slice handed to composition.
@@ -161,7 +132,6 @@ class MemoryContext:
     episodes: tuple[EpisodicMemory, ...]
     user_model: UserModel | None
     evidence_anchors: tuple[str, ...]
-
 
 
 @dataclass(frozen=True)
@@ -297,26 +267,3 @@ class CompanionSnapshot:
     memory_context: MemoryContext
     recent_conversation: tuple[Turn, ...]
     proactive_intent: ProactiveIntent | None
-
-
-@dataclass(frozen=True)
-class AblationClaim:
-    """Effectiveness contract of one matrix condition.
-
-    ``check(cell_records, full_records)`` is evaluated by the pre-flight
-    against the condition's own run records vs FULL's; a failing claim marks
-    the condition a NULL ablation. ``channel`` is one of the four ablatable
-    channels; ``min_days`` is the horizon before which the ablated mechanism
-    cannot have acted (a below-horizon claim is NOT EVALUABLE, never FAIL;
-    ``1`` means evaluable at any horizon). ``cell_records``/``full_records``
-    carry at least ``n_proactive``, ``n_reactive``, ``n_assistant_turns``,
-    ``n_blank_assistant_turns``, ``n_conversations`` and
-    ``mean_turns_per_conversation``.
-    """
-
-    condition: str
-    channel: Literal["timing", "memory_store", "generation_controls", "life_state"]
-    assertion: str
-    check: Callable[[dict, dict], bool]
-    min_days: int = 1
-    measure: Callable[[dict, dict], dict] | None = None

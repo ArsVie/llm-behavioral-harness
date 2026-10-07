@@ -1,11 +1,12 @@
 """Memory-layer domain types: the L2/L4 vocabulary, re-exported by
-``harness.domain`` so existing imports keep working.
+``harness.domain``.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+
 
 class MemoryKind(Enum):
     """Category of an episodic memory."""
@@ -25,11 +26,6 @@ class MemoryPolicy(Enum):
     VERBATIM_RAG = "verbatim_rag"
     STRUCTURED_MEMORY = "structured_memory"
     STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT = "structured_memory_topicality_experiment"
-
-    @property
-    def is_experimental(self) -> bool:
-        """True only for the explicitly experimental topicality variant."""
-        return self is MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT
 
 
 @dataclass(frozen=True)
@@ -127,16 +123,3 @@ class UserModel:
     recurring_interests: tuple[UserModelAssertion, ...]
     relationship_patterns: tuple[UserModelAssertion, ...]
     important_entities: tuple[UserModelAssertion, ...]
-
-
-@dataclass(frozen=True)
-class UserAffectObservation:
-    """An observed, labeled snapshot of the USER's affect at time ``t_h``.
-
-    Distinct from ``CompanionBehaviorState``: no implicit conversion.
-    """
-
-    t_h: float
-    valence: float
-    arousal: float
-    label: str

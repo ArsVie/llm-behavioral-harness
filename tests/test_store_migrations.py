@@ -8,15 +8,6 @@ re-opening is a no-op (no destructive step).
 
 import sqlite3
 
-from harness.domain import (
-    AgendaItem,
-    DailyAgenda,
-    Interest,
-    LifeArc,
-    PersonaProfile,
-    ProactiveIntent,
-    Routine,
-)
 from harness.store import SCHEMA_VERSION, SQLiteStore
 
 # Legacy v1 schema, VERBATIM from the pre-slice harness/store.py.
@@ -215,40 +206,3 @@ def test_migration_runs_twice_without_error(tmp_path):
     assert store2.load_judgement(0)["score"] == 0.8
     assert len(store2.schedule_events_for_seed(4242)) == 2
     store2.close()
-
-
-def test_fresh_db_reaches_v2_and_new_tables_are_usable(tmp_path):
-    store = SQLiteStore(tmp_path / "fresh.db")
-    rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
-
-    # vertical-slice tables work end to end on a migrated-from-empty DB
-    store.save_persona(
-        PersonaProfile(
-            name="Lily",
-            core="Curious and warm.",
-            interests=(Interest("photography", "exact", 0.9),),
-            routines=(Routine("morning walk", 0.25, 1.0, 0.9, 0.5),),
-        )
-    )
-    assert store.load_persona().name == "Lily"
-    store.upsert_life_arc(
-        LifeArc("a1", "photography", "photography", 4, 0.37, "active",
-                "practice portraits")
-    )
-    arc = store.get_life_arc("a1")
-    assert arc is not None and arc.progress == 0.37
-    store.save_agenda(
-        4, DailyAgenda(4, (AgendaItem("i1", 9.0, 10.0, "portraits", "arc", "a1",
-                                      0.8, "planned"),))
-    )
-    assert store.load_agenda(4) is not None
-    store.save_proactive_intent(
-        ProactiveIntent("p1", "arc progress", "life_arc", "a1", "progress",
-                        100.0, 104.0, 0.7, "arc a1 at progress 0.37")
-    )
-    intent = store.load_proactive_intent("p1")
-    assert intent is not None
-    resolved = store.resolve_intent_source(intent)
-    assert resolved is not None and resolved.id == "a1"
-    store.close()

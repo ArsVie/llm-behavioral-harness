@@ -46,12 +46,6 @@ function fmtEstimate(value) {
   return value === null || value === undefined ? "—" : `~${fmtTokens(value)}`;
 }
 
-function fmtUsd(value) {
-  if (value === null || value === undefined) return "—";
-  const n = Number(value);
-  return `$${n.toFixed(n < 0.1 ? 4 : 2)}`;
-}
-
 function fmtPct(value) {
   return value === null || value === undefined ? "—" : `${Number(value).toFixed(1)}%`;
 }
@@ -131,10 +125,7 @@ function ageText(seconds) {
   return `wrote ${(seconds / 3600).toFixed(1)}h ago`;
 }
 
-/* The chip said "wrote 0s ago" for as long as the page stayed open: the text
-   was rendered once from the payload and only ever rewritten when a NEW call
-   landed, so on a quiet run it froze at whatever the age was at load. It is
-   a clock now, and it counts up like one. */
+/* A clock: the age counts up every second, not only when a new call lands. */
 function tickLiveness() {
   if (!liveness.anchor) return;
   const chip = $("liveness");
@@ -288,28 +279,34 @@ function renderContext(payload) {
     + ` · ${anchor.kind === "none" ? "heuristic prices" : "provider-anchored"}`
     + (pressure.ledger_ok ? "" : " · fresh derived from the prompt total");
 
-  const colors = { system: "seg-system", tools: "seg-tools", messages: "seg-messages" };
   const bar = $("context-bar");
   bar.replaceChildren();
   const legend = $("context-legend");
   legend.replaceChildren();
-  // A bucket holding a part with no price on record — a tool menu this build
-  // does not hold — carries no number: it shows "—" and takes no width in the
+  // The system prompt, the tool schemas, then the conversation split by what
+  // each message is: day plans, state cards, his messages, her replies…
+  // A segment holding a part with no price on record (a tool menu this build
+  // does not hold) carries no number: it shows "—" and takes no width in the
   // bar, because a guessed width would read as a measured share.
-  const total = payload.buckets.reduce(
-    (sum, bucket) => sum + (bucket.priced_tokens || 0), 0) || 1;
-  for (const bucket of payload.buckets) {
-    const price = bucket.priced_tokens ?? null;
-    const segment = el("span", colors[bucket.key] || "");
+  const segments = payload.composition;
+  const total = segments.reduce((sum, seg) => sum + (seg.tokens || 0), 0) || 1;
+  for (const seg of segments) {
+    const price = seg.tokens ?? null;
+    const color = `seg-${seg.key}`;
+    const segment = el("span", color);
     segment.style.width = `${price === null ? 0 : price / total * 100}%`;
     segment.title = price === null
-      ? `${bucket.label}: price unknown`
-      : `${bucket.label}: ${price} tokens`;
+      ? `${seg.label}: price unknown`
+      : `${seg.label} (${seg.count}): ${price} tokens`
+        + (seg.share_pct == null ? "" : ` · ${seg.share_pct}% of the prompt`);
     bar.append(segment);
-    const row = el("div");
-    const dt = el("dt");
-    dt.append(el("span", `swatch ${colors[bucket.key]}`), el("span", null, bucket.label));
-    row.append(dt, el("dd", null, fmtEstimate(price)));
+    // One row per part, as Claude Code lists it: colour, name, tokens, share.
+    const row = el("li");
+    row.append(el("span", `swatch ${color}`),
+      el("span", "ctx-name", seg.label),
+      el("span", "ctx-tokens", fmtEstimate(price)),
+      el("span", "ctx-pct", price === null ? "" : `${(price / total * 100).toFixed(1)}%`));
+    row.title = segment.title;
     legend.append(row);
   }
 
@@ -358,11 +355,23 @@ function renderContext(payload) {
 
   const surface = $("surface");
   surface.replaceChildren();
-  const cachedNodes = payload.surface.filter((node) => node.cached).length;
+  const states = { cached: 0, partial: 0, fresh: 0 };
+  for (const node of payload.surface) states[node.state] = (states[node.state] || 0) + 1;
   $("surface-foot").hidden = payload.surface.length === 0;
-  $("surface-foot").textContent = `${payload.surface.length} messages · `
-    + `${cachedNodes} cached · ${payload.surface.length - cachedNodes} fresh`;
-  for (const node of payload.surface) {
+  const foot = [`${payload.surface.length} messages`, `${states.cached} cached`];
+  if (states.partial) foot.push(`${states.partial} partial`);
+  foot.push(`${states.fresh} fresh`);
+  $("surface-foot").textContent = foot.join(" · ");
+  // The marks answer "what did this call pay from cache", read off the
+  // provider's own split; only a call with no usage numbers falls back to
+  // the byte walk against the call before, and the foot says so.
+  const byBytes = Boolean(payload.prefix) && payload.prefix.source === "bytes";
+  $("surface-foot").title = byBytes
+    ? "no usage numbers on this call: marks show byte-identity with the call before"
+    : `the provider's own split: ${payload.prefix && payload.prefix.fresh_tokens} tokens billed fresh`;
+  // Newest first, like the ledger: the message that made this call is the
+  // one you came to read, not the persona prompt at #0.
+  for (const node of [...payload.surface].reverse()) {
     const row = el("li");
     row.dataset.index = String(node.index);
     const name = el("span", "name");
@@ -370,13 +379,25 @@ function renderContext(payload) {
       el("b", "fixed", `#${node.index} ${node.label}`),
       el("span", "preview", node.preview));
     const right = el("span", "name");
-    // "cached prefix" is the byte-proven shared prefix, not the billed hit;
-    // the mark says which side of that story it is.
-    const mark = el("span", node.cached ? "cached" : "fresh",
-      node.cached ? "cached prefix" : "fresh");
-    mark.title = node.cached
-      ? "byte-identical to the call before: the measured shared prefix"
-      : "not byte-identical to the call before";
+    // The mark follows the provider's own cached/fresh split (the press
+    // tile's numbers), not the byte walk: "partial" is the message the
+    // block boundary cuts. Without usage numbers the byte story is the
+    // only one, and the titles say which is shown.
+    const state = node.state || "fresh";
+    const mark = el("span", state,
+      state === "cached" ? "cached prefix" : state === "partial" ? "partial" : "fresh");
+    const byBytes = Boolean(payload.prefix) && payload.prefix.source === "bytes";
+    if (byBytes) {
+      mark.title = state === "cached"
+        ? "byte-identical to the call before (this call recorded no usage numbers)"
+        : "not byte-identical to the call before";
+    } else {
+      mark.title = state === "cached"
+        ? "inside the provider's cached prefix — served from cache"
+        : state === "partial"
+          ? "the provider's cache boundary cuts this message: its head was cached, its tail billed fresh"
+          : "billed fresh — after the provider's cached prefix";
+    }
     right.append(mark, el("span", "tokens", fmtEstimate(node.priced_tokens)));
     row.append(name, right);
     row.addEventListener("click", () => showRawPayload(`surface node #${node.index}`, node));
@@ -427,8 +448,17 @@ function renderCalls(calls, selectedId) {
       el("td", hitClass, fmtPct(call.cache_hit_pct)),
       el("td", null, fmtPct(call.prefix_share_pct)),
       el("td", null, fmtTokens(call.completion_tokens)),
-      el("td", "note", call.verdict
-        || (call.system_stable === false ? "stable prefix changed" : "")),
+      (() => {
+        const text = call.verdict || (call.system_stable === false ? "stable prefix changed" : "");
+        // The column is narrow on a half-width card: an expiry shows as its
+        // idle gap ("idle 8.0h"), the whole verdict rides the hover.
+        const expired = text.match(/^cache expired after ([\d.]+) h idle/);
+        const quiet = expired || text.startsWith("fork, not cached");
+        const cell = el("td", quiet ? "note expired" : "note",
+          expired ? `idle ${expired[1]}h` : text);
+        if (text) cell.title = text;
+        return cell;
+      })(),
     );
     // Reading the call is what a row click is for; the neighbouring cards
     // follow it, so the other zooms land on the same request.
@@ -439,9 +469,7 @@ function renderCalls(calls, selectedId) {
 }
 
 /* A dump with no call row is a real thing — an earlier run, or the bounded
-   re-ask, which goes on the wire but records nothing in llm_calls. The dump
-   ledger used to say so; with the bytes moved into each call's drawer, the
-   count says it here instead of vanishing. */
+   re-ask, which goes on the wire but records nothing in llm_calls. */
 function renderLedgerFoot() {
   const orphans = wireState.files.filter((file) => !file.call_id).length;
   const foot = $("ledger-foot");
@@ -504,7 +532,7 @@ function renderFocus() {
   const name = call ? `call #${call.id} · ${call.role}` : "no calls yet";
   $("context-call").textContent = name;
   $("surface-note").textContent = call
-    ? `${name} — every message it carried, oldest → newest` : name;
+    ? `${name} — every message it carried, newest → oldest` : name;
 }
 
 async function loadFocusContext() {
@@ -564,8 +592,7 @@ function flowCard(event, count) {
   card.tabIndex = 0;
   // The date is part of the card: a bare clock repeats every day of a run,
   // and an unanchored run stamps "d2 t50.00" rather than a clock at all.
-  const stamp = el("time", null,
-    event.stamp || (event.real ? event.real.slice(11, 19) : `t${event.t_h}`));
+  const stamp = el("time", null, event.stamp);
   stamp.title = `day ${event.day} · t_h ${event.t_h}` + (event.real ? ` · ${event.real}` : "");
   const when = el("div", "flow-when");
   when.append(stamp, el("span", "kind", event.kind));
@@ -703,11 +730,6 @@ function closeDrawer() {
   $("scrim").hidden = true;
 }
 
-/* The head of a call's drawer. Eight label/value rows in a wrapping grid put
-   a long sentence like "no previous envelope" in a cell sized for "89.3%",
-   pushed every label away from its own value, and repeated the id the title
-   already carries. What identifies the call is a sentence; what measures it
-   is four figures. */
 /* A decide leg's answer in four words, for the head strip. */
 function verdictSummary(verdict) {
   if (!verdict) return "";
@@ -722,6 +744,8 @@ function verdictSummary(verdict) {
   return parts.join(" · ") || "see below";
 }
 
+/* The head of a call's drawer: a sentence that identifies the call, then the
+   figures that measure it. */
 function callHeadNodes(detail) {
   const call = detail.call;
   const when = String(call.real || "").replace("T", " ").slice(0, 19);
@@ -747,16 +771,13 @@ function callHeadNodes(detail) {
     hit !== null && hit >= 60 ? "good" : (hit !== null && hit < 30 ? "warn" : ""));
   tile("shared prefix", call.prefix_share_pct === null
     ? "first call" : fmtPct(call.prefix_share_pct));
-  // A changed stable prefix costs the whole cache, so it is a finding, not a
-  // field: it appears only when there is something to say.
   tile("output", exact(call.completion_tokens));
-  // What a decide leg ANSWERED. Its `response` column is empty by design, so
-  // without this the head said nothing about the only thing the call did.
+  // What a decide leg ANSWERED: its `response` column is empty by design.
   if (detail.decision) {
     tile("verdict", verdictSummary(detail.decision.verdict), detail.decision.state_label);
   }
-  // `call.verdict` is the CACHE verdict, not the model's: it is set only when
-  // the prefix did something worth naming.
+  // `call.verdict` is the CACHE verdict, not the model's; a changed stable
+  // prefix costs the whole cache, so it shows only when there is one.
   if (call.system_stable === false) tile("system", "prefix changed", "", "bad");
   else if (call.verdict) tile("cache", call.verdict, "", "warn");
   nodes.push(strip);
@@ -766,9 +787,7 @@ function callHeadNodes(detail) {
 function showRawPayload(title, payload) {
   const nodes = [];
   if (payload && typeof payload.content === "string" && payload.content) {
-    // The row in the list carries a CLIPPED preview; this is the whole node,
-    // which is what the drawer is for. A JSON dump alone showed the ellipsis
-    // and nothing else, so the reply could not be read anywhere in the app.
+    // The row in the list carries a CLIPPED preview; this is the whole node.
     nodes.push(el("h3", null, `Full text (${payload.content.length} chars)`));
     nodes.push(el("div", "full-text", payload.content));
     const rest = { ...payload };
@@ -819,16 +838,13 @@ function envelopeNodes(detail) {
     index += 1;
   }
   // Reasoning comes BEFORE the response: the model thought, then answered.
-  // Rendering it last read as if it were fed back after the reply, which it
-  // never is — it is response-side metadata off the call row
-  // (llm_calls.meta), never a member of `messages`.
+  // It is response-side metadata (llm_calls.meta), never a member of `messages`.
   if (detail.reasoning) {
     nodes.push(el("h3", null, "Reasoning"));
     nodes.push(el("pre", "aside", detail.reasoning));
   }
   // A decide leg's answer LEAVES as a tool call, so `response` is empty by
-  // design; rendering "(empty)" read as a dropped reply. The verdict it
-  // actually returned is a decision_records row the server pairs to it.
+  // design; its verdict is a decision_records row the server pairs to it.
   const decision = detail.decision;
   if (decision) {
     nodes.push(el("h3", null, ["Verdict", decision.kind, decision.event_label,
@@ -1017,8 +1033,10 @@ function wireDiffNodes(aName, bName, aText, bText) {
 const study = {
   runId: null,
   day: null,          // null follows the run's newest day
-  cal: "day",         // "month" | "week" | "day"
-  panel: "mood",      // "mood" | "rhythm" | "contact"
+  // "month" | "week" | "day"; ?cal= deep-links one.
+  cal: ["month", "week", "day"].includes(LINKED.get("cal")) ? LINKED.get("cal") : "day",
+  // "mood" | "rhythm" | "contact"; ?panel= deep-links one.
+  panel: ["mood", "rhythm", "contact"].includes(LINKED.get("panel")) ? LINKED.get("panel") : "mood",
   view: null,
 };
 
@@ -1031,8 +1049,8 @@ const PANELS = [
 /* One line per panel, in the app's own voice: a chart the reader has to
    decode from the project's vocabulary has already failed. */
 const PANEL_NOTE = {
-  mood: "her mood at each day's point on the cycle — the dashed line is her 7-day trend",
-  rhythm: "her energy across the day, one curve per cycle phase lived — her words sit on the curve, reach-outs marked on top",
+  mood: "her mood each day, on the phase she was in — the dashed line is her 7-day trend",
+  rhythm: "her energy across the day, one curve per cycle phase lived, with each reach-out at its hour on its day's curve",
   contact: "one mark per message, at its hour — you wrote, she replied, or she reached out first",
 };
 
@@ -1076,14 +1094,6 @@ const PHASE_TONE = {
   luteal_early: ["var(--lav-soft)", "var(--lav)"],
   luteal_late: ["var(--plum-soft)", "var(--plum)"],
 };
-
-/* The cycle's own shape, in days: the engine's PHASE_FRACTIONS table over the
-   nominal 28-day cycle it is written against. */
-const PHASE_DAYS = [
-  ["menstrual", 0, 5], ["follicular", 5, 12], ["ovulatory", 12, 16],
-  ["luteal_early", 16, 23], ["luteal_late", 23, 28],
-];
-const CYCLE_DAYS = 28;
 
 function phaseTone(label) {
   return PHASE_TONE[label] || ["var(--grey-soft)", "var(--grey)"];
@@ -1326,13 +1336,10 @@ function renderCalendar() {
   } else {
     title.textContent = monthTitle(view);
     host.append(monthChart(view));
-    host.append(legendKeys([
-      ["cycle phase", swatch("linear-gradient(90deg, var(--rose-soft), " +
-        "var(--mint-soft), var(--sun-soft), var(--lav-soft), var(--plum-soft))")],
-      ["you", swatch("var(--ink)")],
-      ["her", swatch("var(--sky)")],
-      ["reach-out", swatch("var(--rose)")],
-    ]));
+    const phases = new Set(view.span.map((entry) => entry.phase_label));
+    host.append(legendKeys(Object.keys(PHASE_WORD)
+      .filter((label) => phases.has(label))
+      .map((label) => [phaseWord(label), swatch(phaseTone(label)[1])])));
   }
 }
 
@@ -1415,14 +1422,24 @@ function dayChart(view) {
   return chart;
 }
 
-function weekTitle(view) {
+/* The day the run is in, and its date stamp (null on an unanchored run). */
+function currentDay(view) {
   const current = view.today === null || view.today === undefined
     ? view.day : view.today;
-  const stamp = view.dates ? view.dates[current] : null;
-  if (!stamp) return "this week";
-  const base = new Date(`${stamp.date}T00:00:00`);
-  const start = new Date(base);
+  return { current, stamp: view.dates ? view.dates[current] : null };
+}
+
+/* The Sunday that opens the week holding `stamp`. */
+function weekStart(stamp) {
+  const start = new Date(`${stamp.date}T00:00:00`);
   start.setDate(start.getDate() - start.getDay());
+  return start;
+}
+
+function weekTitle(view) {
+  const { stamp } = currentDay(view);
+  if (!stamp) return "this week";
+  const start = weekStart(stamp);
   const end = new Date(start);
   end.setDate(start.getDate() + 6);
   const short = { month: "short", day: "numeric" };
@@ -1434,9 +1451,7 @@ function weekTitle(view) {
    the hours that carry the run start on screen, headers stay put while the
    day scrolls, and a block that is tall enough says what it is. */
 function weekChart(view) {
-  const current = view.today === null || view.today === undefined
-    ? view.day : view.today;
-  const stamp = view.dates ? view.dates[current] : null;
+  const { current, stamp } = currentDay(view);
   const chart = el("div", "cal-week");
   const columns = el("div", "cal-days");
   const byDate = {};
@@ -1444,9 +1459,7 @@ function weekChart(view) {
 
   const week = [];
   if (stamp) {
-    const base = new Date(`${stamp.date}T00:00:00`);
-    const start = new Date(base);
-    start.setDate(start.getDate() - start.getDay());
+    const start = weekStart(stamp);
     for (let i = 0; i < 7; i++) {
       const date = new Date(start);
       date.setDate(start.getDate() + i);
@@ -1489,12 +1502,17 @@ function weekChart(view) {
         block.style.width = "calc(100% - 4px)";
         block.style.background = future ? "var(--paper-2)" : fill;
         block.style.borderColor = future ? "var(--line)" : edge;
+        // The block names its tag; the description is in the pop-up.
         if (px >= 34) {
           block.append(el("span", "cal-when",
             `${hourText(item.hour)}–${hourText(item.end)}`));
         }
-        if (px >= 20) {
-          block.append(el("span", "cal-what", item.activity));
+        if (px >= 12) {
+          if (px < 20) {
+            block.classList.add("is-short");
+            block.style.minHeight = "14px";
+          }
+          block.append(el("span", "cal-what", item.tag || item.activity));
         }
         attachTip(block, `${hourText(item.hour)}–${hourText(item.end)} · ` +
           `${item.activity}\n${item.status}`);
@@ -1517,8 +1535,12 @@ function weekChart(view) {
     columns.append(holder);
   });
 
+  // The gutter carries the same header row the day columns do, so its
+  // 08:00 sits on the columns' 08:00 line, not one header-height above it.
+  const gutter = el("div", "cal-gutter");
+  gutter.append(el("h4", null, "\u00a0"), hourGutter());
   const body = el("div", "cal-scroll");
-  body.append(hourGutter(), columns);
+  body.append(gutter, columns);
   chart.append(body);
   // A scrollbar the reader can actually see: this engine paints only
   // overlay scrollbars, which show nothing until touched, so the rail is
@@ -1545,36 +1567,45 @@ function weekChart(view) {
       }
     }
     const top = earliest === null ? 7 : Math.max(0, earliest - 0.5);
-    body.scrollTop = (top / 24) * body.scrollHeight;
+    body.scrollTop = (top / 24) * WEEK_PX;
     sync();
   });
   return chart;
 }
 
 function monthTitle(view) {
-  const current = view.today === null || view.today === undefined
-    ? view.day : view.today;
-  const stamp = view.dates ? view.dates[current] : null;
+  const { stamp } = currentDay(view);
   if (!stamp) return "every day so far";
   const date = new Date(`${stamp.date}T00:00:00`);
   return date.toLocaleString(undefined, { month: "long", year: "numeric" });
 }
 
-/* Month: a real month grid — weekday columns, dates — with each day the run
-   lived carrying its phase, how much the two of them talked (her words above
-   yours), and whether she reached out first. */
+/* The cycle phases in plain words, for a reader who does not know the
+   engine's labels. */
+const PHASE_WORD = {
+  menstrual: "period", follicular: "follicular", ovulatory: "ovulation",
+  luteal_early: "luteal", luteal_late: "pre-period",
+};
+
+function phaseWord(label) {
+  return PHASE_WORD[label] || String(label || "").replace("_", " ");
+}
+
+/* Month: a real month grid, one cell per date, and every day the run lived
+   says what happened in words: the cycle phase (the coloured edge and its
+   name), how many messages each of them sent, how her plans went, and
+   whether she wrote first. Click a day to open it. */
 function monthChart(view) {
   const wrap = el("div", "cal-month");
-  const current = view.today === null || view.today === undefined
-    ? view.day : view.today;
-  const stamp = view.dates ? view.dates[current] : null;
+  const { current, stamp } = currentDay(view);
   const head = el("div", "cal-weekdays");
   for (const name of WEEKDAYS) head.append(el("span", null, name));
   const grid = el("div", "cal-grid");
   const byDate = {};
   for (const entry of view.span) if (entry.date) byDate[entry.date] = entry;
-  const peak = Math.max(1, ...view.span.map((entry) => entry.messages));
   const todayIso = stamp ? stamp.date : null;
+  const firstIso = Object.values(view.dates || {})
+    .map((d) => d.date).sort()[0] || null;
 
   if (stamp) {
     const date = new Date(`${stamp.date}T00:00:00`);
@@ -1588,43 +1619,83 @@ function monthChart(view) {
     for (let day = 1; day <= length; day++) {
       const iso = isoOf(new Date(year, month, day));
       const cell = el("div", "cal-date");
-      cell.append(el("span", "cal-date-n", day));
+      const top = el("div", "cal-date-top");
+      top.append(el("span", "cal-date-n", day));
+      cell.append(top);
       const entry = byDate[iso];
       if (entry) {
-        const [tone] = phaseTone(entry.phase_label);
-        cell.style.background = tone;
-        cell.classList.add("has-run");
-        cell.dataset.day = entry.day;
-        const bars = el("span", "cal-date-bars");
-        for (const [who, count] of [["her", entry.her], ["you", entry.you]]) {
-          if (!count) continue;
-          const bar = el("i", who);
-          bar.style.height = `${Math.max(2, 22 * (count / peak))}px`;
-          bars.append(bar);
-        }
-        cell.append(bars);
-        if (entry.sent) {
-          const flag = el("span", "cal-date-flag");
-          attachTip(flag, `${plural(entry.sent, "reach-out")} sent`);
-          cell.append(flag);
-        }
-        if (entry.day === current) cell.classList.add("is-today");
-        else if (entry.day > current) cell.classList.add("is-future");
-        attachTip(cell, `day ${entry.day} (${dayLabel(entry.day)}) · ` +
-          `${String(entry.phase_label || "no engine row").replace("_", " ")}` +
-          `${entry.cycle_day === null ? "" : `\ncycle day ${entry.cycle_day}`}` +
-          `\n${plural(entry.messages, "message")} — you ${entry.you}, ` +
-          `her ${entry.her}` +
-          `\n${plural(entry.agenda.length, "agenda item")}` +
-          (entry.M === null ? "" : `\nmood M ${entry.M}`));
-      } else if (todayIso && iso > todayIso) {
+        monthCell(cell, top, entry, current);
+      } else if ((todayIso && iso > todayIso) || (firstIso && iso < firstIso)) {
+        // Before the run began or not lived yet: not a day with nothing in it.
         cell.classList.add("is-future");
       }
+      grid.append(cell);
+    }
+  } else {
+    // A run without calendar dates (a simulation): its days in weeks of
+    // seven, numbered by run day instead of by date.
+    head.textContent = "";
+    for (const entry of view.span) {
+      const cell = el("div", "cal-date");
+      const top = el("div", "cal-date-top");
+      top.append(el("span", "cal-date-n", `d${entry.day}`));
+      cell.append(top);
+      monthCell(cell, top, entry, current);
       grid.append(cell);
     }
   }
   wrap.append(head, grid);
   return wrap;
+}
+
+function monthCell(cell, top, entry, current) {
+  cell.classList.add("has-run");
+  cell.dataset.day = entry.day;
+  if (entry.day === current) cell.classList.add("is-today");
+  else if (entry.day > current) cell.classList.add("is-future");
+  if (entry.phase_label) {
+    const [, edge] = phaseTone(entry.phase_label);
+    cell.style.borderLeftColor = edge;
+    const phase = el("span", "cal-date-phase", phaseWord(entry.phase_label));
+    phase.style.color = edge;
+    top.append(phase);
+  }
+
+  if (entry.M !== null && entry.M !== undefined) {
+    const mood = el("div", "cal-date-mood");
+    const meter = el("i", "cal-date-meter");
+    meter.style.setProperty("--fill", `${Math.max(0, Math.min(10, entry.M)) * 10}%`);
+    mood.append(el("span", null, `mood ${Math.round(entry.M)}`), meter);
+    cell.append(mood);
+  }
+  // Her own read of the day, in her voice; the day still being lived has none.
+  if (entry.verdict && entry.verdict.text) {
+    cell.append(el("div", "cal-date-verdict", entry.verdict.text));
+  }
+
+  const plans = entry.agenda.length;
+  if (plans) {
+    const done = entry.agenda.filter((item) => item.status === "completed").length;
+    const skipped = entry.agenda.filter((item) => item.status === "skipped").length;
+    cell.append(el("div", "cal-date-line", `plans ${done}/${plans} done`));
+    if (skipped) cell.append(el("div", "cal-date-line", `${skipped} skipped`));
+  }
+  if (entry.sent) {
+    cell.append(el("div", "cal-date-line cal-date-first",
+      entry.sent === 1 ? "she wrote first" : `she wrote first ×${entry.sent}`));
+  }
+
+  const doing = entry.agenda
+    .filter((item) => item.source !== "routine" && item.activity)
+    .map((item) => `· ${item.activity}${item.status === "completed" ? "" : ` (${item.status.replace("_", " ")})`}`);
+  attachTip(cell, `day ${entry.day} (${dayLabel(entry.day)})` +
+    (entry.phase_label ? ` · ${phaseWord(entry.phase_label)}` : "") +
+    (entry.cycle_day === null ? "" : `, cycle day ${Math.round(entry.cycle_day)}`) +
+    (entry.M === null ? "" : `\nmood ${Math.round(entry.M)}/10`) +
+    (entry.verdict && entry.verdict.text ? `\n\n"${entry.verdict.text}"` : "") +
+    (doing.length ? `\n\nwhat she did:\n${doing.join("\n")}` : "") +
+    (entry.suppressed ? `\n\nthought about writing first ${entry.suppressed}× and didn't` : "") +
+    "\n\nclick to open the day");
 }
 
 /* ----------------------------------------------------------- the panels */
@@ -1668,62 +1739,79 @@ function nearestValue(points, hour) {
   return best;
 }
 
-/* Mood: the run's line and the trend it deviates from, laid on the cycle's
-   own frame — the whole wheel of phases behind it — with every reach-out
-   marked at the day it happened. */
+//: The mood panel's window: two weeks while the run is young, then a month.
+const MOOD_FORTNIGHT = 14;
+const MOOD_MONTH = 30;
+
+/* A slot's label: the day's own date, or for a day not lived yet, the date
+   it will be, counted from the window's first day. */
+function slotLabel(firstDay, offset) {
+  const day = firstDay + offset;
+  const known = study.view && study.view.dates ? study.view.dates[day] : null;
+  const first = study.view && study.view.dates ? study.view.dates[firstDay] : null;
+  if (known || !first) return dayLabel(day);
+  const date = new Date(`${first.date}T12:00:00`);
+  date.setDate(date.getDate() + offset);
+  return `${date.toLocaleDateString("en-US", { weekday: "short" })} ${date.getDate()}`;
+}
+
+/* Mood: the run's line and the trend it deviates from over a fixed window,
+   two weeks and then a month, each lived day tinted with the phase she was
+   in, and every reach-out marked at its own hour inside its day. */
 function moodChart(view) {
-  const series = view.mood_series;
+  const all = view.mood_series;
+  const slots = all.days.length <= MOOD_FORTNIGHT ? MOOD_FORTNIGHT : MOOD_MONTH;
+  // The window holds the newest days: a run past a month scrolls.
+  const from = Math.max(0, all.days.length - slots);
+  const pick = (values) => (values || []).slice(from);
+  const series = {
+    days: pick(all.days), M: pick(all.M), phase: pick(all.phase),
+    expected: pick(all.expected),
+  };
+  const n = slots;
+  const lived = series.days.length;
+  const firstDay = lived ? series.days[0] : 0;
+  // One label per day while they fit; a month labels its weeks.
+  const every = slots > MOOD_FORTNIGHT ? 7 : 1;
+  const xLabels = [];
+  for (let index = 0; index < slots; index += every) {
+    xLabels.push({ text: slotLabel(firstDay, index), at: ((index + 0.5) / n) * 100 });
+  }
   const frame = panelFrame({
     yTicks: [["10", 0], ["5", 50], ["0", 100]],
     yName: "mood",
-    xLabels: [0, 7, 14, 21, 28].map((day) => ({
-      text: String(day), at: (day / CYCLE_DAYS) * 100,
-    })),
+    xLabels,
   });
-  const n = series.days.length;
-  if (!n) {
+  if (!lived) {
     frame.plot.append(el("p", "cal-empty", "no engine rows yet"));
     return frame.box;
   }
-  // Where each day sits on the wheel: its cycle day when the run says, else
-  // its own day number.
-  const at = series.days.map((day, index) => {
-    const cycle = series.cycle_day ? series.cycle_day[index] : null;
-    return Math.min(CYCLE_DAYS, cycle === null || cycle === undefined
-      ? index : cycle);
-  });
-  const x = (cycleDay) => (cycleDay / CYCLE_DAYS) * 100;
+  const slot = (index) => (index / n) * 100;
+  const x = (index) => ((index + 0.5) / n) * 100;
   const y = (value) => (1 - Math.max(0, Math.min(10, Number(value))) / 10) * 100;
 
-  for (const [phase, from, to] of PHASE_DAYS) {
+  // The phase behind each day; its name once, where a phase begins.
+  series.phase.forEach((phase, index) => {
     const [tone, edge] = phaseTone(phase);
     frame.lines.append(svgNode("rect", {
-      x: `${x(from)}`, y: "0", width: `${((to - from) / CYCLE_DAYS) * 100}%`,
-      height: "100%", style: `fill:${tone}`, opacity: "0.5",
+      x: `${slot(index)}`, y: "0", width: `${100 / n}`, height: "100",
+      style: `fill:${tone}`, opacity: "0.5",
     }));
-    const tag = el("span", "panel-tag", phase.replace("_", " "));
-    tag.style.left = `${x((from + to) / 2)}%`;
-    tag.style.top = "2px";
-    tag.style.color = edge;
-    frame.marks.append(tag);
-  }
-  // Weeklines: a young run still reads against the cycle's own ruler.
-  for (let week = 7; week < CYCLE_DAYS; week += 7) {
-    frame.lines.append(svgNode("line", {
-      x1: `${x(week)}`, y1: "0", x2: `${x(week)}`, y2: "100%",
-      "vector-effect": "non-scaling-stroke",
-      style: "stroke:var(--line)", opacity: "0.55",
-    }));
-  }
+    if (phase && phase !== series.phase[index - 1]) {
+      const tag = el("span", "panel-tag", phaseWord(phase));
+      tag.style.left = `${slot(index)}%`;
+      tag.style.transform = "none";
+      tag.style.paddingLeft = "4px";
+      tag.style.top = "2px";
+      tag.style.color = edge;
+      frame.marks.append(tag);
+    }
+  });
 
-  const points = series.M.map((value, index) => [x(at[index]), y(value)]);
-  // A line needs two distinct positions to be a line. While every recorded
-  // day sits at the same cycle day, the days are dots — honest, not broken.
-  const spread = points.some((pair, index) =>
-    index > 0 && pair[0] > points[index - 1][0]);
-  if (n > 1 && spread) {
+  const points = series.M.map((value, index) => [x(index), y(value)]);
+  if (lived > 1) {
     frame.lines.append(svgNode("polygon", {
-      points: [[points[0][0], 100], ...points, [points[n - 1][0], 100]]
+      points: [[points[0][0], 100], ...points, [points[lived - 1][0], 100]]
         .map((pair) => pair.join(" ")).join(" "),
       style: "fill:var(--peach)", opacity: "0.13",
     }));
@@ -1732,10 +1820,10 @@ function moodChart(view) {
       fill: "none", "vector-effect": "non-scaling-stroke",
       style: "stroke:var(--peach)", "stroke-width": "2",
     }));
-    if (series.expected && series.expected.length === n) {
+    if (series.expected.length === lived) {
       frame.lines.append(svgNode("polyline", {
         points: series.expected
-          .map((value, index) => [x(at[index]), y(value)].join(" ")).join(" "),
+          .map((value, index) => [x(index), y(value)].join(" ")).join(" "),
         fill: "none", "vector-effect": "non-scaling-stroke",
         style: "stroke:var(--sky)", "stroke-width": "1.6",
         "stroke-dasharray": "5 4",
@@ -1744,51 +1832,27 @@ function moodChart(view) {
   }
   series.M.forEach((value, index) => {
     const dot = el("span", "mood-dot");
-    dot.style.left = `${x(at[index])}%`;
+    dot.style.left = `${x(index)}%`;
     dot.style.top = `${y(value)}%`;
-    attachTip(dot, `day ${series.days[index]} (${dayLabel(series.days[index])})` +
-      `\nmood M ${value}`);
+    attachTip(dot, `${dayLabel(series.days[index])} · ` +
+      `${phaseWord(series.phase[index])}\nmood ${value}`);
     frame.marks.append(dot);
   });
-  const name = el("span", "panel-series", "mood");
-  name.style.color = "var(--peach)";
-  name.style.left = `${x(at[n - 1])}%`;
-  name.style.top = `${y(series.M[n - 1])}%`;
-  // Keep the label on the chart: a point in the left half grabs it on the
-  // right, or the name lands in the y-axis gutter.
-  if (at[n - 1] < CYCLE_DAYS / 2) name.style.transform = "translate(0, -50%)";
-  frame.marks.append(name);
 
   for (const event of view.panels.proactive) {
     const index = series.days.indexOf(event.day);
     if (index < 0) continue;
-    frame.lines.append(svgNode("line", {
-      x1: x(at[index]), y1: "0", x2: x(at[index]), y2: "100",
-      "vector-effect": "non-scaling-stroke",
-      style: `stroke:${event.fired ? "var(--rose)" : "var(--grey)"}`,
-      "stroke-width": "1", "stroke-dasharray": "3 3",
-      opacity: event.fired ? "0.6" : "0.35",
-    }));
+    const at = slot(index) + (event.hour / 24) * (100 / n);
     const mark = el("span", `ev${event.fired ? "" : " held"}`);
-    mark.style.left = `${x(at[index])}%`;
-    attachTip(mark, `day ${event.day} · ${hourText(event.hour)} — ` +
+    mark.style.left = `${at}%`;
+    attachTip(mark, `${dayLabel(event.day)} · ${hourText(event.hour)} — ` +
       `${event.fired ? "reached out" : "held back"}` +
       (event.reason ? `\n${event.reason}` : "") +
       (event.hook ? `\n${event.hook}` : ""));
     frame.events.append(mark);
-    if (event.fired && event.hook) {
-      const label = el("span", "ev-label",
-        `${hourText(event.hour)} · ` +
-        `"${String(event.hook).replace(/^[^:]*:\s*/, "").slice(0, 20)}"`);
-      label.style.left = `${x(at[index])}%`;
-      frame.events.append(label);
-    }
   }
-  // Every colour the panel paints is keyed: the line, its trend, both
-  // reach-out verdicts. A key for a line the run cannot draw yet (both days
-  // still at the same cycle day) waits until the line exists.
   const keys = [["her mood", swatch("var(--peach)")]];
-  if (n > 1 && spread) keys.push(["trend", swatch("var(--sky)")]);
+  if (lived > 1) keys.push(["trend", swatch("var(--sky)")]);
   keys.push(
     ["reached out", swatch("var(--rose)")],
     ["held back", swatch("var(--grey-soft)", { border: "var(--grey)" })],
@@ -1856,31 +1920,17 @@ function rhythmChart(view) {
       "stroke-width": isCurrent ? "2" : "1.1",
       opacity: isCurrent ? "0.9" : "0.4",
     }));
-    if (isCurrent) {
-      const label = el("span", "panel-series",
-        String(curve.phase).replace("_", " "));
-      label.style.color = edge;
-      label.style.left = "100%";
-      label.style.top = "6px";
-      frame.marks.append(label);
-    }
+    // Each curve named at its right end, where it lands.
+    const last = curve.points[curve.points.length - 1];
+    const label = el("span", "panel-series", phaseWord(curve.phase));
+    label.style.color = edge;
+    label.style.opacity = isCurrent ? "1" : "0.6";
+    label.style.left = "100%";
+    label.style.top = `${(1 - last[1]) * 100}%`;
+    frame.marks.append(label);
   }
   const phases = {};
   for (const entry of view.span) phases[entry.day] = entry.phase_label;
-  // Her words, at their hour, on the curve they were said under: the panel
-  // answers "when does she talk" against "what energy had she".
-  for (const [day, hour, kind] of view.panels.marks) {
-    if (kind !== 1) continue;
-    const curve = curves.find((item) => item.phase === phases[day]);
-    if (!curve) continue;
-    const value = nearestValue(curve.points, hour);
-    const dot = el("span", "rh-msg");
-    dot.style.left = `${(hour / 24) * 100}%`;
-    dot.style.top = `${(1 - value) * 100}%`;
-    attachTip(dot, `day ${day} · ${hourText(hour)} · energy ` +
-      `${value.toFixed(2)}\nshe wrote`);
-    frame.marks.append(dot);
-  }
   for (const event of view.panels.proactive) {
     const phase = phases[event.day];
     const curve = curves.find((item) => item.phase === phase);
@@ -1896,7 +1946,6 @@ function rhythmChart(view) {
     frame.marks.append(dot);
   }
   frame.box.append(legendKeys([
-    ["her words", swatch("var(--sky)")],
     ["reached out", swatch("var(--ink)")],
     ["held back", swatch("transparent", { border: "var(--ink)", dashed: true })],
     ["quiet hours", swatch("var(--grey-soft)")],
@@ -2004,10 +2053,6 @@ function buildSwitches() {
     button.setAttribute("aria-pressed", String(panel.key === study.panel));
     button.addEventListener("click", () => {
       study.panel = panel.key;
-      for (const other of host.querySelectorAll(".vbtn")) {
-        other.setAttribute("aria-pressed",
-          String(other.dataset.panel === study.panel));
-      }
       renderPanel();
     });
     host.append(button);
@@ -2097,9 +2142,6 @@ async function loadRuns() {
 }
 
 async function boot() {
-  // The deep-link tail below still reads this payload; the picker's change
-  // handler deliberately does NOT (it maps through state.runs, the list the
-  // options were rendered from — index 1 of two is not index 1 of sixty).
   let payload = await loadRuns();
   $("show-all").addEventListener("change", async () => {
     const next = await loadRuns();

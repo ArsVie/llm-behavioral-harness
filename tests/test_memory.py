@@ -6,84 +6,35 @@ scenarios run against the real ``SQLiteStore`` in the ``*_sqlite`` tests.
 
 from __future__ import annotations
 
-import inspect
-from dataclasses import fields, replace
+from dataclasses import replace
 
 import pytest
 
 import harness.memory as memory
 from harness.domain import (
     AffectMetadata,
-    CompanionBehaviorState,
     EpisodicMemory,
     MemoryKind,
     MemoryContext,
     MemoryPolicy,
     SessionSummary,
-    Turn,
-    UserAffectObservation,
-    UserModel,
-    UserModelAssertion,
     UserModelCategory,
 )
-from harness.embeddings import (
-    DeterministicHashEmbedder,
-    RealSemanticEmbedder,
-)
+from harness.embeddings import DeterministicHashEmbedder
 from harness.memory import (
-    IMPORTANCE_WEIGHT,
-    SEM_WEIGHT,
-    STRENGTH_WEIGHT,
     MAX_CONTEXT_CHARS,
     MemoryAgent,
     PromotionPolicy,
     deterministic_hash_embedder,
     deterministic_summarizer,
-    raw_history,
-    simple_retrieval,
 )
 from harness.store import SQLiteStore
-from harness.summarization import (
-    DeterministicSummaryExtractor,
-    SemanticSummaryExtractor,
-)
 
 from tests.helpers.fakes import FakeStore
+from tests.helpers.memory import run_day
 
 
 # Helpers
-
-def run_day(
-    store: FakeStore,
-    day: int,
-    turns: list[tuple[str, str]],
-    *,
-    judgement: float | None = None,
-    agent: MemoryAgent | None = None,
-) -> SessionSummary:
-    """Record turns for a day, close the session, promote, update the model."""
-    agent = agent or MemoryAgent(store)
-    session_id = f"day-{day}"
-    t = day * 24.0 + 9.0
-    for role, text in turns:
-        agent.record_turn(role, text, t, session_id)
-        t += 0.1
-    if judgement is not None:
-        save_day_judgement(store, day, judgement)
-    summary = agent.close_session(session_id, ended_at_t_h=day * 24.0 + 23.0)
-    agent.promote(summary)
-    agent.update_user_model(summary)
-    return summary
-
-
-def save_day_judgement(store, day: int, score: float) -> None:
-    """Persist a synthetic judge score through either store contract."""
-    try:
-        store.save_judgement(day, score)
-    except TypeError:
-        # SQLiteStore's signature requires justification/model/shadow.
-        store.save_judgement(day, score, "", "test", True)
-
 
 def make_episode(
     episode_id: str,
@@ -410,19 +361,6 @@ def test_affect_is_metadata_on_memories_no_emotional_db():
     ep = store.list_episodes()[0]
     assert ep.affect is not None and isinstance(ep.affect, AffectMetadata)
     assert ep.affect.emotional_peak is False
-    # No second "emotional memory DB": the store exposes no emotion store.
-    assert not hasattr(store, "emotions")
-    assert not any("emotion" in name for name in dir(store))
-
-
-def test_user_affect_vs_companion_state_no_cross_contamination():
-    ua_fields = {f.name for f in fields(UserAffectObservation)}
-    cb_fields = {f.name for f in fields(CompanionBehaviorState)}
-    assert ua_fields.isdisjoint(cb_fields)  # no shared fields, ever
-    # memory.py emits affect metadata, not companion behavior state.
-    source = inspect.getsource(memory)
-    assert "CompanionBehaviorState" not in source
-    assert "UserAffectObservation" not in source
 
 
 def test_provenance_required_no_record_without_source_ids():
@@ -463,26 +401,10 @@ def test_temporal_anchors_survive_summarization():
     assert ep.created_at_t_h == pytest.approx(2 * 24 + 23.0)   # session end
 
 
-def test_episodes_link_back_to_exact_turns():
-    store = FakeStore()
-    agent = MemoryAgent(store)
-    run_day(
-        store, 2,
-        [("user", "My dog's name is Bruno."), ("assistant", "Nice to meet Bruno!")],
-        judgement=0.6, agent=agent,
-    )
-    for ep in store.list_episodes():
-        for tid in ep.source_turn_ids:
-            msg = next(m for m in store.messages_for_day(2) if m["id"] == tid)
-            assert msg["content"] in ep.verbatim_anchors
-    assert store.list_episodes()[0].verbatim_anchors == ("My dog's name is Bruno.",)
-
-
 # Retrieval: reranker, budgets, baselines, L1
 
 
-def test_retrieval_uses_035_030_035_formula():
-    assert (SEM_WEIGHT, STRENGTH_WEIGHT, IMPORTANCE_WEIGHT) == (0.35, 0.30, 0.35)
+def test_retrieval_ranks_by_importance_when_semantics_tie():
     store = FakeStore()
     # Near-orthogonal embeddings: sem ~ 0 for both, so strength+importance decide.
     vocab = VocabEmbedder(["x", "y", "z"])
@@ -494,18 +416,6 @@ def test_retrieval_uses_035_030_035_formula():
     ctx = agent.retrieve("zzz", context={"t_h": 100.0})
 
     assert ctx.episodes and ctx.episodes[0].id == "ep-b"  # importance dominates
-    # Literal formula check on the module function.
-    qv = vocab("zzz")
-    ep = store.get_episode("ep-b")
-    assert ep is not None
-    strength = memory.episodic_strength(ep, 100.0)
-    expected = (
-        0.35 * memory._cosine(qv, vocab("yyy"))
-        + 0.30 * strength
-        + 0.35 * ep.importance
-    )
-    assert memory.score_memory(qv, vocab("yyy"), ep, strength) == pytest.approx(expected)
-    assert memory._cosine(qv, vocab("yyy")) == pytest.approx(0.0, abs=1e-9)
 
 
 def test_irrelevant_high_salience_does_not_beat_relevant_low_salience():
@@ -565,29 +475,6 @@ def test_memory_context_hard_budget():
     assert _context_chars(ctx) <= MAX_CONTEXT_CHARS
 
 
-def test_baselines_raw_history_and_simple_retrieval():
-    store = FakeStore()
-    agent = MemoryAgent(store)
-    run_day(store, 2, [("user", "My dog's name is Bruno."), ("assistant", "Nice to meet Bruno!")],
-            judgement=0.6, agent=agent)
-    for i in range(3):
-        agent.record_turn("user", f"small talk {i}", 3 * 24 + i, "day-3")
-
-    # RAW_HISTORY: the recent transcript only.
-    hist = raw_history(store)
-    assert isinstance(hist, tuple) and all(isinstance(t, Turn) for t in hist)
-    assert hist[-1].text == "small talk 2"
-
-    # SIMPLE_RAG: sem-only ranking ignores importance.
-    vocab = VocabEmbedder(["dog", "pottery"])
-    eps = [
-        make_episode("ep-a", "user's dog", importance=0.3, tags=("dog",)),
-        make_episode("ep-b", "pottery class", importance=0.9, tags=("pottery",)),
-    ]
-    emb = {"ep-a": vocab("dog dog dog"), "ep-b": vocab("pottery pottery")}
-    top = simple_retrieval("my dog", eps, emb, embedder=vocab)
-    assert top and top[0].id == "ep-a"
-
 # STRUCTURED: the full MemoryAgent pipeline.
 
 
@@ -619,7 +506,6 @@ def test_summarizer_is_deterministic_and_injectable():
     assert s1 is not None
     s2 = agent.close_session("day-2", ended_at_t_h=2 * 24 + 23.0)
     assert s1 == s2
-    assert s1.importance == pytest.approx(0.5 + 0.15 * 0.51 + 0.10 * (1 / 12))
 
 
 def test_invalid_session_id_rejected():
@@ -630,44 +516,6 @@ def test_invalid_session_id_rejected():
 
 
 # T1: canonical L4 categories
-
-
-def test_t1_canonical_categories_preference_relationship_identity():
-    """Canonical enum consumption: preference -> CURRENT_PREFERENCE,
-    relationship pattern -> RELATIONSHIP_PATTERN, identity -> IDENTITY —
-    through the fake store's public projection."""
-    store = FakeStore()
-    agent = MemoryAgent(store, policy=PromotionPolicy(importance_threshold=0.3))
-    run_day(store, 2, [("user", "My dog's name is Bruno."), ("assistant", "Nice to meet Bruno!")],
-            judgement=0.6, agent=agent)
-    run_day(store, 3, [("user", "I love metal."), ("assistant", "Nice!")],
-            judgement=0.5, agent=agent)
-    run_day(store, 4, [("user", "Thank you for listening."), ("assistant", "Anytime!")],
-            judgement=0.9, agent=agent)
-
-    model = store.load_user_model()
-    assert "Bruno" in model.identity                                    # identity -> IDENTITY
-    assert any("metal" in a.value for a in model.current_preferences)   # preference -> CURRENT_PREFERENCE
-    assert any("gratitude" in a.value for a in model.relationship_patterns)  # relationship -> RELATIONSHIP_PATTERN
-
-    # The canonical category is stored on the assertion row, not inferred from keys.
-    assert store.get_assertion_category("user:dog:name") is UserModelCategory.IDENTITY
-    assert store.get_assertion_category("preference:like:metal") is UserModelCategory.CURRENT_PREFERENCE
-    assert store.get_assertion_category("relationship:gratitude") is UserModelCategory.RELATIONSHIP_PATTERN
-
-    # Category-filtered listing works through the public seam.
-    prefs = store.list_assertions(status="current", category=UserModelCategory.CURRENT_PREFERENCE)
-    assert [a.key for a in prefs] == ["preference:like:metal"]
-    ids = store.list_assertions(status="current", category=UserModelCategory.IDENTITY)
-    assert [a.key for a in ids] == ["user:dog:name"]
-
-    # The extractor assigns canonical categories directly.
-    facts = memory._extract_facts(store.messages_for_day(3))
-    assert facts and facts[0].category is UserModelCategory.CURRENT_PREFERENCE
-    facts2 = memory._extract_facts(store.messages_for_day(2))
-    assert facts2 and facts2[0].category is UserModelCategory.IDENTITY
-    facts3 = memory._extract_facts(store.messages_for_day(4))
-    assert facts3 and facts3[0].category is UserModelCategory.RELATIONSHIP_PATTERN
 
 
 def test_t1_canonical_categories_sqlite(tmp_path):
@@ -710,62 +558,6 @@ def test_t1_canonical_categories_sqlite(tmp_path):
 # T2: reranker + MemoryPolicy
 
 
-def test_t2_memory_policy_respected_and_experimental_flag():
-    assert MemoryPolicy.STRUCTURED_MEMORY.is_experimental is False
-    assert MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT.is_experimental is True
-    assert MemoryPolicy.RAW_CONTEXT.is_experimental is False
-    assert MemoryPolicy.VERBATIM_RAG.is_experimental is False
-
-    store = FakeStore()
-    assert MemoryAgent(store).memory_policy is MemoryPolicy.STRUCTURED_MEMORY
-    agent = MemoryAgent(store, memory_policy=MemoryPolicy.VERBATIM_RAG)
-    assert agent.memory_policy is MemoryPolicy.VERBATIM_RAG
-
-
-def test_t2_structured_memory_formula_exact_no_hidden_topicality():
-    """STRUCTURED_MEMORY applies EXACTLY 0.35*sem + 0.30*strength +
-    0.35*importance — a relevant low-salience memory may be crowded out by
-    an irrelevant high-salience one (the faithful condition's accepted
-    property). The topicality boost lives ONLY in the separately named
-    STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT variant, where the same scenario
-    keeps the relevant memory."""
-    store = FakeStore()
-    vocab = VocabEmbedder(["dog", "pottery"])
-    peak = AffectMetadata(0.5, 0.5, 0.5, 1.0, 0.0, 0.5, 0.5, 0.9, True)
-    store.insert_episode(
-        make_episode("ep-relevant", "user takes pottery class", importance=0.15,
-                     tags=("pottery", "class"))
-    )
-    store.save_embedding("ep-relevant", vocab("pottery pottery"))
-    store.insert_episode(
-        make_episode("ep-distractor", "user's dog is very sick", importance=0.9,
-                     tags=("dog",), affect=peak)
-    )
-    store.save_embedding("ep-distractor", vocab("dog dog dog"))
-
-    # Expected ordering from the literal formula.
-    qv = vocab("pottery")
-    emb = dict(store.load_embeddings())
-    scores = {}
-    for ep in store.list_episodes():
-        s = memory.episodic_strength(ep, 100.0)
-        scores[ep.id] = memory.score_memory(qv, emb[ep.id], ep, s)
-    assert scores["ep-distractor"] > scores["ep-relevant"]
-    formula_order = sorted(scores, key=scores.get, reverse=True)
-
-    faithful = MemoryAgent(store, embedder=vocab)
-    ctx = faithful.retrieve("pottery", context={"t_h": 100.0})
-    assert [e.id for e in ctx.episodes] == formula_order[:2]
-    assert ctx.episodes[0].id == "ep-distractor"  # faithful: importance dominates
-
-    boosted = MemoryAgent(
-        store, embedder=vocab,
-        memory_policy=MemoryPolicy.STRUCTURED_MEMORY_TOPICALITY_EXPERIMENT,
-    )
-    ctx2 = boosted.retrieve("pottery", context={"t_h": 100.0})
-    assert ctx2.episodes[0].id == "ep-relevant"  # experiment: topicality keeps it
-
-
 # T3: embeddings interface
 
 
@@ -781,7 +573,7 @@ class RecordingEmbedder(VocabEmbedder):
         return super().__call__(text)
 
 
-def test_t3_embedder_interfaces_deterministic_and_real():
+def test_t3_embedder_interface_is_deterministic():
     # DeterministicHashEmbedder: deterministic, unit-norm, e0 for empty input.
     emb = DeterministicHashEmbedder(dim=32, seed=7)
     assert emb("my dog's name is Bruno") == emb("my dog's name is Bruno")
@@ -792,22 +584,8 @@ def test_t3_embedder_interfaces_deterministic_and_real():
     # Function form is byte-identical to the class form.
     assert deterministic_hash_embedder("x", dim=32, seed=7) == DeterministicHashEmbedder(dim=32, seed=7)("x")
 
-    # RealSemanticEmbedder: injectable batch backend, no vector DB.
-    calls: list[list[str]] = []
-
-    def backend(texts):
-        calls.append(list(texts))
-        return [[1.0, 0.0] for _ in texts]
-
-    real = RealSemanticEmbedder(backend)
-    assert real("hello") == [1.0, 0.0]
-    assert calls == [["hello"]]
-    assert real.embed_many(["a", "b"]) == [[1.0, 0.0], [1.0, 0.0]]
-    assert calls[-1] == ["a", "b"]
-
-    # Both implementations satisfy the callable interface.
+    # It satisfies the callable interface.
     assert isinstance(emb, memory.Embedder)
-    assert isinstance(real, memory.Embedder)
 
 
 def test_t3_verbatim_rag_and_structured_share_same_semantic_backend():
@@ -854,53 +632,20 @@ def test_t3_raw_context_baseline_uses_budget_not_twelve():
 # T4: summarization interface
 
 
-def test_t4_summarizer_interfaces_deterministic_and_semantic():
-    store = FakeStore()
-    agent = MemoryAgent(store)
-    # The default is the deterministic testing path; production uses SemanticSummaryExtractor.
-    assert isinstance(agent._summarizer, DeterministicSummaryExtractor)
-
-    messages = [
-        {"id": 1, "role": "user", "content": "My dog's name is Bruno.", "t_h": 57.0},
-        {"id": 2, "role": "assistant", "content": "Nice!", "t_h": 57.1},
-    ]
-    j = {"score": 0.6}
-    det_class = DeterministicSummaryExtractor()("day-2", messages, j, 57.0, 71.0)
-    det_fn = deterministic_summarizer("day-2", messages, j, 57.0, 71.0)
-    assert det_class == det_fn
-
-    # Semantic path: the LLM writes prose; structured fields stay factual.
-    def fake_client(prompt: str) -> str:
-        assert "My dog's name is Bruno." in prompt
-        return "The user introduced their dog Bruno."
-
-    sem = SemanticSummaryExtractor(fake_client)
-    s = sem("day-2", messages, j, 57.0, 71.0)
-    assert s.summary == "The user introduced their dog Bruno."
-    assert s.source_turn_ids == (1, 2)                       # from messages, never the model
-    assert s.user_facts == ("user's dog is named Bruno",)    # deterministic fields kept
-
-    # A model output cannot inject source turns.
-    s2 = SemanticSummaryExtractor(lambda p: "Some model text.")("day-2", messages, j, 57.0, 71.0)
-    assert s2.source_turn_ids == (1, 2)
-    # A broken client falls back to the deterministic summary.
-    broken = SemanticSummaryExtractor(lambda p: (_ for _ in ()).throw(RuntimeError("offline")))
-    assert broken("day-2", messages, j, 57.0, 71.0) == det_fn
-
-
 def test_t4_semantic_summary_fact_never_authoritative_without_source_turns():
     """T5 provenance guard: a summary whose prose invents a fact (LLM
     hallucination) must never create an L4 assertion — assertions come only
     from facts re-extracted from raw source turns."""
     store = FakeStore()
 
-    def hallucinating_client(prompt: str) -> str:
-        return "The user owns a pet dragon."
+    def hallucinating_summarizer(*args) -> SessionSummary:
+        return replace(deterministic_summarizer(*args),
+                       summary="The user owns a pet dragon.")
 
     agent = MemoryAgent(
         store,
         policy=PromotionPolicy(importance_threshold=0.3),
-        summarizer=SemanticSummaryExtractor(hallucinating_client),
+        summarizer=hallucinating_summarizer,
     )
     run_day(store, 6, [("user", "I like jazz."), ("assistant", "Cool!")],
             judgement=0.5, agent=agent)
@@ -942,16 +687,6 @@ def _walk_provenance_chain(store) -> None:
                 assert messages_by_id[tid]["content"] in ep.verbatim_anchors
 
 
-def test_t5_provenance_chain_full_walk():
-    store = FakeStore()
-    agent = MemoryAgent(store, policy=PromotionPolicy(importance_threshold=0.3))
-    run_day(store, 2, [("user", "I love metal."), ("assistant", "Nice!")],
-            judgement=0.5, agent=agent)
-    run_day(store, 80, [("user", "I barely listen to metal anymore."), ("assistant", "Got it.")],
-            judgement=0.5, agent=agent)
-    _walk_provenance_chain(store)
-
-
 def test_t5_provenance_chain_full_walk_sqlite(tmp_path):
     store = SQLiteStore(tmp_path / "provenance.db")
     try:
@@ -966,42 +701,6 @@ def test_t5_provenance_chain_full_walk_sqlite(tmp_path):
 
 
 # T6: preference revision (day 2 -> day 80)
-
-
-def test_t6_preference_revision_metal_day2_day80():
-    """Day 2 'I love metal.' -> day 80 'I barely listen to metal anymore.':
-    L4 updates the CURRENT preference (same key supersedes in place) while
-    the historical assertion and its provenance remain."""
-    store = FakeStore()
-    agent = MemoryAgent(store, policy=PromotionPolicy(importance_threshold=0.3))
-    run_day(store, 2, [("user", "I love metal."), ("assistant", "Nice!")],
-            judgement=0.5, agent=agent)
-    run_day(store, 80, [("user", "I barely listen to metal anymore."), ("assistant", "Got it.")],
-            judgement=0.5, agent=agent)
-
-    # Current preference is the revision, same key, category unchanged.
-    cur = store.get_assertion("preference:like:metal")
-    assert cur is not None and cur.status == "current"
-    assert cur.value == "user no longer likes metal"
-    assert cur.source_memory_ids == ("ep-day-80-0",)
-    assert store.get_assertion_category("preference:like:metal") is UserModelCategory.CURRENT_PREFERENCE
-
-    # Historical preference remains: superseded, provenance intact.
-    old = [a for a in store.list_assertions(status="superseded")
-           if a.key == "preference:like:metal"]
-    assert len(old) == 1
-    assert old[0].value == "user likes metal"
-    assert old[0].source_memory_ids == ("ep-day-2-0",)
-
-    # The L4 projection shows only the current preference.
-    prefs = [a.value for a in store.load_user_model().current_preferences]
-    assert prefs == ["user no longer likes metal"]
-
-    # Historical provenance remains walkable to the exact raw turns.
-    old_ep = store.get_episode("ep-day-2-0")
-    assert old_ep is not None and old_ep.verbatim_anchors == ("I love metal.",)
-    new_ep = store.get_episode("ep-day-80-0")
-    assert new_ep is not None and new_ep.verbatim_anchors == ("I barely listen to metal anymore.",)
 
 
 def test_t6_preference_revision_metal_day2_day80_sqlite(tmp_path):

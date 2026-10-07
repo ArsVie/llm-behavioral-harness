@@ -37,8 +37,7 @@ CARD = (
     "BEHAVIORAL BEARING:\n"
     "You follow the lead on topics; you keep the thread.\n"
     "\n"
-    "CURRENT INTENT:\n"
-    "No active intent."
+    "Plans: tea at five"
 )
 
 
@@ -48,7 +47,7 @@ def test_only_changed_sections_are_sent():
     assert update.startswith(STATE_UPDATE_LEAD)
     assert "bright, subdued" in update
     assert "BEHAVIORAL BEARING" not in update
-    assert "CURRENT INTENT" not in update
+    assert "Plans" not in update
     assert "Availability:" not in update  # unchanged — stays out of the row
 
 
@@ -64,7 +63,7 @@ def test_an_update_never_outgrows_the_card():
         "AFFECTIVE BEARING:\nCurrent bearing: quiet.\n\n"
         "Availability: low on energy.\n\n"
         "BEHAVIORAL BEARING:\nYou pause before answering.\n\n"
-        "CURRENT INTENT:\nWaiting."
+        "Plans: none"
     )
     assert render_state_update(CARD, other) == other
 
@@ -131,7 +130,7 @@ def test_a_changed_card_appends_a_section_update(tmp_path):
     assert len(rows) == 2
     assert rows[1].startswith(STATE_UPDATE_LEAD)
     assert "Current bearing: bright." in rows[1]
-    assert "CURRENT INTENT" not in rows[1]  # unchanged — stays out
+    assert "BEHAVIORAL BEARING" not in rows[1]  # unchanged, stays out
 
     # The state stands: no further row.
     session._ensure_state_card(snapshot, "Current bearing: bright.", 0, 12.0)
@@ -168,7 +167,7 @@ def test_a_restart_diffs_against_the_full_memo(tmp_path):
     assert len(rows) == 3
     assert rows[2].startswith(STATE_UPDATE_LEAD)
     assert "Current bearing: stormy." in rows[2]
-    assert "CURRENT INTENT" not in rows[2]
+    assert "BEHAVIORAL BEARING" not in rows[2]
 
 
 def test_a_restart_without_the_memo_diffs_instead_of_resending(tmp_path):
@@ -201,7 +200,7 @@ def test_a_restart_without_the_memo_diffs_instead_of_resending(tmp_path):
     assert len(rows) == 2
     assert rows[1].startswith(STATE_UPDATE_LEAD)
     assert "Current bearing: stormy." in rows[1]
-    assert "CURRENT INTENT" not in rows[1]
+    assert "BEHAVIORAL BEARING" not in rows[1]
 
 
 def test_a_memo_without_its_day_reads_the_stream(tmp_path):
@@ -268,7 +267,7 @@ def test_an_update_applies_back_onto_the_card():
     assert apply_state_update(CARD, render_state_update(CARD, changed)) == changed
 
     without = "\n\n".join(
-        b for b in CARD.split("\n\n") if not b.startswith("CURRENT INTENT")
+        b for b in CARD.split("\n\n") if not b.startswith("Plans")
     )
     assert apply_state_update(CARD, render_state_update(CARD, without)) == without
 
@@ -280,13 +279,28 @@ def test_an_update_applies_back_onto_the_card():
     assert apply_state_update(CARD, "Sunday's plan:\n- read history") == CARD
 
 
-def test_a_cleared_block_without_a_header_still_drops():
-    """A block whose first line carries no parseable header — the per-turn
-    guidance a proactive turn writes into the card — is added by one update
-    and cleared by the next. The clear marker is keyed by TEXT, not by the
-    header grammar: parsing it back through `card_blocks` yields a different
-    key than the one that was written (live: the proactive turn's row #39
-    added the guidance, #41 cleared it)."""
+def test_a_reach_out_leaves_the_card_without_a_clear_row(tmp_path):
+    """Her message right after a reach-out shows it was used; a "(cleared)"
+    row repeating it is noise (owner ruling 2026-10-03). The retired CURRENT
+    INTENT slot leaves the same way."""
+    reach = "You are reaching out first. Pottery class (12:00–13:00) reminded you of him."
+    assert "(cleared)" not in render_state_update(f"{CARD}\n\n{reach}", CARD)
+    assert "(cleared)" not in render_state_update(
+        f"{CARD}\n\nCURRENT INTENT:\nNo active intent.", CARD)
+
+    store, session = _session(tmp_path)
+    snapshot = _snapshot()
+    session._ensure_state_card(snapshot, "Current bearing: calm.", 0, 10.0)
+    full = session._card_full
+    session._card_full = f"{full}\n\n{reach}"
+    session._ensure_state_card(snapshot, "Current bearing: calm.", 0, 11.0)
+    assert len(_rows(store, 0)) == 1
+    assert session._card_full == full
+
+
+def test_a_clear_row_from_an_earlier_build_still_drops_a_headerless_block():
+    """Earlier builds cleared a reach-out by TEXT (live row 6, 2026-10-03):
+    the memo loader still applies those rows."""
     guidance = (
         "You are reaching out first. Agenda: rewrite the proof (12:00–13:04)\n"
         "State what you are reaching out about naturally in your FIRST sentence."
@@ -294,10 +308,8 @@ def test_a_cleared_block_without_a_header_still_drops():
     with_it = f"{CARD}\n\n{guidance}"
     added = render_state_update(CARD, with_it)
     assert apply_state_update(CARD, added) == with_it
-
-    cleared = render_state_update(with_it, CARD)
-    assert "(cleared)" in cleared
-    assert apply_state_update(with_it, cleared) == CARD
+    first = guidance.splitlines()[0]
+    assert apply_state_update(with_it, f"{STATE_UPDATE_LEAD}\n\n{first}: (cleared)") == CARD
 
 
 def test_an_update_row_from_an_earlier_build_still_applies():

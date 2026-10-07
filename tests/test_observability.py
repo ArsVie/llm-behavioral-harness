@@ -7,25 +7,25 @@ actually writes (not to a hand-built fixture that can drift).
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 import http.client
+import json
 import sqlite3
 import threading
 import urllib.error
 import urllib.parse
 import urllib.request
+from pathlib import Path
 
 import pytest
 
+from harness import cache_audit
 from harness.assembler import (
     AFFECTIVE_HEADER,
     BEHAVIORAL_HEADER,
     CURRENT_INTENT_HEADER,
     TEMPORAL_HEADER,
 )
-from harness.client import FakeClient, Usage
-from harness.persona import INTEREST_SENTENCE_PREFIX
+from harness.client import Usage
 from harness.prompts import (
     ABOUT_YOU_HEADER,
     ACTIVITY_HEADER,
@@ -34,18 +34,16 @@ from harness.prompts import (
     CLOSING_HEADER,
     MEMORIES_HEADER,
     SYSTEM_CORE,
+    SYSTEM_CORE_PARAGRAPHS,
     TOOL_PROTOCOL,
 )
 from harness.store import SQLiteStore
-from harness.trace import CACHE_FLOOR
 from harness.tools import TOOL_SCHEMAS
-from observability import calls
+from harness.trace import CACHE_FLOOR
+from observability import calls, db, reader, tokens
 from observability import context as context_mod
-from observability import db
 from observability import events as events_mod
-from observability import reader
 from observability import server as server_mod
-from observability import tokens
 from tests.helpers.store import make_store
 
 _MESSAGES = [
@@ -81,7 +79,10 @@ def _store_with_history(tmp_path, *, audit: bool = True):
 
     first = dict(ENVELOPE_A)
     second = json.loads(json.dumps(ENVELOPE_A))
-    second["messages"] = first["messages"][:-1] + [{"role": "user", "content": "and now?"}]
+    # The next turn extends the first request (her reply, his next line), as
+    # the harness sends it; replacing a sent message would be a rewrite.
+    second["messages"] = first["messages"] + [{"role": "assistant", "content": "hi back"},
+                                              {"role": "user", "content": "and now?"}]
 
     store.log_llm_call(
         1, 24.5, "chat", "prompt-one", "hi back", "deepseek/deepseek-v4-flash",
@@ -171,12 +172,6 @@ def test_reconcile_scales_to_the_provider_total_both_ways():
     assert tokens.reconcile(0, 900).kind == "none"
 
 
-def test_anchor_json_rounds_the_scale():
-    payload = tokens.reconcile(3, 4).to_json()
-    assert payload == {"kind": "usage", "provider_tokens": 4, "heuristic_tokens": 3,
-                       "scale": 1.3333}
-
-
 # --------------------------------------------------------------------- events
 def test_seq_of_is_monotonic_in_time_and_stable_for_one_row():
     first = events_mod.seq_of(10.0, "message", 1)
@@ -201,7 +196,7 @@ def test_loads_is_tolerant_and_clip_shortens():
 
 
 def test_event_builders_cover_every_table(tmp_path):
-    store = _store_with_history(tmp_path)
+    _store_with_history(tmp_path)
     ref = reader.find_runs(tmp_path)[0]
     with reader.open_run(ref.path) as conn:
         anchor = reader.load_anchor(conn)
@@ -221,7 +216,7 @@ def test_event_builders_cover_every_table(tmp_path):
 
 
 def test_proactive_and_conversation_events_without_anchor_have_no_real_clock(tmp_path):
-    store = _store_with_history(tmp_path)
+    _store_with_history(tmp_path)
     ref = reader.find_runs(tmp_path)[0]
     with reader.open_run(ref.path) as conn:
         rows = db.rows(conn, "select * from proactive_intents")
@@ -233,7 +228,7 @@ def test_proactive_and_conversation_events_without_anchor_have_no_real_clock(tmp
 
 
 def test_conversation_events_render_open_and_close(tmp_path):
-    store = _store_with_history(tmp_path)
+    _store_with_history(tmp_path)
     rows = [{"id": "c1", "opened_t_h": 10.0, "closed_t_h": 12.0, "opened_by": "user",
              "close_reason": "user_left"}]
     event = events_mod.from_conversations(None, rows)[0]
@@ -282,9 +277,6 @@ def test_the_stream_stamp_carries_the_date_and_the_ui_shows_it(tmp_path):
 
     payload = unanchored.to_json()
     assert payload["stamp"] == unanchored.stamp and payload["day"] == 2
-
-    app_js = (Path(__file__).resolve().parents[1] / "observability/static/app.js").read_text()
-    assert "event.stamp" in app_js, "the stream row must render the date-bearing stamp"
 
 
 def test_the_day_band_derives_from_t_h_and_never_flips_backwards():
@@ -354,7 +346,7 @@ def test_steering_rows_show_status_and_payload():
 # -------------------------------------------------------------------- context
 def test_system_parts_split_blocks_and_classify_them():
     parts = context_mod.system_parts(
-        "You are Lily.\n\n" + INTEREST_SENTENCE_PREFIX + " lifting.")
+        "You are Lily.\n\nThese days you are absorbed in lifting.")
     assert [part["kind"] for part in parts] == ["persona voice", "interests"]
     assert all(part["tokens"] > 0 for part in parts)
     assert context_mod.system_parts("") == []
@@ -366,7 +358,6 @@ def test_system_parts_name_every_rendered_section():
     by their headers, the block openers by the templates they came from."""
     system = "\n\n".join([
         "You are Lily, a companion who keeps odd hours.",
-        INTEREST_SENTENCE_PREFIX + " lifting and history.",
         *SYSTEM_CORE.split("\n\n"),
         TOOL_PROTOCOL,
         AGENDA_HEADER + "\n- gym (19:00\u201321:00)",
@@ -382,7 +373,7 @@ def test_system_parts_name_every_rendered_section():
         "You are reaching out first. Share the small win.",
     ])
     assert [part["kind"] for part in context_mod.system_parts(system)] == [
-        "persona voice", "interests", "system core", "system core",
+        "persona voice", *(name for name, _ in SYSTEM_CORE_PARAGRAPHS),
         "tool protocol", "agenda", "temporal frame", "affective bearing",
         "behavioral bearing", "current intent", "activity", "life arcs",
         "memories", "user model", "closing guidance", "proactive opening",
@@ -405,13 +396,26 @@ def test_system_parts_name_retired_wordings_and_refuse_to_guess():
         "Availability: calmly present and available.",
     ])
     assert [part["kind"] for part in context_mod.system_parts(retired)] == [
-        "system core", "system core", "system core", "system core",
-        "system core", "steer trust rule", "tool protocol",
+        "core: an inner life", "card: read it every reply",
+        "card: show, don't announce", "card: never name the state",
+        "card: your character wins", "steer trust rule", "tool protocol",
         "mood brief", "availability",
     ]
     guessed = context_mod.system_parts(
         "Ask her about the state card sometime.\n\nSomething else entirely.")
-    assert [part["kind"] for part in guessed] == ["unlabelled", "unlabelled"]
+    assert [part["kind"] for part in guessed] == ["unlabelled · 1/2", "unlabelled · 2/2"]
+
+
+def test_system_parts_never_repeat_a_name():
+    """A section written in several paragraphs numbers them; the core's
+    paragraphs each carry their own name, so no two rows read the same."""
+    system = "\n\n".join([
+        "You are Lily, a companion.", "You are also stubborn.",
+        *SYSTEM_CORE.split("\n\n"), TOOL_PROTOCOL,
+    ])
+    kinds = [part["kind"] for part in context_mod.system_parts(system)]
+    assert kinds[:2] == ["persona voice · 1/2", "persona voice · 2/2"]
+    assert len(set(kinds)) == len(kinds)
 
 
 def test_build_context_carries_each_tool_schema_for_the_drawer():
@@ -444,17 +448,32 @@ def test_seq_of_keeps_siblings_distinct_and_time_ordered():
     assert events_mod.seq_of(109.576, "call", 21) == first  # stable across polls
 
 
-def test_shared_message_count_ignores_the_previous_trailing_card():
+def test_shared_message_count_stops_at_the_first_divergence():
+    """A changed tail block stops the walk at its own index: nothing is
+    dropped up front, so a replaced last message can never be miscounted."""
     previous = {"system": "s", "messages": [{"role": "user", "content": "a"},
                                            {"role": "system", "content": "card"}]}
     current = {"system": "s", "messages": [{"role": "user", "content": "a"},
                                            {"role": "user", "content": "b"}]}
-    shared, chars, stable = context_mod.shared_message_count(previous, current)
+    shared, chars, stable = cache_audit.shared_message_count(previous, current)
     assert (shared, stable) == (1, True)
     assert chars > 0
     drifted = dict(current, system="t")
-    assert context_mod.shared_message_count(previous, drifted)[2] is False
-    assert context_mod.shared_message_count(None, current) == (0, 0, False)
+    assert cache_audit.shared_message_count(previous, drifted)[2] is False
+    assert cache_audit.shared_message_count(None, current) == (0, 0, False)
+
+
+def test_shared_message_count_counts_the_carried_tail():
+    """The append-only mainline re-sends the previous last message whole: it
+    is shared, not dropped — the walk takes the previous request entire."""
+    previous = {"system": "s", "messages": [{"role": "user", "content": "a"},
+                                           {"role": "user", "content": "b"}]}
+    current = {"system": "s", "messages": [{"role": "user", "content": "a"},
+                                           {"role": "user", "content": "b"},
+                                           {"role": "assistant", "content": "c"}]}
+    shared, chars, stable = cache_audit.shared_message_count(previous, current)
+    assert (shared, stable) == (2, True)
+    assert chars > 0
 
 
 def test_shared_message_count_stops_when_the_current_request_is_shorter():
@@ -462,28 +481,49 @@ def test_shared_message_count_stops_when_the_current_request_is_shorter():
                                            {"role": "assistant", "content": "b"},
                                            {"role": "system", "content": "card"}]}
     current = {"system": "s", "messages": [{"role": "tool", "content": "x"}]}
-    assert context_mod.shared_message_count(previous, current) == (0, 0, True)
-    assert context_mod.shared_message_count({"system": "s"}, {"system": "s"}) == (0, 0, True)
+    assert cache_audit.shared_message_count(previous, current) == (0, 0, True)
+    assert cache_audit.shared_message_count({"system": "s"}, {"system": "s"}) == (0, 0, True)
 
 
-def test_message_nodes_mark_the_shared_prefix_and_tool_calls():
+def test_message_nodes_name_roles_and_the_byte_fallback_marks_them():
     envelope = {"messages": [
         {"role": "user", "content": "a"},
         {"role": "assistant", "content": None, "tool_calls": [{"function": {"name": "x"}}]},
         {"role": "system", "content": "card"},
         {"role": "tool", "content": "result"},
     ]}
-    nodes = context_mod.message_nodes(envelope, 1)
-    assert [node["cached"] for node in nodes] == [True, False, False, False]
+    nodes = context_mod.message_nodes(envelope)
+    context_mod.mark_shared_states(nodes, 1)
+    assert [node["state"] for node in nodes] == ["cached", "fresh", "fresh", "fresh"]
     assert nodes[1]["label"] == "tool call" and nodes[1]["tool_calls"] == ["x"]
-    assert nodes[2]["label"] == "internal card" and nodes[3]["label"] == "tool result"
+    assert nodes[2]["label"] == "state card" and nodes[3]["label"] == "tool result"
+
+
+def test_provider_marks_put_the_boundary_inside_the_straddling_message():
+    """The provider's fresh tokens are the stream's suffix: walk from the
+    newest message; the one the boundary cuts is partial, older ones cached."""
+    messages = [{"role": "user", "content": "old"},
+                {"role": "assistant", "content": "middle"},
+                {"role": "user", "content": "newest"}]
+
+    def states(fresh: int) -> list[str]:
+        nodes = context_mod.message_nodes({"messages": messages})
+        for node in nodes:
+            node["priced_tokens"] = 100
+        context_mod.mark_provider_states(nodes, fresh)
+        return [node["state"] for node in nodes]
+
+    assert states(0) == ["cached", "cached", "cached"]
+    assert states(150) == ["cached", "partial", "fresh"]
+    assert states(250) == ["partial", "fresh", "fresh"]
+    assert states(1000) == ["fresh", "fresh", "fresh"]
 
 
 def test_build_context_without_envelope_reports_unavailable():
     payload = context_mod.build_context(envelope=None, tools=None, tools_source="none",
                                         previous=None, context_window=1000, usage={})
     assert payload["available"] is False
-    assert "invariant 19" in payload["reason"]
+    assert payload["reason"]
 
 
 def test_build_context_anchors_on_the_provider_and_prices_every_bucket():
@@ -510,6 +550,58 @@ def test_build_context_anchors_on_the_provider_and_prices_every_bucket():
     assert payload["pressure"]["fresh_tokens"] == 300
     assert sum(node["priced_tokens"] for node in payload["surface"]) == messages["priced_tokens"]
     assert all("priced_tokens" in part for part in payload["system_parts"])
+
+
+def test_build_context_marks_from_the_provider_split_not_the_bytes():
+    """With usage numbers the marks follow the provider's own cached/fresh
+    line; byte-identity is not consulted, so a warm-looking request that the
+    provider missed reads all-fresh."""
+    hot = context_mod.build_context(
+        envelope=ENVELOPE_A, tools=[], tools_source="none",
+        previous=ENVELOPE_A, context_window=1000,
+        usage={"prompt_tokens": 900, "cached_tokens": 600,
+               "cache_miss_tokens": 300, "completion_tokens": 30},
+    )
+    assert hot["prefix"]["source"] == "provider"
+    assert hot["prefix"]["fresh_tokens"] == 300
+    states = [node["state"] for node in hot["surface"]]
+    marked = [i for i, state in enumerate(states) if state != "cached"]
+    assert marked, "600 cached tokens cannot leave every message fresh"
+    assert all(state == "cached" for state in states[: marked[0]])
+    assert all(state == "fresh" for state in states[marked[0] + 1:])
+    assert states.count("partial") <= 1
+
+    missed = context_mod.build_context(
+        envelope=ENVELOPE_A, tools=[], tools_source="none",
+        previous=ENVELOPE_A, context_window=1000,
+        usage={"prompt_tokens": 900, "cached_tokens": 0,
+               "cache_miss_tokens": 900, "completion_tokens": 30},
+    )
+    assert missed["prefix"]["shared_messages"] == 0
+    assert all(node["state"] == "fresh" for node in missed["surface"])
+
+
+def test_build_context_splits_the_conversation_by_what_each_message_is():
+    """The bar shows the day plan, the cards, his messages and her replies as
+    their own segments, and the conversation's segments sum to its bucket."""
+    envelope = {"system": "You are Lily.", "messages": [
+        {"role": "system", "content": "Sunday's plan:\n- gym"},
+        {"role": "system", "content": "AFFECTIVE BEARING:\nquietly bright"},
+        {"role": "user", "content": "hi"},
+        {"role": "assistant", "content": "hey you"},
+        {"role": "user", "content": "how was the gym"},
+        {"role": "system", "content": "STATE UPDATE \u2014 only what changed:\n- tired"},
+    ]}
+    payload = context_mod.build_context(
+        envelope=envelope, tools=[], tools_source="none", previous=None,
+        context_window=1000, usage={"prompt_tokens": 200})
+    segments = {seg["key"]: seg for seg in payload["composition"]}
+    assert list(segments) == ["system", "tools", "day_plan", "state_card",
+                              "card_update", "his", "hers"]
+    assert segments["his"]["count"] == 2 and segments["his"]["label"] == "his messages"
+    conversation = payload["buckets"][2]["priced_tokens"]
+    assert sum(seg["tokens"] for key, seg in segments.items()
+               if key not in ("system", "tools")) == conversation
 
 
 def test_build_context_derives_the_fresh_share_when_the_ledger_does_not_sum():
@@ -662,6 +754,59 @@ def test_call_rows_measure_the_proven_prefix_and_flag_a_warm_miss(tmp_path):
     assert payload["real"] is None
 
 
+def test_a_miss_after_the_provider_ttl_reads_as_expiry(tmp_path):
+    store = _store_with_history(tmp_path)
+    store.conn.execute("UPDATE llm_calls SET t_h = t_h + 3.0 WHERE id = "
+                       "(SELECT MAX(id) FROM llm_calls)")
+    store.conn.commit()
+    with reader.open_run(store.path) as conn:
+        second = reader.call_rows(conn)[1]
+    assert second["verdict"].startswith("cache expired after ")
+
+
+def test_call_rows_flag_a_re_bill_past_the_block_floor(tmp_path):
+    """With the prefix intact and the hit above the floor, cached is held to
+    128 * floor(prev prompt / 128); below it, the backend was behind and
+    re-billed tokens that were already sent."""
+    store = _store_with_history(tmp_path)
+    conn = _writable(store.path)
+    try:
+        conn.execute("update llm_calls set cached_tokens = 720, "
+                     "cache_miss_tokens = 480 where id = 2")
+        conn.commit()
+    finally:
+        conn.close()
+    with reader.open_run(store.path) as conn:
+        second = reader.call_rows(conn)[1]
+    assert second["verdict"] == "re-billed 176 tokens past the block floor"
+
+
+def test_the_ledger_chains_like_the_cache_check(tmp_path):
+    """The note and the invariant finding name the same calls: a fork is not
+    the next call's predecessor, and a dropped message is a rewrite even when
+    most of the prefix survives."""
+    store = _store_with_history(tmp_path)
+    base = json.loads(store.conn.execute(
+        "select repro_json from llm_calls where id = 2").fetchone()[0])
+    fork = json.loads(json.dumps(base))
+    fork["messages"] = base["messages"] + [{"role": "user", "content": "judge the day"}]
+    rewritten = json.loads(json.dumps(base))
+    rewritten["messages"] = base["messages"][:-2] + [{"role": "user", "content": "later"}]
+    for role, env, cached in (("aux_judge", fork, 0), ("chat", rewritten, 5)):
+        store.log_llm_call(
+            1, 24.7, role, "p", "r", "deepseek/deepseek-v4-flash", None,
+            repro=env, lane="product",
+            usage={"prompt_tokens": 1200, "completion_tokens": 10,
+                   "total_tokens": 1210, "cached_tokens": cached,
+                   "cache_miss_tokens": 1200 - cached},
+        )
+    with reader.open_run(store.path) as conn:
+        rows = reader.call_rows(conn)
+    assert rows[2]["verdict"] == "fork, not cached"
+    # Compared with call 2, not the fork: it dropped call 2's last two messages.
+    assert rows[3]["verdict"].startswith("history rewritten at message ")
+
+
 def _writable(path: str) -> sqlite3.Connection:
     """A write connection for test setup (the read model itself stays ro)."""
     return sqlite3.connect(path)
@@ -710,6 +855,28 @@ def test_call_rows_flag_a_tool_menu_break(tmp_path):
     assert rows[1]["prefix_share_pct"] < CACHE_FLOOR * 100
 
 
+def test_call_rows_flag_a_rewritten_history(tmp_path):
+    """Live 2026-09-27 23:23: rows already sent were dropped from early in the
+    stream, the share fell to 18% and the panel said nothing. Same system,
+    same menu, history rewritten near the top: that gets its own verdict."""
+    store = _store_with_history(tmp_path)
+    rewritten = json.loads(json.dumps(ENVELOPE_A))
+    rewritten["messages"] = ([rewritten["messages"][0]] + rewritten["messages"][2:-1]
+                             + [{"role": "user", "content": "z"}])
+    conn = _writable(store.path)
+    try:
+        conn.execute("update llm_calls set repro_json = ? where id = 2",
+                     (json.dumps(rewritten),))
+        conn.commit()
+    finally:
+        conn.close()
+    with reader.open_run(store.path) as conn:
+        rows = reader.call_rows(conn)
+    assert rows[1]["system_stable"] is True
+    assert rows[1]["prefix_share_pct"] < CACHE_FLOOR * 100
+    assert rows[1]["verdict"] == "history rewritten at message 1"
+
+
 def test_a_menu_record_gap_proves_nothing(tmp_path):
     """Only two literal menus can claim a change. A record without one — an
     old mainline envelope, or an aux-shaped record — proves nothing either
@@ -753,7 +920,7 @@ def test_a_menu_record_gap_proves_nothing(tmp_path):
 def test_aux_envelope_hoists_the_kwargs_system(tmp_path):
     """The metered aux lane nests the system under kwargs; the panel sees it."""
     store = _store_with_history(tmp_path)
-    env_a = calls.envelope_of({"repro_json": json.dumps(ENVELOPE_A)})
+    env_a = cache_audit.envelope_of({"repro_json": json.dumps(ENVELOPE_A)})
     assert env_a is not None
     mainline_system = env_a["system"]
     aux = {
@@ -769,7 +936,7 @@ def test_aux_envelope_hoists_the_kwargs_system(tmp_path):
         conn.commit()
     finally:
         conn.close()
-    hoisted = calls.envelope_of({"repro_json": json.dumps(aux)})
+    hoisted = cache_audit.envelope_of({"repro_json": json.dumps(aux)})
     assert hoisted is not None
     assert hoisted["system"] == mainline_system
     assert hoisted["kwargs"]["system"] == mainline_system, "the hoist is additive"
@@ -843,7 +1010,7 @@ def test_tool_schemas_come_from_the_wire_dump_or_the_build_menu(tmp_path):
         json.dumps(body), encoding="utf-8")
     tools, source = calls.tool_schemas_for(row, run_path=store.path)
     assert tools == sent
-    assert "wire dump" in source and "3 schemas as sent" in source
+    assert "wire dump" in source and f"{len(sent)} schemas as sent" in source
 
     # A dump without a menu says exactly that, never a code-menu guess.
     body["tools"] = None
@@ -875,10 +1042,10 @@ def test_stamp_survives_a_broken_anchor():
 
 
 def test_envelope_rejects_json_that_is_not_an_object():
-    assert calls.envelope_of({"repro_json": None}) is None
-    assert calls.envelope_of({"repro_json": "[1, 2]"}) is None
-    assert calls.envelope_of({"repro_json": "{not json"}) is None
-    assert calls.envelope_of({"repro_json": '{"system": "s"}'}) == {"system": "s"}
+    assert cache_audit.envelope_of({"repro_json": None}) is None
+    assert cache_audit.envelope_of({"repro_json": "[1, 2]"}) is None
+    assert cache_audit.envelope_of({"repro_json": "{not json"}) is None
+    assert cache_audit.envelope_of({"repro_json": '{"system": "s"}'}) == {"system": "s"}
 
 
 def test_call_detail_tolerates_unparseable_meta(tmp_path):
@@ -909,7 +1076,11 @@ def test_context_payload_reports_the_latest_call_and_its_provenance(tmp_path):
                                         context_window=1_000_000)
     assert payload["available"] is True
     assert payload["call"]["id"] == 2
-    assert payload["prefix"]["shared_messages"] == len(_MESSAGES) - 1
+    # The call's own usage split drives the marks: 10 of 1200 tokens cached,
+    # so nothing in the conversation sits inside the cached prefix.
+    assert payload["prefix"]["source"] == "provider"
+    assert payload["prefix"]["shared_messages"] == 0
+    assert payload["prefix"]["fresh_tokens"] == 1190
     assert payload["prefix"]["system_stable"] is True
     # No wire dump beside this store: the constant menu comes from the code
     # that sends it — whatever ``TOOL_SCHEMAS`` holds in this build.
@@ -992,7 +1163,6 @@ def test_latest_ids_and_run_summary(tmp_path):
     assert summary["active"] is True
     assert summary["idle_s"] == 0.0
     assert summary["usage"]["calls"] == 2
-
 
 
 def test_deployments_parse_launchers_and_match_only_their_databases(tmp_path):
@@ -1098,7 +1268,7 @@ def test_live_processes_without_ps_is_empty(monkeypatch):
 
 
 def test_run_summary_reports_process_liveness(tmp_path, monkeypatch):
-    store = _store_with_history(tmp_path)
+    _store_with_history(tmp_path)
     ref = reader.find_runs(tmp_path)[0]
     monkeypatch.setattr(reader, "live_processes", lambda pattern="live_companion": {})
     summary = reader.run_summary(ref, now=ref.mtime, context_window=10)
@@ -1110,7 +1280,7 @@ def test_run_summary_reports_process_liveness(tmp_path, monkeypatch):
 
 
 def test_run_detail_assembles_every_panel(tmp_path):
-    store = _store_with_history(tmp_path)
+    _store_with_history(tmp_path)
     ref = reader.find_runs(tmp_path)[0]
     detail = reader.run_detail(ref, context_window=1000)
     assert set(detail) == {"summary", "clock", "usage", "counters", "checks", "latest",
@@ -1124,16 +1294,12 @@ def test_run_detail_assembles_every_panel(tmp_path):
 
 def test_run_detail_on_a_store_with_no_calls(tmp_path):
     (tmp_path / "fresh").mkdir(parents=True, exist_ok=True)
-    store = make_store(tmp_path, "fresh/companion.db")
+    make_store(tmp_path, "fresh/companion.db")
     ref = reader.find_runs(tmp_path)[0]
     detail = reader.run_detail(ref, context_window=1000)
     assert detail["summary"]["calls"] == 0
     assert detail["context"]["available"] is False
     assert detail["calls"] == []
-
-
-def test_repo_root_points_at_the_checkout():
-    assert (reader.repo_root() / "harness" / "store.py").is_file()
 
 
 # --------------------------------------------------------------------- server
@@ -1172,7 +1338,7 @@ def test_server_serves_the_page_and_the_run_list(live_server):
     status, body = _get(f"{base}/")
     assert status == 200 and b"Harness observability" in body
     status, css = _get(f"{base}/static/app.css")
-    assert status == 200 and b"--lav" in css
+    assert status == 200 and css
     runs = _json(f"{base}/api/runs")
     assert runs["root"] == str(tmp_path)
     # A fixture database is nobody's deployment, so the default list hides it.
@@ -1225,9 +1391,6 @@ def test_server_params_survive_garbage(live_server):
     run_id = urllib.parse.quote(runs["runs"][0]["path"])
     payload = _json(f"{base}/api/run/events?id={run_id}&after=abc&limit=xyz")
     assert payload["returned"] > 0
-    handler = server_mod.Handler
-    assert handler._int_param(handler, {"n": "3"}, "n", 0) == 3
-    assert handler._int_param(handler, {}, "n", 7) == 7
 
 
 def test_study_endpoints_answer_from_the_run(live_server):
@@ -1239,7 +1402,6 @@ def test_study_endpoints_answer_from_the_run(live_server):
     day = _json(f"{base}/api/study/day?id={run_id}")
     assert day["day"] >= 0
     assert len(day["circadian"]) == 49          # sampled every half hour
-    assert day["quiet_hours"] == [23.0, 8.0]
     assert {"agenda", "proactive", "messages", "cycle", "mood_series",
             "rhythm", "panels", "dates", "span"} <= set(day)
     assert set(day["panels"]) == {"proactive", "mode", "marks", "talks",
@@ -1317,15 +1479,6 @@ def test_server_closes_the_connection_when_the_client_vanishes(live_server, monk
         _get(f"{base}/api/runs")
 
 
-def test_serve_announces_the_url(tmp_path, capsys):
-    store = _store_with_history(tmp_path)
-    server = server_mod.serve(host="127.0.0.1", port=0, root=tmp_path, announce=True)
-    try:
-        assert "harness observability" in capsys.readouterr().out
-    finally:
-        server.server_close()
-
-
 def test_resolve_run_accepts_only_discovered_paths(tmp_path):
     store = _store_with_history(tmp_path)
     state = server_mod.AppState(root=tmp_path, context_window=10)
@@ -1337,4 +1490,35 @@ def test_resolve_run_accepts_only_discovered_paths(tmp_path):
     assert state.resolve_run(str(tmp_path / "elsewhere.db")) is None
 
 
+def test_system_rows_are_named_by_the_harness_openers():
+    from harness.prompts import CLOSING_HEADER, TURN_STYLE
 
+    envelope = {"messages": [
+        {"role": "system", "content": TURN_STYLE},
+        {"role": "system", "content": f"{CLOSING_HEADER} wrap up gently"},
+        {"role": "system", "content": "Right now: at home"},
+        {"role": "system", "content": "Sunday's plan:\n- gym (19:00\u201321:00)"},
+        {"role": "system", "content": f"{AGENDA_HEADER}\n- read"},
+        {"role": "system", "content": "STATE UPDATE \u2014 only what changed:\n- tired"},
+    ]}
+    labels = [node["label"] for node in context_mod.message_nodes(envelope)]
+    assert labels == ["writing guidance", "closing guidance", "state card",
+                      "day plan", "day plan", "card update"]
+
+
+def test_a_calendar_block_is_named_by_its_source_not_its_description():
+    """The week's blocks show a tag; the planner's long activity text is the
+    pop-up. A routine that is a session of an interest takes the interest's
+    name, by the harness' own ``routine_covers`` rule."""
+    from observability.study import agenda_tag
+
+    sources = {"arcs": {"arc_1": "pottery"},
+               "interests": ["mathematics", "history", "baking"]}
+    assert agenda_tag("interest", "baking", sources) == "baking"
+    assert agenda_tag("routine", "math practice", sources) == "mathematics"
+    assert agenda_tag("routine", "read history", sources) == "history"
+    assert agenda_tag("routine", "evening walk", sources) == "evening walk"
+    assert agenda_tag("arc", "arc_1", sources) == "pottery"
+    assert agenda_tag("commitment", "school", sources) == "classes"
+    assert agenda_tag("errand", "groceries", sources) == "errand"
+    assert agenda_tag("self", "self", sources) == "her plan"

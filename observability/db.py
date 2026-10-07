@@ -61,13 +61,16 @@ def _mtime(path: Path) -> float | None:
         return None
 
 
+def _db_files(base: Path) -> Iterator[Path]:
+    """Every ``*.db`` under ``base``, outside ``SKIP_DIRS``."""
+    return (path for path in base.rglob("*.db")
+            if not any(part in SKIP_DIRS for part in path.parts))
+
+
 def find_runs(root: Path | None = None, *, limit: int = 60) -> list[RunRef]:
     """Every run database under ``root``, newest write first."""
-    base = root or repo_root()
     found: list[RunRef] = []
-    for path in base.rglob("*.db"):
-        if any(part in SKIP_DIRS for part in path.parts):
-            continue
+    for path in _db_files(root or repo_root()):
         mtime = _mtime(path)
         if mtime is None:
             continue
@@ -169,11 +172,8 @@ def deployed_runs(scripts_dir: Path | None = None,
                   root: Path | None = None) -> dict[str, Deployment]:
     """Run-database paths (as written by the launchers) to their deployment."""
     listed = deployments(scripts_dir=scripts_dir, root=root)
-    base = root or repo_root()
-    candidates = [path for path in base.glob("**/*.db")
-                  if not any(part in SKIP_DIRS for part in path.parts)]
     resolved: dict[str, Deployment] = {}
-    for path in candidates:
+    for path in _db_files(root or repo_root()):
         for deployment in listed:
             if deployment.matches(path):
                 resolved[str(path.resolve())] = deployment

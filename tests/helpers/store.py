@@ -73,3 +73,11 @@ def make_session(
         decision_config=decision_config,
         two_phase_close=two_phase_close,
     )
+
+
+def booted(store, t_h: float = 0.0):
+    """A store whose bot already ran at ``t_h``: its pop-up check is on
+    record, so a later start replays the boundaries since (a restart), not
+    a first boot that starts her life at the boot."""
+    store.log_event(int(t_h // 24), t_h, "popup_boundary_check", "booted earlier")
+    return store

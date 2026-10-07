@@ -12,13 +12,12 @@ from harness.domain import Interest, PersonaProfile
 from harness.session import Session
 from harness.steering import (
     MAX_ATTEMPTS,
-    InMemorySteerBackend,
     SteeringQueue,
     wrap_steer_marker,
 )
 from harness.store import SQLiteStore
 from harness.tools import PopupRequest
-
+from tests.helpers.steering import InMemorySteerBackend
 from tests.helpers.store import make_store
 
 SEED = 8001
@@ -46,26 +45,6 @@ def _session(tmp_path, *, responses=None, name="d.db"):
 
 
 # -- the stored request now carries the payload that actually went out ----- #
-
-
-def test_logged_decide_call_records_the_payload_that_went_out(tmp_path):
-    """A stored call must be provably the call that was made."""
-    session, client, store = _session(tmp_path)
-    request = PopupRequest(
-        popup_kind="tool_decide_event",
-        popup="{Event: gym, State: start, Time: 19:00}",
-        tools=[{"name": "tool_decide_event"}, {"name": "tool_decide_reply"}],
-        native=True, inputs={},
-    )
-    repro = session._popup_repro(
-        request, [{"role": "user", "content": "hey"}], 4, 60.0
-    )["repro"]
-    store.close()
-
-    assert "tools_hash" not in repro and "tool_names" not in repro, (
-        "the tool menu is read from the call's wire dump, never recorded")
-    assert repro["tool_choice"] is None, "the identity records what went out"
-    assert repro["reasoning_effort"] == session._thinking_effort
 
 
 def _prefix_events(store) -> list[str]:
@@ -171,19 +150,6 @@ def test_the_chat_leg_stores_its_wire_identity(tmp_path):
     assert repro["tool_choice"] is None
 
 
-def test_a_textual_decision_records_that_it_offered_nothing(tmp_path):
-    """A textual decision records the absence of tools explicitly."""
-    session, client, store = _session(tmp_path)
-    request = PopupRequest(
-        popup_kind="tool_decide_event", popup="x",
-        tools=[{"name": "tool_decide_event"}], native=False, inputs={},
-    )
-    repro = session._popup_repro(request, [], 4, 60.0)["repro"]
-    store.close()
-    assert "tools_hash" not in repro and "tool_names" not in repro
-    assert repro["tool_choice"] is None
-
-
 # -- the requested tool is the only one offered ---------------------------- #
 
 
@@ -203,6 +169,7 @@ def test_popup_call_requires_exactly_the_requested_tool(tmp_path):
     offered = [t["function"]["name"] for t in call["tools"]]
     assert offered == [
         "tool_decide_event", "tool_decide_reply", "tool_decide_proactive",
+        "tool_decide_call",
     ], (
         f"offered {offered} — tools are part of the context: one constant menu "
         "rides every call, never toggled (ruling 2026-09-13)"
@@ -348,31 +315,4 @@ def test_tool_keys_survive_the_trip_to_the_provider(tmp_path):
     assert any(m.get("tool_call_id") for m in sent), "tool result was dropped"
 
 
-def test_a_malformed_decision_row_never_breaks_context(tmp_path):
-    session, client, store = _session(tmp_path, responses=["hi"])
-    session.on_message("hey")
-    store.conn.execute(
-        "INSERT INTO decision_records (day, t_h, popup_kind, inputs_json, "
-        "verdict_json, source, transport) VALUES (0, 9.5, 'tool_decide_event',"
-        " '{bad', 'also bad', 'model', 'native')"
-    )
-    store.conn.commit()
-    turns = session._context_turns()
-    store.close()
-    assert turns
-
-
 # -- reason is recorded, never spoken -------------------------------------- #
-
-
-def test_reason_is_still_recorded_for_the_engine_study(tmp_path):
-    """Reason is still recorded in the audit trail; only its use as dialogue
-    was removed."""
-    session, client, store = _session(tmp_path, responses=["hi"])
-    session.on_message("hey")
-    rid = _record(store)
-    row = store.conn.execute(
-        "SELECT verdict_json FROM decision_records WHERE id = ?", (rid,)
-    ).fetchone()
-    store.close()
-    assert json.loads(row["verdict_json"])["reason"] == "not tonight"

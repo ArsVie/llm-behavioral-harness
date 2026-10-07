@@ -4,15 +4,11 @@ Builds a genuine v5 database by running the store's OWN historical migration
 chain (v2..v5) and stamping ``schema_meta`` to 5, then opens it with the v6
 store: only ``kv_store`` and the nullable ``conversations.closing_pending_t_h``
 column are added, every pre-existing row stays intact, re-open is idempotent,
-and the new kv/close-pending APIs work. The live-DB copy test verifies the same
-against a COPY of the real companion.db when present, skipped elsewhere.
+and the new kv/close-pending APIs work. The live-DB copy test lives in
+test_store_migrations_v7.
 """
 
-import hashlib
-import shutil
 import sqlite3
-
-import pytest
 
 from harness.store import (
     SCHEMA_VERSION,
@@ -24,6 +20,7 @@ from harness.store import (
     _migrate_v5,
     schema_meta,
 )
+from tests.helpers.migrations import seed_conversation_families, table_counts
 
 _LEGACY_TABLES = [
     "daily_state", "messages", "judgements", "state_events", "llm_calls",
@@ -52,52 +49,12 @@ def _build_v5_db(path) -> None:
     con.close()
 
 
-def _seed_v5(path) -> None:
-    """Seed the v5 database across the conversation families."""
-    con = sqlite3.connect(path)
-    con.execute(
-        "INSERT INTO conversations (id, opened_t_h, closed_t_h, opened_by, "
-        "close_reason) VALUES ('conv-0', 1.0, 3.0, 'user', 'closing_tendency')"
-    )
-    con.execute(
-        "INSERT INTO conversations (id, opened_t_h, opened_by) "
-        "VALUES ('conv-1', 5.0, 'companion')"
-    )
-    con.execute(
-        "INSERT INTO conversation_turns (conversation_id, speaker, text, t_h, "
-        "turn_index, message_id) VALUES ('conv-0', 'user', 'hi', 1.0, 0, NULL)"
-    )
-    con.execute(
-        "INSERT INTO conversation_turns (conversation_id, speaker, text, t_h, "
-        "turn_index, message_id) VALUES ('conv-0', 'companion', 'hello!', 1.1, 1, NULL)"
-    )
-    con.execute(
-        "INSERT INTO messages (role, content, t_h, day, proactive, meta, "
-        "session_id, intent_id, conversation_id) "
-        "VALUES ('user', 'hi', 1.0, 0, 0, NULL, 'day-1000', NULL, 'conv-0')"
-    )
-    con.execute(
-        "INSERT INTO daily_state (day, M, m_level, g, p, arg, mu, eta, "
-        "cycle_day, phase_label, seed, score) "
-        "VALUES (0, 5, 2.5, 0.7, 0.5, 0.3, 0.1, 0.0, 0.0, 'neutral', 12345, 0.5)"
-    )
-    con.commit()
-    con.close()
-
-
-def _table_counts(con: sqlite3.Connection) -> dict[str, int]:
-    return {
-        t: con.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0]
-        for t in _LEGACY_TABLES
-    }
-
-
 def test_v5_to_v6_migration_is_additive_and_preserves_data(tmp_path):
     db = tmp_path / "v5.db"
     _build_v5_db(db)
-    _seed_v5(db)
+    seed_conversation_families(db)
 
-    before = _table_counts(sqlite3.connect(db))
+    before = table_counts(sqlite3.connect(db), _LEGACY_TABLES)
 
     store = SQLiteStore(db)
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
@@ -119,7 +76,7 @@ def test_v5_to_v6_migration_is_additive_and_preserves_data(tmp_path):
     assert coltype["type"].upper() == "REAL" and coltype["notnull"] == 0
 
     # every pre-existing row survived, every table opens
-    assert _table_counts(store.conn) == before
+    assert table_counts(store.conn, _LEGACY_TABLES) == before
     convs = store.list_conversations()
     assert [c.id for c in convs] == ["conv-0", "conv-1"]
     assert convs[0].close_reason == "closing_tendency"
@@ -148,90 +105,3 @@ def test_v5_to_v6_migration_is_additive_and_preserves_data(tmp_path):
     assert store2.get_kv("k") == "v2"
     assert store2.conversation_closing_pending("conv-0") is None
     store2.close()
-
-
-def test_fresh_db_reaches_v6_with_all_tables(tmp_path):
-    store = SQLiteStore(tmp_path / "fresh.db")
-    rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
-    tables = {
-        r["name"] for r in store.conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
-    }
-    assert "kv_store" in tables
-    cols = {r["name"] for r in store.conn.execute("PRAGMA table_info(conversations)")}
-    assert "closing_pending_t_h" in cols
-    store.close()
-
-
-def _live_db_candidates() -> list:
-    here = __file__
-    root = __import__("pathlib").Path(here).resolve().parents[1]  # worktree root
-    p = root / "results" / "live-companion" / "companion.db"
-    if p.exists():
-        return [p]
-    return []
-
-
-@pytest.mark.skipif(
-    not _live_db_candidates(),
-    reason="results/live-companion/companion.db not present (live DB is "
-    "gitignored; this test runs where the real DB ships)",
-)
-def test_live_companion_db_migrates_additively(tmp_path):
-    """Migrate a COPY of the real populated companion.db; the original is opened
-    read-only and byte-compared before/after."""
-    src = _live_db_candidates()[0]
-
-    def _sha(p) -> str:
-        return hashlib.sha256(p.read_bytes()).hexdigest()
-
-    orig_sha = _sha(src)
-    copy = tmp_path / "companion.db"
-    for suffix in ("", "-wal", "-shm"):
-        s = __import__("pathlib").Path(str(src) + suffix)
-        if s.exists():
-            shutil.copy2(s, tmp_path / f"companion.db{suffix}")
-
-    # row counts before migration (read-only)
-    con0 = sqlite3.connect(f"file:{copy}?mode=ro", uri=True)
-    version0 = con0.execute("SELECT version FROM schema_meta").fetchone()[0]
-    tables0 = [
-        r[0] for r in con0.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' "
-            "AND name NOT LIKE 'sqlite_%'"
-        )
-    ]
-    counts0 = {t: con0.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] for t in tables0}
-    con0.close()
-
-    store = SQLiteStore(copy)
-    rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
-    assert version0 <= SCHEMA_VERSION, (
-        f"live DB schema v{version0} is newer than code SCHEMA_VERSION "
-        f"v{SCHEMA_VERSION}"
-    )
-    tables = {r["name"] for r in store.conn.execute("SELECT name FROM sqlite_master WHERE type='table'")}
-    assert "kv_store" in tables
-    cols = {r["name"] for r in store.conn.execute("PRAGMA table_info(conversations)")}
-    assert "closing_pending_t_h" in cols
-    # every table opens, every row count intact
-    for t, n in counts0.items():
-        assert store.conn.execute(f"SELECT COUNT(*) FROM {t}").fetchone()[0] == n, t
-    # spot data
-    convs = store.list_conversations()
-    assert len(convs) == counts0["conversations"]
-    # 'followed_event' is the negotiation go-verdict close; it predates this
-    # allowlist and was simply never added to it.
-    assert all(
-        c.close_reason in ("closing_tendency", "user_left", "quiet_hours",
-                           "max_turns", "followed_event")
-        or c.close_reason is None
-        for c in convs
-    )
-    store.close()
-
-    # the ORIGINAL is byte-identical
-    assert _sha(src) == orig_sha, "ORIGINAL live companion.db was modified!"

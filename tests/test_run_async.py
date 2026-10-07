@@ -6,8 +6,6 @@ milliseconds.
 
 from __future__ import annotations
 
-import inspect
-import os
 
 import pytest
 from zoneinfo import ZoneInfoNotFoundError
@@ -171,7 +169,6 @@ def test_command_bridge_forwards_start_and_send():
     inner = FakeChannel()
     seen: list[str] = []
     bridge = ra.CommandBridgeChannel(inner, lambda text: seen.append(text))
-    assert "on_command" in inspect.signature(bridge.start).parameters
 
     import asyncio
 
@@ -251,7 +248,12 @@ def test_enable_commands_warns_on_a_channel_without_the_seam(tmp_path,
     rather than silently dropping every command."""
     assert _run(tmp_path, "cmd.db", "--enable-commands") == 0
     out = capsys.readouterr().out
-    assert "commands=on" in out or "no command seam" in out
+    assert "no command seam" in out
+    store = SQLiteStore(tmp_path / "cmd.db")
+    try:
+        assert store.load_persona() is not None  # bootstrap unchanged
+    finally:
+        store.close()
 
 
 def test_channel_falls_back_to_the_env(tmp_path, monkeypatch, capsys):
@@ -262,9 +264,3 @@ def test_channel_falls_back_to_the_env(tmp_path, monkeypatch, capsys):
     ])
     assert rc == 0
     assert "channel=fake" in capsys.readouterr().out
-
-
-def test_default_channel_constant_is_cli():
-    """The documented default when neither flag nor env is set."""
-    assert ra.DEFAULT_CHANNEL == "cli"
-    assert os.environ.get("HARNESS_CHANNEL") in (None, "", "fake", "cli")

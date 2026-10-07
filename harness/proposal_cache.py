@@ -59,12 +59,19 @@ def cache_key(namespace: str, schema: str, payload: dict) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:32]
 
 
-def load(namespace: str, schema: str, payload: dict) -> Any | None:
-    """A previously cached answer to this exact question, or None."""
+def _entry(namespace: str, schema: str, payload: dict) -> Path | None:
+    """Where this question's answer is cached, or None when caching is off."""
     root = cache_root()
     if root is None:
         return None
-    path = root / namespace / f"{cache_key(namespace, schema, payload)}.json"
+    return root / namespace / f"{cache_key(namespace, schema, payload)}.json"
+
+
+def load(namespace: str, schema: str, payload: dict) -> Any | None:
+    """A previously cached answer to this exact question, or None."""
+    path = _entry(namespace, schema, payload)
+    if path is None:
+        return None
     try:
         with open(path, encoding="utf-8") as fh:
             return json.load(fh)
@@ -74,19 +81,16 @@ def load(namespace: str, schema: str, payload: dict) -> Any | None:
 
 def store(namespace: str, schema: str, payload: dict, answer: Any) -> None:
     """Cache an accepted answer. Best-effort; failures are swallowed."""
-    root = cache_root()
-    if root is None or answer is None:
+    path = _entry(namespace, schema, payload)
+    if path is None or answer is None:
         return
-    directory = root / namespace
     try:
-        directory.mkdir(parents=True, exist_ok=True)
-        fd, tmp = tempfile.mkstemp(dir=directory, suffix=".tmp")
+        path.parent.mkdir(parents=True, exist_ok=True)
+        fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as fh:
                 json.dump(answer, fh, sort_keys=True)
-            os.replace(
-                tmp, directory / f"{cache_key(namespace, schema, payload)}.json"
-            )
+            os.replace(tmp, path)
         except BaseException:
             os.unlink(tmp)
             raise

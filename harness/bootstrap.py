@@ -13,11 +13,11 @@ from dataclasses import dataclass
 from typing import Optional
 
 from engine.rng import stream_rng
-
-from harness.domain import DailyAgenda, LifeArc, PersonaProfile, UserProfile
 from harness.clock import VirtualClock
+from harness.domain import DailyAgenda, LifeArc, PersonaProfile, UserProfile
+from harness.habits import load_plan, save_commitment
 from harness.interest_extension import extend_graph_for_user
-from harness.interests import InterestGraph, MAX_ADJACENCY_HOPS, build_catalog
+from harness.interests import MAX_ADJACENCY_HOPS, InterestGraph, build_catalog
 from harness.life import LIFE_STREAM, generate_agenda, init_life
 from harness.metering import MeteredClient
 from harness.persona import (
@@ -25,8 +25,6 @@ from harness.persona import (
     DEFAULT_VOICE,
     ROUTINE_CATALOG,
     build_persona,
-    compose_core,
-    split_core,
 )
 from harness.persona_file import load_authored_core
 from harness.routine_setup import build_routine_catalog
@@ -72,33 +70,14 @@ class BootstrapResult:
     today_agenda: DailyAgenda | None
 
 
-class BootstrapStore:
-    """Store seam subset used by the bootstrap (duck-typed; ``SQLiteStore``
-    implements every member, test doubles may implement a subset).
-    """
-
-    def load_persona(self) -> PersonaProfile | None: ...
-    def save_persona(self, profile: PersonaProfile) -> None: ...
-    def list_life_arcs(self, status: str | None = None) -> list[LifeArc]: ...
-    def load_agenda(self, day: int) -> DailyAgenda | None: ...
-    def save_agenda(self, day: int, agenda: DailyAgenda) -> None: ...
-    def load_user_profile(self) -> UserProfile | None: ...
-    def save_user_profile(self, profile: UserProfile) -> None: ...
-
-
 def _apply_authored_voice(store, persona, voice, logger):
     """Re-open a stored persona's core against the current persona file.
 
-    The interest sentence is carried across VERBATIM — it cannot be
-    regenerated, being built in draw order while stored interests are
-    name-sorted. Returns the stored persona untouched when the composed core
-    already matches.
+    The core is the voice alone; a core stored with the old interest
+    sentence is rewritten to the voice. Returns the stored persona untouched
+    when it already matches.
     """
-    parts = split_core(persona.core)
-    if parts is None:
-        return persona  # unrecognized shape: leave it strictly alone
-    _, sentence = parts
-    desired = compose_core(voice if voice is not None else DEFAULT_VOICE, sentence)
+    desired = voice if voice is not None else DEFAULT_VOICE
     # The display name is applied over the core downstream, so compare against
     # the same substitution.
     if persona.name and persona.name != DEFAULT_NAME:
@@ -142,6 +121,7 @@ def ensure_companion_initialized(
     day: int = 1,
     client=None,
     logger=None,
+    commitment=None,
 ) -> BootstrapResult:
     """Idempotent clean-start initialization.
 
@@ -160,6 +140,9 @@ def ensure_companion_initialized(
         the user's off-catalog interests into the interest graph
         (``harness.interest_extension``). None keeps onboarding fully offline.
     :param logger: optional ``callable(str)`` for onboarding progress lines.
+    :param commitment: the :class:`harness.habits.Commitment` he picked at
+        ``/setup`` (a kind and hours, or light); None infers it from her
+        persona. Only a cold start applies it.
     """
     # A stored graph wins: the persona's buckets must stay reproducible from
     # the store alone, so a resumed run samples against the same graph.
@@ -173,12 +156,9 @@ def ensure_companion_initialized(
     # authored voice comes from the configured persona file, on warm starts too.
     voice = load_authored_core(logger=logger)
     persona = store.load_persona() if hasattr(store, "load_persona") else None
+    profile = _resolve_user_profile(store, user, config)
     if persona is None:
-        profile = _resolve_user_profile(store, user, config)
         cfg = config if config is not None else OnboardingConfig()
-        # Place the user's off-catalog interests INTO the graph before
-        # sampling: without this they are exact-only and add nothing adjacent.
-
         # Onboarding's aux calls reach the ledger like any other; the clock is
         # the day being onboarded, since none is read here.
         onboarding_clock = VirtualClock(float(day) * 24.0)
@@ -190,6 +170,8 @@ def ensure_companion_initialized(
                 client, store, onboarding_clock, role, logger=logger
             )
 
+        # Place the user's off-catalog interests INTO the graph before
+        # sampling: without this they are exact-only and add nothing adjacent.
         extension = extend_graph_for_user(
             graph, profile.interests,
             client=_metered("aux_interest_extension"), logger=logger,
@@ -235,11 +217,12 @@ def ensure_companion_initialized(
             persona, interests=tuple(sorted(persona.interests, key=lambda i: i.name))
         )
         store.save_persona(persona)  # persists persona + interest portfolio
+        if commitment is not None:
+            save_commitment(store, commitment)
         saver = getattr(store, "save_user_profile", None)
         if saver is not None:
             saver(profile)
     else:
-        profile = _resolve_user_profile(store, user, config)
         persona = _apply_authored_voice(store, persona, voice, logger)
 
     # 2. Life arcs: ensure initial arcs only when none exist.
@@ -255,7 +238,8 @@ def ensure_companion_initialized(
     agenda = store.load_agenda(day) if hasattr(store, "load_agenda") else None
     if agenda is None:
         agenda = generate_agenda(
-            day, persona, arcs, store, rng=stream_rng(seed, LIFE_STREAM, day)
+            day, persona, arcs, store, rng=stream_rng(seed, LIFE_STREAM, day),
+            plan=load_plan(store, seed, persona), seed=seed,
         )
 
     return BootstrapResult(

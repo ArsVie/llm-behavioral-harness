@@ -43,16 +43,13 @@ def _compose_summary(episode: NegotiationEpisode) -> str:
     """Deterministic natural summary from the episode's own fields."""
     if episode.outcome == _OUTCOME_GO:
         return (
-            "kept choosing to stay with you instead of "
-            + episode.activity
-            + " ("
-            + str(episode.delay_count)
-            + " delays), then went"
+            f"kept choosing to stay with you instead of {episode.activity}"
+            f" ({episode.delay_count} delays), then went"
         )
     if episode.outcome == _OUTCOME_SKIP:
-        return "skipped " + episode.activity + " to stay with you"
+        return f"skipped {episode.activity} to stay with you"
     # FORCED (backstop): window closed, missed entirely
-    return "missed " + episode.activity + " entirely — window closed"
+    return f"missed {episode.activity} entirely, the window closed"
 
 
 def _episode_tags(episode: NegotiationEpisode) -> tuple[str, ...]:
@@ -65,21 +62,13 @@ def _episode_tags(episode: NegotiationEpisode) -> tuple[str, ...]:
     elif episode.outcome == _OUTCOME_FORCED:
         tags.append(TAG_FORCED)
     if episode.delay_count >= 1:
-        tags.append(TAG_DELAY)
-        tags.append("negotiation_delay:" + str(episode.delay_count))
+        tags += [TAG_DELAY, f"negotiation_delay:{episode.delay_count}"]
     return tuple(tags)
 
 
 def _episode_id(episode: NegotiationEpisode) -> str:
     """Deterministic id: same episode inputs -> same id, always."""
-    return (
-        "neg-"
-        + episode.item_id
-        + "-"
-        + episode.outcome
-        + "-"
-        + str(episode.occurred_at_t_h)
-    )
+    return f"neg-{episode.item_id}-{episode.outcome}-{episode.occurred_at_t_h}"
 
 
 def emit_negotiation_episode(

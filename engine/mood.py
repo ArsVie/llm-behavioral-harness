@@ -1,8 +1,6 @@
-"""Ánimo diario — beta-binomial en espacio logit (W1.1).
+"""Ánimo diario — beta-binomial en espacio logit.
 
-PROPIEDAD: tarea W1.1 (este archivo + tests/test_mood.py). Implementar contra
-engine/types.py (CONGELADO). No importar engine.cycle ni engine.circadian:
-`m` y `g` llegan como floats (regla de no-importación entre módulos del motor).
+No importa engine.cycle ni engine.circadian: `m` y `g` llegan como floats.
 
 Ecuaciones (DESIGN.md §"Ánimo diario"):
     arg  según MoodVariant (ver types.MoodVariant — las 3 fórmulas)

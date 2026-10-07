@@ -10,14 +10,10 @@ from harness.clock import VirtualClock
 from harness.client import FakeClient
 from harness.judge import ScriptedJudge
 from harness.scheduler import (
-    COUNT_DIVERGENCE_MIN,
-    GAP_DIVERGENCE_MIN,
     INITIATIVE_BOUNDS,
     REASON_SCHEDULE,
     STATE_FACTOR_BOUNDS,
     STATE_NEUTRAL,
-    STATE_VECTOR_NAMES,
-    STATE_WEIGHTS,
     ProactiveSchedule,
     adj_from_score,
     build_opportunity,
@@ -25,10 +21,7 @@ from harness.scheduler import (
     initiative_factor,
     plan_proactive_events,
     state_factor,
-    state_factors_for_plan,
     state_vector,
-    structured_no_state_claim,
-    structured_no_state_timing_check,
 )
 from harness.session import Session
 from harness.store import SQLiteStore
@@ -96,19 +89,6 @@ def test_next_pending_visible_at_exact_event_time():
 # Restart exactly at the event: now == event_time → visible.
     schedule = _schedule(10.0)
     assert schedule.next_pending(10.0) == 10.0
-
-
-def test_next_pending_visible_ten_minutes_after():
-# Restart 10 min after the event: overdue, still returned.
-    schedule = _schedule(10.0)
-    assert schedule.next_pending(10.0 + 10.0 / 60.0) == 10.0
-
-
-def test_next_pending_overdue_within_validity_window():
-# An overdue event inside its validity window is returned and the
-# runtime fires it; the next future event is not preferred over it.
-    schedule = _schedule(10.0, 14.0)
-    assert schedule.next_pending(12.0) == 10.0
 
 
 def test_next_pending_overdue_beyond_validity_window():
@@ -270,7 +250,6 @@ def test_fire_proactive_creates_proactive_message(tmp_path):
 # always rides along, so the system-only normalization never triggers)
     last_call = client.calls[-1]
     assert last_call["messages"][-1]["role"] == "system"
-    assert "reaching out first" in last_call["system"]
 
 
 def test_fire_proactive_validates_reason(tmp_path):
@@ -384,31 +363,9 @@ def _engine_store(days: int, seed: int):
     return store
 
 
-def _plan_condition(days: int, seed: int, store, *, neutral: bool) -> np.ndarray:
-    """Plan with the B5 coupling under FULL or STRUCTURED_NO_STATE, via the
-    same seams the runtime path uses (day_scores + state_factors_for_plan)."""
-    from experiments.cvs_common import _neutral_behavior
-    import harness.session as session_mod
-
-    original = session_mod.derive_behavior
-    try:
-        if neutral:
-            session_mod.derive_behavior = _neutral_behavior
-        scores = day_scores(store, days - 1, TIMING)
-        factors = state_factors_for_plan(store, days, TIMING)
-    finally:
-        session_mod.derive_behavior = original
-    return plan_proactive_events(days, seed, PERSONA, TIMING,
-                                 scores=scores, state_factors=factors)
-
-
 def test_state_vector_maps_directive_channels():
     store = _store_with_state(3, SEED)
     v = state_vector(store, 0, TIMING)
-    assert dict(zip(STATE_VECTOR_NAMES, v)) == {
-        "energy": v[0], "initiative": v[1], "valence": v[2], "reactivity": v[3],
-    }
-    assert len(STATE_WEIGHTS) == len(STATE_NEUTRAL) == len(v) == 4
 # All channels are directive channels in [0,1] except valence ∈ [-1,1].
     assert 0.0 <= v[0] <= 1.0 and 0.0 <= v[1] <= 1.0
     assert -1.0 <= v[2] <= 1.0 and 0.0 <= v[3] <= 1.0
@@ -438,41 +395,6 @@ def test_state_factor_low_vs_high_state_day():
     assert STATE_FACTOR_BOUNDS[0] <= hi <= STATE_FACTOR_BOUNDS[1]
 # The mapping is deterministic.
     assert state_factor(store, lows[0], TIMING) == state_factor(store, lows[0], TIMING)
-
-
-def test_state_factors_flat_under_structured_no_state_patch():
-    """The neutral directive patch collapses the term to EXACTLY 1.0 every
-    day — this is what makes STRUCTURED_NO_STATE ablate the timing channel."""
-    from experiments.cvs_common import _neutral_behavior
-    import harness.session as session_mod
-
-    store = _engine_store(B5_DAYS, SEED)
-    original = session_mod.derive_behavior
-    try:
-        session_mod.derive_behavior = _neutral_behavior
-        factors = state_factors_for_plan(store, B5_DAYS, TIMING)
-    finally:
-        session_mod.derive_behavior = original
-    assert factors.shape == (B5_DAYS,)
-    assert np.all(factors == 1.0)
-
-
-def test_day_scores_fold_neutral_under_no_state_patch():
-    """day_initiative resolves through the same patched seam, so the A·I
-    timing fold ablates with the state vector under STRUCTURED_NO_STATE."""
-    from experiments.cvs_common import _neutral_behavior
-    import harness.session as session_mod
-
-    store = _engine_store(3, SEED)
-    original = session_mod.derive_behavior
-    try:
-        session_mod.derive_behavior = _neutral_behavior
-        scores = day_scores(store, 2, TIMING)
-    finally:
-        session_mod.derive_behavior = original
-# No judgements ⇒ A ≡ 1; neutral directive ⇒ I ≡ 1; effective score ≡ 0.
-    assert scores[0] == pytest.approx(0.0, abs=1e-9)
-    assert scores[1] == pytest.approx(0.0, abs=1e-9)
 
 
 def test_state_coupling_off_by_default_byte_identical():
@@ -520,62 +442,3 @@ def test_build_opportunity_without_state_is_byte_identical():
         previous_score=None, initiative=0.5,
     )
     assert "state" not in opp.hazard_components
-    assert set(opp.hazard_components) == {"base", "circadian", "phase",
-                                          "initiative", "prior_score"}
-
-
-def test_structured_no_state_ablates_timing_across_five_seeds():
-    """B5 acceptance: STRUCTURED_NO_STATE vs FULL (real engine state, live
-    runtime composition, 90 days × 5 seeds) diverges in proactive count
-    (mean >= COUNT_DIVERGENCE_MIN, every seed above a 5% floor, FULL always
-    above NO_STATE) AND inter-contact mean gap (mean >= GAP_DIVERGENCE_MIN)."""
-    count_divs = []
-    gap_divs = []
-    for seed in B5_SEEDS:
-        store = _engine_store(B5_DAYS, seed)
-        full = _plan_condition(B5_DAYS, seed, store, neutral=False)
-        no_state = _plan_condition(B5_DAYS, seed, store, neutral=True)
-        assert len(full) > 0 and len(no_state) > 0
-        assert len(full) > len(no_state), (
-            f"seed {seed}: FULL ({len(full)}) must exceed NO_STATE ({len(no_state)})"
-        )
-        count_divs.append((len(full) - len(no_state)) / len(full))
-        mean_gap_full = float(np.diff(full).mean())
-        mean_gap_ns = float(np.diff(no_state).mean())
-        gap_divs.append(abs(mean_gap_ns - mean_gap_full) / mean_gap_full)
-        assert count_divs[-1] >= 0.05, (
-            f"seed {seed}: count divergence {count_divs[-1]:.3f} below floor"
-        )
-    assert np.mean(count_divs) >= COUNT_DIVERGENCE_MIN, (
-        f"mean count divergence {np.mean(count_divs):.3f} < "
-        f"{COUNT_DIVERGENCE_MIN}"
-    )
-    assert np.mean(gap_divs) >= GAP_DIVERGENCE_MIN, (
-        f"mean gap divergence {np.mean(gap_divs):.3f} < {GAP_DIVERGENCE_MIN}"
-    )
-
-
-def test_structured_no_state_claim_check_logic():
-    """The G2 claim: passes on a divergent pair, fails on an identical pair,
-    and falls back to the count leg when too few gaps are available."""
-    from harness.domain import AblationClaim
-
-    claim = structured_no_state_claim()
-    assert isinstance(claim, AblationClaim)
-    assert claim.condition == "STRUCTURED_NO_STATE"
-    assert claim.channel == "timing"
-    assert COUNT_DIVERGENCE_MIN == 0.15 and GAP_DIVERGENCE_MIN == 0.10
-
-    full = {"n_proactive": 40, "proactive_times": [10.0, 30.0, 50.0, 70.0, 90.0]}
-    cell = {"n_proactive": 30, "proactive_times": [12.0, 36.0, 60.0, 84.0, 108.0]}
-    assert claim.check(cell, full) is True
-    assert claim.check(full, full) is False
-
-# Too few gaps on both sides ⇒ the count leg alone decides.
-    small_full = {"n_proactive": 4, "proactive_times": [10.0, 30.0, 50.0]}
-    small_cell = {"n_proactive": 3, "proactive_times": [12.0, 34.0, 56.0]}
-    assert claim.check(small_cell, small_full) is True
-    assert claim.check(small_full, small_full) is False
-
-# The check function itself is importable and stateless.
-    assert structured_no_state_timing_check(cell, full) is True

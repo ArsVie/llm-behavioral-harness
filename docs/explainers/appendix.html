@@ -1,0 +1,1563 @@
+<title>The stochastic engine</title>
+
+<style>
+:root,
+:root[data-theme="dark"],
+:root[data-theme="light"]{
+  color-scheme:light;
+  --paper:#FBFAFC; --card:#FFFFFF; --rule:#E9E4EF; --rule-soft:#F2EEF6;
+  --ink:#423D52; --ink-2:#6A647C; --ink-3:#9E98AC;
+  --accent:#6D9E96; --accent-soft:#E6F2EF;
+  --math-bg:#F7F4FB; --math-rule:#DED7EA;
+  --s1:#6FA79E; --s2:#D0A06A; --s3:#CE8DAB; --s4:#8290C9; --s5:#87B183; --s6:#B4AEC0;
+  --grid:#F0ECF4; --axis:#D6D0DE;
+  --ok:#6FA987; --warn:#C79A5A; --bad:#CD8585;
+  --f-head:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;
+  --f-body:ui-serif,Georgia,'Iowan Old Style','Times New Roman',serif;
+  --f-mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+  --measure:68ch;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--f-body);
+  font-size:16.5px;line-height:1.65;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1180px;margin:0 auto;padding:0 26px 90px}
+
+header.mast{padding:52px 0 24px;border-bottom:1px solid var(--rule)}
+.eyebrow{font-family:var(--f-mono);font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 14px}
+h1{font-family:var(--f-head);font-weight:650;font-size:clamp(28px,4vw,42px);line-height:1.12;
+  letter-spacing:-.022em;margin:0 0 14px;text-wrap:balance}
+.standfirst{max-width:var(--measure);color:var(--ink-2);font-size:17.5px;margin:0}
+
+h2{font-family:var(--f-head);font-weight:640;font-size:24px;letter-spacing:-.014em;margin:0 0 8px}
+h3{font-family:var(--f-head);font-weight:620;font-size:18px;letter-spacing:-.008em;margin:32px 0 8px}
+.kicker{font-family:var(--f-mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--accent);font-weight:600;margin:0 0 6px}
+p,li{max-width:var(--measure)} p{margin:0 0 13px}
+ul{margin:0 0 15px;padding-left:20px} li{margin-bottom:5px}
+.lede{font-size:17px;color:var(--ink-2);max-width:var(--measure);margin-bottom:22px}
+
+nav.toc{position:sticky;top:0;z-index:60;background:var(--paper);border-bottom:1px solid var(--rule);
+  display:flex;gap:2px;overflow-x:auto;padding-top:6px;margin-bottom:34px}
+nav.toc button{appearance:none;background:none;border:0;border-bottom:2px solid transparent;
+  font-family:var(--f-head);font-size:13.5px;font-weight:520;color:var(--ink-3);padding:11px 14px;
+  cursor:pointer;white-space:nowrap}
+nav.toc button:hover{color:var(--ink)}
+nav.toc button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+nav.toc button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:3px}
+.panel{display:none} .panel[data-active="true"]{display:block}
+
+/* ---------- maths ---------- */
+math{font-size:1.06em}
+.eq{background:var(--math-bg);border:1px solid var(--math-rule);border-left:3px solid var(--accent);
+  border-radius:0 9px 9px 0;padding:14px 18px 12px;margin:14px 0 12px;overflow-x:auto}
+.eq math[display="block"]{margin:6px 0}
+.eq .where{font-family:var(--f-head);font-size:13px;color:var(--ink-2);margin:9px 0 0;
+  padding-top:9px;border-top:1px solid var(--math-rule);max-width:none;line-height:1.9}
+.eq .where b{font-weight:500;color:var(--ink)}
+
+/* ---------- symbol chip + popup ---------- */
+.v{position:relative;display:inline-block;cursor:help;
+  font-family:var(--f-body);background:var(--accent-soft);
+  padding:0 4px;border-radius:4px;border-bottom:1px dotted var(--accent);white-space:nowrap}
+.v:focus{outline:2px solid var(--accent);outline-offset:1px}
+.v .pop{position:fixed;left:0;top:0;transform:translateY(4px);
+  width:max-content;max-width:300px;white-space:normal;text-align:left;
+  background:#FFFFFF;color:var(--ink);border:1px solid var(--math-rule);
+  font-family:var(--f-head);font-size:12.5px;line-height:1.5;letter-spacing:0;
+  padding:10px 12px;border-radius:8px;opacity:0;pointer-events:none;
+  transition:opacity .13s,transform .13s;z-index:80;
+  box-shadow:0 8px 24px rgba(110,100,140,.20)}
+.v .pop b{display:block;font-family:var(--f-mono);font-size:11px;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--accent);margin-bottom:4px;font-weight:600}
+.v .pop i{display:block;font-style:normal;color:var(--ink-3);font-size:11.5px;
+  font-family:var(--f-mono);margin-top:5px}
+.v .pop::after{content:"";position:absolute;left:var(--ax,50%);top:100%;transform:translateX(-50%);
+  border:6px solid transparent;border-top-color:#FFFFFF}
+.v .pop[data-below]::after{top:auto;bottom:100%;border-top-color:transparent;border-bottom-color:#FFFFFF}
+.v:hover .pop,.v:focus .pop{opacity:1;transform:translateY(0)}
+
+/* ---------- cards ---------- */
+.fn{background:var(--card);border:1px solid var(--rule);border-radius:12px;margin:24px 0 32px}
+.fn-head{padding:17px 21px 14px;border-bottom:1px solid var(--rule-soft)}
+.fn-head h3{margin:0 0 4px;font-size:18.5px}
+.fn-what{color:var(--ink-2);font-size:15.5px;margin:0;max-width:none}
+.fn-grid{display:grid;grid-template-columns:1.5fr 1fr}
+@media (max-width:900px){.fn-grid{grid-template-columns:1fr}}
+.fn-plot{padding:15px 18px;border-right:1px solid var(--rule-soft);min-width:0}
+@media (max-width:900px){.fn-plot{border-right:0;border-bottom:1px solid var(--rule-soft)}}
+.fn-side{padding:15px 20px;min-width:0}
+.plot-title{font-family:var(--f-mono);font-size:11px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 9px}
+canvas{display:block;width:100%;max-width:100%;max-height:320px}
+.legend{display:flex;flex-wrap:wrap;gap:5px 14px;margin:10px 0 0;font-family:var(--f-head);font-size:12.5px}
+.legend i{display:inline-block;width:14px;height:3px;border-radius:2px;margin-right:6px;vertical-align:middle}
+.legend span{color:var(--ink-2);white-space:nowrap}
+.side-note{font-size:14.5px;color:var(--ink-2);margin:0 0 13px;max-width:none}
+.readout{font-family:var(--f-mono);font-size:12.5px;color:var(--ink-2);background:var(--math-bg);
+  border-radius:7px;padding:9px 11px;margin:0 0 12px;max-width:none}
+
+/* ---------- sliders ---------- */
+.ctl{margin:0 0 13px}
+.ctl label{display:flex;justify-content:space-between;align-items:baseline;gap:10px;
+  font-family:var(--f-head);font-size:13px;color:var(--ink-2);margin-bottom:4px}
+.ctl label .rv{font-family:var(--f-mono);font-size:12px;color:var(--accent);font-weight:600;
+  font-variant-numeric:tabular-nums}
+.ctl input[type=range]{width:100%;cursor:pointer;-webkit-appearance:none;appearance:none;
+  background:transparent;height:18px}
+.ctl input[type=range]::-webkit-slider-runnable-track{height:5px;border-radius:3px;background:#E7E2EE}
+.ctl input[type=range]::-moz-range-track{height:5px;border-radius:3px;background:#E7E2EE}
+.ctl input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:15px;
+  height:15px;border-radius:50%;background:var(--accent);border:2px solid #FFF;margin-top:-5px;
+  box-shadow:0 1px 3px rgba(120,110,150,.35)}
+.ctl input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;
+  background:var(--accent);border:2px solid #FFF;box-shadow:0 1px 3px rgba(120,110,150,.35)}
+.ctl input[type=range]:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.ctl .hint{font-family:var(--f-head);font-size:12.5px;color:var(--ink-3);margin-top:2px;display:block}
+.grp{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);margin:16px 0 9px;padding-bottom:5px;border-bottom:1px solid var(--rule-soft)}
+.btn{appearance:none;font-family:var(--f-mono);font-size:11.5px;background:var(--card);
+  color:var(--ink-2);border:1px solid var(--rule);padding:5px 11px;border-radius:6px;cursor:pointer}
+.btn:hover{border-color:var(--accent);color:var(--accent)}
+.btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.tblwrap{overflow-x:auto;margin:14px 0 24px;border:1px solid var(--rule);border-radius:10px;background:var(--card)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:620px;font-family:var(--f-head)}
+th,td{text-align:left;padding:9px 13px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+th{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;background:var(--paper)}
+tr:last-child td{border-bottom:0}
+td code{font-family:var(--f-mono);font-size:12px}
+td math{font-size:1em}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+
+.note{border-left:3px solid var(--accent);background:var(--accent-soft);padding:13px 17px;
+  border-radius:0 9px 9px 0;margin:18px 0 24px}
+.note p:last-child{margin-bottom:0} .note p{max-width:none}
+.note.warn{border-left-color:var(--warn);background:#FBF3E7}
+.note .tag{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);display:block;margin-bottom:5px}
+.pill{display:inline-block;font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;
+  text-transform:uppercase;padding:3px 9px;border-radius:20px;margin-left:8px;vertical-align:middle}
+.pill.live{background:var(--accent-soft);color:var(--accent)}
+.pill.prop{background:#F8EEDF;color:#B5893F}
+</style>
+
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">llm-behavioral-harness · engine/mood.py · engine/cycle.py · engine/circadian.py · engine/timing.py</p>
+  <h1>The stochastic engine</h1>
+  <p class="standfirst">
+    Every random variable in the companion model: its distribution, its parameters, and the observable
+    it drives. Charts evaluate the same expressions the engine does, at the frozen defaults. Every
+    parameter has a slider. Hover any symbol for its definition.
+  </p>
+</header>
+
+<nav class="toc" role="tablist" aria-label="Sections">
+  <button role="tab" aria-selected="true"  data-tab="mood">Mood</button>
+  <button role="tab" aria-selected="false" data-tab="cycle">Cycle</button>
+  <button role="tab" aria-selected="false" data-tab="memory">Memory &amp; drift</button>
+  <button role="tab" aria-selected="false" data-tab="day">Circadian</button>
+  <button role="tab" aria-selected="false" data-tab="timing">Contact timing</button>
+  <button role="tab" aria-selected="false" data-tab="variants">Proposed variants</button>
+  <button role="tab" aria-selected="false" data-tab="appendix">Appendix</button>
+</nav>
+
+<!-- ==================== MOOD ==================== -->
+<section class="panel" id="tab-mood">
+  <h2>Daily mood</h2>
+  <p class="lede">
+    One draw per simulated day. <span class="v">M<sub>t</sub><span class="pop"><b>M<sub>t</sub></b>
+    The day's mood. Outputs an integer in 0…N. Every behavioural channel is a deterministic function
+    of this value and the clock.<i>engine/mood.py :: step</i></span></span> is beta-binomial: four
+    additive terms form a logit argument, the logistic function maps it to a probability, and N
+    Bernoulli trials produce the integer.
+  </p>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">definition <span class="pill live">in use</span></p>
+      <h3>Beta-binomial mood draw</h3>
+      <div class="eq">
+        <math display="block">
+          <msub><mi>a</mi><mi>t</mi></msub><mo>=</mo>
+          <mi>logit</mi><mo>(</mo><mi>λ</mi><mo>)</mo><mo>+</mo>
+          <msub><mi>m</mi><mi>t</mi></msub><mo>+</mo>
+          <msub><mi>g</mi><mi>t</mi></msub>
+          <mo>(</mo><msub><mi>μ</mi><mi>t</mi></msub><mo>+</mo><msub><mi>η</mi><mi>t</mi></msub><mo>)</mo>
+        </math>
+        <math display="block">
+          <msub><mi>p</mi><mi>t</mi></msub><mo>=</mo><mi>σ</mi><mo>(</mo><msub><mi>a</mi><mi>t</mi></msub><mo>)</mo>
+          <mo>,</mo><mspace width="1.4em"/>
+          <msub><mover><mi>p</mi><mo>~</mo></mover><mi>t</mi></msub><mo>∼</mo>
+          <mi>Beta</mi><mo>(</mo><msub><mi>p</mi><mi>t</mi></msub><mi>ν</mi><mo>,</mo>
+          <mo>(</mo><mn>1</mn><mo>−</mo><msub><mi>p</mi><mi>t</mi></msub><mo>)</mo><mi>ν</mi><mo>)</mo>
+        </math>
+        <math display="block">
+          <msub><mi>M</mi><mi>t</mi></msub><mo>∼</mo>
+          <mi>Binomial</mi><mo>(</mo><mi>N</mi><mo>,</mo>
+          <msub><mover><mi>p</mi><mo>~</mo></mover><mi>t</mi></msub><mo>)</mo>
+        </math>
+        <p class="where">
+          <span class="v">σ<span class="pop"><b>logistic function</b>σ(x) = 1 / (1 + e<sup>−x</sup>).
+          Maps the real line to (0,1). Its inverse is the logit.</span></span> logistic ·
+          <span class="v">logit<span class="pop"><b>logit</b>logit(x) = ln[ x / (1 − x) ].
+          Maps (0,1) to the real line. Inverse of σ.</span></span> ·
+          <span class="v">Beta<span class="pop"><b>Beta(α, β)</b>Distribution on (0,1) with mean
+          α/(α+β). Parameterised here by mean p and concentration ν, giving α = pν, β = (1−p)ν and
+          variance p(1−p)/(ν+1).</span></span> ·
+          <span class="v">Binomial<span class="pop"><b>Binomial(n, p)</b>Number of successes in n
+          independent Bernoulli trials of probability p. Mean np, variance np(1−p).</span></span><br>
+          <b>λ</b> temperament · <b>m<sub>t</sub></b> cycle level offset ·
+          <b>g<sub>t</sub></b> cycle gain · <b>μ<sub>t</sub></b> event memory ·
+          <b>η<sub>t</sub></b> endogenous drift · <b>ν</b> beta concentration ·
+          <b>N</b> mood scale. With <b>ν = ∞</b> the beta step is skipped and
+          <math><msub><mover><mi>p</mi><mo>~</mo></mover><mi>t</mi></msub><mo>=</mo><msub><mi>p</mi><mi>t</mi></msub></math>.
+        </p>
+      </div>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title">Logistic map from <math><msub><mi>a</mi><mi>t</mi></msub></math> to expected mood</p>
+        <canvas id="c-sig" height="230"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i><math><mi>N</mi><mo>·</mo><mi>σ</mi><mo>(</mo><mi>a</mi><mo>)</mo></math></span>
+          <span><i style="background:var(--s3)"></i>current operating point</span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-sig"></p>
+        <p class="side-note">
+          The logistic bounds <math><msub><mi>M</mi><mi>t</mi></msub></math> to 0…N for any input. Its
+          derivative is maximal at <math><mi>a</mi><mo>=</mo><mn>0</mn></math> and decays toward the
+          asymptotes, so a fixed change in <math><mi>a</mi></math> moves the mood most near the middle
+          of the range and least near the ends.
+        </p>
+        <div class="ctl">
+          <label for="s-lam"><span class="v">λ<span class="pop"><b>lambda</b>Temperament. Outputs a
+            probability in (0,1); enters the argument as logit(λ). Sets the mood level with all other
+            terms at zero.<i>PersonaParams.lam · default 0.60</i></span></span> temperament
+            <span class="rv" id="v-lam"></span></label>
+          <input type="range" id="s-lam" min="0.2" max="0.85" step="0.01" value="0.60">
+        </div>
+        <div class="ctl">
+          <label for="s-off">offset <math><msub><mi>m</mi><mi>t</mi></msub><mo>+</mo><msub><mi>g</mi><mi>t</mi></msub><mo>(</mo><msub><mi>μ</mi><mi>t</mi></msub><mo>+</mo><msub><mi>η</mi><mi>t</mi></msub><mo>)</mo></math>
+            <span class="rv" id="v-off"></span></label>
+          <input type="range" id="s-off" min="-2.5" max="2.5" step="0.05" value="0">
+          <span class="hint">The three non-constant terms combined.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">dispersion <span class="pill live">in use</span></p>
+      <h3>Overdispersion parameter <math><mi>ν</mi></math></h3>
+      <p class="fn-what">
+        Finite <math><mi>ν</mi></math> draws the per-day probability from a beta centred on
+        <math><msub><mi>p</mi><mi>t</mi></msub></math>, widening the mood distribution without moving
+        its mean. The variance of the beta step is
+        <math><msub><mi>p</mi><mi>t</mi></msub><mo>(</mo><mn>1</mn><mo>−</mo><msub><mi>p</mi><mi>t</mi></msub><mo>)</mo><mo>/</mo><mo>(</mo><mi>ν</mi><mo>+</mo><mn>1</mn><mo>)</mo></math>.
+      </p>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title">Distribution of <math><msub><mi>M</mi><mi>t</mi></msub></math>, 4000 draws</p>
+        <canvas id="c-bb" height="240"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i><math><mi>ν</mi><mo>=</mo><mi>∞</mi></math> (default)</span>
+          <span><i style="background:var(--s2)"></i>finite <math><mi>ν</mi></math></span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-bb"></p>
+        <div class="ctl">
+          <label for="s-nu"><span class="v">ν<span class="pop"><b>nu</b>Beta concentration. Outputs a
+            positive real or ∞. Controls day-to-day dispersion of the success probability; larger ν
+            means less dispersion. ν = ∞ collapses to a pure binomial.<i>PersonaParams.nu · default ∞</i></span></span>
+            beta concentration <span class="rv" id="v-nu"></span></label>
+          <input type="range" id="s-nu" min="0" max="100" step="1" value="0">
+          <span class="hint">Leftmost position is <math><mi>ν</mi><mo>=</mo><mi>∞</mi></math>, the shipped value.</span>
+        </div>
+        <div class="ctl">
+          <label for="s-N"><span class="v">N<span class="pop"><b>N</b>Mood scale. Outputs an integer.
+            Number of Bernoulli trials, so <math><msub><mi>M</mi><mi>t</mi></msub></math> ∈ 0…N.
+            Sets the granularity of the mood spectrum.<i>PersonaParams.N · default 10</i></span></span>
+            mood scale <span class="rv" id="v-N"></span></label>
+          <input type="range" id="s-N" min="4" max="20" step="1" value="10">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">realisation <span class="pill live">in use</span></p>
+      <h3>Sample path, 90 days</h3>
+      <p class="fn-what">
+        All terms active at the current slider values. Shaded regions mark the menstrual and late
+        luteal segments of <math><msub><mi>d</mi><mi>t</mi></msub></math>.
+      </p>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title"><math><msub><mi>M</mi><mi>t</mi></msub></math> over 90 days</p>
+        <canvas id="c-path" height="250"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i><math><msub><mi>M</mi><mi>t</mi></msub></math></span>
+          <span><i style="background:var(--s4)"></i>15-day moving mean</span>
+          <span><i style="background:var(--s6);opacity:.5"></i>low-level phases</span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-path"></p>
+        <div class="ctl">
+          <label for="s-seed">master seed <span class="rv" id="v-seed"></span></label>
+          <input type="range" id="s-seed" min="1" max="40" step="1" value="1">
+          <span class="hint">Per-companion seed. All parameters unchanged.</span>
+        </div>
+        <button class="btn" id="b-seed">Next seed</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== CYCLE ==================== -->
+<section class="panel" id="tab-cycle">
+  <h2>Cycle</h2>
+  <p class="lede">
+    A periodic component of length <math><mi>L</mi></math>, redrawn each cycle. It contributes two
+    independent terms: an additive level offset <math><msub><mi>m</mi><mi>t</mi></msub></math> and a
+    multiplicative gain <math><msub><mi>g</mi><mi>t</mi></msub></math> on the deviation terms.
+  </p>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">definition <span class="pill live">in use</span></p>
+      <h3>Level offset and gain</h3>
+      <div class="eq">
+        <math display="block">
+          <msub><mi>m</mi><mi>t</mi></msub><mo>=</mo><mi>B</mi><mo>·</mo>
+          <msub><mi>C</mi><mi>m</mi></msub><mo>(</mo><msub><mi>d</mi><mi>t</mi></msub><mo>/</mo><mi>L</mi><mo>)</mo>
+        </math>
+        <math display="block">
+          <msub><mi>g</mi><mi>t</mi></msub><mo>=</mo><mn>1</mn><mo>+</mo><mi>A</mi><mo>·</mo>
+          <msub><mi>C</mi><mi>g</mi></msub><mo>(</mo><msub><mi>d</mi><mi>t</mi></msub><mo>/</mo><mi>L</mi><mo>)</mo>
+          <mo>+</mo><msub><mi>ε</mi><mi>t</mi></msub><mo>,</mo><mspace width="0.8em"/>
+          <msub><mi>ε</mi><mi>t</mi></msub><mo>∼</mo><mi>𝒩</mi><mo>(</mo><mn>0</mn><mo>,</mo>
+          <msubsup><mi>σ</mi><mi>ε</mi><mn>2</mn></msubsup><mo>)</mo>
+        </math>
+        <math display="block">
+          <mi>L</mi><mo>∼</mo><mi>𝒩</mi><mo>(</mo><mover><mi>L</mi><mo>‾</mo></mover><mo>,</mo>
+          <msubsup><mi>σ</mi><mi>L</mi><mn>2</mn></msubsup><mo>)</mo>
+          <mspace width="0.6em"/><mtext>truncated at</mtext><mspace width="0.4em"/><mn>1</mn>
+        </math>
+        <p class="where">
+          <span class="v">𝒩<span class="pop"><b>𝒩(m, s²)</b>Normal distribution with mean m and
+          variance s². Here truncated at 1 for the cycle length.</span></span> normal ·
+          <b>C<sub>m</sub></b>, <b>C<sub>g</sub></b> are C¹ periodic curves built by
+          <span class="v">raised-cosine<span class="pop"><b>raised-cosine interpolation</b>Between two
+          anchors, weight w = ½[1 − cos(πα)] for α ∈ [0,1]. Continuous in value and first derivative
+          at every anchor, so the curve has no kinks.</span></span> interpolation between five
+          phase-centre anchors · <b>B</b>, <b>A</b> amplitudes ·
+          <b>ε<sub>t</sub></b> daily gain noise · <b>d<sub>t</sub></b> cycle day, advancing by 1 per
+          day and wrapping at <b>L</b>, which is then redrawn.
+        </p>
+      </div>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title">One cycle: both curves</p>
+        <canvas id="c-cycle" height="245"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i><math><msub><mi>m</mi><mi>t</mi></msub></math> level offset</span>
+          <span><i style="background:var(--s2)"></i><math><msub><mi>g</mi><mi>t</mi></msub><mo>−</mo><mn>1</mn></math> gain deviation</span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-cycle"></p>
+        <p class="side-note">
+          <math><msub><mi>m</mi><mi>t</mi></msub></math> is additive on the logit argument;
+          <math><msub><mi>g</mi><mi>t</mi></msub></math> multiplies
+          <math><mo>(</mo><msub><mi>μ</mi><mi>t</mi></msub><mo>+</mo><msub><mi>η</mi><mi>t</mi></msub><mo>)</mo></math>
+          only. The anchors place the two extrema at different cycle days, so peak level and peak
+          sensitivity do not coincide.
+        </p>
+        <div class="grp">amplitudes</div>
+        <div class="ctl">
+          <label for="s-B"><span class="v">B<span class="pop"><b>B</b>Level amplitude. Outputs the
+            scale of <math><msub><mi>m</mi><mi>t</mi></msub></math>, which spans roughly ±B. At B = 0
+            the cycle contributes nothing to the mood level.<i>PersonaParams.B · default 0.50</i></span></span>
+            level amplitude <span class="rv" id="v-B"></span></label>
+          <input type="range" id="s-B" min="0" max="1.2" step="0.05" value="0.5">
+        </div>
+        <div class="ctl">
+          <label for="s-A"><span class="v">A<span class="pop"><b>A</b>Gain amplitude. Outputs the
+            scale of the deviation of <math><msub><mi>g</mi><mi>t</mi></msub></math> from 1. Because
+            g multiplies μ + η, its effect compounds with the memory and drift terms.<i>PersonaParams.A · default 0.25</i></span></span>
+            gain amplitude <span class="rv" id="v-A"></span></label>
+          <input type="range" id="s-A" min="0" max="0.8" step="0.05" value="0.25">
+        </div>
+        <div class="grp">noise and period</div>
+        <div class="ctl">
+          <label for="s-sigeps"><span class="v">σ<sub>ε</sub><span class="pop"><b>sigma_eps</b>
+            Standard deviation of the daily gain noise <math><msub><mi>ε</mi><mi>t</mi></msub></math>.
+            Outputs a non-negative real. Adds day-to-day jitter to the gain without changing its
+            periodic shape.<i>PersonaParams.sigma_eps · default 0.03</i></span></span>
+            gain noise <span class="rv" id="v-sigeps"></span></label>
+          <input type="range" id="s-sigeps" min="0" max="0.3" step="0.01" value="0.03">
+        </div>
+        <div class="ctl">
+          <label for="s-Lmean"><span class="v">L̄<span class="pop"><b>L_mean</b>Mean cycle length in
+            days. Outputs a positive real. The realised length L is redrawn from a truncated normal at
+            each wrap, so the period is not exactly fixed.<i>PersonaParams.L_mean · default 28</i></span></span>
+            mean period <span class="rv" id="v-Lmean"></span></label>
+          <input type="range" id="s-Lmean" min="20" max="36" step="0.5" value="28">
+        </div>
+        <div class="ctl">
+          <label for="s-Lsd"><span class="v">σ<sub>L</sub><span class="pop"><b>L_sd</b>Standard
+            deviation of the cycle length. Outputs a non-negative real. Larger values de-synchronise
+            the rhythm over long horizons.<i>PersonaParams.L_sd · default 1.5</i></span></span>
+            period sd <span class="rv" id="v-Lsd"></span></label>
+          <input type="range" id="s-Lsd" min="0" max="5" step="0.1" value="1.5">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">consequence <span class="pill live">in use</span></p>
+      <h3>Mood distribution by cycle day</h3>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title">E[<math><mi>M</mi></math>] and interquartile range by <math><msub><mi>d</mi><mi>t</mi></msub></math>, 3000 draws per day</p>
+        <canvas id="c-phase" height="240"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i>mean</span>
+          <span><i style="background:var(--s3)"></i>IQR</span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-phase"></p>
+        <div class="note warn" style="margin:0">
+          <span class="tag">Provenance of the anchors</span>
+          <p style="font-size:14.5px">
+            The five anchor values are product parameters chosen by the team, not estimates from data.
+            The phase-contrast experiment verifies that the implementation reproduces them; it does not
+            test them against measurements of people. The cited literature reports small effects with
+            wide between-person variation.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== MEMORY ==================== -->
+<section class="panel" id="tab-memory">
+  <h2>Memory and drift</h2>
+  <p class="lede">
+    Two <span class="v">AR(1)<span class="pop"><b>first-order autoregressive process</b>x<sub>t+1</sub> = ρx<sub>t</sub> + input + noise. Each step keeps a fraction ρ of the previous value, so shocks decay geometrically with half-life ln½/lnρ.</span></span> processes on the deviation terms. <math><msub><mi>μ</mi><mi>t</mi></msub></math> is
+    driven by the daily score; <math><msub><mi>η</mi><mi>t</mi></msub></math> is driven by noise only.
+  </p>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">definition <span class="pill live">in use</span></p>
+      <h3>Event memory <math><msub><mi>μ</mi><mi>t</mi></msub></math></h3>
+      <div class="eq">
+        <math display="block">
+          <msub><mi>μ</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo>
+          <mi>ρ</mi><msub><mi>μ</mi><mi>t</mi></msub><mo>+</mo>
+          <mi>k</mi><mo>(</mo><msub><mi>s</mi><mi>t</mi></msub><mo>−</mo><msub><mi>s</mi><mn>0</mn></msub><mo>)</mo>
+        </math>
+        <math display="block">
+          <munder><mi>lim</mi><mrow><mi>t</mi><mo>→</mo><mi>∞</mi></mrow></munder>
+          <msub><mi>μ</mi><mi>t</mi></msub><mo>=</mo>
+          <mfrac><mrow><mi>k</mi><mo>(</mo><mi>s</mi><mo>−</mo><msub><mi>s</mi><mn>0</mn></msub><mo>)</mo></mrow>
+                 <mrow><mn>1</mn><mo>−</mo><mi>ρ</mi></mrow></mfrac>
+          <mspace width="1.4em"/>
+          <msub><mi>t</mi><mrow><mn>1</mn><mo>/</mo><mn>2</mn></mrow></msub><mo>=</mo>
+          <mfrac><mrow><mi>ln</mi><mo>(</mo><mn>1</mn><mo>/</mo><mn>2</mn><mo>)</mo></mrow>
+                 <mrow><mi>ln</mi><mi>ρ</mi></mrow></mfrac>
+        </math>
+        <p class="where">
+          <b>ρ</b> daily retention · <b>k</b> score gain · <b>s<sub>t</sub></b> the day's score ·
+          <b>s<sub>0</sub></b> neutral score. Stability of the judge→μ loop requires
+          <math><mi>k</mi><mo>&lt;</mo><mn>2</mn><mo>(</mo><mn>1</mn><mo>−</mo><mi>ρ</mi><mo>)</mo><mo>/</mo><msub><mi>g</mi><mi>max</mi></msub></math>.
+        </p>
+      </div>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title">Step response: <math><mi>s</mi><mo>=</mo><mo>+</mo><mn>0.9</mn></math> for 30 days, then <math><mo>−</mo><mn>0.9</mn></math>, then 0</p>
+        <canvas id="c-mu" height="250"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i><math><msub><mi>μ</mi><mi>t</mi></msub></math></span>
+          <span><i style="background:var(--s2)"></i><math><msub><mi>M</mi><mi>t</mi></msub></math>, rescaled</span>
+          <span><i style="background:var(--s6);opacity:.5"></i>treatment blocks</span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-mu"></p>
+        <div class="ctl">
+          <label for="s-rho"><span class="v">ρ<span class="pop"><b>rho</b>Daily retention of event
+            memory. Outputs a value in [0,1). Sets both the saturation level and the half-life; higher
+            ρ means older days persist longer.<i>PersonaParams.rho · default 0.85</i></span></span>
+            retention <span class="rv" id="v-rho"></span></label>
+          <input type="range" id="s-rho" min="0.4" max="0.97" step="0.01" value="0.85">
+        </div>
+        <div class="ctl">
+          <label for="s-k"><span class="v">k<span class="pop"><b>k</b>Score gain. Outputs the
+            per-day increment applied to μ per unit of score deviation. Together with ρ it fixes the
+            saturation level k/(1−ρ).<i>PersonaParams.k · default 0.18</i></span></span>
+            score gain <span class="rv" id="v-k"></span></label>
+          <input type="range" id="s-k" min="0.02" max="0.5" step="0.01" value="0.18">
+        </div>
+        <div class="ctl">
+          <label for="s-s0"><span class="v">s<sub>0</sub><span class="pop"><b>score_neutral</b>
+            Neutral score. Outputs the score value that leaves μ unchanged. Scores above it push μ up,
+            below it push μ down.<i>PersonaParams.score_neutral · default 0.0</i></span></span>
+            neutral score <span class="rv" id="v-s0"></span></label>
+          <input type="range" id="s-s0" min="-0.5" max="0.5" step="0.05" value="0">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">definition <span class="pill live">in use</span></p>
+      <h3>Endogenous drift <math><msub><mi>η</mi><mi>t</mi></msub></math></h3>
+      <div class="eq">
+        <math display="block">
+          <msub><mi>η</mi><mrow><mi>t</mi><mo>+</mo><mn>1</mn></mrow></msub><mo>=</mo>
+          <msub><mi>ρ</mi><mi>e</mi></msub><msub><mi>η</mi><mi>t</mi></msub><mo>+</mo>
+          <msubsup><mi>ε</mi><mi>t</mi><mi>η</mi></msubsup><mo>,</mo><mspace width="0.8em"/>
+          <msubsup><mi>ε</mi><mi>t</mi><mi>η</mi></msubsup><mo>∼</mo>
+          <mi>𝒩</mi><mo>(</mo><mn>0</mn><mo>,</mo><msubsup><mi>σ</mi><mi>e</mi><mn>2</mn></msubsup><mo>)</mo>
+        </math>
+        <math display="block">
+          <mi>sd</mi><mo>(</mo><msub><mi>η</mi><mi>∞</mi></msub><mo>)</mo><mo>=</mo>
+          <mfrac><msub><mi>σ</mi><mi>e</mi></msub>
+            <msqrt><mn>1</mn><mo>−</mo><msubsup><mi>ρ</mi><mi>e</mi><mn>2</mn></msubsup></msqrt></mfrac>
+        </math>
+        <p class="where">
+          <b>ρ<sub>e</sub></b> autocorrelation · <b>σ<sub>e</sub></b> innovation sd ·
+          <b>ε<sup>η</sup><sub>t</sub></b> the innovation draw. Mean zero, so this term shifts no
+          long-run average; it contributes serially correlated variance only.
+        </p>
+      </div>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title">Six independent realisations, 120 days</p>
+        <canvas id="c-eta" height="240"></canvas>
+        <div class="legend"><span><i style="background:var(--s6)"></i>±sd(<math><msub><mi>η</mi><mi>∞</mi></msub></math>)</span></div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-eta"></p>
+        <div class="ctl">
+          <label for="s-rhoe"><span class="v">ρ<sub>e</sub><span class="pop"><b>rho_e</b>
+            Autocorrelation of the drift. Outputs a value in [0,1). At 0 successive days are
+            independent; near 1 the process holds an excursion for many days.<i>PersonaParams.rho_e · default 0.70</i></span></span>
+            autocorrelation <span class="rv" id="v-rhoe"></span></label>
+          <input type="range" id="s-rhoe" min="0" max="0.95" step="0.01" value="0.70">
+        </div>
+        <div class="ctl">
+          <label for="s-sige"><span class="v">σ<sub>e</sub><span class="pop"><b>sigma_e</b>
+            Innovation standard deviation. Outputs a non-negative real. Scales the stationary spread,
+            which is σ<sub>e</sub>/√(1−ρ<sub>e</sub>²).<i>PersonaParams.sigma_e · default 0.45</i></span></span>
+            innovation sd <span class="rv" id="v-sige"></span></label>
+          <input type="range" id="s-sige" min="0.05" max="1.2" step="0.05" value="0.45">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== CIRCADIAN ==================== -->
+<section class="panel" id="tab-day">
+  <h2>Circadian terms</h2>
+  <p class="lede">
+    Deterministic functions of the hour. <math><mi>E</mi><mo>(</mo><mi>h</mi><mo>)</mo></math> drives
+    four behavioural channels; <math><mi>W</mi><mo>(</mo><mi>h</mi><mo>)</mo></math> multiplies the
+    contact hazard.
+  </p>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">definition <span class="pill live">in use</span></p>
+      <h3>Energy <math><mi>E</mi><mo>(</mo><mi>h</mi><mo>)</mo></math></h3>
+      <div class="eq">
+        <math display="block">
+          <mi>E</mi><mo>(</mo><mi>h</mi><mo>)</mo><mo>=</mo>
+          <mi>clip</mi><mo>[</mo><msub><mi>E</mi><mn>0</mn></msub><mo>+</mo>
+          <msub><mi>a</mi><mi>φ</mi></msub><msub><mi>A</mi><mi>d</mi></msub>
+          <mi>cos</mi><mo>(</mo><mfrac><mrow><mn>2</mn><mi>π</mi><mo>(</mo><mi>h</mi><mo>−</mo><msup><mi>h</mi><mo>*</mo></msup><mo>)</mo></mrow><mn>24</mn></mfrac><mo>)</mo>
+          <mo>+</mo><msub><mi>o</mi><mi>φ</mi></msub><mo>,</mo><mn>0</mn><mo>,</mo><mn>1</mn><mo>]</mo>
+        </math>
+        <p class="where">
+          <span class="v">clip<span class="pop"><b>clip[x, a, b]</b>min(b, max(a, x)). Bounds the
+          value to the interval; here it keeps E within [0,1] whatever the terms sum to.</span></span> ·
+          <b>E<sub>0</sub></b> base level 0.6 · <b>A<sub>d</sub></b> diurnal amplitude ·
+          <b>h*</b> peak hour · <b>a<sub>φ</sub></b>, <b>o<sub>φ</sub></b> phase-dependent amplitude
+          multiplier and level offset, so the cycle changes both the height and the depth of the
+          modulation.
+        </p>
+      </div>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title"><math><mi>E</mi><mo>(</mo><mi>h</mi><mo>)</mo></math> over 24 h at three phases</p>
+        <canvas id="c-energy" height="230"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i>ovulatory</span>
+          <span><i style="background:var(--s4)"></i>follicular</span>
+          <span><i style="background:var(--s3)"></i>menstrual</span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-energy"></p>
+        <div class="ctl">
+          <label for="s-peak"><span class="v">h*<span class="pop"><b>peak_hour</b>Peak hour of the
+            circadian cosine. Outputs an hour in [0,24). Shifts the maximum of E and of the valence
+            term. Currently identical for every companion.<i>TimingParams.peak_hour · default 14.0</i></span></span>
+            peak hour <span class="rv" id="v-peak"></span></label>
+          <input type="range" id="s-peak" min="6" max="23" step="0.5" value="14">
+        </div>
+        <div class="ctl">
+          <label for="s-amp"><span class="v">A<sub>d</sub><span class="pop"><b>diurnal_amp</b>
+            Diurnal amplitude. Outputs a non-negative real. Scales the cosine for both energy and the
+            valence shift. At 0 the hour of day has no effect.<i>TimingParams.diurnal_amp · default 0.25</i></span></span>
+            diurnal amplitude <span class="rv" id="v-amp"></span></label>
+          <input type="range" id="s-amp" min="0" max="0.4" step="0.01" value="0.25">
+        </div>
+        <div class="ctl">
+          <label for="s-E0"><span class="v">E<sub>0</sub><span class="pop"><b>ENERGY_BASE</b>
+            Base energy level before the cosine and the phase offset. Outputs a value in [0,1] after
+            clipping.<i>engine/circadian.py · default 0.60</i></span></span>
+            base level <span class="rv" id="v-E0"></span></label>
+          <input type="range" id="s-E0" min="0.3" max="0.9" step="0.02" value="0.60">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">definition <span class="pill live">in use</span></p>
+      <h3>Quiet-hours envelope <math><mi>W</mi><mo>(</mo><mi>h</mi><mo>)</mo></math></h3>
+      <p class="fn-what">
+        Exactly 0 inside the quiet window, 1 outside it, with a raised-cosine ramp of width
+        <math><mi>r</mi></math> at each edge. Multiplies the hazard, so no event can be scheduled
+        inside the window.
+      </p>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title"><math><mi>W</mi><mo>(</mo><mi>h</mi><mo>)</mo></math> over 24 h</p>
+        <canvas id="c-env" height="200"></canvas>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-env"></p>
+        <div class="ctl">
+          <label for="s-q0"><span class="v">q<sub>start</sub><span class="pop"><b>quiet_hours[0]</b>
+            Start of the quiet window, local hour. Outputs an hour in [0,24). If start &gt; end the
+            window crosses midnight, which is the default case.<i>TimingParams.quiet_hours · default 23.0</i></span></span>
+            quiet start <span class="rv" id="v-q0"></span></label>
+          <input type="range" id="s-q0" min="18" max="24" step="0.5" value="23">
+        </div>
+        <div class="ctl">
+          <label for="s-q1"><span class="v">q<sub>end</sub><span class="pop"><b>quiet_hours[1]</b>
+            End of the quiet window, local hour. Outputs an hour in [0,24).<i>TimingParams.quiet_hours · default 8.0</i></span></span>
+            quiet end <span class="rv" id="v-q1"></span></label>
+          <input type="range" id="s-q1" min="4" max="12" step="0.5" value="8">
+        </div>
+        <div class="ctl">
+          <label for="s-ramp"><span class="v">r<span class="pop"><b>ENVELOPE_RAMP_H</b>Ramp width in
+            hours. Outputs a non-negative real. A raised cosine over this width at each edge keeps W
+            continuous. At r = 0 the envelope is a step, which concentrates events at the boundary
+            hour.<i>engine/circadian.py · default 1.0</i></span></span>
+            ramp width <span class="rv" id="v-ramp"></span></label>
+          <input type="range" id="s-ramp" min="0" max="3" step="0.25" value="1">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== TIMING ==================== -->
+<section class="panel" id="tab-timing">
+  <h2>Contact timing</h2>
+  <p class="lede">
+    A modulated Weibull renewal process. The baseline hazard depends on elapsed time since the last
+    interaction; four multiplicative factors modulate it.
+  </p>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">definition <span class="pill live">in use</span></p>
+      <h3>Modulated hazard</h3>
+      <div class="eq">
+        <math display="block">
+          <msub><mi>h</mi><mn>0</mn></msub><mo>(</mo><mi>τ</mi><mo>)</mo><mo>=</mo>
+          <mfrac><msub><mi>k</mi><mi>w</mi></msub><mi>θ</mi></mfrac>
+          <msup><mrow><mo>(</mo><mfrac><mi>τ</mi><mi>θ</mi></mfrac><mo>)</mo></mrow>
+                <mrow><msub><mi>k</mi><mi>w</mi></msub><mo>−</mo><mn>1</mn></mrow></msup>
+        </math>
+        <math display="block">
+          <mi>λ</mi><mo>(</mo><mi>τ</mi><mo>,</mo><mi>t</mi><mo>)</mo><mo>=</mo>
+          <msub><mi>h</mi><mn>0</mn></msub><mo>(</mo><mi>τ</mi><mo>)</mo>
+          <mo>·</mo><mi>W</mi><mo>(</mo><mi>t</mi><mo>)</mo>
+          <mo>·</mo><msub><mi>P</mi><mi>φ</mi></msub>
+          <mo>·</mo><mi>A</mi><mo>(</mo><msub><mi>s</mi><mrow><mi>d</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>)</mo>
+          <mo>·</mo><msub><mi>S</mi><mi>d</mi></msub>
+        </math>
+        <p class="where">
+          <b>τ</b> hours since the last interaction · <b>k<sub>w</sub></b> shape ·
+          <b>θ</b> scale · <b>W</b> quiet-hours envelope · <b>P<sub>φ</sub></b> phase rate multiplier ·
+          <b>A</b> previous-day score adjustment · <b>S<sub>d</sub></b> latent-state factor.
+          <math><msub><mi>k</mi><mi>w</mi></msub><mo>&gt;</mo><mn>1</mn></math> gives a hazard
+          increasing in <math><mi>τ</mi></math>; <math><msub><mi>k</mi><mi>w</mi></msub><mo>=</mo><mn>1</mn></math>
+          is the exponential case. Unmodulated mean inter-event time
+          <math><mi>θ</mi><mi>Γ</mi><mo>(</mo><mn>1</mn><mo>+</mo><mn>1</mn><mo>/</mo><msub><mi>k</mi><mi>w</mi></msub><mo>)</mo></math>,
+          with <span class="v">Γ<span class="pop"><b>gamma function</b>Γ(z) = ∫₀<sup>∞</sup>
+          t<sup>z−1</sup>e<sup>−t</sup> dt. Extends the factorial: Γ(n) = (n−1)! for integer n.
+          Appears here in the Weibull mean.</span></span>.
+          Events are drawn by <span class="v">thinning<span class="pop"><b>thinning</b>Sample from a
+          dominating constant-rate process, then accept each candidate with probability
+          λ(candidate)/λ*. Produces exact draws from a time-varying rate without inverting its
+          integral.</span></span>.
+        </p>
+      </div>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title"><math><msub><mi>h</mi><mn>0</mn></msub><mo>(</mo><mi>τ</mi><mo>)</mo></math> against elapsed hours</p>
+        <canvas id="c-haz" height="235"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i>current <math><msub><mi>k</mi><mi>w</mi></msub></math></span>
+          <span><i style="background:var(--s6);opacity:.8"></i><math><msub><mi>k</mi><mi>w</mi></msub><mo>=</mo><mn>1</mn></math></span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-haz"></p>
+        <div class="grp">renewal parameters</div>
+        <div class="ctl">
+          <label for="s-kw"><span class="v">k<sub>w</sub><span class="pop"><b>k_w</b>Weibull shape.
+            Outputs a positive real. Above 1 the hazard increases with elapsed time; at 1 it is
+            constant. Sets how strongly accumulated silence raises the instantaneous rate.<i>TimingParams.k_w · default 2.0</i></span></span>
+            shape <span class="rv" id="v-kw"></span></label>
+          <input type="range" id="s-kw" min="1" max="4" step="0.1" value="2">
+        </div>
+        <div class="ctl">
+          <label for="s-th"><span class="v">θ<span class="pop"><b>theta_h</b>Weibull scale in hours.
+            Outputs a positive real. The mean inter-event time is θ·Γ(1+1/k<sub>w</sub>) before any
+            modulation.<i>TimingParams.theta_h · default 13.5</i></span></span>
+            scale <span class="rv" id="v-th"></span></label>
+          <input type="range" id="s-th" min="4" max="30" step="0.5" value="13.5">
+        </div>
+        <div class="grp">tail guards</div>
+        <div class="ctl">
+          <label for="s-mingap"><span class="v">g<sub>min</sub><span class="pop"><b>min_gap_min</b>
+            Minimum gap in minutes. Outputs a non-negative real. Events closer than this to the
+            previous one are suppressed.<i>TimingParams.min_gap_min · default 15</i></span></span>
+            min gap <span class="rv" id="v-mingap"></span></label>
+          <input type="range" id="s-mingap" min="0" max="120" step="5" value="15">
+        </div>
+        <div class="ctl">
+          <label for="s-cap"><span class="v">n<sub>max</sub><span class="pop"><b>daily_cap</b>
+            Maximum proactive events per day. Outputs an integer. Once reached, no further events fire
+            that day.<i>TimingParams.daily_cap · default 3</i></span></span>
+            daily cap <span class="rv" id="v-cap"></span></label>
+          <input type="range" id="s-cap" min="1" max="10" step="1" value="3">
+        </div>
+        <div class="ctl">
+          <label for="s-maxgap"><span class="v">τ<sub>max</sub><span class="pop"><b>max_gap_h</b>
+            Maximum silence in hours. Outputs a positive real. On reaching it an event fires
+            regardless of the hazard.<i>TimingParams.max_gap_h · default 48</i></span></span>
+            max silence <span class="rv" id="v-maxgap"></span></label>
+          <input type="range" id="s-maxgap" min="12" max="120" step="4" value="48">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">realisation <span class="pill live">in use</span></p>
+      <h3>Inter-event distribution</h3>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title">Realised gaps under the full process, 30-day runs × 40 seeds</p>
+        <canvas id="c-gaps" height="235"></canvas>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-gaps"></p>
+        <p class="side-note">
+          Drawn by thinning against the modulated hazard with all four guards applied, so the shape
+          includes the truncation they impose.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">realisation <span class="pill live">in use</span></p>
+      <h3><math><mi>λ</mi><mo>(</mo><mi>τ</mi><mo>,</mo><mi>t</mi><mo>)</mo></math> over one week</h3>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title">Instantaneous rate and realised events, 168 h</p>
+        <canvas id="c-week" height="235"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i><math><mi>λ</mi><mo>(</mo><mi>τ</mi><mo>,</mo><mi>t</mi><mo>)</mo></math></span>
+          <span><i style="background:var(--s3)"></i>event</span>
+          <span><i style="background:var(--s6);opacity:.4"></i><math><mi>W</mi><mo>=</mo><mn>0</mn></math></span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-week"></p>
+        <p class="side-note">
+          The sawtooth is <math><mi>τ</mi></math> resetting at each event. Flat zero segments are the
+          quiet window. The envelope of the peaks tracks
+          <math><msub><mi>P</mi><mi>φ</mi></msub></math> and
+          <math><msub><mi>S</mi><mi>d</mi></msub></math> across the week.
+        </p>
+        <div class="ctl">
+          <label for="s-wseed">seed <span class="rv" id="v-wseed"></span></label>
+          <input type="range" id="s-wseed" min="1" max="30" step="1" value="1">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== VARIANTS ==================== -->
+<section class="panel" id="tab-variants">
+  <h2>Proposed variants</h2>
+  <p class="lede">Three alternatives to the frozen model. None implemented.</p>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">variant <span class="pill prop">not implemented</span></p>
+      <h3>Lognormal renewal</h3>
+      <p class="fn-what">
+        The Weibull hazard with <math><msub><mi>k</mi><mi>w</mi></msub><mo>&gt;</mo><mn>1</mn></math>
+        is monotone increasing and unbounded in <math><mi>τ</mi></math>. The lognormal hazard rises to
+        a maximum and then decreases.
+      </p>
+      <div class="eq">
+        <math display="block">
+          <mi>h</mi><mo>(</mo><mi>τ</mi><mo>)</mo><mo>=</mo>
+          <mfrac>
+            <mrow><mi>φ</mi><mo>(</mo><mi>z</mi><mo>)</mo></mrow>
+            <mrow><mi>τ</mi><msub><mi>σ</mi><mi>ln</mi></msub>
+              <mo>[</mo><mn>1</mn><mo>−</mo><mi>Φ</mi><mo>(</mo><mi>z</mi><mo>)</mo><mo>]</mo></mrow>
+          </mfrac>
+          <mo>,</mo><mspace width="1em"/>
+          <mi>z</mi><mo>=</mo>
+          <mfrac><mrow><mi>ln</mi><mi>τ</mi><mo>−</mo><msub><mi>μ</mi><mi>ln</mi></msub></mrow>
+                 <msub><mi>σ</mi><mi>ln</mi></msub></mfrac>
+        </math>
+        <p class="where">
+          <span class="v">φ<span class="pop"><b>standard normal density</b>φ(z) = e<sup>−z²/2</sup> /
+          √(2π). The bell curve with mean 0 and variance 1.</span></span> and
+          <span class="v">Φ<span class="pop"><b>standard normal CDF</b>Φ(z) = ∫<sub>−∞</sub><sup>z</sup>
+          φ(u) du. Probability that a standard normal is below z. 1 − Φ(z) is the survival function,
+          which is the denominator of the hazard.</span></span> ·
+          <b>μ<sub>ln</sub></b> set so the median matches the current θ ·
+          <b>σ<sub>ln</sub></b> shape. Empirical inter-event times in human messaging are reported as
+          heavy-tailed with burstiness persisting after removing daily and weekly periodicity.
+        </p>
+      </div>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title">Both hazards over 96 h</p>
+        <canvas id="c-cmp" height="245"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s1)"></i>Weibull, current</span>
+          <span><i style="background:var(--s2)"></i>lognormal, proposed</span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-cmp"></p>
+        <div class="ctl">
+          <label for="s-lnsig"><span class="v">σ<sub>ln</sub><span class="pop"><b>sigma_ln</b>
+            Lognormal shape. Outputs a positive real. Larger values move the hazard maximum earlier
+            and thicken the tail, raising the proportion of both very short and very long gaps.<i>proposed · not in the codebase</i></span></span>
+            shape <span class="rv" id="v-lnsig"></span></label>
+          <input type="range" id="s-lnsig" min="0.3" max="1.6" step="0.05" value="0.9">
+        </div>
+        <div class="note" style="margin:12px 0 0">
+          <span class="tag">Frozen</span>
+          <p style="font-size:14.5px">
+            Not being changed during the current measurement round, so that a single variable
+            distinguishes the runs.
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">variant <span class="pill prop">not implemented</span></p>
+      <h3>Per-companion cycle coefficients</h3>
+      <p class="fn-what">
+        <math><msub><mi>C</mi><mi>m</mi></msub></math> and <math><msub><mi>C</mi><mi>g</mi></msub></math>
+        are currently identical for every companion. The variant draws a per-companion scale
+        <math><msub><mi>c</mi><mi>i</mi></msub><mo>∼</mo><mi>𝒩</mi><mo>(</mo><mn>1</mn><mo>,</mo><msubsup><mi>σ</mi><mi>c</mi><mn>2</mn></msubsup><mo>)</mo></math>,
+        so the population mean shape is preserved while individuals differ in magnitude and sign.
+      </p>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title">Eight draws of <math><msub><mi>c</mi><mi>i</mi></msub><msub><mi>m</mi><mi>t</mi></msub></math></p>
+        <canvas id="c-pheno" height="245"></canvas>
+        <div class="legend"><span><i style="background:#5B5470"></i>population mean</span></div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-pheno"></p>
+        <div class="ctl">
+          <label for="s-spread"><span class="v">σ<sub>c</sub><span class="pop"><b>sigma_c</b>
+            Between-companion sd of the cycle coefficient. Outputs a non-negative real. At 0 every
+            companion is identical, which is the current behaviour. Above about 1 a proportion of
+            companions have inverted curves.<i>proposed · not in the codebase</i></span></span>
+            between-companion sd <span class="rv" id="v-spread"></span></label>
+          <input type="range" id="s-spread" min="0" max="1.4" step="0.05" value="0.7">
+        </div>
+        <button class="btn" id="b-pheno">Redraw</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="fn">
+    <div class="fn-head">
+      <p class="kicker">open question <span class="pill prop">unexplained</span></p>
+      <h3>State factor <math><msub><mi>S</mi><mi>d</mi></msub></math> and the measured effect</h3>
+      <div class="eq">
+        <math display="block">
+          <msub><mi>S</mi><mi>d</mi></msub><mo>=</mo>
+          <mi>clip</mi><mo>[</mo>
+          <mi>exp</mi><mo>(</mo><munderover><mo>∑</mo><mrow><mi>i</mi><mo>=</mo><mn>1</mn></mrow><mn>4</mn></munderover>
+          <msub><mi>w</mi><mi>i</mi></msub><mo>(</mo><msub><mi>x</mi><mrow><mi>d</mi><mo>,</mo><mi>i</mi></mrow></msub>
+          <mo>−</mo><msub><mi>x</mi><mrow><mn>0</mn><mo>,</mo><mi>i</mi></mrow></msub><mo>)</mo><mo>)</mo>
+          <mo>,</mo><mn>0.5</mn><mo>,</mo><mn>2</mn><mo>]</mo>
+        </math>
+        <p class="where">
+          <b>x<sub>d</sub></b> = (energy, initiative, valence, reactivity) ·
+          <b>x<sub>0</sub></b> = (0.5, 0.5, 0, 0.5) ·
+          <b>w</b> = (1.0, 1.6, 0.7, 0.9). Under the ablation that flattens the state,
+          <math><msub><mi>x</mi><mi>d</mi></msub><mo>=</mo><msub><mi>x</mi><mn>0</mn></msub></math>
+          and <math><msub><mi>S</mi><mi>d</mi></msub><mo>=</mo><mn>1</mn></math> exactly.
+        </p>
+      </div>
+    </div>
+    <div class="fn-grid">
+      <div class="fn-plot">
+        <p class="plot-title"><math><msub><mi>S</mi><mi>d</mi></msub></math> averaged over a month, against <math><mi>μ</mi></math></p>
+        <canvas id="c-coupling" height="240"></canvas>
+        <div class="legend">
+          <span><i style="background:var(--s6)"></i>weights as built</span>
+          <span><i style="background:var(--s1)"></i>weights scaled</span>
+        </div>
+      </div>
+      <div class="fn-side">
+        <p class="readout" id="r-coupling"></p>
+        <p class="side-note">
+          Across the saturation range of <math><mi>μ</mi></math> the monthly mean of
+          <math><msub><mi>S</mi><mi>d</mi></msub></math> varies by about 70%. The measured difference
+          in realised event count between the state-on and state-off conditions is 1.35% over five
+          seeds.
+        </p>
+        <p class="side-note">
+          One candidate explanation was tested and rejected: with the tail guards removed, a rate
+          multiplier of 1.5 still produces about 21% more events, so the guards are not absorbing the
+          difference. The location of the loss is not established.
+        </p>
+        <div class="ctl">
+          <label for="s-w">weight scale on <math><mi>w</mi></math> <span class="rv" id="v-w"></span></label>
+          <input type="range" id="s-w" min="1" max="8" step="0.25" value="1">
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ==================== APPENDIX ==================== -->
+<section class="panel" data-active="true" id="tab-appendix">
+  <h2>Appendix</h2>
+  <p class="lede">
+    Every symbol used above, its output, its frozen default, and where it is defined.
+  </p>
+
+  <h3>Random variables</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Symbol</th><th>Name</th><th>Distribution / output</th><th>Defined in</th></tr></thead>
+    <tbody>
+      <tr><td><math><msub><mi>M</mi><mi>t</mi></msub></math></td><td>daily mood</td><td>Binomial(N, p̃<sub>t</sub>); integer 0…N</td><td><code>engine/mood.py :: step</code></td></tr>
+      <tr><td><math><msub><mover><mi>p</mi><mo>~</mo></mover><mi>t</mi></msub></math></td><td>per-day probability</td><td>Beta(p<sub>t</sub>ν, (1−p<sub>t</sub>)ν); equals p<sub>t</sub> when ν = ∞</td><td><code>engine/mood.py :: step</code></td></tr>
+      <tr><td><math><msub><mi>μ</mi><mi>t</mi></msub></math></td><td>event memory</td><td>AR(1) with score input; real, saturating at k/(1−ρ)</td><td><code>engine/mood.py :: update</code></td></tr>
+      <tr><td><math><msub><mi>η</mi><mi>t</mi></msub></math></td><td>endogenous drift</td><td>AR(1), zero mean; sd σ<sub>e</sub>/√(1−ρ<sub>e</sub>²)</td><td><code>engine/mood.py :: step_endogenous</code></td></tr>
+      <tr><td><math><msub><mi>ε</mi><mi>t</mi></msub></math></td><td>gain noise</td><td>𝒩(0, σ<sub>ε</sub>²)</td><td><code>engine/cycle.py :: step</code></td></tr>
+      <tr><td><math><mi>L</mi></math></td><td>cycle length</td><td>𝒩(L̄, σ<sub>L</sub>²) truncated ≥ 1; redrawn each wrap</td><td><code>engine/cycle.py</code></td></tr>
+      <tr><td><math><mi>τ</mi></math></td><td>inter-event time</td><td>Weibull(k<sub>w</sub>, θ) thinned by the modulator</td><td><code>engine/timing.py :: next_event</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Parameters</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Symbol</th><th>Meaning</th><th>Output</th><th class="num">Default</th><th>Field</th></tr></thead>
+    <tbody>
+      <tr><td><math><mi>λ</mi></math></td><td>temperament</td><td>probability in (0,1); enters as logit(λ)</td><td class="num">0.60</td><td><code>lam</code></td></tr>
+      <tr><td><math><mi>N</mi></math></td><td>mood scale</td><td>integer; bounds M<sub>t</sub></td><td class="num">10</td><td><code>N</code></td></tr>
+      <tr><td><math><mi>ν</mi></math></td><td>beta concentration</td><td>positive real or ∞; dispersion of p̃</td><td class="num">∞</td><td><code>nu</code></td></tr>
+      <tr><td><math><mi>B</mi></math></td><td>level amplitude</td><td>scale of m<sub>t</sub></td><td class="num">0.50</td><td><code>B</code></td></tr>
+      <tr><td><math><mi>A</mi></math></td><td>gain amplitude</td><td>scale of g<sub>t</sub> − 1</td><td class="num">0.25</td><td><code>A</code></td></tr>
+      <tr><td><math><msub><mi>σ</mi><mi>ε</mi></msub></math></td><td>gain noise sd</td><td>non-negative real</td><td class="num">0.03</td><td><code>sigma_eps</code></td></tr>
+      <tr><td><math><mover><mi>L</mi><mo>‾</mo></mover></math></td><td>mean period</td><td>days</td><td class="num">28.0</td><td><code>L_mean</code></td></tr>
+      <tr><td><math><msub><mi>σ</mi><mi>L</mi></msub></math></td><td>period sd</td><td>days</td><td class="num">1.5</td><td><code>L_sd</code></td></tr>
+      <tr><td><math><mi>ρ</mi></math></td><td>memory retention</td><td>[0,1); half-life ln½/lnρ</td><td class="num">0.85</td><td><code>rho</code></td></tr>
+      <tr><td><math><mi>k</mi></math></td><td>score gain</td><td>increment per unit score deviation</td><td class="num">0.18</td><td><code>k</code></td></tr>
+      <tr><td><math><msub><mi>s</mi><mn>0</mn></msub></math></td><td>neutral score</td><td>score leaving μ unchanged</td><td class="num">0.0</td><td><code>score_neutral</code></td></tr>
+      <tr><td><math><msub><mi>ρ</mi><mi>e</mi></msub></math></td><td>drift autocorrelation</td><td>[0,1)</td><td class="num">0.70</td><td><code>rho_e</code></td></tr>
+      <tr><td><math><msub><mi>σ</mi><mi>e</mi></msub></math></td><td>drift innovation sd</td><td>non-negative real</td><td class="num">0.45</td><td><code>sigma_e</code></td></tr>
+      <tr><td><math><msub><mi>E</mi><mn>0</mn></msub></math></td><td>base energy</td><td>level before cosine and offset</td><td class="num">0.60</td><td><code>ENERGY_BASE</code></td></tr>
+      <tr><td><math><msub><mi>A</mi><mi>d</mi></msub></math></td><td>diurnal amplitude</td><td>non-negative real</td><td class="num">0.25</td><td><code>diurnal_amp</code></td></tr>
+      <tr><td><math><msup><mi>h</mi><mo>*</mo></msup></math></td><td>peak hour</td><td>hour in [0,24)</td><td class="num">14.0</td><td><code>peak_hour</code></td></tr>
+      <tr><td><math><mi>r</mi></math></td><td>envelope ramp</td><td>hours</td><td class="num">1.0</td><td><code>ENVELOPE_RAMP_H</code></td></tr>
+      <tr><td><math><msub><mi>k</mi><mi>w</mi></msub></math></td><td>Weibull shape</td><td>positive real; &gt;1 increasing hazard</td><td class="num">2.0</td><td><code>k_w</code></td></tr>
+      <tr><td><math><mi>θ</mi></math></td><td>Weibull scale</td><td>hours</td><td class="num">13.5</td><td><code>theta_h</code></td></tr>
+      <tr><td><math><msub><mi>g</mi><mi>min</mi></msub></math></td><td>minimum gap</td><td>minutes</td><td class="num">15</td><td><code>min_gap_min</code></td></tr>
+      <tr><td><math><msub><mi>n</mi><mi>max</mi></msub></math></td><td>daily cap</td><td>integer events/day</td><td class="num">3</td><td><code>daily_cap</code></td></tr>
+      <tr><td><math><msub><mi>τ</mi><mi>max</mi></msub></math></td><td>maximum silence</td><td>hours</td><td class="num">48</td><td><code>max_gap_h</code></td></tr>
+      <tr><td><math><mi>w</mi></math></td><td>state weights</td><td>4-vector on (E, I, V, R)</td><td class="num">1.0/1.6/0.7/0.9</td><td><code>STATE_WEIGHTS</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Derived channels</h3>
+  <p>
+    Deterministic functions of <math><msub><mi>M</mi><mi>t</mi></msub></math>,
+    <math><mi>E</mi><mo>(</mo><mi>h</mi><mo>)</mo></math> and
+    <math><msub><mi>g</mi><mi>t</mi></msub></math>, defined in <code>harness/behavior.py</code>.
+  </p>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Channel</th><th>Expression</th><th>Range</th><th>Actuator</th></tr></thead>
+    <tbody>
+      <tr><td>valence <math><mi>V</mi></math></td><td><math><mn>2</mn><mo>(</mo><mi>M</mi><mo>/</mo><mi>N</mi><mo>)</mo><mo>−</mo><mn>1</mn></math></td><td>[−1, 1]</td><td>prompt text</td></tr>
+      <tr><td>momentum</td><td><math><mi>clip</mi><mo>[</mo><mn>2</mn><mo>(</mo><msub><mi>M</mi><mi>t</mi></msub><mo>−</mo><msub><mi>M</mi><mrow><mi>t</mi><mo>−</mo><mn>1</mn></mrow></msub><mo>)</mo><mo>/</mo><mi>N</mi><mo>]</mo></math></td><td>[−1, 1]</td><td>feeds others</td></tr>
+      <tr><td>reactivity <math><mi>R</mi></math></td><td><math><mn>0.35</mn><mo>+</mo><mn>0.42</mn><mover><mi>g</mi><mo>^</mo></mover><mo>+</mo><mn>0.20</mn><mo>|</mo><mi>mom</mi><mo>|</mo></math></td><td>[0, 1]</td><td><math><msub><mi>S</mi><mi>d</mi></msub></math></td></tr>
+      <tr><td>length scale</td><td><math><mi>clip</mi><mo>[</mo><mn>0.05</mn><mo>+</mo><mn>0.90</mn><mi>E</mi><mo>+</mo><mn>0.45</mn><mi>X</mi><mo>]</mo></math></td><td>[0.22, 1.30]</td><td>token budget 96–1500</td></tr>
+      <tr><td>delay</td><td><math><mn>0.8</mn><mo>+</mo><mn>38</mn><mo>(</mo><mn>1</mn><mo>−</mo><mi>E</mi><mo>)</mo><mo>+</mo><mn>5</mn><mi>max</mi><mo>(</mo><mo>−</mo><mi>mom</mi><mo>,</mo><mn>0</mn><mo>)</mo></math></td><td>[0, 60] s</td><td>real latency</td></tr>
+      <tr><td>closing</td><td><math><mi>clip</mi><mo>[</mo><mn>0.04</mn><mo>+</mo><mo>(</mo><mn>1</mn><mo>−</mo><mi>E</mi><mo>)</mo><mo>+</mo><mn>0.22</mn><mi>max</mi><mo>(</mo><mo>−</mo><mi>V</mi><mo>,</mo><mn>0</mn><mo>)</mo><mo>]</mo></math></td><td>[0.04, 0.85]</td><td>ends conversations</td></tr>
+      <tr><td>initiative <math><mi>I</mi></math></td><td><math><mn>0.14</mn><mo>+</mo><mn>0.38</mn><mi>E</mi><mo>+</mo><mn>0.16</mn><mi>max</mi><mo>(</mo><mi>V</mi><mo>,</mo><mn>0</mn><mo>)</mo><mo>+</mo><mn>0.08</mn><mi>μ</mi></math></td><td>[0, 1]</td><td><math><mi>exp</mi><mo>[</mo><mn>2</mn><mo>(</mo><mi>I</mi><mo>−</mo><mn>0.5</mn><mo>)</mo><mo>]</mo></math></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <h3>Measured values referenced above</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Quantity</th><th class="num">Value</th><th>Basis</th></tr></thead>
+    <tbody>
+      <tr><td>State-on vs state-off event count</td><td class="num">1.35%</td><td>5 seeds, 30 days, pooled</td></tr>
+      <tr><td>Score-feedback on vs off event count</td><td class="num">14.4%</td><td>same basis</td></tr>
+      <tr><td>Rate ×1.5 with guards on / off</td><td class="num">20.8% / 21.7%</td><td>12 seeds, isolated simulation</td></tr>
+      <tr><td>Monthly mean of <math><msub><mi>S</mi><mi>d</mi></msub></math> across <math><mi>μ</mi></math> range</td><td class="num">≈70%</td><td>this page, current defaults</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* ---------------- numerics ---------------- */
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function normal(rng){var u=0,v=0;while(u===0)u=rng();while(v===0)v=rng();return Math.sqrt(-2*Math.log(u))*Math.cos(2*Math.PI*v);}
+function sigmoid(x){return x>=0?1/(1+Math.exp(-x)):Math.exp(x)/(1+Math.exp(x));}
+function logit(x){return Math.log(x/(1-x));}
+function clip(x,a,b){return Math.max(a,Math.min(b,x));}
+function gammaDraw(rng,k){if(k<1)return gammaDraw(rng,k+1)*Math.pow(rng(),1/k);
+  var d=k-1/3,c=1/Math.sqrt(9*d);
+  for(;;){var x=normal(rng),v=1+c*x;if(v<=0)continue;v=v*v*v;var u=rng();
+    if(u<1-0.0331*x*x*x*x)return d*v;
+    if(Math.log(u)<0.5*x*x+d*(1-v+Math.log(v)))return d*v;}}
+function betaDraw(rng,a,b){var x=gammaDraw(rng,a),y=gammaDraw(rng,b);return x/(x+y);}
+function binomDraw(rng,n,p){var s=0;for(var i=0;i<n;i++)if(rng()<p)s++;return s;}
+function erf(x){var s=x<0?-1:1;x=Math.abs(x);
+  var a1=.254829592,a2=-.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,pp=.3275911;
+  var t=1/(1+pp*x);return s*(1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x));}
+function normPdf(x){return Math.exp(-x*x/2)/Math.sqrt(2*Math.PI);}
+function normCdf(x){return .5*(1+erf(x/Math.SQRT2));}
+function gammaFn(z){ // Lanczos
+  var g=[676.5203681218851,-1259.1392167224028,771.32342877765313,-176.61502916214059,
+         12.507343278686905,-0.13857109526572012,9.9843695780195716e-6,1.5056327351493116e-7];
+  if(z<0.5)return Math.PI/(Math.sin(Math.PI*z)*gammaFn(1-z));
+  z-=1;var x=0.99999999999980993;
+  for(var i=0;i<8;i++)x+=g[i]/(z+i+1);
+  var t=z+7.5;
+  return Math.sqrt(2*Math.PI)*Math.pow(t,z+0.5)*Math.exp(-t)*x;}
+
+/* ---------------- engine constants ---------------- */
+var PH=[["menstrual",0,5/28],["follicular",5/28,12/28],["ovulatory",12/28,16/28],
+        ["luteal_early",16/28,23/28],["luteal_late",23/28,1]];
+var MOOD_ANCH={menstrual:-1.2,follicular:.3,ovulatory:.81,luteal_early:.3,luteal_late:-.5};
+var REACT_ANCH={menstrual:1,follicular:0,ovulatory:-1,luteal_early:-.2,luteal_late:.7};
+var EN_OFF={menstrual:-.15,follicular:.05,ovulatory:.10,luteal_early:0,luteal_late:-.10};
+var EN_AMP={menstrual:1,follicular:.45,ovulatory:.50,luteal_early:.55,luteal_late:.88};
+var PHASE_MULT={menstrual:.7,follicular:1.1,ovulatory:1.4,luteal_early:1.1,luteal_late:.8};
+var W_STATE=[1.0,1.6,0.7,0.9], X0_STATE=[.5,.5,0,.5];
+
+/* every parameter, one place */
+var P={lam:.60,N:10,nu:0,
+       B:.5,A:.25,sigma_eps:.03,L_mean:28,L_sd:1.5,
+       rho:.85,k:.18,s0:0,rho_e:.7,sigma_e:.45,
+       E0:.6,peak:14,amp:.25,q0:23,q1:8,ramp:1,
+       k_w:2,theta:13.5,min_gap:15,cap:3,max_gap:48,
+       sigma_ln:.9,sigma_c:.7,w_mult:1,
+       seed:1,wseed:1,phenoSeed:1,off:0};
+
+function anchorCurve(cd,L,anch){
+  var u=((cd/L)%1+1)%1;
+  var pts=PH.map(function(p){return [(p[1]+p[2])/2,anch[p[0]]];});
+  var lx,ly,rx,ry;
+  if(u>pts[pts.length-1][0]){lx=pts[pts.length-1][0];ly=pts[pts.length-1][1];rx=pts[0][0]+1;ry=pts[0][1];}
+  else if(u<pts[0][0]){lx=pts[pts.length-1][0]-1;ly=pts[pts.length-1][1];rx=pts[0][0];ry=pts[0][1];}
+  else{for(var i=1;i<pts.length;i++){if(u<=pts[i][0]){lx=pts[i-1][0];ly=pts[i-1][1];rx=pts[i][0];ry=pts[i][1];break;}}}
+  var a=(u-lx)/(rx-lx);
+  return ly+(ry-ly)*(.5*(1-Math.cos(Math.PI*a)));
+}
+function phaseOf(cd,L){var n=cd/L;
+  for(var i=0;i<PH.length;i++)if(n>=PH[i][1]&&n<PH[i][2])return PH[i][0];
+  return PH[PH.length-1][0];}
+function energyAt(h,ph){
+  var ang=2*Math.PI*((((h%24)+24)%24)-P.peak)/24;
+  return clip(P.E0+(EN_AMP[ph]||1)*P.amp*Math.cos(ang)+(EN_OFF[ph]||0),0,1);}
+function envelopeAt(h){
+  var x=((h%24)+24)%24,qi=P.q0,qf=P.q1,r=P.ramp;
+  var inQ = qi>qf ? (x>=qi||x<qf) : (x>=qi&&x<qf);
+  if(inQ)return 0;
+  if(r<=0)return 1;
+  if(x>=qf&&x<=qf+r)return .5*(1-Math.cos(Math.PI*(x-qf)/r));
+  if(x>=qi-r&&x<qi)return .5*(1-Math.cos(Math.PI*(qi-x)/r));
+  return 1;}
+function hz0(tau){if(tau<=0)return P.k_w===1?P.k_w/P.theta:0;
+  return (P.k_w/P.theta)*Math.pow(tau/P.theta,P.k_w-1);}
+function lognormHazard(tau,mu,sig){if(tau<=1e-6)return 0;
+  var z=(Math.log(tau)-mu)/sig,pdf=normPdf(z)/(tau*sig),sf=1-normCdf(z);
+  return sf<1e-9?0:pdf/sf;}
+function moodDraw(rng,pr){
+  var pd = P.nu>0 ? betaDraw(rng,pr*P.nu,(1-pr)*P.nu) : pr;
+  return binomDraw(rng,P.N,pd);}
+
+/* ---------------- plotting ---------------- */
+function css(v){return getComputedStyle(document.documentElement).getPropertyValue(v).trim();}
+function Plot(c){this.c=c;this.ctx=c.getContext("2d");}
+Plot.prototype.draw=function(spec){
+  var c=this.c,ctx=this.ctx,dpr=window.devicePixelRatio||1;
+  if(c._h==null)c._h=parseInt(c.getAttribute("height"),10)||220;
+  var H=c._h,W=c.clientWidth;
+  if(!W)return;
+  c.width=Math.round(W*dpr);c.height=Math.round(H*dpr);
+  c.style.width="100%";c.style.height=H+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  var mL=spec.mLeft||46,mR=12,mT=10,mB=spec.mBottom||30;
+  var pw=W-mL-mR,ph=H-mT-mB,xl=spec.xlim,yl=spec.ylim;
+  function X(v){return mL+(v-xl[0])/(xl[1]-xl[0])*pw;}
+  function Y(v){return mT+ph-(v-yl[0])/(yl[1]-yl[0])*ph;}
+  ctx.font="11px "+(css("--f-mono").split(",")[0]||"monospace");
+  (spec.spans||[]).forEach(function(s){ctx.fillStyle=s.color||css("--s6");
+    ctx.globalAlpha=s.alpha==null?.16:s.alpha;
+    ctx.fillRect(X(s.x0),mT,Math.max(1,X(s.x1)-X(s.x0)),ph);ctx.globalAlpha=1;});
+  ctx.strokeStyle=css("--grid");ctx.lineWidth=1;
+  (spec.yticks||[]).forEach(function(t){ctx.beginPath();ctx.moveTo(mL,Y(t));ctx.lineTo(mL+pw,Y(t));ctx.stroke();});
+  ctx.fillStyle=css("--ink-3");ctx.textAlign="right";ctx.textBaseline="middle";
+  (spec.yticks||[]).forEach(function(t){ctx.fillText(spec.yfmt?spec.yfmt(t):String(t),mL-7,Y(t));});
+  ctx.textAlign="center";ctx.textBaseline="top";
+  (spec.xticks||[]).forEach(function(t){ctx.fillText(spec.xfmt?spec.xfmt(t):String(t),X(t),mT+ph+7);});
+  ctx.strokeStyle=css("--axis");ctx.beginPath();
+  ctx.moveTo(mL,mT);ctx.lineTo(mL,mT+ph);ctx.lineTo(mL+pw,mT+ph);ctx.stroke();
+  (spec.bars||[]).forEach(function(b){var n=b.data.length,bw=pw/n*(b.width==null?.9:b.width);
+    ctx.fillStyle=b.color;ctx.globalAlpha=b.alpha==null?1:b.alpha;
+    b.data.forEach(function(v,i){var cx=X(b.x?b.x[i]:i);
+      ctx.fillRect(cx-bw/2,Y(v),bw,Math.max(0,Y(yl[0])-Y(v)));});ctx.globalAlpha=1;});
+  (spec.bands||[]).forEach(function(bd){ctx.fillStyle=bd.color;
+    ctx.globalAlpha=bd.alpha==null?.18:bd.alpha;ctx.beginPath();
+    bd.lo.forEach(function(p,i){i?ctx.lineTo(X(p[0]),Y(p[1])):ctx.moveTo(X(p[0]),Y(p[1]));});
+    for(var i=bd.hi.length-1;i>=0;i--)ctx.lineTo(X(bd.hi[i][0]),Y(bd.hi[i][1]));
+    ctx.closePath();ctx.fill();ctx.globalAlpha=1;});
+  (spec.series||[]).forEach(function(s){ctx.strokeStyle=s.color;ctx.lineWidth=s.width||2;
+    ctx.setLineDash(s.dash||[]);ctx.globalAlpha=s.alpha==null?1:s.alpha;ctx.beginPath();
+    s.data.forEach(function(p,i){i?ctx.lineTo(X(p[0]),Y(p[1])):ctx.moveTo(X(p[0]),Y(p[1]));});
+    ctx.stroke();ctx.setLineDash([]);ctx.globalAlpha=1;});
+  (spec.points||[]).forEach(function(s){ctx.fillStyle=s.color;
+    s.data.forEach(function(p){ctx.beginPath();ctx.arc(X(p[0]),Y(p[1]),s.r||2.4,0,7);ctx.fill();});});
+  (spec.hlines||[]).forEach(function(l){ctx.strokeStyle=l.color||css("--ink-3");ctx.lineWidth=1;
+    ctx.setLineDash(l.dash||[4,4]);ctx.beginPath();ctx.moveTo(mL,Y(l.y));ctx.lineTo(mL+pw,Y(l.y));
+    ctx.stroke();ctx.setLineDash([]);});
+  if(spec.xlabel){ctx.fillStyle=css("--ink-3");ctx.textAlign="center";ctx.textBaseline="bottom";
+    ctx.fillText(spec.xlabel,mL+pw/2,H-1);}
+};
+function ticks(a,b,n){var o=[],s=(b-a)/n;for(var i=0;i<=n;i++)o.push(+(a+i*s).toFixed(6));return o;}
+function say(id,txt){var e=document.getElementById(id);if(e)e.textContent=txt;}
+
+var charts=[];
+function reg(id,fn){var el=document.getElementById(id);if(!el)return;
+  var p=new Plot(el);charts.push(function(){fn(p);});}
+function redrawAll(){charts.forEach(function(f){try{f();}catch(e){}});}
+
+/* ---------------- simulation ---------------- */
+function simDays(seed,days,scoreFn){
+  var rng=mulberry32(seed*7919+13),L=P.L_mean,cd=(seed*7)%L,mu=0,eta=0,out=[],prevM=null;
+  for(var t=0;t<days;t++){
+    var m=P.B*anchorCurve(cd,L,MOOD_ANCH);
+    var g=1+P.A*anchorCurve(cd,L,REACT_ANCH)+normal(rng)*P.sigma_eps;
+    var ph=phaseOf(cd,L);
+    var pr=sigmoid(logit(P.lam)+m+g*(mu+eta));
+    var M=moodDraw(rng,pr);
+    out.push({t:t,M:M,mu:mu,eta:eta,phase:ph,cd:cd,m:m,g:g,p:pr});
+    var s=scoreFn?scoreFn(t):(M/P.N*2-1);
+    mu=P.rho*mu+P.k*(s-P.s0);
+    eta=P.rho_e*eta+normal(rng)*P.sigma_e;
+    cd+=1;
+    if(cd>=L){cd-=L;L=Math.max(1,P.L_mean+normal(rng)*P.L_sd);}
+    prevM=M;
+  }
+  return out;
+}
+function stateFactor(mu,mult){
+  var rng=mulberry32(20250811),L=P.L_mean,cd=0,prevM=null,acc=0,n=0;
+  for(var t=0;t<60;t++){
+    var m=P.B*anchorCurve(cd,L,MOOD_ANCH);
+    var g=1+P.A*anchorCurve(cd,L,REACT_ANCH)+normal(rng)*P.sigma_eps;
+    var ph=phaseOf(cd,L);
+    var eta=normal(rng)*(P.sigma_e/Math.sqrt(Math.max(1e-6,1-P.rho_e*P.rho_e)));
+    var M=moodDraw(rng,sigmoid(logit(P.lam)+m+g*(mu+eta)));
+    var V=clip(2*(M/P.N)-1,-1,1),E=energyAt(14,ph);
+    var mom=prevM===null?0:clip(2*((M-prevM)/P.N),-1,1);
+    var gh=clip((g-0.7)/0.6,0,1);
+    var R=clip(0.35+0.42*gh+0.20*Math.abs(mom),0,1);
+    var I=clip(0.14+0.38*E+0.16*Math.max(V,0)+0.08*mu-0.08*Math.max(-mom,0),0,1);
+    var x=[E,I,V,R],e=0;
+    for(var i=0;i<4;i++)e+=W_STATE[i]*mult*(x[i]-X0_STATE[i]);
+    acc+=clip(Math.exp(e),0.5,2.0);n++;prevM=M;
+    cd+=1;if(cd>=L)cd-=L;
+  }
+  return acc/n;
+}
+function runProcess(seed,days){
+  var rng=mulberry32(seed*911+7),last=0,gaps=[],ev=[],perday={},step=.05;
+  var mg=P.min_gap/60;
+  for(var t=0;t<days*24;t+=step){
+    var d=Math.floor(t/24),cd=(d+seed*3)%P.L_mean,ph=phaseOf(cd,P.L_mean);
+    if((perday[d]||0)>=P.cap)continue;
+    if(t-last<mg)continue;
+    if(t-last>=P.max_gap){gaps.push(t-last);ev.push(t);perday[d]=(perday[d]||0)+1;last=t;continue;}
+    var rate=hz0(t-last)*envelopeAt(t)*(PHASE_MULT[ph]||1);
+    if(rng()<rate*step){gaps.push(t-last);ev.push(t);perday[d]=(perday[d]||0)+1;last=t;}
+  }
+  return {gaps:gaps,ev:ev};
+}
+
+/* ---------------- charts ---------------- */
+reg("c-sig",function(p){
+  var d=[];for(var x=-4;x<=4;x+=.05)d.push([x,sigmoid(x)*P.N]);
+  var at=logit(P.lam)+P.off, py=sigmoid(at)*P.N;
+  say("r-sig","a = "+at.toFixed(3)+"   p = "+sigmoid(at).toFixed(4)+
+              "   E[M] = "+py.toFixed(2)+" of "+P.N);
+  p.draw({xlim:[-4,4],ylim:[0,P.N],xticks:[-4,-2,0,2,4],yticks:ticks(0,P.N,5),
+    yfmt:function(t){return t.toFixed(0);},xlabel:"a",
+    series:[{data:d,color:css("--s1"),width:2.4}],
+    points:[{data:[[at,py]],color:css("--s3"),r:5}],hlines:[{y:py,color:css("--s3")}]});
+});
+reg("c-bb",function(p){
+  var rng=mulberry32(4242),n=4000,pr=sigmoid(logit(P.lam));
+  var h0=new Array(P.N+1).fill(0),h1=new Array(P.N+1).fill(0);
+  for(var i=0;i<n;i++){h0[binomDraw(rng,P.N,pr)]++;
+    var pd=P.nu>0?betaDraw(rng,pr*P.nu,(1-pr)*P.nu):pr;h1[binomDraw(rng,P.N,pd)]++;}
+  function sd(h){var m=0,s=0,t=0;h.forEach(function(c,k){m+=c*k;t+=c;});m/=t;
+    h.forEach(function(c,k){s+=c*(k-m)*(k-m);});return Math.sqrt(s/t);}
+  say("r-bb","sd(M) : nu=inf "+sd(h0).toFixed(3)+"   nu="+(P.nu||"inf")+" "+sd(h1).toFixed(3));
+  var mx=Math.max.apply(null,h0.concat(h1))/n;
+  p.draw({xlim:[-.6,P.N+.6],ylim:[0,mx*1.12],xticks:ticks(0,P.N,5),
+    yticks:ticks(0,mx*1.12,4),yfmt:function(t){return (t*100).toFixed(0)+"%";},xlabel:"M",
+    bars:[{data:h0.map(function(v){return v/n;}),x:ticks(0,P.N,P.N),color:css("--s1"),width:.55},
+          {data:h1.map(function(v){return v/n;}),x:ticks(0,P.N,P.N),color:css("--s2"),width:.32,alpha:.9}]});
+});
+reg("c-path",function(p){
+  var days=90,r=simDays(P.seed,days);
+  var line=r.map(function(d){return [d.t,d.M];}),sm=[],win=7;
+  for(var i=0;i<r.length;i++){var a=Math.max(0,i-win),b=Math.min(r.length-1,i+win),s=0,n=0;
+    for(var j=a;j<=b;j++){s+=r[j].M;n++;}sm.push([i,s/n]);}
+  var spans=[];r.forEach(function(d){if(d.phase==="menstrual"||d.phase==="luteal_late")
+    spans.push({x0:d.t-.5,x1:d.t+.5,color:css("--s6"),alpha:.13});});
+  var mean=r.reduce(function(a,d){return a+d.M;},0)/r.length;
+  var sd=Math.sqrt(r.reduce(function(a,d){return a+(d.M-mean)*(d.M-mean);},0)/r.length);
+  say("r-path","mean "+mean.toFixed(2)+"   sd "+sd.toFixed(2)+
+              "   min "+Math.min.apply(null,r.map(function(d){return d.M;}))+
+              "   max "+Math.max.apply(null,r.map(function(d){return d.M;})));
+  p.draw({xlim:[0,days-1],ylim:[0,P.N],xticks:[0,30,60,90],yticks:ticks(0,P.N,5),
+    yfmt:function(t){return t.toFixed(0);},xlabel:"t (days)",spans:spans,
+    series:[{data:line,color:css("--s1"),width:1.4,alpha:.85},
+            {data:sm,color:css("--s4"),width:2.6}]});
+});
+reg("c-cycle",function(p){
+  var m=[],g=[];
+  for(var d=0;d<=P.L_mean;d+=.2){m.push([d,P.B*anchorCurve(d,P.L_mean,MOOD_ANCH)]);
+    g.push([d,P.A*anchorCurve(d,P.L_mean,REACT_ANCH)]);}
+  var lim=Math.max(.3,Math.max(P.B,P.A)*1.35);
+  say("r-cycle","m range ±"+(P.B*1.2).toFixed(2)+"   g range 1±"+P.A.toFixed(2)+
+                "   L = "+P.L_mean.toFixed(1)+" ± "+P.L_sd.toFixed(1)+" d");
+  p.draw({xlim:[0,P.L_mean],ylim:[-lim,lim],xticks:ticks(0,P.L_mean,4),
+    yticks:ticks(-lim,lim,4),yfmt:function(t){return t.toFixed(2);},xlabel:"d (cycle day)",
+    hlines:[{y:0}],series:[{data:m,color:css("--s1"),width:2.6},{data:g,color:css("--s2"),width:2.6}]});
+});
+reg("c-phase",function(p){
+  var byDay=[],lo=[],hi=[],D=Math.round(P.L_mean);
+  for(var d=0;d<D;d++){
+    var rng=mulberry32(90210+d*31),vals=[];
+    for(var i=0;i<3000;i++){
+      var m=P.B*anchorCurve(d,P.L_mean,MOOD_ANCH);
+      var g=1+P.A*anchorCurve(d,P.L_mean,REACT_ANCH)+normal(rng)*P.sigma_eps;
+      var eta=normal(rng)*(P.sigma_e/Math.sqrt(Math.max(1e-6,1-P.rho_e*P.rho_e)));
+      vals.push(moodDraw(rng,sigmoid(logit(P.lam)+m+g*eta)));}
+    vals.sort(function(a,b){return a-b;});
+    byDay.push([d,vals.reduce(function(a,b){return a+b;},0)/vals.length]);
+    lo.push([d,vals[Math.floor(vals.length*.25)]]);hi.push([d,vals[Math.floor(vals.length*.75)]]);}
+  var mn=Math.min.apply(null,byDay.map(function(q){return q[1];}));
+  var mxv=Math.max.apply(null,byDay.map(function(q){return q[1];}));
+  say("r-phase","E[M] ranges "+mn.toFixed(2)+" to "+mxv.toFixed(2)+
+                "  (amplitude "+(mxv-mn).toFixed(2)+" of "+P.N+")");
+  p.draw({xlim:[0,D-1],ylim:[0,P.N],xticks:ticks(0,D-1,4),yticks:ticks(0,P.N,5),
+    yfmt:function(t){return t.toFixed(0);},xlabel:"d (cycle day)",
+    bands:[{lo:lo,hi:hi,color:css("--s3"),alpha:.16}],
+    series:[{data:byDay,color:css("--s1"),width:2.8}]});
+});
+reg("c-mu",function(p){
+  var days=150,mu=0,muS=[],moodS=[],rng=mulberry32(555);
+  function sc(t){return (t>=20&&t<50)?.9:((t>=70&&t<100)?-.9:0);}
+  for(var t=0;t<days;t++){
+    muS.push([t,mu]);
+    moodS.push([t,moodDraw(rng,sigmoid(logit(P.lam)+mu))/P.N*2.4-1.2]);
+    mu=P.rho*mu+P.k*(sc(t)-P.s0);}
+  var ceil=P.k*(0.9-P.s0)/(1-P.rho), hl=Math.log(.5)/Math.log(P.rho);
+  say("r-mu","saturation ±"+Math.abs(ceil).toFixed(3)+"   half-life "+hl.toFixed(2)+" d"+
+             "   stability k < "+(2*(1-P.rho)/(1+P.A+3*P.sigma_eps)).toFixed(3));
+  var lim=Math.max(2.2,Math.abs(ceil)*1.5);
+  p.draw({xlim:[0,days-1],ylim:[-lim,lim],xticks:[0,50,100,150],yticks:ticks(-lim,lim,4),
+    yfmt:function(t){return t.toFixed(1);},xlabel:"t (days)",
+    spans:[{x0:20,x1:50,color:css("--s1"),alpha:.12},{x0:70,x1:100,color:css("--s3"),alpha:.12}],
+    hlines:[{y:0},{y:ceil,color:css("--s1")},{y:-ceil,color:css("--s1")}],
+    series:[{data:moodS,color:css("--s2"),width:1.2,alpha:.55},
+            {data:muS,color:css("--s1"),width:2.8}]});
+});
+reg("c-eta",function(p){
+  var series=[],cols=[css("--s1"),css("--s2"),css("--s3"),css("--s4"),css("--s5"),css("--s6")];
+  for(var s=0;s<6;s++){var rng=mulberry32(1000+s*77),eta=0,d=[];
+    for(var t=0;t<120;t++){d.push([t,eta]);eta=P.rho_e*eta+normal(rng)*P.sigma_e;}
+    series.push({data:d,color:cols[s],width:1.6,alpha:.85});}
+  var sd=P.sigma_e/Math.sqrt(Math.max(1e-6,1-P.rho_e*P.rho_e));
+  var tau=P.rho_e>0?(-1/Math.log(P.rho_e)):0;
+  say("r-eta","sd(eta_inf) "+sd.toFixed(3)+"   correlation time "+tau.toFixed(2)+" d");
+  var lim=Math.max(1.5,sd*2.6);
+  p.draw({xlim:[0,119],ylim:[-lim,lim],xticks:[0,40,80,120],yticks:ticks(-lim,lim,4),
+    yfmt:function(t){return t.toFixed(1);},xlabel:"t (days)",
+    hlines:[{y:0},{y:sd,color:css("--s6")},{y:-sd,color:css("--s6")}],series:series});
+});
+reg("c-energy",function(p){
+  function curve(ph){var d=[];for(var h=0;h<=24;h+=.1)d.push([h,energyAt(h,ph)]);return d;}
+  say("r-energy","E at h* : ovulatory "+energyAt(P.peak,"ovulatory").toFixed(3)+
+     "   follicular "+energyAt(P.peak,"follicular").toFixed(3)+
+     "   menstrual "+energyAt(P.peak,"menstrual").toFixed(3));
+  p.draw({xlim:[0,24],ylim:[0,1],xticks:[0,6,12,18,24],yticks:[0,.25,.5,.75,1],
+    xlabel:"h (hour)",xfmt:function(t){return t+"h";},
+    series:[{data:curve("ovulatory"),color:css("--s1"),width:2.4},
+            {data:curve("follicular"),color:css("--s4"),width:2.4},
+            {data:curve("menstrual"),color:css("--s3"),width:2.4}]});
+});
+reg("c-env",function(p){
+  var d=[];for(var h=0;h<=24;h+=.05)d.push([h,envelopeAt(h)]);
+  var openH=0;for(var h2=0;h2<24;h2+=.05)if(envelopeAt(h2)>0)openH+=.05;
+  say("r-env","quiet window "+P.q0+"h to "+P.q1+"h   available "+openH.toFixed(1)+" h/day");
+  var spans=[];
+  if(P.q0>P.q1){spans.push({x0:0,x1:P.q1,color:css("--s6"),alpha:.14});
+                spans.push({x0:P.q0,x1:24,color:css("--s6"),alpha:.14});}
+  else spans.push({x0:P.q0,x1:P.q1,color:css("--s6"),alpha:.14});
+  p.draw({xlim:[0,24],ylim:[-.05,1.1],xticks:[0,6,12,18,24],yticks:[0,.5,1],
+    xlabel:"h (hour)",xfmt:function(t){return t+"h";},spans:spans,
+    series:[{data:d,color:css("--s1"),width:2.6}]});
+});
+reg("c-haz",function(p){
+  var a=[],b=[];
+  for(var t=0;t<=48;t+=.25){a.push([t,hz0(t)]);b.push([t,1/P.theta]);}
+  var mx=Math.max(.05,Math.max.apply(null,a.map(function(q){return q[1];})));
+  say("r-haz","mean gap (unmodulated) "+(P.theta*gammaFn(1+1/P.k_w)).toFixed(2)+" h"+
+              "   h0(24h) "+hz0(24).toFixed(4)+"/h");
+  p.draw({xlim:[0,48],ylim:[0,mx*1.1],xticks:[0,12,24,36,48],yticks:ticks(0,mx*1.1,4),
+    yfmt:function(t){return t.toFixed(2);},xlabel:"tau (hours since last event)",
+    series:[{data:a,color:css("--s1"),width:2.8},{data:b,color:css("--s6"),width:1.8,dash:[5,4]}]});
+});
+reg("c-gaps",function(p){
+  var all=[],nb=24,maxH=Math.min(96,P.max_gap*1.2),bins=new Array(nb).fill(0);
+  for(var s=1;s<=40;s++){var r=runProcess(s,30);all=all.concat(r.gaps);}
+  all.forEach(function(g){bins[Math.min(nb-1,Math.floor(g/maxH*nb))]++;});
+  var n=all.length||1;all.sort(function(a,b){return a-b;});
+  say("r-gaps","n = "+n+"   mean "+(all.reduce(function(a,b){return a+b;},0)/n).toFixed(2)+
+      " h   median "+all[Math.floor(n/2)].toFixed(2)+" h   p90 "+all[Math.floor(n*.9)].toFixed(2)+" h");
+  var mx=Math.max.apply(null,bins)/n;
+  p.draw({xlim:[0,maxH],ylim:[0,mx*1.12],xticks:ticks(0,maxH,4),
+    yticks:ticks(0,mx*1.12,4),yfmt:function(t){return (t*100).toFixed(0)+"%";},
+    xlabel:"gap (hours)",
+    bars:[{data:bins.map(function(v){return v/n;}),
+           x:bins.map(function(_,i){return (i+.5)/nb*maxH;}),color:css("--s1"),width:.85}]});
+});
+reg("c-week",function(p){
+  var rng=mulberry32(P.wseed*911+7),hours=168,last=0,d=[],fires=[],step=.1,perday={};
+  var mg=P.min_gap/60;
+  for(var t=0;t<hours;t+=step){
+    var di=Math.floor(t/24),cd=(di+P.wseed*3)%P.L_mean,ph=phaseOf(cd,P.L_mean);
+    var rate=hz0(t-last)*envelopeAt(t)*(PHASE_MULT[ph]||1);
+    d.push([t,rate]);
+    if((perday[di]||0)>=P.cap)continue;
+    if(t-last<mg)continue;
+    if(rng()<rate*step){fires.push([t,rate]);perday[di]=(perday[di]||0)+1;last=t;}}
+  var mx=Math.max(.05,Math.max.apply(null,d.map(function(q){return q[1];})));
+  var spans=[];for(var kk=0;kk<8;kk++){
+    if(P.q0>P.q1)spans.push({x0:kk*24+P.q0,x1:kk*24+24+P.q1,color:css("--s6"),alpha:.13});
+    else spans.push({x0:kk*24+P.q0,x1:kk*24+P.q1,color:css("--s6"),alpha:.13});}
+  say("r-week",fires.length+" events in 168 h   "+(fires.length/7).toFixed(2)+"/day");
+  p.draw({xlim:[0,hours],ylim:[0,mx*1.1],xticks:[0,24,48,72,96,120,144,168],
+    xfmt:function(t){return (t/24).toFixed(0)+"d";},yticks:ticks(0,mx*1.1,4),
+    yfmt:function(t){return t.toFixed(2);},xlabel:"t (hours)",spans:spans,
+    series:[{data:d,color:css("--s1"),width:1.6}],
+    points:[{data:fires,color:css("--s3"),r:3.4}]});
+});
+reg("c-cmp",function(p){
+  var a=[],b=[],muLn=Math.log(P.theta)-P.sigma_ln*P.sigma_ln/2,peakT=0,peakV=0;
+  for(var t=.2;t<=96;t+=.2){a.push([t,hz0(t)]);
+    var lv=lognormHazard(t,muLn,P.sigma_ln);b.push([t,lv]);
+    if(lv>peakV){peakV=lv;peakT=t;}}
+  var mx=Math.max(Math.max.apply(null,a.map(function(q){return q[1];})),peakV);
+  say("r-cmp","lognormal peak at tau = "+peakT.toFixed(1)+" h, h = "+peakV.toFixed(3)+
+              "/h   median gap "+P.theta.toFixed(1)+" h (both)");
+  p.draw({xlim:[0,96],ylim:[0,mx*1.1],xticks:[0,24,48,72,96],
+    xfmt:function(t){return (t/24).toFixed(0)+"d";},yticks:ticks(0,mx*1.1,4),
+    yfmt:function(t){return t.toFixed(2);},xlabel:"tau (hours)",
+    series:[{data:a,color:css("--s1"),width:2.8},{data:b,color:css("--s2"),width:2.8}]});
+});
+reg("c-pheno",function(p){
+  var series=[],cols=[css("--s1"),css("--s2"),css("--s3"),css("--s4"),css("--s5"),
+                      css("--s1"),css("--s2"),css("--s4")],inv=0;
+  for(var s=0;s<8;s++){
+    var rng=mulberry32(P.phenoSeed*3300+s*97),sc=1+normal(rng)*P.sigma_c;
+    if(sc<0)inv++;
+    var d=[];for(var t=0;t<=P.L_mean;t+=.4)d.push([t,P.B*sc*anchorCurve(t,P.L_mean,MOOD_ANCH)]);
+    series.push({data:d,color:cols[s%cols.length],width:1.8,alpha:.8});}
+  var avg=[];for(var t2=0;t2<=P.L_mean;t2+=.4)avg.push([t2,P.B*anchorCurve(t2,P.L_mean,MOOD_ANCH)]);
+  series.push({data:avg,color:"#5B5470",width:2.8});
+  say("r-pheno","sigma_c = "+P.sigma_c.toFixed(2)+"   inverted in this draw: "+inv+" of 8"+
+                "   P(inverted) = "+(P.sigma_c>0?(normCdf(-1/P.sigma_c)*100).toFixed(1):"0.0")+"%");
+  var lim=Math.max(.6,P.B*(1+2.2*P.sigma_c));
+  p.draw({xlim:[0,P.L_mean],ylim:[-lim,lim],xticks:ticks(0,P.L_mean,4),
+    yticks:ticks(-lim,lim,4),yfmt:function(t){return t.toFixed(1);},
+    xlabel:"d (cycle day)",hlines:[{y:0}],series:series});
+});
+reg("c-coupling",function(p){
+  var base=[],cur=[];
+  for(var q=-1.2;q<=1.201;q+=.06){base.push([q,stateFactor(q,1)]);cur.push([q,stateFactor(q,P.w_mult)]);}
+  var lo=stateFactor(-1.2,P.w_mult),hi=stateFactor(1.2,P.w_mult);
+  say("r-coupling","S_d : "+lo.toFixed(3)+" to "+hi.toFixed(3)+
+      "   swing "+(100*Math.abs(hi-lo)/((hi+lo)/2)).toFixed(1)+"%"+
+      (P.w_mult===1?"   (weights as built)":""));
+  p.draw({xlim:[-1.2,1.2],ylim:[.4,2.1],xticks:[-1.2,-.6,0,.6,1.2],
+    yticks:[.5,1,1.5,2],yfmt:function(t){return t.toFixed(1);},xlabel:"mu",
+    hlines:[{y:1},{y:2,color:css("--s6")},{y:.5,color:css("--s6")}],
+    series:[{data:base,color:css("--s6"),width:2,dash:[5,4]},
+            {data:cur,color:css("--s1"),width:2.8}]});
+});
+
+/* ---------------- slider wiring ---------------- */
+function bind(id,key,fmt){
+  var el=document.getElementById(id),out=document.getElementById("v-"+id.slice(2));
+  if(!el)return;
+  function upd(){var v=parseFloat(el.value);P[key]=v;
+    if(out)out.textContent=fmt?fmt(v):String(v);redrawAll();}
+  el.addEventListener("input",upd);upd();
+}
+var f2=function(v){return v.toFixed(2);}, f1=function(v){return v.toFixed(1);},
+    f0=function(v){return v.toFixed(0);};
+bind("s-lam","lam",f2);
+bind("s-off","off",function(v){return (v>0?"+":"")+v.toFixed(2);});
+bind("s-nu","nu",function(v){return v===0?"∞":v.toFixed(0);});
+bind("s-N","N",f0);
+bind("s-B","B",f2); bind("s-A","A",f2); bind("s-sigeps","sigma_eps",f2);
+bind("s-Lmean","L_mean",f1); bind("s-Lsd","L_sd",f1);
+bind("s-rho","rho",f2); bind("s-k","k",f2); bind("s-s0","s0",f2);
+bind("s-rhoe","rho_e",f2); bind("s-sige","sigma_e",f2);
+bind("s-peak","peak",function(v){return v.toFixed(1)+"h";});
+bind("s-amp","amp",f2); bind("s-E0","E0",f2);
+bind("s-q0","q0",function(v){return v.toFixed(1)+"h";});
+bind("s-q1","q1",function(v){return v.toFixed(1)+"h";});
+bind("s-ramp","ramp",function(v){return v.toFixed(2)+"h";});
+bind("s-kw","k_w",f1); bind("s-th","theta",function(v){return v.toFixed(1)+"h";});
+bind("s-mingap","min_gap",function(v){return v.toFixed(0)+"min";});
+bind("s-cap","cap",f0); bind("s-maxgap","max_gap",function(v){return v.toFixed(0)+"h";});
+bind("s-lnsig","sigma_ln",f2); bind("s-spread","sigma_c",f2);
+bind("s-w","w_mult",function(v){return v.toFixed(2)+"×";});
+bind("s-seed","seed",f0); bind("s-wseed","wseed",f0);
+document.getElementById("b-seed").addEventListener("click",function(){
+  var el=document.getElementById("s-seed");el.value=(parseInt(el.value,10)%40)+1;
+  el.dispatchEvent(new Event("input"));});
+document.getElementById("b-pheno").addEventListener("click",function(){
+  P.phenoSeed++;redrawAll();});
+
+/* ---------------- tabs ---------------- */
+var tabs=[].slice.call(document.querySelectorAll("nav.toc button"));
+tabs.forEach(function(b){b.addEventListener("click",function(){
+  tabs.forEach(function(x){x.setAttribute("aria-selected",x===b?"true":"false");});
+  document.querySelectorAll(".panel").forEach(function(pn){
+    pn.setAttribute("data-active",pn.id==="tab-"+b.dataset.tab?"true":"false");});
+  window.scrollTo({top:0,behavior:"smooth"});redrawAll();});});
+document.querySelectorAll(".v").forEach(function(el){el.setAttribute("tabindex","0");});
+/* position popups against the viewport: immune to ancestor overflow */
+function placePop(el){
+  var pop=el.querySelector(".pop"); if(!pop) return;
+  var prev=pop.style.opacity; pop.style.opacity="0";
+  pop.style.left="0px"; pop.style.top="0px";
+  var r=el.getBoundingClientRect(), pr=pop.getBoundingClientRect(), pad=10;
+  var left=r.left+r.width/2-pr.width/2;
+  left=Math.max(pad,Math.min(left,window.innerWidth-pr.width-pad));
+  var top=r.top-pr.height-10, below=false;
+  if(top<pad){top=r.bottom+10;below=true;}
+  pop.style.left=left+"px"; pop.style.top=top+"px";
+  pop.style.setProperty("--ax",(r.left+r.width/2-left).toFixed(0)+"px");
+  if(below)pop.setAttribute("data-below","");else pop.removeAttribute("data-below");
+  pop.style.opacity=prev;
+}
+document.querySelectorAll(".v").forEach(function(el){
+  el.addEventListener("mouseenter",function(){placePop(el);});
+  el.addEventListener("focus",function(){placePop(el);});
+});
+var rt;window.addEventListener("resize",function(){clearTimeout(rt);rt=setTimeout(redrawAll,120);});
+redrawAll();
+})();
+</script>

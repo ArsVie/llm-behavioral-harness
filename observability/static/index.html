@@ -21,6 +21,10 @@
         </div>
       </div>
 
+      <nav class="viewswitch pages" aria-label="Pages">
+        <a class="vbtn" href="/chat">Chat</a><a class="vbtn" href="/debug" aria-current="page">Debug</a><a class="vbtn" href="/setup">Setup</a>
+      </nav>
+
       <div class="topbar-controls">
         <span class="chip" id="liveness" data-state="unknown">checking</span>
         <span class="chip chip-quiet" id="day-chip">&mdash;</span>
@@ -94,7 +98,7 @@
           <p class="big" id="pressure-line">no model call yet</p>
           <p class="sub" id="pressure-sub"></p>
           <div class="bar" id="context-bar" aria-hidden="true"></div>
-          <dl class="legend" id="context-legend"></dl>
+          <ul class="ctx-rows" id="context-legend"></ul>
         </div>
       </div>
 

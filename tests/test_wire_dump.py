@@ -145,6 +145,74 @@ def test_missing_wire_dir_is_empty_not_an_error(tmp_path):
     assert obs_wire.wire_read(run, "00001_20260913-131931.json") is None
 
 
+# -- correlation: a dump finds its call by content ---------------------
+
+
+def _picture_tail(text: str = "look") -> dict:
+    return {"role": "user", "content": [
+        {"type": "image_url", "image_url": {"url": "harness-image:abc.jpg"}},
+        {"type": "text", "text": text},
+    ]}
+
+
+def _picture_envelope(text: str = "look") -> dict:
+    return {"system": "SYS", "messages": [{
+        "content": [
+            {"image_url": {"url": "harness-image:abc.jpg"}, "type": "image_url"},
+            {"text": text, "type": "text"},
+        ],
+        "role": "user",
+    }]}
+
+
+def test_correlation_reads_multimodal_parts_whatever_key_order(tmp_path):
+    """A picture turn's parts are spelled type-first on the wire and sorted in
+    the stored envelope (``harness.store`` serializes with ``sort_keys=True``);
+    the same request must still find its dump."""
+    run = _run_with_wire(tmp_path)
+    wire_dir = run.parent / "wire"
+    wire_dir.mkdir()
+    dump = {"model": "m", "messages": [
+        {"role": "system", "content": "SYS"}, _picture_tail()]}
+    (wire_dir / "00001_20260913-131931.json").write_text(
+        json.dumps(dump), encoding="utf-8")
+
+    files = obs_wire.wire_listing(run)["files"]
+    obs_wire.correlate(run, files, [(7, _picture_envelope())])
+    assert files[0]["call_id"] == 7
+
+
+def test_correlation_still_tells_different_content_apart(tmp_path):
+    """Canonical spelling must not collapse two different picture turns."""
+    run = _run_with_wire(tmp_path)
+    wire_dir = run.parent / "wire"
+    wire_dir.mkdir()
+    dump = {"model": "m", "messages": [
+        {"role": "system", "content": "SYS"}, _picture_tail("look")]}
+    (wire_dir / "00001_20260913-131931.json").write_text(
+        json.dumps(dump), encoding="utf-8")
+
+    files = obs_wire.wire_listing(run)["files"]
+    obs_wire.correlate(run, files, [(7, _picture_envelope("a different caption"))])
+    assert files[0]["call_id"] is None
+
+
+def test_fingerprints_agree_for_both_writer_spellings():
+    """The tuple identity is spelling-insensitive: plain-string tails keep
+    their old form, dict-ordered parts compare canonically."""
+    plain_dump = {"messages": [{"role": "system", "content": "SYS"},
+                               {"role": "user", "content": "hi"}]}
+    plain_envelope = {"system": "SYS",
+                      "messages": [{"role": "user", "content": "hi"}]}
+    assert (obs_wire._fingerprint_dump(plain_dump)
+            == obs_wire._fingerprint_envelope(plain_envelope))
+
+    picture_dump = {"messages": [{"role": "system", "content": "SYS"},
+                                 _picture_tail()]}
+    assert (obs_wire._fingerprint_dump(picture_dump)
+            == obs_wire._fingerprint_envelope(_picture_envelope()))
+
+
 # -- the HTTP routes ---------------------------------------------------
 
 
@@ -189,3 +257,12 @@ def test_server_wire_routes(tmp_path):
         app.shutdown()
         app.server_close()
         thread.join(timeout=5)
+
+
+def test_an_in_memory_store_configures_no_dump_dir():
+    """A session over ``:memory:`` has no run directory; its dumps must not
+    land in the process's working directory."""
+    from tests.helpers.store import make_session
+
+    make_session(SQLiteStore(":memory:"))
+    assert harness_wire._dir() is None

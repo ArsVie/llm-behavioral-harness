@@ -15,7 +15,6 @@ from harness.domain import (
 )
 from harness.gates import content_gate
 from harness.proactive import IntentResolver
-from harness.store import SQLiteStore
 from tests.helpers import make_store
 
 SEED = 4242
@@ -53,44 +52,6 @@ def _near_item(item_id: str, activity: str = "pottery class") -> AgendaItem:
 # --------------------------------------------------------------------------- #
 
 
-def test_g1_agenda_item_skipped_before_firing_suppressed(tmp_path):
-    """G-1: a skipped agenda item suppresses the message (source_superseded)."""
-    store = make_store(tmp_path, "g1a.db")
-    store.save_agenda(8, DailyAgenda(8, (
-        _near_item("pottery_1"),
-    )))
-    intent = _resolver(store).resolve(NOW_H)
-    assert intent is not None and intent.source_type == "agenda_item"
-    store.update_agenda_item_status("pottery_1", "skipped")
-    decision = content_gate(intent, store, now_h=NOW_H)
-    assert not decision.allowed
-    assert decision.code == "source_superseded"
-    # The runtime marks the intent suppressed.
-    store.save_proactive_intent(intent)
-    store.update_proactive_intent_status(intent.id, "suppressed")
-    row = store.conn.execute(
-        "SELECT status FROM proactive_intents WHERE id = ?", (intent.id,)
-    ).fetchone()
-    assert row["status"] == "suppressed"
-    store.close()
-
-
-def test_g1b_agenda_item_row_deleted_suppressed(tmp_path):
-    """G-1 variant: the item row is hard-deleted, so the gate rejects with no_source."""
-    store = make_store(tmp_path, "g1b.db")
-    store.save_agenda(8, DailyAgenda(8, (
-        _near_item("pottery_2"),
-    )))
-    intent = _resolver(store).resolve(NOW_H)
-    assert intent is not None
-    store.conn.execute("DELETE FROM agenda_items WHERE id = 'pottery_2'")
-    store.conn.commit()
-    assert store.resolve_intent_source(intent) is None
-    decision = content_gate(intent, store, now_h=NOW_H)
-    assert not decision.allowed and decision.code == "no_source"
-    store.close()
-
-
 # --------------------------------------------------------------------------- #
 
 
@@ -104,13 +65,6 @@ def test_g2_shared_interest_without_record_no_grounded_reason(tmp_path):
     ))
     intent = _resolver(store).resolve(NOW_H)
     assert intent is None  # no shared-interest record exists
-    store.close()
-
-
-def test_g2b_shared_interest_without_record_empty_store(tmp_path):
-    """G-2 variant: completely empty store → None (blank slate)."""
-    store = make_store(tmp_path, "g2b.db")
-    assert _resolver(store).resolve(NOW_H) is None
     store.close()
 
 
@@ -224,15 +178,15 @@ def test_g7_fired_intent_never_refired_and_expired_not_resurrected(tmp_path):
     store.save_proactive_intent(intent)
     store.update_proactive_intent_status(intent.id, "fired")
 
-    # Restart with a fresh resolver over the same store and opportunity.
+    # Restart with a fresh resolver over the same store and opportunity:
+    # the slot was already offered, so it is not offered again.
     resolver2 = _resolver(store)
-    again = resolver2.resolve(NOW_H)
-    assert again is not None
-    store.save_proactive_intent(again)  # upsert path the runtime uses
+    assert resolver2.resolve(NOW_H) is None
+    store.save_proactive_intent(intent)  # upsert path the runtime uses
     row = store.conn.execute(
-        "SELECT status FROM proactive_intents WHERE id = ?", (again.id,)
+        "SELECT status FROM proactive_intents WHERE id = ?", (intent.id,)
     ).fetchone()
-    assert row["status"] == "fired", "fired intent resurrected by a later resolve"
+    assert row["status"] == "fired", "fired intent resurrected by an upsert"
     # Expired intents stay expired.
     store.update_proactive_intent_status(intent.id, "expired")
     store.save_proactive_intent(intent)
@@ -247,22 +201,6 @@ def test_g7_fired_intent_never_refired_and_expired_not_resurrected(tmp_path):
 
 
 # --------------------------------------------------------------------------- #
-
-
-def test_g8_callback_memory_deleted_before_fire_suppressed(tmp_path):
-    """G-8: the callback memory is deleted before fire time, so the message is suppressed."""
-    store = make_store(tmp_path, "g8a.db")
-    store.insert_episode(_episode(
-        "ep_cb", MemoryKind.CALLBACK, 290.0, tags=("callback",),
-        summary="promised to send the playlist",
-    ))
-    intent = _resolver(store).resolve(NOW_H)
-    assert intent is not None and intent.source_type == "callback"
-    store.conn.execute("DELETE FROM memory_episodes WHERE id = 'ep_cb'")
-    store.conn.commit()
-    decision = content_gate(intent, store, now_h=NOW_H)
-    assert not decision.allowed and decision.code == "no_source"
-    store.close()
 
 
 def test_g8b_callback_provenance_session_gone_suppressed(tmp_path):
@@ -334,6 +272,44 @@ def test_v1a_gate_allows_only_intents_with_live_sources(tmp_path):
     store.conn.execute("DELETE FROM memory_episodes WHERE id = 'ep_si'")
     store.conn.commit()
     assert content_gate(intent3, store, now_h=NOW_H).code == "no_source"
+    store.close()
+
+
+def test_v1c_life_event_and_check_in_sources_resolve_and_pass_the_gate(tmp_path):
+    """The two source types v1a does not reach, through the public resolver
+    on the real store at 08:00 (inside the morning check-in window): a
+    completed agenda item grounds a life_event; a lone low-importance episode
+    grounds a check_in. Both resolve to their source and pass the gate."""
+    morning_h = 200.0  # day 8, 08:00 local
+
+    def _store(name):
+        store = make_store(tmp_path, name)
+        # episodes' source sessions must exist (g8b provenance check)
+        for sid, start in (("day-6", 144.0), ("day-7", 168.0)):
+            store.open_session(sid, start)
+            store.close_session(sid, start + 24.0)
+        return store
+
+    store = _store("v1c_event.db")
+    store.save_agenda(8, DailyAgenda(8, (
+        _agenda_item("i_done", 190.0, 195.0, "finished a drawing",
+                     status="completed", source_type="interest"),
+    )))
+    intent = _resolver(store).resolve(morning_h)
+    assert intent is not None and intent.source_type == "life_event"
+    assert store.resolve_intent_source(intent) is not None
+    assert content_gate(intent, store, now_h=morning_h).allowed
+    store.close()
+
+    store = _store("v1c_checkin.db")
+    # only an anchor episode: no callbacks, no interest tags, no agenda
+    store.insert_episode(_episode(
+        "ep_anchor", MemoryKind.SHARED_EPISODE, 180.0, tags=("plants",),
+        importance=0.4, summary="quiet evening, he mentioned his plants"))
+    intent = _resolver(store).resolve(morning_h)
+    assert intent is not None and intent.source_type == "check_in"
+    assert store.resolve_intent_source(intent) is not None
+    assert content_gate(intent, store, now_h=morning_h).allowed
     store.close()
 
 

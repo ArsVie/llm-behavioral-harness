@@ -16,6 +16,8 @@ from typing import Any
 
 from engine.circadian import energy as circadian_energy
 from engine.types import PHASE_FRACTIONS, TimingParams
+from harness.habits import COMMITMENT_TEXT
+from harness.life import routine_covers
 from harness.trace import load_anchor
 
 #: Samples per day on the circadian curve (one point every half hour).
@@ -34,6 +36,60 @@ def _loads(raw: Any) -> dict[str, Any]:
     except (TypeError, ValueError):
         return {}
     return value if isinstance(value, dict) else {}
+
+
+def _reach_out(row: sqlite3.Row) -> dict[str, Any]:
+    """One proactive decision: whether it was sent, its hook and her reason."""
+    verdict = _loads(row["verdict_json"])
+    inputs = _loads(row["inputs_json"])
+    return {
+        "fired": bool(verdict.get("initiate")),
+        "hook": str(inputs.get("hook") or inputs.get("reason") or ""),
+        "reason": str(verdict.get("reason") or ""),
+    }
+
+
+def tag_sources(conn: sqlite3.Connection) -> dict[str, Any]:
+    """What a block's tag is looked up in: each arc's interest, and her
+    interests (a routine that is a session of one takes its name)."""
+    def read(sql: str) -> list[sqlite3.Row]:
+        try:
+            return conn.execute(sql).fetchall()
+        except sqlite3.OperationalError:  # a store without the table
+            return []
+    return {
+        "arcs": {str(row[0]): str(row[1] or "")
+                 for row in read("select id, interest from life_arcs")},
+        "interests": [str(row[0]) for row in read(
+            "select name from interests order by salience desc")],
+    }
+
+
+def agenda_tag(source_type: str, source_id: str, sources: dict[str, Any]) -> str:
+    """A block's short name, from what put it on the day.
+
+    An interest session is its interest, a project its arc's interest, a
+    routine the interest it is a session of (``life.routine_covers``: "math
+    practice" -> mathematics) or else its own name; the commitment says which
+    one it is, and an errand or a plan she made herself says so. The long
+    activity text stays the block's description.
+    """
+    source_type = source_type or ""
+    source_id = source_id or ""
+    if source_type == "interest":
+        return source_id
+    if source_type == "arc":
+        return sources["arcs"].get(source_id) or "project"
+    if source_type == "routine":
+        return next((name for name in sources["interests"]
+                     if routine_covers(source_id, name)), source_id)
+    if source_type == "commitment":
+        return COMMITMENT_TEXT.get(source_id, source_id or "commitment")
+    if source_type == "errand":
+        return "errand"
+    if source_type == "self":
+        return "her plan"
+    return source_id or source_type
 
 
 def run_now(conn: sqlite3.Connection) -> float | None:
@@ -144,11 +200,13 @@ def _day_span(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     span: dict[int, dict[str, Any]] = {
         day: {"day": day, "agenda": [], "reach_outs": [], "sent": 0,
               "suppressed": 0, "messages": 0, "you": 0, "her": 0, "M": None,
-              "m_level": None, "cycle_day": None, "phase_label": ""}
+              "m_level": None, "cycle_day": None, "phase_label": "",
+              "verdict": None}
         for day in days
     }
+    sources = tag_sources(conn)
     for row in conn.execute(
-            "select activity, start_t_h, end_t_h, status, source_type "
+            "select activity, start_t_h, end_t_h, status, source_type, source_id "
             "from agenda_items"):
         day = int(float(row["start_t_h"]) // DAY_H)
         entry = span.get(day)
@@ -159,7 +217,9 @@ def _day_span(conn: sqlite3.Connection) -> list[dict[str, Any]]:
             "end": round(float(row["end_t_h"]) - day * DAY_H, 3),
             "status": str(row["status"] or ""),
             "source": str(row["source_type"] or ""),
-            # The pill's own words: a week of colour-only blocks reads void.
+            # The pill shows the tag; the activity is its description.
+            "tag": agenda_tag(str(row["source_type"] or ""),
+                              str(row["source_id"] or ""), sources),
             "activity": str(row["activity"] or ""),
         })
     for row in conn.execute(
@@ -190,6 +250,12 @@ def _day_span(conn: sqlite3.Connection) -> list[dict[str, Any]]:
         entry.update(M=row["M"], m_level=row["m_level"],
                      cycle_day=row["cycle_day"],
                      phase_label=str(row["phase_label"] or ""))
+    # Her own read of the day: the judge speaks as her.
+    for row in conn.execute("select day, score, justification from judgements"):
+        entry = span.get(int(row["day"]))
+        if entry is not None:
+            entry["verdict"] = {"score": row["score"],
+                                "text": str(row["justification"] or "")}
     return [span[day] for day in days]
 
 
@@ -229,19 +295,13 @@ def _panels(conn: sqlite3.Connection) -> dict[str, Any]:
     """What the study panels mark: every reach-out decision, and when the two
     of them talked — both run-wide, because a panel reads the whole run, not
     the day the calendar happens to show."""
-    proactive = []
-    for row in conn.execute(
+    proactive = [
+        {"day": int(float(row["t_h"]) // DAY_H),
+         "hour": round(float(row["t_h"]) % DAY_H, 3), **_reach_out(row)}
+        for row in conn.execute(
             "select t_h, verdict_json, inputs_json from decision_records "
-            "where popup_kind = 'tool_decide_proactive' order by t_h"):
-        verdict = _loads(row["verdict_json"])
-        inputs = _loads(row["inputs_json"])
-        proactive.append({
-            "day": int(float(row["t_h"]) // DAY_H),
-            "hour": round(float(row["t_h"]) % DAY_H, 3),
-            "fired": bool(verdict.get("initiate")),
-            "hook": str(inputs.get("hook") or inputs.get("reason") or ""),
-            "reason": str(verdict.get("reason") or ""),
-        })
+            "where popup_kind = 'tool_decide_proactive' order by t_h")
+    ]
 
     days = day_numbers(conn)
     index = {day: i for i, day in enumerate(days)}
@@ -314,23 +374,21 @@ def day_view(conn: sqlite3.Connection, *, day: int,
             "salience, status, outcome from agenda_items where day = ? "
             "order by start_t_h", (day,))
     ]
+    sources = tag_sources(conn)
+    for item in agenda:
+        item["tag"] = agenda_tag(str(item["source_type"] or ""),
+                                 str(item["source_id"] or ""), sources)
 
     # A reach-out reads as a marker whether or not it was sent: the decision
     # record says which, and the reason says why.
-    proactive: list[dict[str, Any]] = []
-    for row in conn.execute(
-        "select t_h, verdict_json, inputs_json from decision_records "
-        "where popup_kind = 'tool_decide_proactive' and t_h >= ? and t_h < ? "
-        "order by t_h", (start, end)):
-        verdict = _loads(row["verdict_json"])
-        inputs = _loads(row["inputs_json"])
-        proactive.append({
-            "hour": round(float(row["t_h"]) - start, 3),
-            "fired": bool(verdict.get("initiate")),
-            "hook": str(inputs.get("hook") or inputs.get("reason") or ""),
-            "reason": str(verdict.get("reason") or ""),
-            "source_id": str(inputs.get("source_id") or ""),
-        })
+    proactive = [
+        {"hour": round(float(row["t_h"]) - start, 3), **_reach_out(row),
+         "source_id": str(_loads(row["inputs_json"]).get("source_id") or "")}
+        for row in conn.execute(
+            "select t_h, verdict_json, inputs_json from decision_records "
+            "where popup_kind = 'tool_decide_proactive' and t_h >= ? and t_h < ? "
+            "order by t_h", (start, end))
+    ]
 
     messages = [
         {"hour": round(float(row["t_h"]) - start, 3),

@@ -8,18 +8,15 @@ validates to nothing all fall back to the default catalog.
 
 from __future__ import annotations
 
-import concurrent.futures
 import json
 import math
 import re
 from dataclasses import dataclass
 
 from harness import proposal_cache
+from harness.concurrency import run_with_deadline
 from harness.domain import Routine
-from harness.interest_extension import (
-    AMBIGUOUS_BARE_NAMES,
-    MAX_NAME_CHARS,
-)
+from harness.interest_extension import clean_name
 
 #: How many routines to ask for; the sampler then draws 3-4 of them.
 ROUTINES_REQUESTED = 6
@@ -48,8 +45,6 @@ SETUP_BUDGET_S = 90.0
 CACHE_NAMESPACE = "routine-catalog"
 CACHE_SCHEMA = "v1"
 
-_NAME_OK = re.compile(r"^[a-z0-9][a-z0-9 \-'&/]*$")
-
 #: Day-specific words are rejected: nothing in the engine knows the weekday,
 #: so the name promises something the routine cannot keep.
 _DAY_SPECIFIC = re.compile(
@@ -60,7 +55,7 @@ _DAY_SPECIFIC = re.compile(
 ROUTINE_PROMPT = """\
 A young woman's interests are: {interests}
 
-Give exactly {n} daily routines — the small fixed rhythm of an ordinary day
+Give exactly {n} daily routines, the small fixed rhythm of an ordinary day
 for her. Anchors, not events: the things she does most days that a day feels
 wrong without. Some should come from her interests, some should just be how
 she lives.
@@ -70,7 +65,7 @@ For each: "name" (lowercase, two or three words, something she DOES),
 evening), "hours" (0.25-2.5, how long it takes) and "cadence" (0.2-0.95, the
 chance she does it on any given day).
 
-Nothing tied to a particular day of the week — no "weekend" or "sunday"
+Nothing tied to a particular day of the week: no "weekend" or "sunday"
 anything. Every routine must make sense on a Tuesday.
 
 JSON only:
@@ -91,19 +86,10 @@ class RoutineSetupResult:
 
 
 def _clean_name(raw: object, seen: set[str]) -> str | None:
-    """Normalize a proposed routine name, or None when it is not usable."""
-    if not isinstance(raw, str):
-        return None
-    name = " ".join(raw.strip().lower().split())
-    if not name or len(name) > MAX_NAME_CHARS:
-        return None
-    if not _NAME_OK.match(name):
-        return None
-    if name in AMBIGUOUS_BARE_NAMES:
-        return None
-    if _DAY_SPECIFIC.search(name):
-        return None
-    if name in seen:
+    """Normalize a proposed routine name, or None when it is not usable: an
+    interest-style name that promises no particular day and is not a repeat."""
+    name = clean_name(raw)
+    if name is None or _DAY_SPECIFIC.search(name) or name in seen:
         return None
     return name
 
@@ -200,21 +186,6 @@ def _make_call(client):
     return None
 
 
-def _call_within_budget(call, prompt: str, budget_s: float) -> str:
-    """Run ``call`` with a hard wall-clock ceiling.
-
-    Not a ``with`` block: ``ThreadPoolExecutor.__exit__`` blocks on
-    ``shutdown(wait=True)``.
-    """
-    pool = concurrent.futures.ThreadPoolExecutor(
-        max_workers=1, thread_name_prefix="routine-setup",
-    )
-    try:
-        return pool.submit(call, prompt).result(timeout=budget_s)
-    finally:
-        pool.shutdown(wait=False, cancel_futures=True)
-
-
 def build_routine_catalog(
     interests,
     *,
@@ -253,8 +224,9 @@ def build_routine_catalog(
         n=ROUTINES_REQUESTED,
     )
     try:
-        reply = _call_within_budget(call, prompt, budget_s)
-    except concurrent.futures.TimeoutError:
+        reply = run_with_deadline(
+            lambda: call(prompt), budget_s, thread_name="routine-setup")
+    except TimeoutError:
         if logger is not None:
             logger(
                 f"routine catalog: no reply within {budget_s:.0f}s; "

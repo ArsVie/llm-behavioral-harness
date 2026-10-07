@@ -14,9 +14,7 @@ from harness.domain import (
     DailyAgenda,
     EpisodicMemory,
     Interest,
-    LifeArc,
     MemoryKind,
-    ProactiveIntent,
 )
 from harness.proactive import (
     SOURCE_AGENDA,
@@ -35,9 +33,7 @@ from harness.scheduler import (
     REASON_SHARED_INTEREST,
     REASON_VALIDITY_H,
 )
-
 from tests.helpers import SeamStore
-
 
 # fixtures + helpers
 
@@ -106,7 +102,7 @@ def test_resolve_agenda_item_current(store, resolver):
     assert intent.source_type == SOURCE_AGENDA
     assert intent.source_id == item.id
     assert intent.reason == REASON_SCHEDULE
-    assert intent.hook == compose_hook(item, REASON_SCHEDULE)
+    assert intent.hook == compose_hook(item, REASON_SCHEDULE, intent.created_t_h)
     assert intent.valid_until_t_h == pytest.approx(
         AGENDA_HOUR + 0.5 + REASON_VALIDITY_H[REASON_SCHEDULE]
     )
@@ -145,7 +141,7 @@ def test_resolve_completed_agenda_item_as_life_event(store, resolver):
     assert intent.source_type == SOURCE_LIFE_EVENT
     assert intent.source_id == item.id
     assert intent.reason == REASON_EVENT
-    assert intent.hook == compose_hook(item, REASON_EVENT)
+    assert intent.hook == compose_hook(item, REASON_EVENT, intent.created_t_h)
 
 
 def test_old_completed_item_not_a_life_event(store, resolver):
@@ -244,9 +240,9 @@ def test_high_salience_recent_beats_low_salience_stale(store, resolver):
     assert intent is not None and intent.source_id == "strong"
 
 
-def test_shared_interest_validity_beats_equal_agenda(store, resolver):
-    # Same salience + recency profile: the 12 h shared-interest window
-    # (validity factor 2.0) outranks the 3 h schedule window (0.5).
+def test_agenda_outranks_an_equal_shared_interest(store, resolver):
+    # Same salience + recency profile: a slot on her agenda (checkable)
+    # outranks a shared interest (inferred), whatever their windows.
     store.save_interests([_interest("photography")])
     ep = _episode(tags=("photography",), importance=0.7)
     store.insert_episode(ep)
@@ -254,7 +250,7 @@ def test_shared_interest_validity_beats_equal_agenda(store, resolver):
     store.save_agenda(0, DailyAgenda(0, (item,)))
     intent = resolver.resolve(AGENDA_HOUR)
     assert intent is not None
-    assert intent.source_type == SOURCE_SHARED_INTEREST
+    assert intent.source_type == SOURCE_AGENDA
 
 
 def test_seeded_tie_break_is_deterministic(store):
@@ -273,68 +269,39 @@ def test_seeded_tie_break_is_deterministic(store):
     assert i1.id == i2.id
 
 
-def test_hook_is_deterministic_and_source_derived(store, resolver):
-    item = _agenda_item()
-    store.save_agenda(0, DailyAgenda(0, (item,)))
-    i1 = resolver.resolve(AGENDA_HOUR + 0.2)
-    i2 = resolver.resolve(AGENDA_HOUR + 0.2)
-    assert i1 is not None and i2 is not None
-    assert i1.hook == i2.hook
-    assert i1.hook == compose_hook(item, REASON_SCHEDULE)
-    # the hook is a template over source fields, not free text
-    assert item.activity in i1.hook
-
-
 # intent shape
-
-
-def test_intent_is_fully_grounded(store, resolver):
-    item = _agenda_item()
-    store.save_agenda(0, DailyAgenda(0, (item,)))
-    intent = resolver.resolve(AGENDA_HOUR)
-    assert intent is not None
-    for field in ("id", "reason", "source_type", "source_id", "hook", "evidence"):
-        assert getattr(intent, field), f"{field} must be non-empty"
-    assert intent.valid_until_t_h > intent.created_t_h
-    assert 0.0 <= intent.salience <= 1.0
 
 
 # SeamStore sanity checks
 
 
-def test_seamstore_schedule_semantics_match_sqlite():
-    store = SeamStore()
-    store.save_schedule_events(1, [{"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE}])
-    store.mark_schedule_fired(1, 10.0, fired_t_h=10.4)
-    # INSERT OR IGNORE: re-saving does not resurrect the fired row
-    store.save_schedule_events(1, [{"t_h": 10.0, "day": 0, "reason": REASON_SCHEDULE}])
-    assert store.pending_schedule_events(1) == []
-    assert store.last_proactive_t_h(1) == 10.4
-    rows = store.schedule_events_for_seed(1)
-    assert set(rows[0]) == {"id", "seed", "t_h", "day", "reason", "status", "fired_t_h"}
-    assert rows[0]["status"] == "fired"
-    store.close()
-
-
-def test_seamstore_latest_interaction_tracks_user_messages():
-    store = SeamStore()
-    assert store.latest_interaction_t_h() is None
-    store.add_message("assistant", "hi", t_h=1.0, day=0, proactive=True)
-    assert store.latest_interaction_t_h() is None  # assistant msgs don't count
-    store.add_message("user", "hello", t_h=2.5, day=0, proactive=False)
-    assert store.latest_interaction_t_h() == 2.5
-
-
-def test_seamstore_proactive_intent_status_lifecycle():
-    store = SeamStore()
-    item = _agenda_item()
+def test_an_agenda_slot_is_offered_once(store, resolver):
+    # Live day 5: the pottery slot was offered twice in an hour.
+    item = _agenda_item(salience=0.7)
     store.save_agenda(0, DailyAgenda(0, (item,)))
-    intent = IntentResolver(store).resolve(AGENDA_HOUR)
-    assert intent is not None
-    store.save_proactive_intent(intent)
-    assert store.load_proactive_intent(intent.id) == intent
-    store.update_proactive_intent_status(intent.id, "fired")
-    assert [i.id for i in store.list_proactive_intents(status="fired")] == [intent.id]
-    assert store.list_proactive_intents(status="pending") == []
-    # resolve_intent_source returns the source
-    assert store.resolve_intent_source(intent) == item
+    first = resolver.resolve(AGENDA_HOUR)
+    assert first is not None and first.source_type == SOURCE_AGENDA
+    store.save_proactive_intent(first)
+    store.update_proactive_intent_status(first.id, "fired")
+    assert resolver.resolve(AGENDA_HOUR + 0.5) is None
+
+
+def test_a_declined_slot_can_come_back(store, resolver):
+    item = _agenda_item(salience=0.7)
+    store.save_agenda(0, DailyAgenda(0, (item,)))
+    first = resolver.resolve(AGENDA_HOUR)
+    store.save_proactive_intent(first)
+    store.update_proactive_intent_status(first.id, "suppressed")
+    assert resolver.resolve(AGENDA_HOUR + 0.5) is not None
+
+
+def test_an_agenda_hook_says_where_the_slot_sits_against_now():
+    """Live 2026-09-27: at 09:39 the hook named the 11:30 cookie slot with no
+    'later', and she wrote "So I'm making cookies"."""
+    item = _agenda_item()
+    start, end = item.start_t_h, item.end_t_h
+    assert compose_hook(item, REASON_SCHEDULE, start - 1.85).endswith(", starts in 1h 51m")
+    assert compose_hook(item, REASON_SCHEDULE, start).endswith(", happening now")
+    assert compose_hook(item, REASON_SCHEDULE, end + 0.5).endswith(", ended 30m ago")
+    assert compose_hook(item, REASON_EVENT, end + 0.9).endswith(", 54m ago")
+    assert compose_hook(item, REASON_SCHEDULE) == compose_hook(item, REASON_SCHEDULE, None)

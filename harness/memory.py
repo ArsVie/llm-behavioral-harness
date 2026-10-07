@@ -7,10 +7,10 @@ No real-clock reads: every timestamp is passed in as ``t_h``.
 
 from __future__ import annotations
 
-import inspect
+import hashlib
+import math
 import re
 from dataclasses import dataclass, replace
-from typing import Callable
 
 from harness.domain import (
     AffectMetadata,
@@ -26,12 +26,9 @@ from harness.domain import (
 from harness.embeddings import (
     DeterministicHashEmbedder,
     Embedder,
-    RealSemanticEmbedder,
     cosine as _cosine,
 )
 from harness.summarization import (
-    DeterministicSummaryExtractor,
-    SemanticSummaryExtractor,
     Summarizer,
     _STOP,
     _TOKENS_RE,
@@ -45,7 +42,9 @@ from harness.summarization_facts import (
     _extract_facts,
 )
 
-# Backward-compatible re-exports for tests and callers.
+#: kv key for the memory fork's summary of a day, in her words.
+DAY_SUMMARY_KV = "memory.day_summary.{day}"
+
 __all__ = [
     "MemoryAgent",
     "PromotionPolicy",
@@ -53,14 +52,9 @@ __all__ = [
     "deterministic_summarizer",
     "score_memory",
     "episodic_strength",
-    "raw_history",
-    "simple_retrieval",
     "Embedder",
     "DeterministicHashEmbedder",
-    "RealSemanticEmbedder",
     "Summarizer",
-    "DeterministicSummaryExtractor",
-    "SemanticSummaryExtractor",
     "SEM_WEIGHT",
     "STRENGTH_WEIGHT",
     "IMPORTANCE_WEIGHT",
@@ -75,6 +69,32 @@ def deterministic_hash_embedder(text: str, *, dim: int = 64, seed: int = 0) -> l
     Function form of ``DeterministicHashEmbedder``, the canonical interface.
     """
     return DeterministicHashEmbedder(dim=dim, seed=seed)(text)
+
+
+def recall_embedder(text: str, *, dim: int = 1024, seed: int = 0) -> list[float]:
+    """The live memory lane's embedder: character unigrams and bigrams with
+    signed feature hashing (SHA-256, stable across processes) in 1024 dims.
+
+    Stored embeddings were written with exactly this function; changing it
+    (dims, features, hash) silently breaks retrieval over an existing store.
+    """
+    vec = [0.0] * dim
+    feats: list[str] = []
+    for tok in re.findall(r"[a-z0-9]+", text.lower()):
+        feats.append("w:" + tok)
+        if len(tok) >= 3:
+            for i in range(len(tok) - 1):
+                feats.append("b:" + tok[i:i + 2])
+    for f in feats:
+        d = hashlib.sha256(f"{seed}:{f}".encode("utf-8")).digest()
+        idx = int.from_bytes(d[:4], "little") % dim
+        sign = 1.0 if d[4] & 1 else -1.0
+        vec[idx] += sign
+    norm = math.sqrt(sum(v * v for v in vec))
+    if norm == 0.0:
+        vec[0] = 1.0
+        return vec
+    return [v / norm for v in vec]
 
 
 # ---------------------------------------------------------------------------
@@ -201,45 +221,15 @@ class PromotionPolicy:
 
 
 # ---------------------------------------------------------------------------
-# Baselines
-
-
-def raw_history(store, *, limit: int = L1_SLICE_LIMIT) -> tuple[Turn, ...]:
-    """RAW_HISTORY baseline: the recent transcript, nothing else.
-
-    The policy-based ``RAW_CONTEXT`` condition in ``MemoryAgent.retrieve`` is
-    the budget-filling variant of this baseline.
-    """
-    rows = store.recent_messages(limit=limit)
-    return tuple(Turn(role=r["role"], text=r["content"], t_h=float(r["t_h"])) for r in rows)
-
-
-def simple_retrieval(
-    query: str,
-    episodes: list[EpisodicMemory],
-    embeddings: dict[str, list[float]],
-    *,
-    embedder: Callable[[str], list[float]] | None = None,
-    limit: int = 8,
-) -> list[EpisodicMemory]:
-    """SIMPLE_RAG baseline: semantic relevance only (cosine over embeddings).
-
-    Strength and importance are ignored entirely — the contrast to the full
-    0.35/0.30/0.35 reranker. The ``VERBATIM_RAG`` condition ranks raw turns
-    with the same embedder instead of L3 episodes.
-    """
-    embed = embedder or deterministic_hash_embedder
-    qv = embed(query)
-    scored = [
-        (_cosine(qv, embeddings.get(ep.id, [0.0] * len(qv))), ep) for ep in episodes
-    ]
-    scored.sort(key=lambda t: t[0], reverse=True)
-    return [ep for _, ep in scored[:limit]]
-
-
-# ---------------------------------------------------------------------------
 # MemoryAgent
 
+
+#: Fact kind -> the episode category it is stored under.
+_FACT_MEMORY_KIND = {
+    "user_fact": MemoryKind.USER_FACT,
+    "preference": MemoryKind.USER_PREFERENCE,
+    "relationship": MemoryKind.RELATIONSHIP_EVENT,
+}
 
 #: An extracted fact shorter than this reads as a keyword blob, not memory;
 #: the extractor's fallback path drops it.
@@ -270,38 +260,14 @@ class MemoryAgent:
         *,
         embedder: Embedder | None = None,
         policy: PromotionPolicy | None = None,
-        rng=None,
         summarizer: Summarizer | None = None,
         memory_policy: MemoryPolicy = MemoryPolicy.STRUCTURED_MEMORY,
     ) -> None:
         self.store = store
         self._embed: Embedder = embedder or DeterministicHashEmbedder()
         self._policy = policy if policy is not None else PromotionPolicy()
-        self._summarizer: Summarizer = summarizer or DeterministicSummaryExtractor()
-        self._rng = rng  # stored for future use
+        self._summarizer: Summarizer = summarizer or deterministic_summarizer
         self.memory_policy = memory_policy
-        try:
-            self._add_message_accepts_session = (
-                "session_id" in inspect.signature(store.add_message).parameters
-            )
-        except (TypeError, AttributeError):
-            self._add_message_accepts_session = False
-        # Stores accepting provenance kwargs persist it on the superseded row.
-        try:
-            self._supersede_accepts_provenance = (
-                "source_memory_ids"
-                in inspect.signature(store.supersede_assertion).parameters
-            )
-        except (TypeError, AttributeError):
-            self._supersede_accepts_provenance = False
-        # The store persists the UserModelCategory on the assertion row;
-        # stores without the kwarg fall back to legacy key-prefix bucketing.
-        try:
-            self._upsert_accepts_category = (
-                "category" in inspect.signature(store.upsert_assertion).parameters
-            )
-        except (TypeError, AttributeError):
-            self._upsert_accepts_category = False
 
     # -- helpers ------------------------------------------------------------
 
@@ -313,17 +279,20 @@ class MemoryAgent:
         return int(m.group(1))
 
     def _session_messages(self, session_id: str) -> list[dict]:
-        if hasattr(self.store, "messages_for_session"):
-            msgs = self.store.messages_for_session(session_id)
-            if msgs:
-                return msgs
-        return self.store.messages_for_day(self._day_of(session_id))
+        return (self.store.messages_for_session(session_id)
+                or self.store.messages_for_day(self._day_of(session_id)))
 
     def _session_score(self, session_id: str) -> float | None:
         try:
             return self.store.load_judgement_score(self._day_of(session_id))
         except (AttributeError, ValueError):
             return None
+
+    def _save_episode(self, ep: EpisodicMemory) -> None:
+        """Insert ``ep`` with its embedding unless it is already stored."""
+        if self.store.get_episode(ep.id) is None:
+            self.store.insert_episode(ep)
+            self.store.save_embedding(ep.id, self._embed(self._episode_text(ep)))
 
     def _affect_for_episode(
         self, turn_id: int, messages: list[dict], score: float | None
@@ -346,35 +315,27 @@ class MemoryAgent:
     # -- L1 -----------------------------------------------------------------
 
     def record_turn(self, role: str, text: str, t_h: float, session_id: str) -> None:
-        """Persist one turn verbatim as L1 (never summarized at write time).
-
-        Uses the store's message table; the ``session_id`` kwarg is passed only
-        when the store supports it (detected once at construction), otherwise
-        L1 rows are linked by day.
-        """
-        day = self._day_of(session_id)
-        if self._add_message_accepts_session:
-            self.store.add_message(role, text, t_h, day, session_id=session_id)
-        else:
-            self.store.add_message(role, text, t_h, day)
+        """Persist one turn verbatim as L1 (never summarized at write time)."""
+        self.store.add_message(role, text, t_h, self._day_of(session_id),
+                               session_id=session_id)
 
     # -- L2 -----------------------------------------------------------------
 
     def close_session(self, session_id: str, *, ended_at_t_h: float) -> SessionSummary:
         """Close a session: build + persist the structured L2 summary.
 
-        The default extractor is deterministic; a ``SemanticSummaryExtractor``
-        may be injected. Persisted through the store seam before being
-        returned.
+        The default extractor is deterministic; another ``Summarizer`` may be
+        injected. Persisted through the store seam before being returned.
         """
+        day = self._day_of(session_id)
         messages = self._session_messages(session_id)
-        judgement = None
-        try:
-            judgement = self.store.load_judgement(self._day_of(session_id))
-        except (AttributeError, ValueError):
-            judgement = None
-        started = min((float(m["t_h"]) for m in messages), default=float(self._day_of(session_id) * 24.0))
+        judgement = self.store.load_judgement(day)
+        started = min((float(m["t_h"]) for m in messages), default=float(day * 24.0))
         summary = self._summarizer(session_id, messages, judgement, started, ended_at_t_h)
+        if messages and hasattr(self.store, "get_kv"):
+            told = self.store.get_kv(DAY_SUMMARY_KV.format(day=messages[0].get("day")))
+            if told:  # the memory fork already told this day in her words
+                summary = replace(summary, summary=told)
         self.store.save_session_summary(summary)
         return summary
 
@@ -450,18 +411,13 @@ class MemoryAgent:
             return ep
 
         for f in facts:
-            category = {
-                "user_fact": MemoryKind.USER_FACT,
-                "preference": MemoryKind.USER_PREFERENCE,
-                "relationship": MemoryKind.RELATIONSHIP_EVENT,
-            }[f.kind]
             msg = by_id.get(f.turn_id)
             occurred = float(msg["t_h"]) if msg else summary.ended_at_t_h
             affect = self._affect_for_episode(f.turn_id, messages, score)
             episodes.append(
                 make_episode(
-                    f.value, category, (f.turn_id,), (f.anchor,), affect, occurred,
-                    extra_tags=(f.kind,),
+                    f.value, _FACT_MEMORY_KIND[f.kind], (f.turn_id,), (f.anchor,),
+                    affect, occurred, extra_tags=(f.kind,),
                 )
             )
         for excerpt, tid, full in cbs:
@@ -496,12 +452,9 @@ class MemoryAgent:
                     )
                 )
         if not episodes and summary.emotional_peak:
-            peak_text = (
-                "user shared an emotionally intense moment"
-            )
             episodes.append(
                 make_episode(
-                    peak_text,
+                    "user shared an emotionally intense moment",
                     MemoryKind.SHARED_EPISODE,
                     summary.source_turn_ids,
                     (),
@@ -513,9 +466,7 @@ class MemoryAgent:
 
         episodes = episodes[:6]
         for ep in episodes:
-            if self.store.get_episode(ep.id) is None:
-                self.store.insert_episode(ep)
-                self.store.save_embedding(ep.id, self._embed(self._episode_text(ep)))
+            self._save_episode(ep)
         return episodes
 
     # -- L4 -----------------------------------------------------------------
@@ -553,15 +504,78 @@ class MemoryAgent:
                 f, self.store.get_assertion(f.key), sources,
                 summary.ended_at_t_h,
             )
-            if self._upsert_accepts_category:
-                self.store.upsert_assertion(assertion, category=f.category)
-            else:
-                self.store.upsert_assertion(assertion)
+            self.store.upsert_assertion(assertion, category=f.category)
             updated.append(assertion)
         updated.extend(
             self._supersede_negated(facts, ep_by_turn, summary.ended_at_t_h)
         )
         return updated
+
+    def consolidate(self, remembered, *, day: int, messages: list[dict],
+                    ended_at_t_h: float) -> list[UserModelAssertion]:
+        """Write what the end-of-day memory fork kept (``memory_fork.parse``):
+        one episode per item, anchored on his quoted words and their turn,
+        then the user-model assertions those episodes source.
+
+        Episode ids are ``ep-day<d>-mem-<n>``, so a day consolidated twice
+        (a restart replaying finalize) writes nothing new.
+        """
+        by_id = {int(m.get("id", -1)): m for m in messages}
+        score = None
+        try:
+            score = self.store.load_judgement_score(day)
+        except AttributeError:
+            pass
+        items = [(f.value, _FACT_MEMORY_KIND[f.kind], f.turn_id, f.anchor,
+                  (f.kind,)) for f in remembered.facts]
+        items += [(f"callback: {sentence or excerpt}", MemoryKind.CALLBACK, tid,
+                   excerpt, ("callback",))
+                  for excerpt, tid, sentence in remembered.callbacks]
+        items += [(sentence, MemoryKind.SHARED_EPISODE, tid, quote, ("moment",))
+                  for sentence, tid, quote in remembered.moments]
+        ep_by_turn: dict[int, str] = {}
+        for n, (text, category, tid, anchor, extra) in enumerate(items):
+            msg = by_id.get(tid, {})
+            ep = EpisodicMemory(
+                id=f"ep-day{day}-mem-{n}",
+                summary=text,
+                category=category,
+                occurred_at_t_h=float(msg.get("t_h", ended_at_t_h)),
+                created_at_t_h=ended_at_t_h,
+                importance=float(remembered.weights.get(tid, 0.5)),
+                access_count=0,
+                last_accessed_t_h=None,
+                affect=self._affect_for_episode(tid, messages, score),
+                source_session_id=str(msg.get("session_id") or f"day-{day}"),
+                source_turn_ids=(tid,),
+                verbatim_anchors=(anchor,),
+                tags=self._tags_for_text(text, extra),
+            )
+            ep_by_turn.setdefault(tid, ep.id)
+            self._save_episode(ep)
+        if remembered.summary:
+            self._tell_day(day, remembered.summary, messages)
+        updated: list[UserModelAssertion] = []
+        for f in remembered.facts:
+            existing = self.store.get_assertion(f.key)
+            source = ep_by_turn[f.turn_id]
+            if existing is not None and source in existing.source_memory_ids:
+                continue  # this day already counted (replay)
+            assertion = self._merged_assertion(f, existing, (source,), ended_at_t_h)
+            self.store.upsert_assertion(assertion, category=f.category)
+            updated.append(assertion)
+        return updated
+
+    def _tell_day(self, day: int, text: str, messages: list[dict]) -> None:
+        """Her summary of the day replaces the session summaries' placeholder
+        prose, now and when a session of that day closes later."""
+        if hasattr(self.store, "set_kv"):
+            self.store.set_kv(DAY_SUMMARY_KV.format(day=day), text)
+        for sid in dict.fromkeys(str(m["session_id"]) for m in messages
+                                 if m.get("session_id")):
+            saved = self.store.load_session_summary(sid)
+            if saved is not None:
+                self.store.save_session_summary(replace(saved, summary=text))
 
     @staticmethod
     def _merged_assertion(fact, existing, sources: tuple,
@@ -634,15 +648,11 @@ class MemoryAgent:
                     updated_at_t_h=ended_at_t_h,
                     source_memory_ids=a.source_memory_ids + extra,
                 )
-                if self._supersede_accepts_provenance:
-                    # Persist merged provenance on the superseded row.
-                    self.store.supersede_assertion(
-                        a.key,
-                        source_memory_ids=superseded.source_memory_ids,
-                        updated_at_t_h=superseded.updated_at_t_h,
-                    )
-                else:
-                    self.store.supersede_assertion(a.key)
+                self.store.supersede_assertion(
+                    a.key,
+                    source_memory_ids=superseded.source_memory_ids,
+                    updated_at_t_h=superseded.updated_at_t_h,
+                )
                 retired.append(superseded)
         return retired
 
@@ -689,9 +699,7 @@ class MemoryAgent:
     def _retrieve_raw_context(self) -> MemoryContext:
         """RAW_CONTEXT baseline: raw dialogue up to the hard budget."""
         rows = self.store.recent_messages(limit=RAW_CONTEXT_WINDOW)
-        turns = tuple(
-            Turn(role=r["role"], text=r["content"], t_h=float(r["t_h"])) for r in rows
-        )
+        turns = tuple(_turn(r) for r in rows)
         return _trim_to_budget(
             MemoryContext(
                 recent_turns=turns,
@@ -715,10 +723,7 @@ class MemoryAgent:
             scored.append((sem, r))
         scored.sort(key=lambda t: t[0], reverse=True)
         top = scored[:limit]
-        turns = tuple(
-            Turn(role=r["role"], text=r["content"], t_h=float(r["t_h"]))
-            for _, r in top
-        )
+        turns = tuple(_turn(r) for _, r in top)
         anchors = tuple(str(r["content"]) for _, r in top)
         return _trim_to_budget(
             MemoryContext(
@@ -762,9 +767,7 @@ class MemoryAgent:
             self.store.touch_episode(ep.id, now)
 
         recent = self.store.recent_messages(limit=L1_SLICE_LIMIT)
-        turns = tuple(
-            Turn(role=r["role"], text=r["content"], t_h=float(r["t_h"])) for r in recent
-        )
+        turns = tuple(_turn(r) for r in recent)
 
         summaries: list[SessionSummary] = []
         seen: set[str] = set()
@@ -795,6 +798,10 @@ class MemoryAgent:
             evidence_anchors=tuple(anchors),
         )
         return _trim_to_budget(result)
+
+
+def _turn(row: dict) -> Turn:
+    return Turn(role=row["role"], text=row["content"], t_h=float(row["t_h"]))
 
 
 def _context_chars(ctx: MemoryContext) -> int:

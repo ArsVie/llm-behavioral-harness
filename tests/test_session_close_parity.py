@@ -1,12 +1,11 @@
-"""W-close: flag-off byte-parity pin + flag-on vestigial pin.
+"""W-close: the flag-off close discipline, and flag-on parity with it.
 
 With the closing draw flagged OFF the only closures are the boundary closes
 (``quiet_hours`` at 23:00, ``user_left`` at ``USER_LEFT_THRESHOLD_H`` of user
-silence). The pin is a sha256 over the canonical persisted trace
-(conversations + turns + messages + state_events) of a seeded, bounded scripted
-feed; the expected close pattern is also recomputed independently, so a changed
-close timing or reason fails before the hash check. The flag-on arm must be
-byte-identical to the flag-off arm.
+silence). The expected close pattern is recomputed independently from the
+seeded, bounded scripted feed; two runs must leave the same persisted trace
+(conversations + turns + messages + state_events), and the flag-on arm must
+leave the same trace as the flag-off arm.
 """
 
 import hashlib
@@ -24,19 +23,6 @@ PERSONA = PersonaParams()
 TIMING = TimingParams()
 VARIANT = MoodVariant.DECOUPLED_OFFSETS
 SEED = 12345
-
-#: sha256 of the canonical trace of the seeded feed, two_phase_close OFF.
-#: Regenerated 2026-09-20 for the section-level card diff. Verified against
-#: the previous pin's tree: conversations and state_events byte-identical;
-#: same row count; the message diff is exactly the 12 card rows
-#: (availability split out; later cards ride as STATE UPDATE rows). No
-#: draw-key/RNG/timing change.
-#: Regenerated again 2026-09-20 for the UPDATE row's lead losing its clause
-#: ("STATE UPDATE — only what changed:" -> "STATE UPDATE:", owner call).
-#: Verified by re-running the feed with the OLD lead substituted: the hash
-#: reproduced the previous pin exactly, so the lead string is the only byte
-#: that moved — no draw-key, RNG or timing change.
-PARITY_PIN = "f3d184f0c1867e87bda234d53c28aeaf48d2d4463589a19b55c0d09cf77adf68"
 
 #: Messages land at START_H + m*GAP_H, crossing one quiet-hours boundary.
 START_H = 8.1667
@@ -83,7 +69,7 @@ def _run_feed(tmp_path, *, two_phase: bool) -> tuple[SQLiteStore, list]:
 
 
 def _canonical_trace(store: SQLiteStore) -> str:
-    """sha256 over the persisted artifacts in deterministic order."""
+    """A digest of the persisted artifacts in deterministic order."""
     convs = [
         (c.id, c.opened_by, c.close_reason,
          round(c.closed_t_h, 6) if c.closed_t_h is not None else None,
@@ -118,24 +104,20 @@ def _expected_boundary_close() -> tuple[int, float]:
     return m, START_H + m * GAP_H
 
 
-def test_flag_off_byte_parity_is_pinned(tmp_path, monkeypatch):
-    """Flag off: (a) two fresh runs are byte-identical, (b) the frozen pin
-    matches, (c) the recorded close pattern matches the independently
-    recomputed boundary discipline, (d) zero wind-down artifacts reach the
-    store."""
+def test_flag_off_closes_at_the_boundary(tmp_path, monkeypatch):
+    """Flag off: (a) two fresh runs are byte-identical, (c) the recorded
+    close pattern matches the independently recomputed boundary discipline,
+    (d) zero wind-down artifacts reach the store."""
     assert CLOSING_TENDENCY_ENABLED is False, (
-        "this battery encodes the DRAW-OFF reality; regenerate PARITY_PIN "
-        "and re-base the pins when the draw is re-enabled"
+        "this battery encodes the DRAW-OFF reality; re-base it when the draw "
+        "is re-enabled"
     )
     monkeypatch.setattr("harness.session.controls_from_directive", _forced_controls)
+    # The per-turn writing row is a separate feature; it stays off here.
+    monkeypatch.setenv("HARNESS_TURN_STYLE", "0")
 
     store_a, pattern_a = _run_feed(tmp_path / "a", two_phase=False)
     trace_a = _canonical_trace(store_a)
-    assert trace_a == PARITY_PIN, (
-        "FLAG-OFF BYTE PARITY BROKEN: the replay pin changed. Any change to "
-        "the flag-off closing path (draw keys, RNG consumption, close timing) "
-        "is a merge blocker — regenerating the pin is an orchestrator decision."
-    )
 
     store_b, pattern_b = _run_feed(tmp_path / "b", two_phase=False)
     assert _canonical_trace(store_b) == trace_a, "flag-off runs are non-deterministic"

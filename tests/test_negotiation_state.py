@@ -38,6 +38,7 @@ from harness.negotiation_state import (
 from harness.session import Session
 from harness.steering import KIND_EVENT_POPUP
 from harness.store import SQLiteStore
+from tests.helpers.store import booted
 from harness.tools import DecisionConfig, DecisionResult
 
 PERSONA = PersonaParams()
@@ -92,7 +93,7 @@ def _item(start: float, end: float, *, item_id: str = "ag1",
 
 def _session(tmp_path, *, verdicts: list[dict], clock: VirtualClock,
              seed: int = SEED, agenda=None) -> tuple[Session, SQLiteStore, FakeRunner]:
-    store = SQLiteStore(tmp_path / "s.db")
+    store = booted(SQLiteStore(tmp_path / "s.db"))
     if agenda is not None:
         store.save_agenda(0, agenda)
     session = Session(
@@ -224,19 +225,7 @@ def test_window_ending_flag():
 # pure machine: persisted state + responded-bool marker
 
 
-def test_state_roundtrip_and_responded_bool_marker():
-    st = _st(informed=True, delay_count=2, turns_to_decide=3,
-             afk_deadline_t_h=10.5, last_decide_at_t_h=10.0,
-             phase=NegotiationPhase.RESOLVED_GO.value,
-             resolved_action="follow", resolved_t_h=10.2)
-    st2 = state_from_dict(state_to_dict(st))
-    assert st2 is not None
-    assert st2.informed is True          # VALUE check
-    assert st2.delay_count == 2
-    assert st2.turns_to_decide == 3
-    assert st2.afk_deadline_t_h == 10.5
-    assert st2.phase == NegotiationPhase.RESOLVED_GO.value
-    assert st2.resolved_action == "follow"
+def test_state_restore_missing_informed_and_corrupt_snapshots():
     # A snapshot without the informed key restores False; key absence is not informed.
     bare = state_to_dict(_st(informed=False))
     del bare["informed"]
@@ -368,7 +357,13 @@ def test_release_afk_bomb_fires_decide_go(tmp_path):
     ) == pytest.approx(9.5 + SHORT_AFK_H)
     clock.advance_hours(0.3)                  # 9.8: bomb fired
     outs = session.check_negotiation(clock.now_h())
-    assert outs == (("event_popup", "I should go"),)
+    # No turn to carry it: she leaves silently. The verdict's reason is its
+    # audit field, never her words (live 2026-09-30, message 238).
+    assert outs == ()
+    assert not any(
+        m["role"] == "assistant" and "I should go" in m["content"]
+        for m in store.recent_messages(limit=50)
+    )
     assert session.open_conversation_id() is None
     assert [it.status for it in store.list_agenda_items(0)] == ["completed"]
     assert runner.calls[-1]["decision_id"] == "neg-ag1-decide-0"
@@ -571,7 +566,7 @@ def test_real_runner_pipeline_inform_message_and_defer_turns(tmp_path):
     uses as its N."""
     agenda = DailyAgenda(0, (_item(9.0, 11.0),))
     clock = VirtualClock(t_h=8.0)
-    store = SQLiteStore(tmp_path / "s.db")
+    store = booted(SQLiteStore(tmp_path / "s.db"))
     store.save_agenda(0, agenda)
     client = FakeClient(responses=[
         "ok",                                                    # T1 main
@@ -643,3 +638,26 @@ def test_park_accessor_and_persisted_state_events(tmp_path):
     last = state_from_dict(json.loads(snaps[-1]["detail"]))
     assert last is not None and last.informed is True
     store.close()
+
+
+def test_an_informed_item_is_not_decided_twice_after_the_conversation_closes(
+    tmp_path,
+):
+    """Live 2026-09-21 21:50: the conversation closed between the heads-up
+    and the start pop-up. The pop-up went to plain semantics and decided
+    the item, then the negotiation's own decide leg decided it again. An
+    informed negotiation owns its start pop-up, conversation or not."""
+    agenda = DailyAgenda(0, (_item(9.0, 11.0),))
+    session, _store, runner = _session(
+        tmp_path, clock=VirtualClock(t_h=9.0), agenda=agenda, verdicts=[],
+    )
+    session._negotiations["ag1"] = _st(informed=True)
+    session._conversation = None
+    out: list = []
+    assert session._maybe_start_negotiation("ag1", 0, 9.0, None, out) is True
+    assert runner.calls == [] and out == []
+    # Never informed: the plain start pop-up still decides it, as before.
+    session._negotiations["ag1"] = _st(
+        informed=False, phase=NegotiationPhase.INFORM.value,
+    )
+    assert session._maybe_start_negotiation("ag1", 0, 9.0, None, out) is False

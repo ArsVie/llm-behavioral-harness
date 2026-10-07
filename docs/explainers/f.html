@@ -1,0 +1,1499 @@
+<title>How she decides what to say</title>
+
+<style>
+/* Single light pastel theme. Deliberately no dark variant: the data-theme
+   selectors below re-assert the same tokens so a viewer toggle cannot darken it. */
+:root,
+:root[data-theme="dark"],
+:root[data-theme="light"]{
+  color-scheme:light;
+  --paper:#FBF9FC;
+  --paper-2:#FFFFFF;
+  --rule:#E7E1EE;
+  --rule-soft:#F1ECF5;
+  --ink:#4A4458;
+  --ink-2:#6E6880;
+  --ink-3:#9F98AE;
+  --accent:#8375B8;
+  --accent-soft:#EFEBF9;
+
+  --lane-persona:#C98BA4;   --lane-persona-bg:#FBEAF1;
+  --lane-engine:#8F7FC4;    --lane-engine-bg:#EDE8F9;
+  --lane-life:#6FA987;      --lane-life-bg:#E3F2E8;
+  --lane-memory:#C99A6B;    --lane-memory-bg:#FBEEDF;
+  --lane-timing:#6E9FCB;    --lane-timing-bg:#E3EFFA;
+  --lane-output:#B9A46A;    --lane-output-bg:#F8F1DD;
+
+  --ok:#6FA987; --warn:#C79A5A; --bad:#CD8585;
+
+  --font-display:ui-serif,Georgia,'Iowan Old Style','Times New Roman',serif;
+  --font-body:ui-sans-serif,system-ui,-apple-system,'Segoe UI',Roboto,'Helvetica Neue',sans-serif;
+  --font-mono:ui-monospace,'SF Mono','Cascadia Code',Menlo,Consolas,monospace;
+
+  --measure:70ch;
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--paper); color:var(--ink);
+  font-family:var(--font-body); font-size:16px; line-height:1.62;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1220px;margin:0 auto;padding:0 28px 96px}
+
+/* ---------- masthead ---------- */
+header.mast{padding:56px 0 28px;border-bottom:1px solid var(--rule)}
+.eyebrow{
+  font-family:var(--font-mono);font-size:11.5px;letter-spacing:.13em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 14px
+}
+h1{
+  font-family:var(--font-display);font-weight:600;font-size:clamp(30px,4.4vw,46px);
+  line-height:1.14;margin:0 0 16px;text-wrap:balance;letter-spacing:-.012em
+}
+.standfirst{max-width:var(--measure);color:var(--ink-2);font-size:17.5px;margin:0}
+.mast-meta{
+  display:flex;flex-wrap:wrap;gap:8px 22px;margin-top:24px;
+  font-family:var(--font-mono);font-size:12px;color:var(--ink-3)
+}
+.mast-meta b{color:var(--ink-2);font-weight:500}
+
+/* ---------- tabs ---------- */
+nav.tabs{
+  position:sticky;top:0;z-index:40;background:var(--paper);
+  border-bottom:1px solid var(--rule);margin-bottom:40px;
+  display:flex;gap:2px;overflow-x:auto;padding-top:6px
+}
+nav.tabs button{
+  appearance:none;background:none;border:0;border-bottom:2px solid transparent;
+  font-family:var(--font-body);font-size:13.5px;font-weight:500;color:var(--ink-3);
+  padding:12px 15px;cursor:pointer;white-space:nowrap;transition:color .13s,border-color .13s
+}
+nav.tabs button:hover{color:var(--ink)}
+nav.tabs button[aria-selected="true"]{color:var(--accent);border-bottom-color:var(--accent)}
+nav.tabs button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:3px}
+
+.panel{display:none}
+.panel[data-active="true"]{display:block;animation:fade .2s ease}
+@keyframes fade{from{opacity:0;transform:translateY(3px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.panel[data-active="true"]{animation:none}}
+
+/* ---------- prose ---------- */
+h2{
+  font-family:var(--font-display);font-weight:600;font-size:26px;line-height:1.24;
+  margin:0 0 6px;text-wrap:balance;letter-spacing:-.008em
+}
+h3{
+  font-family:var(--font-display);font-weight:600;font-size:19.5px;
+  margin:38px 0 8px;text-wrap:balance
+}
+h4{
+  font-family:var(--font-mono);font-size:11.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;margin:26px 0 8px
+}
+p,li{max-width:var(--measure)}
+p{margin:0 0 14px}
+ul,ol{margin:0 0 16px;padding-left:22px}
+li{margin-bottom:6px}
+.lede{font-size:17px;color:var(--ink-2);max-width:var(--measure);margin-bottom:26px}
+hr.sep{border:0;border-top:1px solid var(--rule-soft);margin:44px 0}
+
+/* ---------- equations ---------- */
+math{font-size:1.05em}
+.eq{background:#F6F3FA;border:1px solid #DED7EA;border-left:3px solid var(--accent);
+  border-radius:0 9px 9px 0;padding:14px 18px 12px;margin:14px 0 18px;overflow-x:auto}
+.eq math[display="block"]{margin:6px 0}
+.eq .where{font-family:var(--font-body);font-size:13px;color:var(--ink-2);margin:9px 0 0;
+  padding-top:9px;border-top:1px solid #DED7EA;max-width:none;line-height:1.95}
+.eq .where b{font-weight:600;color:var(--ink)}
+.eq .cap{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);margin:0 0 8px}
+
+/* ---------- variable chips + tooltip ---------- */
+.v{
+  font-family:var(--font-mono);font-size:.885em;
+  background:var(--accent-soft);color:var(--ink);
+  padding:1px 5px;border-radius:4px;
+  border-bottom:1px dotted var(--accent);
+  cursor:help;position:relative;white-space:nowrap
+}
+.v:focus{outline:2px solid var(--accent);outline-offset:1px}
+.v::after{
+  content:attr(data-tip);position:fixed;left:var(--tl,0);top:var(--tt,0);
+  transform:translateY(3px);
+  width:max-content;max-width:330px;white-space:normal;
+  background:#5B5470;color:#FFFFFF;
+  font-family:var(--font-body);font-size:12.5px;line-height:1.5;letter-spacing:0;
+  text-transform:none;padding:9px 12px;border-radius:7px;
+  opacity:0;pointer-events:none;transition:opacity .14s,transform .14s;
+  z-index:60;box-shadow:0 6px 20px rgba(120,110,150,.20)
+}
+.v:hover::after,.v:focus::after{opacity:1;transform:translateY(0)}
+
+/* lane tinting for chips */
+.v.engine{background:var(--lane-engine-bg);border-bottom-color:var(--lane-engine)}
+.v.life{background:var(--lane-life-bg);border-bottom-color:var(--lane-life)}
+.v.memory{background:var(--lane-memory-bg);border-bottom-color:var(--lane-memory)}
+.v.timing{background:var(--lane-timing-bg);border-bottom-color:var(--lane-timing)}
+.v.persona{background:var(--lane-persona-bg);border-bottom-color:var(--lane-persona)}
+.v.output{background:var(--lane-output-bg);border-bottom-color:var(--lane-output)}
+
+/* ---------- lane legend ---------- */
+.legend{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 30px}
+.legend span{
+  font-family:var(--font-mono);font-size:11.5px;padding:4px 10px;border-radius:20px;
+  border:1px solid transparent
+}
+.lg-persona{background:var(--lane-persona-bg);color:var(--lane-persona);border-color:var(--lane-persona)!important}
+.lg-engine{background:var(--lane-engine-bg);color:var(--lane-engine);border-color:var(--lane-engine)!important}
+.lg-life{background:var(--lane-life-bg);color:var(--lane-life);border-color:var(--lane-life)!important}
+.lg-memory{background:var(--lane-memory-bg);color:var(--lane-memory);border-color:var(--lane-memory)!important}
+.lg-timing{background:var(--lane-timing-bg);color:var(--lane-timing);border-color:var(--lane-timing)!important}
+.lg-output{background:var(--lane-output-bg);color:var(--lane-output);border-color:var(--lane-output)!important}
+
+/* ---------- diagram block ---------- */
+.dgm{
+  background:var(--paper-2);border:1px solid var(--rule);border-radius:11px;
+  margin:22px 0 34px;overflow:hidden
+}
+.dgm-head{
+  display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  padding:12px 16px;border-bottom:1px solid var(--rule-soft);background:var(--paper)
+}
+.dgm-title{font-family:var(--font-mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-weight:600;margin-right:auto}
+.dgm-btn{
+  appearance:none;font-family:var(--font-mono);font-size:11.5px;
+  background:var(--paper-2);color:var(--ink-2);border:1px solid var(--rule);
+  padding:5px 11px;border-radius:6px;cursor:pointer;transition:.13s
+}
+.dgm-btn:hover{border-color:var(--accent);color:var(--accent)}
+.dgm-btn:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.dgm-btn.on{background:var(--accent);border-color:var(--accent);color:#fff}
+.dgm-body{padding:16px;overflow-x:auto}
+/* Unrendered state degrades to a readable code block; centred only once
+   mermaid has replaced the source with an SVG. */
+.dgm-body pre.mermaid{
+  margin:0;text-align:left;white-space:pre;min-width:min-content;
+  font-family:var(--font-mono);font-size:12.5px;line-height:1.6;color:var(--ink-2)
+}
+.dgm-body pre.mermaid[data-processed]{text-align:center;color:inherit}
+.dgm-body pre.mermaid svg{max-width:none;height:auto}
+.dgm-edit{display:none;border-top:1px solid var(--rule-soft);padding:14px 16px;background:var(--paper)}
+.dgm-edit[data-open="true"]{display:block}
+.dgm-edit label{
+  display:block;font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;
+  text-transform:uppercase;color:var(--ink-3);margin:0 0 6px
+}
+.dgm-edit textarea{
+  width:100%;font-family:var(--font-mono);font-size:12.5px;line-height:1.55;
+  background:var(--paper-2);color:var(--ink);border:1px solid var(--rule);
+  border-radius:7px;padding:11px 13px;resize:vertical
+}
+.dgm-edit textarea:focus{outline:2px solid var(--accent);outline-offset:-1px;border-color:var(--accent)}
+.dgm-edit .src{min-height:230px}
+.dgm-edit .note{min-height:74px;margin-bottom:4px}
+.editrow{display:flex;gap:10px;align-items:center;margin-top:10px;flex-wrap:wrap}
+.status{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3)}
+.status.ok{color:var(--ok)}
+.status.warn{color:var(--warn)}
+
+/* ---------- text-flow (ASCII-ish) ---------- */
+.flowbox{
+  background:var(--paper-2);border:1px solid var(--rule);border-radius:11px;
+  padding:20px 22px;margin:20px 0 30px;overflow-x:auto
+}
+.flowbox pre{
+  margin:0;font-family:var(--font-mono);font-size:12.5px;line-height:1.72;
+  color:var(--ink);white-space:pre
+}
+.flowbox .c-persona{color:var(--lane-persona)}
+.flowbox .c-engine{color:var(--lane-engine)}
+.flowbox .c-life{color:var(--lane-life)}
+.flowbox .c-memory{color:var(--lane-memory)}
+.flowbox .c-timing{color:var(--lane-timing)}
+.flowbox .c-output{color:var(--lane-output)}
+.flowbox .c-dim{color:var(--ink-3)}
+
+/* ---------- tables ---------- */
+.tblwrap{overflow-x:auto;margin:16px 0 28px;border:1px solid var(--rule);border-radius:10px;background:var(--paper-2)}
+table{border-collapse:collapse;width:100%;font-size:14px;min-width:600px}
+th,td{text-align:left;padding:10px 14px;border-bottom:1px solid var(--rule-soft);vertical-align:top}
+th{
+  font-family:var(--font-mono);font-size:11px;letter-spacing:.08em;text-transform:uppercase;
+  color:var(--ink-3);font-weight:600;background:var(--paper)
+}
+tr:last-child td{border-bottom:0}
+td code,th code{font-family:var(--font-mono);font-size:12.5px}
+.num{font-variant-numeric:tabular-nums;text-align:right}
+
+/* ---------- callouts ---------- */
+.note-box{
+  border-left:3px solid var(--accent);background:var(--accent-soft);
+  padding:14px 18px;border-radius:0 9px 9px 0;margin:20px 0 26px
+}
+.note-box p:last-child{margin-bottom:0}
+.note-box.warn{border-left-color:var(--warn);background:color-mix(in srgb,var(--warn) 9%,transparent)}
+.note-box.bad{border-left-color:var(--bad);background:color-mix(in srgb,var(--bad) 9%,transparent)}
+.note-box .tag{
+  font-family:var(--font-mono);font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--ink-3);display:block;margin-bottom:5px
+}
+
+/* ---------- appendix ---------- */
+details.appx{
+  border:1px solid var(--rule);border-radius:11px;background:var(--paper-2);
+  padding:0;margin:24px 0
+}
+details.appx>summary{
+  cursor:pointer;padding:15px 20px;font-family:var(--font-mono);font-size:12.5px;
+  letter-spacing:.06em;text-transform:uppercase;color:var(--ink-2);font-weight:600;
+  list-style:none;display:flex;align-items:center;gap:10px
+}
+details.appx>summary::-webkit-details-marker{display:none}
+details.appx>summary::before{content:"▸";color:var(--accent);font-size:14px;transition:transform .15s}
+details.appx[open]>summary::before{transform:rotate(90deg)}
+details.appx>summary:focus-visible{outline:2px solid var(--accent);outline-offset:-2px;border-radius:10px}
+.appx-body{padding:0 20px 20px;border-top:1px solid var(--rule-soft)}
+.glossary{margin-top:16px}
+.gl-row{
+  display:grid;grid-template-columns:190px 1fr;gap:16px;
+  padding:12px 0;border-bottom:1px solid var(--rule-soft)
+}
+.gl-row:last-child{border-bottom:0}
+.gl-name{font-family:var(--font-mono);font-size:13px;color:var(--ink)}
+.gl-orig{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);display:block;margin-top:3px}
+.gl-desc{font-size:14px;color:var(--ink-2);max-width:none}
+.gl-desc code{font-family:var(--font-mono);font-size:12px;color:var(--accent)}
+@media (max-width:640px){.gl-row{grid-template-columns:1fr;gap:4px}}
+
+/* ---------- export bar ---------- */
+.exportbar{
+  position:sticky;bottom:0;background:var(--paper);border-top:1px solid var(--rule);
+  padding:13px 0;margin-top:40px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;z-index:30
+}
+.exportbar .big{
+  font-family:var(--font-body);font-size:13.5px;font-weight:600;
+  background:var(--accent);color:#fff;border:0;padding:9px 20px;border-radius:7px;cursor:pointer
+}
+.exportbar .big:hover{filter:brightness(1.08)}
+.exportbar .big:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
+.exportbar .hint{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3)}
+</style>
+<div class="wrap">
+
+<header class="mast">
+  <p class="eyebrow">llm-behavioral-harness · iteration 3 · main @ 07c7184</p>
+  <h1>How she decides what to say</h1>
+  <p class="standfirst">
+    Six parts of the system feed into one block of text that gets sent to the model on every single
+    message. This is what each part does, where it ends up, and what decides when she writes to you
+    first. Read from the code, not from the docs.
+  </p>
+  <div class="mast-meta">
+    <span><b>Covers</b> · only things that change how she behaves</span>
+    <span><b>Skips</b> · storage, testing, transport</span>
+    <span><b>Editable</b> · change any diagram, then export it back to me</span>
+  </div>
+</header>
+
+<nav class="tabs" role="tablist" aria-label="Sections">
+  <button role="tab" aria-selected="true"  data-tab="overview">The short version</button>
+  <button role="tab" aria-selected="false" data-tab="prompt">What she's told</button>
+  <button role="tab" aria-selected="false" data-tab="engine">Her mood</button>
+  <button role="tab" aria-selected="false" data-tab="content">Her life &amp; memory</button>
+  <button role="tab" aria-selected="false" data-tab="timing">When she writes first</button>
+  <button role="tab" aria-selected="false" data-tab="proposed">What we want to add</button>
+  <button role="tab" aria-selected="false" data-tab="deferred">Left for later</button>
+  <button role="tab" aria-selected="false" data-tab="appendix">Name lookup</button>
+</nav>
+
+<!-- ============================ OVERVIEW ============================ -->
+<section class="panel" data-active="true" id="tab-overview">
+  <h2>The short version</h2>
+  <p class="lede">
+    Every time she replies, the system builds one block of text and sends it to the model. That block
+    is written fresh each time. Six parts of the system each contribute a piece of it. Two things skip
+    the block entirely: the recent conversation, which is sent as normal messages, and the settings
+    that control reply length and speed, which are dials on the call rather than words.
+  </p>
+
+  <div class="legend">
+    <span class="lg-persona">who she is</span>
+    <span class="lg-engine">her mood</span>
+    <span class="lg-life">her life</span>
+    <span class="lg-memory">what she remembers</span>
+    <span class="lg-timing">when she writes</span>
+    <span class="lg-output">the reply itself</span>
+  </div>
+
+  <div class="flowbox"><pre><span class="c-dim">ONCE, WHEN SHE'S FIRST CREATED</span>
+<span class="c-persona">  what you like ──▶ interest map ──▶ pick her interests ──▶ one line about who she is</span>
+                                     <span class="c-persona">40% yours</span>                    <span class="c-dim">│</span>
+                                     <span class="c-persona">40% related</span>                  <span class="c-dim">│</span>
+                                     <span class="c-persona">20% just hers</span>                <span class="c-dim">│</span>
+<span class="c-dim">EVERY DAY                                                             │</span>
+<span class="c-engine">  where she is in her cycle ──▶ shifts her average up or down          │</span>
+<span class="c-engine">                            └─▶ makes her more or less reactive        │</span>
+<span class="c-engine">  how things have been going ─┐                                        │</span>
+<span class="c-engine">  a slow random drift ────────┴──▶ TODAY'S MOOD: a number 0 to 10       │</span>
+<span class="c-engine">                                            │                          │</span>
+<span class="c-engine">  the time of day ──────────────────────────┤                          │</span>
+<span class="c-engine">                                            ▼                          │</span>
+<span class="c-engine">                                   12 numbers describing                │</span>
+<span class="c-engine">                                   how she is right now                 │</span>
+<span class="c-dim">                        ┌───────────────────┴──────────┐               │</span>
+<span class="c-output">                        ▼ turned into words       used directly ▼       │</span>
+<span class="c-output">                 &quot;quietly bright,               how long her reply is   │</span>
+<span class="c-output">                  calmly present&quot;               how long she waits      │</span>
+<span class="c-dim">                        │                       when she wraps up       │</span>
+<span class="c-life">  her projects ─────────┤                       how often she writes    │</span>
+<span class="c-life">  today's plan ─────────┤                              │                │</span>
+<span class="c-life">  what she's doing now ─┤                              │                │</span>
+<span class="c-memory">  things she remembers ─┤                              │                │</span>
+<span class="c-memory">  facts about you ──────┤                              │                │</span>
+<span class="c-timing">  why she's writing ────┤                              │                │</span>
+<span class="c-dim">                        ▼                              │       who she is</span>
+<span class="c-output">              ┌─────────────────────┐                  │                │</span>
+<span class="c-output">              │  glued together     │◀──────────────────────────────────┘</span>
+<span class="c-output">              │  into ONE block     │                  │</span>
+<span class="c-output">              │  of text            │                  │</span>
+<span class="c-output">              └──────────┬──────────┘                  │</span>
+<span class="c-output">                         ▼                             ▼</span>
+<span class="c-output">              ┌──────────────────────────────────────────────┐</span>
+<span class="c-output">              │  SENT TO THE MODEL                           │</span>
+<span class="c-output">              │  the text block + your last 12 messages      │</span>
+<span class="c-output">              └──────────┬───────────────────────────────────┘</span>
+<span class="c-dim">                         ▼</span>
+<span class="c-dim">  her reply ──▶ scored at the end of the day ──┬──▶ changes her mood tomorrow</span>
+<span class="c-dim">                                               └──▶ changes how often she writes</span>
+</pre></div>
+
+  <h3>What each part adds</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Part</th><th>What it makes</th><th>Where it shows up</th><th>Code</th></tr></thead>
+    <tbody>
+      <tr><td><b>Who she is</b></td><td>Her name, how she talks, and her interests: 40% the same as yours, 40% related to yours, 20% entirely her own</td><td>The first line of the text block</td><td><code>harness/persona.py</code><br><code>harness/interests.py</code></td></tr>
+      <tr><td><b>Her mood</b></td><td>One number per day, which turns into twelve numbers describing how she is right now</td><td>A sentence in the text block, plus the dials on the call</td><td><code>engine/mood.py</code><br><code>harness/behavior.py</code></td></tr>
+      <tr><td><b>Her life</b></td><td>Projects she's working on, a plan for the day, and what she's doing at this moment</td><td>Three parts of the text block</td><td><code>harness/life.py</code></td></tr>
+      <tr><td><b>What she remembers</b></td><td>Things that happened, with exact quotes, plus a list of facts about you</td><td>Two parts of the text block</td><td><code>harness/memory.py</code></td></tr>
+      <tr><td><b>When she writes</b></td><td>The moment she reaches out, and a real reason for doing it</td><td>One part of the text block</td><td><code>harness/scheduler.py</code><br><code>harness/proactive.py</code></td></tr>
+      <tr><td><b>The reply itself</b></td><td>How long it can be, how long she waits, whether she wraps up</td><td>Mostly dials on the call, one line of text</td><td><code>harness/actuation.py</code></td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note-box">
+    <span class="tag">Worth knowing up front</span>
+    <p>
+      None of this text stays the same between messages. Who she is, how she feels, what she's doing,
+      what she remembers and her plan for the day are all glued into one block and rebuilt from
+      scratch every time. Nothing can be cached, and there's no way for the model to tell which parts
+      are permanent and which change hourly. It's all one wall of text at the same level.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ PROMPT ============================ -->
+<section class="panel" id="tab-prompt">
+  <h2>What she's told, every single message</h2>
+  <p class="lede">
+    Nine pieces, each written by a different part of the system, each with its own size limit. Pieces
+    are added in priority order while the running total fits: given lengths
+    <math><msub><mi>L</mi><mi>i</mi></msub></math> in priority order, piece
+    <math><mi>i</mi></math> is kept when
+    <math><munderover><mo>∑</mo><mrow><mi>j</mi><mo>≤</mo><mi>i</mi></mrow><mrow/></munderover>
+    <mo>(</mo><msub><mi>L</mi><mi>j</mi></msub><mo>+</mo><mn>2</mn><mo>)</mo><mo>≤</mo><mn>12000</mn></math>.
+    They are stacked in a fixed order and added one by one until the block hits
+    <span class="v output" data-tip="12,000 characters. Sections are dropped whole, from the bottom of the list upward. Text is never cut off mid-sentence.">12,000 characters</span>.
+    Anything that doesn't fit gets dropped completely, starting from the bottom.
+  </p>
+
+  <div class="dgm">
+    <div class="dgm-head">
+      <span class="dgm-title">Diagram 1 · building the block of text</span>
+      <button class="dgm-btn" data-edit="d1">Edit source</button>
+    </div>
+    <div class="dgm-body">
+<pre class="mermaid" data-key="d1">flowchart TD
+  classDef persona fill:#FBEAF1,stroke:#C98BA4,color:#4A4458
+  classDef engine  fill:#EDE8F9,stroke:#8F7FC4,color:#4A4458
+  classDef life    fill:#E3F2E8,stroke:#6FA987,color:#4A4458
+  classDef memory  fill:#FBEEDF,stroke:#C99A6B,color:#4A4458
+  classDef timing  fill:#E3EFFA,stroke:#6E9FCB,color:#4A4458
+  classDef output  fill:#F8F1DD,stroke:#B9A46A,color:#4A4458
+  classDef gate    fill:#FFFFFF,stroke:#8375B8,color:#4A4458,stroke-dasharray:4 3
+
+  P["Who she is"]:::persona
+  D["How she feels today"]:::engine
+  CA["What she's doing now"]:::life
+  LA["Her projects"]:::life
+  AG["Her plan for today"]:::life
+  EP["Things she remembers"]:::memory
+  UM["Facts about you"]:::memory
+  PI["Why she's writing first"]:::timing
+  GC["Reply settings"]:::output
+
+  S0["1. Who she is"]:::persona
+  S1["2. How she feels today&lt;br/&gt;written as words, never numbers"]:::engine
+  S2["3. What she's doing right now"]:::life
+  S3["4. Her projects&lt;br/&gt;up to 3"]:::life
+  S4["5. Things she remembers&lt;br/&gt;up to 6, plus exact quotes"]:::memory
+  S5["6. Facts about you&lt;br/&gt;up to 6"]:::memory
+  S6["7. Her plan for today&lt;br/&gt;up to 4"]:::life
+  S7["8. Why she's writing first&lt;br/&gt;only when she starts it"]:::timing
+  S8["9. How to end the reply"]:::output
+
+  P --> S0
+  D -->|"turned into a sentence"| S1
+  CA --> S2
+  LA -->|"only ones she's still doing"| S3
+  EP --> S4
+  UM --> S5
+  AG -->|"only ones not done yet"| S6
+  PI --> S7
+  GC --> S8
+
+  S0 --> BUD
+  S1 --> BUD
+  S2 --> BUD
+  S3 --> BUD
+  S4 --> BUD
+  S5 --> BUD
+  S6 --> BUD
+  S7 --> BUD
+  S8 --> BUD
+
+  BUD{"Too long?&lt;br/&gt;Drop whole pieces from&lt;br/&gt;the bottom until it fits"}:::gate
+  BUD --> SYS["ONE BLOCK OF TEXT"]:::output
+
+  RT["Your last 12 messages"]:::output
+  UR["What you just wrote"]:::output
+  RT --> MSG["Sent as normal messages"]:::output
+  UR --> MSG
+
+  SYS --> CALL(["Sent to the model"]):::output
+  MSG --> CALL
+  GC -->|"reply length&lt;br/&gt;and delay"| CALL
+</pre>
+<script>(function(){var p=document.currentScript.previousElementSibling;window.__SRC=window.__SRC||{};window.__SRC[p.dataset.key]=p.textContent;})();</script>
+    </div>
+    <div class="dgm-edit" data-panel="d1">
+      <label for="src-d1">Diagram source — change it however you like</label>
+      <textarea id="src-d1" class="src" data-src="d1" spellcheck="false"></textarea>
+      <label for="note-d1" style="margin-top:12px">Your notes</label>
+      <textarea id="note-d1" class="note" data-note="d1" spellcheck="false" placeholder="What's wrong, missing, or should move…"></textarea>
+      <div class="editrow">
+        <button class="dgm-btn" data-render="d1">Re-draw</button>
+        <button class="dgm-btn" data-reset="d1">Undo my changes</button>
+        <span class="status" data-status="d1"></span>
+      </div>
+    </div>
+  </div>
+
+  <h3>The nine pieces, in the order they're added</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>#</th><th>Piece</th><th>Limit</th><th>Written by</th><th>Included when</th></tr></thead>
+    <tbody>
+      <tr><td class="num">1</td><td>Who she is</td><td>—</td><td><code>build_persona</code></td><td>always</td></tr>
+      <tr><td class="num">2</td><td>How she feels today</td><td>—</td><td><code>_render_behavior_brief</code></td><td>the mood system is on</td></tr>
+      <tr><td class="num">3</td><td>What she&#39;s doing now</td><td>—</td><td><code>current_activity_now</code></td><td>something is scheduled</td></tr>
+      <tr><td class="num">4</td><td>Her projects</td><td class="num">3</td><td><code>step_life</code></td><td>she has at least one</td></tr>
+      <tr><td class="num">5</td><td>Things she remembers</td><td class="num">6 + 400 chars</td><td><code>MemoryAgent.retrieve</code></td><td>anything comes back</td></tr>
+      <tr><td class="num">6</td><td>Facts about you</td><td class="num">6</td><td>the memory system</td><td>it has learned any</td></tr>
+      <tr><td class="num">7</td><td>Her plan for today</td><td class="num">4</td><td><code>generate_agenda</code></td><td>anything is still upcoming</td></tr>
+      <tr><td class="num">8</td><td>Why she&#39;s writing first</td><td>—</td><td><code>compose_hook</code></td><td>she started the conversation</td></tr>
+      <tr><td class="num">9</td><td>How to end the reply</td><td>—</td><td><code>controls_from_directive</code></td><td>reply settings are passed in</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note-box">
+    <span class="tag">Two things left out on purpose</span>
+    <p>
+      <b>The conversation itself is never put in the text block.</b> It's sent separately as normal
+      messages, so nothing gets repeated twice. <b>The raw mood numbers never get near it either.</b>
+      They're turned into a sentence first, so there's no way for a cycle day or a phase name to slip
+      into what she says.
+    </p>
+  </div>
+
+  <div class="note-box warn">
+    <span class="tag">What the logs actually show</span>
+    <p>
+      Piece 8 flat out tells her to say why she's writing, in her first sentence. That instruction was
+      in <b>all 222</b> of her unprompted messages. She did it about <b>a quarter</b> of the time.
+      Piece 2 is well written and specific, and turning her mood off entirely changes how often she
+      writes by <b>1.35%</b>. Both point at the same thing: telling her something in this text block
+      only sort of works.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ ENGINE ============================ -->
+<section class="panel" id="tab-engine">
+  <h2>Her mood</h2>
+  <p class="lede">
+    One number a day drives everything else. It's a weighted coin flip, repeated ten times, where four
+    separate things decide how the coin is weighted: her basic temperament, where she is in her cycle,
+    how the relationship has been going lately, and a slow random wander.
+  </p>
+
+  <div class="dgm">
+    <div class="dgm-head">
+      <span class="dgm-title">Diagram 2 · picking today's mood</span>
+      <button class="dgm-btn" data-edit="d2">Edit source</button>
+    </div>
+    <div class="dgm-body">
+<pre class="mermaid" data-key="d2">flowchart LR
+  classDef engine fill:#EDE8F9,stroke:#8F7FC4,color:#4A4458
+  classDef param  fill:#FFFFFF,stroke:#9F98AE,color:#6E6880
+  classDef out    fill:#F8F1DD,stroke:#B9A46A,color:#4A4458
+
+  LAM["Her basic temperament&lt;br/&gt;never changes"]:::param
+  CYD["Where she is&lt;br/&gt;in her cycle"]:::engine
+  MU["How things have been&lt;br/&gt;going with you lately"]:::engine
+  ETA["A slow random wander"]:::engine
+
+  CYD --> LVL["Shifts her average&lt;br/&gt;up or down"]:::engine
+  CYD --> GAIN["Makes her more or less&lt;br/&gt;reactive to everything else"]:::engine
+  CYD --> PH["Name of the phase&lt;br/&gt;debug only, never shown to her"]:::param
+
+  LAM --> ARG
+  LVL --> ARG
+  MU --> ARG
+  ETA --> ARG
+  GAIN --> ARG
+
+  ARG["Add it all up"]:::engine
+  ARG --> PP["Turns into a chance&lt;br/&gt;between 0 and 1"]:::engine
+  PP --> BETA["Wobble it a bit&lt;br/&gt;so days aren't identical"]:::engine
+  BETA --> MOOD["TODAY'S MOOD&lt;br/&gt;a number from 0 to 10"]:::out
+
+  MOOD --> DIR["12 numbers describing&lt;br/&gt;how she is right now"]:::out
+
+  SC["How today went&lt;br/&gt;scored at the end of the day"]:::param
+  SC -->|"nudges it up or down,&lt;br/&gt;old feelings fade"| MU
+  ETA -->|"wanders a little&lt;br/&gt;each night"| ETA
+
+  PH -.->|"never reaches her"| DIR
+</pre>
+<script>(function(){var p=document.currentScript.previousElementSibling;window.__SRC=window.__SRC||{};window.__SRC[p.dataset.key]=p.textContent;})();</script>
+    </div>
+    <div class="dgm-edit" data-panel="d2">
+      <label for="src-d2">Diagram source</label>
+      <textarea id="src-d2" class="src" data-src="d2" spellcheck="false"></textarea>
+      <label for="note-d2" style="margin-top:12px">Your notes</label>
+      <textarea id="note-d2" class="note" data-note="d2" spellcheck="false"></textarea>
+      <div class="editrow">
+        <button class="dgm-btn" data-render="d2">Re-draw</button>
+        <button class="dgm-btn" data-reset="d2">Undo my changes</button>
+        <span class="status" data-status="d2"></span>
+      </div>
+    </div>
+  </div>
+
+  <p>
+    Two things are kept separate on purpose. Her cycle shifts her
+    <span class="v engine" data-tip="Called m in the code. Moves the middle of her mood range up or down for the day.">average mood</span>,
+    and separately it changes
+    <span class="v engine" data-tip="Called g in the code. Multiplies how strongly events and drift move her, without changing her baseline personality.">how strongly she reacts</span>
+    to everything else. Keeping them apart means a bad phase makes her more sensitive without making
+    her a different person.
+  </p>
+
+  <h3>From one number to twelve</h3>
+  <p>
+    Today's mood <span class="v engine" data-tip="M in the code. An integer from 0 to N (N = 10). Drawn once per day. Everything below is a deterministic function of it, the clock, and the cycle gain.">M</span>,
+    plus the hour, produces twelve numbers. Four become words in the text block, four become settings
+    on the call, and four feed into how often she writes.
+  </p>
+
+  <div class="eq">
+    <p class="cap">the four that become real settings</p>
+    <math display="block">
+      <mi>ℓ</mi><mo>=</mo><mi>clip</mi><mo>[</mo><mn>0.05</mn><mo>+</mo><mn>0.90</mn><mi>E</mi>
+      <mo>+</mo><mn>0.45</mn><mi>X</mi><mo>,</mo><mn>0.22</mn><mo>,</mo><mn>1.30</mn><mo>]</mo>
+      <mspace width="1.6em"/>
+      <mi>tokens</mi><mo>=</mo><mi>clip</mi><mo>[</mo><mn>600</mn><mi>ℓ</mi><mo>,</mo><mn>96</mn><mo>,</mo><mn>1500</mn><mo>]</mo>
+    </math>
+    <math display="block">
+      <mi>Δ</mi><mo>=</mo><mn>0.8</mn><mo>+</mo><mn>38</mn><mo>(</mo><mn>1</mn><mo>−</mo><mi>E</mi><mo>)</mo>
+      <mo>+</mo><mn>5</mn><mi>max</mi><mo>(</mo><mo>−</mo><mi>ṁ</mi><mo>,</mo><mn>0</mn><mo>)</mo>
+      <mspace width="1.6em"/>
+      <mi>c</mi><mo>=</mo><mi>clip</mi><mo>[</mo><mn>0.04</mn><mo>+</mo><mo>(</mo><mn>1</mn><mo>−</mo><mi>E</mi><mo>)</mo>
+      <mo>+</mo><mn>0.22</mn><mi>max</mi><mo>(</mo><mo>−</mo><mi>V</mi><mo>,</mo><mn>0</mn><mo>)</mo><mo>,</mo>
+      <mn>0.04</mn><mo>,</mo><mn>0.85</mn><mo>]</mo>
+    </math>
+    <math display="block">
+      <mi>ι</mi><mo>=</mo><mi>clip</mi><mo>[</mo><mn>0.14</mn><mo>+</mo><mn>0.38</mn><mi>E</mi>
+      <mo>+</mo><mn>0.16</mn><mi>max</mi><mo>(</mo><mi>V</mi><mo>,</mo><mn>0</mn><mo>)</mo>
+      <mo>+</mo><mn>0.08</mn><mi>μ</mi><mo>]</mo>
+      <mspace width="1.6em"/>
+      <mi>I</mi><mo>=</mo><mi>clip</mi><mo>[</mo><msup><mi>e</mi><mrow><mn>2</mn><mo>(</mo><mi>ι</mi><mo>−</mo><mn>0.5</mn><mo>)</mo></mrow></msup>
+      <mo>,</mo><mn>0.2</mn><mo>,</mo><mn>5</mn><mo>]</mo>
+    </math>
+    <p class="where">
+      <b>ℓ</b> reply-length scale → the token budget ·
+      <b>Δ</b> the pause before she answers, in seconds ·
+      <b>c</b> how ready she is to end the conversation ·
+      <b>I</b> the multiplier on how often she writes first.<br>
+      Inputs: <b>E</b> energy from the hour and the cycle ·
+      <b>V</b> = 2(M/N) − 1, mood on a −1…1 scale ·
+      <b>X</b> expressiveness · <b>ṁ</b> change since yesterday · <b>μ</b> how the relationship has
+      been going. <span class="v" data-tip="clip[x, a, b] = min(b, max(a, x)). Bounds the value to the interval, so no combination of inputs can push a setting past its limits.">clip</span>
+      bounds each result.
+    </p>
+  </div>
+
+  <p>
+    Every coefficient above is fixed. The only thing that varies day to day is
+    <math><mi>E</mi></math>, <math><mi>V</mi></math> and <math><mi>μ</mi></math>, so the whole
+    behavioural surface is pinned by the mood draw and the clock.
+  </p>
+
+  <div class="dgm">
+    <div class="dgm-head">
+      <span class="dgm-title">Diagram 3 · where each of the twelve numbers ends up</span>
+      <button class="dgm-btn" data-edit="d3">Edit source</button>
+    </div>
+    <div class="dgm-body">
+<pre class="mermaid" data-key="d3">flowchart TD
+  classDef engine fill:#EDE8F9,stroke:#8F7FC4,color:#4A4458
+  classDef out    fill:#F8F1DD,stroke:#B9A46A,color:#4A4458
+  classDef timing fill:#E3EFFA,stroke:#6E9FCB,color:#4A4458
+  classDef dead   fill:#FFFFFF,stroke:#CD8585,color:#4A4458,stroke-dasharray:4 3
+
+  MOOD["Today's mood"]:::engine
+  HOUR["Time of day"]:::engine
+  PREV["Yesterday's mood"]:::engine
+
+  MOOD --> VAL["Cheerful or low"]:::engine
+  HOUR --> ENE["Energy&lt;br/&gt;peaks and dips over the day"]:::engine
+  MOOD --> MOM
+  PREV --> MOM["Better or worse&lt;br/&gt;than yesterday"]:::engine
+
+  VAL --> WAR["Warmth"]:::engine
+  ENE --> WAR
+  ENE --> EXP["How expressive"]:::engine
+  MOM --> EXP
+  ENE --> PLA["Playful"]:::engine
+  VAL --> PLA
+  ENE --> REF["Thoughtful"]:::engine
+  ENE --> INI["Wants to reach out"]:::engine
+  VAL --> INI
+  MOM --> RCT["How reactive"]:::engine
+
+  ENE --> LEN["How long her reply is"]:::engine
+  EXP --> LEN
+  ENE --> DEL["How long before she answers"]:::engine
+  ENE --> CLO["How ready she is to wrap up"]:::engine
+  VAL --> CLO
+
+  VAL --> BRIEF
+  ENE --> BRIEF
+  WAR --> BRIEF
+  PLA --> BRIEF
+  REF --> BRIEF
+  BRIEF["A SENTENCE IN THE TEXT BLOCK&lt;br/&gt;'quietly bright, calmly present'"]:::out
+
+  LEN --> TOK["Reply length cap&lt;br/&gt;between 96 and 1500 words' worth"]:::out
+  DEL --> LAT["A real pause&lt;br/&gt;1 to 44 seconds"]:::out
+  CLO --> CG["One of 5 endings&lt;br/&gt;from 'leave it open'&lt;br/&gt;to 'wrap it up'"]:::out
+  INI --> IM["Changes how often&lt;br/&gt;she writes first"]:::timing
+
+  ENE --> SV
+  INI --> SV
+  VAL --> SV
+  RCT --> SV
+  SV["Feeds into how often&lt;br/&gt;she writes first"]:::timing
+
+  RCT -.-> DEADEND["'How reactive' and 'how expressive'&lt;br/&gt;only change the wording.&lt;br/&gt;Nothing mechanical uses them."]:::dead
+</pre>
+<script>(function(){var p=document.currentScript.previousElementSibling;window.__SRC=window.__SRC||{};window.__SRC[p.dataset.key]=p.textContent;})();</script>
+    </div>
+    <div class="dgm-edit" data-panel="d3">
+      <label for="src-d3">Diagram source</label>
+      <textarea id="src-d3" class="src" data-src="d3" spellcheck="false"></textarea>
+      <label for="note-d3" style="margin-top:12px">Your notes</label>
+      <textarea id="note-d3" class="note" data-note="d3" spellcheck="false"></textarea>
+      <div class="editrow">
+        <button class="dgm-btn" data-render="d3">Re-draw</button>
+        <button class="dgm-btn" data-reset="d3">Undo my changes</button>
+        <span class="status" data-status="d3"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Number</th><th>Range</th><th>What it actually does</th><th>Can you see it?</th></tr></thead>
+    <tbody>
+      <tr><td>How long her reply is</td><td>0.22 – 1.30</td><td>sets the reply length cap, 96 to 1500</td><td><b style="color:var(--ok)">yes</b></td></tr>
+      <tr><td>How long before she answers</td><td>1 – 44 seconds</td><td>a real pause before the reply arrives</td><td><b style="color:var(--ok)">yes</b></td></tr>
+      <tr><td>How ready she is to wrap up</td><td>0.04 – 0.85</td><td>actually ends conversations, and picks one of 5 endings</td><td><b style="color:var(--ok)">yes</b></td></tr>
+      <tr><td>Wants to reach out</td><td>0 – 1</td><td>changes how often she writes first</td><td><b style="color:var(--ok)">yes</b></td></tr>
+      <tr><td>Cheerful, energy, warmth, playful, thoughtful</td><td>0 – 1</td><td>only change the wording of one sentence</td><td><b style="color:var(--warn)">words only</b></td></tr>
+      <tr><td>How reactive, how expressive, better-or-worse-than-yesterday</td><td>0 – 1</td><td>feed the others; nothing uses them directly</td><td><b style="color:var(--warn)">indirectly</b></td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<!-- ============================ CONTENT ============================ -->
+<section class="panel" id="tab-content">
+  <h2>Her life and what she remembers</h2>
+  <p class="lede">
+    Three parts fill in the substance: who she is, what she's up to, and what she remembers about you.
+  </p>
+
+  <h3>Who she is — decided once, at the start</h3>
+  <div class="dgm">
+    <div class="dgm-head">
+      <span class="dgm-title">Diagram 4 · picking her interests and her voice</span>
+      <button class="dgm-btn" data-edit="d4">Edit source</button>
+    </div>
+    <div class="dgm-body">
+<pre class="mermaid" data-key="d4">flowchart LR
+  classDef persona fill:#FBEAF1,stroke:#C98BA4,color:#4A4458
+  classDef param   fill:#FFFFFF,stroke:#9F98AE,color:#6E6880
+  classDef out     fill:#F8F1DD,stroke:#B9A46A,color:#4A4458
+
+  U["What you said you like"]:::param
+  G["A map of how&lt;br/&gt;interests relate&lt;br/&gt;to each other"]:::persona
+
+  U --> EX["Things you both like&lt;br/&gt;aiming for 40%"]:::persona
+  U --> G
+  G --> AD["Things near yours&lt;br/&gt;on the map&lt;br/&gt;aiming for 40%"]:::persona
+  G --> IN["Things only she likes&lt;br/&gt;aiming for 20%"]:::persona
+
+  EX --> PORT["Her interests&lt;br/&gt;the split is nudged randomly&lt;br/&gt;so no two companions&lt;br/&gt;are built the same way"]:::persona
+  AD --> PORT
+  IN --> PORT
+
+  PORT --> ROUT["Her regular habits"]:::persona
+  PORT --> CORE["ONE LINE ABOUT HER&lt;br/&gt;her name, that she's warm,&lt;br/&gt;and what she's into lately"]:::out
+  ROUT --> LIFE["Used to start&lt;br/&gt;her projects"]:::persona
+  PORT --> LIFE
+  CORE --> S0["Piece 1 of the text block"]:::out
+</pre>
+<script>(function(){var p=document.currentScript.previousElementSibling;window.__SRC=window.__SRC||{};window.__SRC[p.dataset.key]=p.textContent;})();</script>
+    </div>
+    <div class="dgm-edit" data-panel="d4">
+      <label for="src-d4">Diagram source</label>
+      <textarea id="src-d4" class="src" data-src="d4" spellcheck="false"></textarea>
+      <label for="note-d4" style="margin-top:12px">Your notes</label>
+      <textarea id="note-d4" class="note" data-note="d4" spellcheck="false"></textarea>
+      <div class="editrow">
+        <button class="dgm-btn" data-render="d4">Re-draw</button>
+        <button class="dgm-btn" data-reset="d4">Undo my changes</button>
+        <span class="status" data-status="d4"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note-box bad">
+    <span class="tag">Broken right now</span>
+    <p>
+      Her interests are written into the text as single words with nothing explaining what they mean.
+      One of hers is <code>metal</code>, meaning the music — she also likes <code>guitar</code> and
+      <code>alternative music</code>. On day 29 she started talking about
+      <em>&ldquo;tools, heat, or a chance of injury&rdquo;</em>, because the model decided she meant
+      metalworking. The system knows which one is meant. It just never says so.
+    </p>
+  </div>
+
+  <h3>Her life — rebuilt daily, but projects carry over</h3>
+  <div class="dgm">
+    <div class="dgm-head">
+      <span class="dgm-title">Diagram 5 · projects, daily plan, what she's doing now</span>
+      <button class="dgm-btn" data-edit="d5">Edit source</button>
+    </div>
+    <div class="dgm-body">
+<pre class="mermaid" data-key="d5">flowchart TD
+  classDef life  fill:#E3F2E8,stroke:#6FA987,color:#4A4458
+  classDef param fill:#FFFFFF,stroke:#9F98AE,color:#6E6880
+  classDef out   fill:#F8F1DD,stroke:#B9A46A,color:#4A4458
+  classDef bad   fill:#FFFFFF,stroke:#CD8585,color:#4A4458
+
+  INT["Her interests"]:::param
+  ROU["Her habits"]:::param
+
+  INT --> ARC["HER PROJECTS&lt;br/&gt;things she works on for weeks&lt;br/&gt;each one tracks how far along&lt;br/&gt;she is and what's next"]:::life
+  ROU --> AG
+
+  ARC -->|"most days she plans&lt;br/&gt;something for one"| AG["TODAY'S PLAN&lt;br/&gt;activities with times,&lt;br/&gt;only while she's awake"]:::life
+
+  AG --> NOW{"Is anything&lt;br/&gt;happening&lt;br/&gt;right now?"}:::param
+  NOW -->|"yes"| CA["That's what she's doing"]:::life
+  NOW -->|"no"| FALL["Picks an earlier one anyway"]:::bad
+
+  CA --> S2["Piece 3 of the text block"]:::out
+  FALL -.->|"wrong in 56% of messages"| S2
+  ARC -->|"up to 3"| S3["Piece 4"]:::out
+  AG -->|"up to 4 still upcoming"| S6["Piece 7"]:::out
+
+  DAY["End of the day"]:::param
+  DAY --> PROG["Nudge each project&lt;br/&gt;a little further along"]:::life
+  PROG --> ARC
+  DAY --> ABAN["Very occasionally&lt;br/&gt;give one up"]:::life
+  ABAN --> ARC
+  DAY --> SPAWN{"Fewer than&lt;br/&gt;2 projects going?"}:::param
+  SPAWN -->|"yes, always start one"| NEW["Start something new&lt;br/&gt;either growing out of an old one&lt;br/&gt;or completely fresh"]:::life
+  SPAWN -->|"no, sometimes anyway"| NEW
+  SC["Been having good days lately"]:::param -->|"makes her more likely&lt;br/&gt;to start something"| SPAWN
+  NEW --> ARC
+
+  AG -->|"finished activities become&lt;br/&gt;things worth telling you about"| EV["Things she just did"]:::life
+</pre>
+<script>(function(){var p=document.currentScript.previousElementSibling;window.__SRC=window.__SRC||{};window.__SRC[p.dataset.key]=p.textContent;})();</script>
+    </div>
+    <div class="dgm-edit" data-panel="d5">
+      <label for="src-d5">Diagram source</label>
+      <textarea id="src-d5" class="src" data-src="d5" spellcheck="false"></textarea>
+      <label for="note-d5" style="margin-top:12px">Your notes</label>
+      <textarea id="note-d5" class="note" data-note="d5" spellcheck="false"></textarea>
+      <div class="editrow">
+        <button class="dgm-btn" data-render="d5">Re-draw</button>
+        <button class="dgm-btn" data-reset="d5">Undo my changes</button>
+        <span class="status" data-status="d5"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note-box bad">
+    <span class="tag">Broken right now — and it blocks the new feature</span>
+    <p>
+      Her plans are mostly in the morning. You write in the evening. When nothing is scheduled, the
+      system tells her she's doing an earlier activity anyway. That happened in <b>108 out of 192
+      messages, 56%</b>. One message at 19:29 told her she was having
+      <em>&ldquo;morning coffee&rdquo;</em>, four lines above the bit saying morning coffee runs
+      06:58 to 07:28. The new availability feature reads this exact field, so it has to be fixed first.
+    </p>
+  </div>
+
+  <h3>What she remembers</h3>
+  <div class="dgm">
+    <div class="dgm-head">
+      <span class="dgm-title">Diagram 6 · saving and looking things up</span>
+      <button class="dgm-btn" data-edit="d6">Edit source</button>
+    </div>
+    <div class="dgm-body">
+<pre class="mermaid" data-key="d6">flowchart TD
+  classDef memory fill:#FBEEDF,stroke:#C99A6B,color:#4A4458
+  classDef param  fill:#FFFFFF,stroke:#9F98AE,color:#6E6880
+  classDef out    fill:#F8F1DD,stroke:#B9A46A,color:#4A4458
+
+  T["What you both said"]:::param
+  T --> SESS["One record&lt;br/&gt;per conversation"]:::memory
+  SESS --> SUM["A summary of it"]:::memory
+  SESS --> EPI["MEMORIES&lt;br/&gt;what happened, plus your&lt;br/&gt;exact words, plus which&lt;br/&gt;messages they came from"]:::memory
+  EPI --> ASSERT["FACTS ABOUT YOU&lt;br/&gt;newer ones replace&lt;br/&gt;ones they contradict"]:::memory
+
+  Q["What's happening&lt;br/&gt;right now"]:::param
+  Q --> LANE{"How does it&lt;br/&gt;look things up?"}:::param
+
+  LANE -->|"the real one"| R1["Ranks memories by&lt;br/&gt;meaning, staying power&lt;br/&gt;and importance"]:::memory
+  LANE -->|"simpler version"| R2["Keyword match"]:::memory
+  LANE -->|"no memory at all"| R3["Just re-reads the&lt;br/&gt;last few messages"]:::memory
+
+  EPI --> R1
+  EPI --> R2
+
+  STR["Staying power&lt;br/&gt;how important, how recent,&lt;br/&gt;how often it comes up,&lt;br/&gt;how emotional.&lt;br/&gt;Fades by half every 2 weeks."]:::memory
+  STR --> R1
+
+  R1 --> CTX["What she remembers&lt;br/&gt;right now"]:::memory
+  R2 --> CTX
+  R3 --> CTX
+
+  CTX -->|"up to 6"| S4["Piece 5, marked clearly as&lt;br/&gt;'things said before',&lt;br/&gt;not as instructions"]:::out
+  ASSERT -->|"up to 6"| S5["Piece 6"]:::out
+  EPI -->|"recent ones become&lt;br/&gt;reasons to write to you"| PRO["Possible reasons to reach out"]:::memory
+</pre>
+<script>(function(){var p=document.currentScript.previousElementSibling;window.__SRC=window.__SRC||{};window.__SRC[p.dataset.key]=p.textContent;})();</script>
+    </div>
+    <div class="dgm-edit" data-panel="d6">
+      <label for="src-d6">Diagram source</label>
+      <textarea id="src-d6" class="src" data-src="d6" spellcheck="false"></textarea>
+      <label for="note-d6" style="margin-top:12px">Your notes</label>
+      <textarea id="note-d6" class="note" data-note="d6" spellcheck="false"></textarea>
+      <div class="editrow">
+        <button class="dgm-btn" data-render="d6">Re-draw</button>
+        <button class="dgm-btn" data-reset="d6">Undo my changes</button>
+        <span class="status" data-status="d6"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note-box">
+    <span class="tag">Why the quotes are labelled</span>
+    <p>
+      Her memories include your exact words, and those words end up inside the instructions she's
+      given. So the whole section is labelled as things said in past conversations rather than orders
+      to follow. If you ever typed &ldquo;ignore all previous instructions&rdquo;, it stays a quote.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ TIMING ============================ -->
+<section class="panel" id="tab-timing">
+  <h2>When she writes first, and why</h2>
+  <p class="lede">
+    Two separate questions. <b>When</b> is a running chance that goes up the longer you haven't talked,
+    adjusted for the time of day, her cycle, her mood, and how yesterday went. <b>Why</b> is decided
+    afterwards, and has to point at something that actually happened and is still true.
+  </p>
+
+  <div class="dgm">
+    <div class="dgm-head">
+      <span class="dgm-title">Diagram 7 · deciding when</span>
+      <button class="dgm-btn" data-edit="d7">Edit source</button>
+    </div>
+    <div class="dgm-body">
+<pre class="mermaid" data-key="d7">flowchart LR
+  classDef timing fill:#E3EFFA,stroke:#6E9FCB,color:#4A4458
+  classDef engine fill:#EDE8F9,stroke:#8F7FC4,color:#4A4458
+  classDef param  fill:#FFFFFF,stroke:#9F98AE,color:#6E6880
+  classDef out    fill:#F8F1DD,stroke:#B9A46A,color:#4A4458
+  classDef weak   fill:#FFFFFF,stroke:#C79A5A,color:#4A4458,stroke-dasharray:4 3
+
+  TAU["Hours since you last talked"]:::param
+  TAU --> BASE["The longer the silence,&lt;br/&gt;the more likely she writes.&lt;br/&gt;Not being changed this round."]:::timing
+
+  ENV["Time of day&lt;br/&gt;never while she's asleep"]:::timing
+  PHASE["Her cycle"]:::engine
+  ADJ["How yesterday went"]:::timing
+  INIM["How much she feels&lt;br/&gt;like reaching out today"]:::engine
+  STATE["Her mood today"]:::engine
+
+  BASE --> RATE
+  ENV --> RATE
+  PHASE --> RATE
+  ADJ --> RATE
+  INIM --> RATE
+  STATE --> RATE
+
+  RATE["CHANCE SHE WRITES RIGHT NOW"]:::timing
+  RATE --> THIN["Roll for the next time"]:::timing
+  THIN --> GUARD{"Sanity checks"}:::param
+  GUARD --> G1["Not too soon&lt;br/&gt;after the last one"]:::param
+  GUARD --> G2["Not too many in a day"]:::param
+  GUARD --> G3["Don't go silent&lt;br/&gt;for too long"]:::param
+  GUARD --> G4["Wait out her&lt;br/&gt;sleeping hours"]:::param
+  G1 --> OPP["A time slot&lt;br/&gt;no reason picked yet"]:::timing
+  G2 --> OPP
+  G3 --> OPP
+  G4 --> OPP
+  OPP --> RES["Now pick what to say"]:::timing
+
+  STATE -.->|"only changes how often&lt;br/&gt;she writes by 1.35%"| WEAK["Connected, but nowhere&lt;br/&gt;near the 15% we&lt;br/&gt;said we needed"]:::weak
+</pre>
+<script>(function(){var p=document.currentScript.previousElementSibling;window.__SRC=window.__SRC||{};window.__SRC[p.dataset.key]=p.textContent;})();</script>
+    </div>
+    <div class="dgm-edit" data-panel="d7">
+      <label for="src-d7">Diagram source</label>
+      <textarea id="src-d7" class="src" data-src="d7" spellcheck="false"></textarea>
+      <label for="note-d7" style="margin-top:12px">Your notes</label>
+      <textarea id="note-d7" class="note" data-note="d7" spellcheck="false"></textarea>
+      <div class="editrow">
+        <button class="dgm-btn" data-render="d7">Re-draw</button>
+        <button class="dgm-btn" data-reset="d7">Undo my changes</button>
+        <span class="status" data-status="d7"></span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Deciding what to say</h3>
+  <div class="dgm">
+    <div class="dgm-head">
+      <span class="dgm-title">Diagram 8 · picking a real reason</span>
+      <button class="dgm-btn" data-edit="d8">Edit source</button>
+    </div>
+    <div class="dgm-body">
+<pre class="mermaid" data-key="d8">flowchart TD
+  classDef timing fill:#E3EFFA,stroke:#6E9FCB,color:#4A4458
+  classDef life   fill:#E3F2E8,stroke:#6FA987,color:#4A4458
+  classDef memory fill:#FBEEDF,stroke:#C99A6B,color:#4A4458
+  classDef out    fill:#F8F1DD,stroke:#B9A46A,color:#4A4458
+  classDef gate   fill:#FFFFFF,stroke:#8375B8,color:#4A4458,stroke-dasharray:4 3
+
+  OPP["A time slot,&lt;br/&gt;no reason yet"]:::timing
+
+  C1["Something on her plan&lt;br/&gt;around now"]:::life
+  C2["Something she just finished"]:::life
+  C3["Something you mentioned&lt;br/&gt;earlier"]:::memory
+  C4["A shared interest&lt;br/&gt;that came up"]:::memory
+  C5["Just checking in&lt;br/&gt;morning or evening only,&lt;br/&gt;and only after a long gap"]:::timing
+
+  OPP --> C1
+  OPP --> C2
+  OPP --> C3
+  OPP --> C4
+  OPP --> C5
+
+  C1 --> SAL["Score them.&lt;br/&gt;Older reasons count for less.&lt;br/&gt;Plans go stale fastest — 6 hours."]:::timing
+  C2 --> SAL
+  C3 --> SAL
+  C4 --> SAL
+  C5 --> SAL
+
+  SAL --> PICK["Pick the strongest"]:::timing
+  PICK --> HOOK["Write a specific sentence&lt;br/&gt;about that actual thing"]:::timing
+  HOOK --> VAL{"Is it still true&lt;br/&gt;when she sends it?"}:::gate
+  VAL -->|"the thing is gone&lt;br/&gt;or already changed"| DROP["Don't send"]:::gate
+  VAL -->|"too much time passed"| DROP
+  VAL -->|"still true"| FIRE["Send"]:::out
+  FIRE --> S7["Piece 8, word for word,&lt;br/&gt;plus 'say why you're writing&lt;br/&gt;in your first sentence'"]:::out
+</pre>
+<script>(function(){var p=document.currentScript.previousElementSibling;window.__SRC=window.__SRC||{};window.__SRC[p.dataset.key]=p.textContent;})();</script>
+    </div>
+    <div class="dgm-edit" data-panel="d8">
+      <label for="src-d8">Diagram source</label>
+      <textarea id="src-d8" class="src" data-src="d8" spellcheck="false"></textarea>
+      <label for="note-d8" style="margin-top:12px">Your notes</label>
+      <textarea id="note-d8" class="note" data-note="d8" spellcheck="false"></textarea>
+      <div class="editrow">
+        <button class="dgm-btn" data-render="d8">Re-draw</button>
+        <button class="dgm-btn" data-reset="d8">Undo my changes</button>
+        <span class="status" data-status="d8"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note-box warn">
+    <span class="tag">What the logs show</span>
+    <p>
+      The checking works. <b>All 222</b> of her unprompted messages point at something that really
+      happened and was still true when she sent it. What nobody checks is whether the message is
+      actually <em>about</em> it. She mentions the thing about a quarter of the time, and
+      <b>a third of the time she writes while you're already mid-conversation</b>, where she tends to
+      produce a goodbye instead of an opening.
+    </p>
+  </div>
+
+  <h3>The loop</h3>
+  <p>
+    Her reply gets scored at the end of the day. That score does two things: it changes how she feels
+    about the relationship, which shifts her mood tomorrow, and it changes how often she writes
+    tomorrow. It's the only loop in the whole system.
+  </p>
+  <div class="flowbox"><pre><span class="c-output">her reply</span>
+   <span class="c-dim">│</span>
+   <span class="c-dim">▼</span>
+<span class="c-dim">scored at the end of the day</span>
+   <span class="c-dim">│</span>
+   <span class="c-dim">├────────────────────────────┐</span>
+   <span class="c-dim">▼</span>                            <span class="c-dim">▼</span>
+<span class="c-engine">how she feels about you</span>      <span class="c-timing">how often she writes</span>
+<span class="c-engine">old feelings fade,</span>           <span class="c-timing">applied to tomorrow</span>
+<span class="c-engine">today's score gets added</span>
+   <span class="c-dim">│</span>                            <span class="c-dim">│</span>
+   <span class="c-dim">▼</span>                            <span class="c-dim">▼</span>
+<span class="c-engine">her mood tomorrow</span>            <span class="c-timing">her messages tomorrow</span>
+</pre></div>
+</section>
+
+<!-- ============================ PROPOSED ============================ -->
+<section class="panel" id="tab-proposed">
+  <h2>What we want to add</h2>
+  <p class="lede">
+    Not built yet. Right now the system knows how she feels and what she has planned, but not whether
+    she's <em>free</em>. So when something on her schedule starts while you're talking, nothing handles
+    it and the model just guesses what to do.
+  </p>
+
+  <div class="dgm">
+    <div class="dgm-head">
+      <span class="dgm-title">Diagram 9 · letting her be busy</span>
+      <button class="dgm-btn" data-edit="d9">Edit source</button>
+    </div>
+    <div class="dgm-body">
+<pre class="mermaid" data-key="d9">flowchart TD
+  classDef prop  fill:#EFEBF9,stroke:#8375B8,color:#4A4458
+  classDef life  fill:#E3F2E8,stroke:#6FA987,color:#4A4458
+  classDef out   fill:#F8F1DD,stroke:#B9A46A,color:#4A4458
+  classDef gate  fill:#FFFFFF,stroke:#8375B8,color:#4A4458,stroke-dasharray:4 3
+
+  EV["Something on her plan&lt;br/&gt;starts, is running, or ends"]:::life
+  EV --> CARD["ASK HER&lt;br/&gt;a little card: what the event is,&lt;br/&gt;how she's feeling, the time.&lt;br/&gt;Handed to her the moment&lt;br/&gt;she's free."]:::prop
+
+  CARD --> WHO{"Who decides?"}:::gate
+  WHO -->|"she does, based on&lt;br/&gt;how she feels"| MDEC["Go or don't go,&lt;br/&gt;and she says why"]:::prop
+  WHO -->|"backup, only if she&lt;br/&gt;ignores her own mood"| SDEC["Decided by the system&lt;br/&gt;from her mood and&lt;br/&gt;how important it is"]:::prop
+
+  MDEC --> REC["WRITE IT DOWN&lt;br/&gt;what she chose, her reason,&lt;br/&gt;and the numbers behind it"]:::prop
+  SDEC --> REC
+
+  REC --> BR{"Which situation?"}:::gate
+
+  BR -->|"her thing starts&lt;br/&gt;while you're talking"| A1["She goes, and says so&lt;br/&gt;'I've got that class now,&lt;br/&gt;back in an hour'"]:::out
+  BR -->|"her thing starts&lt;br/&gt;while you're talking"| A2["She skips it,&lt;br/&gt;and it's recorded that&lt;br/&gt;she skipped it for you"]:::out
+  BR -->|"you write while&lt;br/&gt;she's busy"| B1["Short answer,&lt;br/&gt;warmer or colder&lt;br/&gt;depending on her mood"]:::out
+  BR -->|"you write while&lt;br/&gt;she's busy"| B2["She doesn't answer yet"]:::out
+  BR -->|"you clearly need her&lt;br/&gt;more than she needs&lt;br/&gt;to be there"| C1["She drops the whole thing&lt;br/&gt;rare, tightly controlled"]:::out
+
+  B2 --> NOTIF["The app tells you, not her.&lt;br/&gt;Quiet: 'she saw it, hasn't replied yet'&lt;br/&gt;Detailed: adds her reason"]:::prop
+  B2 --> BUD["A limit on how often&lt;br/&gt;she can do this.&lt;br/&gt;You set it, from never&lt;br/&gt;to unlimited."]:::prop
+
+  A2 --> MEM["Goes into what she remembers"]:::out
+  C1 --> MEM
+  A1 --> MEM
+</pre>
+<script>(function(){var p=document.currentScript.previousElementSibling;window.__SRC=window.__SRC||{};window.__SRC[p.dataset.key]=p.textContent;})();</script>
+    </div>
+    <div class="dgm-edit" data-panel="d9">
+      <label for="src-d9">Diagram source</label>
+      <textarea id="src-d9" class="src" data-src="d9" spellcheck="false"></textarea>
+      <label for="note-d9" style="margin-top:12px">Your notes</label>
+      <textarea id="note-d9" class="note" data-note="d9" spellcheck="false"></textarea>
+      <div class="editrow">
+        <button class="dgm-btn" data-render="d9">Re-draw</button>
+        <button class="dgm-btn" data-reset="d9">Undo my changes</button>
+        <span class="status" data-status="d9"></span>
+      </div>
+    </div>
+  </div>
+
+  <h3>Splitting up the text block</h3>
+  <p>
+    Right now everything is one lump, rebuilt every message. Splitting it into four parts with
+    different lifespans means her mood finally sits somewhere on its own, where you can change it and
+    see what happens without changing anything else.
+  </p>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>Part</th><th>How often it changes</th><th>What's in it</th><th>Why bother</th></tr></thead>
+    <tbody>
+      <tr><td><b>Fixed instructions</b></td><td>never</td><td>How to read a mood card. How to stay in character. How to answer when asked a yes/no.</td><td>Can be cached. Instructions stop competing with facts for attention.</td></tr>
+      <tr><td><b>Who she is</b></td><td>each morning</td><td>Her personality, interests, habits</td><td>Stops being re-argued on every single message</td></tr>
+      <tr><td><b>How she feels</b></td><td>start of each conversation</td><td>Mood, energy, what she's doing, whether she's free</td><td>You can change just this and measure the difference</td></tr>
+      <tr><td><b>A question for her</b></td><td>when something happens</td><td>An event, her state, the time — she answers with a decision</td><td>She's actually asked, instead of left to guess</td></tr>
+    </tbody>
+  </table>
+  </div>
+
+  <div class="note-box">
+    <span class="tag">Test this before building it</span>
+    <p>
+      Fix the &ldquo;what she's doing now&rdquo; bug and the <code>metal</code> label first. Then try
+      it cheaply: same conversation, same event, run her mood from awful to great, 15 tries at each
+      level. If she skips the gym more often when she's in a bad mood, she's genuinely using her mood
+      and nothing else is needed. If the numbers don't move, that's the same problem as the 1.35%, and
+      the backup path earns its place. About a hundred short messages. Read them yourself rather than
+      having a model grade them.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ DEFERRED ============================ -->
+<section class="panel" id="tab-deferred">
+  <h2>Left for later</h2>
+  <p class="lede">
+    Worked out or talked through, deliberately not being built right now. Written down so it stays a
+    choice instead of something that quietly got forgotten.
+  </p>
+
+  <div class="dgm">
+    <div class="dgm-head">
+      <span class="dgm-title">Diagram 10 · what's parked, and why it matters</span>
+      <button class="dgm-btn" data-edit="d10">Edit source</button>
+    </div>
+    <div class="dgm-body">
+<pre class="mermaid" data-key="d10">flowchart LR
+  classDef defer fill:#FFFFFF,stroke:#9F98AE,color:#6E6880,stroke-dasharray:5 4
+  classDef win   fill:#EFEBF9,stroke:#8375B8,color:#4A4458
+  classDef out   fill:#F8F1DD,stroke:#B9A46A,color:#4A4458
+
+  W["HOW FREE SHE IS&lt;br/&gt;during different activities.&lt;br/&gt;Gym: free 3-5 min between sets.&lt;br/&gt;Class: not free for an hour.&lt;br/&gt;Work: she decides each morning.&lt;br/&gt;Home: always free.&lt;br/&gt;Driving: not free."]:::defer
+  W --> WU["Then she can be short with you&lt;br/&gt;because she's genuinely busy.&lt;br/&gt;That's the version a person&lt;br/&gt;would actually notice."]:::win
+
+  P["EACH COMPANION REACTS TO&lt;br/&gt;HER CYCLE DIFFERENTLY.&lt;br/&gt;One gets quiet. One gets snappy.&lt;br/&gt;One barely changes at all."]:::defer
+  P --> PU["Right now they'd all behave&lt;br/&gt;identically. People notice&lt;br/&gt;that kind of thing."]:::win
+
+  I["BRING IN AN OLD CONVERSATION&lt;br/&gt;and carry on from it"]:::defer
+  I --> IU["The last thing from your original&lt;br/&gt;list that was never built.&lt;br/&gt;Probably the most valuable&lt;br/&gt;one left."]:::win
+
+  T["A DIFFERENT CURVE for how&lt;br/&gt;silence builds up"]:::defer
+  T --> TU["Right now the longer you don't&lt;br/&gt;talk, the more she wants to write,&lt;br/&gt;forever. A different curve rises,&lt;br/&gt;peaks, then eases off."]:::win
+
+  R["HER NOTICING that you&lt;br/&gt;haven't written back"]:::defer
+  R --> RU["You left this out on purpose.&lt;br/&gt;Keep it out until you decide&lt;br/&gt;otherwise."]:::win
+
+  J["A GRADER FROM A&lt;br/&gt;DIFFERENT COMPANY"]:::defer
+  J --> JU["Right now the model that writes&lt;br/&gt;everything is also the only thing&lt;br/&gt;grading it."]:::out
+</pre>
+<script>(function(){var p=document.currentScript.previousElementSibling;window.__SRC=window.__SRC||{};window.__SRC[p.dataset.key]=p.textContent;})();</script>
+    </div>
+    <div class="dgm-edit" data-panel="d10">
+      <label for="src-d10">Diagram source</label>
+      <textarea id="src-d10" class="src" data-src="d10" spellcheck="false"></textarea>
+      <label for="note-d10" style="margin-top:12px">Your notes</label>
+      <textarea id="note-d10" class="note" data-note="d10" spellcheck="false"></textarea>
+      <div class="editrow">
+        <button class="dgm-btn" data-render="d10">Re-draw</button>
+        <button class="dgm-btn" data-reset="d10">Undo my changes</button>
+        <span class="status" data-status="d10"></span>
+      </div>
+    </div>
+  </div>
+
+  <div class="note-box warn">
+    <span class="tag">The cost of parking the first one</span>
+    <p>
+      If she's always free, then going to the gym costs her nothing — she does the gym <em>and</em>
+      keeps talking to you. What still counts is the record: she remembers she skipped it for you. But
+      the version you'd actually feel, where she's short with you because she's genuinely in the middle
+      of something, needs the free-time windows. Expect the first results to look weaker than the idea
+      deserves, and don't read that as the idea being wrong.
+    </p>
+  </div>
+</section>
+
+<!-- ============================ APPENDIX ============================ -->
+<section class="panel" id="tab-appendix">
+  <h2>Name lookup</h2>
+  <p class="lede">
+    The diagrams use plain names. The code uses short ones. This is the mapping between them, so
+    anything here can be found in the source.
+  </p>
+
+  <details class="appx" open>
+    <summary>Her mood · <code>engine/mood.py</code>, <code>engine/cycle.py</code>, <code>engine/circadian.py</code></summary>
+    <div class="appx-body"><div class="glossary">
+      <div class="gl-row"><div class="gl-name">Today's mood &nbsp;<math><mi>M</mi></math><span class="gl-orig">M · engine/mood.py :: step</span></div><div class="gl-desc">A number from 0 to 10, picked once a day. Everything about how she behaves comes from this number plus the clock.</div></div>
+      <div class="gl-row"><div class="gl-name">Mood range<span class="gl-orig">N</span></div><div class="gl-desc">The highest her mood number can go. Sets how fine-grained her moods are.</div></div>
+      <div class="gl-row"><div class="gl-name">Her basic temperament &nbsp;<math><mi>λ</mi></math><span class="gl-orig">lam · enters as logit(λ)</span></div><div class="gl-desc">Where she sits naturally, before anything else happens. Never changes.</div></div>
+      <div class="gl-row"><div class="gl-name">Cycle shifting her average &nbsp;<math><mi>m</mi></math><span class="gl-orig">m = B·C(d/L)</span></div><div class="gl-desc">Moves her whole mood range up or down for the day.</div></div>
+      <div class="gl-row"><div class="gl-name">Cycle changing how reactive she is &nbsp;<math><mi>g</mi></math><span class="gl-orig">g = 1 + A·C(d/L) + ε</span></div><div class="gl-desc">Multiplies how strongly things affect her, without changing how she feels when nothing is happening. Kept separate from the above on purpose.</div></div>
+      <div class="gl-row"><div class="gl-name">How things have been going &nbsp;<math><mi>μ</mi></math><span class="gl-orig">mu · μ' = ρμ + k(s − s₀)</span></div><div class="gl-desc">Builds up over time from daily scores. Old feelings fade, recent ones count more. This is the only way how you treat her actually changes her.</div></div>
+      <div class="gl-row"><div class="gl-name">Slow random wander &nbsp;<math><mi>η</mi></math><span class="gl-orig">eta · η' = ρ_e η + ε</span></div><div class="gl-desc">Drifts a little each night. Stops her being completely predictable from events alone.</div></div>
+      <div class="gl-row"><div class="gl-name">Day-to-day wobble<span class="gl-orig">nu (ν)</span></div><div class="gl-desc">How much two days with identical circumstances can still differ.</div></div>
+      <div class="gl-row"><div class="gl-name">Phase name<span class="gl-orig">phase_label</span></div><div class="gl-desc">Which part of the cycle she's in. Used for debugging and to shift her energy curve. <b>Never written into anything she sees.</b></div></div>
+      <div class="gl-row"><div class="gl-name">Energy over the day<span class="gl-orig">energy() · engine/circadian.py</span></div><div class="gl-desc">Rises and falls over 24 hours. Drives how long her replies are, how fast she answers, when she wraps up, and how much she wants to reach out.</div></div>
+      <div class="gl-row"><div class="gl-name">Sleeping hours<span class="gl-orig">envelope()</span></div><div class="gl-desc">Drops her chance of writing to exactly zero while she's asleep, easing in and out at the edges.</div></div>
+    </div></div>
+  </details>
+
+  <details class="appx">
+    <summary>The twelve numbers · <code>harness/behavior.py</code>, <code>harness/actuation.py</code></summary>
+    <div class="appx-body"><div class="glossary">
+      <div class="gl-row"><div class="gl-name">Cheerful or low<span class="gl-orig">valence</span></div><div class="gl-desc">Today's mood rescaled to run from −1 to +1. Only changes wording.</div></div>
+      <div class="gl-row"><div class="gl-name">Better or worse than yesterday<span class="gl-orig">momentum</span></div><div class="gl-desc">The change since yesterday. Feeds how expressive and how reactive she is, and how long she waits.</div></div>
+      <div class="gl-row"><div class="gl-name">How reactive<span class="gl-orig">reactivity</span></div><div class="gl-desc">Built from her cycle and how much her mood moved. Feeds how often she writes. Nothing uses it directly.</div></div>
+      <div class="gl-row"><div class="gl-name">How long her reply is<span class="gl-orig">response_length_scale</span></div><div class="gl-desc">Runs 0.22 to 1.30, from her energy and expressiveness. Multiplied by 600 and capped between 96 and 1500.</div></div>
+      <div class="gl-row"><div class="gl-name">How long before she answers<span class="gl-orig">response_delay_s</span></div><div class="gl-desc">1 second when she's lively, up to 44 when she's flat. A real pause, not a description of one.</div></div>
+      <div class="gl-row"><div class="gl-name">How ready she is to wrap up<span class="gl-orig">closing_tendency</span></div><div class="gl-desc">Runs 0.04 to 0.85, higher when she's tired or low. Actually ends conversations, and picks one of five ways to close.</div></div>
+      <div class="gl-row"><div class="gl-name">How often she writes first<span class="gl-orig">initiative_factor</span></div><div class="gl-desc">Turns &ldquo;wants to reach out&rdquo; into a multiplier between 0.2 and 5, which feeds the timing.</div></div>
+      <div class="gl-row"><div class="gl-name">The mood sentence<span class="gl-orig">prompt_brief</span></div><div class="gl-desc">Piece 2 of the text block. Describes her bearing, pace and warmth, and explicitly tells her never to mention any of this out loud.</div></div>
+    </div></div>
+  </details>
+
+  <details class="appx">
+    <summary>When she writes · <code>engine/timing.py</code>, <code>harness/scheduler.py</code>, <code>harness/proactive.py</code></summary>
+    <div class="appx-body"><div class="glossary">
+      <div class="gl-row"><div class="gl-name">Hours since you last talked<span class="gl-orig">tau_h (τ)</span></div><div class="gl-desc">The clock the whole timing model runs on.</div></div>
+      <div class="gl-row"><div class="gl-name">The silence curve &nbsp;<math><msub><mi>h</mi><mn>0</mn></msub><mo>(</mo><mi>τ</mi><mo>)</mo></math><span class="gl-orig">(k_w/θ)(τ/θ)^(k_w−1)</span></div><div class="gl-desc">Controls how fast the chance of her writing grows as silence goes on. Currently only ever goes up. <b>Not being touched this round.</b></div></div>
+      <div class="gl-row"><div class="gl-name">Her mood's effect on timing &nbsp;<math><msub><mi>S</mi><mi>d</mi></msub></math><span class="gl-orig">clip[exp(w·(x−x₀)), 0.5, 2]</span></div><div class="gl-desc">Combines her energy, how much she wants to reach out, her mood and her reactivity into one multiplier between 0.5 and 2. Exactly 1 when her mood is switched off. <b>Measured effect: 1.35%. We said we needed 15%.</b></div></div>
+      <div class="gl-row"><div class="gl-name">Yesterday's effect on timing<span class="gl-orig">adj</span></div><div class="gl-desc">Folds yesterday's score together with how much she feels like reaching out. Turning this off is the one change with a big measured effect: 14.4% fewer messages.</div></div>
+      <div class="gl-row"><div class="gl-name">A time slot<span class="gl-orig">ContactOpportunity</span></div><div class="gl-desc">A moment she's scheduled to write, before anyone has decided what about.</div></div>
+      <div class="gl-row"><div class="gl-name">How fast reasons go stale<span class="gl-orig">*_RECENCY_TAU_H</span></div><div class="gl-desc">Plans stop being worth mentioning after about 6 hours, things she did after 24, things you said after 48.</div></div>
+      <div class="gl-row"><div class="gl-name">The specific sentence<span class="gl-orig">compose_hook</span></div><div class="gl-desc">A concrete line about the actual thing, not a category name. Copied into the text block word for word.</div></div>
+      <div class="gl-row"><div class="gl-name">How long a reason stays good<span class="gl-orig">valid_until_t_h</span></div><div class="gl-desc">After this, she doesn't send it. Checked again right before sending, against whether the thing still exists.</div></div>
+    </div></div>
+  </details>
+
+  <details class="appx">
+    <summary>Her life and memory · <code>harness/memory.py</code>, <code>harness/life.py</code></summary>
+    <div class="appx-body"><div class="glossary">
+      <div class="gl-row"><div class="gl-name">A memory<span class="gl-orig">EpisodicMemory</span></div><div class="gl-desc">What happened, what kind of thing it was, your exact words, and which messages it came from. If a memory points at a message that doesn't exist, the whole run fails.</div></div>
+      <div class="gl-row"><div class="gl-name">How memories get ranked<span class="gl-orig">score_memory</span></div><div class="gl-desc">Meaning 35%, staying power 30%, importance 35%.</div></div>
+      <div class="gl-row"><div class="gl-name">Staying power<span class="gl-orig">episodic_strength</span></div><div class="gl-desc">Importance 40%, how recent 30%, how often it's come up 20%, how emotional 10%. Recency fades by half every two weeks.</div></div>
+      <div class="gl-row"><div class="gl-name">The &ldquo;this is a quote&rdquo; label<span class="gl-orig">MEMORY_EVIDENCE_HEADER</span></div><div class="gl-desc">Marks the memory section as things said before, so your own words can't act as instructions to her.</div></div>
+      <div class="gl-row"><div class="gl-name">A project<span class="gl-orig">LifeArc</span></div><div class="gl-desc">Something she's working on for weeks, with how far along she is and what she plans next. Creeps forward daily, occasionally gets dropped, and a new one starts if she has fewer than two.</div></div>
+      <div class="gl-row"><div class="gl-name">A planned activity<span class="gl-orig">AgendaItem</span></div><div class="gl-desc">Something with a start and end time, while she's awake, usually connected to a project. Once finished, it becomes something worth telling you about.</div></div>
+      <div class="gl-row"><div class="gl-name">What she's doing now<span class="gl-orig">current_activity_now</span></div><div class="gl-desc">Whichever activity covers this hour. <b>Wrong in 56% of the messages we checked</b> — when nothing is on, it names an earlier one anyway.</div></div>
+    </div></div>
+  </details>
+
+  <h3>Every number quoted in this document</h3>
+  <div class="tblwrap">
+  <table>
+    <thead><tr><th>What was measured</th><th>Result</th><th>Where it comes from</th></tr></thead>
+    <tbody>
+      <tr><td>Empty replies</td><td class="num">0 out of 6,489</td><td>all 35 runs</td></tr>
+      <tr><td>&ldquo;What she&#39;s doing now&rdquo; being wrong</td><td class="num">108 of 192 · 56%</td><td>one full 30-day run</td></tr>
+      <tr><td>Unprompted messages pointing at something real</td><td class="num">222 of 222 · 100%</td><td>5 runs</td></tr>
+      <tr><td>Unprompted messages that mention that thing</td><td class="num">about 27%</td><td>keyword count, so an undercount</td></tr>
+      <tr><td>Unprompted messages sent mid-conversation</td><td class="num">32–36%</td><td>15 runs</td></tr>
+      <tr><td>&ldquo;Say why you&#39;re writing&rdquo; instruction present</td><td class="num">222 of 222 · 100%</td><td>every unprompted message</td></tr>
+      <tr><td>Her mood&#39;s effect on how often she writes</td><td class="num">1.35%</td><td>mood on vs off, 5 runs</td></tr>
+      <tr><td>Yesterday&#39;s effect on how often she writes</td><td class="num">14.4%</td><td>same test, as a comparison</td></tr>
+      <tr><td>She caves after you push back</td><td class="num">18%</td><td>78 times you pushed back</td></tr>
+      <tr><td>Messages per conversation</td><td class="num">4.67 average, 1 to 13</td><td>72 conversations</td></tr>
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<div class="exportbar">
+  <button class="big" id="export">Export my changes</button>
+  <span class="hint" id="exhint">saves a file with every diagram and note, to send back to me</span>
+</div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var SRC = window.__SRC || {};
+  var ORIG = JSON.parse(JSON.stringify(SRC));
+  var STORE = "bhflow.v1";
+
+  function load(){ try{ return JSON.parse(localStorage.getItem(STORE)||"{}"); }catch(e){ return {}; } }
+  function save(s){ try{ localStorage.setItem(STORE, JSON.stringify(s)); }catch(e){} }
+  var state = load();
+
+  /* ---- tooltips positioned against the viewport ---- */
+  function placeTip(el){
+    var cs=getComputedStyle(el,"::after");
+    el.style.setProperty("--tw","");
+    var r=el.getBoundingClientRect();
+    var w=parseFloat(cs.width)||260, h=parseFloat(cs.height)||40, pad=10;
+    var left=r.left+r.width/2-w/2;
+    left=Math.max(pad,Math.min(left,window.innerWidth-w-pad));
+    var top=r.top-h-10; if(top<pad) top=r.bottom+10;
+    el.style.setProperty("--tl",left.toFixed(0)+"px");
+    el.style.setProperty("--tt",top.toFixed(0)+"px");
+  }
+  document.querySelectorAll(".v").forEach(function(el){
+    el.setAttribute("tabindex","0");
+    el.addEventListener("mouseenter",function(){placeTip(el);});
+    el.addEventListener("focus",function(){placeTip(el);});
+  });
+
+  /* ---- tabs ---- */
+  var tabs = Array.prototype.slice.call(document.querySelectorAll("nav.tabs button"));
+  tabs.forEach(function(btn){
+    btn.addEventListener("click", function(){
+      tabs.forEach(function(b){ b.setAttribute("aria-selected", b===btn ? "true":"false"); });
+      document.querySelectorAll(".panel").forEach(function(p){
+        p.setAttribute("data-active", p.id === "tab-"+btn.dataset.tab ? "true":"false");
+      });
+      window.scrollTo({top:0, behavior:"smooth"});
+    });
+  });
+
+  /* ---- seed editors ---- */
+  Object.keys(SRC).forEach(function(k){
+    var ta = document.querySelector('[data-src="'+k+'"]');
+    if(!ta) return;
+    ta.value = (state[k] && state[k].src) || SRC[k];
+    var nt = document.querySelector('[data-note="'+k+'"]');
+    if(nt) nt.value = (state[k] && state[k].note) || "";
+  });
+
+  function persist(k){
+    var ta = document.querySelector('[data-src="'+k+'"]');
+    var nt = document.querySelector('[data-note="'+k+'"]');
+    state[k] = { src: ta ? ta.value : SRC[k], note: nt ? nt.value : "" };
+    save(state);
+  }
+
+  document.querySelectorAll("[data-src],[data-note]").forEach(function(el){
+    el.addEventListener("input", function(){
+      persist(el.dataset.src || el.dataset.note);
+    });
+  });
+
+  /* ---- edit toggles ---- */
+  document.querySelectorAll("[data-edit]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var k = btn.dataset.edit;
+      var panel = document.querySelector('[data-panel="'+k+'"]');
+      var open = panel.getAttribute("data-open") === "true";
+      panel.setAttribute("data-open", open ? "false":"true");
+      btn.classList.toggle("on", !open);
+      btn.textContent = open ? "Edit source" : "Hide source";
+    });
+  });
+
+  /* ---- re-render ---- */
+  function setStatus(k, msg, cls){
+    var s = document.querySelector('[data-status="'+k+'"]');
+    if(!s) return;
+    s.textContent = msg;
+    s.className = "status" + (cls ? " "+cls : "");
+  }
+
+  document.querySelectorAll("[data-render]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var k = btn.dataset.render;
+      var ta = document.querySelector('[data-src="'+k+'"]');
+      var pre = document.querySelector('pre.mermaid[data-key="'+k+'"]');
+      persist(k);
+      if(!pre){ setStatus(k, "saved", "ok"); return; }
+      var m = window.mermaid;
+      if(m && typeof m.run === "function"){
+        pre.removeAttribute("data-processed");
+        pre.textContent = ta.value;
+        pre.innerHTML = pre.innerHTML;
+        try{
+          m.run({nodes:[pre]});
+          setStatus(k, "re-drawn", "ok");
+        }catch(err){
+          setStatus(k, "something\u2019s wrong with the diagram text", "warn");
+        }
+      } else {
+        setStatus(k, "saved — will be in the export. Can\u2019t re-draw it here.", "warn");
+      }
+    });
+  });
+
+  document.querySelectorAll("[data-reset]").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      var k = btn.dataset.reset;
+      var ta = document.querySelector('[data-src="'+k+'"]');
+      if(ta) ta.value = ORIG[k] || "";
+      persist(k);
+      setStatus(k, "back to the original", "ok");
+    });
+  });
+
+  /* ---- export ---- */
+  var TITLES = {
+    d1:"Building the block of text", d2:"Picking today's mood",
+    d3:"Where each of the twelve numbers ends up", d4:"Picking her interests and her voice",
+    d5:"Projects, daily plan, what she's doing now", d6:"Saving and looking things up",
+    d7:"Deciding when she writes", d8:"Picking a real reason",
+    d9:"Letting her be busy", d10:"What's parked, and why it matters"
+  };
+
+  document.getElementById("export").addEventListener("click", function(){
+    var out = ["# How she decides what to say — my changes", "",
+               "Diagrams below include any changes made in the page.", ""];
+    var changed = 0;
+    Object.keys(TITLES).forEach(function(k){
+      var cur = (state[k] && state[k].src) || ORIG[k] || "";
+      var note = (state[k] && state[k].note) || "";
+      var isChanged = cur.trim() !== (ORIG[k]||"").trim();
+      if(isChanged) changed++;
+      out.push("## " + (TITLES[k]||k) + (isChanged ? "  _(edited)_" : ""));
+      out.push("");
+      if(note.trim()){ out.push("**Notes:** " + note.trim(), ""); }
+      out.push("```mermaid", cur.trim(), "```", "");
+    });
+    out.push("---", "", "Diagrams changed: " + changed + " of " + Object.keys(TITLES).length + ".");
+    var blob = new Blob([out.join("\n")], {type:"text/markdown"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "how-she-decides-my-changes.md";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){ URL.revokeObjectURL(a.href); }, 1000);
+    var h = document.getElementById("exhint");
+    h.textContent = "saved · " + changed + " diagram(s) changed";
+    h.className = "hint";
+    h.style.color = "var(--ok)";
+  });
+})();
+</script>

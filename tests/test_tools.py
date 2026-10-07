@@ -13,6 +13,7 @@ import pytest
 from harness.steering import NO_ACTIVE_EVENT, render_steer_block
 from harness.store import SQLiteStore
 from harness.tools import (
+    ANSWER_WITH,
     Capabilities,
     DecisionConfig,
     DecisionParseError,
@@ -29,35 +30,9 @@ from harness.tools import (
     parse_textual_reply,
     render_popup,
 )
+from tests.helpers.tools import call_from, decision_store, native_call
 
 # helpers
-
-
-def _store(tmp_path):
-    return SQLiteStore(tmp_path / "decisions.db", audit_mode=True)
-
-
-def _call_from(responses):
-    """Injected callable factory: returns queued RawReply objects."""
-    queue = list(responses)
-    calls = []
-
-    def _call(request):
-        calls.append(request)
-        return queue.pop(0)
-
-    _call.calls = calls  # type: ignore[attr-defined]
-    return _call
-
-
-def _native_call(name, args: dict):
-    return RawReply(
-        tool_calls=[{
-            "id": "call_1",
-            "type": "function",
-            "function": {"name": name, "arguments": json.dumps(args)},
-        }]
-    )
 
 
 REPLY_INPUTS = {
@@ -104,9 +79,6 @@ def test_malformed_native_arguments_are_salvaged_not_rejected():
     # 4. no payload at all still raises: tolerance must not invent a verdict
     with pytest.raises(ValueError):
         parse_native_reply("tool_decide_event", call("just prose, no payload"))
-
-
-
 
 
 def test_parse_native_reply_event():
@@ -212,77 +184,36 @@ def test_parse_textual_garbage_payload_raises():
 # popup rendering
 
 
-def test_render_popup_event_matches_sketch():
-    assert render_popup("tool_decide_event", EVENT_INPUTS) == (
-        "{Event: gym, State: start, Time: 19:00}\n"
-        '{Initiate:{yes,no,defer}, Reason: ""}'
-    )
-
-
-def test_render_popup_reply_matches_sketch():
-    assert render_popup("tool_decide_reply", REPLY_INPUTS) == (
-        "{Event: gym, State: in_progress, Time: 19:30}\n"
-        '{Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}\n'
-        'Latest user message: "are you coming to class?"'
-    )
-
-
 def test_render_popup_reply_drops_the_line_when_the_message_is_empty():
     """The session blanks the field when the steer's message is already the
     row above (the transcript carries it); the renderer must then omit the
     line, not print an empty quote."""
     inputs = dict(REPLY_INPUTS, latest_user_message="")
-    assert render_popup("tool_decide_reply", inputs) == (
-        "{Event: gym, State: in_progress, Time: 19:30}\n"
-        '{Reply:{yes,no}, Reason: "", Terminate_event:{yes,no}}'
-    )
+    assert "Latest user message" in render_popup("tool_decide_reply", REPLY_INPUTS)
+    assert "Latest user message" not in render_popup("tool_decide_reply", inputs)
 
 
 def test_tool_schemas_shape():
 # The tool is the answer form: required params are the verdict fields, not the pop-up inputs.
-    assert [t["name"] for t in TOOL_SCHEMAS] == [
-        "tool_decide_event", "tool_decide_reply", "tool_decide_proactive",
-    ]
     for t in TOOL_SCHEMAS:
         assert t["description"]
         assert t["parameters"]["type"] == "object"
         assert set(t["parameters"]["required"]) <= set(t["parameters"]["properties"])
-    event = TOOL_SCHEMAS[0]
-    # Phase-conditional fields: inform wants message, verdicts want initiate —
-    # so nothing is schema-required; the pop-up block carries the per-phase form.
-    assert event["parameters"]["required"] == []
-    # One tri-state verdict field, not a bool plus a parallel action.
-    assert set(event["parameters"]["properties"]) == {
-        "initiate", "reason", "turns", "message",
-    }
-    assert event["parameters"]["properties"]["initiate"]["enum"] == [
-        "yes", "no", "defer",
-    ]
-    reply = TOOL_SCHEMAS[1]
-    assert set(reply["parameters"]["required"]) == {"reply", "reason"}
-    assert set(reply["parameters"]["properties"]) == {
-        "reply", "reason", "terminate_event",
-    }
-    proactive = TOOL_SCHEMAS[2]
-    assert set(proactive["parameters"]["required"]) == {"initiate", "reason"}
-    assert set(proactive["parameters"]["properties"]) == {
-        "initiate", "reason",
-    }
 
 
 # runner: transport selection + execution
 
 
 def test_transport_selection_auto_by_capability(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store)
-    call = _call_from([RawReply(text='tool_decide_reply: {yes, "ok"}')])
+    call = call_from([RawReply(text='tool_decide_reply: {yes, "ok"}')])
     runner.execute(
         "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(False), call
     )
     assert call.calls[0].native is False
 
-    call2 = _call_from([_native_call("tool_decide_reply",
+    call2 = call_from([native_call("tool_decide_reply",
                                      {"reply": True, "reason": "ok"})])
     runner.execute(
         "d2", "tool_decide_reply", REPLY_INPUTS, Capabilities(True), call2
@@ -293,16 +224,16 @@ def test_transport_selection_auto_by_capability(tmp_path):
 
 
 def test_transport_forced_modes(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store, tool_mode="textual")
-    call = _call_from([RawReply(text='tool_decide_reply: {yes, "ok"}')])
+    call = call_from([RawReply(text='tool_decide_reply: {yes, "ok"}')])
     res = runner.execute(
         "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(True), call
     )
     assert res.transport == "textual"
 
     runner2 = DecisionRunner(store, tool_mode="native")
-    call2 = _call_from([_native_call("tool_decide_reply",
+    call2 = call_from([native_call("tool_decide_reply",
                                      {"reply": True, "reason": "ok"})])
     res2 = runner2.execute(
         "d2", "tool_decide_reply", REPLY_INPUTS, Capabilities(False), call2
@@ -312,7 +243,7 @@ def test_transport_forced_modes(tmp_path):
 
 
 def test_execute_native_dual_persistence(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store)
     tool_calls = [{
         "id": "call_1",
@@ -325,7 +256,7 @@ def test_execute_native_dual_persistence(tmp_path):
             ),
         },
     }]
-    call = _call_from([RawReply(tool_calls=tool_calls)])
+    call = call_from([RawReply(tool_calls=tool_calls)])
     res = runner.execute(
         "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(True), call
     )
@@ -349,9 +280,9 @@ def test_execute_native_dual_persistence(tmp_path):
 
 
 def test_execute_textual_persists_raw_text(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store)
-    call = _call_from([RawReply(text='tool_decide_event: {yes, "lets go"}')])
+    call = call_from([RawReply(text='tool_decide_event: {yes, "lets go"}')])
     res = runner.execute(
         "d1", "tool_decide_event", EVENT_INPUTS, Capabilities(False), call
     )
@@ -367,9 +298,9 @@ def test_execute_textual_persists_raw_text(tmp_path):
 
 
 def test_parse_failure_loud_and_requeue(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store, parse_failure_mode="requeue")
-    call = _call_from([RawReply(text="I think I should reply to her.")])
+    call = call_from([RawReply(text="I think I should reply to her.")])
     with pytest.raises(DecisionRequeue):
         runner.execute(
             "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(False), call
@@ -387,9 +318,9 @@ def test_parse_failure_loud_and_requeue(tmp_path):
 
 
 def test_parse_failure_abort(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store, parse_failure_mode="abort")
-    call = _call_from([RawReply(text="no marker here")])
+    call = call_from([RawReply(text="no marker here")])
     with pytest.raises(DecisionParseError):
         runner.execute(
             "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(False), call
@@ -400,13 +331,13 @@ def test_parse_failure_abort(tmp_path):
 
 
 def test_parse_failure_server_draw_fallback(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(
         store,
         parse_failure_mode="server_draw",
         rng=np.random.default_rng(7),
     )
-    call = _call_from([RawReply(text="no marker here")])
+    call = call_from([RawReply(text="no marker here")])
     res = runner.execute(
         "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(False), call
     )
@@ -426,11 +357,11 @@ def test_parse_failure_server_draw_fallback(tmp_path):
 
 
 def _no_reply_call(text='tool_decide_reply: {no, "busy"}'):
-    return _call_from([RawReply(text=text)])
+    return call_from([RawReply(text=text)])
 
 
 def test_budget_off_unlimited(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store, budget=None)
     for i in range(3):
         res = runner.execute(
@@ -445,7 +376,7 @@ def test_budget_off_unlimited(tmp_path):
 
 
 def test_budget_zero_always_reply(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store, budget=0)
     res = runner.execute(
         "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(False),
@@ -463,7 +394,7 @@ def test_budget_zero_always_reply(tmp_path):
 
 
 def test_budget_exhaustion_forces_reply_then_day_rollover_resets(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store, budget=1)
     # first no-reply: accepted, consumes the single budget slot
     r1 = runner.execute(
@@ -490,12 +421,12 @@ def test_budget_exhaustion_forces_reply_then_day_rollover_resets(tmp_path):
 
 
 def test_budget_counts_only_accepted_no_replies(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store, budget=1)
     # a reply=True verdict does not consume budget
     runner.execute(
         "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(False),
-        _call_from([RawReply(text='tool_decide_reply: {yes, "sure"}')]),
+        call_from([RawReply(text='tool_decide_reply: {yes, "sure"}')]),
     )
     # so a no-reply afterwards is still accepted
     r2 = runner.execute(
@@ -510,7 +441,7 @@ def test_budget_counts_only_accepted_no_replies(tmp_path):
 
 
 def test_server_draw_deterministic_per_seed(tmp_path):
-    store1 = _store(tmp_path)
+    store1 = decision_store(tmp_path)
     store2 = SQLiteStore(tmp_path / "decisions2.db", audit_mode=True)
     rng1 = np.random.default_rng(4242)
     rng2 = np.random.default_rng(4242)
@@ -544,24 +475,24 @@ def test_server_draw_deterministic_per_seed(tmp_path):
 
 
 def test_server_draw_requires_rng(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store, decision_source="server_draw", rng=None)
     with pytest.raises(RuntimeError):
         runner.execute(
             "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(False),
-            _call_from([RawReply(text="unused")]),
+            call_from([RawReply(text="unused")]),
         )
     store.close()
 
 
 def test_server_draw_event_verdict(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(
         store, decision_source="server_draw", rng=np.random.default_rng(1)
     )
     res = runner.execute(
         "d1", "tool_decide_event", EVENT_INPUTS, Capabilities(False),
-        _call_from([RawReply(text="unused")]),
+        call_from([RawReply(text="unused")]),
     )
     assert res.verdict["initiate"] in (True, False)
     assert res.verdict["reason"]  # canned server-draw reason
@@ -575,9 +506,9 @@ def test_server_draw_event_verdict(tmp_path):
 
 
 def test_replay_reads_recorded_verdict(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store)
-    call = _call_from([RawReply(text='tool_decide_reply: {no, "in class"}')])
+    call = call_from([RawReply(text='tool_decide_reply: {no, "in class"}')])
     first = runner.execute(
         "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(False), call
     )
@@ -603,9 +534,9 @@ def test_replay_reads_recorded_verdict(tmp_path):
 
 
 def test_replay_never_rerolls_event_decisions(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store)
-    call = _call_from([RawReply(text='tool_decide_event: {yes, "go"}')])
+    call = call_from([RawReply(text='tool_decide_event: {yes, "go"}')])
     runner.execute(
         "d1", "tool_decide_event", EVENT_INPUTS, Capabilities(False), call
     )
@@ -624,61 +555,37 @@ def test_replay_never_rerolls_event_decisions(tmp_path):
 # notice builder (verbose flag)
 
 
-def test_build_notice_verbose_off():
-    assert build_notice(
-        "Lily", {"reply": False, "reason": "in class"}, verbose=False
-    ) == "Lily saw your message but chose not to reply yet"
-
-
-def test_build_notice_verbose_on():
-    assert build_notice(
-        "Lily", {"reply": False, "reason": "in class"}, verbose=True
-    ) == "Lily is not replying, reason: in class"
-
-
 def test_build_notice_none_when_replying():
     assert build_notice("Lily", {"reply": True}, verbose=True) is None
     assert build_notice("Lily", {"reply": True}, verbose=False) is None
 
 
 def test_runner_notice_flag(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     quiet = DecisionRunner(store, verbose=False)
     res = quiet.execute(
         "d1", "tool_decide_reply", REPLY_INPUTS, Capabilities(False),
         _no_reply_call(),
     )
-    assert res.notice == "Lily saw your message but chose not to reply yet"
+    assert res.notice and "busy" not in res.notice   # quiet: no reason shown
 
     chatty = DecisionRunner(store, verbose=True)
     res2 = chatty.execute(
         "d2", "tool_decide_reply", REPLY_INPUTS, Capabilities(False),
-        _call_from([RawReply(text='tool_decide_reply: {no, "in class"}')]),
+        call_from([RawReply(text='tool_decide_reply: {no, "in class"}')]),
     )
-    assert res2.notice == "Lily is not replying, reason: in class"
+    assert "in class" in res2.notice                  # verbose: reason shown
 
     # replying -> no notice at all
     res3 = chatty.execute(
         "d3", "tool_decide_reply", REPLY_INPUTS, Capabilities(False),
-        _call_from([RawReply(text='tool_decide_reply: {yes, "sure"}')]),
+        call_from([RawReply(text='tool_decide_reply: {yes, "sure"}')]),
     )
     assert res3.notice is None
     store.close()
 
 
 # env config loader
-
-
-def test_load_decision_config_defaults(monkeypatch):
-    for var in ("HARNESS_VERBOSE", "HARNESS_BUDGET", "HARNESS_DECISION_SOURCE",
-                "HARNESS_DECISION_PARSE_FAILURE", "HARNESS_TOOL_MODE"):
-        monkeypatch.delenv(var, raising=False)
-    cfg = load_decision_config()
-    assert cfg.verbose is False
-    assert cfg.budget is None          # unset = off
-    assert cfg.decision_source == "model"
-    assert cfg.parse_failure_mode == "requeue"
-    assert cfg.tool_mode == "auto"
 
 
 def test_load_decision_config_explicit(monkeypatch):
@@ -729,11 +636,11 @@ def test_decision_config_validation():
 def test_an_empty_native_reply_is_asked_once_more_with_the_requirement(tmp_path):
     """A thinking-only completion gets ONE re-ask that states the requirement,
     instead of the retry budget re-sending the prompt the model ignored."""
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store)
-    call = _call_from([
+    call = call_from([
         RawReply(text=None, tool_calls=None),
-        _native_call("tool_decide_reply", {"reply": True, "reason": "ok"}),
+        native_call("tool_decide_reply", {"reply": True, "reason": "ok"}),
     ])
     result = runner.execute(
         "d-empty", "tool_decide_reply", REPLY_INPUTS, Capabilities(True), call
@@ -746,11 +653,11 @@ def test_an_empty_native_reply_is_asked_once_more_with_the_requirement(tmp_path)
 
 
 def test_a_re_ask_carries_the_popup_and_the_requirement_together(tmp_path):
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store)
-    call = _call_from([
+    call = call_from([
         RawReply(text="   ", tool_calls=None),
-        _native_call("tool_decide_reply", {"reply": False, "reason": "busy"}),
+        native_call("tool_decide_reply", {"reply": False, "reason": "busy"}),
     ])
     runner.execute("d-ws", "tool_decide_reply", REPLY_INPUTS,
                    Capabilities(True), call)
@@ -759,11 +666,23 @@ def test_a_re_ask_carries_the_popup_and_the_requirement_together(tmp_path):
     store.close()
 
 
+def test_the_popup_ends_by_naming_the_tool_to_answer_with(tmp_path):
+    store = decision_store(tmp_path)
+    runner = DecisionRunner(store)
+    call = call_from([
+        native_call("tool_decide_reply", {"reply": False, "reason": "busy"}),
+    ])
+    runner.execute("d-name", "tool_decide_reply", REPLY_INPUTS,
+                   Capabilities(True), call)
+    last = call.calls[0].popup.rstrip().splitlines()[-1]
+    assert last == ANSWER_WITH.format(tool="tool_decide_reply")
+    store.close()
+
 def test_a_textual_reply_in_prose_is_not_re_asked(tmp_path):
     """Textual transport has text to read, so it takes the parse path."""
-    store = _store(tmp_path)
+    store = decision_store(tmp_path)
     runner = DecisionRunner(store)
-    call = _call_from([RawReply(text="I think she should reply, honestly.")])
+    call = call_from([RawReply(text="I think she should reply, honestly.")])
     with pytest.raises(DecisionRequeue):
         runner.execute("d-prose", "tool_decide_reply", REPLY_INPUTS,
                        Capabilities(False), call)

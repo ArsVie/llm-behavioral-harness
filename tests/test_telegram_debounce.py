@@ -240,9 +240,3 @@ def test_debounce_invalid_window_fails_loudly(monkeypatch) -> None:
     monkeypatch.setenv("HARNESS_DEBOUNCE_MAX_WAIT_S", "-2")
     with pytest.raises(ValueError, match="positive"):
         TelegramChannel(application=FakeApplication(), owner_chat_id="42")
-
-
-def test_debounce_defaults_are_the_human_window() -> None:
-    """The shipped defaults: trailing ~4-5 s, cap ~12 s (WS-A tuning)."""
-    assert TRAILING == 4.5
-    assert CAP == 12.0

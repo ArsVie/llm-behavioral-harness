@@ -6,13 +6,12 @@ CONGELADO) salvo cuando el propio test necesita variarlos explícitamente.
 """
 from __future__ import annotations
 
-import dataclasses
 
 import numpy as np
 import pytest
 
 from engine import circadian
-from engine.types import PersonaParams, TimingParams
+from engine.types import TimingParams
 from sim import run_events
 
 
@@ -161,22 +160,3 @@ def test_main_smoke(capsys):
 
 
 # --- Extras: direct coverage of the composition helpers ---
-
-
-def test_run_accepts_explicit_persona_and_timing_defaults():
-    persona = PersonaParams()
-    timing = TimingParams()
-    events = run_events.run(30, seed=7, persona=persona, timing=timing)
-    assert isinstance(events, np.ndarray)
-    assert np.all(events >= 0.0)
-    assert np.all(events < 30 * 24.0)
-
-
-def test_run_with_theta_replace_matches_dataclasses_replace_pattern():
-# run() accepts dataclasses.replace(timing, theta_h=2.0) and stays deterministic.
-    base_timing = TimingParams()
-    high_rate_timing = dataclasses.replace(base_timing, theta_h=2.0)
-
-    a = run_events.run(30, seed=42, timing=high_rate_timing)
-    b = run_events.run(30, seed=42, timing=high_rate_timing)
-    assert np.array_equal(a, b)

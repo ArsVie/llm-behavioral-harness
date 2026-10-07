@@ -211,13 +211,6 @@ def test_cli_params_invalid_key_exits_2(tmp_path, capsys: pytest.CaptureFixture[
 # --- Extras: default persona/shocks, composition robustness with the public signature ---
 
 
-def test_run_default_persona_and_no_shocks() -> None:
-    """run sin persona ni shocks explícitos usa PersonaParams() y no falla."""
-    result = run(15, seed=1, variant=MoodVariant.DECOUPLED)
-    assert len(result.records) == 15
-    assert result.params == PersonaParams()
-
-
 def test_run_cycle_day_and_phase_are_entry_state_not_next() -> None:
     """cycle_day/phase_label del record del día t deben corresponder al estado
     de ENTRADA a cycle.step (antes de avanzar), no al cycle_next."""

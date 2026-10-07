@@ -8,14 +8,14 @@ the day's stored judgement and BehaviorDirective.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import numpy as np
 
 import sim.run_events as run_events
 from engine.circadian import envelope
 from engine.types import ADJ_SLOPE, DayRecord, PersonaParams, TimingParams
-from harness.domain import AblationClaim, ContactOpportunity
+from harness.domain import ContactOpportunity
 
 #: A(s) — the previous-day score adjustment (monotone, bounded; engine-validated).
 adj_from_score = run_events.adj_from_score
@@ -27,22 +27,13 @@ INITIATIVE_BOUNDS = (0.7, 1.3)
 #: Hour at which the day's initiative is sampled from its BehaviorDirective.
 INITIATIVE_SAMPLE_HOUR = 14.0
 
-# --------------------------------------------------------------------------- #
-#: State-vector channel names (E, S, R, A) in directive-native units.
-STATE_VECTOR_NAMES: tuple[str, str, str, str] = (
-    "energy", "initiative", "valence", "reactivity",
-)
-#: Weights for the state-factor exponent w·(x−x₀).
+#: State vector x = (E, S, R, A): the directive's energy, initiative, valence
+#: and reactivity. Weights for the state-factor exponent w·(x−x₀).
 STATE_WEIGHTS: tuple[float, float, float, float] = (1.0, 1.6, 0.7, 0.9)
 #: Neutral state vector x₀, where the state-factor exponent is zero.
 STATE_NEUTRAL: tuple[float, float, float, float] = (0.5, 0.5, 0.0, 0.5)
 #: Bounds clipping the per-day state factor.
 STATE_FACTOR_BOUNDS: tuple[float, float] = (0.5, 2.0)
-#: Divergence margins used by the timing ablation check.
-COUNT_DIVERGENCE_MIN = 0.15
-GAP_DIVERGENCE_MIN = 0.10
-MIN_GAPS_FOR_GAP_LEG = 3
-
 #: Reason taxonomy: schedule, callback, event, shared_interest, check_in.
 REASON_SCHEDULE = "schedule"
 REASON_CALLBACK = "callback"
@@ -56,6 +47,19 @@ REASON_VALIDITY_H = {
     REASON_SCHEDULE: 3.0, REASON_CALLBACK: 6.0, REASON_EVENT: 4.0,
     REASON_SHARED_INTEREST: 12.0, REASON_CHECK_IN: 12.0,
 }
+
+#: kv_store key: where her cycle stood on day 0 (φ, in cycle days). The
+#: session draws it once per character (``random_cycle_start``); the plan
+#: reads it so the hazard's phase term follows the cycle she is really in.
+CYCLE_START_KEY = "cycle.start_day"
+
+
+def with_cycle_start(persona, store):
+    """``persona`` with the run's kept cycle start as φ (unchanged without one)."""
+    get = getattr(store, "get_kv", None)
+    raw = get(CYCLE_START_KEY) if callable(get) else None
+    return persona if raw is None else replace(persona, phi=float(raw))
+
 
 #: Hours after desired_t_h that a ContactOpportunity stays valid.
 OPPORTUNITY_VALIDITY_H = 3.0
@@ -177,8 +181,7 @@ def initiative_factor(
 
 
 def _record_from_row(row: dict) -> DayRecord:
-    """Rebuild a DayRecord from a store daily_state row (duplicated from
-    session to avoid an import cycle)."""
+    """Rebuild a DayRecord from a store daily_state row (Session uses it too)."""
     return DayRecord(
         t=int(row["day"]),
         m=float(row["m"]),
@@ -285,13 +288,9 @@ class ProactiveSchedule:
     """Planned event times + fire bookkeeping (+ their ContactOpportunities)."""
 
     event_hours: np.ndarray
-    _fired: set[float] = None  # type: ignore[assignment]
+    _fired: set[float] = field(default_factory=set)
     #: ContactOpportunity per planned event hour.
     opportunities: dict[float, ContactOpportunity] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        if self._fired is None:
-            self._fired = set()
 
     @classmethod
     def plan(
@@ -334,6 +333,7 @@ class ProactiveSchedule:
         state is always coupled (``state_factors_for_plan``); a store without
         state rows yields all-1.0 factors.
         """
+        persona = with_cycle_start(persona, store)
         schedule = cls.plan(
             days, seed, persona, timing, scores=scores,
             state_factors=state_factors_for_plan(store, days, timing),
@@ -379,6 +379,12 @@ class ProactiveSchedule:
         self.mark_fired(t_h)
         store.mark_schedule_fired(seed, t_h, fired_t_h)
 
+    def mark_suppressed_persisted(self, t_h: float, at_t_h: float, seed: int,
+                                  store) -> None:
+        """self.mark_fired(t_h) + store.mark_schedule_suppressed(seed, t_h, at_t_h)."""
+        self.mark_fired(t_h)
+        store.mark_schedule_suppressed(seed, t_h, at_t_h)
+
     def next_pending(self, t_h: float) -> float | None:
         """Earliest pending event hour due at `t_h`, else the earliest pending
         future hour; None when nothing is pending.
@@ -392,52 +398,3 @@ class ProactiveSchedule:
         if overdue:
             return min(overdue)
         return min(pending) if pending else None
-
-
-# --------------------------------------------------------------------------- #
-
-
-def structured_no_state_timing_check(cell_records: dict, full_records: dict) -> bool:
-    """Check logic of the STRUCTURED_NO_STATE timing claim.
-
-    Records follow the domain.py convention (at least ``n_proactive``);
-    ``proactive_times`` — ascending absolute hours of the condition's proactive
-    messages — is read when present. Count leg (binding): |n_cell − n_full| /
-    n_full >= COUNT_DIVERGENCE_MIN. Gap leg: |mean_gap_cell − mean_gap_full| /
-    mean_gap_full >= GAP_DIVERGENCE_MIN, applied only when BOTH sides provide at
-    least MIN_GAPS_FOR_GAP_LEG gaps. The caller aggregates over its seeds before
-    calling this check.
-    """
-    n_cell = int(cell_records["n_proactive"])
-    n_full = int(full_records["n_proactive"])
-    if n_full <= 0:
-        return False
-    count_div = abs(n_cell - n_full) / float(n_full)
-    if count_div < COUNT_DIVERGENCE_MIN:
-        return False
-    times_cell = sorted(float(t) for t in cell_records.get("proactive_times", ()))
-    times_full = sorted(float(t) for t in full_records.get("proactive_times", ()))
-    if len(times_cell) >= MIN_GAPS_FOR_GAP_LEG + 1 and \
-            len(times_full) >= MIN_GAPS_FOR_GAP_LEG + 1:
-        mean_gap_full = float(np.diff(np.asarray(times_full)).mean())
-        if mean_gap_full > 0.0:
-            mean_gap_cell = float(np.diff(np.asarray(times_cell)).mean())
-            if abs(mean_gap_cell - mean_gap_full) / mean_gap_full < GAP_DIVERGENCE_MIN:
-                return False
-    return True
-
-
-def structured_no_state_claim() -> AblationClaim:
-    """The AblationClaim for STRUCTURED_NO_STATE (effect-size; tested on the real
-    matrix)."""
-    return AblationClaim(
-        condition="STRUCTURED_NO_STATE",
-        channel="timing",
-        assertion=(
-            "n_proactive differs from FULL by >= 15% and inter-contact "
-            "mean-gap divergence >= 10% (when >=3 gaps are available on "
-            "both sides)"
-        ),
-        check=structured_no_state_timing_check,
-        min_days=4,  # Score feedback lands no earlier than day 2-3.
-    )

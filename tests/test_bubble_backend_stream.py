@@ -8,7 +8,7 @@ from functools import partial
 from unittest.mock import patch
 
 from engine.types import MoodVariant, PersonaParams, TimingParams
-from harness.bubbles import parse_bubbles
+from harness.bubbles import BUBBLE_INSTRUCTION, parse_bubbles
 from harness.channels.base import FakeChannel
 from harness.client import FakeClient
 from harness.clock import VirtualClock
@@ -38,7 +38,7 @@ ALL_OFF = {"HARNESS_BUBBLES": "0", "HARNESS_BUBBLE_STREAM": "0"}
 
 
 def _session(seed: int, client: FakeClient) -> Session:
-    """Session over an in-memory store (mirrors tests/test_bubbles.py)."""
+    """Session over an in-memory store."""
     sess = Session(
         store=SQLiteStore(":memory:"),
         persona=PERSONA,
@@ -69,6 +69,32 @@ def _assistant_rows(store) -> list[dict]:
 
 def _llm_rows(store) -> list[dict]:
     return [dict(r) for r in store.conn.execute("SELECT * FROM llm_calls")]
+
+
+# --- parsing and the prompt contract --------------------------------------- #
+
+
+def test_parse_bubbles_treats_any_newline_run_as_one_separator():
+    """Single, double and whitespace-padded newline runs all split once;
+    pieces are stripped and empty input yields no bubbles."""
+    assert parse_bubbles("a\nb") == ["a", "b"]
+    assert parse_bubbles("a\n\nb") == ["a", "b"]
+    assert parse_bubbles("a\n \n\nb") == ["a", "b"]
+    assert parse_bubbles("a\n\n\nb") == ["a", "b"]
+    assert parse_bubbles("hello") == ["hello"]
+    assert parse_bubbles("") == []
+    assert parse_bubbles("  hello  \n\n  world  ") == ["hello", "world"]
+    assert parse_bubbles("one\ntwo\nthree") == ["one", "two", "three"]
+
+
+def test_bubbles_on_appends_the_instruction_to_the_system_prompt(monkeypatch):
+    """With bubbles on, the blank-line contract rides the system prompt (the
+    words matter, not the flag name) and a single-newline reply splits too."""
+    _env(monkeypatch, BUBBLES_ONLY)
+    cli = FakeClient(responses=["a\nb"])
+    r = _session(seed=2, client=cli).on_message("hi")
+    assert BUBBLE_INSTRUCTION in cli.calls[0]["system"]
+    assert r.bubbles == ("a", "b")
 
 
 # --- session-level: joined reply + incremental bubbles ---------------------- #
@@ -171,9 +197,9 @@ def test_stream_persists_single_joined_reply_and_usage_null(monkeypatch):
     assistant = [m for m in msgs if m["role"] == "assistant"]
     assert len(assistant) == 1
     assert assistant[0]["content"] == r.reply == REPLY
-    # day-start block + state card (system rows) + the user turn + one
-    # joined assistant turn
-    assert len(msgs) == 4
+    # day-start block + writing row + state card (system rows) + the user
+    # turn + one joined assistant turn
+    assert len(msgs) == 5
 
     calls = _llm_rows(sess.store)
     assert len(calls) == 1
@@ -293,9 +319,9 @@ def _run_delivery(r: TurnResult, ch: FakeChannel, sleeps: list[float],
 
 
 def _expected_gap(part: str) -> float:
-    """The runtime's bubble gap heuristic, mirrored for the assertion."""
-    gap = 1.0 + 0.5 * len(part) / 80.0
-    return max(0.6, min(gap, 2.5))
+    """The runtime's bubble gap: the shared length-based typing pause."""
+    from harness.bubbles import typing_pause_s
+    return typing_pause_s(part)
 
 
 def test_runtime_sends_streamed_bubbles_in_order_with_pacing(monkeypatch):
@@ -342,3 +368,34 @@ def test_runtime_delivery_identical_for_streamed_and_posthoc(monkeypatch):
     # Outbound flags match the reactive turn.
     assert all(m.proactive is False for m in ch_on.sent)
     assert all(m.reason is None for m in ch_on.sent)
+
+
+def test_stream_drops_tool_markup_like_the_canonical_path(monkeypatch):
+    """A streamed reply with tool-call markup after her prose is cleaned
+    before it is persisted or split into bubbles, as on the non-streamed
+    path; the leak is still recorded."""
+    leaky = "okay fine.\n\ngo then\n<invoke name=\"tool_decide_reply\">x</invoke>"
+    _env(monkeypatch, STREAM_ON)
+    sess = _session(seed=5, client=FakeClient(responses=[leaky]))
+    r = sess.on_message("hi")
+    assert "invoke" not in r.reply
+    assert all("invoke" not in b for b in (r.bubbles or ()))
+    assert [m["content"] for m in _assistant_rows(sess.store)] == [r.reply]
+    events = [e["event"] for e in sess.store.conn.execute(
+        "SELECT event FROM state_events")]
+    assert "reply_tool_markup" in events
+
+
+def test_runtime_sends_an_unbubbled_reply_once(monkeypatch):
+    """Bubbles off: a multi-paragraph reply is ONE send carrying the whole
+    reply, with no pacing sleeps."""
+    _env(monkeypatch, ALL_OFF)
+    sess = _session(seed=11, client=FakeClient(responses=[REPLY]))
+    r = sess.on_message("hi")
+    assert r.bubbles is None
+
+    ch = FakeChannel()
+    sleeps: list[float] = []
+    _run_delivery(r, ch, sleeps, sess, seed=11)
+    assert [m.text for m in ch.sent] == [REPLY]
+    assert sleeps == []

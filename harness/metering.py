@@ -75,6 +75,25 @@ def _sibling_log(store):
     return handle.log_llm_call
 
 
+def _reply_shape(result) -> dict:
+    """What came back besides the text, for the ledger row: the stop reason,
+    any tool calls and how much reasoning. An empty fork reply left none of
+    this on record (live 2026-10-01: five empty rows, no way to tell a tool
+    call from a reasoning-only answer)."""
+    out: dict = {}
+    finish = getattr(result, "finish_reason", None)
+    if finish:
+        out["finish_reason"] = finish
+    calls = getattr(result, "tool_calls", None) or ()
+    names = [c.get("name") for c in calls if isinstance(c, dict)]
+    if names:
+        out["tool_calls"] = names
+    reasoning = getattr(result, "reasoning", None)
+    if isinstance(reasoning, str):
+        out["reasoning_chars"] = len(reasoning)
+    return out
+
+
 class MeteredClient:
     """A client wrapper that records each call it forwards.
 
@@ -138,7 +157,7 @@ class MeteredClient:
             getattr(result, "content", None)
             or (result if isinstance(result, str) else ""),
             getattr(self._client, "model", None),
-            {"aux": True, "role": self._role},
+            {"aux": True, "role": self._role, **_reply_shape(result)},
         )
         repro = {"messages": messages, "kwargs": dict(kwargs)}
         write_kwargs = {"repro": repro, **extra}

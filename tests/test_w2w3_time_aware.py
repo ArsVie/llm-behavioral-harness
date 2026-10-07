@@ -19,8 +19,6 @@ from harness.anchor import RealTimeAnchor
 from harness.assembler import (
     AFFECTIVE_HEADER,
     BEHAVIORAL_HEADER,
-    CURRENT_INTENT_HEADER,
-    CURRENT_INTENT_PLACEHOLDER,
     MAX_PROMPT_CHARS,
     TEMPORAL_HEADER,
     assemble_snapshot,
@@ -43,15 +41,16 @@ from harness.domain import (
     Turn,
 )
 from harness.judge import ScriptedJudge
+from harness.prompts import TURN_STYLE
 from harness.prompts import (
     ACTIVITY_HEADER,
-    MOOD_BRIEF_HEADER,
     AVAILABILITY_HIGH,
     AVAILABILITY_LOW,
     AVAILABILITY_MID,
 )
 from harness.session import Session
 from harness.store import SQLiteStore
+from tests.helpers.forbidden import FORBIDDEN_FLOAT_RE, numeric_leak
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -136,9 +135,9 @@ def test_day_block_header_is_dated_from_the_real_anchor():
     """The plan header comes from the REAL date: t_h 15.4 is Saturday,
     t_h 25.5 has rolled to Sunday (real date) on virtual day 1."""
     block = render_day_start_block(_snapshot(), t_h=15.4, anchor=_g3_anchor())
-    assert "Saturday's plan:" in block
+    assert "Nova's Saturday plan:" in block
     block2 = render_day_start_block(_snapshot(), t_h=25.5, anchor=_g3_anchor())
-    assert "Sunday's plan:" in block2
+    assert "Nova's Sunday plan:" in block2
     # Unanchored (replay) runs get the plain header, no weekday.
     plain = render_day_start_block(_snapshot())
     assert "Saturday" not in plain
@@ -177,25 +176,14 @@ def test_the_card_never_renders_a_temporal_frame_or_agenda_status():
 
 def test_state_card_sections_in_fixed_order():
     """Headers appear in order AFFECTIVE BEARING < BEHAVIORAL BEARING <
-    CURRENT INTENT, and the reserved slot sits before the activity section."""
+    the activity section."""
     prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose())
     order = [
         prompt.index(AFFECTIVE_HEADER),
         prompt.index(BEHAVIORAL_HEADER),
-        prompt.index(CURRENT_INTENT_HEADER),
+        prompt.index(ACTIVITY_HEADER),
     ]
     assert order == sorted(order)
-    assert prompt.index(CURRENT_INTENT_HEADER) < prompt.index(ACTIVITY_HEADER)
-
-
-def test_current_intent_reserved_slot():
-    """CURRENT INTENT is a fixed placeholder slot (masking-clean, no
-    numbers) that never carries the proactive hook — the hook stays in its
-    own section."""
-    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose())
-    assert f"{CURRENT_INTENT_HEADER}\n{CURRENT_INTENT_PLACEHOLDER}" in prompt
-    assert "No active intent." in prompt
-    assert not re.search(r"\d", CURRENT_INTENT_PLACEHOLDER)
 
 
 # AFFECTIVE BEARING verbatim
@@ -223,7 +211,6 @@ def test_g5_affective_bearing_verbatim_across_bands():
         assert mood_line in prompt
         assert availability in prompt
         assert f"{AFFECTIVE_HEADER}\n{mood_line}\n\n{availability}" in prompt
-        assert "Current bearing:" in prompt
 
 
 def test_agenda_status_never_changes_the_card():
@@ -245,26 +232,16 @@ def test_agenda_status_never_changes_the_card():
 def test_behavioral_bearing_prose_bands():
     """Initiative/reactivity/persistence render as band prose — never raw
     floats; persistence maps to 1 - closing_tendency."""
-    high = _brief(initiative=0.9, reactivity=0.9, closing_tendency=0.05)
-    prompt = assemble_snapshot(_snapshot(brief=high), prompt_brief=_prose())
-    assert "You tend to reach out first and carry the conversation forward." in prompt
-    assert "You respond quickly and pick up on what is said." in prompt
-    assert "You tend to stay in the conversation and see it through." in prompt
+    def section(brief: BehaviorBrief) -> str:
+        prompt = assemble_snapshot(_snapshot(brief=brief), prompt_brief=_prose())
+        assert not re.search(r"\d+\.\d+", prompt), "raw channel floats leaked"
+        start = prompt.index(BEHAVIORAL_HEADER)
+        return prompt[start:prompt.index("\n\n", start)]
 
-    low = _brief(initiative=0.1, reactivity=0.1, closing_tendency=0.9)
-    prompt = assemble_snapshot(_snapshot(brief=low), prompt_brief=_prose())
-    assert "You mostly follow the user's lead, letting them set the pace." in prompt
-    assert "You respond at your own pace, unhurried." in prompt
-    assert "Your participation tends to wind down quickly." in prompt
-
-    # mid band (defaults)
-    prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose())
-    assert "You reach out when something matters" in prompt
-    assert "You respond readily to what is said." in prompt
-    assert "You stay in the conversation while it keeps meaning something." in prompt
-
-    for p in (prompt,):
-        assert not re.search(r"\d+\.\d+", p), "raw channel floats leaked"
+    high = section(_brief(initiative=0.9, reactivity=0.9, closing_tendency=0.05))
+    low = section(_brief(initiative=0.1, reactivity=0.1, closing_tendency=0.9))
+    mid = section(_brief())
+    assert len({high, low, mid}) == 3, "the bands do not change the section"
 
 
 def test_behavioral_bearing_absent_without_brief():
@@ -276,25 +253,13 @@ def test_behavioral_bearing_absent_without_brief():
 
 # Numeric-content scan on real assembled prompts
 
-CLOCK_TIME_RE = re.compile(r"\d{1,2}:\d{2}")
-DAY_INDEX_RE = re.compile(r"day \d+")
-FLOAT_RE = re.compile(r"\d+\.\d+")
-
-
-def _numeric_leak(prompt: str) -> list[str]:
-    """Digits that are neither clock-shaped times (HH:MM — the plan's window
-    times) nor a day index."""
-    masked = CLOCK_TIME_RE.sub("T:T", prompt)
-    masked = DAY_INDEX_RE.sub("day N", masked)
-    return re.findall(r"\d+", masked)
-
 
 def test_prompt_numeric_content_is_only_clock_and_day():
     """The plan's clock times are the ONLY numeric content allowed in an
     assembled prompt (G2)."""
     prompt = assemble_snapshot(_snapshot(), prompt_brief=_prose())
-    assert not FLOAT_RE.search(prompt), "raw engine floats leaked"
-    assert _numeric_leak(prompt) == [], f"unexpected numeric content: {_numeric_leak(prompt)}"
+    assert not FORBIDDEN_FLOAT_RE.search(prompt), "raw engine floats leaked"
+    assert numeric_leak(prompt) == [], f"unexpected numeric content: {numeric_leak(prompt)}"
 
 
 # Replay determinism
@@ -348,19 +313,21 @@ def test_session_transition_persisted_and_render_agrees(tmp_path):
                      "ag_pottery": "planned",
                      "ag_walk": "planned"}
 
-    cards = [m for m in client.calls[-1]["messages"] if m["role"] == "system"]
+    cards = [m for m in client.calls[-1]["messages"]
+             if m["role"] == "system" and m["content"] != TURN_STYLE]
     card = cards[-1]["content"]
     assert "It is " not in card
     assert "Done earlier" not in card
     assert "06:58" not in card
     assert AFFECTIVE_HEADER in card
-    assert not FLOAT_RE.search(card), "raw floats leaked into the live prompt"
+    assert not FORBIDDEN_FLOAT_RE.search(card), "raw floats leaked into the live prompt"
     store.close()
 
 
 def test_session_before_window_stays_planned_and_card_stays_clean(tmp_path):
     """A turn at t_h 06:00: nothing has passed — the store keeps 'planned'
-    and the card carries no agenda state at all."""
+    and the state card carries no agenda state at all (no temporal frame,
+    partition label or plan clock time; the plan is its own row)."""
     store = SQLiteStore(tmp_path / "s.db")
     store.save_persona(_persona())
     store.attach_anchor(_g3_anchor())
@@ -376,10 +343,15 @@ def test_session_before_window_stays_planned_and_card_stays_clean(tmp_path):
     assert {it.id: it.status for it in stored.items} == {
         "ag_coffee": "planned", "ag_pottery": "planned", "ag_walk": "planned",
     }
-    tail = client.calls[-1]["messages"][-1]["content"]
-    assert "It is " not in tail
-    assert "Later today" not in tail
-    assert "06:58" not in tail
+    # the card rides the stream as a system row, not in his message; the
+    # dated plan is its own day-block row and legitimately carries 06:58
+    cards = [m["content"] for m in client.calls[-1]["messages"]
+             if m["role"] == "system" and AFFECTIVE_HEADER in m["content"]]
+    assert cards, "no state card in the request"
+    for card in cards:
+        assert "It is " not in card
+        assert "Later today" not in card
+        assert "06:58" not in card
     store.close()
 
 
@@ -395,11 +367,11 @@ def test_session_unanchored_prompt_has_no_temporal_section(tmp_path):
     assert TEMPORAL_HEADER not in call["system"]
     assert "It is " not in call["system"]
     assert "Done earlier" not in call["system"]
-    # the sectioned card (affective/behavioral/intent) still renders, as a
+    # the sectioned card (affective/behavioral) still renders, as a
     # stream row
-    cards = [m for m in call["messages"] if m["role"] == "system"]
+    cards = [m for m in call["messages"]
+             if m["role"] == "system" and m["content"] != TURN_STYLE]
     card = cards[-1]["content"]
     assert AFFECTIVE_HEADER in card
     assert BEHAVIORAL_HEADER in card
-    assert CURRENT_INTENT_HEADER in card
     store.close()

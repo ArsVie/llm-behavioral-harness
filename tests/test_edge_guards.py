@@ -8,7 +8,6 @@ from engine.types import TimingParams
 from harness.behavior import derive_behavior
 from harness.bubbles import parse_bubbles
 from harness.embeddings import cosine
-from harness.negotiation_state import NegotiationState
 
 
 def test_bubbles_of_whitespace_only_text_is_empty():
@@ -51,14 +50,3 @@ def test_cosine_of_a_zero_vector_is_zero_not_a_division_error(a, b):
 
 def test_cosine_of_identical_vectors_is_one():
     assert cosine([1.0, 2.0], [1.0, 2.0]) == pytest.approx(1.0)
-
-
-def test_decide_index_counts_the_delays_taken():
-    """decide_index counts the delays already taken (stable id across a restart)."""
-    state = NegotiationState(
-        item_id="g1", activity="pottery class", source_type="arc",
-        start_t_h=10.0, end_t_h=11.0, salience=0.8,
-    )
-    assert state.decide_index == 0
-    state.delay_count = 2
-    assert state.decide_index == 2

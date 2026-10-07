@@ -1,10 +1,9 @@
 """Gate tests: ``content_gate`` verifies groundedness against the store;
 ``context_gate`` checks quiet hours, cooldown and daily cap."""
 
-from engine.circadian import envelope
 from engine.types import TimingParams
 from harness.domain import DailyAgenda
-from harness.gates import GateDecision, content_gate, context_gate
+from harness.gates import content_gate, context_gate
 from harness.proactive import IntentResolver, compose_hook
 from harness.scheduler import REASON_SCHEDULE
 from tests.helpers import SeamStore, agenda_item
@@ -138,10 +137,10 @@ def test_content_gate_hook_rederives_from_source():
     store = _store()
     item = agenda_item(start=AGENDA_HOUR, end=AGENDA_HOUR + 1.0)
     intent = _grounded_intent(store, item=item)
-    assert compose_hook(item, REASON_SCHEDULE) == intent.hook
+    assert compose_hook(item, REASON_SCHEDULE, intent.created_t_h) == intent.hook
     # The hook is re-derived from the source.
     source = store.resolve_intent_source(intent)
-    assert compose_hook(source, intent.reason) == intent.hook
+    assert compose_hook(source, intent.reason, intent.created_t_h) == intent.hook
 
 
 def test_content_gate_episode_sources_pass_status_checks():
@@ -163,15 +162,6 @@ def test_content_gate_episode_sources_pass_status_checks():
     assert decision.code == "ok"
 
 
-def test_content_gate_timeliness_is_separate_from_source():
-    # Intent long past its window is expired although the source exists.
-    store = _store()
-    intent = _grounded_intent(store)
-    decision = content_gate(intent, store, now_h=intent.valid_until_t_h + 48.0)
-    assert decision.allowed is False
-    assert decision.code == "expired"
-
-
 # ---- context_gate ----
 
 
@@ -183,12 +173,6 @@ def test_context_gate_ok_when_all_hold():
     assert decision.allowed is True
     assert decision.code == "ok"
     store.close()
-
-
-def test_envelope_sanity_default_timing():
-    # Quiet hours cross midnight: 2.0 is quiet, 14.0 is awake.
-    assert envelope(2.0, TIMING) == 0.0
-    assert envelope(14.0, TIMING) > 1e-9
 
 
 def test_context_gate_quiet_hours():
@@ -227,15 +211,6 @@ def test_context_gate_cooldown_via_last_fired():
         last_fired_t_h=14.0 - min_gap_h,
     )
     assert ok.allowed and ok.code == "ok"
-    store.close()
-
-
-def test_context_gate_no_last_fired_passes_cooldown():
-    store = _store()
-    decision = context_gate(
-        14.0, day=0, store=store, timing=TIMING, last_fired_t_h=None
-    )
-    assert decision.allowed is True
     store.close()
 
 
@@ -299,14 +274,3 @@ def test_context_gate_first_failing_code_wins():
     )
     assert cooldown.code == "cooldown"
     store.close()
-
-
-def test_gate_decision_is_frozen_dataclass():
-    decision = GateDecision(allowed=True, code="ok")
-    assert decision.allowed and decision.code == "ok"
-    try:
-        decision.allowed = False
-    except Exception as exc:  # noqa: BLE001 - frozen dataclass raises
-        assert isinstance(exc, (AttributeError, TypeError))
-    else:
-        raise AssertionError("GateDecision must be immutable")

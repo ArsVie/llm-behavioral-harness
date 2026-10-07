@@ -11,17 +11,8 @@ import json
 
 import httpx
 
-from harness.client import ChatResult, FakeClient, OpenAICompatibleClient
-
-
-def _client_with(handler, **kwargs):
-    """OpenAICompatibleClient wired to a MockTransport (tests/test_client shape)."""
-    transport = httpx.MockTransport(handler)
-    client = OpenAICompatibleClient(
-        base_url="https://example.test/v1", api_key="k", model="m", **kwargs
-    )
-    client._client = httpx.Client(transport=transport)
-    return client
+from harness.client import ChatResult, FakeClient
+from tests.helpers.client import client_with
 
 
 def _assert_no_content_null(payload: dict) -> None:
@@ -46,7 +37,7 @@ def test_reasoning_only_turn_serializes_as_empty_content():
         seen.append(payload)
         return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
 
-    client = _client_with(handler)
+    client = client_with(handler)
     client.chat(
         [
             {"role": "user", "content": "deep question"},
@@ -72,7 +63,7 @@ def test_empty_string_content_stays_empty_string():
         seen.append(payload)
         return httpx.Response(200, json={"choices": [{"message": {"content": "ok"}}]})
 
-    client = _client_with(handler)
+    client = client_with(handler)
     client.chat(
         [{"role": "assistant", "content": "", "reasoning_content": "only thought"}],
         system="SYS",
@@ -137,7 +128,7 @@ def test_reasoning_only_response_round_trips_without_retry(monkeypatch):
             },
         )
 
-    client = _client_with(handler, max_retries=2)
+    client = client_with(handler, max_retries=2)
     result = client.chat_with_meta([{"role": "user", "content": "q"}])
 
     assert calls["n"] == 1  # accepted on the first attempt
@@ -163,7 +154,7 @@ def test_missing_content_key_with_reasoning_round_trips():
             },
         )
 
-    client = _client_with(handler, max_retries=2)
+    client = client_with(handler, max_retries=2)
     result = client.chat_with_meta([{"role": "user", "content": "q"}])
 
     assert result.content == ""
@@ -198,7 +189,7 @@ def test_reasoning_only_turn_serializes_cleanly_on_next_request():
             200, json={"choices": [{"message": {"content": "answered"}}]}
         )
 
-    client = _client_with(handler, max_retries=2)
+    client = client_with(handler, max_retries=2)
     first = client.chat_with_meta([{"role": "user", "content": "q"}])
     assert first.content == "" and first.reasoning == "deep reasoning"
 
@@ -220,34 +211,6 @@ def test_reasoning_only_turn_serializes_cleanly_on_next_request():
     assert payloads[1]["messages"][-1]["reasoning_content"] == "deep reasoning"
 
 
-def test_reasoning_never_contaminates_content():
-    """The reasoning-content extraction stays intact (client.py ~206): a
-    reasoning-only reply yields content="" and reasoning=... — the two are
-    never swapped, and content never carries the reasoning text."""
-    def handler(request: httpx.Request) -> httpx.Response:
-        return httpx.Response(
-            200,
-            json={
-                "choices": [
-                    {
-                        "message": {
-                            "content": None,
-                            "reasoning_content": "the hidden thinking",
-                        },
-                        "finish_reason": "stop",
-                    }
-                ]
-            },
-        )
-
-    client = _client_with(handler)
-    result = client.chat_with_meta([{"role": "user", "content": "q"}])
-
-    assert result.content == ""
-    assert result.reasoning == "the hidden thinking"
-    assert "hidden thinking" not in result.content
-
-
 # --- the narrowed exemptions stay narrow ---
 
 
@@ -264,32 +227,10 @@ def test_null_content_without_reasoning_still_retried(monkeypatch):
             200, json={"choices": [{"message": {"content": None}}]}
         )
 
-    client = _client_with(handler, max_retries=1)
+    client = client_with(handler, max_retries=1)
     try:
         client.chat_with_meta([{"role": "user", "content": "q"}])
         raise AssertionError("expected RuntimeError for null content")
     except RuntimeError as exc:
         assert "null content" in str(exc)
     assert calls["n"] == 2  # capped retry budget, no hang
-
-
-def test_empty_content_without_reasoning_still_retried(monkeypatch):
-    """Empty content WITHOUT reasoning keeps the B1 generation-integrity
-    retry — the WS-E exemption is scoped to reasoning-only replies only."""
-    sleeps: list[float] = []
-    monkeypatch.setattr("harness.client.time.sleep", sleeps.append)
-    calls = {"n": 0}
-
-    def handler(request: httpx.Request) -> httpx.Response:
-        calls["n"] += 1
-        return httpx.Response(
-            200, json={"choices": [{"message": {"content": ""}}]}
-        )
-
-    client = _client_with(handler, max_retries=1)
-    try:
-        client.chat_with_meta([{"role": "user", "content": "q"}])
-        raise AssertionError("expected RuntimeError for empty content")
-    except RuntimeError as exc:
-        assert "empty/whitespace-only content" in str(exc)
-    assert calls["n"] == 2

@@ -84,7 +84,7 @@ Modular Python monolith with a clean boundary between the **engine** (logic/stat
 - **Pure and reproducible engine:** the stochastic engine does no I/O; explicit RNG (NumPy `Generator`) seeded per companion and per day, seed persisted in `daily_state` → deterministic replay of any day.
 - **Traceability:** append-only `state_events` table with every state transition and its causes; `llm_calls` log with every prompt/response, including the judge.
 - **The actuator is language:** the assembler translates the numerical state (mood, energy, phase, agenda) into a short natural-language brief inside the prompt; raw numbers do not modulate the model's tone.
-- **The actuator also controls observable behavior:** the state is continuously projected onto warmth, expressiveness, playfulness, reflectiveness, initiative, length, suggested latency, and tendency to close. The hormonal phase stays in the cause trace and never appears as a label in the prompt. Low mood keeps a floor of warmth: it must feel quieter or slower, not punitive or cold.
+- **The actuator also controls observable behavior:** the state is continuously projected onto warmth, expressiveness, playfulness, reflectiveness, initiative, suggested latency, and tendency to close. The hormonal phase stays in the cause trace and never appears as a label in the prompt. Low mood keeps a floor of warmth: it must feel quieter or slower, not punitive or cold.
 - **Visible memory without abrupt shifts:** besides the day's state, the actuator receives the previous state and derives momentum. At the same current mood, coming from a rise or a fall subtly changes openness and expressiveness without creating a second dynamic parallel to the engine.
 - **One active channel per process** in the POC (CLI or Telegram or Discord), selected by config; the common `Channel` interface (`send`, `on_message`) is kept.
 
@@ -126,7 +126,7 @@ Slow signal with two separate effects on the same cycle clock: it shifts the moo
 
 ### Behavioral actuation
 
-The engine produces latent causes; the actuator decides how they are perceived. Valence, energy, momentum, and reactivity are kept as separate channels and translated into continuous controls. The resulting brief describes a disposition ("bright but unhurried", "somewhat sensitive and turned inward") and instructs to **show, not announce**, the state through cadence, word choice, initiative, and length. The numbers, `mu`, `eta`, and the cycle phase stay out of the prompt and remain available in an auditable trace.
+The engine produces latent causes; the actuator decides how they are perceived. Valence, energy, momentum, and reactivity are kept as separate channels and translated into continuous controls. The resulting brief describes a disposition ("bright but unhurried", "somewhat sensitive and turned inward") and instructs to **show, not announce**, the state through cadence, word choice, and initiative. The numbers, `mu`, `eta`, and the cycle phase stay out of the prompt and remain available in an auditable trace.
 
 Warmth is not synonymous with valence: it has an explicit floor so a bad day does not turn the companion into a punisher. Hormonal reactivity modulates how noticeable a change is, not a fixed per-phase personality. This boundary is Phase 2's first contract and is validated with a reproducible 30-day emulation before connecting the LLM.
 

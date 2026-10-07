@@ -81,13 +81,8 @@ def test_seeds_are_isolated(tmp_path):
     store.close()
 
 
-def test_taxonomy_extended():
-    assert VALID_REASONS == (
-        "schedule", "callback", "event", "shared_interest", "check_in",
-    )
+def test_every_reason_has_a_validity_window():
     assert set(REASON_VALIDITY_H) == set(VALID_REASONS)
-    assert REASON_VALIDITY_H[REASON_SCHEDULE] == 3.0
-    assert REASON_VALIDITY_H[REASON_CHECK_IN] == 12.0
 
 
 def test_plan_and_persist_roundtrip(tmp_path):

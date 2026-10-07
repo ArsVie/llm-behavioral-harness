@@ -46,29 +46,39 @@ import asyncio
 import inspect
 import logging
 import os
+import signal
 import sys
 import time
+from dataclasses import replace
 from pathlib import Path
 
-from harness.bootstrap import DEFAULT_USER_INTERESTS, DEFAULT_USER_NAME
-from harness.domain import UserProfile
-from harness.store import SQLiteStore
+from engine.rng import EXPERIMENT_STREAM, stream_rng
 from engine.types import MoodVariant, PersonaParams, TimingParams
-from experiments.cvs_common import (
-    REASON_SCHEDULE,
-    DeterministicJudge,
-    TimeScale,
-    VirtualClock,
-    make_session,
-)
 from harness.anchor import anchor_for_fresh_start
-from harness.runtime import AsyncRuntime, IntentResolver, load_anchor, persist_anchor
-from harness.scheduler import ProactiveSchedule, day_scores
+from harness.bootstrap import (
+    DEFAULT_USER_INTERESTS,
+    DEFAULT_USER_NAME,
+    ensure_companion_initialized,
+)
 from harness.client import OpenAICompatibleClient
-from harness.judge import judge_day
-from sim.run_async import CommandBridgeChannel, build_command_callback, _commit_sha
+from harness.clock import VirtualClock
 from harness.credentials import load_env_file
+from harness.domain import UserProfile
 from harness.env import env_bool as _env_bool
+from harness.gateway import KV_SESSION_ID, new_session_id
+from harness.judge import judge_day
+from harness.memory import MemoryAgent, recall_embedder
+from harness.runtime import (
+    AsyncRuntime,
+    IntentResolver,
+    TimeScale,
+    load_anchor,
+    persist_anchor,
+)
+from harness.scheduler import REASON_SCHEDULE, ProactiveSchedule, day_scores
+from harness.session import Session
+from harness.store import SQLiteStore
+from sim.run_async import CommandBridgeChannel, _commit_sha, build_command_callback
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -84,9 +94,6 @@ LIVE_TIME_SCALE_S_PER_VH = 3600.0
 OWNER_NAME_ENV = "LILY_OWNER_NAME"
 OWNER_INTERESTS_ENV = "LILY_OWNER_INTERESTS"       # comma-separated
 COMPANION_NAME_ENV = "LILY_COMPANION_NAME"
-
-
-
 
 #: How much unrun virtual time a resume may silently skip; beyond this the
 #: entry refuses (--accept-resume-gap continues anyway).
@@ -148,8 +155,6 @@ def owner_profile() -> UserProfile:
     name = (os.environ.get(OWNER_NAME_ENV) or "").strip() or DEFAULT_USER_NAME
     raw = os.environ.get(OWNER_INTERESTS_ENV) or ""
     interests = tuple(x.strip() for x in raw.split(",") if x.strip())
-    # Falls back to the PRODUCT default (DEFAULT_USER_INTERESTS), not the
-    # ablation matrix fixture.
     return UserProfile(name=name, interests=interests or DEFAULT_USER_INTERESTS)
 
 
@@ -164,8 +169,6 @@ def rename_companion(store: SQLiteStore, new_name: str) -> bool:
     persona = store.load_persona()
     if persona is None or not new_name or persona.name == new_name:
         return False
-    from dataclasses import replace
-
     store.save_persona(replace(
         persona,
         name=new_name,
@@ -174,54 +177,72 @@ def rename_companion(store: SQLiteStore, new_name: str) -> bool:
     return True
 
 
-def bootstrap(store: SQLiteStore, seed: int, user: UserProfile | None = None,
-              companion_name: str | None = None, client=None) -> None:
+def bootstrap(store: SQLiteStore, seed: int, client=None) -> None:
     """Initialise identity once (idempotent), with the owner's real profile.
 
     ``client`` is used ONCE, on a cold start, to place the owner's
     off-catalog interests into the interest graph; without it onboarding
     stays offline and falls back to the heuristic extension.
     """
-    from harness.bootstrap import ensure_companion_initialized
-
     ensure_companion_initialized(
         store, seed=seed,
-        user=user if user is not None else owner_profile(),
+        user=owner_profile(),
         day=0,
         client=client,
         logger=lambda line: print(f"[setup] {line}", flush=True),
     )
-    name = companion_name if companion_name is not None else (
-        os.environ.get(COMPANION_NAME_ENV) or ""
-    ).strip()
+    name = (os.environ.get(COMPANION_NAME_ENV) or "").strip()
     if name:
         rename_companion(store, name)
 
 
-def build_runtime(store: SQLiteStore, seed: int, condition: str,
-                  channel, persona=None, timing=None,
-                  max_virtual_hours: float | None = None,
+def build_session(store: SQLiteStore, seed: int, clock: VirtualClock, client,
+                  judge, persona: PersonaParams, timing: TimingParams, *,
+                  judge_client=None) -> Session:
+    """The live companion's session. The persona profile comes from the
+    store (the bootstrap is its source of truth), not from an argument."""
+    return Session(
+        store, persona=persona, timing=timing,
+        variant=MoodVariant.DECOUPLED_OFFSETS, seed=seed,
+        client=client, clock=clock, judge=judge,
+        feedback=True, synthetic_score=False,
+        memory=MemoryAgent(store, embedder=recall_embedder),
+        judge_client=judge_client,
+        # Each character's cycle starts where her seed puts it, not all on
+        # day 1 of her period.
+        random_cycle_start=True,
+    )
+
+
+def run_session_id(store) -> str:
+    """The run's provider session id, drawn once and saved in the DB. A reset
+    clears it, so a new run gets a new session; a bad backend rotates it
+    (``harness.gateway``)."""
+    saved = store.get_kv(KV_SESSION_ID)
+    if saved:
+        return saved
+    sid = new_session_id()
+    store.set_kv(KV_SESSION_ID, sid)
+    return sid
+
+
+def build_runtime(store: SQLiteStore, seed: int, channel, *,
                   client=None, judge=None,
                   time_scale_s_per_vh: float = LIVE_TIME_SCALE_S_PER_VH,
                   anchor=None, clock=None,
-                  judge_client=None) -> AsyncRuntime:
-    from experiments.cvs_common import stream_rng, rng_mod
-
+                  enable_commands: bool = False) -> AsyncRuntime:
     if client is None:
         client = OpenAICompatibleClient(lane="product")
     if judge is None:
-        # The REAL judge (harness/judge.py), not the matrix's DeterministicJudge.
         judge = judge_day
-    # Judge lane: LLM judges get a research-lane client; offline judging keeps
-    # the product client.
-    if judge_client is None and not isinstance(judge, DeterministicJudge):
-        judge_client = OpenAICompatibleClient(lane="research")
-    persona = persona or PersonaParams()
-    timing = timing or TimingParams()
-    variant = MoodVariant.DECOUPLED_OFFSETS
+    # Judge lane: the model judge gets a research-lane client so its spend
+    # attributes there; a scripted judge makes no call and needs none.
+    judge_client = OpenAICompatibleClient(lane="research") if judge is judge_day else None
+    persona = PersonaParams()
+    timing = TimingParams()
     clock = clock or VirtualClock(0.0)
-    session = make_session(condition, seed, store, clock, client, judge,
-                           persona, timing, variant, judge_client=judge_client)
+    session = build_session(store, seed, clock, client, judge, persona, timing,
+                            judge_client=judge_client)
     # Day 0 up-front: ensure_day(0) runs before planning, so day 0 is
     # planned with real state. On resume the row exists and planning is a no-op.
     if store.load_daily_state(0) is None:
@@ -230,7 +251,7 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
         1, seed, persona, timing, store,
         reason=REASON_SCHEDULE, scores=day_scores(store, 0, timing),
     )
-    rt = AsyncRuntime(
+    return AsyncRuntime(
         session,
         ProactiveSchedule.restore(seed, store),
         channel=channel,
@@ -238,18 +259,43 @@ def build_runtime(store: SQLiteStore, seed: int, condition: str,
         timing=timing,
         seed=seed,
         time_scale=TimeScale(time_scale_s_per_vh),
-        max_virtual_hours=max_virtual_hours,  # live: None (Ctrl-C to exit)
-        resolver=IntentResolver(store, rng=stream_rng(seed, rng_mod.EXPERIMENT_STREAM)),
+        max_virtual_hours=None,  # live: Ctrl-C to exit
+        resolver=IntentResolver(store, rng=stream_rng(seed, EXPERIMENT_STREAM)),
         sleeper=None,
         anchor=anchor,
         # Live policy: one failed provider response must not end a week-long run.
         survive_turn_failures=True,
+        # A restart after a slept-through midnight still plans that day.
+        plan_on_start=True,
+        # The runtime's own command dispatch (full hook set: call, hangup,
+        # presence, day edits). Without it the launcher's older bridge
+        # callback serves commands and the newer hooks read as unavailable.
+        enable_commands=enable_commands,
     )
-    return rt
+
+
+def with_web_chat(channel, db_path: Path):
+    """Telegram plus the web chat (/chat): one session, one history. Replies
+    go back where the message came from; proactive messages stay on
+    Telegram (``harness.channels.multi``)."""
+    import sqlite3
+
+    from harness.channels.multi import MultiChannel
+    from harness.channels.web import WebChannel
+
+    def newest_id() -> int:
+        # Its own read-only connection: called on the event loop while a
+        # turn may be writing on the store's.
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+            return int(conn.execute("SELECT MAX(id) FROM messages").fetchone()[0] or 0)
+
+    web = WebChannel(watermark=newest_id)
+    print(f"[live] web chat on http://127.0.0.1:{web.port}/web/", flush=True)
+    return MultiChannel(channel, web)
 
 
 async def _amain(channel_name: str, db_path: Path, seed: int,
-                 condition: str, check_only: bool, tz: str | None = None,
+                 check_only: bool, tz: str | None = None,
                  enable_commands: bool = False,
                  accept_resume_gap: bool = False,
                  defer_bootstrap: bool = False,
@@ -274,6 +320,9 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
 
     log_path = configure_logging(db_path)
     store = build_store(db_path)
+    # One provider session per run, not per process: OpenCode Go routes (and
+    # caches) by it, so a restart keeps the run's cache.
+    os.environ.setdefault("LLM_SESSION_ID", run_session_id(store))
     if channel_name == "telegram" and os.environ.get("TELEGRAM_BOT_TOKEN"):
         from harness.channels.telegram import acquire_poller_lock
         try:
@@ -312,6 +361,8 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
             print(f"[live] WARNING (--accept-resume-gap): {problem}", flush=True)
         store.attach_anchor(anchor)
     channel = select_channel(channel_name)
+    if channel_name == "telegram" and _env_bool("HARNESS_WEB_CHAT"):
+        channel = with_web_chat(channel, db_path)
     clock = VirtualClock(0.0)
     if enable_commands:
         if "on_command" not in inspect.signature(channel.start).parameters:
@@ -341,14 +392,21 @@ async def _amain(channel_name: str, db_path: Path, seed: int,
                     ),
                 ),
             )
-    runtime = build_runtime(store, seed, condition, channel, anchor=anchor,
-                            clock=clock)
-    print(f"[live] channel={channel_name} condition={condition} "
+    runtime = build_runtime(store, seed, channel, anchor=anchor,
+                            clock=clock, enable_commands=enable_commands)
+    print(f"[live] channel={channel_name} "
           f"seed={seed} db={db_path} tz={anchor.tz if anchor else 'none'}"
           + (" commands=on" if enable_commands else ""),
           flush=True)
     print("[live] Ctrl-C to stop; the DB persists between sessions", flush=True)
     print(f"[live] log: {log_path}", flush=True)
+    # systemd stops with SIGTERM, which by default kills the process before
+    # any finally runs: turn it into the same cancellation Ctrl-C gives, so
+    # the channel stops and the store closes cleanly.
+    main_task = asyncio.current_task()
+    if main_task is not None:
+        asyncio.get_running_loop().add_signal_handler(
+            signal.SIGTERM, main_task.cancel)
     try:
         await runtime.run()
     except asyncio.CancelledError:
@@ -363,7 +421,6 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--channel", choices=("cli", "telegram"), default="cli")
     parser.add_argument("--db", type=str, default="results/live-companion/companion.db")
     parser.add_argument("--seed", type=int, default=5001)
-    parser.add_argument("--condition", type=str, default="FULL")
     parser.add_argument("--check", action="store_true",
                         help="validate the telegram token via getMe (no message sent)")
     parser.add_argument(
@@ -404,7 +461,7 @@ def main(argv: list[str] | None = None) -> int:
     tz = args.tz or os.environ.get("HARNESS_TZ") or None
     try:
         return asyncio.run(_amain(args.channel, Path(args.db), args.seed,
-                                  args.condition, args.check, tz,
+                                  args.check, tz,
                                   args.enable_commands,
                                   args.accept_resume_gap,
                                   args.defer_bootstrap,

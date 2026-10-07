@@ -271,18 +271,6 @@ class SimResult:
         return self._arr("eta")
 
     @property
-    def score(self) -> np.ndarray:
-        return self._arr("score")
-
-    @property
-    def cycle_day(self) -> np.ndarray:
-        return self._arr("cycle_day")
-
-    @property
-    def phase_label(self) -> list[str]:
-        return [r.phase_label for r in self.records]
-
-    @property
     def seed(self) -> int:
         """Semilla maestra de la corrida (constante en todos los records)."""
         return self.records[0].seed if self.records else -1

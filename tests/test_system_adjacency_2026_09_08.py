@@ -11,14 +11,17 @@ system machinery, are the judge call and the day-planner call.
 
 from __future__ import annotations
 
+import json
+
 from engine.types import MoodVariant, PersonaParams, TimingParams
+from harness.prompts import TURN_STYLE
 from harness.assembler import append_system
 from harness.client import FakeClient
 from harness.clock import VirtualClock
 from harness.domain import AgendaItem, DailyAgenda
 from harness.session import Session
 from harness.tools import DecisionConfig
-from tests.helpers.store import make_store
+from tests.helpers.store import booted, make_store
 
 
 # the helper
@@ -53,15 +56,10 @@ def test_a_system_block_after_an_assistant_turn_starts_a_new_message():
     assert out[-1]["content"] == "card"
 
 
-def test_no_synthetic_assistant_turn_is_invented():
-    msgs = append_system(append_system([], "a"), "b")
-    assert all(m["role"] != "assistant" for m in msgs)
-
-
 # the assembled turn
 
 def _session(tmp_path, client, t_h=10.0):
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.save_agenda(0, DailyAgenda(0, (
         AgendaItem("ag1", 9.0, 11.0, "pottery", "arc", "arc1", 0.8, "planned"),
     )))
@@ -75,7 +73,8 @@ def _session(tmp_path, client, t_h=10.0):
 
 
 def test_a_mainline_turn_appends_only_stream_rows(tmp_path):
-    """Every system message a call carries is a stored row (or an event)."""
+    """Every system message a call carries is a stored row (or an event, or
+    the writing row, which rides each turn unstored)."""
     client = FakeClient(responses=[
         {"content": "main reply",
          "tool_calls": [{"id": "c1", "name": "tool_decide_event",
@@ -91,7 +90,8 @@ def test_a_mainline_turn_appends_only_stream_rows(tmp_path):
                 if m.get("role") != "system":
                     continue
                 content = m.get("content") or ""
-                assert content in stored or "Event:" in content, (
+                assert (content in stored or "Event:" in content
+                        or content == TURN_STYLE), (
                     "a synthetic system tail rode the request: "
                     f"{content[:80]!r}"
                 )
@@ -110,21 +110,30 @@ def test_an_aux_popup_call_carries_the_steer_last(tmp_path):
     store, session = _session(tmp_path, client)
     try:
         session.on_message("hey")
+        # The pop-up request is the call that ASKS: its block is last. Later
+        # calls carry the same block as a saved row ahead of the decision
+        # (owner ruling 2026-10-03), never as a tail.
         popup_calls = [c for c in client.calls
-                       if any("Event:" in (m.get("content") or "")
-                              for m in c["messages"])]
+                       if "Event:" in (c["messages"][-1].get("content") or "")]
         assert popup_calls, "no pop-up call was made — the lane is not covered"
         stored = {m["content"] for m in store.messages_for_day(0)
                   if m["role"] == "system"}
+        saved = {b for d in store.decisions_for_day(0)
+                 for b in json.loads(d.get("popup_json") or "[]")}
+        assert saved, "the decided pop-up's block was not saved"
         for call in popup_calls:
             roles = [m.get("role") for m in call["messages"]]
             assert roles[-1] == "system"
-            assert "Event:" in call["messages"][-1]["content"]
             # No block may follow the steer, and every other system message
-            # must be the stored stream.
+            # must be the stored stream (or the unstored writing row).
             for m in call["messages"][:-1]:
                 if m.get("role") == "system":
-                    assert m.get("content") in stored
+                    assert (m.get("content") in stored or m.get("content") in saved
+                            or m.get("content") == TURN_STYLE)
+        for call in client.calls:
+            if call not in popup_calls:
+                assert call["messages"][-1].get("role") != "system" or \
+                    "Event:" not in call["messages"][-1]["content"]
     finally:
         store.close()
 

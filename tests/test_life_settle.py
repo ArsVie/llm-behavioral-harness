@@ -21,6 +21,7 @@ from harness.session import Session
 from harness.steering import STEER_MARKER_OPEN
 from harness.tools import DecisionConfig, TOOL_PAYLOAD
 from tests.helpers import make_store
+from tests.helpers.store import booted
 
 PERSONA = PersonaParams()
 TIMING = TimingParams()
@@ -64,7 +65,7 @@ def _roles(call) -> list[str]:
 def test_startup_resolves_the_backlog_before_any_user_message(tmp_path):
     """The morning resolves at startup: agenda + card before the decisions,
     decide rounds with no user row, no generation, no outbound."""
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.attach_anchor(RealTimeAnchor(epoch0_s=0.0, t_h0=0.0, tz="UTC"))
     store.save_agenda(0, DailyAgenda(0, (
         _item(7.92, 8.67, "math practice", "ag1"),
@@ -73,7 +74,12 @@ def test_startup_resolves_the_backlog_before_any_user_message(tmp_path):
     client = FakeClient(responses=[_decide("c1"), _decide("c2")])
     session = _session(store, client=client)
 
-    drain = session.settle_pending("startup")
+    session.settle_pending("startup")
+    # One pop-up per boundary (owner ruling 2026-10-03): the second start
+    # waits for the next one.
+    assert len(client.calls) == 1, "one pop-up per boundary"
+    session.clock.advance_hours(0.01)
+    session.settle_pending("event-instant")
 
     # Two decide rounds for the two starts; the ends are consumed silently.
     assert len(client.calls) == 2, "startup: decide rounds only, no reply"
@@ -112,7 +118,7 @@ def test_startup_resolves_the_backlog_before_any_user_message(tmp_path):
 
 
 def test_next_event_instant_surveys_forward(tmp_path):
-    store = make_store(tmp_path)
+    store = booted(make_store(tmp_path))
     store.attach_anchor(RealTimeAnchor(epoch0_s=0.0, t_h0=0.0, tz="UTC"))
     store.save_agenda(0, DailyAgenda(0, (
         _item(17.0, 18.85, "anime", "ag1"),
@@ -128,3 +134,55 @@ def test_next_event_instant_surveys_forward(tmp_path):
 
     # Past everything: nothing ahead.
     assert session.next_event_instant(23.0) is None
+
+
+def test_a_restart_past_midnight_drains_yesterday_before_judging_it(tmp_path):
+    """Down through midnight: yesterday's crossed events resolve first, on
+    yesterday, and only then is yesterday judged and today opened."""
+    store = booted(make_store(tmp_path))
+    store.save_agenda(0, DailyAgenda(0, (_item(20.0, 21.0, "reading", "ag1"),)))
+    before = _session(store, client=FakeClient(responses=[]), t_h=12.0)
+    before.settle_pending("startup")
+    assert store.load_judgement(0) is None
+
+    client = FakeClient(responses=[_decide("c1")])
+    after = _session(store, client=client, t_h=26.0)
+    after.settle_pending("startup")
+
+    assert len(client.calls) == 1, "yesterday's start is decided"
+    assert [r["verdict"]["initiate"] for r in store.decisions_for_day(0)] == [True]
+    order = [(e["event"], e["detail"]) for e in store.events_since(0)
+             if e["event"] in ("settle", "day_finalized")]
+    names = [name for name, _ in order]
+    assert names.index("day_finalized") > next(
+        i for i, (name, detail) in enumerate(order)
+        if name == "settle" and "day-end" in detail
+    ), order
+    assert store.load_judgement(0) is not None
+    assert after.current_day == 1
+
+
+def test_a_first_boot_in_the_evening_asks_nothing_about_the_morning(tmp_path):
+    """A DB born at 18:40 starts her life at 18:40; a restart at 18:40
+    would replay the morning."""
+    items = (_item(6.97, 7.5, "math practice", "ag1"),
+             _item(11.0, 12.0, "lifting", "ag2"),
+             _item(17.0, 18.0, "anime", "ag3"))
+    fresh = make_store(tmp_path, "fresh.db")
+    fresh.save_agenda(0, DailyAgenda(0, items))
+    client = FakeClient(responses=[])
+    _session(fresh, client=client, t_h=18.67).settle_pending("startup")
+    assert client.calls == []
+    assert fresh.decisions_for_day(0) == []
+
+    restarted = booted(make_store(tmp_path, "restart.db"))
+    restarted.save_agenda(0, DailyAgenda(0, items))
+    client = FakeClient(responses=[_decide("c1"), _decide("c2"), _decide("c3")])
+    session = _session(restarted, client=client, t_h=18.67)
+    session.settle_pending("startup")
+    # A restart replays the morning, one pop-up per boundary.
+    assert len(client.calls) == 1
+    for _ in range(2):
+        session.clock.advance_hours(0.01)
+        session.settle_pending("event-instant")
+    assert len(client.calls) == 3

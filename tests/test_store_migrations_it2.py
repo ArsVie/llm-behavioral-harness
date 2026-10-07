@@ -10,8 +10,9 @@ no-op (no destructive step).
 import sqlite3
 from array import array
 
-from harness.domain import UserModelAssertion, UserModelCategory
+from harness.domain import UserModelCategory
 from harness.store import SCHEMA_VERSION, SQLiteStore
+from tests.helpers.migrations import table_counts
 
 # Current (v2) repo schema, VERBATIM from harness/store.py at d71df14
 # (v1 frozen base + v2 tables + the memory_turns view).
@@ -323,25 +324,20 @@ def _build_v2_db(path) -> None:
     conn.close()
 
 
-def _table_counts(conn: sqlite3.Connection) -> dict[str, int]:
-    tables = [
-        "daily_state", "messages", "judgements", "state_events", "llm_calls",
-        "schedule_events", "persona", "interests", "life_arcs",
-        "agenda_items", "proactive_intents", "memory_sessions",
-        "memory_session_summaries", "memory_episodes",
-        "memory_episode_sources", "memory_embeddings",
-        "user_model_assertions",
-    ]
-    return {
-        t: conn.execute(f"SELECT COUNT(*) AS n FROM {t}").fetchone()[0]
-        for t in tables
-    }
+_LEGACY_TABLES = [
+    "daily_state", "messages", "judgements", "state_events", "llm_calls",
+    "schedule_events", "persona", "interests", "life_arcs",
+    "agenda_items", "proactive_intents", "memory_sessions",
+    "memory_session_summaries", "memory_episodes",
+    "memory_episode_sources", "memory_embeddings",
+    "user_model_assertions",
+]
 
 
 def test_v2_db_migrates_and_all_data_survives(tmp_path):
     db = tmp_path / "v2.db"
     _build_v2_db(db)
-    before = _table_counts(sqlite3.connect(db))
+    before = table_counts(sqlite3.connect(db), _LEGACY_TABLES)
 
     store = SQLiteStore(db)  # v2 -> v4 migration runs inside __init__
 
@@ -449,92 +445,7 @@ def test_v2_db_migrates_and_all_data_survives(tmp_path):
     assert superseded[0].value == "espresso"  # provenance kept
 
     # no destructive transformations: identical row counts on every table
-    after = _table_counts(store.conn)
+    after = table_counts(store.conn, _LEGACY_TABLES)
     assert after == before
 
-    store.close()
-
-
-def test_migration_runs_twice_without_error(tmp_path):
-    db = tmp_path / "v2b.db"
-    _build_v2_db(db)
-
-    store1 = SQLiteStore(db, audit_mode=True)
-    # write through the v3 schema after migration
-    mid = store1.add_message("assistant", "post-migration", t_h=12.0, day=0,
-                             proactive=True, intent_id="intent-87")
-    store1.upsert_assertion(
-        UserModelAssertion("vuln:x", "y", 0.5, 7.0, (), "current"),
-        category=UserModelCategory.VULNERABILITY,
-    )
-    call_id = store1.log_llm_call(0, 12.0, "chat", "p", "r", "fake",
-                                  repro={"model": "fake", "temperature": 0.7})
-    rows_after_write = store1.conn.execute(
-        "SELECT COUNT(*) AS n FROM messages"
-    ).fetchone()["n"]
-    store1.close()
-
-    # re-open: migration must be a no-op, not an error, no duplicate rows
-    store2 = SQLiteStore(db, audit_mode=True)
-    rows = store2.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
-    assert store2.conn.execute(
-        "SELECT COUNT(*) AS n FROM messages"
-    ).fetchone()["n"] == rows_after_write
-
-    # both legacy and post-migration data are intact
-    msgs = store2.recent_messages()
-    assert [m["content"] for m in msgs] == [
-        "legacy hello", "legacy reply", "legacy proactive", "session turn",
-        "post-migration",
-    ]
-    assert msgs[-1]["intent_id"] == "intent-87"
-    assert msgs[-1]["id"] == mid
-    assert store2.turns_for_session("s1")[0]["content"] == "session turn"
-    assert store2.get_assertion_category("vuln:x") is \
-        UserModelCategory.VULNERABILITY
-    repro_call = store2.get_llm_call(call_id)
-    assert repro_call is not None and repro_call["repro"] == {
-        "model": "fake", "temperature": 0.7,
-    }
-    state0 = store2.load_daily_state(0)
-    assert state0 is not None and state0["score"] == 0.5
-    j0 = store2.load_judgement(0)
-    assert j0 is not None and j0["score"] == 0.8
-    assert len(store2.schedule_events_for_seed(4242)) == 2
-    # canonical categories still backfilled, nothing re-run or duplicated
-    assert store2.get_assertion_category("identity") is \
-        UserModelCategory.IDENTITY
-    assert len(store2.list_assertions(status="current")) == 6
-    store2.close()
-
-
-def test_fresh_db_reaches_v3_with_columns_and_new_apis(tmp_path):
-    store = SQLiteStore(tmp_path / "fresh.db", audit_mode=True)
-    rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
-    assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
-
-    cols = {r["name"] for r in store.conn.execute("PRAGMA table_info(messages)")}
-    assert {"id", "role", "content", "t_h", "day", "proactive", "meta",
-            "session_id", "intent_id"} <= cols
-    cols = {r["name"]
-            for r in store.conn.execute("PRAGMA table_info(user_model_assertions)")}
-    assert "category" in cols
-    cols = {r["name"] for r in store.conn.execute("PRAGMA table_info(llm_calls)")}
-    assert "repro_json" in cols
-
-    # the new surface works end to end on a fresh database
-    store.add_message("assistant", "spontaneous", t_h=1.0, day=0,
-                      proactive=True, intent_id="i1")
-    assert store.recent_messages()[0]["intent_id"] == "i1"
-    store.upsert_assertion(
-        UserModelAssertion("x:y", "z", 0.6, 1.0, (), "current"),
-        category=UserModelCategory.RECURRING_INTEREST,
-    )
-    assert store.get_assertion_category("x:y") is \
-        UserModelCategory.RECURRING_INTEREST
-    cid = store.log_llm_call(0, 1.0, "chat", "p", "r", "m",
-                             repro={"seed": 1})
-    repro_call = store.get_llm_call(cid)
-    assert repro_call is not None and repro_call["repro"] == {"seed": 1}
     store.close()

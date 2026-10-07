@@ -14,21 +14,21 @@ from harness.channels.base import FakeChannel, InboundMessage
 from harness.client import FakeClient
 
 from tests.helpers import no_wait
+from tests.helpers.judges import DeterministicJudge
 
 
 def test_live_runtime_round_trip_reply_and_proactive():
     """Inbound -> réplica -> send, y los proactivos llegan al canal."""
     async def _run():
-        from experiments.cvs_common import DeterministicJudge, BLOCK_START_D, BLOCK_END_D
         from harness.store import SQLiteStore
 
         with tempfile.TemporaryDirectory() as td:
             store = SQLiteStore(Path(td) / "companion.db", audit_mode=True)
             bootstrap(store, seed=5001)
             channel = FakeChannel()
-            judge = DeterministicJudge(5001, block_start=BLOCK_START_D, block_end=BLOCK_END_D)
+            judge = DeterministicJudge(5001)
             runtime = build_runtime(
-                store, 5001, "FULL", channel,
+                store, 5001, channel,
                 client=FakeClient(), judge=judge,
                 time_scale_s_per_vh=0.0004,  # escala acelerada del CI
             )
@@ -61,29 +61,11 @@ def test_live_runtime_round_trip_reply_and_proactive():
     asyncio.run(_run())
 
 
-def test_build_runtime_smoke(tmp_path):
-    """build_runtime construye sin tocar la red (fake client + fake judge)."""
-    from experiments.cvs_common import DeterministicJudge, BLOCK_START_D, BLOCK_END_D
-    from harness.store import SQLiteStore
-
-    store = SQLiteStore(tmp_path / "companion.db", audit_mode=True)
-    bootstrap(store, seed=5001)
-    runtime = build_runtime(
-        store, 5001, "FULL", FakeChannel(),
-        client=FakeClient(),
-        judge=DeterministicJudge(5001, block_start=BLOCK_START_D, block_end=BLOCK_END_D),
-    )
-    assert runtime.channel.name == "fake"
-    assert runtime.max_virtual_hours is None  # en vivo: sin horizonte
-    store.close()
-
-
 def test_build_runtime_wires_anchor_and_resume_positions(tmp_path):
     """El anchor persistido posiciona un reinicio en la hora local real, no en medianoche virtual."""
     import time
     import datetime
     import zoneinfo
-    from experiments.cvs_common import DeterministicJudge, BLOCK_START_D, BLOCK_END_D
     from harness.store import SQLiteStore
     from harness.anchor import anchor_for_fresh_start
     from harness.runtime import load_anchor, persist_anchor
@@ -98,9 +80,9 @@ def test_build_runtime_wires_anchor_and_resume_positions(tmp_path):
 
     # anchor round-trips and the runtime receives it
     rt = build_runtime(
-        store, 5001, "FULL", FakeChannel(),
+        store, 5001, FakeChannel(),
         client=FakeClient(),
-        judge=DeterministicJudge(5001, block_start=BLOCK_START_D, block_end=BLOCK_END_D),
+        judge=DeterministicJudge(5001),
         anchor=load_anchor(store),
     )
     assert rt.anchor is not None and rt.anchor.tz == tz
@@ -114,15 +96,14 @@ def test_build_runtime_wires_anchor_and_resume_positions(tmp_path):
 
 def test_build_runtime_no_tz_keeps_pre_anchor_behavior(tmp_path):
     """Sin anchor persistido y sin tz -> anchor=None."""
-    from experiments.cvs_common import DeterministicJudge, BLOCK_START_D, BLOCK_END_D
     from harness.store import SQLiteStore
 
     store = SQLiteStore(tmp_path / "companion.db", audit_mode=True)
     bootstrap(store, seed=5001)
     rt = build_runtime(
-        store, 5001, "FULL", FakeChannel(),
+        store, 5001, FakeChannel(),
         client=FakeClient(),
-        judge=DeterministicJudge(5001, block_start=BLOCK_START_D, block_end=BLOCK_END_D),
+        judge=DeterministicJudge(5001),
     )
     assert rt.anchor is None
     store.close()

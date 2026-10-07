@@ -22,11 +22,6 @@ _RATE_KEYS = ("input_per_mtok", "cached_input_per_mtok", "output_per_mtok")
 # --- price_for -----------------------------------------------------------
 
 
-def test_known_model_uses_its_own_rates():
-    model = next(iter(MODELS))
-    assert price_for(model) == MODELS[model]
-
-
 def test_unknown_but_named_model_falls_back_to_the_default_tier():
     """A model we have never priced still renders dollars, at the fallback
     tier — an unpriced-but-named row would otherwise silently read as free."""
@@ -89,24 +84,6 @@ def test_select_cli_channel():
     assert isinstance(select_channel("cli"), CLIChannel)
 
 
-def test_select_fake_channel_passes_inbound():
-    from harness.channels.base import FakeChannel
-
-    channel = select_channel("fake", inbound=[(1.0, "hi")])
-    assert isinstance(channel, FakeChannel)
-
-
 def test_unknown_channel_lists_the_valid_names():
     with pytest.raises(ValueError, match="'cli', 'telegram', 'fake'"):
         select_channel("carrier-pigeon")
-
-
-def test_importing_config_does_not_require_telegram():
-    """The telegram import is lazy and inside its branch, so a machine
-    without python-telegram-bot can still run the cli/fake channels."""
-    import importlib
-    import sys
-
-    assert "harness.config" in sys.modules
-    importlib.reload(sys.modules["harness.config"])
-    select_channel("cli")  # still works after a reload

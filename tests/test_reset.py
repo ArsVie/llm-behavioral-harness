@@ -150,9 +150,10 @@ def test_a_live_writer_is_refused_and_nothing_moves(tmp_path):
     store.close()
     db = tmp_path / "run.db"
     plan = plan_reset(db)
+    plan.writer = ".venv/bin/python -m experiments.live_companion --db run.db"
 
     with pytest.raises(ResetRefused, match="live process"):
-        apply_reset(plan, writer=".venv/bin/python -m experiments.live_companion --db run.db")
+        apply_reset(plan)
     assert not plan.archive_dir.exists()
     assert _counts(db)["messages"] == 2, "the run is untouched"
 

@@ -1,7 +1,6 @@
-"""Embedding interfaces for the memory pipeline.
+"""Embedding interface for the memory pipeline: text -> unit vector.
 
-Two implementations of one callable contract (``Embedder``): text -> unit
-vector. No vector DB — retrieval is brute-force cosine over stored vectors.
+No vector DB — retrieval is brute-force cosine over stored vectors.
 """
 
 from __future__ import annotations
@@ -9,12 +8,11 @@ from __future__ import annotations
 import hashlib
 import math
 import re
-from typing import Callable, Protocol, runtime_checkable
+from typing import Protocol, runtime_checkable
 
 __all__ = [
     "Embedder",
     "DeterministicHashEmbedder",
-    "RealSemanticEmbedder",
     "cosine",
 ]
 
@@ -29,15 +27,6 @@ class Embedder(Protocol):
 
 
 _TOKEN_RE = re.compile(r"[a-z0-9]+")
-_STOPWORDS = frozenset(
-    {
-        "the", "and", "you", "your", "that", "this", "with", "have", "was",
-        "are", "for", "not", "but", "all", "can", "out", "get", "just",
-        "like", "about", "really", "what", "when", "where", "how", "why",
-        "there", "here", "from", "they", "them", "she", "him", "her", "will",
-        "would", "could", "should", "into", "over", "than", "then", "very",
-    }
-)
 
 
 class DeterministicHashEmbedder:
@@ -63,32 +52,6 @@ class DeterministicHashEmbedder:
             vec[0] = 1.0
             return vec
         return [v / norm for v in vec]
-
-
-class RealSemanticEmbedder:
-    """Real semantic embedder wrapping an injectable backend.
-
-    The backend is a batch callable ``list[str] -> list[list[float]]``,
-    injected at construction; this module never imports a model or talks to a
-    service. For eval comparisons of memory conditions, pass the SAME instance
-    to every condition.
-    """
-
-    def __init__(
-        self,
-        backend: Callable[[list[str]], list[list[float]]],
-        *,
-        dim: int | None = None,
-    ) -> None:
-        self._backend = backend
-        self.dim = dim
-
-    def __call__(self, text: str) -> list[float]:
-        return self._backend([text])[0]
-
-    def embed_many(self, texts: list[str]) -> list[list[float]]:
-        """Batch embed — the backend's native shape."""
-        return self._backend(texts)
 
 
 def cosine(a: list[float], b: list[float]) -> float:

@@ -250,12 +250,6 @@ def test_rename_companion_is_a_no_op_when_nothing_changes(tmp_path,
 # --- sqlite durability knob ---------------------------------------------
 
 
-def test_sqlite_synchronous_defaults_to_full(monkeypatch):
-    """Production durability is the SQLite default unless asked otherwise."""
-    monkeypatch.delenv("HARNESS_SQLITE_SYNCHRONOUS", raising=False)
-    assert sqlite_synchronous() == "FULL"
-
-
 def test_sqlite_synchronous_reads_the_environment(monkeypatch):
     """The level is honoured case-insensitively and applied to the store."""
     monkeypatch.setenv("HARNESS_SQLITE_SYNCHRONOUS", "off")

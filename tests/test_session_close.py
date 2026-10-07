@@ -223,14 +223,9 @@ def test_wind_down_pending_survives_restart(tmp_path, forced_close):
     store2.close()
 
 
-def test_flag_defaults_off_and_env_enables(tmp_path, monkeypatch):
-    """``two_phase_close`` defaults to False; ``HARNESS_TWO_PHASE_CLOSE`` (any
-    non-empty value) turns it on; flag-off runs never touch wind-down."""
-    store, clock, client, session = _session(tmp_path, two_phase=False)
-    assert session.two_phase_close is False
-    assert session._closing_pending_t_h is None
-    store.close()
-
+def test_env_enables_the_flag(tmp_path, monkeypatch):
+    """``HARNESS_TWO_PHASE_CLOSE=1`` turns the flag on and ``=0`` leaves it
+    off."""
     monkeypatch.setenv("HARNESS_TWO_PHASE_CLOSE", "1")
     store2 = SQLiteStore(tmp_path / "s2.db")
     clock2 = VirtualClock()
@@ -246,6 +241,16 @@ def test_flag_defaults_off_and_env_enables(tmp_path, monkeypatch):
     )
     assert session2.two_phase_close is True
     store2.close()
+
+    monkeypatch.setenv("HARNESS_TWO_PHASE_CLOSE", "0")
+    store3 = SQLiteStore(tmp_path / "s3.db")
+    session3 = Session(
+        store3, persona=PERSONA, timing=TIMING, variant=VARIANT, seed=SEED,
+        client=FakeClient(responses=["ok!"]), clock=VirtualClock(),
+        judge=ScriptedJudge(score=0.5).judge_day,
+    )
+    assert session3.two_phase_close is False
+    store3.close()
 
 
 def test_flag_off_closes_at_the_draw_turn(tmp_path, forced_close):

@@ -6,16 +6,15 @@ import numpy as np
 import pytest
 
 from engine.rng import stream_rng
-from harness.domain import Interest, PersonaProfile, Routine
 from harness.interests import MAX_ADJACENCY_HOPS, build_catalog
 from harness.persona import (
-    DEFAULT_NAME,
     PERSONA_STREAM,
     ROUTINE_CATALOG,
     ROUTINE_SALIENCE_RANGE,
     SALIENCE_RANGES,
     build_persona,
 )
+from tests.helpers.misc import bucket_counts
 
 #: Number of seeded personas used for the population-level checks.
 N_SEEDS = 100
@@ -35,20 +34,9 @@ def _profiles(graph, n=N_SEEDS):
     return [build_persona(seed, graph=graph) for seed in range(n)]
 
 
-def _bucket_counts(profile):
-    counts = {"exact": 0, "adjacent": 0, "independent": 0}
-    for interest in profile.interests:
-        counts[interest.bucket] += 1
-    return counts
-
-
 def test_profile_shape(graph):
     p = build_persona(0, graph=graph)
-    assert isinstance(p, PersonaProfile)
-    assert p.name == DEFAULT_NAME
     assert p.interests and p.routines
-    assert all(isinstance(i, Interest) for i in p.interests)
-    assert all(isinstance(r, Routine) for r in p.routines)
     sentences = [s for s in re.split(r"(?<=[.!?])\s+", p.core.strip()) if s]
     assert len(sentences) <= 2
 
@@ -64,7 +52,7 @@ def test_bucket_counts_sampled_around_targets(graph):
     # Defaults n_exact=4, n_adjacent=4, n_independent=2: per-profile counts
     # are uniform over {3,4,5}/{3,4,5}/{1,2,3}.
     for p in _profiles(graph):
-        c = _bucket_counts(p)
+        c = bucket_counts(p)
         assert c["exact"] in (3, 4, 5)
         assert c["adjacent"] in (3, 4, 5)
         assert c["independent"] in (1, 2, 3)
@@ -75,7 +63,7 @@ def test_mean_bucket_distribution_100_seeds(graph):
     counts = {"exact": [], "adjacent": [], "independent": []}
     fracs = {"exact": [], "adjacent": [], "independent": []}
     for p in profiles:
-        c = _bucket_counts(p)
+        c = bucket_counts(p)
         total = sum(c.values())
         for bucket in c:
             counts[bucket].append(c[bucket])
@@ -139,7 +127,6 @@ def test_different_seeds_create_variation(graph):
     profiles = [build_persona(seed, graph=graph) for seed in range(10)]
     portfolios = [tuple(i.name for i in p.interests) for p in profiles]
     assert len(set(portfolios)) >= 2
-    assert len({p.core for p in profiles}) >= 2
 
 
 def test_routines_from_catalog_with_sampled_salience(graph):
@@ -159,13 +146,7 @@ def test_routines_from_catalog_with_sampled_salience(graph):
             assert ROUTINE_SALIENCE_RANGE[0] <= r.salience <= ROUTINE_SALIENCE_RANGE[1]
 
 
-def test_core_mentions_sampled_portfolio(graph):
+def test_core_is_the_voice_and_names_no_interest(graph):
     for seed in range(10):
         p = build_persona(seed, graph=graph)
-        exacts = [i.name for i in p.interests if i.bucket == "exact"]
-        adjacent = [i.name for i in p.interests if i.bucket == "adjacent"]
-        independent = [i.name for i in p.interests if i.bucket == "independent"]
-        assert exacts[0] in p.core
-        assert exacts[1] in p.core
-        assert adjacent[0] in p.core
-        assert independent[0] in p.core
+        assert not any(i.name in p.core for i in p.interests)

@@ -19,8 +19,6 @@ from harness.negotiation_contract import (
     NegotiationPhase,
 )
 
-# Decision-id prefixes are built at the call sites (item id + delay index).
-
 
 @dataclass
 class NegotiationState:
@@ -48,11 +46,6 @@ class NegotiationState:
     @property
     def resolved(self) -> bool:
         return self.resolved_t_h is not None
-
-    @property
-    def decide_index(self) -> int:
-        """Decide-leg index (deterministic): the number of delays taken."""
-        return self.delay_count
 
 
 # decide trigger / backstop
@@ -185,6 +178,10 @@ def state_to_dict(state: NegotiationState) -> dict:
     return {k: getattr(state, k) for k in _STATE_KEYS}
 
 
+def _opt_float(data: dict, key: str) -> float | None:
+    return float(data[key]) if data.get(key) is not None else None
+
+
 def state_from_dict(data: dict) -> NegotiationState | None:
     """Rebuild a NegotiationState from a snapshot; None when unusable (foreign
     or corrupt rows are skipped, never fatal)."""
@@ -200,20 +197,11 @@ def state_from_dict(data: dict) -> NegotiationState | None:
             # Responded-bool restore: a snapshot without the key restores False.
             informed=bool(data.get("informed")),
             turns_to_decide=int(data.get("turns_to_decide", 0)),
-            afk_deadline_t_h=(
-                float(data["afk_deadline_t_h"])
-                if data.get("afk_deadline_t_h") is not None else None
-            ),
-            last_decide_at_t_h=(
-                float(data["last_decide_at_t_h"])
-                if data.get("last_decide_at_t_h") is not None else None
-            ),
+            afk_deadline_t_h=_opt_float(data, "afk_deadline_t_h"),
+            last_decide_at_t_h=_opt_float(data, "last_decide_at_t_h"),
             delay_count=int(data.get("delay_count", 0)),
             resolved_action=data.get("resolved_action"),
-            resolved_t_h=(
-                float(data["resolved_t_h"])
-                if data.get("resolved_t_h") is not None else None
-            ),
+            resolved_t_h=_opt_float(data, "resolved_t_h"),
         )
     except (KeyError, TypeError, ValueError):
         return None

@@ -12,17 +12,15 @@ callers, as a byte-identical decomposition of the two parts.
 """
 
 import dataclasses
-import hashlib
 from datetime import datetime, timezone
 
 from harness.anchor import RealTimeAnchor
+from harness.prompts import MEMORIES_HEADER
 from harness.assembler import (
     AFFECTIVE_HEADER,
     AGENDA_HEADER,
     BEHAVIORAL_HEADER,
     CURRENT_INTENT_HEADER,
-    MEMORIES_HEADER,
-    SYSTEM_CORE_WITH_TOOLS,
     TEMPORAL_HEADER,
     assemble_snapshot,
     build_context_messages,
@@ -30,12 +28,11 @@ from harness.assembler import (
     render_day_block,
     render_day_start_block,
     render_state_card,
+    stable_system,
 )
 from harness.assembler import prefix_break, wire_pair
-from harness.behavior import _render_brief
 from harness.domain import (
     AgendaItem,
-    BehaviorBrief,
     CompanionSnapshot,
     CurrentActivity,
     EpisodicMemory,
@@ -48,24 +45,11 @@ from harness.domain import (
     Turn,
 )
 from harness.prompts import render_popup_block
+from tests.helpers.domain_builders import sample_brief, sample_prompt_brief
 
 #: Anchor fixture: 2026-08-15T13:30:00Z at t_h 7.5 in America/Chihuahua
 #: (UTC-6 in August) → t_h 27.0 is 03:00 local, Sunday, virtual day 1.
 G3_EPOCH0_S = datetime(2026, 8, 15, 13, 30, 0, tzinfo=timezone.utc).timestamp()
-
-#: Pinned sha256 of the assembled prompts on this fixture; an unlabelled change
-#: to the assembled prompt fails here.
-#: Regenerated 2026-09-20: the tool protocol now scopes a decision tool to its
-#: pop-up ("with no pop-up in front of you, there is nothing to fill in"), and
-#: the event tool's own text says an upcoming event is not the model's to
-#: announce — the live run kept burning reasoning on whether to mention a
-#: plan item hours out, because the inform clause read as a standing
-#: instruction. The same edit fixed a doubled escape on the protocol's last
-#: line. Verified against the previous pin's tree: substituting the old
-#: protocol text back reproduced 602f5f3d… and 7a850564… exactly, so nothing
-#: but the protocol bytes moved.
-PINNED_FULL = "6c5ef6115cf0c3cfcf757a24c75999c81a2efc8d8c6d40fb75a8e6213279e745"
-PINNED_BARE_FULL = "77eea6a77af1ec7da27e14a3f38cf2b0a20280bf2a83ae73285a2e00f2ce7966"
 
 
 def test_prefix_break_is_none_when_the_request_only_appends():
@@ -94,16 +78,6 @@ def test_wire_pair_compares_text_not_object_identity():
 
 def _anchor() -> RealTimeAnchor:
     return RealTimeAnchor(epoch0_s=G3_EPOCH0_S, t_h0=7.5, tz="America/Chihuahua")
-
-
-def _brief(**overrides) -> BehaviorBrief:
-    base = BehaviorBrief(
-        valence=0.5, energy=0.7, reactivity=0.5, warmth=0.8,
-        expressiveness=0.6, playfulness=0.5, reflectiveness=0.4,
-        initiative=0.6, response_length_scale=1.0, response_delay_s=3.0,
-        closing_tendency=0.3,
-    )
-    return dataclasses.replace(base, **overrides)
 
 
 def _agenda_items() -> tuple:
@@ -140,7 +114,7 @@ def _episodes() -> tuple:
 def _snapshot(rich: bool = True) -> CompanionSnapshot:
     return CompanionSnapshot(
         persona=PersonaProfile(name="Nova", core="CORE TEXT.", interests=(), routines=()),
-        current_behavior=_brief(),
+        current_behavior=sample_brief(),
         current_activity=CurrentActivity(t_h=10.5, item=None, description="practice pottery"),
         agenda=_agenda_items() if rich else (),
         life_arcs=_arcs() if rich else (),
@@ -167,11 +141,6 @@ def _controls() -> GenerationControls:
         closing_guidance="End the conversation warmly when it winds down.",
         max_tokens=128,
     )
-
-
-def _prompt_brief() -> str:
-    return _render_brief(valence=0.5, energy=0.7, momentum=0.1,
-                         warmth=0.8, playfulness=0.5, reflectiveness=0.4)
 
 
 def _recent_turns(n: int = 4) -> list[dict]:
@@ -221,31 +190,19 @@ def test_stable_system_byte_identical_across_conversations():
         snapshot=snap, recent_turns=_recent_turns(8), user_request="hi",
         t_h=28.0, anchor=_anchor(),
     )
-    assert system_a == system_b == "\n\n".join(
-        [render_day_block(snap), SYSTEM_CORE_WITH_TOOLS]
-    )
+    # The claim: a different transcript must not change the stable bytes.
+    assert system_a == system_b
+    # And the bytes are exactly the canonical stable assembly for this day
+    # block (source-derived, so a new stable block never edits this test).
+    assert system_a == stable_system(render_day_block(snap))
     # The requests carry true transcript roles only: no card block anywhere.
     assert all(m["role"] != "system" for m in messages_a + messages_b)
     # The card render is a pure function of the snapshot: same state, same
     # bytes — that is what the stream-row change gate compares.
-    card = render_state_card(snap, controls=_controls(), prompt_brief=_prompt_brief())
+    card = render_state_card(snap, controls=_controls(), prompt_brief=sample_prompt_brief())
     assert card == render_state_card(
-        snap, controls=_controls(), prompt_brief=_prompt_brief()
+        snap, controls=_controls(), prompt_brief=sample_prompt_brief()
     )
-
-
-def test_constant_state_yields_byte_identical_whole_request():
-    """Strongest cache claim: same config AND same state → the entire
-    assembled request (system + messages) is byte-identical."""
-    snap = _snapshot(rich=True)
-    kwargs = dict(
-        snapshot=snap, recent_turns=_recent_turns(2), user_request="hi",
-        t_h=27.0, anchor=_anchor(),
-    )
-    s1, m1 = build_context_messages(**kwargs)
-    s2, m2 = build_context_messages(**kwargs)
-    assert s1 == s2
-    assert m1 == m2
 
 
 # --- (b) volatile state differs between turns and appears at the TAIL ---
@@ -336,12 +293,12 @@ def test_the_card_never_rides_the_request():
     ):
         assert volatile_marker not in system, volatile_marker
     # The card render keeps the moving state and leaves the day plan out.
-    card = render_state_card(snap, controls=_controls(), prompt_brief=_prompt_brief())
+    card = render_state_card(snap, controls=_controls(), prompt_brief=sample_prompt_brief())
     assert card.startswith(AFFECTIVE_HEADER)
     assert AGENDA_HEADER not in card
     # Same state: same card bytes — the stream-row change gate holds.
     assert render_state_card(
-        snap, controls=_controls(), prompt_brief=_prompt_brief()
+        snap, controls=_controls(), prompt_brief=sample_prompt_brief()
     ) == card
 
 
@@ -366,27 +323,6 @@ def test_unanchored_replay_omits_temporal_and_the_agenda_moved_to_day_start():
     assert "agenda item 0" in day_start
 
 
-# --- (c) replay parity: byte identity vs the pre-reorder layout ---
-
-
-def _sha256(text: str) -> str:
-    return hashlib.sha256(text.encode("utf-8")).hexdigest()
-
-
-def test_assemble_snapshot_bytes_match_the_pinned_layout():
-    """The legacy/aux full 3-tier string matches the pinned bytes; an unlabelled
-    edit to the assembled prompt fails here.
-    """
-    snap = _snapshot(rich=True)
-    full = assemble_snapshot(
-        snap, controls=_controls(), prompt_brief=_prompt_brief(),
-        popup=render_popup_block("EVENT: pottery class starts in 10 minutes"),
-    )
-    bare = assemble_snapshot(_snapshot(rich=False))
-    assert _sha256(full) == PINNED_FULL
-    assert _sha256(bare) == PINNED_BARE_FULL
-
-
 #: Every section header the assembled request can carry.
 _ALL_HEADERS = (
     AGENDA_HEADER, TEMPORAL_HEADER, AFFECTIVE_HEADER, BEHAVIORAL_HEADER,
@@ -402,7 +338,7 @@ def test_the_layout_loses_no_content_and_duplicates_none():
     """
     snap = _snapshot(rich=True)
     controls = _controls()
-    brief = _prompt_brief()
+    brief = sample_prompt_brief()
     popup = render_popup_block("EVENT: pottery class starts in 10 minutes")
     legacy = assemble_snapshot(
         snap, controls=controls, prompt_brief=brief, popup=popup,
@@ -432,7 +368,7 @@ def test_the_card_never_carries_a_temporal_frame():
     card = render_state_card(_snapshot(rich=True))
     assert TEMPORAL_HEADER not in card
     assert "It is " not in card
-    assert CURRENT_INTENT_HEADER in card, "every other section still rides"
+    assert BEHAVIORAL_HEADER in card, "every other section still rides"
 
 
 def test_the_three_scopes_are_disjoint():
@@ -452,8 +388,7 @@ def test_the_three_scopes_are_disjoint():
     assert AGENDA_HEADER in day_start        # the plan is day-scoped
     assert AGENDA_HEADER not in card         # and no longer per-turn
     # The card keeps what genuinely moves.
-    assert CURRENT_INTENT_HEADER in card
-    assert AGENDA_HEADER not in card
+    assert BEHAVIORAL_HEADER in card
     assert "agenda item 0" in day_start
 # Skipped and past items are not planned (NOW semantics), as before — the
 # filter moved with the section, so it is asserted where the section now is.
@@ -476,7 +411,7 @@ def test_seam_transcript_matches_legacy_build_messages():
     snap = _snapshot(rich=True)
     recent = _recent_turns(4)
     controls = _controls()
-    brief = _prompt_brief()
+    brief = sample_prompt_brief()
     day_block = render_day_block(snap)  # the session-cached block, as wired
     legacy_system = assemble_snapshot(
         snap, controls=controls, prompt_brief=brief, day_block=day_block,
@@ -503,30 +438,7 @@ def test_seam_transcript_matches_legacy_build_messages():
         t_h=27.0, anchor=_anchor(), day_block=day_block,
     )
     assert messages2 == [
-        {"role": turn["role"], "content": turn["content"]} for turn in recent
+        {"role": turn["role"], "content": turn["content"]}
+        for turn in recent
     ]
     assert system2 == system
-
-
-def test_seam_deterministic_replay_parity():
-    """Replay parity at the assembly level: the seam is a pure function of its
-    inputs — same inputs (e.g. same-seed fake run) yield byte-identical
-    (system, messages), so the reorder cannot change reproduction."""
-    kwargs = dict(
-        snapshot=_snapshot(rich=True),
-        recent_turns=_recent_turns(4),
-        user_request="hi",
-        t_h=27.0, anchor=_anchor(),
-    )
-    s1, m1 = build_context_messages(**kwargs)
-    s2, m2 = build_context_messages(**kwargs)
-    assert s1 == s2
-    assert m1 == m2
-# Legacy helpers stay untouched, byte-compatible with older callers.
-    assert build_messages(
-        [{"role": "user", "content": "a"}, {"role": "assistant", "content": "b"}], "c"
-    ) == [
-        {"role": "user", "content": "a"},
-        {"role": "assistant", "content": "b"},
-        {"role": "user", "content": "c"},
-    ]

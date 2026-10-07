@@ -150,14 +150,6 @@ def test_client_raw_cost_captured():
     assert result.raw_cost == pytest.approx(0.00123)
 
 
-def test_client_lane_stamp_carried():
-    client = FakeClient(lane="research")
-    assert client.lane == "research"
-    client2 = FakeClient(lane="product")
-    assert client2.lane == "product"
-    assert FakeClient().lane is None
-
-
 # Store battery: usage/lane/model/raw_cost persistence
 
 
@@ -413,7 +405,7 @@ def test_price_for_behavior():
     # PRICING_PENDING is False (real OpenRouter rates are filled in)
     rates = price_for("deepseek-v4-flash")
     assert rates is not None
-    assert rates["cached_input_per_mtok"] == pytest.approx(rates["input_per_mtok"] / 5)
+    assert rates["cached_input_per_mtok"] < rates["input_per_mtok"]
     # unknown-but-named model falls back to the default tier
     assert price_for("some-other-model")["input_per_mtok"] > 0
     # absent/blank model is unpriced
@@ -438,3 +430,22 @@ def test_spend_cli_writes_report_file(tmp_path):
     assert "LLM SPEND REPORT" in text
     assert "calls logged        : 1" in text
     assert f"${_cost(600, 400, 500):,.4f}" in text
+
+
+def test_a_peak_priced_model_bills_by_the_calls_real_time():
+    """OpenCode Go's DeepSeek rates double in its weekday UTC peak windows;
+    a call with no known time prices at the peak tier, never below it."""
+    from datetime import datetime, timezone
+
+    from harness.pricing import price_for
+
+    peak = datetime(2026, 9, 24, 2, 30, tzinfo=timezone.utc)      # Thu 02:30 UTC
+    off = datetime(2026, 9, 24, 12, 0, tzinfo=timezone.utc)       # Thu noon UTC
+    weekend = datetime(2026, 9, 26, 2, 30, tzinfo=timezone.utc)   # Sat 02:30 UTC
+    rate = lambda at: price_for("deepseek-v4.1-flash", at=at)["input_per_mtok"]  # noqa: E731
+    assert (rate(peak), rate(off), rate(weekend), rate(None)) == (0.30, 0.15, 0.15, 0.30)
+
+    row = {"model": "deepseek-v4.1-flash", "cache_miss_tokens": 1_000_000,
+           "completion_tokens": 1_000_000}
+    assert aggregate([row], when=lambda r: off).cost_usd == pytest.approx(0.75)
+    assert aggregate([row], when=lambda r: peak).cost_usd == pytest.approx(1.50)

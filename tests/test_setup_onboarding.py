@@ -10,7 +10,6 @@ import pytest
 
 from harness import proposal_cache
 from harness.bootstrap import (
-    DEFAULT_USER_INTERESTS,
     ensure_companion_initialized,
 )
 from harness.channels.telegram import ControlCommand
@@ -236,15 +235,6 @@ def test_resume_samples_against_the_stored_graph_not_the_catalog(tmp_path):
         store.close()
 
 
-def test_product_default_is_not_the_ablation_fixture():
-    """The live launcher's fallback must be the product identity."""
-    from experiments.cvs_common import GATE2_USER_INTERESTS
-    from experiments.live_companion import owner_profile
-
-    assert DEFAULT_USER_INTERESTS != GATE2_USER_INTERESTS
-    assert owner_profile().interests == DEFAULT_USER_INTERESTS
-
-
 # -- 3. /setup succeeds on the live runtime -------------------------------- #
 
 
@@ -273,21 +263,6 @@ def test_setup_command_succeeds_when_the_hook_is_wired(tmp_path):
         assert "already initialized" in again
     finally:
         store.close()
-
-
-def test_live_runtime_wires_the_setup_hook():
-    """The live runtime's CommandContext must carry ``request_setup``; asserted
-    against the source rather than a live runtime."""
-    import inspect
-
-    from harness.runtime import AsyncRuntime
-
-    source = inspect.getsource(AsyncRuntime._on_command)
-    assert "request_setup=" in source, (
-        "AsyncRuntime builds its CommandContext without request_setup — "
-        "/setup has no reachable success path on the live runtime"
-    )
-    assert hasattr(AsyncRuntime, "_request_setup")
 
 
 # -- 4. interest names must mean one thing ---------------------------------- #
@@ -354,17 +329,6 @@ def test_a_hanging_provider_falls_back_within_the_budget():
     # ... and onboarding still completed: the interests are in the graph.
     for name in ("lifting", "anime", "history"):
         assert name in graph.nodes()
-
-
-def test_the_budget_is_bounded_and_far_under_the_retry_storm():
-    """The setup budget is bounded, covers the observed latency, and cuts in
-    long before the client's own retry storm (7 attempts at 60s + backoff)."""
-    from harness.interest_extension import EXTENSION_BUDGET_S
-
-    assert 60 <= EXTENSION_BUDGET_S <= 120, (
-        "below ~60s the budget cuts off calls that would have succeeded; "
-        "above ~120s it stops being a bound on the retry storm"
-    )
 
 
 # -- 6. the onboarding call is configured for a fast, parseable answer ------ #

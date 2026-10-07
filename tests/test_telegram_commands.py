@@ -7,7 +7,6 @@ given. Default None -> commands are dropped.
 
 import asyncio
 
-import pytest
 
 from harness.channels.telegram import (
     USER_COMMANDS,
@@ -103,17 +102,6 @@ def test_command_from_non_owner_is_dropped() -> None:
     assert commands == []
 
 
-def test_control_command_is_frozen_with_slashless_name() -> None:
-    """ControlCommand is a frozen dataclass and its name carries no leading
-    slash (seam S3 shape)."""
-    cmd = ControlCommand(name="status", args="", sender_id=42)
-    assert cmd.name == "status"
-    assert cmd.args == ""
-    assert cmd.sender_id == 42
-    with pytest.raises(AttributeError):
-        setattr(cmd, "name", "muted")
-
-
 # setMyCommands: the command menu registers only when commands are enabled.
 
 
@@ -129,7 +117,10 @@ def test_set_my_commands_registered_when_commands_enabled() -> None:
     asyncio.run(scenario())
     assert app.bot.registered_commands is not None
     names = [c.command for c in app.bot.registered_commands]
-    assert names == ["help", "ping", "setup", "tz", "status", "mute", "version"]
+    # The menu mirrors USER_COMMANDS (the single source of truth) — not a
+    # copied list that every new command has to update by hand.
+    assert names == [name for name, _ in USER_COMMANDS]
+    assert {"call", "hangup", "help", "ping", "status"} <= set(names)
 
 
 def test_set_my_commands_never_registers_state() -> None:
@@ -167,8 +158,6 @@ def test_set_my_commands_not_registered_when_commands_disabled() -> None:
 
 def test_user_commands_are_documented_with_descriptions() -> None:
     """Every registered command has a non-empty description (the client menu
-    renders it) and the set is exactly the plan's list."""
-    assert [c for c, _ in USER_COMMANDS] == [
-        "help", "ping", "setup", "tz", "status", "mute", "version",
-    ]
+    renders it)."""
+    assert USER_COMMANDS
     assert all(desc.strip() for _, desc in USER_COMMANDS)

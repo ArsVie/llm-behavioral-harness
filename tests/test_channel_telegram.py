@@ -14,7 +14,7 @@ from harness.channels.telegram import (
     split_sends,
 )
 from tests.helpers import FakeApplication, FakeBot, StubUpdate
-from tests.helpers.channel_fakes import StubChat, StubMessage
+from tests.helpers.channel_fakes import StubMessage
 
 
 def _run(coro) -> None:
@@ -213,6 +213,7 @@ def test_send_falls_back_to_plain() -> None:
     assert [c["text"] for c in app.bot.calls] == ["*hi* there"]
 
 
+
 def test_chunk_send_guardrail() -> None:
     """Oversized paragraphs split under the limit; short ones pass through."""
     assert chunk_send("abc") == ["abc"]
@@ -243,3 +244,25 @@ def test_poller_lock_single_holder_per_token(tmp_path, monkeypatch) -> None:
     again = acquire_poller_lock("TOKEN-abc")
     other.close()
     again.close()
+
+
+def test_a_typed_quote_keeps_its_marks() -> None:
+    """Live 2026-09-20 13:18: the owner quoted her line with Telegram's `>`.
+    Telegram strips the `>` and marks the range with a blockquote entity;
+    read as bare text, her words arrived as his. Offsets are UTF-16, so the
+    emoji before the quote must not shift it."""
+    from telegram import MessageEntity
+
+    from harness.channels.telegram import _with_quote_marks
+
+    quoted = "Proof's done (￣▽￣)\nand the drill"
+    text = f"🙂 {quoted}\nHeh, easy there Icarus"
+    utf16 = lambda s: len(s.encode("utf-16-le")) // 2  # noqa: E731
+    msg = StubMessage(text, 42)
+    msg.entities = (MessageEntity(
+        MessageEntity.BLOCKQUOTE, offset=utf16("🙂 "), length=utf16(quoted),
+    ),)
+    assert _with_quote_marks(msg, text) == (
+        "🙂 > Proof's done (￣▽￣)\n> and the drill\nHeh, easy there Icarus"
+    )
+    assert _with_quote_marks(StubMessage(text, 42), text) == text

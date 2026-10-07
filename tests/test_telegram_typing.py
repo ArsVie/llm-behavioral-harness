@@ -8,7 +8,6 @@ All waits are virtual (GateSleeper).
 
 import asyncio
 
-from harness.channels.base import FakeChannel
 from harness.channels.telegram import TelegramChannel
 from tests.helpers import FakeApplication, GateSleeper, ManualClock, drain
 
@@ -73,14 +72,6 @@ def test_typing_context_cleans_up_on_exit(monkeypatch) -> None:
     asyncio.run(scenario())
     assert len(app.bot.chat_actions) == 1
     assert sleeper.delays == [4.5]
-
-
-def test_typing_duck_typing_contract(monkeypatch) -> None:
-    """S4 probe: TelegramChannel exposes a callable typing_context; channels
-    that lack it (Fake/CLI) yield None -> the runtime's getattr is a no-op."""
-    app, channel, sleeper = make_channel(monkeypatch)
-    assert callable(getattr(channel, "typing_context", None))
-    assert getattr(FakeChannel(), "typing_context", None) is None
 
 
 def test_typing_flag_wiring(monkeypatch) -> None:

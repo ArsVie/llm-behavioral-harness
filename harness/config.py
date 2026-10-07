@@ -13,12 +13,8 @@ from harness.channels.base import Channel
 DEFAULT_CHANNEL = "cli"
 
 
-def select_channel(name: str, *, inbound: list[str] | None = None) -> Channel:
-    """Factory for the single active channel.
-
-      name=='cli'      -> harness.channels.cli.CLIChannel()
-      name=='telegram' -> harness.channels.telegram.TelegramChannel.from_env()
-      name=='fake'     -> harness.channels.base.FakeChannel(inbound=inbound)
+def select_channel(name: str) -> Channel:
+    """Factory for the single active channel: 'cli', 'telegram' or 'fake'.
 
     Channel modules are imported lazily inside the branch; unknown names
     raise ValueError listing the valid names."""
@@ -33,7 +29,7 @@ def select_channel(name: str, *, inbound: list[str] | None = None) -> Channel:
     if name == "fake":
         from harness.channels.base import FakeChannel
 
-        return FakeChannel(inbound=inbound)
+        return FakeChannel()
     raise ValueError(
         f"Unknown channel name {name!r}; valid names: 'cli', 'telegram', 'fake'"
     )

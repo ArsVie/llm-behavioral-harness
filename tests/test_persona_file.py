@@ -1,7 +1,7 @@
 """The authored voice comes from a file, and the file is authoritative.
 
 The voice lives in a file named by ``HARNESS_PERSONA_FILE``, applied on every
-start and composed with the drawn interest sentence; unset or broken config
+start as the whole core; unset or broken config
 falls back to Nova.
 """
 
@@ -13,10 +13,7 @@ from harness.interests import build_catalog
 from harness.persona import (
     DEFAULT_NAME,
     DEFAULT_VOICE,
-    INTEREST_SENTENCE_PREFIX,
     build_persona,
-    compose_core,
-    split_core,
 )
 from harness.persona_file import (
     MAX_CORE_CHARS,
@@ -97,18 +94,14 @@ def test_tilde_expansion(monkeypatch):
     assert path is not None and "~" not in str(path)
 
 
-# composition: the voice never eats the interests
+# the core is the voice; her interests ride her day, not a sentence
 
 
-def test_the_voice_is_composed_with_the_interest_sentence():
+def test_the_core_is_the_voice_alone():
     graph = build_catalog()
     persona = build_persona(8001, graph=graph, user_interests=MINE, voice=VOICE)
-    assert persona.core.startswith(VOICE)
-    assert INTEREST_SENTENCE_PREFIX in persona.core, (
-        "the drawn portfolio lost its only voice in the prompt"
-    )
-    # Authored prose gets its own paragraph; the terse default runs inline.
-    assert "\n\n" in persona.core
+    assert persona.core == VOICE
+    assert "absorbed in" not in persona.core
 
 
 def test_no_voice_reproduces_the_default_exactly():
@@ -125,15 +118,26 @@ def test_the_voice_does_not_disturb_the_seeded_draw():
     voiced = build_persona(8001, graph=graph, user_interests=MINE, voice=VOICE)
     assert voiced.interests == plain.interests
     assert voiced.routines == plain.routines
-    # Only the core differs, and only in its opening.
-    assert split_core(voiced.core)[1] == split_core(plain.core)[1]
 
 
-def test_split_core_leaves_an_unrecognized_shape_alone():
-    assert split_core("something hand-written with no interest sentence") is None
-    assert split_core("") is None
-    assert compose_core("", "b") == "b"
-    assert compose_core("a", "") == "a"
+def test_a_stored_core_with_the_old_sentence_is_rewritten(tmp_path, monkeypatch):
+    import dataclasses
+    monkeypatch.setenv(PERSONA_FILE_ENV, str(_write(tmp_path, VOICE)))
+    store = make_store(tmp_path, "old.db")
+    try:
+        first = ensure_companion_initialized(
+            store, seed=8001, user=UserProfile(name="Ars", interests=MINE), day=0,
+        )
+        store.save_persona(dataclasses.replace(
+            first.persona,
+            core=VOICE + "\n\nThese days you are absorbed in lifting, with a "
+            "soft spot for poetry and a quiet curiosity about birds."))
+        second = ensure_companion_initialized(
+            store, seed=8001, user=UserProfile(name="Ars", interests=MINE), day=0,
+        )
+        assert second.persona.core == first.persona.core
+    finally:
+        store.close()
 
 
 # the file is authoritative on EVERY start
@@ -156,11 +160,9 @@ def test_editing_the_file_changes_a_warm_start(tmp_path, monkeypatch):
             store, seed=8001, user=UserProfile(name="Ars", interests=MINE), day=0,
         )
         assert second.persona.core.startswith("You are Lily and you are done")
-        # The identity underneath is untouched: same portfolio, same routines,
-        # same interest sentence carried across verbatim.
+        # The identity underneath is untouched: same portfolio, same routines.
         assert second.persona.interests == drawn
         assert second.persona.routines == first.persona.routines
-        assert split_core(second.persona.core)[1] == split_core(first.persona.core)[1]
     finally:
         store.close()
 

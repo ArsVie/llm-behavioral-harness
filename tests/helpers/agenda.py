@@ -43,7 +43,10 @@ def ground_agenda(store, start_t_h, end_t_h, *, item_id="g1", salience=0.8,
     """
     item = agenda_item(item_id=item_id, start=start_t_h, end=end_t_h,
                        salience=salience, activity=activity)
-    store.save_agenda(0, DailyAgenda(0, (item,)))
+    # Adds to the day: a second call must not wipe the first item.
+    existing = store.load_agenda(0)
+    kept = tuple(i for i in (existing.items if existing else ()) if i.id != item.id)
+    store.save_agenda(0, DailyAgenda(0, kept + (item,)))
     return item
 
 

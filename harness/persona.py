@@ -44,9 +44,6 @@ SALIENCE_RANGES: dict[str, tuple[float, float]] = {
 #: Salience sampling range for routines.
 ROUTINE_SALIENCE_RANGE: tuple[float, float] = (0.30, 1.00)
 
-#: Counts are uniform over ``target +- 1`` (clamped to the pool).
-
-
 def _sample_count(rng: np.random.Generator, target: int, pool: int) -> int:
     """Count around ``target``: uniform over {target-1, target, target+1}.
 
@@ -64,88 +61,11 @@ def _sample_distinct(rng: np.random.Generator, candidates: list[str], k: int) ->
     return [candidates[int(i)] for i in idx[:k]]
 
 
-def _join_names(names: list[str]) -> str:
-    """'a, b and c' style join; '' for an empty list."""
-    if not names:
-        return ""
-    if len(names) == 1:
-        return names[0]
-    return ", ".join(names[:-1]) + " and " + names[-1]
-
-
 #: The built-in voice, used when no persona file is configured.
 DEFAULT_VOICE = (
     "You are Nova, a warm and attentive companion with your own days and "
     "rhythms."
 )
-
-
-#: Opening words of the generated interest sentence; also the split point for
-#: swapping an authored voice into a stored core (:func:`split_core`).
-INTEREST_SENTENCE_PREFIX = "These days you are absorbed in"
-
-
-def interest_sentence(
-    exacts: list[str], adjacent: list[str], independent: list[str]
-) -> str:
-    """The one sentence describing what this cycle's portfolio made her care
-    about. Pure function of the portfolio — no LLM, no store."""
-    absorbed = _join_names(exacts[:2]) if exacts else "many small things"
-    soft = _join_names(adjacent[:1]) if adjacent else "a few familiar comforts"
-    curious = _join_names(independent[:1]) if independent else "things you have not tried yet"
-    return (
-        f"{INTEREST_SENTENCE_PREFIX} {absorbed}, with a soft spot for {soft} "
-        f"and a quiet curiosity about {curious}."
-    )
-
-
-def split_core(core: str) -> tuple[str, str] | None:
-    """Split a stored core into ``(voice, interest_sentence)``.
-
-    Returns None when the core has no recognizable interest sentence — an
-    unexpected shape is left strictly alone rather than rewritten on a guess.
-    """
-    if not core:
-        return None
-    index = core.find(INTEREST_SENTENCE_PREFIX)
-    if index == -1:
-        return None
-    return core[:index].strip(), core[index:].strip()
-
-
-def compose_core(voice: str, interests: str) -> str:
-    """Authored voice first, then the drawn interests.
-
-    The two are COMPOSED, never substituted: dropping the interest sentence
-    would leave the seeded portfolio with no voice in the prompt. Authored
-    prose gets its own paragraph.
-    """
-    voice = (voice or "").strip()
-    interests = (interests or "").strip()
-    if not voice:
-        return interests
-    if not interests:
-        return voice
-    # The default voice runs straight into the interest sentence; authored
-    # prose gets its own paragraph.
-    joiner = " " if voice == DEFAULT_VOICE else "\n\n"
-    return voice + joiner + interests
-
-
-def _build_core(
-    exacts: list[str], adjacent: list[str], independent: list[str],
-    *, voice: str | None = None,
-) -> str:
-    """Deterministic core prose: the voice plus the sampled portfolio.
-
-    Pure function of (voice, portfolio) — no LLM, no store. ``voice`` is the
-    authored persona from the configured persona file; ``None`` uses
-    :data:`DEFAULT_VOICE`.
-    """
-    return compose_core(
-        voice if voice is not None else DEFAULT_VOICE,
-        interest_sentence(exacts, adjacent, independent),
-    )
 
 
 def build_persona(
@@ -166,9 +86,9 @@ def build_persona(
     ``seed`` seeds the persona stream (``stream_rng(seed, PERSONA_STREAM)``)
     unless an explicit ``rng`` is given. The graph is only read, never mutated.
 
-    ``voice`` is the authored persona prose that opens the core; ``None`` uses
-    :data:`DEFAULT_VOICE`. It is composed with the drawn interest sentence,
-    never substituted for it.
+    ``voice`` is the authored persona prose, which is the whole core; ``None``
+    uses :data:`DEFAULT_VOICE`. Her interests reach the prompt through her
+    day (the agenda), never as a sentence here.
 
     ``routine_catalog`` is the pool the daily routines are drawn from; ``None``
     uses :data:`ROUTINE_CATALOG`. It is an INPUT to the sampler, never
@@ -238,7 +158,7 @@ def build_persona(
     )
 
     # 5. Deterministic prose over the portfolio.
-    core = _build_core(exacts, adjacent, independent, voice=voice)
+    core = voice if voice is not None else DEFAULT_VOICE
     return PersonaProfile(
         name=DEFAULT_NAME, core=core, interests=interests, routines=routines
     )

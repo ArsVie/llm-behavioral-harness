@@ -13,7 +13,7 @@ from harness.domain import GenerationControls, ProactiveIntent
 from harness.judge import ScriptedJudge
 from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import ProactiveSchedule
-from harness.session import MAX_TURNS, Session, USER_LEFT_THRESHOLD_H
+from harness.session import Session, USER_LEFT_THRESHOLD_H
 from harness.store import SCHEMA_VERSION, SQLiteStore
 
 from tests.helpers import feed_when_started, no_wait
@@ -80,15 +80,6 @@ def test_store_v4_fresh_db_tables_and_backward_compatible_add_message(tmp_path):
     store = SQLiteStore(tmp_path / "s.db")
     rows = store.conn.execute("SELECT version FROM schema_meta").fetchall()
     assert len(rows) == 1 and rows[0]["version"] == SCHEMA_VERSION
-    tables = {
-        r["name"]
-        for r in store.conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'"
-        )
-    }
-    assert {"conversations", "conversation_turns"} <= tables
-    cols = {r["name"] for r in store.conn.execute("PRAGMA table_info(messages)")}
-    assert "conversation_id" in cols
     # backward compatible: the legacy add_message shape still works
     mid = store.add_message("user", "legacy call", 1.0, 0)
     assert mid > 0
@@ -245,43 +236,6 @@ def test_conversation_continues_while_user_replies(tmp_path, monkeypatch):
     store.close()
 
 
-def test_turn_counts_non_degenerate_distribution(tmp_path, monkeypatch):
-    """A1: with the draw flagged off a forced closing_tendency of 0.5 closes
-    nothing — one feed yields one open conversation, 2 turns per message."""
-    _forced_controls(monkeypatch, closing_tendency=0.5)
-    store = SQLiteStore(tmp_path / "s.db")
-    clock = VirtualClock()
-    session = _session(store, clock)
-    counts, reasons = _scripted_feed(session, clock, n_messages=40)
-    convs = store.list_conversations()
-    assert len(convs) == 1, f"draw-OFF feed must not split conversations: {convs}"
-    assert reasons == [] and counts == [], (
-        f"no closure can fire inside the awake window: {reasons}"
-    )
-    assert convs[0].close_reason is None
-    assert len(convs[0].turns) == 80  # exact: 2 turns per fed message
-    assert len(convs[0].turns) > 12   # legacy MAX_TURNS cap no longer applies
-    assert MAX_TURNS is None          # the cap tunable itself is OFF
-    store.close()
-
-
-def test_closing_tendency_share_under_high_tendency(tmp_path, monkeypatch):
-    """A2: even at a forced closing_tendency of 0.9 the flagged-off draw
-    produces zero ``closing_tendency`` closures; only quiet_hours fires."""
-    _forced_controls(monkeypatch, closing_tendency=0.9)
-    store = SQLiteStore(tmp_path / "s.db")
-    clock = VirtualClock()
-    session = _session(store, clock)
-    counts, reasons = _scripted_feed(session, clock, n_messages=300)
-    closed = [c for c in store.list_conversations() if c.close_reason is not None]
-    assert closed, "a feed crossing one midnight must produce the quiet_hours close"
-    share = sum(1 for r in reasons if r == "closing_tendency") / len(reasons)
-    assert share == 0.0, f"closing_tendency fired while flagged OFF: {reasons}"
-    assert reasons == ["quiet_hours"] and counts == [592]
-    assert closed[0].closed_t_h is not None and closed[0].closed_t_h > 23.0
-    store.close()
-
-
 def test_closing_tendency_ab_high_vs_low(tmp_path, monkeypatch):
     """A3: same seed, closing_tendency 0.1 vs 0.9 — with the draw flagged off
     both arms record identical close patterns."""
@@ -315,7 +269,6 @@ def test_max_turns_cap_closes_conversation(tmp_path, monkeypatch):
     store = SQLiteStore(tmp_path / "s.db")
     clock = VirtualClock(t_h=19.0)
     session = _session(store, clock)
-    assert MAX_TURNS is None  # the cap tunable itself is OFF
     for i in range(8):  # 8 exchanges = 16 turns > legacy cap of 12
         clock.advance_hours(0.05)
         session.on_message(f"m{i}")

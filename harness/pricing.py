@@ -13,22 +13,35 @@ time via ``harness/spend.py --pricing-json <file>``.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 #: Set False once real rates are confirmed (edit me).
 PRICING_PENDING: bool = False
 
-#: \$ per 1M tokens, keyed by model name (both wire ids key to same rates).
+#: DeepSeek V4 Flash — OpenRouter deepseek/deepseek-v4-flash.
+_V4_FLASH: dict[str, float] = {
+    "input_per_mtok": 0.0784,
+    "cached_input_per_mtok": 0.01568,
+    "output_per_mtok": 0.1568,
+}
+
+#: \$ per 1M tokens, keyed by model name.
 MODELS: dict[str, dict[str, float]] = {
-    # DeepSeek V4 Flash — OpenRouter deepseek/deepseek-v4-flash
-    "deepseek-v4-flash": {
-        "input_per_mtok": 0.0784,
-        "cached_input_per_mtok": 0.01568,
-        "output_per_mtok": 0.1568,
-    },
+    "deepseek-v4-flash": _V4_FLASH,
     # Same rates under the commandcode org-qualified id (the wire id).
-    "deepseek/deepseek-v4-flash": {
-        "input_per_mtok": 0.0784,
-        "cached_input_per_mtok": 0.01568,
-        "output_per_mtok": 0.1568,
+    "deepseek/deepseek-v4-flash": _V4_FLASH,
+    # DeepSeek V4.1 Flash on OpenCode Go (opencode.ai/docs/go, read
+    # 2026-09-26): off-peak rates, with the peak tier below. Go is a
+    # subscription whose usage limits are drawn in these same dollars.
+    "deepseek-v4.1-flash": {
+        "input_per_mtok": 0.15,
+        "cached_input_per_mtok": 0.003,
+        "output_per_mtok": 0.60,
+        "peak": {
+            "input_per_mtok": 0.30,
+            "cached_input_per_mtok": 0.006,
+            "output_per_mtok": 1.20,
+        },
     },
     # ox-alpha — stealth route, FREE (no cached tier).
     "stealth/ox-alpha": {
@@ -47,21 +60,39 @@ DEFAULT_MODEL_PRICING: dict[str, float] = {
 
 _RATE_KEYS = ("input_per_mtok", "cached_input_per_mtok", "output_per_mtok")
 
+#: OpenCode Go's DeepSeek peak hours: [start, end) UTC, Monday to Friday.
+PEAK_HOURS_UTC: tuple[tuple[int, int], ...] = ((1, 4), (6, 10))
+
+
+def is_peak(at: datetime) -> bool:
+    """Whether the instant ``at`` falls in a peak window (naive = UTC)."""
+    utc = at.astimezone(timezone.utc) if at.tzinfo else at
+    return utc.weekday() < 5 and any(
+        start <= utc.hour < end for start, end in PEAK_HOURS_UTC)
+
 
 def price_for(
     model: str | None,
     pricing: dict[str, dict[str, float]] | None = None,
+    *,
+    at: datetime | None = None,
 ) -> dict[str, float] | None:
     """Rates for ``model``: the named entry, the fallback tier for an
     unknown-but-named model, or ``None`` when the model is absent/blank
     (unpriced row — the report counts it but shows no dollars).
 
     ``pricing`` overrides the module-level ``MODELS`` table for this call
-    only (no global side effect); ``None`` uses the built-in rates.
+    only (no global side effect); ``None`` uses the built-in rates. ``at``
+    is the call's real instant, which picks a model's ``peak`` tier.
     """
     table = pricing if pricing is not None else MODELS
     if model and model in table:
-        return table[model]
+        entry = table[model]
+        peak = entry.get("peak")
+        # A call with no known time prices at the peak tier: never under.
+        if peak is not None and (at is None or is_peak(at)):
+            return dict(peak)
+        return {k: entry[k] for k in _RATE_KEYS}
     if model and model.strip():
         return dict(DEFAULT_MODEL_PRICING)
     return None

@@ -1,9 +1,8 @@
 """Concurrency + runtime-shutdown primitives.
 
-The async runtime's thread / executor / resource lifecycle: :class:`Sleeper`,
-:class:`ExecutorOwner`, :class:`CloseGuard`, :class:`ResourceRegistry`,
-:func:`shutdown_executor`, :func:`ensure_thread_safe_connection`. NO harness
-imports (importable from anywhere) and no wall-clock reads — the only wait
+The async runtime's thread / executor lifecycle: :class:`Sleeper`,
+:class:`ExecutorOwner`, :func:`ensure_thread_safe_connection`,
+:func:`run_with_deadline`. NO harness imports (importable from anywhere) and no wall-clock reads — the only wait
 primitive is the injectable :class:`Sleeper`. See ``SQLITE_THREAD_OWNERSHIP``
 for the thread/connection ownership contract.
 """
@@ -14,17 +13,13 @@ import asyncio
 import functools
 import sqlite3
 from concurrent.futures import Future, ThreadPoolExecutor
-from typing import Awaitable, Protocol, runtime_checkable
+from typing import Awaitable, Callable, Protocol, TypeVar, runtime_checkable
 
 __all__ = [
     "Sleeper",
     "AsyncSleeper",
-    "RecordingSleeper",
     "default_sleeper",
     "ExecutorOwner",
-    "CloseGuard",
-    "ResourceRegistry",
-    "shutdown_executor",
     "ensure_thread_safe_connection",
     "SQLITE_THREAD_OWNERSHIP",
 ]
@@ -37,7 +32,7 @@ __all__ = [
 class Sleeper(Protocol):
     """Awaitable delay used for every real wait in the runtime.
 
-    Tests inject a :class:`RecordingSleeper` so the suite never waits real
+    Tests inject a recording double so the suite never waits real
     seconds; production uses :class:`AsyncSleeper`. ``asyncio.sleep`` itself
     satisfies the protocol.
     """
@@ -50,19 +45,6 @@ class AsyncSleeper:
 
     async def __call__(self, seconds: float) -> None:
         await asyncio.sleep(seconds)
-
-
-class RecordingSleeper:
-    """Test double: records every requested duration, never waits.
-
-    ``delays`` holds the requested seconds in call order.
-    """
-
-    def __init__(self) -> None:
-        self.delays: list[float] = []
-
-    async def __call__(self, seconds: float) -> None:
-        self.delays.append(seconds)
 
 
 def default_sleeper() -> Sleeper:
@@ -145,100 +127,6 @@ class ExecutorOwner:
         self.shutdown()
 
 
-def shutdown_executor(executor: ThreadPoolExecutor | None, *, wait: bool = True) -> None:
-    """Idempotent shutdown for a bare executor (None-safe).
-
-    ``ThreadPoolExecutor.shutdown`` is itself safe to call repeatedly; this helper
-    makes the intent explicit and tolerates ``None`` (no executor created yet)."""
-    if executor is None:
-        return
-    executor.shutdown(wait=wait)
-
-
-# Resource ownership — owned vs injected, close exactly once
-
-
-class CloseGuard:
-    """Idempotent close wrapper: the wrapped resource's ``close()`` runs exactly
-    once no matter how many times :meth:`close` is called; a resource closed early
-    by someone else is skipped."""
-
-    def __init__(self, resource) -> None:
-        self._resource = resource
-        self._closed = False
-
-    @property
-    def closed(self) -> bool:
-        return self._closed
-
-    def close(self) -> None:
-        if self._closed:
-            return
-        self._closed = True
-        self._resource.close()
-
-    def __enter__(self) -> "CloseGuard":
-        return self
-
-    def __exit__(self, *exc) -> None:
-        self.close()
-
-
-class ResourceRegistry:
-    """Track resources with an explicit OWNED vs INJECTED flag.
-
-    - ``register(resource, owned=True)``: the registry closes this resource
-      (exactly once) in :meth:`close`.
-    - ``register(resource, owned=False)``: injected from outside — tracked but
-      NEVER closed here; its creator owns it (no double close).
-
-    :meth:`close` is idempotent; registering after close raises. If a resource's
-    ``close()`` raises, the remaining owned resources are still closed and the
-    first error is re-raised.
-    """
-
-    def __init__(self, name: str) -> None:
-        self.name = name
-        self._owned: list = []
-        self._injected: list = []
-        self._closed = False
-
-    @property
-    def owned_count(self) -> int:
-        return len(self._owned)
-
-    @property
-    def injected_count(self) -> int:
-        return len(self._injected)
-
-    @property
-    def closed(self) -> bool:
-        return self._closed
-
-    def register(self, resource, *, owned: bool = True) -> None:
-        if self._closed:
-            raise RuntimeError(f"registry {self.name!r} already closed")
-        (self._owned if owned else self._injected).append(resource)
-
-    def close(self) -> None:
-        """Close each OWNED resource exactly once; never touch injected."""
-        if self._closed:
-            return
-        self._closed = True
-        errors: list[Exception] = []
-        for resource in self._owned:
-            try:
-                CloseGuard(resource).close()
-            except Exception as exc:  # keep closing the rest, then re-raise
-                errors.append(exc)
-        self._owned.clear()
-        if errors:
-            raise RuntimeError(
-                f"{len(errors)} owned resource(s) failed to close "
-                f"in registry {self.name!r}"
-            ) from errors[0]
-
-
 # SQLite thread safety
 
 SQLITE_THREAD_OWNERSHIP = """
@@ -252,9 +140,9 @@ SQLite thread/connection ownership contract (Iteration 2, A6):
   runtime when replaced.
 - USERS: one event loop plus its worker threads, serialized by a single
   asyncio.Lock — at most ONE thread touches SQLite at any instant.
-- SHUTDOWN: the runtime closes the connection it opened and NEVER closes
-  the store itself (an injected store belongs to its creator; register it
-  owned=False so it is never closed twice).
+- SHUTDOWN: the runtime NEVER closes the store or the connection it
+  re-opened: an injected store belongs to its creator, and
+  SQLiteStore.close() closes its current connection.
 - THREAD SAFETY: check_same_thread=False + one Lock + WAL + busy_timeout.
 - Injected in-memory stores (tests) own their state entirely; the runtime
   leaves them open.
@@ -275,3 +163,23 @@ def ensure_thread_safe_connection(path: str, *, timeout: float = 10.0) -> sqlite
     conn.execute("PRAGMA journal_mode=WAL")
     conn.execute("PRAGMA busy_timeout=10000")
     return conn
+
+
+_T = TypeVar("_T")
+
+
+def run_with_deadline(fn: Callable[[], _T], budget_s: float, *, thread_name: str) -> _T:
+    """Run ``fn`` on a worker thread and wait at most ``budget_s`` seconds.
+
+    For model calls outside a turn: the client's own retry policy waits for
+    minutes and raises nothing meanwhile, so the wait itself is what has to
+    be bounded. Raises ``TimeoutError`` on the deadline (the worker is left
+    to finish on its own) or whatever ``fn`` raised. Not a ``with`` block:
+    ``ThreadPoolExecutor.__exit__`` waits for the worker and would undo the
+    deadline.
+    """
+    pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix=thread_name)
+    try:
+        return pool.submit(fn).result(timeout=budget_s)
+    finally:
+        pool.shutdown(wait=False, cancel_futures=True)

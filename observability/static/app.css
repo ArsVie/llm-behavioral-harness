@@ -69,7 +69,7 @@ body {
 /* Title and controls ride the same rows: stacked, the title line left a
    hand's width of empty banner beside it. */
 .topline {
-  flex: 1 1 auto; display: flex; flex-direction: row; flex-wrap: wrap;
+  flex: 0 1 auto; display: flex; flex-direction: row; flex-wrap: wrap;
   gap: 8px 16px; align-items: center; min-width: 0;
 }
 /* The brand gives way so the control grid can sit BESIDE the title rather
@@ -107,7 +107,7 @@ select, .btn { display: inline-flex; align-items: center; }
 .topbar-controls select { min-width: 0; max-width: 240px; padding-right: 8px; }
 .topbar-controls .check { justify-content: center; gap: 6px; border: 1px solid var(--line); padding: 0 12px; }
 .topbar-controls .btn { justify-content: center; }
-.topbar-controls .chip { justify-content: flex-start; overflow: hidden; white-space: nowrap; }
+.topbar-controls .chip { justify-content: flex-start; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
 select { min-width: 240px; }
 select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav); }
 /* A card's own controls are secondary to the page's: they sit at list scale,
@@ -116,8 +116,6 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
 .btn-quiet { background: transparent; }
 .btn:disabled { opacity: .45; cursor: default; }
 .btn:disabled:hover { background: var(--paper-2); border-color: var(--line); }
-.card-actions { padding: 4px 20px 8px; }
-.chiprow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; min-height: 38px; }
 .chip {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 6px 12px; border-radius: 999px; font-size: 13px; white-space: nowrap;
@@ -143,21 +141,27 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
    right: four readouts two-and-two beside the title, where a full-width row
    was a second header saying the same thing one row lower. */
 .statsline {
-  flex: 0 1 auto; width: min(620px, 100%); margin-left: auto; align-content: center;
+  /* Grows into whatever the title row leaves; when that is too narrow it
+     wraps onto a full row of its own, never a right-hand island. */
+  flex: 1 1 420px; min-width: 0; align-content: center;
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 5px;
 }
 @media (max-width: 860px) {
-  .statsline { width: 100%; margin-left: 0; }
+  .statsline { flex-basis: 100%; }
 }
-.stat { display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 6px;
+/* Label and figure share ONE line in every tile, so all four are two lines
+   tall: a narrow tile clips its label ("SPEND · CACHE H…") rather than
+   dropping the figure onto a line of its own. */
+.stat { display: grid; grid-template-columns: minmax(0, max-content) max-content 1fr;
+  align-items: baseline; column-gap: 6px;
   padding: 3px 8px 4px; border-radius: 9px; background: var(--paper-2); min-width: 0; }
 .stat-label, .stat-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .stat-label { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--ink-faint); }
 .stat-value { display: block; font-family: var(--mono); font-size: 14px; line-height: 1.2; }
 /* The second line carries what the headline number is made of, so a figure
    is never a bare number the reader has to hover to understand. */
-.stat-foot { flex-basis: 100%; display: block; font-size: 10px; color: var(--ink-soft); margin-top: 0;
+.stat-foot { grid-column: 1 / -1; display: block; font-size: 10px; color: var(--ink-soft); margin-top: 0;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .stat-foot:empty { display: none; }
 .stat-click { cursor: pointer; }
@@ -178,7 +182,6 @@ select:hover, .btn:hover { background: var(--lav-soft); border-color: var(--lav)
 .calls-card .table-wrap { padding-bottom: 6px; }
 @media (max-width: 1100px) {
   .grid { grid-template-columns: minmax(0, 1fr); }
-  .card-actions { padding-left: 16px; padding-right: 16px; }
 }
 
 .card-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 10px; padding: 10px 20px 4px; }
@@ -195,6 +198,11 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .view[hidden] { display: none; }
 .calls-card .view:not([hidden]) { flex: 1; display: flex; flex-direction: column; min-height: 0; }
 .calls-card .view > .table-wrap, .calls-card .view > .surface { flex: 1 1 auto; }
+/* The ledger takes the height its neighbour gives the row and scrolls inside
+   it: height 0 keeps 76 rows from growing the row, flex fills it. On one
+   column there is no neighbour, so the floor is the old fixed height. */
+.calls-card .view > .table-wrap, .calls-card .view > .surface { height: 0; max-height: none;
+  min-height: min(480px, 70vh); }
 
 /* ---------------------------------------------------- granularity switch */
 .viewswitch {
@@ -225,13 +233,30 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .big { font-size: 15px; margin: 0 0 2px; font-family: var(--mono); }
 .bar { display: flex; height: 16px; border-radius: 8px; overflow: hidden; background: var(--paper-2); margin: 10px 0; }
 .bar span { display: block; height: 100%; }
+/* One colour per part of the request: context.py's composition keys. */
 .seg-system { background: var(--lav); }
 .seg-tools { background: var(--mint); }
 .seg-messages { background: var(--peach); }
-.legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: 2px 14px; margin: 0; }
-.legend div { display: flex; align-items: baseline; gap: 8px; }
-.legend dt { display: flex; align-items: center; gap: 7px; font-size: 13px; color: var(--ink-soft); }
-.legend dd { margin: 0; font-family: var(--mono); font-size: 13px; }
+.seg-day_plan { background: var(--sun); }
+.seg-state_card { background: var(--rose); }
+.seg-card_update { background: var(--plum); }
+.seg-writing { background: var(--clay); }
+.seg-closing { background: var(--grey); }
+.seg-event { background: var(--sun-soft); }
+.seg-voice_call { background: var(--sage); }
+.seg-his { background: var(--peach); }
+.seg-hers { background: var(--sky); }
+.seg-tool_call { background: var(--mint-soft); }
+.seg-tool_result { background: var(--grey-soft); }
+/* The parts of the prompt, one row each: colour, name, tokens, share. */
+.ctx-rows { list-style: none; margin: 4px 0 0; padding: 0;
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr)); gap: 0 24px; }
+.ctx-rows li { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto 48px;
+               gap: 8px; align-items: center; padding: 1px 0; font-size: 13px; }
+.ctx-name { color: var(--ink-soft); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.ctx-tokens, .ctx-pct { font-family: var(--mono); font-size: 12.5px; text-align: right;
+                        font-variant-numeric: tabular-nums; }
+.ctx-pct { color: var(--ink-faint); }
 .swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
 
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 0 20px; }
@@ -296,6 +321,7 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .role-system { background: var(--peach-soft); color: #85512f; }
 .cached { font-size: 12px; color: #2f6a58; background: var(--mint-soft); border-radius: 6px; padding: 1px 6px; flex: none; }
 .fresh { font-size: 12px; color: #8a4761; background: var(--rose-soft); border-radius: 6px; padding: 1px 6px; flex: none; }
+.partial { font-size: 12px; color: #7a5b1e; background: var(--sun-soft); border-radius: 6px; padding: 1px 6px; flex: none; }
 
 /* ----------------------------------------------------------------- table */
 /* The table scrolls inside its own card at any width: a 9-column ledger
@@ -314,7 +340,12 @@ h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .08em; color: v
 .table tbody tr[data-selected="true"] { background: var(--grey-soft); }
 .table .leg { font-family: inherit; }
 .table .when { white-space: nowrap; }
-.table .note { font-family: inherit; color: #8a4761; }
+/* One line that takes whatever width the card has left: a long verdict
+   would make its row three times as tall, or push the column off the card.
+   The whole text rides the hover. */
+.table .note { font-family: inherit; color: #8a4761; white-space: nowrap; max-width: 0; width: 100%; min-width: 72px;
+               overflow: hidden; text-overflow: ellipsis; }
+.table .note.expired { color: var(--ink-faint); }
 .table .ok { color: #2f6a58; }
 .tag { border-radius: 6px; padding: 1px 6px; font-size: 12px; font-family: inherit; }
 .tag-chat { background: var(--sky-soft); color: #46688f; }
@@ -529,7 +560,7 @@ pre.aside {
 /* ------------------------------------------------------------ responsive */
 /* Grid/flex children default to min-width:auto, so a child holding a wide
    table or a long identifier drags the whole page sideways. */
-.card, .grid > *, .meter-figures, .legend div, .list li,
+.card, .grid > *, .meter-figures, .ctx-rows li, .list li,
 .bubble, .stat { min-width: 0; }
 .stat-value { overflow-wrap: anywhere; }
 
@@ -538,6 +569,9 @@ pre.aside {
   .topbar { padding: 14px 16px; gap: 12px; }
   .brand { flex: 1 1 100%; }
   .topbar-controls { flex: 1 1 100%; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  /* The liveness line is a sentence ("running, quiet · wrote 3.5h ago"):
+     half a phone row cuts it mid-word. */
+  .topbar-controls #liveness { grid-column: 1 / -1; }
   select { min-width: 0; width: 100%; }
   .meter { flex-wrap: wrap; gap: 14px; padding: 8px 16px 4px; }
   .ring-wrap { width: 108px; height: 108px; }
@@ -638,6 +672,8 @@ pre.aside {
                        color: var(--ink-soft); }
 .cal-block .cal-what { color: var(--ink); white-space: nowrap; overflow: hidden;
                        text-overflow: ellipsis; }
+.cal-block.is-short { padding: 0 6px; font-size: 10px; line-height: 1.15;
+                      justify-content: center; }
 .cal-block.is-future .cal-when, .cal-block.is-future .cal-what {
   color: var(--ink-faint);
 }
@@ -690,6 +726,7 @@ pre.aside {
                padding: 2px 0 3px; background: var(--card);
                font-size: 10.5px; font-weight: 600;
                color: var(--ink); text-align: center; }
+.cal-week .cal-gutter { flex: 0 0 38px; }
 .cal-week .cal-hours, .cal-week .cal-col { --cal-h: 720px; }
 .cal-week .cal-col.is-today { background-color: rgba(185, 167, 240, 0.14); }
 .cal-week .cal-col.is-future-day { opacity: 0.5; }
@@ -706,28 +743,35 @@ pre.aside {
                      text-align: center; }
 .cal-grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr));
             gap: 4px; flex: 1 1 auto; min-height: 0;
-            grid-auto-rows: minmax(46px, 1fr); }
-.cal-date { position: relative; min-height: 46px; border-radius: 8px;
-            border: 1px solid transparent; font-size: 11.5px;
-            color: var(--ink-faint); }
-.cal-date-n { position: absolute; top: 3px; left: 6px; font-size: 10px;
+            grid-auto-rows: minmax(max-content, 1fr); overflow-y: auto; }
+.cal-date { min-height: 40px; border-radius: 6px; padding: 4px 6px;
+            border: 1px solid var(--grey-soft);
+            display: flex; flex-direction: column; gap: 2px; overflow: hidden;
+            font-size: 10.5px; line-height: 1.25; color: var(--ink-faint); }
+.cal-date-top { display: flex; align-items: baseline; gap: 6px;
+                justify-content: space-between; }
+.cal-date-n { font-size: 11px; font-weight: 600;
               font-variant-numeric: tabular-nums; color: var(--ink-soft); }
+.cal-date-phase { font-size: 9.5px; white-space: nowrap; overflow: hidden;
+                  text-overflow: ellipsis; }
 .cal-blank { min-height: 46px; }
-.cal-date.has-run { border-color: var(--line); background: var(--paper-2);
-                    color: var(--ink); cursor: pointer; }
-.cal-date.has-run:hover { border-color: var(--lav); }
-.cal-date.is-today { border-color: var(--lav); box-shadow: inset 0 0 0 1px var(--lav); }
+.cal-date.has-run { border-color: var(--line); border-left-width: 3px; background: var(--paper-2);
+                    color: var(--ink-soft); cursor: pointer; }
+.cal-date.has-run:hover { border-top-color: var(--lav); border-right-color: var(--lav);
+                          border-bottom-color: var(--lav); }
+.cal-date.is-today { box-shadow: inset 0 0 0 1px var(--lav); }
 .cal-date.is-future { opacity: 0.4; }
-/* How much the two of them talked: her words above yours, scaled to the
-   month's fullest day. */
-.cal-date-bars { position: absolute; left: 6px; right: 6px; bottom: 5px;
-                 height: 22px; display: flex; flex-direction: column;
-                 justify-content: flex-end; gap: 1px; }
-.cal-date-bars i { display: block; border-radius: 2px; }
-.cal-date-bars .you { background: var(--ink); }
-.cal-date-bars .her { background: var(--sky); }
-.cal-date-flag { position: absolute; top: 4px; right: 5px; width: 7px; height: 7px;
-                 border-radius: 2px; background: var(--rose); }
+.cal-date-line { flex-shrink: 0; font-variant-numeric: tabular-nums; }
+.cal-date-mood { display: flex; align-items: center; gap: 5px;
+                 font-variant-numeric: tabular-nums; color: var(--ink); }
+.cal-date-meter { flex: 1 1 auto; height: 4px; border-radius: 2px;
+                  background: linear-gradient(90deg, var(--lav) var(--fill), var(--line) var(--fill)); }
+/* Her words about the day, clamped: the whole sentence is in the tip. */
+.cal-date-verdict { color: var(--ink-soft); font-style: italic;
+                    display: -webkit-box; -webkit-box-orient: vertical;
+                    -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden;
+                    flex-shrink: 0; }
+.cal-date-first { color: var(--rose); }
 
 /* ---- the panels: a plot box on the app's own type scale */
 .panel-sub { margin: 0 0 6px; font-size: 11px; color: var(--ink-faint); }
@@ -749,11 +793,6 @@ pre.aside {
                     border-right: 4px solid transparent;
                     border-top: 6px solid var(--rose); }
 .panel-events .ev.held { border-top-color: var(--grey-soft); }
-.panel-events .ev-label { position: absolute; bottom: 7px;
-                          transform: translateX(-50%); font-size: 9px;
-                          color: var(--ink-faint); white-space: nowrap;
-                          max-width: 120px; overflow: hidden;
-                          text-overflow: ellipsis; }
 .panel-plot { grid-column: 2; grid-row: 2; position: relative;
               border-bottom: 1px solid var(--line); }
 .panel-lines { position: absolute; inset: 0; width: 100%; height: 100%;
@@ -780,10 +819,6 @@ pre.aside {
           transform: translate(-50%, -50%); background: var(--ink);
           border: 1px solid var(--ink); box-shadow: 0 0 0 2px var(--card); }
 .rh-dot.held { background: transparent; border: 1px dashed var(--ink); }
-/* Her words where they fell on the day's curve. */
-.rh-msg { position: absolute; width: 5px; height: 5px; border-radius: 1px;
-          transform: translate(-50%, -50%); background: var(--sky);
-          box-shadow: 0 0 0 1.5px var(--card); }
 
 /* ---- the panels: contact marks */
 .ct-row { position: absolute; left: 0; right: 0; }
@@ -803,3 +838,92 @@ pre.aside {
 .ct-chip { display: inline-block; width: 8px; height: 8px; border-radius: 2px;
            flex: 0 0 auto; }
 .panel-y .ct-chip { position: static; }
+
+/* ----------------------------------------------------------------- pages */
+/* The three pages (Chat, Debug, Setup) share this stylesheet and this
+   switch: the same pill control as the cards' view switches. */
+.pages { flex: none; }
+.pages a.vbtn { text-decoration: none; }
+.pages .vbtn[aria-current="page"] {
+  background: var(--card); color: var(--ink); font-weight: 600; box-shadow: var(--shadow-soft);
+}
+.page-narrow { max-width: 1180px; }
+.topbar .topline .push { margin-left: auto; }
+
+/* ------------------------------------------------------------------ chat */
+.chat-grid { display: grid; gap: 18px; align-items: start;
+  grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); }
+.stage { position: relative; overflow: hidden;
+  background: radial-gradient(120% 80% at 50% 20%, var(--rose-soft), var(--lav-soft)); }
+/* The framed sprite is a bust with room above and below: crop to head and
+   shoulders so the face reads at any size (as in amadeus face/chat-demo). */
+#face { width: 100%; aspect-ratio: 5 / 6; overflow: hidden; }
+#face img { width: 165% !important; height: auto !important; left: -32.5% !important; top: -19% !important;
+            right: auto !important; bottom: auto !important; }
+.stage .chip { position: absolute; left: 12px; bottom: 12px; }
+.stage .chip[hidden] { display: none; }
+.chat-card { display: flex; flex-direction: column; height: calc(100vh - 190px); min-height: 440px; overflow: hidden; }
+.chat-card .card-head { align-items: center; padding: 12px 20px; border-bottom: 1px solid var(--line); }
+.chat-card .card-head .chip { margin-right: auto; margin-left: 10px; }
+#log { flex: 1; overflow-y: auto; padding: 14px 20px; display: flex; flex-direction: column; gap: 6px; }
+.msg { max-width: 82%; background: var(--paper-2); border-radius: 16px 16px 16px 5px; padding: 7px 13px;
+       white-space: pre-wrap; overflow-wrap: anywhere; }
+.msg.him { align-self: flex-end; background: var(--lav-soft); border-radius: 16px 16px 5px 16px; }
+.msg.first { margin-top: 8px; }
+.msg.photo { padding: 4px; line-height: 0; }
+.msg.photo img { display: block; max-width: 100%; max-height: 320px; border-radius: 12px; }
+.when { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); align-self: center; margin-top: 10px; }
+#log .note { font-size: 12px; color: var(--ink-soft); align-self: center; text-align: center; max-width: 90%;
+            white-space: pre-wrap; background: var(--sun-soft); border-radius: var(--radius-sm); padding: 4px 12px; }
+#typing { padding: 0 20px 6px; font-size: 12px; color: var(--ink-faint); min-height: 22px; }
+.composer { display: flex; gap: 8px; padding: 10px 20px 16px; border-top: 1px solid var(--line); }
+.composer textarea { flex: 1; font: inherit; color: var(--ink); background: var(--paper);
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 8px 12px; resize: none; height: 40px; }
+.composer textarea:focus { outline: 2px solid var(--lav); outline-offset: -1px; }
+.btn-attach { width: 40px; height: 40px; padding: 0; justify-content: center; flex: none; }
+.btn-attach svg { width: 18px; height: 18px; }
+.chat-card.dropping { outline: 2px dashed var(--lav); outline-offset: -6px; }
+.tray { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 20px 0; border-top: 1px solid var(--line); }
+.tray[hidden] { display: none; }
+.tray + .composer { border-top: 0; }
+.tray .thumb { position: relative; width: 64px; height: 64px; }
+.tray .thumb img { width: 100%; height: 100%; object-fit: cover; border-radius: var(--radius-sm);
+  border: 1px solid var(--line); }
+.tray .thumb button { position: absolute; top: -6px; right: -6px; width: 22px; height: 22px; padding: 0;
+  border-radius: 50%; border: 1px solid var(--line); background: var(--paper); color: var(--ink);
+  font: 600 13px/1 inherit; cursor: pointer; }
+.btn-accent { background: var(--lav-soft); border-color: var(--lav); font-weight: 600; }
+.btn-call { background: var(--mint-soft); border-color: var(--mint); color: #2f6a58; font-weight: 600; gap: 6px; }
+.btn-call svg { width: 15px; height: 15px; }
+@media (max-width: 760px) {
+  .page-narrow { padding: 12px 16px 24px; }
+  .chat-grid { grid-template-columns: 1fr; gap: 12px; }
+  #face { aspect-ratio: auto; height: min(30vh, calc((100vw - 32px) * 1.1)); }
+  #face img { width: auto !important; height: 150% !important; left: 50% !important; top: -13% !important;
+              transform: translateX(-50%); }
+  .chat-card { height: auto; min-height: 0; }
+  #log { max-height: 38vh; min-height: 120px; }
+}
+
+/* ----------------------------------------------------------------- setup */
+.setup-grid { display: grid; gap: 18px; align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 380px); }
+.setup-grid > div { display: grid; gap: 18px; }
+.cmd-row { display: grid; grid-template-columns: 170px minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding: 10px 20px; border-top: 1px solid var(--line); }
+.card-head + .cmd-row { border-top: 0; }
+.cmd-row b { font-weight: 600; }
+.cmd-row p { margin: 2px 0 0; font-size: 12px; color: var(--ink-faint); }
+.cmd-row input { font: inherit; color: var(--ink); background: var(--paper); min-width: 0; width: 100%;
+  border: 1px solid var(--line); border-radius: var(--radius-sm); padding: 0 12px; height: 38px; }
+.answers { position: sticky; top: 12px; }
+.answers .card-head { align-items: center; }
+#answers { padding: 8px 20px 18px; display: flex; flex-direction: column; gap: 8px; max-height: 70vh; overflow-y: auto; }
+.ans { white-space: pre-wrap; font-size: 13px; background: var(--paper-2); border-radius: var(--radius-sm); padding: 8px 12px; }
+.ans small { display: block; font-family: var(--mono); color: var(--ink-faint); font-size: 11px; margin-bottom: 2px; }
+@media (max-width: 860px) {
+  .setup-grid { grid-template-columns: 1fr; }
+  .cmd-row { grid-template-columns: 1fr auto; }
+  .cmd-row > :nth-child(2) { grid-column: 1 / -1; grid-row: 2; }
+  .answers { position: static; }
+}

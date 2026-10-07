@@ -25,6 +25,9 @@ KIND_EVENT_POPUP = "event_popup"
 #: A grounded proactive intent is due for the initiate/decline decision
 #: (payload -> ``tool_decide_proactive``).
 KIND_PROACTIVE = "proactive_intent"
+#: He is calling her (voice): the pick-up decision
+#: (payload -> ``tool_decide_call``).
+KIND_INCOMING_CALL = "incoming_call"
 #: A scheduled proactive fire is due.
 KIND_SCHEDULE_FIRE = "schedule_fire"
 #: The day rolled over (new day context block).
@@ -37,9 +40,17 @@ KIND_PRIORITY: dict[str, int] = {
     # Between the event pop-up and a plain fire: a grounded intent must be
     # DECIDED before any plain fire renders.
     KIND_PROACTIVE: 2,
+    # After the event pop-ups: she decides on the call knowing what she is
+    # doing.
+    KIND_INCOMING_CALL: 2,
     KIND_SCHEDULE_FIRE: 3,
     KIND_DAY_ROLLOVER: 4,
 }
+
+#: Kinds whose steer is a decision pop-up (a model call): one per turn.
+DECISION_KINDS: frozenset[str] = frozenset(
+    {KIND_EVENT_POPUP, KIND_PROACTIVE, KIND_INCOMING_CALL}
+)
 
 #: Fallback priority for unknown kinds.
 _KIND_PRIORITY_FALLBACK = 99
@@ -94,74 +105,10 @@ class SteerBackend(Protocol):
         """Terminal status for a steer whose retry budget is exhausted."""
         ...
 
-
-class InMemorySteerBackend:
-    """In-memory ``SteerBackend`` for tests and offline runs.
-
-    Mirrors the SQLite implementation row-for-row. ``storage`` may be shared
-    across instances to simulate a process restart: a fresh backend over the
-    same storage sees the same pending steers.
-    """
-
-    def __init__(self, storage: dict[int, dict] | None = None):
-        self.storage: dict[int, dict] = storage if storage is not None else {}
-        self._next_id = max(self.storage, default=0) + 1
-
-    def enqueue_steer(self, day: int, t_h: float, kind: str, payload: dict) -> int:
-        steer_id = self._next_id
-        self._next_id += 1
-        self.storage[steer_id] = {
-            "id": steer_id,
-            "day": day,
-            "t_h": t_h,
-            "kind": kind,
-            "payload": dict(payload),
-            "delivered_t_h": None,
-            "boundary": None,
-            "status": "pending",
-            "seen_turn_id": None,
-            "attempts": 0,
-        }
-        return steer_id
-
-    def pending_steers(self, day: int | None = None, limit: int = 50) -> list[dict]:
-        rows = [
-            dict(row)
-            for row in self.storage.values()
-            if row["status"] == "pending" and (day is None or row["day"] == day)
-        ]
-        rows.sort(key=lambda row: row["id"])
-        return rows[:limit]
-
-    def mark_steer_delivered(
-        self,
-        steer_id: int,
-        delivered_t_h: float,
-        boundary: str,
-        seen_turn_id: str | None,
-    ) -> None:
-        if steer_id not in self.storage:
-            raise KeyError(f"unknown steer id: {steer_id}")
-        row = self.storage[steer_id]
-        row["status"] = "delivered"
-        row["delivered_t_h"] = delivered_t_h
-        row["boundary"] = boundary
-        row["seen_turn_id"] = seen_turn_id
-
-    def requeue_steer(self, steer_id: int) -> None:
-        if steer_id not in self.storage:
-            raise KeyError(f"unknown steer id: {steer_id}")
-        row = self.storage[steer_id]
-        row["status"] = "pending"
-        row["delivered_t_h"] = None
-        row["boundary"] = None
-        row["seen_turn_id"] = None
-        row["attempts"] = int(row.get("attempts", 0)) + 1
-
-    def abandon_steer(self, steer_id: int) -> None:
-        if steer_id not in self.storage:
-            raise KeyError(f"unknown steer id: {steer_id}")
-        self.storage[steer_id]["status"] = "abandoned"
+    def release_steer(self, steer_id: int) -> None:
+        """Return a delivered steer to 'pending' WITHOUT bumping ``attempts``
+        (it was never asked: the turn's one pop-up went to another)."""
+        ...
 
 
 # --------------------------------------------------------------------------- #
@@ -265,16 +212,23 @@ class SteeringQueue:
         """Re-queue a delivered steer after its turn was interrupted.
 
         The backend returns it to 'pending' (delivery fields cleared) and
-        bumps its attempt count; idempotent for the interrupt handler.
+        bumps its attempt count; idempotent for the interrupt handler. A
+        requeue that spends the last attempt abandons the steer here, so
+        the queue never shows a pending steer nobody will ask again.
         """
         self._backend.requeue_steer(steer_id)
+        if self.attempts(steer_id) >= MAX_ATTEMPTS:
+            self.abandon(steer_id)
+
+    def release(self, steer_id: int) -> None:
+        """Hand a drained steer back unasked, for the next boundary: one
+        pop-up per turn, the rest defer (owner ruling 2026-10-03). No attempt
+        is spent."""
+        self._backend.release_steer(steer_id)
 
     def abandon(self, steer_id: int) -> None:
-        """Stop retrying a steer for good (budget exhausted). No-op on a
-        backend without the seam."""
-        abandon = getattr(self._backend, "abandon_steer", None)
-        if abandon is not None:
-            abandon(steer_id)
+        """Stop retrying a steer for good (budget exhausted)."""
+        self._backend.abandon_steer(steer_id)
 
     def attempts(self, steer_id: int) -> int:
         """Attempt count of one steer (0 when unknown)."""
@@ -352,6 +306,12 @@ def render_steer_block(steer: Steer | dict) -> str:
             f"System: {{Event: {event}, State: {state}, Time: {time_str}, "
             f'User message: "{message}"}}'
         )
+    if kind == KIND_INCOMING_CALL:
+        return (
+            f"System: {{Incoming call: he is calling you (voice), "
+            f"Time: {time_str}}}\n"
+            '{Answer: {yes, no}, Reason: " "}'
+        )
     if kind == KIND_SCHEDULE_FIRE:
         label = payload.get("label", payload.get("name", payload.get("intent", "?")))
         return f"System: {{Schedule: {label}, Time: {time_str}}}"
@@ -366,10 +326,13 @@ def render_steer_block(steer: Steer | dict) -> str:
 #: Trust marker wrapping a rendered steer block: a DELIMITER that lets the
 #: audit view and the parser find the block, not an authority statement.
 STEER_MARKER_OPEN = (
-    "[STEER — a real arriving event from the harness, delivered once at this "
+    "[STEER: a real arriving event from the harness, delivered once at this "
     "position; not conversation text and not a new delivery when replayed "
     "from history]"
 )
+#: What every steer marker starts with, the 2026-10-03 one and the earlier
+#: "[STEER — ..." one stored rows still carry; readers key on this.
+STEER_MARKER_LEAD = "[STEER"
 STEER_MARKER_CLOSE = "[/STEER]"
 
 

@@ -171,6 +171,13 @@ class SeamStore:
             self._schedule[key]["status"] = "fired"
             self._schedule[key]["fired_t_h"] = float(fired_t_h)
 
+    def mark_schedule_suppressed(self, seed: int, t_h: float,
+                                 at_t_h: float) -> None:
+        key = (seed, float(t_h))
+        if key in self._schedule:
+            self._schedule[key]["status"] = "suppressed"
+            self._schedule[key]["fired_t_h"] = float(at_t_h)
+
     def mark_schedule_expired(self, seed: int, t_h: float) -> None:
         key = (seed, float(t_h))
         if key in self._schedule:

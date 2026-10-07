@@ -1,8 +1,7 @@
 """Scripted scenarios + offline driver for availability negotiation.
 
 Deterministic, offline (no LLM, no network) scripted runs of the six
-scenarios (docs/availability-negotiation-contract.md +
-harness/negotiation_contract.py — frozen, import only):
+scenarios (harness/negotiation_contract.py — frozen, import only):
 
   1. retain        — user keeps actively talking past the boundary -> repeated
                      delay, she stays past start_t_h, then pauses -> the AFK
@@ -37,9 +36,9 @@ The wake discipline mirrors the runtime: turns at scripted instants, parks
 at Session.next_negotiation_trigger_t_h (AFK bomb / window-close backstop)
 with Session.check_negotiation at each park, exactly like the rollover loop.
 
-Every observable asserted by tests/test_availability_negotiation.py is
-store/contract-level: agenda status, decision_records rows, audit events,
-channel output, conversation close reasons.
+Every observable in a ScenarioResult is store/contract-level: agenda
+status, decision_records rows, audit events, channel output, conversation
+close reasons.
 
 The real implementation's seam choices:
 
@@ -79,13 +78,11 @@ from harness.domain import AgendaItem, Conversation, DailyAgenda
 from harness.judge import ScriptedJudge
 from harness.session import Session
 from harness.store import SQLiteStore
-from harness.steering import STEER_MARKER_OPEN
+from harness.steering import STEER_MARKER_LEAD
 from harness.tools import DecisionConfig
 
 # popup_kind for both negotiation phases.
 POPUP_KIND = "tool_decide_event"
-# Distinct close reason on go.
-CLOSE_REASON_FOLLOWED = "followed_event"
 # t_h comparison tolerance for virtual-clock instants.
 _EPS = 1e-9
 
@@ -101,10 +98,6 @@ def at_t_h(t_h: float, text: str) -> dict:
 
 def v_go(reason: str = "ok, going now") -> dict:
     return {"initiate": "yes", "reason": reason}
-
-
-def v_skip(reason: str = "skipping it after all") -> dict:
-    return {"initiate": "no", "reason": reason}
 
 
 def v_delay(reason: str = "just a sec", turns: int | None = None) -> dict:
@@ -311,7 +304,7 @@ class ScriptedClient:
         tool_choice: dict | str | None = None,
         reasoning_effort: str | None = None,
     ) -> ChatResult:
-        is_popup = bool(messages) and STEER_MARKER_OPEN in (
+        is_popup = bool(messages) and STEER_MARKER_LEAD in (
             str(messages[-1].get("content") or "")
         )
         self.calls.append(
@@ -480,10 +473,7 @@ def run_scenario(
         model_calls=[
             c for c in client.calls if c["popup"]
         ],
-        conversations=(
-            store.list_conversations()
-            if hasattr(store, "list_conversations") else []
-        ),
+        conversations=store.list_conversations(),
         final_t_h=clock.now_h(),
         informed=informed,
         store=store,
