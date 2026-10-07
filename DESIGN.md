@@ -216,7 +216,7 @@ Starting point to be tuned by simulation; full table in the [synthesis §4](rese
 | Cycle mean offset | `B` | 0.5 — tuned post-Phase 1 with a 30-seed averaged sweep (was 0.15; see `engine_simulation/`) |
 | Cycle reactivity gain | `A` | 0.25 |
 | Hormonal noise | `σ_ε` | 0.03 |
-| Endogenous mood AR(1) | `ρ_e` / `σ_e` | 0.7 / 0.45 — tuned and adopted in Phase 1 (were 0.5 / 0.2; see [report](results/fase-1-informe.md)) |
+| Endogenous mood AR(1) | `ρ_e` / `σ_e` | 0.7 / 0.45 — tuned and adopted in Phase 1 (were 0.5 / 0.2; see [report](results/phase-1-report.md)) |
 | Volatility (beta-binomial) | `ν` | ∞ (=binomial); sweep {∞, 8, 4} |
 | Circadian amplitude (energy) | — | ±0.25 (peak ~14:00) |
 | Weibull hazard | `k_w` / `θ` | 2.0 / ~13.5 h (baseline mean ~12 h) |

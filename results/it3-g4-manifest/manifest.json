@@ -61,7 +61,7 @@
       {
         "condition": "STRUCTURED_NO_STATE",
         "channel": "timing",
-        "assertion": "GATE (canal no dormido): n_proactive, eventos disparados o horas proactivas divergen de FULL por >= 5% (o artefactos realizados no idénticos) — el margen de efecto preregistrado 0.15 se prueba en la matriz real",
+        "assertion": "GATE (channel not asleep): n_proactive, fired events or proactive hours diverge from FULL by >= 5% (or realized artifacts not identical) — the preregistered effect margin 0.15 is tested on the real matrix",
         "min_days": 4
       },
       {
@@ -73,7 +73,7 @@
       {
         "condition": "NO_TIMING_FEEDBACK",
         "channel": "timing",
-        "assertion": "POSITIVE CONTROL (gate, canal no dormido): el canal de timing produce artefactos realizados divergentes de FULL (n_proactive o eventos disparados por >= 5%, u horas proactivas no idénticas) — medido en el horizonte confirmatorio",
+        "assertion": "POSITIVE CONTROL (gate, channel not asleep): the timing channel produces realized artifacts diverging from FULL (n_proactive or fired events by >= 5%, or proactive hours not identical) — measured on the confirmatory horizon",
         "min_days": 4
       },
       {

@@ -14,14 +14,14 @@ timestamp: 2026-07-03
 
 | Figure | What it shows | What to look at |
 |---|---|---|
-| `00_comparativa.png` | Small multiples 2×3 of M(t) for the 6 scenarios, shared y axis | Quick contrast of dispersion and mean level across scenarios |
+| `00_comparison.png` | Small multiples 2×3 of M(t) for the 6 scenarios, shared y axis | Quick contrast of dispersion and mean level across scenarios |
 | `01_baseline.png` | All effects active: m/g cycle + endogenous runs η + event memory μ | Baseline line to compare the other scenarios against |
-| `02_solo_ciclo.png` | σ_e=0, k=0 ⇒ η≡0 and μ≡0: only the hormonal m/g wave remains | Pure ~28-day periodicity, without run noise or memory |
-| `03_solo_endogeno.png` | B=0, A=0, σ_ε=0, k=0: only the endogenous runs η remain | "Woke up like this, no reason" drift, without cycle periodicity |
-| `04_racha_negativa.png` | Defaults + shocks days 10–14 = −1.0 (via μ) | Depth of the μ drop during the run and recovery speed once released |
-| `05_alta_volatilidad.png` | ν=4.0: beta-binomial overdispersion | M(t) more erratic day to day than the baseline, wider reference band |
-| `06_ciclo_fuerte.png` | A=0.4, B=0.3: "perceptible phase" variant (risk R2, results/fase-1-informe.md) | m/g oscillation and its pull on M(t) much more visible in a single cycle |
-| `07_intradia.png` | Circadian (fast) effect on the baseline: p_h(d,h) heatmap and per-phase energy curves | Daily peak of message probability around `peak_hour`, and how the per-phase energy offset shifts each curve |
+| `02_cycle_only.png` | σ_e=0, k=0 ⇒ η≡0 and μ≡0: only the hormonal m/g wave remains | Pure ~28-day periodicity, without run noise or memory |
+| `03_endogenous_only.png` | B=0, A=0, σ_ε=0, k=0: only the endogenous runs η remain | "Woke up like this, no reason" drift, without cycle periodicity |
+| `04_negative_streak.png` | Defaults + shocks days 10–14 = −1.0 (via μ) | Depth of the μ drop during the run and recovery speed once released |
+| `05_high_volatility.png` | ν=4.0: beta-binomial overdispersion | M(t) more erratic day to day than the baseline, wider reference band |
+| `06_strong_cycle.png` | A=0.4, B=0.3: "perceptible phase" variant (risk R2, results/phase-1-report.md) | m/g oscillation and its pull on M(t) much more visible in a single cycle |
+| `07_intraday.png` | Circadian (fast) effect on the baseline: p_h(d,h) heatmap and per-phase energy curves | Daily peak of message probability around `peak_hour`, and how the per-phase energy offset shifts each curve |
 
 ## Regenerate
 
@@ -40,11 +40,11 @@ Base persona = `PersonaParams()` (defaults): lam=0.6, nu=inf, k=0.15, rho=0.7, r
 | Scenario | Overrides (dataclasses.replace) | Shocks |
 |---|---|---|
 | `01_baseline` (baseline) | — | — |
-| `02_solo_ciclo` (hormonal cycle only) | sigma_e=0.0, k=0.0 | — |
-| `03_solo_endogeno` (endogenous runs only) | B=0.0, A=0.0, sigma_eps=0.0, k=0.0 | — |
-| `04_racha_negativa` (negative run (shocks 10-14)) | — | days 10–14 = -1.0 |
-| `05_alta_volatilidad` (high volatility (nu=4.0)) | nu=4.0 | — |
-| `06_ciclo_fuerte` (strong cycle (A=0.4, B=0.3)) | A=0.4, B=0.3 | — |
+| `02_cycle_only` (hormonal cycle only) | sigma_e=0.0, k=0.0 | — |
+| `03_endogenous_only` (endogenous runs only) | B=0.0, A=0.0, sigma_eps=0.0, k=0.0 | — |
+| `04_negative_streak` (negative run (shocks 10-14)) | — | days 10–14 = -1.0 |
+| `05_high_volatility` (high volatility (nu=4.0)) | nu=4.0 | — |
+| `06_strong_cycle` (strong cycle (A=0.4, B=0.3)) | A=0.4, B=0.3 | — |
 
 ## Further readings
 
@@ -52,12 +52,12 @@ With B=0.15 (default) the hormonal cycle moves the real mood N·p(t) by only ≈
 
 | Figure | What it shows | How to read it |
 |---|---|---|
-| `10_barrido_B.png` | 4 panels (B ∈ {0.15, 0.30, 0.50, 0.65}, rest of the persona = defaults): M(t) (daily die roll, gray), N·p(t) ± σ_binom (real mood, blue) and MA7(M) (7-day moving average, dashed orange) | Compare each panel's theoretical amplitude in its title (≈2.4·B steps) against the sampling noise sd≈1.55 steps: only with B≈0.5–0.65 does the wave become visible to the naked eye in N·p(t) and, even smoother, in MA7(M) |
-| `11_lectura_suavizada.png` | The same 6 gallery scenarios, but re-read with N·p(t) (real mood) and MA7(M) (moving average) overlaid on M(t) (daily die roll, gray) | Compare what survives averaging: in `02_solo_ciclo` and `06_ciclo_fuerte` the hormonal wave clearly emerges in N·p(t); in `04_racha_negativa` the run's fall and recovery is much sharper in MA7(M) than in raw M(t); in `05_alta_volatilidad` smoothing reduces the erratic look but does not change the central tendency |
-| `12_barrido_B_30seeds.png` | The same B ∈ {0.15, 0.30, 0.50, 0.65} sweep as `10_barrido_B.png`, but averaged over 30 seeds (4001–4030) instead of showing a single one: between-seed mean of M(t) (orange, ± sem shaded), between-seed mean of N·p(t) (blue) and the pure theoretical wave N·sigmoid(logit(0.6)+B·sin(2πt/28)) (dashed black) | Averaging 30 seeds cancels most of the binomial sampling noise and the endogenous η runs, letting the hormonal wave show even for small B; compare the measured peak-to-valley amplitude (each panel's title) against the theoretical wave to see how much of the remaining signal comes from residual μ/η |
-| `13_dias_buenos_malos.png` | 3 stacked panels (single seed, 3001): "always good" (shock=+1.0 every day), baseline (endogenous score, no shocks) and "always bad" (shock=−1.0 every day); raw M(t) (gray), N·p(t) ± binomial sd (green/blue/red) and μ(t) on a secondary axis with the theoretical equilibrium line μ∞=±0.5 | Compare the measured final μ(t) (each panel's title) against the theoretical equilibrium μ∞=k·(s−score_neutral)/(1−ρ)=±0.5; with ρ=0.70 the half-life of μ is ≈1.9 days, so equilibrium is reached in ≈5–7 days |
-| `14_dias_buenos_malos_promedio.png` | Between-seed mean over 30 seeds (4001–4030) of M(t) for the 3 regimes on a single axis (green/blue/red, ± sem shaded), with reference curves N·sigmoid(logit(0.6)+B·sin(2πt/28)+μ∞) dashed (μ∞∈{+0.5, 0, −0.5}); bottom panel: between-seed mean of μ(t) per regime with the ±0.5 asymptotes | Shows how many M steps an "always good" regime separates from an "always bad" one once μ converges, and in how many days that separation opens from the shared start at μ=0 |
-| `15_mes_perfecto_horrible.png` | Three parametrizations of event memory — current (k=0.15, ρ=0.70, μ∞=±0.5), medium (k=0.25, ρ=0.80, μ∞=±1.25) and slow (k=0.18, ρ=0.85, μ∞=±1.20), all inside the stability bound — under a perfect month (+1) and a horrible month (−1), 30 seeds × 30 days; band = p10–p90 of the days, target zones 7–10 and 0–4 shaded | With μ∞=±0.5 (current) the perfect month lands at ~6.4 (50% of days ≥7); with μ∞≈±1.2–1.25 the perfect month lives at ~7.5–7.6 (72–75% of days ≥7) and the horrible one at ~3.2–3.3 (73–77% of days ≤4) — the deal's ceiling is the k/(1−ρ) knob, not a structural limitation (regenerate: `experiments.engine_simulation_meses`) |
+| `10_B_sweep.png` | 4 panels (B ∈ {0.15, 0.30, 0.50, 0.65}, rest of the persona = defaults): M(t) (daily die roll, gray), N·p(t) ± σ_binom (real mood, blue) and MA7(M) (7-day moving average, dashed orange) | Compare each panel's theoretical amplitude in its title (≈2.4·B steps) against the sampling noise sd≈1.55 steps: only with B≈0.5–0.65 does the wave become visible to the naked eye in N·p(t) and, even smoother, in MA7(M) |
+| `11_smoothed_reading.png` | The same 6 gallery scenarios, but re-read with N·p(t) (real mood) and MA7(M) (moving average) overlaid on M(t) (daily die roll, gray) | Compare what survives averaging: in `02_cycle_only` and `06_strong_cycle` the hormonal wave clearly emerges in N·p(t); in `04_negative_streak` the run's fall and recovery is much sharper in MA7(M) than in raw M(t); in `05_high_volatility` smoothing reduces the erratic look but does not change the central tendency |
+| `12_B_sweep_30seeds.png` | The same B ∈ {0.15, 0.30, 0.50, 0.65} sweep as `10_B_sweep.png`, but averaged over 30 seeds (4001–4030) instead of showing a single one: between-seed mean of M(t) (orange, ± sem shaded), between-seed mean of N·p(t) (blue) and the pure theoretical wave N·sigmoid(logit(0.6)+B·sin(2πt/28)) (dashed black) | Averaging 30 seeds cancels most of the binomial sampling noise and the endogenous η runs, letting the hormonal wave show even for small B; compare the measured peak-to-valley amplitude (each panel's title) against the theoretical wave to see how much of the remaining signal comes from residual μ/η |
+| `13_good_vs_bad_days.png` | 3 stacked panels (single seed, 3001): "always good" (shock=+1.0 every day), baseline (endogenous score, no shocks) and "always bad" (shock=−1.0 every day); raw M(t) (gray), N·p(t) ± binomial sd (green/blue/red) and μ(t) on a secondary axis with the theoretical equilibrium line μ∞=±0.5 | Compare the measured final μ(t) (each panel's title) against the theoretical equilibrium μ∞=k·(s−score_neutral)/(1−ρ)=±0.5; with ρ=0.70 the half-life of μ is ≈1.9 days, so equilibrium is reached in ≈5–7 days |
+| `14_good_vs_bad_days_average.png` | Between-seed mean over 30 seeds (4001–4030) of M(t) for the 3 regimes on a single axis (green/blue/red, ± sem shaded), with reference curves N·sigmoid(logit(0.6)+B·sin(2πt/28)+μ∞) dashed (μ∞∈{+0.5, 0, −0.5}); bottom panel: between-seed mean of μ(t) per regime with the ±0.5 asymptotes | Shows how many M steps an "always good" regime separates from an "always bad" one once μ converges, and in how many days that separation opens from the shared start at μ=0 |
+| `15_perfect_vs_horrible_month.png` | Three parametrizations of event memory — current (k=0.15, ρ=0.70, μ∞=±0.5), medium (k=0.25, ρ=0.80, μ∞=±1.25) and slow (k=0.18, ρ=0.85, μ∞=±1.20), all inside the stability bound — under a perfect month (+1) and a horrible month (−1), 30 seeds × 30 days; band = p10–p90 of the days, target zones 7–10 and 0–4 shaded | With μ∞=±0.5 (current) the perfect month lands at ~6.4 (50% of days ≥7); with μ∞≈±1.2–1.25 the perfect month lives at ~7.5–7.6 (72–75% of days ≥7) and the horrible one at ~3.2–3.3 (73–77% of days ≤4) — the deal's ceiling is the k/(1−ρ) knob, not a structural limitation (regenerate: `experiments.engine_simulation_meses`) |
 
 ### Regenerate
 

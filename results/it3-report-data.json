@@ -3118,7 +3118,7 @@
       "bike_swift",
       "job_change"
     ],
-    "note": "CompleteChain por lane se computa con las cadenas de eventos del manifiesto (ítem 5 — pendiente del juez real)"
+    "note": "CompleteChain per lane is computed from the manifest's event chains (item 5 — pending the real judge)"
   },
   "judge_g6": null,
   "item2_ablations": "gate G2 closed 941/941 + matrix audit per cell (claims evaluated on real summaries)"

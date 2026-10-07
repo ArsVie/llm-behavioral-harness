@@ -1,6 +1,6 @@
-"""Fixtures compartidos (Ola 0 — CONGELADO tras W0.1).
+"""Shared fixtures (Wave 0 — FROZEN after W0.1).
 
-Cada tarea escribe SOLO su tests/test_<módulo>.py; este archivo no se toca.
+Each task writes ONLY its own tests/test_<module>.py; this file is not touched.
 """
 from __future__ import annotations
 
@@ -30,19 +30,19 @@ from engine.types import PersonaParams, TimingParams  # noqa: E402
 
 @pytest.fixture
 def rng() -> np.random.Generator:
-    """Generator determinista para tests (semilla fija 12345)."""
+    """Deterministic generator for tests (fixed seed 12345)."""
     return np.random.default_rng(12345)
 
 
 @pytest.fixture
 def persona() -> PersonaParams:
-    """PersonaParams con los defaults de DESIGN.md."""
+    """PersonaParams with the DESIGN.md defaults."""
     return PersonaParams()
 
 
 @pytest.fixture
 def timing() -> TimingParams:
-    """TimingParams con los defaults de DESIGN.md."""
+    """TimingParams with the DESIGN.md defaults."""
     return TimingParams()
 
 

@@ -1,8 +1,8 @@
-"""Métricas de aceptación — funciones puras array → float (W1.5).
+"""Acceptance metrics — pure array → float functions (W1.5).
 
-PROPIEDAD: tarea W1.5 (este archivo + tests/test_metrics.py). Implementar
-contra engine/types.py (CONGELADO). Sin I/O, sin RNG propio, sin matplotlib.
-Se permiten helpers privados adicionales dentro de este archivo.
+OWNERSHIP: task W1.5 (this file + tests/test_metrics.py). Implement
+against engine/types.py (FROZEN). No I/O, no own RNG, no matplotlib.
+Additional private helpers are allowed inside this file.
 """
 from __future__ import annotations
 
@@ -12,15 +12,15 @@ import numpy as np
 
 
 def mean_sd(x: np.ndarray) -> tuple[float, float]:
-    """(media, sd muestral ddof=1) de una serie."""
+    """(mean, sample sd ddof=1) of a series."""
     x = np.asarray(x, dtype=float)
     return float(np.mean(x)), float(np.std(x, ddof=1))
 
 
 def autocorr_lag1(x: np.ndarray) -> float:
-    """Autocorrelación lag-1 (Pearson entre x[:-1] y x[1:]).
+    """Lag-1 autocorrelation (Pearson between x[:-1] and x[1:]).
 
-    Criterio (6): para M(t) humana se espera ∈ [0.2, 0.5].
+    Criterion (6): for a human M(t) it is expected ∈ [0.2, 0.5].
     """
     x = np.asarray(x, dtype=float)
     a, b = x[:-1], x[1:]
@@ -28,10 +28,10 @@ def autocorr_lag1(x: np.ndarray) -> float:
 
 
 def var_ratio_by_gain(M: np.ndarray, g: np.ndarray, q: float = 0.25) -> float:
-    """var(M | g en el cuartil superior) / var(M | g en el cuartil inferior).
+    """var(M | g in the upper quartile) / var(M | g in the lower quartile).
 
-    Criterio (4): > 1 cuando la ganancia g amplifica la reactividad.
-    `q` define los cuantiles (default cuartiles: g <= Q(q) vs g >= Q(1−q)).
+    Criterion (4): > 1 when the gain g amplifies reactivity.
+    `q` defines the quantiles (default quartiles: g <= Q(q) vs g >= Q(1−q)).
     """
     M = np.asarray(M, dtype=float)
     g = np.asarray(g, dtype=float)
@@ -47,12 +47,12 @@ def var_ratio_by_gain(M: np.ndarray, g: np.ndarray, q: float = 0.25) -> float:
 def reversion_days(
     mu: np.ndarray, t_shock: int, baseline: float = 0.0
 ) -> float:
-    """Días de reversión (e-folding) de μ tras un shock en t_shock.
+    """Reversion (e-folding) days of μ after a shock at t_shock.
 
-    Sea t_peak = argmax_{t>=t_shock} |mu[t] − baseline|. Devuelve el primer
-    (t − t_peak) con |mu[t] − baseline| <= |mu[t_peak] − baseline|/e, o inf si
-    no ocurre dentro de la serie. Teoría AR(1): ≈ −1/ln(ρ) días
-    (criterio (5): ~1/(1−ρ)).
+    Let t_peak = argmax_{t>=t_shock} |mu[t] − baseline|. Returns the first
+    (t − t_peak) with |mu[t] − baseline| <= |mu[t_peak] − baseline|/e, or inf if
+    it never happens within the series. AR(1) theory: ≈ −1/ln(ρ) days
+    (criterion (5): ~1/(1−ρ)).
     """
     mu = np.asarray(mu, dtype=float)
     dev = np.abs(mu - baseline)
@@ -70,18 +70,18 @@ def reversion_days(
 
 
 def daily_rate(times_h: np.ndarray, horizon_days: float) -> float:
-    """Eventos por día: len(times_h)/horizon_days. Criterio (7): ∈ [1, 3]."""
+    """Events per day: len(times_h)/horizon_days. Criterion (7): ∈ [1, 3]."""
     times_h = np.asarray(times_h, dtype=float)
     return float(len(times_h) / horizon_days)
 
 
 def gap_stats(times_h: np.ndarray, bin_width_h: float = 1.0) -> dict[str, float]:
-    """Estadísticos de los gaps entre eventos consecutivos (horas).
+    """Statistics of the gaps between consecutive events (hours).
 
-    Llaves: "mean_h", "median_h", "mode_h" (centro del bin más poblado del
-    histograma con ancho bin_width_h), "cv" (sd/media), "burstiness"
-    ((sd−media)/(sd+media) ∈ [−1, 1]; 0 = Poisson).
-    Criterio (7): hazard creciente ⇒ mode_h > 0.
+    Keys: "mean_h", "median_h", "mode_h" (center of the most populated bin of
+    the histogram with width bin_width_h), "cv" (sd/mean), "burstiness"
+    ((sd−mean)/(sd+mean) ∈ [−1, 1]; 0 = Poisson).
+    Criterion (7): increasing hazard ⇒ mode_h > 0.
     """
     times_h = np.asarray(times_h, dtype=float)
     times_sorted = np.sort(times_h)
@@ -110,7 +110,7 @@ def gap_stats(times_h: np.ndarray, bin_width_h: float = 1.0) -> dict[str, float]
 
 
 def hourly_histogram(times_h: np.ndarray, bins: int = 24) -> np.ndarray:
-    """Conteo de eventos por hora local del día (t % 24), shape (bins,)."""
+    """Event counts per local hour of the day (t % 24), shape (bins,)."""
     times_h = np.asarray(times_h, dtype=float)
     local_hours = times_h % 24.0
     counts, _ = np.histogram(local_hours, bins=bins, range=(0.0, 24.0))
@@ -122,9 +122,9 @@ def envelope_violations(
     envelope_fn: Callable[[float], float],
     eps: float = 1e-9,
 ) -> int:
-    """Nº de eventos en horas donde envelope_fn(t % 24) < eps.
+    """Number of events at hours where envelope_fn(t % 24) < eps.
 
-    Criterio (7): debe ser 0 (nada en quiet hours).
+    Criterion (7): must be 0 (nothing in quiet hours).
     """
     times_h = np.asarray(times_h, dtype=float)
     local_hours = times_h % 24.0

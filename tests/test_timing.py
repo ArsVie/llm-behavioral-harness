@@ -1,5 +1,5 @@
-"""Tests de aceptación para engine/timing.py (W1.4). Semillas fijas; tests
-estadísticos con alpha=0.01 y n>=2000 (KS) o tolerancia +-3*sem (medias)."""
+"""Acceptance tests for engine/timing.py (W1.4). Fixed seeds; statistical
+tests with alpha=0.01 and n>=2000 (KS) or tolerance +-3*sem (means)."""
 from __future__ import annotations
 
 import math
@@ -34,9 +34,9 @@ def _sample_gaps(
     mod_ub: float = 1.0,
     tau0_h: float = 0.0,
 ) -> np.ndarray:
-    """Muestrea `n` gaps encadenando next_event: t_last fijo (tau0_h antes de
-    t_now), t_now avanza al evento aceptado, tau vuelve a arrancar en 0 salvo
-    que se pida tau0_h != 0 (solo relevante para el primer gap)."""
+    """Samples `n` gaps by chaining next_event: t_last fixed (tau0_h before
+    t_now), t_now advances to the accepted event, tau restarts at 0 unless
+    tau0_h != 0 is requested (only relevant for the first gap)."""
     if modulator is None:
         modulator = _mod_const(1.0)
     gaps = np.empty(n)
@@ -65,7 +65,7 @@ def test_gaps_follow_weibull_k2():
     gaps = _sample_gaps(N_SAMPLES, params, rng, mod_ub=1.0)
 
     stat, pvalue = stats.kstest(gaps, stats.weibull_min(k_w, scale=theta_h).cdf)
-    assert pvalue > ALPHA, f"KS contra Weibull({k_w},{theta_h}) fallo: p={pvalue}"
+    assert pvalue > ALPHA, f"KS against Weibull({k_w},{theta_h}) failed: p={pvalue}"
 
 
 # ---------------------------------------------------------------------------
@@ -79,7 +79,7 @@ def test_gaps_follow_exponential_k1():
     gaps = _sample_gaps(N_SAMPLES, params, rng, mod_ub=1.0)
 
     stat, pvalue = stats.kstest(gaps, stats.expon(scale=theta_h).cdf)
-    assert pvalue > ALPHA, f"KS contra Expon({theta_h}) fallo: p={pvalue}"
+    assert pvalue > ALPHA, f"KS against Expon({theta_h}) failed: p={pvalue}"
 
 
 def test_exponential_is_memoryless():
@@ -106,7 +106,7 @@ def test_exponential_is_memoryless():
     )
 
     stat, pvalue = stats.ks_2samp(gaps_tau0, gaps_tau20)
-    assert pvalue > ALPHA, f"KS 2-sample (memoryless) fallo: p={pvalue}"
+    assert pvalue > ALPHA, f"KS 2-sample (memoryless) failed: p={pvalue}"
 
 
 # ---------------------------------------------------------------------------
@@ -125,14 +125,14 @@ def test_increasing_hazard_mode_and_mean():
     counts, edges = np.histogram(gaps, bins=n_bins, range=(0.0, float(n_bins)))
     mode_bin = int(np.argmax(counts))
     assert mode_bin > 0, (
-        "La moda del histograma de gaps cae en [0,1) pese a k_w=2 "
-        f"(hazard creciente); counts[:5]={counts[:5]}"
+        "The gaps histogram mode falls in [0,1) despite k_w=2 "
+        f"(increasing hazard); counts[:5]={counts[:5]}"
     )
 
     mean_expected = theta_h * math.gamma(1.0 + 1.0 / k_w)  # theta*Gamma(1.5)
     sem = gaps.std(ddof=1) / math.sqrt(gaps.size)
     assert abs(gaps.mean() - mean_expected) <= 3 * sem, (
-        f"media muestral {gaps.mean():.4f} fuera de "
+        f"sample mean {gaps.mean():.4f} outside "
         f"{mean_expected:.4f} +- {3 * sem:.4f}"
     )
 
@@ -168,12 +168,12 @@ def test_step_modulator_confines_events_to_window():
             break
         local_hour = t_next % 24.0
         assert 8.0 <= local_hour < 20.0, (
-            f"evento en t_h={t_next} (hora local {local_hour}) fuera de [8,20)"
+            f"event at t_h={t_next} (local hour {local_hour}) outside [8,20)"
         )
         n_events += 1
         t_now = t_next
         t_last = t_next
-    assert n_events > 10, "muy pocos eventos generados para validar la ventana"
+    assert n_events > 10, "too few events generated to validate the window"
 
 
 # ---------------------------------------------------------------------------
@@ -192,7 +192,7 @@ def test_rate_scaling_with_constant_modulator():
     mean_expected = theta_h / c
     sem = gaps.std(ddof=1) / math.sqrt(gaps.size)
     assert abs(gaps.mean() - mean_expected) <= 3 * sem, (
-        f"media muestral {gaps.mean():.4f} fuera de "
+        f"sample mean {gaps.mean():.4f} outside "
         f"{mean_expected:.4f} +- {3 * sem:.4f}"
     )
 

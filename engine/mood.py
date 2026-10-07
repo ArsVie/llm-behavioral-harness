@@ -1,16 +1,16 @@
-"""Ánimo diario — beta-binomial en espacio logit.
+"""Daily mood — beta-binomial in logit space.
 
-No importa engine.cycle ni engine.circadian: `m` y `g` llegan como floats.
+Does not import engine.cycle or engine.circadian: `m` and `g` arrive as floats.
 
-Ecuaciones (DESIGN.md §"Ánimo diario"):
-    arg  según MoodVariant (ver types.MoodVariant — las 3 fórmulas)
+Equations (DESIGN.md §"Daily mood"):
+    arg  according to MoodVariant (see types.MoodVariant — the 3 formulas)
     p    = sigmoid(arg)
-    M    ~ BetaBinomial(N, p, ν)     ν=∞ ⇒ Binomial(N, p) EXACTA (sin muestrear Beta)
-           implementación ν finita: p_day ~ Beta(p·ν, (1−p)·ν); M ~ Binomial(N, p_day)
+    M    ~ BetaBinomial(N, p, ν)     ν=∞ ⇒ Binomial(N, p) EXACT (no Beta sampling)
+           finite ν implementation: p_day ~ Beta(p·ν, (1−p)·ν); M ~ Binomial(N, p_day)
     μ'   = ρ·μ + k·(score − score_neutral)
     η'   = ρ_e·η + Normal(0, σ_e)
 
-Los pasos NO mutan el estado recibido: devuelven un MoodState nuevo.
+The steps do NOT mutate the received state: they return a new MoodState.
 """
 from __future__ import annotations
 
@@ -22,15 +22,15 @@ from engine.types import MoodState, MoodVariant, PersonaParams
 
 
 def logit(x: float) -> float:
-    """log(x/(1−x)). Dominio (0,1)."""
+    """log(x/(1−x)). Domain (0,1)."""
     return math.log(x / (1.0 - x))
 
 
 def sigmoid(x: float) -> float:
-    """1/(1+exp(−x)), numéricamente estable para |x| grande.
+    """1/(1+exp(−x)), numerically stable for large |x|.
 
-    Forma condicional estándar: evita overflow de exp() para x muy negativo
-    o muy positivo evaluando siempre exp() sobre un argumento <= 0.
+    Standard conditional form: avoids exp() overflow for very negative
+    or very positive x by always evaluating exp() on an argument <= 0.
     """
     if x >= 0.0:
         z = math.exp(-x)
@@ -46,14 +46,14 @@ def compute_arg(
     g: float,
     variant: MoodVariant,
 ) -> float:
-    """Argumento logit del día según la variante (ver types.MoodVariant).
+    """Logit argument for the day according to the variant (see types.MoodVariant).
 
-    ORIGINAL:           (logit λ + μ) · g       — ignora m (offset de ciclo)
-    DECOUPLED:          logit λ + g·(μ + η)     — ignora m
-    DECOUPLED_OFFSETS:  logit λ + m + g·(μ + η) — modelo completo
+    ORIGINAL:           (logit λ + μ) · g       — ignores m (cycle offset)
+    DECOUPLED:          logit λ + g·(μ + η)     — ignores m
+    DECOUPLED_OFFSETS:  logit λ + m + g·(μ + η) — full model
 
-    Las tres coinciden exactamente cuando m=0, η=0, g=1 (ver docstring de
-    MoodVariant en types.py).
+    The three coincide exactly when m=0, η=0, g=1 (see the docstring of
+    MoodVariant in types.py).
     """
     lam_logit = logit(params.lam)
     if variant is MoodVariant.ORIGINAL:
@@ -62,7 +62,7 @@ def compute_arg(
         return lam_logit + g * (state.mu + state.eta)
     if variant is MoodVariant.DECOUPLED_OFFSETS:
         return lam_logit + m + g * (state.mu + state.eta)
-    raise ValueError(f"MoodVariant desconocida: {variant!r}")
+    raise ValueError(f"Unknown MoodVariant: {variant!r}")
 
 
 def step(
@@ -73,11 +73,11 @@ def step(
     variant: MoodVariant,
     rng: np.random.Generator,
 ) -> tuple[int, float, float]:
-    """Muestrea el ánimo del día. Devuelve (M, p, arg).
+    """Samples the mood of the day. Returns (M, p, arg).
 
-    M ∈ 0..N. Con params.nu == math.inf usa Binomial(N, p) exacta (ninguna
-    llamada a Beta — el caso especial es estructural, no un límite numérico).
-    No modifica `state` (solo lee μ y η).
+    M ∈ 0..N. With params.nu == math.inf it uses an exact Binomial(N, p) (no
+    Beta call — the special case is structural, not a numerical limit).
+    Does not modify `state` (it only reads μ and η).
     """
     arg = compute_arg(state, params, m, g, variant)
     p = sigmoid(arg)
@@ -94,9 +94,9 @@ def step(
 
 
 def update(state: MoodState, params: PersonaParams, score: float) -> MoodState:
-    """Fin de día: μ' = ρ·μ + k·(score − score_neutral). Devuelve estado NUEVO.
+    """End of day: μ' = ρ·μ + k·(score − score_neutral). Returns a NEW state.
 
-    Forma cerrada bajo score constante s: μ∞ = k·(s − neutral)/(1−ρ).
+    Closed form under constant score s: μ∞ = k·(s − neutral)/(1−ρ).
     """
     mu_new = params.rho * state.mu + params.k * (score - params.score_neutral)
     return MoodState(mu=mu_new, eta=state.eta)
@@ -105,9 +105,9 @@ def update(state: MoodState, params: PersonaParams, score: float) -> MoodState:
 def step_endogenous(
     state: MoodState, params: PersonaParams, rng: np.random.Generator
 ) -> MoodState:
-    """Fin de día: η' = ρ_e·η + Normal(0, σ_e). Devuelve estado NUEVO.
+    """End of day: η' = ρ_e·η + Normal(0, σ_e). Returns a NEW state.
 
-    sd estacionaria: σ_e/√(1−ρ_e²).
+    Stationary sd: σ_e/√(1−ρ_e²).
     """
     innovation = rng.normal(0.0, params.sigma_e)
     eta_new = params.rho_e * state.eta + innovation

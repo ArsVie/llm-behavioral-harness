@@ -1,42 +1,42 @@
-"""Driver de eventos: timing + envolvente + fase + adj, con guards (W2.2 — Ola 2).
+"""Events driver: timing + envelope + phase + adj, with guards (W2.2 — Wave 2).
 
-PROPIEDAD: tarea W2.2 (este archivo + tests/test_run_events.py). Se implementa
-DESPUÉS de la Ola 1; puede importar engine.timing, engine.circadian,
-engine.cycle, engine.rng (composición permitida solo en drivers).
+OWNERSHIP: task W2.2 (this file + tests/test_run_events.py). Implemented
+AFTER Wave 1; may import engine.timing, engine.circadian,
+engine.cycle, engine.rng (composition allowed only in drivers).
 
-Composición del modulador (congelada; B5 amplía ADITIVAMENTE con opt-in):
+Modulator composition (frozen; B5 extends it ADDITIVELY as opt-in):
     modulator(t_h) = circadian.envelope(t_h % 24, timing)
-                   × timing.phase_multipliers[phase_label(día de t_h)]
-                   × adj_from_score(score del día ANTERIOR al de t_h)
-                   × state_factors[día de t_h]        (B5; None ⇒ 1.0)
+                   × timing.phase_multipliers[phase_label(day of t_h)]
+                   × adj_from_score(score of the day BEFORE t_h)
+                   × state_factors[day of t_h]        (B5; None ⇒ 1.0)
     adj_from_score(s) = clip(1 + types.ADJ_SLOPE·s, *timing.adj_bounds);
-    s = None (sin score, p. ej. día 0 o scores no dados) ⇒ 1.0.
-    state_factors (B5, orquestador carve-out): array por día (days,) con el
-    término de estado exp(w·(x−x₀)) precomputado por el llamador (el
-    scheduler lo deriva de la directiva del día). Por defecto None ⇒
-    composición byte-idéntica a la pre-B5 para todo llamador que no opte in.
+    s = None (no score, e.g. day 0 or scores not given) ⇒ 1.0.
+    state_factors (B5, orchestrator carve-out): per-day array (days,) with the
+    state term exp(w·(x−x₀)) precomputed by the caller (the
+    scheduler derives it from the day's directive). Default None ⇒
+    composition byte-identical to pre-B5 for every caller that does not opt in.
 
-Fases por día: instancia propia de cycle con el MISMO contrato de replay que
-run_daily — cycle.init_state(persona, engine.rng.init_rng(seed)) y, por día,
-cycle.step como PRIMER consumo de day_rng(seed, t) ⇒ misma secuencia de fases
-que run_daily con la misma semilla.
+Phases per day: its own cycle instance with the SAME replay contract as
+run_daily — cycle.init_state(persona, engine.rng.init_rng(seed)) and, per day,
+cycle.step as the FIRST consumption of day_rng(seed, t) ⇒ the same phase
+sequence as run_daily with the same seed.
 
-Muestreo: engine.timing.next_event con rng propio del stream
-engine.rng.stream_rng(seed, engine.rng.EVENTS_STREAM), avanzando t_now al
-candidato tras cada aceptación/descarte.
+Sampling: engine.timing.next_event with the stream's own rng
+engine.rng.stream_rng(seed, engine.rng.EVENTS_STREAM), advancing t_now to the
+candidate after each acceptance/discard.
 
-GUARDS DE COLA (fuera del proceso, congelados):
-  - envolvente < 1e-9 en el candidato ⇒ descartar (cinturón: quiet hours ya
-    son 0 por construcción);
-  - gap < timing.min_gap_min/60 desde el último ACEPTADO ⇒ descartar;
-  - día del candidato ya con timing.daily_cap aceptados ⇒ descartar;
-  - silencio > timing.max_gap_h ⇒ forzar un contacto en el primer instante
-    posterior a (t_last + max_gap_h) con envolvente >= 0.5 que respete
-    min_gap y daily_cap.
-  τ (reloj del hazard) se resetea SOLO en eventos aceptados (incluidos los
-  forzados por max_gap). En Fase 1 no hay mensajes del usuario.
+QUEUE GUARDS (out-of-process, frozen):
+  - envelope < 1e-9 at the candidate ⇒ discard (belt: quiet hours are
+    already 0 by construction);
+  - gap < timing.min_gap_min/60 since the last ACCEPTED ⇒ discard;
+  - the candidate's day already has timing.daily_cap accepted ⇒ discard;
+  - silence > timing.max_gap_h ⇒ force a contact at the first instant
+    after (t_last + max_gap_h) with envelope >= 0.5 that respects
+    min_gap and daily_cap.
+  τ (the hazard clock) is reset ONLY on accepted events (including those
+  forced by max_gap). In Phase 1 there are no user messages.
 
-Determinismo: misma semilla ⇒ mismo array de tiempos.
+Determinism: same seed ⇒ same array of times.
 """
 from __future__ import annotations
 
@@ -48,11 +48,11 @@ import engine.rng as rng_mod
 from engine import circadian, cycle, timing as timing_mod
 from engine.types import ADJ_SLOPE, PersonaParams, TimingParams
 
-#: Paso de búsqueda (horas) para el instante forzado por el guard max-gap.
+#: Search step (hours) for the instant forced by the max-gap guard.
 _FORCE_STEP_H = 0.25
 
-#: Envolvente mínima exigida al instante forzado por max-gap (ventana despierta
-#: "de verdad", no un instante marginal de la rampa).
+#: Minimum envelope required at the instant forced by max-gap (an "actually"
+#: awake window, not a marginal instant of the ramp).
 _FORCE_MIN_ENVELOPE = 0.5
 
 
@@ -67,12 +67,12 @@ def adj_from_score(score: float | None, timing: TimingParams) -> float:
 def _precompute_phase_labels(
     days: int, seed: int, persona: PersonaParams
 ) -> list[str]:
-    """Fases día a día con el mismo contrato de replay que run_daily.
+    """Day-by-day phases with the same replay contract as run_daily.
 
-    cycle.init_state consume engine.rng.init_rng(seed); por cada día t,
-    day_rng(seed, t) es el PRIMER (y único, aquí) consumo del día, alimentado
-    a cycle.step ⇒ misma secuencia de fases que produciría run_daily con la
-    misma semilla.
+    cycle.init_state consumes engine.rng.init_rng(seed); for each day t,
+    day_rng(seed, t) is the FIRST (and only, here) consumption of the day,
+    fed to cycle.step ⇒ the same phase sequence that run_daily would
+    produce with the same seed.
     """
     state = cycle.init_state(persona, rng_mod.init_rng(seed))
     labels: list[str] = []
@@ -90,8 +90,8 @@ def _make_modulator(
     scores: np.ndarray | None,
     state_factors: np.ndarray | None = None,
 ):
-    """Compone envelope × phase_multiplier × adj_from_score(score del día previo)
-    × state_factors[día] (B5 — término de estado opt-in; None ⇒ 1.0)."""
+    """Composes envelope × phase_multiplier × adj_from_score(previous day's score)
+    × state_factors[day] (B5 — opt-in state term; None ⇒ 1.0)."""
     last_day_idx = days - 1
 
     def modulator(t_h: float) -> float:
@@ -114,13 +114,13 @@ def _make_modulator(
 
 
 def _mod_ub(timing: TimingParams, state_factors: np.ndarray | None = None) -> float:
-    """Cota superior del modulador: 1.0 × max(phase_multipliers) × adj_bounds[1]
-    × max(state_factors) (B5; sin state_factors ⇒ 1.0 — byte-idéntico).
+    """Upper bound of the modulator: 1.0 × max(phase_multipliers) × adj_bounds[1]
+    × max(state_factors) (B5; without state_factors ⇒ 1.0 — byte-identical).
 
-    El mayorante del thinning debe acotar al modulador en TODO t: con
-    acoplamiento activo se multiplica por el máximo del array por día (el
-    scheduler lo recorta a STATE_FACTOR_BOUNDS; el max defensivo mantiene la
-    corrección del thinning para cualquier llamador).
+    The thinning majorant must bound the modulator at ALL t: with
+    coupling active it is multiplied by the per-day array's maximum (the
+    scheduler clips it to STATE_FACTOR_BOUNDS; the defensive max keeps the
+    thinning correct for any caller).
     """
     ub = 1.0 * max(timing.phase_multipliers.values()) * timing.adj_bounds[1]
     if state_factors is not None and state_factors.size:
@@ -135,14 +135,14 @@ def _find_forced_time(
     timing: TimingParams,
     day_counts: dict[int, int],
 ) -> float | None:
-    """Primer instante u > t_last_h + max_gap_h con envelope(u % 24) >= 0.5 que
-    respete min_gap (trivial: u > t_last_h + max_gap_h >= min_gap) y daily_cap
-    (si el día está lleno, sigue avanzando). None si se sale del horizonte.
+    """First instant u > t_last_h + max_gap_h with envelope(u % 24) >= 0.5 that
+    respects min_gap (trivial: u > t_last_h + max_gap_h >= min_gap) and daily_cap
+    (if the day is full, it keeps advancing). None if it goes past the horizon.
     """
     min_gap_h = timing.min_gap_min / 60.0
     u = t_last_h + timing.max_gap_h
-    # Asegura respetar min_gap incluso si max_gap_h fuese menor que min_gap_h
-    # (no ocurre con los defaults, pero es una cota barata de mantener).
+    # Ensures min_gap is respected even if max_gap_h were smaller than min_gap_h
+    # (does not happen with the defaults, but it is a cheap bound to keep).
     if u - t_last_h < min_gap_h:
         u = t_last_h + min_gap_h
     while u < horizon_h:
@@ -162,13 +162,13 @@ def run(
     scores: np.ndarray | None = None,
     state_factors: np.ndarray | None = None,
 ) -> np.ndarray:
-    """Stream de `days` días de eventos proactivos ACEPTADOS.
+    """Stream of `days` days of ACCEPTED proactive events.
 
-    `scores`: opcional, shape (days,), score sintético de cada día (alimenta
-    adj del día siguiente); None ⇒ adj ≡ 1. `state_factors` (B5): opcional,
-    shape (days,), término de estado multiplicativo por día (exp(w·(x−x₀))
-    precomputado por el llamador); None ⇒ composición byte-idéntica a la
-    pre-B5. Devuelve horas absolutas ordenadas (np.ndarray float, en
+    `scores`: optional, shape (days,), synthetic score for each day (feeds the
+    next day's adj); None ⇒ adj ≡ 1. `state_factors` (B5): optional,
+    shape (days,), multiplicative per-day state term (exp(w·(x−x₀))
+    precomputed by the caller); None ⇒ composition byte-identical to
+    pre-B5. Returns sorted absolute hours (np.ndarray float, in
     [0, days·24)).
     """
     if persona is None:
@@ -195,7 +195,7 @@ def run(
     accepted: list[float] = []
     day_counts: dict[int, int] = {}
     t_now = 0.0
-    t_last = 0.0  # convención: "última interacción" al inicio de la simulación
+    t_last = 0.0  # convention: "last interaction" at the start of the simulation
 
     def _accept(t_ev: float) -> None:
         accepted.append(t_ev)
@@ -212,7 +212,7 @@ def run(
             max_horizon_h=horizon_h - t_now if horizon_h > t_now else 1.0,
         )
 
-        # MAX-GAP: silencio > max_gap_h implicado por el candidato (o inf).
+        # MAX-GAP: silence > max_gap_h implied by the candidate (or inf).
         if (cand - t_last) > timing.max_gap_h:
             forced = _find_forced_time(
                 t_last, horizon_h, modulator, timing, day_counts
@@ -222,29 +222,29 @@ def run(
                 t_last = forced
                 t_now = forced
                 continue
-            # No hay instante forzado dentro del horizonte: termina.
+            # No forced instant within the horizon: finish.
             break
 
         if cand >= horizon_h:
             break
 
-        # Guard b) envolvente ~0 en el candidato.
+        # Guard b) envelope ~0 at the candidate.
         if circadian.envelope(cand % 24.0, timing) < 1e-9:
             t_now = cand
             continue
 
-        # Guard c) gap mínimo desde el último aceptado.
+        # Guard c) minimum gap since the last accepted.
         if (cand - t_last) < min_gap_h:
             t_now = cand
             continue
 
-        # Guard d) tope diario ya alcanzado.
+        # Guard d) daily cap already reached.
         cand_day = int(cand // 24.0)
         if day_counts.get(cand_day, 0) >= timing.daily_cap:
             t_now = cand
             continue
 
-        # Aceptado.
+        # Accepted.
         _accept(cand)
         t_last = cand
         t_now = cand
@@ -253,8 +253,8 @@ def run(
 
 
 def main(argv: list[str] | None = None) -> int:
-    """CLI mínima: --days --seed; imprime nº de eventos y tasa diaria."""
-    parser = argparse.ArgumentParser(description="Simula eventos proactivos.")
+    """Minimal CLI: --days --seed; prints the number of events and the daily rate."""
+    parser = argparse.ArgumentParser(description="Simulates proactive events.")
     parser.add_argument("--days", type=int, default=90)
     parser.add_argument("--seed", type=int, default=12345)
     args = parser.parse_args(argv)
@@ -262,8 +262,8 @@ def main(argv: list[str] | None = None) -> int:
     events = run(args.days, args.seed)
     n = len(events)
     rate = n / args.days if args.days > 0 else 0.0
-    print(f"eventos: {n}")
-    print(f"tasa diaria: {rate:.4f}")
+    print(f"events: {n}")
+    print(f"daily rate: {rate:.4f}")
     return 0
 
 

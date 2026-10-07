@@ -1,8 +1,8 @@
-"""Tests de aceptación de engine/mood.py (W1.1).
+"""Acceptance tests for engine/mood.py (W1.1).
 
-PROPIEDAD: tarea W1.1 (este archivo + engine/mood.py). Usa las fixtures
-compartidas de tests/conftest.py (rng, persona, timing) — congelado, no se
-toca. Semillas y tolerancias documentadas en cada test.
+OWNERSHIP: task W1.1 (this file + engine/mood.py). Uses the shared fixtures
+from tests/conftest.py (rng, persona, timing) — frozen, do not touch. Seeds
+and tolerances documented in each test.
 """
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ from engine import mood
 
 
 def test_step_nu_inf_matches_binomial_distribution(persona: PersonaParams) -> None:
-    """Con nu=inf, la distribucion empirica de M debe coincidir con Binomial(N, p)."""
+    """With nu=inf, the empirical distribution of M must match Binomial(N, p)."""
     assert math.isinf(persona.nu)  # precondition for this case
 
     p_target = 0.35
@@ -68,11 +68,11 @@ def test_step_nu_inf_matches_binomial_distribution(persona: PersonaParams) -> No
     exp_arr = exp_arr * (obs_arr.sum() / exp_arr.sum())
 
     chi2, pvalue = stats.chisquare(f_obs=obs_arr, f_exp=exp_arr)
-    assert pvalue > 0.01, f"chi-cuadrado rechaza H0 (Binomial): chi2={chi2}, p={pvalue}"
+    assert pvalue > 0.01, f"chi-square rejects H0 (Binomial): chi2={chi2}, p={pvalue}"
 
 
 def test_step_nu_inf_ks_matches_binomial_cdf(persona: PersonaParams) -> None:
-    """Chequeo independiente con la banda DKW: D = sup|ecdf - cdf|, alpha=0.01."""
+    """Independent check with the DKW band: D = sup|ecdf - cdf|, alpha=0.01."""
     p_target = 0.62
     mu = mood.logit(p_target) - mood.logit(persona.lam)
     state = MoodState(mu=mu, eta=0.0)
@@ -91,15 +91,16 @@ def test_step_nu_inf_ks_matches_binomial_cdf(persona: PersonaParams) -> None:
 
     alpha = 0.01
     eps = math.sqrt(math.log(2.0 / alpha) / (2.0 * n_samples))
-    assert D <= eps, f"KS/DKW rechaza H0 (Binomial): D={D:.5f} > eps={eps:.5f} (alpha={alpha})"
+    assert D <= eps, f"KS/DKW rejects H0 (Binomial): D={D:.5f} > eps={eps:.5f} (alpha={alpha})"
 
 
 class _BetaSpyRng:
-    """Envoltorio de un Generator real que cuenta llamadas a .beta().
+    """Wrapper around a real Generator that counts calls to .beta().
 
-    numpy.random.Generator es un objeto nativo (Cython) con atributos
-    read-only: no admite monkeypatch.setattr directo sobre una instancia. Se
-    usa composición (delegación por __getattr__) en vez de parchear el objeto.
+    numpy.random.Generator is a native (Cython) object with read-only
+    attributes: it does not accept monkeypatch.setattr directly on an
+    instance. Composition (delegation via __getattr__) is used instead of
+    patching the object.
     """
 
     def __init__(self, inner: np.random.Generator) -> None:
@@ -115,23 +116,23 @@ class _BetaSpyRng:
 
 
 def test_step_nu_inf_never_calls_beta(persona: PersonaParams) -> None:
-    """El caso nu=inf es ESTRUCTURAL: no debe invocar Generator.beta en absoluto
-    (no es un límite numérico con alpha/beta gigantes). Se usa un spy que
-    delega en un Generator real pero cuenta llamadas a .beta().
+    """The nu=inf case is STRUCTURAL: it must not invoke Generator.beta at all
+    (it is not a numerical limit with huge alpha/beta). It uses a spy that
+    delegates to a real Generator but counts calls to .beta().
     """
     state = MoodState(mu=0.1, eta=0.0)
     spy = _BetaSpyRng(np.random.default_rng(1))
 
     M, p, arg = mood.step(state, persona, m=0.0, g=1.0, variant=MoodVariant.DECOUPLED, rng=spy)
 
-    assert spy.beta_calls == 0, "step llamó a rng.beta() con nu=inf (debería ser Binomial pura)"
+    assert spy.beta_calls == 0, "step called rng.beta() with nu=inf (it should be pure Binomial)"
     assert 0 <= M <= persona.N
 
 
 def test_step_finite_nu_does_call_beta(persona: PersonaParams) -> None:
-    """Contraparte del test anterior: con nu finita SÍ debe pasar por
-    rng.beta() (rama beta-binomial), para no dejar pasar una implementación
-    que ignore nu por completo."""
+    """Counterpart of the previous test: with finite nu it MUST go through
+    rng.beta() (beta-binomial branch), so an implementation that ignores nu
+    entirely does not slip through."""
     params_finite_nu = dataclasses.replace(persona, nu=8.0)
     state = MoodState(mu=0.1, eta=0.0)
     spy = _BetaSpyRng(np.random.default_rng(1))
@@ -145,11 +146,11 @@ def test_step_finite_nu_does_call_beta(persona: PersonaParams) -> None:
 
 
 def test_update_converges_to_closed_form(persona: PersonaParams) -> None:
-    """mu' = rho*mu + k*(s - score_neutral) iterada ~50 veces bajo score
-    constante s converge a mu_inf = k*(s - score_neutral)/(1 - rho).
-    Tolerancia 1e-6 (absoluta) con rho=0.70 FIJADO explícitamente (no el
-    default, que puede afinarse) ⇒ convergencia geométrica rápida
-    (rho^50 ~ 8e-8), holgada respecto a la tolerancia pedida.
+    """mu' = rho*mu + k*(s - score_neutral) iterated ~50 times under constant
+    score s converges to mu_inf = k*(s - score_neutral)/(1 - rho).
+    Tolerance 1e-6 (absolute) with rho=0.70 FIXED explicitly (not the
+    default, which may be tuned) ⇒ fast geometric convergence
+    (rho^50 ~ 8e-8), comfortably within the requested tolerance.
     """
     s = 0.8
     persona = dataclasses.replace(persona, k=0.15, rho=0.70)
@@ -162,8 +163,8 @@ def test_update_converges_to_closed_form(persona: PersonaParams) -> None:
 
 
 def test_update_converges_to_closed_form_negative_score(persona: PersonaParams) -> None:
-    """Mismo criterio que el test anterior pero con score negativo (mu_inf < 0),
-    para no depender solo de la rama positiva de la recursión."""
+    """Same criterion as the previous test but with negative score (mu_inf < 0),
+    so as not to rely only on the positive branch of the recursion."""
     s = -0.5
     persona = dataclasses.replace(persona, k=0.15, rho=0.70)  # same params as the previous test
     state = MoodState(mu=0.3, eta=-0.2)  # arbitrary non-zero initial state
@@ -178,10 +179,10 @@ def test_update_converges_to_closed_form_negative_score(persona: PersonaParams) 
 
 
 def test_step_endogenous_stationary_sd(persona: PersonaParams) -> None:
-    """Itera step_endogenous >=20000 pasos, descarta burn-in (primeros 2000,
-    ~irrelevante frente a la escala de autocorrelación rho_e=0.5) y compara
-    la sd muestral de eta con la sd estacionaria teórica sigma_e/sqrt(1-rho_e^2),
-    tolerancia relativa 5%. Semilla fija para reproducibilidad.
+    """Iterates step_endogenous >=20000 steps, discards burn-in (first 2000,
+    ~irrelevant relative to the autocorrelation scale rho_e=0.5) and compares
+    the sample sd of eta with the theoretical stationary sd sigma_e/sqrt(1-rho_e^2),
+    relative tolerance 5%. Fixed seed for reproducibility.
     """
     rng = np.random.default_rng(4242)
     n_steps = 25000
@@ -198,8 +199,8 @@ def test_step_endogenous_stationary_sd(persona: PersonaParams) -> None:
 
     rel_error = abs(sample_sd - theoretical_sd) / theoretical_sd
     assert rel_error < 0.05, (
-        f"sd muestral {sample_sd:.5f} vs teórica {theoretical_sd:.5f} "
-        f"(error relativo {rel_error:.3%}, tolerancia 5%)"
+        f"sample sd {sample_sd:.5f} vs theoretical {theoretical_sd:.5f} "
+        f"(relative error {rel_error:.3%}, tolerance 5%)"
     )
 
 
@@ -211,9 +212,9 @@ def test_step_endogenous_stationary_sd(persona: PersonaParams) -> None:
     [MoodVariant.ORIGINAL, MoodVariant.DECOUPLED, MoodVariant.DECOUPLED_OFFSETS],
 )
 def test_variants_identical_arg_when_degenerate(persona: PersonaParams, variant: MoodVariant) -> None:
-    """Con m=0, eta=0, g=1 las tres variantes deben producir EXACTAMENTE el
-    mismo arg (comparación exacta, no approx: son las mismas operaciones
-    aritméticas de punto flotante bajo estas condiciones degeneradas)."""
+    """With m=0, eta=0, g=1 the three variants must produce EXACTLY the same
+    arg (exact comparison, not approx: they are the same floating-point
+    arithmetic operations under these degenerate conditions)."""
     state = MoodState(mu=0.37, eta=0.0)
     arg = mood.compute_arg(state, persona, m=0.0, g=1.0, variant=variant)
     expected = mood.logit(persona.lam) + state.mu
@@ -221,10 +222,10 @@ def test_variants_identical_arg_when_degenerate(persona: PersonaParams, variant:
 
 
 def test_variants_same_M_with_same_rng_when_degenerate(persona: PersonaParams) -> None:
-    """step con el mismo Generator (misma semilla, reconstruido para cada
-    variante) debe producir el mismo M cuando m=0, eta=0, g=1, ya que arg (y
-    por tanto p) es idéntico entre variantes y el consumo de aleatoriedad de
-    step (rng.binomial, sin rng.beta porque nu=inf) es el mismo."""
+    """step with the same Generator (same seed, rebuilt for each variant)
+    must produce the same M when m=0, eta=0, g=1, since arg (and therefore p)
+    is identical across variants and the randomness consumption of step
+    (rng.binomial, no rng.beta because nu=inf) is the same."""
     state = MoodState(mu=0.2, eta=0.0)
     results = {}
     for variant in MoodVariant:
@@ -300,8 +301,8 @@ def test_step_deterministic_with_same_seed(persona: PersonaParams) -> None:
 
 
 def test_step_deterministic_with_same_seed_finite_nu(persona: PersonaParams) -> None:
-    """Mismo criterio que el anterior pero con nu finita (ejercita rng.beta
-    además de rng.binomial) para no dejar sin cubrir la rama beta-binomial."""
+    """Same criterion as above but with finite nu (exercises rng.beta in
+    addition to rng.binomial) so the beta-binomial branch is not left uncovered."""
     params_finite_nu = dataclasses.replace(persona, nu=8.0)
     state = MoodState(mu=0.15, eta=-0.05)
 
@@ -315,11 +316,11 @@ def test_step_deterministic_with_same_seed_finite_nu(persona: PersonaParams) -> 
 
 
 def test_step_different_seeds_generally_differ(persona: PersonaParams) -> None:
-    """Chequeo de cordura complementario al determinismo: semillas distintas
-    deben (típicamente) producir secuencias de M distintas. Se comparan 30
-    draws consecutivos entre dos rngs con semillas distintas; con N=10 y p
-    intermedio la probabilidad de que las 30 secuencias coincidan por azar es
-    despreciable, así que no es un test flaky en la práctica."""
+    """Sanity check complementary to determinism: different seeds should
+    (typically) produce different sequences of M. 30 consecutive draws are
+    compared between two rngs with different seeds; with N=10 and intermediate
+    p, the probability that the 30 sequences match by chance is negligible,
+    so it is not a flaky test in practice."""
     state = MoodState(mu=0.0, eta=0.0)
     rng_a = np.random.default_rng(1)
     rng_b = np.random.default_rng(2)

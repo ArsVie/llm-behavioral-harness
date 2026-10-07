@@ -1,4 +1,4 @@
-"""Capa de orquestación del arnés conductual."""
+"""Orchestration layer of the behavioral harness."""
 
 from harness.behavior import BehaviorDirective, BehaviorTrace, derive_behavior
 

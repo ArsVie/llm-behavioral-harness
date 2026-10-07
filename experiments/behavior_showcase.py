@@ -1,4 +1,4 @@
-"""Emulación ensemble de treinta días y consecuencias conductuales por fase."""
+"""Thirty-day ensemble emulation and per-phase behavioral consequences."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ class EnsembleAnalysis:
 
 
 def build_emulation(days: int = 30, seed: int = 3001) -> list[EmulatedDay]:
-    """Compone motor, energía y actuadores para una conversación vespertina."""
+    """Compose engine, energy and actuators for an evening conversation."""
     result = run(days=days, seed=seed, variant=MoodVariant.DECOUPLED_OFFSETS)
     timing = TimingParams()
     emulation: list[EmulatedDay] = []
@@ -93,7 +93,7 @@ def build_emulation(days: int = 30, seed: int = 3001) -> list[EmulatedDay]:
 def _analyze_ensemble(days: int, seeds: Iterable[int]) -> EnsembleAnalysis:
     seed_list = list(seeds)
     if not seed_list:
-        raise ValueError("ensemble_seeds no puede estar vacío")
+        raise ValueError("ensemble_seeds cannot be empty")
 
     results = [run(days, seed, MoodVariant.DECOUPLED_OFFSETS) for seed in seed_list]
     moods = np.stack([result.M for result in results])
@@ -345,7 +345,7 @@ def write_showcase(
     seed: int | None = None,
     ensemble_seeds: Iterable[int] = range(30),
 ) -> ShowcaseOutputs:
-    """Escribe evidencia ensemble, fase, traza y ejemplos reproducibles."""
+    """Write the ensemble and phase evidence, trace and reproducible examples."""
     out_dir.mkdir(parents=True, exist_ok=True)
     analysis = _analyze_ensemble(days, ensemble_seeds)
     representative_seed = analysis.typical_seed if seed is None else seed

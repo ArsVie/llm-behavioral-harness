@@ -1,15 +1,15 @@
-"""Propiedad anti-colapso del renderizador de briefs.
+"""Anti-collapse property of the briefs renderer.
 
-Todo vector de animo intencionado como estado distinto debe renderizar un
-brief distinto: dos estados colapsados son indistinguibles para el modelo.
+Every vector of mood intended as a distinct state must render a
+distinct brief: two collapsed states are indistinguishable to the model.
 """
 
 from __future__ import annotations
 
 from harness.behavior import _render_brief
 
-# Canales no explorados: valores medios representativos, fijos en toda la
-# batería. Solo valencia/energía varían.
+# Unexplored channels: representative mean values, fixed across the
+# whole battery. Only valence/energy vary.
 _MID = {
     "momentum": 0.0,
     "warmth": 0.6,
@@ -23,10 +23,10 @@ def _brief(*, valence: float, energy: float) -> str:
 
 
 def test_valence_0_6_and_1_0_must_render_distinct_briefs() -> None:
-    """La sonda de decisión original: valencia 0.6 vs 1.0 (energía igual).
+    """The original decision probe: valence 0.6 vs 1.0 (same energy).
 
-    Hoy ambos caen en la banda '> 0.35' y rinden el mismo brief
-    ('quietly bright') -> el modelo no puede distinguir el estado.
+    Today both fall in the '> 0.35' band and render the same brief
+    ('quietly bright') -> the model cannot distinguish the state.
     """
     low = _brief(valence=0.6, energy=0.5)
     high = _brief(valence=1.0, energy=0.5)
@@ -35,11 +35,12 @@ def test_valence_0_6_and_1_0_must_render_distinct_briefs() -> None:
 
 
 def test_energy_0_4_and_0_6_must_render_distinct_briefs() -> None:
-    """Energía 0.4 vs 0.6 con todo lo demás idéntico.
+    """Energy 0.4 vs 0.6 with everything else identical.
 
-    Ambos caen en la banda media (0.35 <= e <= 0.7) y rinden 'calmly present'
-    -> colapso del canal de energía. (El par 0.4 vs 0.8 NO colapsa hoy: 0.8
-    supera el umbral 0.7 y ya rinde 'lively and readily engaged'.)
+    Both fall in the middle band (0.35 <= e <= 0.7) and render 'calmly present'
+    -> collapse of the energy channel. (The pair 0.4 vs 0.8 does NOT collapse
+    today: 0.8 exceeds the 0.7 threshold and already renders 'lively and
+    readily engaged'.)
     """
     low = _brief(valence=0.0, energy=0.4)
     high = _brief(valence=0.0, energy=0.6)
@@ -48,11 +49,11 @@ def test_energy_0_4_and_0_6_must_render_distinct_briefs() -> None:
 
 
 def test_valence_energy_grid_must_render_injective_briefs() -> None:
-    """Rejilla completa valencia x energía: 32 vectores -> 32 briefs.
+    """Full valence x energy grid: 32 vectors -> 32 briefs.
 
-    Con 8 valores de valencia y 4 de energía, la propiedad anti-colapso exige
-    32 briefs distintos. Hoy el renderizador de 3x3 bandas colapsa la rejilla
-    a 9 briefs -> ROJO.
+    With 8 valence values and 4 energy values, the anti-collapse property
+    requires 32 distinct briefs. Today the 3x3 band renderer collapses the
+    grid to 9 briefs -> RED.
     """
     valences = (-1.0, -0.7, -0.4, -0.1, 0.2, 0.5, 0.8, 1.0)
     energies = (0.1, 0.4, 0.7, 0.9)

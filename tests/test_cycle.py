@@ -1,4 +1,4 @@
-"""Tests de aceptación para engine.cycle (W1.2)."""
+"""Acceptance tests for engine.cycle (W1.2)."""
 from __future__ import annotations
 
 from dataclasses import replace
@@ -18,10 +18,10 @@ from engine.types import (
 
 
 class TestInitState:
-    """Test 1: init_state dibuja L_0 ~ Normal(L_mean, L_sd) truncada >= 1."""
+    """Test 1: init_state draws L_0 ~ Normal(L_mean, L_sd) truncated >= 1."""
 
     def test_init_state_creates_valid_state(self, persona: PersonaParams):
-        """init_state devuelve CycleState con cycle_day = phi % L_0."""
+        """init_state returns CycleState with cycle_day = phi % L_0."""
         rng = np.random.default_rng(42)
         state = init_state(persona, rng)
 
@@ -32,7 +32,7 @@ class TestInitState:
         assert abs(state.cycle_day) < 1e-10
 
     def test_init_state_respects_phi(self, persona: PersonaParams):
-        """init_state con phi != 0: cycle_day = phi % L_0."""
+        """init_state with phi != 0: cycle_day = phi % L_0."""
         rng = np.random.default_rng(42)
         params = replace(persona, phi=10.0)
         state = init_state(params, rng)
@@ -44,10 +44,10 @@ class TestInitState:
 
 
 class TestPhaseOf:
-    """Test 2: phase_of mapea cycle_day a etiqueta de fase con fronteras exactas."""
+    """Test 2: phase_of maps cycle_day to a phase label with exact boundaries."""
 
     def test_phase_boundaries_L28(self):
-        """Fronteras exactas con L=28: menstrual [0,5), follicular [5,12), etc."""
+        """Exact boundaries with L=28: menstrual [0,5), follicular [5,12), etc."""
         L = 28.0
 
         # Menstrual [0, 5)
@@ -75,7 +75,7 @@ class TestPhaseOf:
         assert phase_of(27.999, L) == PHASE_LUTEAL_LATE
 
     def test_phase_scales_with_L(self):
-        """Fases escalan con L_current (fracciones de PHASE_FRACTIONS)."""
+        """Phases scale with L_current (PHASE_FRACTIONS fractions)."""
         # With L=14, menstrual spans [0, 2.5).
         L = 14.0
         assert phase_of(0.0, L) == PHASE_MENSTRUAL
@@ -85,10 +85,10 @@ class TestPhaseOf:
 
 
 class TestStepNoMutation:
-    """Test 3: step no muta el estado de entrada."""
+    """Test 3: step does not mutate the input state."""
 
     def test_step_does_not_mutate(self, persona: PersonaParams):
-        """Llamadas sucesivas a step no alteran el estado anterior."""
+        """Successive calls to step do not alter the previous state."""
         rng = np.random.default_rng(42)
         state1 = init_state(persona, rng)
 
@@ -107,10 +107,10 @@ class TestStepNoMutation:
 
 
 class TestStepDeterminism:
-    """Test 4: determinismo con la misma semilla."""
+    """Test 4: determinism with the same seed."""
 
     def test_step_deterministic(self, persona: PersonaParams):
-        """Dos secuencias con la misma semilla dan los mismos (m, g, phase, next_state)."""
+        """Two sequences with the same seed yield the same (m, g, phase, next_state)."""
         # First run.
         rng1 = np.random.default_rng(999)
         state1 = init_state(persona, rng1)
@@ -129,10 +129,10 @@ class TestStepDeterminism:
 
 
 class TestMeanAndAmplitude:
-    """Test 5: m tiene media ~0 y amplitud ~B; g media ~1 y amplitud ~A."""
+    """Test 5: m has mean ~0 and amplitude ~B; g has mean ~1 and amplitude ~A."""
 
     def test_m_mean_and_amplitude_fixed_L(self, persona: PersonaParams):
-        """m(d) = B·sin(2π·d/L) sobre ciclo completo con L fija tiene media ~0, amplitude ~B."""
+        """m(d) = B·sin(2π·d/L) over a full cycle with fixed L has mean ~0, amplitude ~B."""
         # Isolate g's noise with sigma_eps=0.
         params = replace(persona, sigma_eps=0.0)
 
@@ -158,12 +158,12 @@ class TestMeanAndAmplitude:
         amplitude_m = (max_m - min_m) / 2
 
         # Mean is near 0.
-        assert abs(mean_m) < 0.05, f"m media {mean_m} fuera de [-0.05, 0.05]"
+        assert abs(mean_m) < 0.05, f"m mean {mean_m} outside [-0.05, 0.05]"
         # Amplitude is near B.
-        assert abs(amplitude_m - params.B) < 0.05, f"m amplitud {amplitude_m} != B={params.B}"
+        assert abs(amplitude_m - params.B) < 0.05, f"m amplitude {amplitude_m} != B={params.B}"
 
     def test_g_mean_and_amplitude_fixed_L(self, persona: PersonaParams):
-        """g(d) = 1 + A·sin(2π·d/L) + ε sobre ciclo con epsilon ~ N(0, σ_ε)."""
+        """g(d) = 1 + A·sin(2π·d/L) + ε over a cycle with epsilon ~ N(0, σ_ε)."""
         # With small sigma_eps, mean is near 1 and amplitude near A.
         params = replace(persona, sigma_eps=0.0)
 
@@ -189,16 +189,16 @@ class TestMeanAndAmplitude:
         amplitude_g = (max_g - min_g) / 2
 
         # Mean is near 1.
-        assert abs(mean_g - 1.0) < 0.05, f"g media {mean_g} no está cerca de 1.0"
+        assert abs(mean_g - 1.0) < 0.05, f"g mean {mean_g} is not close to 1.0"
         # Amplitude is near A.
-        assert abs(amplitude_g - params.A) < 0.05, f"g amplitud {amplitude_g} != A={params.A}"
+        assert abs(amplitude_g - params.A) < 0.05, f"g amplitude {amplitude_g} != A={params.A}"
 
 
 class TestLRedraw:
-    """Test 6: redraw de L ~ Normal(L_mean, L_sd) truncada >= 1 sobre ≥200 ciclos."""
+    """Test 6: redraw of L ~ Normal(L_mean, L_sd) truncated >= 1 over ≥200 cycles."""
 
     def test_L_redraw_statistics(self, persona: PersonaParams):
-        """Corre ≥200 ciclos completos; media de L ≈ L_mean, sd ≈ L_sd (±10%)."""
+        """Runs ≥200 full cycles; mean of L ≈ L_mean, sd ≈ L_sd (±10%)."""
         rng = np.random.default_rng(6666)
         state = init_state(persona, rng)
 
@@ -226,7 +226,7 @@ class TestLRedraw:
 
             steps += 1
 
-        assert len(L_values) >= 200, f"Solo {len(L_values)} ciclos completos"
+        assert len(L_values) >= 200, f"Only {len(L_values)} full cycles"
 
         mean_L = np.mean(L_values)
         sd_L = np.std(L_values, ddof=1)
@@ -235,24 +235,24 @@ class TestLRedraw:
         lower_mean = persona.L_mean * 0.9
         upper_mean = persona.L_mean * 1.1
         assert lower_mean <= mean_L <= upper_mean, (
-            f"Media L = {mean_L}, esperada ~{persona.L_mean} "
-            f"(rango [{lower_mean}, {upper_mean}])"
+            f"Mean L = {mean_L}, expected ~{persona.L_mean} "
+            f"(range [{lower_mean}, {upper_mean}])"
         )
 
         # sd is within 10% of L_sd.
         lower_sd = persona.L_sd * 0.9
         upper_sd = persona.L_sd * 1.1
         assert lower_sd <= sd_L <= upper_sd, (
-            f"SD L = {sd_L}, esperada ~{persona.L_sd} "
-            f"(rango [{lower_sd}, {upper_sd}])"
+            f"SD L = {sd_L}, expected ~{persona.L_sd} "
+            f"(range [{lower_sd}, {upper_sd}])"
         )
 
 
 class TestPeriodicityAutocorrelation:
-    """Test 7: serie m(t) sobre ~10 ciclos tiene autocorrelación alta (>0.8) en lag ≈ L_mean."""
+    """Test 7: m(t) series over ~10 cycles has high autocorrelation (>0.8) at lag ≈ L_mean."""
 
     def test_m_autocorrelation(self, persona: PersonaParams):
-        """m(t) es periódica: autocorrelación en lag ≈ L_mean es > 0.8."""
+        """m(t) is periodic: autocorrelation at lag ≈ L_mean is > 0.8."""
         # Isolate m with sigma_eps=0.
         params = replace(persona, sigma_eps=0.0)
 
@@ -287,6 +287,6 @@ class TestPeriodicityAutocorrelation:
 
         # With sigma_eps=0, lag-L_mean autocorrelation is high (>0.8).
         assert acf_at_lag > 0.8, (
-            f"Autocorrelación en lag {lag} es {acf_at_lag}, "
-            f"esperada > 0.8 (con sigma_eps=0)"
+            f"Autocorrelation at lag {lag} is {acf_at_lag}, "
+            f"expected > 0.8 (with sigma_eps=0)"
         )

@@ -1,12 +1,12 @@
-"""Bootstrap del run controlado semana 1: DB fresca → cadena clean-start → core Lily-soul-RP.
+"""Bootstrap for the controlled week-1 run: fresh DB → clean-start chain → Lily-soul-RP core.
 
-Paso 1 (idempotente): ``ensure_companion_initialized`` sobre una DB nueva con
-el mismo perfil Gate-2 del run seed-6001 (comparabilidad semana 1).
-Paso 2: reemplaza el core de la persona persistida por el texto de
-``--soul-file`` (nombre Lily). El run posterior reutiliza la fila existente
-(la cadena es idempotente) y el assembler la lee vía ``snapshot.persona.core``.
+Step 1 (idempotent): ``ensure_companion_initialized`` on a new DB with the
+same Gate-2 profile as the seed-6001 run (week-1 comparability).
+Step 2: replaces the persisted persona core with the text from
+``--soul-file`` (name Lily). The subsequent run reuses the existing row
+(the chain is idempotent) and the assembler reads it via ``snapshot.persona.core``.
 
-Uso:
+Usage:
     .venv/bin/python results/live-one-week/bootstrap_soul.py \
         --db results/live-one-week/companion.db --seed 7001 \
         --soul-file results/live-one-week/soul-lily-rp.md
@@ -22,13 +22,13 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
 def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Bootstrap semana 1 + soul RP.")
+    parser = argparse.ArgumentParser(description="Bootstrap week 1 + RP soul.")
     parser.add_argument("--db", type=Path, required=True)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--soul-file", type=Path, required=True)
     parser.add_argument("--owner-name", default="User")
     parser.add_argument("--owner-interests", default="",
-                        help="coma-separados; vacío = fixture Gate-2")
+                        help="comma-separated; empty = Gate-2 fixture")
     parser.add_argument("--companion-name", default="Lily")
     args = parser.parse_args(argv)
 
@@ -41,7 +41,7 @@ def main(argv: list[str] | None = None) -> int:
     load_env_file(REPO_ROOT / ".env")
 
     if args.db.exists():
-        print(f"[bootstrap] DB ya existe — rehúso sin regenerar: {args.db}")
+        print(f"[bootstrap] DB already exists — refusing to regenerate: {args.db}")
     args.db.parent.mkdir(parents=True, exist_ok=True)
     store = SQLiteStore(args.db, audit_mode=True)
 
@@ -56,19 +56,19 @@ def main(argv: list[str] | None = None) -> int:
         day=0,
     )
     print(f"[bootstrap] persona={result.persona.name} "
-          f"intereses={len(result.persona.interests)} "
-          f"arcos={len(result.life_arcs)}")
+          f"interests={len(result.persona.interests)} "
+          f"arcs={len(result.life_arcs)}")
 
     soul = args.soul_file.read_text(encoding="utf-8").strip()
     persona = store.load_persona()
-    assert persona is not None, "bootstrap no dejó fila persona"
+    assert persona is not None, "bootstrap left no persona row"
     store.save_persona(dataclasses.replace(
         persona, name=args.companion_name, core=soul))
     check = store.load_persona()
     assert (check is not None and check.name == args.companion_name
             and check.core == soul)
-    print(f"[bootstrap] core Lily-soul-RP persistido ({len(soul)} chars, "
-          f"{len(check.interests)} intereses, {len(check.routines)} rutinas)")
+    print(f"[bootstrap] core Lily-soul-RP persisted ({len(soul)} chars, "
+          f"{len(check.interests)} interests, {len(check.routines)} routines)")
     return 0
 
 

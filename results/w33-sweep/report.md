@@ -110,7 +110,7 @@ Seeds: `[66, 77, 88, 99, 110]`.
 | autocorr_lag1 | 0.3934 | (0.2, 0.5) | PASS |
 | sat_frac | 0.0267 | < 0.1 | PASS |
 
-![verification](08_verificacion_defaults_M_t.png)
+![verification](08_verification_defaults_M_t.png)
 
 ## Verdict (8b): **PASS**
 

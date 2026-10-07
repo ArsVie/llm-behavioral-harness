@@ -191,9 +191,9 @@ user's Desktop: `C:\Users\vruizes\Desktop\arnes-user-messages.txt`).
 
 - [PROPIO] **L5** — original spec (ES): the day's schedule is generated from the system prompt and INJECTED into context; the motive of each message comes from what was injected:
 
-  > Cronograma. Basado en el system prompt y la configuración anterior, se generara un cronograma de actividades a realizar durante el dia, inyectado en el contexto de la conversacion al inicio de este. Este cronograma no necesariamente tiene que ser seguido al pie de la letra y tampoco impide al acompañante responder al usuario.
+  > Schedule. Based on the system prompt and the previous configuration, a schedule of activities to be carried out during the day is generated, injected into the conversation context at its start. This schedule does not necessarily have to be followed to the letter and does not prevent the companion from replying to the user.
   >
-  > Iniciativa de conversación. Al inicio de cada conversación, ya sea iniciado por el acompañante o el usuario, tanto el cronograma como los gustos deben de ser inyectados en contexto para que el acompañante elija el motivo de su mensaje (porque se comunica con el usuario) o sus actividades cuando el usuario se comunica.
+  > Conversation initiative. At the start of each conversation, whether started by the companion or the user, both the schedule and the likes must be injected into context so that the companion chooses the motive of its message (because it is communicating with the user) or its activities when the user communicates.
 
 - [PEGADO en L5] — reviewer text the user attached to audit the code against it (assembler / minimal projection / prompt as ONE actuator among several / personality distributions):
 
@@ -238,7 +238,7 @@ user's Desktop: `C:\Users\vruizes\Desktop\arnes-user-messages.txt`).
 
 ### B. AVAILABILITY WINDOWS
 
-- [PROPIO] **L5** — daily activity schedule (base of the availability system); does not block replying to the user (cronograma quote above, section A).
+- [PROPIO] **L5** — daily activity schedule (base of the availability system); does not block replying to the user (schedule quote above, section A).
 
 - [PROPIO] **L356** — events firing mid-conversation: depends on conversation state; flags to record whether the agent engaged with the activity; server-side resolution (not LLM-induced); reply in context ("I'm in class, what do you want") or not reply (with a server-side notice); option to terminate the event:
 

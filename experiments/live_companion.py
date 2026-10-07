@@ -1,42 +1,42 @@
-"""Companion en vivo — Telegram o CLI.
+"""Live companion — Telegram or CLI.
 
-Wire del stack completo, cero piezas nuevas en el runtime:
+Full-stack wiring, zero new pieces in the runtime:
     config.select_channel('telegram'|'cli') -> AsyncRuntime.run()
 
-- El runtime entrega los proactivos por el canal REAL (channel.send,
-  proactive=True) y el inbound del canal entra por _on_inbound.
-- El token del bot se ROBA de la configuración del agente Hermes
-  (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID en ~/.hermes/.env) — el mismo
-  canal de mensajería que Hermes ya usa; el harness solo lo consume.
-- Tiempo REAL: time_scale = 3600 s/vh.
-- El DB persiste entre sesiones (resume-safe): reabrir con la misma ruta
-  continúa la historia sin rewind.
+- The runtime delivers proactive messages over the REAL channel (channel.send,
+  proactive=True) and the channel's inbound enters through _on_inbound.
+- The bot token is STOLEN from the Hermes agent configuration
+  (TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID in ~/.hermes/.env) — the same
+  messaging channel Hermes already uses; the harness merely consumes it.
+- REAL time: time_scale = 3600 s/vh.
+- The DB persists between sessions (resume-safe): reopening with the same
+  path continues the story without rewind.
 
-Uso:
-    # lane token (LILY_TOKEN) vive en el .env de la raíz del repo:
+Usage:
+    # lane token (LILY_TOKEN) lives in the repo-root .env:
     set -a; . <repo>/.env; set +a
     .venv/bin/python -m experiments.live_companion --channel telegram \
         --db results/live-companion/companion.db
     .venv/bin/python -m experiments.live_companion --channel cli \
         --db results/live-companion/companion.db
 
-Flags opcionales (misma superficie que sim/run_async):
-    --enable-commands   registra el handler de slash-commands.
-                        Default OFF -> los comandos se descartan. Con el
-                        flag ON el canal registra el menú de comandos del
-                        cliente vía setMyCommands (/state NUNCA se registra).
-    --tz <IANA>         ancla el reloj virtual a tiempo real (HARNESS_TZ
-                        como fallback; sin ninguno = sin ancla).
-    Las demás features UX (debounce HARNESS_DEBOUNCE con ventanas
+Optional flags (same surface as sim/run_async):
+    --enable-commands   registers the slash-command handler.
+                        Default OFF -> commands are dropped. With the
+                        flag ON the channel registers the client command
+                        menu via setMyCommands (/state is NEVER registered).
+    --tz <IANA>         anchors the virtual clock to real time (HARNESS_TZ
+                        as fallback; neither = no anchor).
+    The other UX features (debounce HARNESS_DEBOUNCE with windows
     HARNESS_DEBOUNCE_TRAILING_S / HARNESS_DEBOUNCE_MAX_WAIT_S, typing
-    HARNESS_TYPING, two-phase close HARNESS_TWO_PHASE_CLOSE) se activan por
-    env en el canal/sesión compartidos — el entry en vivo ya las consume.
+    HARNESS_TYPING, two-phase close HARNESS_TWO_PHASE_CLOSE) are enabled by
+    env in the shared channel/session — the live entry already consumes them.
 
-Verificación de compuerta (sin enviar mensajes): el driver imprime el
-estado del canal al arrancar; `--check` solo valida el token vía getMe
-(no envía nada) y sale.
+Gate check (without sending messages): the driver prints the channel
+state at startup; `--check` only validates the token via getMe
+(sends nothing) and exits.
 
-Convención del repo: docstrings en español, identificadores en inglés.
+Repo convention: English docstrings, English identifiers.
 """
 
 from __future__ import annotations

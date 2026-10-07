@@ -1,6 +1,6 @@
-"""Compuerta de la integración en vivo (telegram/cli).
+"""Live integration gate (telegram/cli).
 
-El driver arranca el runtime con un canal inyectado; entrega inbound -> réplica -> send y proactivos."""
+The driver starts the runtime with an injected channel; it delivers inbound -> reply -> send and proactive messages."""
 
 from __future__ import annotations
 
@@ -18,7 +18,7 @@ from tests.helpers.judges import DeterministicJudge
 
 
 def test_live_runtime_round_trip_reply_and_proactive():
-    """Inbound -> réplica -> send, y los proactivos llegan al canal."""
+    """Inbound -> reply -> send, and proactive messages reach the channel."""
     async def _run():
         from harness.store import SQLiteStore
 
@@ -30,10 +30,10 @@ def test_live_runtime_round_trip_reply_and_proactive():
             runtime = build_runtime(
                 store, 5001, channel,
                 client=FakeClient(), judge=judge,
-                time_scale_s_per_vh=0.0004,  # escala acelerada del CI
+                time_scale_s_per_vh=0.0004,  # CI-accelerated time scale
             )
-            # response_delay_s son segundos de reloj REAL (no los escala
-            # TimeScale): sin esto la compuerta duerme ~30 s de verdad.
+            # response_delay_s are REAL wall-clock seconds (TimeScale does
+            # not scale them): without this the gate would sleep ~30 s for real.
             runtime.sleeper = no_wait
             task = asyncio.create_task(runtime.run())
             try:
@@ -46,8 +46,8 @@ def test_live_runtime_round_trip_reply_and_proactive():
                 await asyncio.sleep(0.5)
                 assert any(not m.proactive for m in channel.sent), \
                     "reactive reply expected"
-                # Horizonte ilimitado (semántica en vivo): la cancelación es
-                # el camino Ctrl-C — el runtime finaliza limpio.
+                # Unlimited horizon (live semantics): cancellation is
+                # the Ctrl-C path — the runtime finalizes cleanly.
                 await asyncio.sleep(0.5)
             finally:
                 if not task.done():
@@ -62,7 +62,7 @@ def test_live_runtime_round_trip_reply_and_proactive():
 
 
 def test_build_runtime_wires_anchor_and_resume_positions(tmp_path):
-    """El anchor persistido posiciona un reinicio en la hora local real, no en medianoche virtual."""
+    """The persisted anchor positions a restart at the real local hour, not at virtual midnight."""
     import time
     import datetime
     import zoneinfo
@@ -95,7 +95,7 @@ def test_build_runtime_wires_anchor_and_resume_positions(tmp_path):
 
 
 def test_build_runtime_no_tz_keeps_pre_anchor_behavior(tmp_path):
-    """Sin anchor persistido y sin tz -> anchor=None."""
+    """Without a persisted anchor and without tz -> anchor=None."""
     from harness.store import SQLiteStore
 
     store = SQLiteStore(tmp_path / "companion.db", audit_mode=True)

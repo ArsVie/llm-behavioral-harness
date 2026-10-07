@@ -1,1 +1,1 @@
-"""Experimentos de validación de Fase 1 (Ola 3) — un script por experimento."""
+"""Phase 1 validation experiments (Wave 3) — one script per experiment."""

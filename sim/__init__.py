@@ -1,1 +1,1 @@
-"""Simulación de Fase 1: métricas, figuras y drivers día-a-día / eventos."""
+"""Phase 1 simulation: metrics, figures, and day-by-day / events drivers."""

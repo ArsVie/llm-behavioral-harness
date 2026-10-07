@@ -1,8 +1,8 @@
-"""Tests de sim/run_events.py (W2.2 — Ola 2).
+"""Tests for sim/run_events.py (W2.2 — Wave 2).
 
-PROPIEDAD: tarea W2.2 (sim/run_events.py + este archivo). Usa los defaults de
-PersonaParams/TimingParams (fixtures `persona`/`timing` de tests/conftest.py,
-CONGELADO) salvo cuando el propio test necesita variarlos explícitamente.
+OWNERSHIP: task W2.2 (sim/run_events.py + this file). Uses the defaults of
+PersonaParams/TimingParams (fixtures `persona`/`timing` from tests/conftest.py,
+FROZEN) unless the test itself needs to vary them explicitly.
 """
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ def test_guards_on_default_run(seed: int):
     timing = TimingParams()
     events = run_events.run(90, seed=seed)
 
-    assert len(events) > 0, "la corrida debe producir al menos un evento"
+    assert len(events) > 0, "the run must produce at least one event"
 
     min_gap_h = timing.min_gap_min / 60.0
 
@@ -107,7 +107,7 @@ def test_max_gap_is_exercised_with_low_rate():
     days = 10
     events = run_events.run(days, seed=123, timing=timing)
 
-    assert len(events) > 0, "el guard max_gap debe forzar al menos un contacto"
+    assert len(events) > 0, "the max_gap guard must force at least one contact"
 
 # Gaps from simulation start (t_last=0) to the first event and between consecutive events are bounded by max_gap_h + margin.
     gaps = np.diff(np.concatenate(([0.0], events)))
@@ -155,8 +155,8 @@ def test_main_smoke(capsys):
     assert exit_code == 0
 
     captured = capsys.readouterr()
-    assert "eventos" in captured.out
-    assert "tasa" in captured.out
+    assert "events" in captured.out
+    assert "rate" in captured.out
 
 
 # --- Extras: direct coverage of the composition helpers ---

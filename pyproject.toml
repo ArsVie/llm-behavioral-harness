@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "behavioral-harness"
 version = "0.1.0"
-description = "Arnés conductual para LLM — motor emocional y actuadores de comportamiento"
+description = "Behavioral harness for LLMs — emotional engine and behavior actuators"
 requires-python = ">=3.11"
 dependencies = [
     "numpy>=1.26",

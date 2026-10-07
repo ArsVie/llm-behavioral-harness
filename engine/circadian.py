@@ -1,8 +1,8 @@
-"""Valencia experimental, energía y envolvente circadiana.
+"""Experimental valence, energy and circadian envelope.
 
-La energía está separada del ánimo. Su nivel y amplitud diaria dependen de fase:
-ovulatoria es alta y relativamente estable; menstrual es baja y presenta el
-arco circadiano más amplio. ``c(h)`` permanece fuera de la ruta de valencia.
+Energy is separate from mood. Its level and daily amplitude depend on phase:
+ovulatory is high and relatively stable; menstrual is low and shows the widest
+circadian arc. ``c(h)`` stays outside the valence path.
 """
 from __future__ import annotations
 
@@ -21,14 +21,14 @@ ENERGY_PHASE_AMPLITUDE_MULTIPLIERS: dict[str, float] = {
 
 
 def c(h: float, params: TimingParams) -> float:
-    """Desplazamiento circadiano experimental de valencia en unidades logit."""
+    """Experimental circadian valence offset in logit units."""
     h_norm = h % 24.0
     angle = 2.0 * math.pi * (h_norm - params.peak_hour) / 24.0
     return params.diurnal_amp * math.cos(angle)
 
 
 def energy(h: float, phase_label: str, params: TimingParams) -> float:
-    """Energía en ``[0, 1]`` con nivel y amplitud dependientes de fase."""
+    """Energy in ``[0, 1]`` with phase-dependent level and amplitude."""
     h_norm = h % 24.0
     angle = 2.0 * math.pi * (h_norm - params.peak_hour) / 24.0
     amplitude_multiplier = ENERGY_PHASE_AMPLITUDE_MULTIPLIERS.get(phase_label, 1.0)
@@ -39,7 +39,7 @@ def energy(h: float, phase_label: str, params: TimingParams) -> float:
 
 
 def envelope(h: float, params: TimingParams) -> float:
-    """Envolvente diurna en ``[0, 1]``, cero exacto en quiet hours."""
+    """Diurnal envelope in ``[0, 1]``, exactly zero during quiet hours."""
     h_norm = h % 24.0
     quiet_ini, quiet_fin = params.quiet_hours
     ramp_h = ENVELOPE_RAMP_H

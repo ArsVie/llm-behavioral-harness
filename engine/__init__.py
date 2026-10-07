@@ -1,1 +1,1 @@
-"""Motor estocástico del arnés conductual (Fase 1 — sin LLM, sin I/O)."""
+"""Stochastic engine of the behavioral harness (Phase 1 — no LLM, no I/O)."""

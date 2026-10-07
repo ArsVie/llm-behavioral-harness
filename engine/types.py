@@ -1,20 +1,20 @@
-"""Contrato congelado de la Fase 1 (Ola 0 — W0.1).
+"""Frozen Phase 1 contract (Wave 0 — W0.1).
 
-Este archivo es de SOLO LECTURA tras la Ola 0. Define los tipos, los
-parámetros por defecto (tabla de DESIGN.md §"Parámetros iniciales") y las
-decisiones abiertas que W0.1 fijó (marcadas "Decisión W0.1" en cada campo).
-Especificación matemática completa: DESIGN.md §"Motor estocástico" y
+This file is READ-ONLY after Wave 0. It defines the types, the default
+parameters (table in DESIGN.md §"Initial parameters") and the open
+decisions that W0.1 fixed (marked "W0.1 decision" on each field).
+Full mathematical specification: DESIGN.md §"Stochastic engine" and
 research/05-reevaluacion-diseno.md §2–§3.
 
-Convención de tiempo (transversal, congelada):
-  - Escala lenta: días enteros t = 0, 1, 2, ... (un paso de motor por día).
-  - Escala rápida: horas absolutas desde el inicio de la simulación
-    (t_h = 0.0 es el día 0 a las 00:00). Hora local del día = t_h % 24.
-  - El día del evento t_h es int(t_h // 24).
+Time convention (cross-cutting, frozen):
+  - Slow scale: whole days t = 0, 1, 2, ... (one engine step per day).
+  - Fast scale: absolute hours since the start of the simulation
+    (t_h = 0.0 is day 0 at 00:00). Local hour of day = t_h % 24.
+  - The day of event t_h is int(t_h // 24).
 
-Convención de RNG (congelada, ver engine/rng.py):
-  - `seed` maestro por companion; generadores hijos por SeedSequence con
-    spawn_key jerárquico (stream, día). Replay de un día = (seed, t).
+RNG convention (frozen, see engine/rng.py):
+  - Master `seed` per companion; child generators via SeedSequence with a
+    hierarchical spawn_key (stream, day). Replay of one day = (seed, t).
 """
 from __future__ import annotations
 
@@ -26,31 +26,31 @@ from typing import Callable
 import numpy as np
 
 # ---------------------------------------------------------------------------
-# Alias de tipos
+# Type aliases
 
-#: Modulador multiplicativo del hazard: factor >= 0 según t_h.
+#: Multiplicative hazard modulator: factor >= 0 as a function of t_h.
 Modulator = Callable[[float], float]
 
 
 # ---------------------------------------------------------------------------
-# Variantes del modelo de ánimo (research/05 §2.2)
+# Mood model variants (research/05 §2.2)
 
 
 class MoodVariant(Enum):
-    """Fórmula del argumento logit del ánimo diario.
+    """Formula of the logit argument of the daily mood.
 
     ORIGINAL:           arg = (logit λ + μ) · g(t)
-        Plan original §3: la ganancia multiplica también el temperamento;
-        estructuralmente sin m(t) ni η(t) (equivale a B≡0, η≡0).
+        Original plan §3: the gain also multiplies the temperament;
+        structurally without m(t) or η(t) (equivalent to B≡0, η≡0).
     DECOUPLED:          arg = logit λ + g(t)·(μ + η)
-        Ganancia solo sobre desviaciones; sin desplazamiento de media (B≡0,
-        m(t) se ignora).
+        Gain on deviations only; no mean shift (B≡0,
+        m(t) is ignored).
     DECOUPLED_OFFSETS:  arg = logit λ + m(t) + g(t)·(μ + η)
-        Modelo completo de DESIGN.md.
+        Full DESIGN.md model.
 
-    Las tres variantes coinciden exactamente cuando B=0, η≡0 (sigma_e=0 y
-    η₀=0), ν=∞ y g≡1 (A=0, sigma_eps=0). El muestreo M ~ BetaBinomial(N, p, ν)
-    es común a las tres (ν=∞ ⇒ binomial pura).
+    The three variants coincide exactly when B=0, η≡0 (sigma_e=0 and
+    η₀=0), ν=∞ and g≡1 (A=0, sigma_eps=0). Sampling M ~ BetaBinomial(N, p, ν)
+    is common to all three (ν=∞ ⇒ pure binomial).
     """
 
     ORIGINAL = "original"
@@ -59,17 +59,17 @@ class MoodVariant(Enum):
 
 
 # ---------------------------------------------------------------------------
-# Fases del ciclo (Decisión W0.1 — rangos exactos no fijados en DESIGN)
+# Cycle phases (W0.1 decision — exact ranges not fixed in DESIGN)
 
-#: Etiquetas de fase, en orden dentro del ciclo.
+#: Phase labels, in order within the cycle.
 PHASE_MENSTRUAL = "menstrual"
 PHASE_FOLLICULAR = "follicular"
 PHASE_OVULATORY = "ovulatory"
 PHASE_LUTEAL_EARLY = "luteal_early"
 PHASE_LUTEAL_LATE = "luteal_late"
 
-#: Fronteras de fase como fracciones de L (label, ini, fin); la última
-#: fase cierra en 1.0.
+#: Phase boundaries as fractions of L (label, start, end); the last
+#: phase closes at 1.0.
 PHASE_FRACTIONS: tuple[tuple[str, float, float], ...] = (
     (PHASE_MENSTRUAL, 0.0, 5.0 / 28.0),
     (PHASE_FOLLICULAR, 5.0 / 28.0, 12.0 / 28.0),
@@ -78,8 +78,8 @@ PHASE_FRACTIONS: tuple[tuple[str, float, float], ...] = (
     (PHASE_LUTEAL_LATE, 23.0 / 28.0, 1.0),
 )
 
-#: Multiplicadores de tasa de mensajes por fase, ordenados por ancla
-#: de valencia (menstrual → luteal-tardía).
+#: Per-phase message rate multipliers, ordered by valence
+#: anchor (menstrual → late luteal).
 DEFAULT_PHASE_MULTIPLIERS: dict[str, float] = {
     PHASE_MENSTRUAL: 0.7,
     PHASE_FOLLICULAR: 1.1,
@@ -88,7 +88,7 @@ DEFAULT_PHASE_MULTIPLIERS: dict[str, float] = {
     PHASE_LUTEAL_LATE: 0.8,
 }
 
-#: Desplazamiento del canal de energía por fase (aditivo, energía en
+#: Per-phase energy channel offset (additive, energy in
 #: [0, 1]).
 ENERGY_PHASE_OFFSETS: dict[str, float] = {
     PHASE_MENSTRUAL: -0.15,
@@ -98,89 +98,89 @@ ENERGY_PHASE_OFFSETS: dict[str, float] = {
     PHASE_LUTEAL_LATE: -0.10,
 }
 
-#: Decisión W0.1 — nivel base del canal de energía (antes de coseno y fase).
+#: W0.1 decision — base level of the energy channel (before cosine and phase).
 ENERGY_BASE = 0.6
 
-#: Decisión W0.1 — ancho (horas) de la rampa coseno suave con la que la
-#: envolvente circadiana entra/sale de quiet hours (continuidad, sin saltos).
+#: W0.1 decision — width (hours) of the smooth cosine ramp with which the
+#: circadian envelope enters/leaves quiet hours (continuity, no jumps).
 ENVELOPE_RAMP_H = 1.0
 
-#: Decisión W0.1 — ajuste por score del día anterior para la tasa de mensajes:
-#: adj(s) = clip(1 + ADJ_SLOPE·s, *adj_bounds). Lineal, centrado en 1.
+#: W0.1 decision — previous-day score adjustment for the message rate:
+#: adj(s) = clip(1 + ADJ_SLOPE·s, *adj_bounds). Linear, centered at 1.
 ADJ_SLOPE = 0.3
 
 
 # ---------------------------------------------------------------------------
-# Parámetros (congelados por persona / por deployment)
+# Parameters (frozen per persona / per deployment)
 
 
 @dataclass(frozen=True)
 class PersonaParams:
-    """Parámetros del motor lento (ánimo + ciclo). Defaults = DESIGN.md.
+    """Slow-engine parameters (mood + cycle). Defaults = DESIGN.md.
 
-    La cota de estabilidad del lazo juez→μ es k < 2(1−ρ)/g_max con
+    The stability bound of the judge→μ loop is k < 2(1−ρ)/g_max with
     g_max = 1 + A + 3·sigma_eps (engine/validation.py).
     """
 
-    N: int = 10  # pasos de la escala de ánimo (M ∈ 0..N)
-    lam: float = 0.60  # λ — temperamento base (media sigmoide sin ciclo)
-    nu: float = math.inf  # ν — volatilidad beta-binomial; inf ⇒ binomial pura
-    k: float = 0.18  # aprendizaje de μ desde el score del juez;
-    #   afinado post-Fase 1 (era 0.15)
-    rho: float = 0.85  # ρ — decaimiento diario de μ (half-life ~4.3 d);
-    #   afinado post-Fase 1 (era 0.70): memoria a escala de mes — los días
-    #   sueltos pesan poco, las rachas sostenidas se acumulan
-    rho_e: float = 0.7  # ρ_e — autocorr. del ánimo endógeno η (AR(1));
-    #   afinado en Fase 1 (era 0.5) — ver results/fase-1-informe.md
-    sigma_e: float = 0.45  # σ_e — sd de la innovación de η;
-    #   afinado en Fase 1 (era 0.2) — ver results/fase-1-informe.md
-    B: float = 0.5  # amplitud del desplazamiento de media del ciclo m(t);
-    #   afinado post-Fase 1 (era 0.15), barrido de 30 semillas
-    A: float = 0.25  # amplitud de la ganancia de reactividad del ciclo g(t)
-    sigma_eps: float = 0.03  # σ_ε — ruido diario de g(t)
-    L_mean: float = 28.0  # media de la longitud del ciclo (días)
-    L_sd: float = 1.5  # sd de la longitud del ciclo (redraw por ciclo)
-    phi: float = 0.0  # φ — fase inicial: cycle_day inicial en días.
-    #   "Aleatoria por persona" en DESIGN: el driver puede sortearla
-    #   (uniforme en [0, L)); default 0.0 por reproducibilidad.
-    score_neutral: float = 0.0  # neutro del juez (se calibra en Fase 3)
+    N: int = 10  # mood scale steps (M ∈ 0..N)
+    lam: float = 0.60  # λ — base temperament (sigmoid mean without cycle)
+    nu: float = math.inf  # ν — beta-binomial volatility; inf ⇒ pure binomial
+    k: float = 0.18  # learning of μ from the judge score;
+    #   tuned post-Phase 1 (was 0.15)
+    rho: float = 0.85  # ρ — daily decay of μ (half-life ~4.3 d);
+    #   tuned post-Phase 1 (was 0.70): month-scale memory — isolated
+    #   days weigh little, sustained streaks accumulate
+    rho_e: float = 0.7  # ρ_e — autocorr. of the endogenous mood η (AR(1));
+    #   tuned in Phase 1 (was 0.5) — see results/phase-1-report.md
+    sigma_e: float = 0.45  # σ_e — sd of the η innovation;
+    #   tuned in Phase 1 (was 0.2) — see results/phase-1-report.md
+    B: float = 0.5  # amplitude of the cycle mean shift m(t);
+    #   tuned post-Phase 1 (was 0.15), 30-seed sweep
+    A: float = 0.25  # amplitude of the cycle reactivity gain g(t)
+    sigma_eps: float = 0.03  # σ_ε — daily noise of g(t)
+    L_mean: float = 28.0  # mean cycle length (days)
+    L_sd: float = 1.5  # sd of the cycle length (redrawn per cycle)
+    phi: float = 0.0  # φ — initial phase: initial cycle_day in days.
+    #   "random per persona" in DESIGN: the driver may draw it
+    #   (uniform in [0, L)); default 0.0 for reproducibility.
+    score_neutral: float = 0.0  # judge neutral (calibrated in Phase 3)
 
 
 @dataclass(frozen=True)
 class TimingParams:
-    """Parámetros de temporización de mensajes espontáneos. Defaults = DESIGN.md.
+    """Timing parameters for spontaneous messages. Defaults = DESIGN.md.
 
-    Convención: `theta_h` y todos los tiempos en HORAS (ver convención de
-    tiempo en el docstring del módulo). `quiet_hours=(ini, fin)` en hora local
-    [0, 24); si ini > fin la ventana cruza medianoche (caso por defecto).
+    Convention: `theta_h` and all times in HOURS (see the time convention
+    in the module docstring). `quiet_hours=(start, end)` in local time
+    [0, 24); if start > end the window crosses midnight (the default case).
     """
 
-    k_w: float = 2.0  # forma Weibull; >1 ⇒ hazard creciente; 1 ⇒ exponencial
-    theta_h: float = 13.5  # escala Weibull (horas); media base ≈ θ·Γ(1+1/k_w)
-    peak_hour: float = 14.0  # pico del coseno circadiano (valencia y energía)
-    diurnal_amp: float = 0.25  # amplitud circadiana (valencia logit y energía)
-    quiet_hours: tuple[float, float] = (23.0, 8.0)  # Decisión W0.1
+    k_w: float = 2.0  # Weibull shape; >1 ⇒ increasing hazard; 1 ⇒ exponential
+    theta_h: float = 13.5  # Weibull scale (hours); base mean ≈ θ·Γ(1+1/k_w)
+    peak_hour: float = 14.0  # circadian cosine peak (valence and energy)
+    diurnal_amp: float = 0.25  # circadian amplitude (logit valence and energy)
+    quiet_hours: tuple[float, float] = (23.0, 8.0)  # W0.1 decision
     phase_multipliers: dict[str, float] = field(
         default_factory=lambda: dict(DEFAULT_PHASE_MULTIPLIERS)
     )
-    adj_bounds: tuple[float, float] = (0.7, 1.3)  # cota del ajuste por score
-    min_gap_min: float = 15.0  # guard de cola: gap mínimo entre mensajes (min)
-    daily_cap: int = 3  # Decisión W0.1 — guard de cola: máx. proactivos/día
-    max_gap_h: float = 48.0  # guard de cola: silencio máximo (DESIGN 48 h)
+    adj_bounds: tuple[float, float] = (0.7, 1.3)  # bound of the score adjustment
+    min_gap_min: float = 15.0  # queue guard: minimum gap between messages (min)
+    daily_cap: int = 3  # W0.1 decision — queue guard: max proactive/day
+    max_gap_h: float = 48.0  # queue guard: maximum silence (DESIGN 48 h)
 
 
 # ---------------------------------------------------------------------------
-# Estado mutable del motor (evoluciona día a día)
+# Mutable engine state (evolves day by day)
 
 
 @dataclass
 class CycleState:
-    """Reloj del ciclo hormonal.
+    """Hormonal cycle clock.
 
-    `cycle_day` ∈ [0, L_current) avanza 1.0 por día; al completar el ciclo
-    (cycle_day >= L_current) se resta L_current y se redibuja
-    L_current ~ Normal(L_mean, L_sd) (truncada a >= 1). φ entra como
-    cycle_day inicial.
+    `cycle_day` ∈ [0, L_current) advances 1.0 per day; on completing the
+    cycle (cycle_day >= L_current) L_current is subtracted and
+    L_current ~ Normal(L_mean, L_sd) is redrawn (truncated to >= 1). φ
+    enters as the initial cycle_day.
     """
 
     cycle_day: float
@@ -189,26 +189,26 @@ class CycleState:
 
 @dataclass
 class MoodState:
-    """Estado lento del ánimo: memoria de eventos μ y ánimo endógeno η."""
+    """Slow mood state: event memory μ and endogenous mood η."""
 
     mu: float = 0.0
     eta: float = 0.0
 
 
 # ---------------------------------------------------------------------------
-# Registros de simulación
+# Simulation records
 
 
 @dataclass(frozen=True)
 class DayRecord:
-    """Snapshot de un día simulado.
+    """Snapshot of one simulated day.
 
-    Semántica: `m, g, arg, p, M` son los del día `t`; `mu, eta` son los
-    valores USADOS ese día (estado al inicio del día, antes de
-    mood.update / mood.step_endogenous de fin de día); `score` es el score
-    (sintético) recibido ese día; `cycle_day`/`phase_label` los del día;
-    `seed` es la semilla maestra del companion — el RNG del día se
-    reconstruye con engine.rng.day_rng(seed, t).
+    Semantics: `m, g, arg, p, M` are those of day `t`; `mu, eta` are the
+    values USED that day (state at the start of the day, before the
+    end-of-day mood.update / mood.step_endogenous); `score` is the
+    (synthetic) score received that day; `cycle_day`/`phase_label` the
+    day's; `seed` is the companion's master seed — the day's RNG is
+    rebuilt with engine.rng.day_rng(seed, t).
     """
 
     t: int
@@ -227,13 +227,13 @@ class DayRecord:
 
 @dataclass
 class SimResult:
-    """Resultado de una corrida día-a-día (driver W2.1)."""
+    """Result of a day-by-day run (driver W2.1)."""
 
     params: PersonaParams
     variant: MoodVariant
     records: list[DayRecord]
 
-    # -- propiedades como arrays (derivadas de records) --------------------
+    # -- array properties (derived from records) --------------------
 
     def _arr(self, name: str) -> np.ndarray:
         return np.asarray([getattr(r, name) for r in self.records])
@@ -272,5 +272,5 @@ class SimResult:
 
     @property
     def seed(self) -> int:
-        """Semilla maestra de la corrida (constante en todos los records)."""
+        """Master seed of the run (constant across all records)."""
         return self.records[0].seed if self.records else -1

@@ -1,4 +1,4 @@
-"""Aceptación estadística de la semántica menstrual/ovulatoria por defecto."""
+"""Statistical acceptance of the default menstrual/ovulatory semantics."""
 
 from __future__ import annotations
 

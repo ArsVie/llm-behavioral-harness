@@ -1,7 +1,7 @@
-"""Traducción del estado latente a comportamiento observable y sutil.
+"""Translation of latent state into observable, subtle behavior.
 
-El motor decide el estado; este módulo decide cómo puede notarse. El brief
-nunca pide al modelo anunciar números, hormonas ni una etiqueta de ánimo.
+The engine decides the state; this module decides how it can be noticed. The
+brief never asks the model to announce numbers, hormones, or a mood label.
 """
 
 from __future__ import annotations
@@ -18,7 +18,7 @@ def _clip(value: float, low: float = 0.0, high: float = 1.0) -> float:
 
 @dataclass(frozen=True)
 class BehaviorTrace:
-    """Causas auditables que no se exponen al prompt conversacional."""
+    """Auditable causes that are not exposed to the conversational prompt."""
 
     phase_label: str
     hormonal_gain: float
@@ -29,7 +29,7 @@ class BehaviorTrace:
 
 @dataclass(frozen=True)
 class BehaviorDirective:
-    """Controles continuos que un canal o ensamblador puede aplicar."""
+    """Continuous controls a channel or assembler can apply."""
 
     valence: float
     energy: float
@@ -125,14 +125,14 @@ def derive_behavior(
     mood_scale: int = 10,
     previous: DayRecord | None = None,
 ) -> BehaviorDirective:
-    """Deriva una directiva determinista desde estado diario, hora e historia.
+    """Derive a deterministic directive from daily state, hour, and history.
 
-    Valencia y energía son ortogonales; ``g`` modula la sensibilidad al cambio,
-    no el afecto base.
+    Valence and energy are orthogonal; ``g`` modulates sensitivity to change,
+    not base affect.
     """
 
     if mood_scale <= 0:
-        raise ValueError("mood_scale debe ser positivo")
+        raise ValueError("mood_scale must be positive")
 
     valence = _clip(2.0 * (record.M / mood_scale) - 1.0, -1.0, 1.0)
     energy = circadian_energy(hour, record.phase_label, timing)

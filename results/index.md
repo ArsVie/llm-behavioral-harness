@@ -3,14 +3,14 @@
 Experiment reports, run artifacts, experiment briefs/memos, and status snapshots.
 
 ## Phase 1 — stochastic engine validation
-- [Phase 1 — Stochastic engine validation report](/results/fase-1-informe.md) — W4.1 synthesis of waves w31–w35: criteria 1–8 pass/fail, variant choice, tuned defaults, open risks, checkpoint decisions.
+- [Phase 1 — Stochastic engine validation report](/results/phase-1-report.md) — W4.1 synthesis of waves w31–w35: criteria 1–8 pass/fail, variant choice, tuned defaults, open risks, checkpoint decisions.
 
 ### Wave reports
-- [w31-baseline](/results/w31-baseline/reporte.md) — Baseline: 90 days, default params; criteria (1) stable mean, (2) m/g waves, (3) no saturation, (4) g variance ratio, (6) lag-1 autocorrelation.
-- [w32-variantes](/results/w32-variantes/reporte.md) — MoodVariant comparison (ORIGINAL / DECOUPLED / DECOUPLED_OFFSETS); criterion (8a).
-- [w33-barrido](/results/w33-barrido/reporte.md) — Parameter sweep (ρ_e×σ_e, k×ρ, A×B, 1D ν); tuned-defaults proposal; criterion (8b).
-- [w34-temporizacion](/results/w34-temporizacion/reporte.md) — Timing validation: hourly envelope, quiet hours, daily rate, gap mode, k_w sweep; criterion (7).
-- [w35-shocks](/results/w35-shocks/reporte.md) — Shocks and loop stability: μ drop/reversion, ρ dose-response, empirical bound; criterion (5).
+- [w31-baseline](/results/w31-baseline/report.md) — Baseline: 90 days, default params; criteria (1) stable mean, (2) m/g waves, (3) no saturation, (4) g variance ratio, (6) lag-1 autocorrelation.
+- [w32-variants](/results/w32-variants/report.md) — MoodVariant comparison (ORIGINAL / DECOUPLED / DECOUPLED_OFFSETS); criterion (8a).
+- [w33-sweep](/results/w33-sweep/report.md) — Parameter sweep (ρ_e×σ_e, k×ρ, A×B, 1D ν); tuned-defaults proposal; criterion (8b).
+- [w34-timing](/results/w34-timing/report.md) — Timing validation: hourly envelope, quiet hours, daily rate, gap mode, k_w sweep; criterion (7).
+- [w35-shocks](/results/w35-shocks/report.md) — Shocks and loop stability: μ drop/reversion, ρ dose-response, empirical bound; criterion (5).
 
 ### Behavior showcase
 - [30-day behavioral emulation — examples](/results/behavior-showcase/examples.md) — Contrasting day briefs from the Phase 2 emulation.

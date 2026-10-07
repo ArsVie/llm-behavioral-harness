@@ -1,22 +1,22 @@
-"""Temporización de mensajes espontáneos — hazard Weibull + thinning.
+"""Timing of spontaneous messages — Weibull hazard + thinning.
 
-No importa engine.circadian: la modulación llega como `modulator` ya compuesta
-(envolvente × fase × adj, compuesta por el llamador).
+Does not import engine.circadian: the modulation arrives as `modulator`
+already composed (envelope × phase × adj, composed by the caller).
 
-Especificación (DESIGN.md §"Temporización", research/05 §3.3):
+Specification (DESIGN.md §"Spontaneous message timing", research/05 §3.3):
     h(τ, t) = (k_w/θ)·(τ/θ)^(k_w−1) · modulator(t)
-    τ = t − t_last_interaction (horas);  k_w > 1 ⇒ hazard creciente con τ
-    ("cuanto más sin hablar, más probable"); k_w = 1 ⇒ exponencial/NHPP.
+    τ = t − t_last_interaction (hours);  k_w > 1 ⇒ hazard increasing in τ
+    ("the longer without talking, the more likely"); k_w = 1 ⇒ exponential/NHPP.
 
-Muestreo por THINNING sobre ventanas: en [u, u+Δ] el hazard baseline está
-acotado por su valor en τ(u+Δ) (es monótono en τ para k_w >= 1), y el
-modulador por `mod_ub`; se proponen candidatos con tasa mayorante y se
-aceptan con prob h(τ,t)/mayorante. Invariantes que los tests verifican:
+Sampling by THINNING over windows: in [u, u+Δ] the baseline hazard is
+bounded by its value at τ(u+Δ) (it is monotone in τ for k_w >= 1), and the
+modulator by `mod_ub`; candidates are proposed with a dominating rate and
+accepted with prob h(τ,t)/dominating rate. Invariants that the tests verify:
   - modulator ≡ 1 ⇒ gaps ~ Weibull(k_w, θ) (KS);
-  - k_w = 1 ⇒ exponencial (memoryless);
-  - k_w > 1 ⇒ distribución de gaps con moda > 0;
-  - modulator escalón 0/1 ⇒ cero eventos donde vale 0;
-  - modulator ≡ c ⇒ la tasa escala ~c (para k_w=1 exactamente).
+  - k_w = 1 ⇒ exponential (memoryless);
+  - k_w > 1 ⇒ gap distribution with mode > 0;
+  - 0/1 step modulator ⇒ zero events where it is 0;
+  - modulator ≡ c ⇒ the rate scales ~c (exactly for k_w=1).
 """
 from __future__ import annotations
 
@@ -26,15 +26,15 @@ import numpy as np
 
 from engine.types import Modulator, TimingParams
 
-#: Ancho de ventana (horas) para la cota mayorante del thinning; el
-#: baseline es monótono creciente, así que el extremo derecho acota.
+#: Window width (hours) for the thinning dominating bound; the
+#: baseline is monotonically increasing, so the right end bounds it.
 _WINDOW_H = 1.0
 
 
 def _baseline_hazard(tau_h: float, params: TimingParams) -> float:
-    """(k_w/θ)·(τ/θ)^(k_w−1), sin el factor `modulator`. τ_h >= 0."""
+    """(k_w/θ)·(τ/θ)^(k_w−1), without the `modulator` factor. τ_h >= 0."""
     if tau_h <= 0.0:
-        # k_w > 1 ⇒ 0 en τ=0; k_w == 1 ⇒ k/θ; k_w < 1 no es soportado.
+        # k_w > 1 ⇒ 0 at τ=0; k_w == 1 ⇒ k/θ; k_w < 1 is not supported.
         if params.k_w == 1.0:
             return params.k_w / params.theta_h
         return 0.0
@@ -46,7 +46,7 @@ def _baseline_hazard(tau_h: float, params: TimingParams) -> float:
 def hazard(
     tau_h: float, t_h: float, modulator: Modulator, params: TimingParams
 ) -> float:
-    """h(τ, t) del modelo. τ_h >= 0 en horas; t_h tiempo absoluto en horas."""
+    """h(τ, t) of the model. τ_h >= 0 in hours; t_h absolute time in hours."""
     return _baseline_hazard(tau_h, params) * modulator(t_h)
 
 
@@ -60,23 +60,23 @@ def next_event(
     mod_ub: float = 2.0,
     max_horizon_h: float = 720.0,
 ) -> float:
-    """Hora ABSOLUTA del siguiente evento candidato (> t_now_h), por thinning.
+    """ABSOLUTE time of the next candidate event (> t_now_h), via thinning.
 
-    `mod_ub` debe acotar superiormente a `modulator` en todo t (responsabilidad
-    del llamador; el default 2.0 cubre envolvente<=1 × fase<=1.4 × adj<=1.3).
-    Si no se acepta ningún candidato antes de t_now_h + max_horizon_h,
-    devuelve math.inf (el llamador decide — los guards de cola tienen su
-    propio máximo de 48 h). Determinista dado (rng, argumentos).
+    `mod_ub` must upper-bound `modulator` for all t (responsibility
+    of the caller; the 2.0 default covers envelope<=1 × phase<=1.4 × adj<=1.3).
+    If no candidate is accepted before t_now_h + max_horizon_h,
+    it returns math.inf (the caller decides — the tail guards have their
+    own maximum of 48 h). Deterministic given (rng, arguments).
 
-    Algoritmo: thinning con mayorante por ventanas de ancho `_WINDOW_H`. En
-    cada ventana [u, u_end) la tasa mayorante es baseline_hazard(τ al final
-    de la ventana) · mod_ub (el baseline es monótono creciente en τ para
-    k_w >= 1, así que su máximo en la ventana está en el extremo derecho).
-    Se propone un salto exponencial de tasa lam_star; si el candidato cae
-    fuera de la ventana actual, se descarta SIN evaluar aceptación y se
-    salta al inicio de la ventana siguiente (donde se recalcula la cota).
-    Si cae dentro, se acepta con prob hazard(cand)/lam_star; si se rechaza,
-    la búsqueda continúa desde el candidato (no desde el inicio de ventana).
+    Algorithm: thinning with a dominating bound over windows of width `_WINDOW_H`. In
+    each window [u, u_end) the dominating rate is baseline_hazard(τ at the end
+    of the window) · mod_ub (the baseline is monotonically increasing in τ for
+    k_w >= 1, so its maximum over the window is at the right end).
+    An exponential jump of rate lam_star is proposed; if the candidate falls
+    outside the current window, it is discarded WITHOUT evaluating acceptance and
+    the search jumps to the start of the next window (where the bound is recomputed).
+    If it falls inside, it is accepted with prob hazard(cand)/lam_star; if rejected,
+    the search continues from the candidate (not from the window start).
     """
     horizon_end_h = t_now_h + max_horizon_h
     u = t_now_h
@@ -89,8 +89,8 @@ def next_event(
             continue
         w = rng.exponential(1.0 / lam_star)
         if w > window_end_h - u:
-            # El candidato cae fuera de la ventana: se recalcula la cota en la
-            # ventana siguiente sin muestrear aceptación.
+            # The candidate falls outside the window: the bound is recomputed in the
+            # next window without sampling acceptance.
             u = window_end_h
             continue
         cand = u + w
@@ -98,5 +98,5 @@ def next_event(
         h_cand = hazard(tau_cand, cand, modulator, params)
         if rng.uniform() <= h_cand / lam_star:
             return cand
-        u = cand  # rechazado: se retoma desde el propio candidato
+        u = cand  # rejected: the search resumes from the candidate itself
     return math.inf

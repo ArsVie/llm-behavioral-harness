@@ -1,4 +1,4 @@
-"""Semántica de producto para fase, energía y variación observable."""
+"""Product semantics for phase, energy and observable variation."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ def _phase_center(label: str, length: float = 28.0) -> float:
     for phase, start, end in PHASE_FRACTIONS:
         if phase == label:
             return length * (start + end) / 2.0
-    raise AssertionError(f"fase desconocida: {label}")
+    raise AssertionError(f"unknown phase: {label}")
 
 
 def _signals(label: str) -> tuple[float, float]:

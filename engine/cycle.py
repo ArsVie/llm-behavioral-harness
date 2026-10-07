@@ -1,12 +1,12 @@
-"""Ciclo hormonal ~28 días — nivel, reactividad y fases.
+"""Hormonal cycle ~28 days — level, reactivity and phases.
 
-El nivel ``m`` y la ganancia ``g`` usan curvas periódicas suaves entre centros
-de fase. Ovulatoria tiene nivel alto y reactividad baja; menstrual tiene nivel
-bajo y reactividad alta. B y A conservan su papel como amplitudes separadas.
+The level ``m`` and the gain ``g`` use smooth periodic curves between phase
+centers. Ovulatory has high level and low reactivity; menstrual has low level
+and high reactivity. B and A keep their role as separate amplitudes.
 
-Al completar el ciclo se redibuja ``L ~ Normal(L_mean, L_sd)`` truncada a uno.
-La fase inicial ``phi`` entra como ``cycle_day``. El consumo RNG de ``step`` se
-mantiene: primero ruido de g y luego redraw de L solo si hay wraparound.
+When the cycle completes, ``L ~ Normal(L_mean, L_sd)`` is redrawn and truncated
+to >= 1. The initial phase ``phi`` enters as ``cycle_day``. The RNG consumption
+of ``step`` is preserved: first g noise and then an L redraw only on wraparound.
 """
 from __future__ import annotations
 
@@ -15,8 +15,8 @@ import numpy as np
 from engine.types import PHASE_FRACTIONS, CycleState, PersonaParams
 
 
-# Formas adimensionales en el centro de cada fase. Son semántica de producto,
-# no niveles hormonales clínicos.
+# Dimensionless shapes at the center of each phase. They are product
+# semantics, not clinical hormonal levels.
 MOOD_PHASE_ANCHORS: dict[str, float] = {
     "menstrual": -1.2,
     "follicular": 0.3,
@@ -37,7 +37,7 @@ REACTIVITY_PHASE_ANCHORS: dict[str, float] = {
 def _sample_truncated_normal(
     rng: np.random.Generator, mean: float, sd: float, lower: float
 ) -> float:
-    """Muestrear Normal truncada a ``>= lower`` con rejection sampling."""
+    """Sample a Normal truncated to ``>= lower`` via rejection sampling."""
     while True:
         x = rng.normal(mean, sd)
         if x >= lower:
@@ -47,7 +47,7 @@ def _sample_truncated_normal(
 def _phase_anchor_curve(
     cycle_day: float, length: float, anchors: dict[str, float]
 ) -> float:
-    """Curva periódica C1 por interpolación cosenoidal entre centros de fase."""
+    """C1 periodic curve by cosine interpolation between phase centers."""
     u = (cycle_day / length) % 1.0
     points = [
         ((start + end) / 2.0, anchors[label])
@@ -66,8 +66,8 @@ def _phase_anchor_curve(
                 left_x, left_y = points[index - 1]
                 right_x, right_y = points[index]
                 break
-        else:  # pragma: no cover - protegido por las ramas anteriores
-            raise AssertionError("intervalo de fase no encontrado")
+        else:  # pragma: no cover - guarded by the earlier branches
+            raise AssertionError("phase interval not found")
 
     alpha = (u - left_x) / (right_x - left_x)
     weight = 0.5 * (1.0 - np.cos(np.pi * alpha))
@@ -75,14 +75,14 @@ def _phase_anchor_curve(
 
 
 def init_state(params: PersonaParams, rng: np.random.Generator) -> CycleState:
-    """Inicializa L y ``cycle_day = phi % L``."""
+    """Initializes L and ``cycle_day = phi % L``."""
     L_0 = _sample_truncated_normal(rng, params.L_mean, params.L_sd, 1.0)
     cycle_day = params.phi % L_0
     return CycleState(cycle_day=cycle_day, L_current=L_0)
 
 
 def phase_of(cycle_day: float, L: float) -> str:
-    """Etiqueta de fase para ``cycle_day`` según ``PHASE_FRACTIONS``."""
+    """Phase label for ``cycle_day`` according to ``PHASE_FRACTIONS``."""
     normalized = cycle_day / L
     for label, frac_ini, frac_fin in PHASE_FRACTIONS:
         if frac_ini <= normalized < frac_fin:
@@ -93,7 +93,7 @@ def phase_of(cycle_day: float, L: float) -> str:
 def step(
     state: CycleState, params: PersonaParams, rng: np.random.Generator
 ) -> tuple[float, float, str, CycleState]:
-    """Avanza un día sin mutar ``state`` y devuelve ``m, g, fase, next``."""
+    """Advances one day without mutating ``state`` and returns ``m, g, phase, next``."""
     L = state.L_current
     d = state.cycle_day
 

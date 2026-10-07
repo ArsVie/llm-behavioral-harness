@@ -1,4 +1,4 @@
-"""Regresión: el actuador respeta escalas de ánimo configurables."""
+"""Regression: the actuator respects configurable mood scales."""
 
 from engine.types import DayRecord, TimingParams
 from harness.behavior import derive_behavior

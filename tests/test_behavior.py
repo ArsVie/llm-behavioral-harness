@@ -1,4 +1,4 @@
-"""Contrato de la primera capa actuadora del arnés conductual."""
+"""Contract of the behavioral harness's first actuating layer."""
 
 from __future__ import annotations
 

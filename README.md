@@ -81,7 +81,7 @@ A research instrument and a deployed system at the same time:
 
 | Artifact | What it shows |
 |---|---|
-| [Preregistered 8-criterion study](results/fase-1-informe.md) | 5 waves, 10-seed verification, explicit PASS/FAIL per criterion |
+| [Preregistered 8-criterion study](results/phase-1-report.md) | 5 waves, 10-seed verification, explicit PASS/FAIL per criterion |
 | [35-cell ablation matrix](results/it2-g6-matrix/traces.md) | 7 conditions × 5 seeds; each condition ablates exactly one channel |
 | [Horizon-split reconciliation](results/it3-g2-horizon-split-reconciliation-2026-08-10.md) | A gate that passed but the mechanism did not work — documented with corpus receipts |
 | [Decision probes r1–r3](results/decision-probe-real-2026-08-14-r3/) | 90 real model calls/run; exposed silent tool-protocol failures in a frontier model |
