@@ -112,6 +112,7 @@ have decided is wrong gets a check here in the same change that fixes it.
 
 ## Documentation
 
+- Write every artifact in the repo — docs, docstrings, comments, messages, and filenames — in English.
 - Prefer one authoritative description over duplicated summaries.
 - Keep current design, open work, and measured results separate.
 - Remove superseded drafts and plans rather than indexing them as current.
