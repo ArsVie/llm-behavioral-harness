@@ -64,10 +64,9 @@ NAMES: frozenset[str] = frozenset(n for n, _ in FACES)
 FACE_INSTRUCTION = (
     "Sprite: start every reply with the face you make while saying it, in "
     "brackets, like `[smug]`, then the reply. The tag is stripped before he "
-    "sees the message. To change your blush, add a modifier right after it: "
-    "`[blush]` for a strong blush, `[blush:off]` to clear it. You can also "
-    "change the room around you with `[bg:bedroom]` (bedroom, cafe, "
-    "night_city; `[bg:off]` clears it). Names:\n"
+    "sees the message. You can also change the room around you with "
+    "`[bg:bedroom]` (bedroom, bedroom_morning, cafe, night_city, city_day, "
+    "gym, school, office; `[bg:off]` clears it). Names:\n"
     + "\n".join(f"- {n}: {r}" for n, r in FACES)
 )
 
