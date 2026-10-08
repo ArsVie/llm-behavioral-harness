@@ -1,0 +1,130 @@
+/* The conversation dressed as the phone's mail screen (2026-10-08). phones.js
+   sets body[data-skin] to the mounted phone when the chat style is "retro";
+   each phone gives the palette, the rules below are shared. CSS only: the
+   page's DOM and chat.js are unchanged. */
+
+body[data-skin="sakura"] .chat-card {
+  --r-frame: linear-gradient(160deg, #ffd9e6, #f6a9c3 55%, #e889ab); --r-frame-hl: rgba(255, 255, 255, .75);
+  --r-screen: #fff8fb; --r-ink: #5a2a40; --r-faint: #b07a92;
+  --r-head: linear-gradient(#ff9cc2, #e2588f); --r-head-ink: #fff;
+  --r-her: #fff; --r-her-line: #f3a6c2; --r-him: #ffe3ee; --r-him-line: #e889ab;
+  --r-key: linear-gradient(#fff4f8, #f7c9d9); --r-key-ink: #7a3a55; --r-key-edge: #c98aa3;
+  --r-accent: #e2588f;
+}
+body[data-skin="noir"] .chat-card {
+  --r-frame: linear-gradient(160deg, #3a3d45, #16171c 55%, #060608); --r-frame-hl: rgba(255, 255, 255, .25);
+  --r-screen: #0d1214; --r-ink: #d9fffb; --r-faint: #6fa8a2;
+  --r-head: linear-gradient(#24302f, #0b1112); --r-head-ink: #7fe3dc;
+  --r-her: #141c1e; --r-her-line: #2f9e94; --r-him: #0f2c29; --r-him-line: #7fe3dc;
+  --r-key: linear-gradient(#353844, #1a1c22); --r-key-ink: #bff2ee; --r-key-edge: #000;
+  --r-accent: #55e6dc;
+}
+body[data-skin="dphone"] .chat-card {
+  --r-frame: linear-gradient(150deg, #ff7a3d, #ff4d12 40%, #e83a06); --r-frame-hl: rgba(255, 255, 255, .55);
+  --r-screen: #fbfaf7; --r-ink: #222; --r-faint: #8a7d74;
+  --r-head: linear-gradient(#ff8a50, #d83a00); --r-head-ink: #fff;
+  --r-her: #fff; --r-her-line: #b9b9b9; --r-him: #fff0e6; --r-him-line: #ff8a50;
+  --r-key: linear-gradient(#26272b, #0b0b0d); --r-key-ink: #f2f2f2; --r-key-edge: #000;
+  --r-accent: #2a52c9;
+}
+body[data-skin="silver"] .chat-card {
+  --r-frame: linear-gradient(90deg, #8f949c, #e9ecf0 18%, #c7ccd3 40%, #f6f7f9 62%, #b7bcc4 85%, #80858d); --r-frame-hl: #fff;
+  --r-screen: #e8f1fb; --r-ink: #1e2a3a; --r-faint: #6c7f99;
+  --r-head: linear-gradient(#6f93c8, #2f4f84); --r-head-ink: #fff;
+  --r-her: #fff; --r-her-line: #9fb3cc; --r-him: #d3e4fa; --r-him-line: #6f8fbf;
+  --r-key: linear-gradient(#fff, #cdd2d9); --r-key-ink: #2b3340; --r-key-edge: #7e838b;
+  --r-accent: #2f4f84;
+}
+
+/* -- the device frame around the screen ----------------------------------- */
+body[data-skin] .chat-card {
+  font-family: "DotGothic16", ui-monospace, monospace; color: var(--r-ink);
+  border: 12px solid transparent; border-radius: 22px;
+  background: linear-gradient(var(--r-screen), var(--r-screen)) padding-box, var(--r-frame) border-box;
+  box-shadow: 0 20px 40px -14px rgba(40, 20, 40, .45), inset 0 0 0 1px rgba(0, 0, 0, .35);
+  position: relative;
+}
+body[data-skin] .chat-card::after {           /* glass glare and a faint pixel grid */
+  content: ""; position: absolute; inset: 0; z-index: 3; pointer-events: none; border-radius: 8px;
+  background: linear-gradient(118deg, rgba(255, 255, 255, .10), rgba(255, 255, 255, .02) 30%, transparent 30.2%),
+              repeating-linear-gradient(0deg, rgba(0, 0, 0, .025) 0 1px, transparent 1px 3px);
+  box-shadow: inset 0 0 14px rgba(0, 0, 0, .12);
+}
+/* Grow into the 12px ring so the card keeps its height beside the phone. */
+body[data-phone][data-skin] .chat-card { height: calc(100vh - 86px); }
+
+/* -- title bar: who, signal and battery ----------------------------------- */
+body[data-skin] .chat-card .card-head {
+  background: var(--r-head); color: var(--r-head-ink); border: 0; border-radius: 6px 6px 0 0;
+  padding: 5px 12px; gap: 8px; min-height: 0;
+}
+body[data-skin] .chat-card .card-head h2 { font: 400 0/1 "DotGothic16", monospace; }
+body[data-skin] .chat-card .card-head h2::before { content: "✉ Lily"; font-size: 15px; letter-spacing: .5px; }
+body[data-skin] .chat-card .card-head .chip {
+  font-family: inherit; font-size: 11px; background: transparent; border: 1px solid currentColor;
+  color: var(--r-head-ink); border-radius: 2px; padding: 0 6px; height: auto; opacity: .9;
+}
+body[data-skin] .chat-card .card-head::after {   /* signal and battery */
+  content: "▂▄▆█  ▮▮▮"; font-size: 10px; letter-spacing: -1px; opacity: .9;
+}
+
+/* -- the mail log ----------------------------------------------------------- */
+body[data-skin] #log { background: var(--r-screen); padding: 12px 14px; gap: 5px;
+  scrollbar-width: thin; scrollbar-color: var(--r-her-line) transparent; }
+body[data-skin] .msg {
+  font-size: 14.5px; line-height: 1.55; border-radius: 3px; padding: 6px 10px;
+  background: var(--r-her); border: 2px solid var(--r-her-line); box-shadow: 2px 2px 0 var(--r-her-line);
+}
+body[data-skin] .msg.him { background: var(--r-him); border-color: var(--r-him-line); box-shadow: -2px 2px 0 var(--r-him-line); }
+body[data-skin] .msg.first { margin-top: 12px; }
+body[data-skin] .msg.first::before {          /* the mail header on each new message */
+  content: "▼ Lily"; display: block; font-size: 11px; color: var(--r-faint); margin: -2px 0 2px;
+  border-bottom: 1px dashed var(--r-her-line); padding-bottom: 2px;
+}
+body[data-skin] .msg.him.first::before { content: "▼ You"; border-bottom-color: var(--r-him-line); text-align: right; }
+body[data-skin] .msg.photo { padding: 4px; }
+body[data-skin] .msg.photo::before { display: none; }
+body[data-skin] .msg.photo img { border-radius: 2px; image-rendering: auto; }
+body[data-skin] .msg em { font-style: normal; color: var(--r-faint); }
+body[data-skin] .msg em::before { content: "*"; } body[data-skin] .msg em::after { content: "*"; }
+body[data-skin] .when {
+  font-family: inherit; color: var(--r-faint); display: flex; align-items: center; gap: 8px; width: 100%; margin-top: 14px;
+}
+body[data-skin] .when::before, body[data-skin] .when::after { content: ""; flex: 1; border-top: 1px dashed var(--r-her-line); }
+body[data-skin] #log .note { font-family: inherit; background: transparent; border: 1px dashed var(--r-faint);
+  border-radius: 2px; color: var(--r-faint); }
+
+/* call cards: a plain framed row in the same palette */
+body[data-skin] #log .callcard { background: var(--r-her); border: 2px solid var(--r-her-line); border-radius: 3px;
+  box-shadow: 2px 2px 0 var(--r-her-line); }
+body[data-skin] #log .callcard .cc-head { font-family: inherit; color: var(--r-ink); }
+body[data-skin] #log .callcard .cc-icon { border-radius: 3px; background: var(--r-him); color: var(--r-accent); }
+body[data-skin] #log .callcard .cc-time { font-family: inherit; color: var(--r-faint); }
+body[data-skin] #log .callcard .cc-sub { color: var(--r-faint); }
+body[data-skin] #log .callcard .cc-item { background: var(--r-screen); border: 1px solid var(--r-her-line); border-radius: 2px; }
+body[data-skin] #log .callcard .cc-item.him { background: var(--r-him); border-color: var(--r-him-line); }
+body[data-skin] #log .callcard[data-state="missed"] { border-color: #e0475f; box-shadow: 2px 2px 0 #e0475f; }
+
+/* -- typing, tray, and the composer as the softkey row --------------------- */
+body[data-skin] #typing { background: var(--r-screen); color: var(--r-faint); font-size: 12px; padding: 0 14px 4px; }
+body[data-skin] #typing:not(:empty)::after { content: "▌"; animation: r-blink 1s steps(1) infinite; }
+@keyframes r-blink { 50% { opacity: 0; } }
+body[data-skin] .tray { background: var(--r-screen); border-top: 1px dashed var(--r-her-line); }
+body[data-skin] .composer {
+  background: linear-gradient(#ffffffe6, #d6dbe6f0); border-top: 1px solid #fff; border-radius: 0 0 6px 6px;
+  padding: 8px 10px; gap: 6px;
+}
+body[data-skin="noir"] .composer { background: linear-gradient(#20262a, #111517); border-top-color: #2f9e94; }
+body[data-skin] .composer textarea {
+  font-family: inherit; font-size: 14px; color: var(--r-ink); background: var(--r-screen);
+  border: 2px solid var(--r-her-line); border-radius: 2px; box-shadow: inset 1px 1px 0 rgba(0, 0, 0, .12);
+}
+body[data-skin] .composer textarea::placeholder { color: var(--r-faint); }
+body[data-skin] .composer textarea:focus { outline: 2px solid var(--r-accent); outline-offset: 0; }
+body[data-skin] .composer .btn {
+  font-family: inherit; font-weight: 400; color: var(--r-key-ink); background: var(--r-key);
+  border: 0; border-radius: 12px; box-shadow: 0 2px 0 var(--r-key-edge), inset 0 1px 0 rgba(255, 255, 255, .6);
+}
+body[data-skin] .composer .btn:active { transform: translateY(1px); box-shadow: 0 1px 0 var(--r-key-edge); }
+body[data-skin] .composer #send::before { content: "✉ "; }
+body[data-skin] .chat-card.dropping { outline-color: var(--r-accent); }

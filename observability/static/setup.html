@@ -48,6 +48,8 @@
       <div class="card-head"><h2>Chat look</h2></div>
       <div class="cmd-row"><div><b>Her phone</b><p>The device she is framed in while he is away; this browser only</p></div>
         <div class="phone-pick" id="phones" role="radiogroup" aria-label="Phone design"></div></div>
+      <div class="cmd-row"><div><b>Chat style</b><p>Dress the conversation as the phone's mail screen, or keep it modern</p></div>
+        <div class="phone-pick" id="chatstyle" role="radiogroup" aria-label="Chat style"></div></div>
       <div class="cmd-row"><div><b>Backdrop</b><p>Behind the chat while he is away. Images in observability/static/backdrops/, or upload one (this browser only)</p></div>
         <div class="phone-pick" id="backdrops" role="radiogroup" aria-label="Backdrop"></div></div>
     </section>
@@ -116,8 +118,19 @@ poll();
 <script type="module">
 // The phone design is a display choice, kept per viewer; an open /chat
 // follows the change.
-import { PHONES, chosenPhone, choosePhone } from "/static/phones.js";
+import { PHONES, chosenPhone, choosePhone, chatStyle, chooseChatStyle } from "/static/phones.js";
 const box = document.getElementById("phones");
+const styleBox = document.getElementById("chatstyle");
+function drawStyle() {
+  styleBox.replaceChildren(...[["retro", "Match the phone"], ["modern", "Modern"]].map(([name, label]) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn"; b.textContent = label;
+    b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(chatStyle() === name));
+    b.onclick = () => { chooseChatStyle(name); drawStyle(); };
+    return b;
+  }));
+}
+drawStyle();
 function draw() {
   const now = chosenPhone();
   box.innerHTML = "";

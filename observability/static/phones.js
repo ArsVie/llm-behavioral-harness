@@ -23,6 +23,16 @@ export const PHONES = {
 
 const OVERRIDE = new URLSearchParams(location.search).get("phone");
 
+// The conversation can wear the phone too (retro-chat.css): "retro" dresses
+// it as the mounted phone's mail screen, "modern" keeps the page's look.
+const STYLE_KEY = "lily.chatstyle";
+export function chatStyle() {
+  try { return localStorage.getItem(STYLE_KEY) === "modern" ? "modern" : "retro"; } catch (e) { return "retro"; }
+}
+export function chooseChatStyle(name) {
+  try { localStorage.setItem(STYLE_KEY, name); } catch (e) { /* per-viewer only */ }
+}
+
 export function chosenPhone() {
   if (OVERRIDE in PHONES) return OVERRIDE;
   try { const v = localStorage.getItem(KEY); return v in PHONES ? v : DEFAULT; } catch (e) { return DEFAULT; }
@@ -142,6 +152,7 @@ function unmount() {
   root = null;
   delete stage.dataset.phone;
   delete document.body.dataset.phone;
+  delete document.body.dataset.skin;
 }
 
 function mount(name) {
@@ -165,6 +176,7 @@ function mount(name) {
   }
   stage.prepend(root);
   stage.dataset.phone = name;
+  skin();
   tick();
   mirror();
 }
@@ -204,6 +216,11 @@ function tick() {
   root.querySelector(".clock span").textContent = now.toLocaleDateString([], { weekday: "short", month: "numeric", day: "numeric" });
 }
 
+function skin() {
+  if (root && chatStyle() === "retro") document.body.dataset.skin = current;
+  else delete document.body.dataset.skin;
+}
+
 function apply() {
   const want = document.body.dataset.presence === "here" ? "classic" : chosenPhone();
   if (want !== current) {
@@ -211,13 +228,14 @@ function apply() {
     current = want;
     if (BODIES[want]) mount(want);
   }
+  skin();
   fit();
 }
 
 if (stage && face) {
   apply();
   new MutationObserver(apply).observe(document.body, { attributes: true, attributeFilter: ["data-presence"] });
-  addEventListener("storage", (e) => { if (e.key === KEY) apply(); });
+  addEventListener("storage", (e) => { if (e.key === KEY || e.key === STYLE_KEY) apply(); });
   addEventListener("resize", fit);
   setInterval(tick, 15000);
   const bar = { attributes: true, childList: true, characterData: true, subtree: true };
