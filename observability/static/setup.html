@@ -45,9 +45,11 @@
         <button type="button" class="btn" data-cmd="leave">Leave</button></div>
     </section>
     <section class="card">
-      <div class="card-head"><h2>Her phone</h2></div>
-      <div class="cmd-row"><div><b>Away stage</b><p>The device she is framed in while he is away; this browser only</p></div>
+      <div class="card-head"><h2>Chat look</h2></div>
+      <div class="cmd-row"><div><b>Her phone</b><p>The device she is framed in while he is away; this browser only</p></div>
         <div class="phone-pick" id="phones" role="radiogroup" aria-label="Phone design"></div></div>
+      <div class="cmd-row"><div><b>Backdrop</b><p>Behind the chat while he is away. Images in observability/static/backdrops/, or upload one (this browser only)</p></div>
+        <div class="phone-pick" id="backdrops" role="radiogroup" aria-label="Backdrop"></div></div>
     </section>
     <section class="card">
       <div class="card-head"><h2>Her schedule</h2></div>
@@ -128,6 +130,36 @@ function draw() {
     b.onclick = () => { choosePhone(name); draw(); };
     box.append(b);
   }
+}
+draw();
+</script>
+<script type="module">
+import { listBackdrops, chosenBackdrop, chooseBackdrop, customBackdrop, saveCustomBackdrop } from "/static/backdrop.js";
+const box = document.getElementById("backdrops");
+const folder = await listBackdrops();
+function option(value, label, thumb) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "btn";
+  b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(chosenBackdrop() === value));
+  if (thumb) { const img = document.createElement("img"); img.src = thumb; img.alt = ""; b.append(img); }
+  b.append(label);
+  b.onclick = () => { chooseBackdrop(value); draw(); };
+  return b;
+}
+function draw(note) {
+  box.replaceChildren(option("", "None"), ...folder.map((f) => option(f.url, f.name, f.url)));
+  if (customBackdrop()) box.append(option("custom", "Uploaded", customBackdrop()));
+  const up = document.createElement("label");
+  up.className = "btn"; up.textContent = "Upload…";
+  const input = document.createElement("input");
+  input.type = "file"; input.accept = "image/*"; input.hidden = true;
+  input.onchange = async () => {
+    try { await saveCustomBackdrop(input.files[0]); draw(); }
+    catch (e) { draw("That image is too big for this browser's storage; try a smaller one."); }
+  };
+  up.append(input);
+  box.append(up);
+  if (note) { const p = document.createElement("p"); p.className = "pick-note"; p.textContent = note; box.append(p); }
 }
 draw();
 </script>

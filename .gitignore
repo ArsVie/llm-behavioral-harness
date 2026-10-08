@@ -50,3 +50,6 @@ results/replay-schedule-*/
 results/temp-*
 results/obs-shots/
 results/defer-probe-*
+
+# Page backdrops dropped in for /chat (may be third-party art) stay local.
+observability/static/backdrops/

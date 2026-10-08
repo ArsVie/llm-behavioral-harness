@@ -41,9 +41,16 @@ _CONTENT_TYPES = {".html": "text/html; charset=utf-8",
                   ".js": "text/javascript; charset=utf-8",
                   ".svg": "image/svg+xml",
                   ".png": "image/png",
+                  ".jpg": "image/jpeg",
+                  ".jpeg": "image/jpeg",
                   ".ico": "image/x-icon",
                   ".json": "application/json; charset=utf-8",
                   ".webp": "image/webp"}
+
+#: Page backdrops for /chat, picked on /setup: whatever images sit in this
+#: folder. It is gitignored, so pictures he drops in stay off the repo.
+BACKDROPS_DIR: Path = STATIC_DIR / "backdrops"
+_BACKDROP_SUFFIXES = (".png", ".jpg", ".jpeg", ".webp")
 
 #: Her sprites and the face player live in the amadeus tree; only these two
 #: directories under it are served.
@@ -161,6 +168,7 @@ class Handler(BaseHTTPRequestHandler):
                 "/api/run/wire/file": self._wire_file,
                 "/api/run/stream": self._stream,
                 "/api/study/day": self._study_day,
+                "/api/backdrops": self._backdrops,
             }
             handler = routes.get(path)
             if handler is None:
@@ -223,6 +231,14 @@ class Handler(BaseHTTPRequestHandler):
         if ref is None:
             self._send_json({"error": "no run matched that id"}, status=404)
         return ref
+
+    def _backdrops(self, params: dict[str, str]) -> None:
+        """The images in the backdrops folder, by name, with their urls."""
+        found = sorted(p for p in BACKDROPS_DIR.glob("*")
+                       if p.is_file() and p.suffix.lower() in _BACKDROP_SUFFIXES) \
+            if BACKDROPS_DIR.is_dir() else []
+        self._send_json({"backdrops": [{"name": p.stem, "url": f"/static/backdrops/{p.name}"}
+                                       for p in found]})
 
     def _runs(self, params: dict[str, str]) -> None:
         self._send_json(reader.runs_payload(

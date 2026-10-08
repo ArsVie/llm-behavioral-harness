@@ -215,3 +215,6 @@ body[data-phone] .chat-card { height: calc(100vh - 86px); }
 .phone-pick .btn { gap: 7px; }
 .phone-pick .btn i { width: 12px; height: 12px; border-radius: 50%; flex: none; box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .2); }
 .phone-pick .btn[aria-checked="true"] { background: var(--lav-soft); border-color: var(--lav); font-weight: 600; }
+.phone-pick .btn img { width: 30px; height: 18px; object-fit: cover; border-radius: 4px; flex: none; }
+.phone-pick label.btn { cursor: pointer; }
+.phone-pick .pick-note { flex-basis: 100%; margin: 2px 0 0; font-size: 12px; color: var(--rose); }

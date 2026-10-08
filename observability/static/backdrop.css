@@ -1,0 +1,5 @@
+/* The page backdrop behind /chat while he is away (backdrop.js sets
+   body[data-backdrop] and --backdrop). Here mode keeps its scene. */
+body[data-presence="away"][data-backdrop] {
+  background: var(--paper) var(--backdrop) center / cover no-repeat fixed;
+}
