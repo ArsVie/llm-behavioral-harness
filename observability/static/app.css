@@ -854,7 +854,8 @@ pre.aside {
 .chat-grid { display: grid; gap: 18px; align-items: start;
   grid-template-columns: minmax(280px, 420px) minmax(0, 1fr); }
 .stage { position: relative; overflow: hidden;
-  background: radial-gradient(120% 80% at 50% 20%, var(--rose-soft), var(--lav-soft)); }
+  background: var(--scene-office, radial-gradient(120% 80% at 50% 20%, var(--rose-soft), var(--lav-soft)))
+              center / cover no-repeat; }
 /* The framed sprite is a bust with room above and below: crop to head and
    shoulders so the face reads at any size (as in amadeus face/chat-demo). */
 #face { width: 100%; aspect-ratio: 5 / 6; overflow: hidden; }
@@ -875,6 +876,12 @@ pre.aside {
 .when { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); align-self: center; margin-top: 10px; }
 #log .note { font-size: 12px; color: var(--ink-soft); align-self: center; text-align: center; max-width: 90%;
             white-space: pre-wrap; background: var(--sun-soft); border-radius: var(--radius-sm); padding: 4px 12px; }
+#log .callmark { align-self: center; margin-top: 10px; max-width: 92%; padding: 4px 14px;
+            font-family: var(--mono); font-size: 11px; color: var(--ink-faint); text-align: center;
+            background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; }
+#log .callmark b { font-weight: 600; color: var(--ink-soft); }
+#log .callmark[data-kind="missed_call"] { background: var(--rose-soft); border-color: var(--rose-soft); color: var(--rose); }
+#log .callmark[data-kind="missed_call"] b { color: var(--rose); }
 #typing { padding: 0 20px 6px; font-size: 12px; color: var(--ink-faint); min-height: 22px; }
 .composer { display: flex; gap: 8px; padding: 10px 20px 16px; border-top: 1px solid var(--line); }
 .composer textarea { flex: 1; font: inherit; color: var(--ink); background: var(--paper);
@@ -903,6 +910,44 @@ pre.aside {
               transform: translateX(-50%); }
   .chat-card { height: auto; min-height: 0; }
   #log { max-height: 38vh; min-height: 120px; }
+}
+
+/* ------------------------------------------------------- presence states */
+/* Away (the default): the stage reads as a phone - her framed in a device,
+   the office showing through the screen. Here: the office fills the whole
+   page behind the chat and the stage loses its chrome. The sprite zoom is
+   the same in both states (#face img above is untouched). */
+body[data-presence="away"] .stage {
+  border-radius: 34px;
+  border: 9px solid #524b5a;                 /* the device body */
+  box-shadow: 0 20px 44px rgba(58, 48, 72, 0.30), inset 0 0 0 2px rgba(255, 255, 255, 0.10);
+}
+body[data-presence="away"] .stage::after {   /* the notch, same body color */
+  content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+  width: 96px; height: 22px; border-radius: 0 0 15px 15px;
+  background: #524b5a; z-index: 3;
+}
+body[data-presence="away"] .stage::before {  /* the home indicator */
+  content: ""; position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+  width: 118px; height: 5px; border-radius: 3px;
+  background: rgba(255, 255, 255, 0.92); box-shadow: 0 0 8px rgba(20, 14, 30, 0.45); z-index: 3;
+}
+body[data-presence="here"] {
+  background-image: var(--scene-office, none);
+  background-size: cover; background-position: center; background-attachment: fixed;
+  background-color: var(--paper);
+  overflow: hidden;               /* the full figure runs past the fold; the window clips it */
+}
+body[data-presence="here"] .stage {
+  background: transparent; border: 0; border-radius: 0; box-shadow: none;
+  overflow: visible;              /* no frame: the figure shows past the stage box */
+}
+body[data-presence="here"] #face { overflow: visible; }
+/* Here the full-figure set replaces the bust crop, at the same apparent zoom
+   as the phone (165% of the bust set ~ 163% of the full one), anchored to the
+   stage top so her head never sits behind the topbar. */
+body[data-presence="here"] #face img {
+  width: 163% !important; left: -31.2% !important; top: 0 !important;
 }
 
 /* ----------------------------------------------------------------- setup */

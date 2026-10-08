@@ -289,7 +289,16 @@ def with_web_chat(channel, db_path: Path):
         with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
             return int(conn.execute("SELECT MAX(id) FROM messages").fetchone()[0] or 0)
 
-    web = WebChannel(watermark=newest_id)
+    def presence_mode() -> str:
+        # Same read-only pattern; the /chat page shows "here" vs "away" from
+        # this. Unset or unrecognized reads as apart, matching presence_mode()
+        # on the session.
+        with sqlite3.connect(f"file:{db_path}?mode=ro", uri=True) as conn:
+            row = conn.execute(
+                "SELECT value FROM kv_store WHERE key = 'life.presence'").fetchone()
+        return "together" if row is not None and row[0] == "together" else "apart"
+
+    web = WebChannel(watermark=newest_id, presence=presence_mode)
     print(f"[live] web chat on http://127.0.0.1:{web.port}/web/", flush=True)
     return MultiChannel(channel, web)
 

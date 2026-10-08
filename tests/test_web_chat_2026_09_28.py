@@ -11,7 +11,8 @@ Telegram: same session, same history. Proactive messages stay on Telegram.
 - Through a real ``AsyncRuntime``: a web message is answered on the web and
   saved in the same messages table; Telegram gets nothing.
 - The observability server serves the three pages, reads the chat history
-  (user and assistant rows only) and forwards the writes.
+  (his and her lines plus the call marks: started / ended / missed) and
+  forwards the writes.
 """
 
 import asyncio
@@ -32,7 +33,9 @@ from harness.channels.multi import MultiChannel, origin
 from harness.channels.web import WebChannel
 from harness.client import FakeClient
 from harness.clock import VirtualClock
+from harness.faces import with_call_face_rule
 from harness.judge import ScriptedJudge
+from harness.prompts import CALL_END_ROW, CALL_HUNG_UP_RINGING_ROW, CALL_START_ROW
 from harness.runtime import AsyncRuntime, TimeScale
 from harness.scheduler import ProactiveSchedule
 from harness.session import Session
@@ -260,6 +263,15 @@ def app(tmp_path, monkeypatch):
     store.add_message("system", "STATE UPDATE: card", 1.0, 0)
     store.add_message("user", "hi", 1.1, 0)
     store.add_message("assistant", "*waves* hey", 1.2, 0)
+    store.add_message("system",
+                      with_call_face_rule(CALL_START_ROW.format(time="21:46")), 1.3, 0)
+    store.add_message("user", "you there?", 1.4, 0)
+    store.add_message("assistant", "mhm", 1.5, 0)
+    store.add_message("system",
+                      CALL_END_ROW.format(start="21:46", end="21:51", minutes=5), 1.6, 0)
+    store.log_event(0, 1.7, "call_decided", "call=deadbeef answer=False")
+    store.add_message("assistant", "can't talk now", 1.7, 0)
+    store.add_message("system", CALL_HUNG_UP_RINGING_ROW.format(time="22:00"), 1.8, 0)
     store.close()
     monkeypatch.setenv("HARNESS_CHAT_DB", str(db))
     (tmp_path / "amadeus/face").mkdir(parents=True)
@@ -280,11 +292,36 @@ def test_the_three_pages_are_served(app):
             assert marker in r.read(), path
 
 
-def test_chat_history_carries_only_his_and_her_lines(app):
+def test_chat_history_marks_calls_and_keeps_other_system_rows_out(app):
     data = _get(app + "/api/chat/history")
-    assert [(m["who"], m["text"]) for m in data["messages"]] == [("him", "hi"), ("her", "*waves* hey")]
-    newer = _get(app + f"/api/chat/history?after={data['messages'][0]['id']}")
-    assert [m["text"] for m in newer["messages"]] == ["*waves* hey"]
+    entries = data["messages"]
+    # his and her lines, with the call marks in their place: a mark opens
+    # before the lines it explains (the missed call before her text) and a
+    # call closes after its turns; the state card never reaches the page.
+    assert [(m.get("kind") or m["who"]) for m in entries] == [
+        "him", "her", "call_started", "him", "her", "call_ended",
+        "missed_call", "her", "missed_call"]
+    started = next(m for m in entries if m.get("kind") == "call_started")
+    assert started["src"] == "m" and started["sub"] is None
+    ended = next(m for m in entries if m.get("kind") == "call_ended")
+    assert (ended["start"], ended["end"], ended["minutes"]) == ("21:46", "21:51", 5)
+    missed = [m for m in entries if m.get("kind") == "missed_call"]
+    assert missed[0]["src"] == "e" and missed[0]["sub"] is None      # the ring-out
+    assert missed[1]["sub"] == "hung up while ringing"               # his hang-up
+    assert all("STATE UPDATE" not in (m.get("text") or "") for m in entries)
+
+
+def test_chat_history_after_cursors_return_only_newer_rows(app):
+    first = _get(app + "/api/chat/history")
+    msg_id = max(m["id"] for m in first["messages"] if m["src"] == "m")
+    ev_id = max(m["id"] for m in first["messages"] if m["src"] == "e")
+    newer = _get(app + f"/api/chat/history?after={msg_id}&after_event={ev_id}")
+    assert newer["messages"] == []
+    # a message cursor alone still replays the marks it has not sent yet
+    only_msg = _get(app + "/api/chat/history?after=3")
+    assert [(m.get("kind") or m["who"]) for m in only_msg["messages"]] == [
+        "call_started", "him", "her", "call_ended", "missed_call", "her",
+        "missed_call"]
 
 
 def test_only_face_and_sprites_are_served_from_amadeus(app):

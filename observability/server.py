@@ -198,7 +198,8 @@ class Handler(BaseHTTPRequestHandler):
             return
         with reader.open_run(path) as conn:
             payload = chat.history(conn, reader.load_anchor(conn),
-                                   after=self._int_param(params, "after", 0))
+                                   after=self._int_param(params, "after", 0),
+                                   after_event=self._int_param(params, "after_event", 0))
         self._send_json(payload)
 
     def _send_file(self, target: Path, roots: tuple[Path, ...]) -> None:

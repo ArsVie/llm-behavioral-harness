@@ -19,10 +19,10 @@ API (127.0.0.1 only, JSON):
                        (photos optional, up to ``PHOTOS_MAX``, data URLs accepted;
                        a message needs text or a photo)
     POST /web/command  {"name": "call", "args": ""} -> 202 {"ok": true}
-    GET  /web/state                               -> {"typing", "hold_after", "seq", "notes"}
+    GET  /web/state                               -> {"typing", "hold_after", "seq", "notes", "presence"}
 
 Interface:
-    WebChannel(port=None, bind="127.0.0.1", watermark=None)
+    WebChannel(port=None, bind="127.0.0.1", watermark=None, presence=None)
         watermark() -> int   newest message id (``store.max_message_id``)
         name = "web"; start(on_message, on_command=None); send; typing_context;
         typing_pause; stop
@@ -69,10 +69,11 @@ class WebChannel:
     name = "web"
 
     def __init__(self, port: int | None = None, bind: str = "127.0.0.1",
-                 watermark=None):
+                 watermark=None, presence=None):
         self.port = web_port() if port is None else port
         self.bind = bind
         self.watermark = watermark
+        self.presence = presence
         self._on_message = None
         self._on_command = None
         self._loop: asyncio.AbstractEventLoop | None = None
@@ -143,7 +144,8 @@ class WebChannel:
     def state(self) -> dict:
         with self._lock:
             return {"typing": self._typing > 0, "hold_after": self._hold_after,
-                    "seq": self._seq, "notes": list(self._notes)}
+                    "seq": self._seq, "notes": list(self._notes),
+                    "presence": self.presence() if self.presence is not None else None}
 
     def _submit(self, coro) -> None:
         assert self._loop is not None

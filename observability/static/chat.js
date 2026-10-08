@@ -1,6 +1,7 @@
 // /chat: the live conversation (the same one Telegram carries), her sprite,
-// and the call button. History comes from the database (/api/chat/history);
-// what he types and the call go to the bot's web channel (/api/chat/send,
+// and the call button. History comes from the database (/api/chat/history):
+// his and her lines plus the call marks (started / ended / missed). What he
+// types and the call go to the bot's web channel (/api/chat/send,
 // /api/chat/command), which hands them to the runtime like any message.
 import { LiveFace } from "/face/live-face.js";
 
@@ -10,6 +11,17 @@ const RUN = params.get("run") || "/sprites/runs/krea-v4s1/";
 const REST = "neutral";            // her face between lines
 const POLL_MS = 1200;
 const GAP_MIN = 30;                // a time label before a message after this many quiet minutes
+
+// Presence: "together" (he is here) fills the page with the scene and drops
+// the frame; "apart" (away) keeps the framed stage, dressed as a phone. The
+// ?presence=here|away query forces a state for review and captures.
+const PRESENCE_OVERRIDE = params.get("presence");
+function applyPresence(mode) {
+  const m = PRESENCE_OVERRIDE || mode;
+  const here = m === "here" || m === "together";
+  document.body.dataset.presence = here ? "here" : "away";
+  face?.setVariant(here ? "plain" : "framed");   // full figure in the room, bust crop in the phone
+}
 
 // -- face ------------------------------------------------------------------
 
@@ -36,13 +48,22 @@ try {
 // the layer behind the sprite. The list lives at runs/scenes/manifest.json.
 const SCENES = RUN.replace(/[^/]+\/$/, "scenes/");
 let scenes = null;
-async function applyScene(name) {
-  if (!face) return;
+async function loadScenes() {
   if (!scenes) {
     try { scenes = (await (await fetch(SCENES + "manifest.json")).json()).scenes || {}; }
     catch (e) { scenes = {}; }
   }
-  const file = scenes[name];
+  return scenes;
+}
+// The page's default backdrop is the office scene, via the same manifest
+// (the CSS falls back to the old gradient when this fails).
+loadScenes().then((s) => {
+  if (s.office) document.documentElement.style.setProperty("--scene-office", `url("${SCENES}${s.office}")`);
+});
+async function applyScene(name) {
+  if (!face) return;
+  const s = await loadScenes();
+  const file = s[name];
   face.setScene(file ? SCENES + file : null);
 }
 
@@ -58,9 +79,10 @@ async function faceFor(text, context) {
 
 // -- rendering ---------------------------------------------------------------
 
-const rows = [];                   // every user/assistant row seen, id order
+const rows = [];                   // every entry seen, in order (lines + call marks)
 const shown = new Set();
-let cursor = 0;                    // newest id fetched
+let cursor = 0;                    // newest message id fetched
+let cursorEv = 0;                  // newest state-event id fetched (missed-call marks)
 let loaded = false;                // the first history load is not animated
 let hold = null;                   // her rows past this id wait (she is still "typing")
 let lastAt = null;
@@ -115,7 +137,8 @@ function photoBubble(who, name) {
 }
 
 function showRow(row, live) {
-  shown.add(row.id);
+  shown.add(row.src + ":" + row.id);
+  if (row.kind) { callmark(row); return; }
   if (row.who === "him") {
     const i = pending.findIndex((p) => p.text === row.text);
     if (i >= 0) { pending[i].els.forEach((e) => e.remove()); pending.splice(i, 1); }
@@ -129,6 +152,50 @@ function showRow(row, live) {
   });
   if (live && row.who === "her") notify(row);
   if (queue.length && !speaking) speakNext();
+}
+
+function clock(d) {
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
+// "8:46–8:51 PM": one meridiem when both ends share it.
+function timeRange(from, to) {
+  const a = clock(new Date(from)), b = clock(to);
+  return /[AP]M$/.test(b) && a.endsWith(b.slice(-2)) ? a.slice(0, -3) + "–" + b : a + "–" + b;
+}
+
+// A call mark in the flow: started / ended (the row's own times and duration)
+// / missed. Centered between the bubbles, like a date divider.
+function callmark(row) {
+  stick(() => {
+    const el = document.createElement("div");
+    el.className = "callmark";
+    el.dataset.kind = row.kind;
+    const title = row.kind === "call_started" ? "Voice call started"
+      : row.kind === "call_ended" ? "Call ended" : "Missed call";
+    const b = document.createElement("b");
+    b.textContent = title;
+    el.append(b);
+    const bits = [];
+    if (row.sub) bits.push(row.sub);
+    if (row.kind === "call_ended") {
+      // the row's times are wall-clock text; show the call as instants in
+      // the viewer's clock, like every other time on the page
+      const end = row.at ? new Date(row.at) : null;
+      if (end && row.minutes != null) {
+        bits.push(timeRange(end.getTime() - row.minutes * 60000, end));
+        bits.push(row.minutes + " min");
+      } else if (row.start && row.end) {
+        bits.push(row.start + "–" + row.end);
+      } else if (end) {
+        bits.push(clock(end));
+      }
+    } else if (row.at) {
+      bits.push(clock(new Date(row.at)));
+    }
+    if (bits.length) el.append(document.createTextNode(" · " + bits.join(" · ")));
+    $("log").append(el);
+  });
 }
 
 async function speakNext() {
@@ -177,7 +244,7 @@ function note(text) {
 
 function flush() {
   for (const row of rows) {
-    if (shown.has(row.id)) continue;
+    if (shown.has(row.src + ":" + row.id)) continue;
     if (row.who === "her" && hold !== null && row.id > hold) break;   // keep the order
     showRow(row, loaded);
   }
@@ -189,10 +256,14 @@ let noteSeq = null;
 let online = null;
 
 async function pollHistory() {
-  const r = await fetch(`/api/chat/history?after=${cursor}`);
+  const r = await fetch(`/api/chat/history?after=${cursor}&after_event=${cursorEv}`);
   if (!r.ok) { status(false, (await r.json()).error || "no history"); return; }
   const data = await r.json();
-  for (const m of data.messages) { rows.push(m); cursor = Math.max(cursor, m.id); }
+  for (const m of data.messages) {
+    rows.push(m);
+    if (m.src === "e") cursorEv = Math.max(cursorEv, m.id);
+    else cursor = Math.max(cursor, m.id);
+  }
   flush();
   if (!loaded) { loaded = true; $("log").scrollTop = $("log").scrollHeight; }
 }
@@ -205,6 +276,7 @@ async function pollState() {
   } catch (e) { /* offline */ }
   if (!s) { hold = null; status(false, "the bot is not running; history only"); $("typing").textContent = ""; return; }
   status(true, "bot running");
+  applyPresence(s.presence);
   hold = s.typing ? s.hold_after : null;
   $("typing").textContent = s.typing ? "Lily is typing…" : "";
   const seqs = s.notes.map((n) => n.seq);
