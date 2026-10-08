@@ -6,6 +6,7 @@
 <title>Lily setup</title>
 <link rel="icon" type="image/png" href="/static/lily.png">
 <link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" href="/static/phones.css">
 </head>
 <body>
 <div class="page page-narrow">
@@ -42,6 +43,11 @@
         <button type="button" class="btn" data-cmd="here">Here</button></div>
       <div class="cmd-row"><div><b>He left</b><p>Back to texting</p></div><div></div>
         <button type="button" class="btn" data-cmd="leave">Leave</button></div>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Her phone</h2></div>
+      <div class="cmd-row"><div><b>Away stage</b><p>The device she is framed in while he is away; this browser only</p></div>
+        <div class="phone-pick" id="phones" role="radiogroup" aria-label="Phone design"></div></div>
     </section>
     <section class="card">
       <div class="card-head"><h2>Her schedule</h2></div>
@@ -104,6 +110,26 @@ async function poll() {
   setTimeout(poll, 1000);
 }
 poll();
+</script>
+<script type="module">
+// The phone design is a display choice, kept per viewer; an open /chat
+// follows the change.
+import { PHONES, chosenPhone, choosePhone } from "/static/phones.js";
+const box = document.getElementById("phones");
+function draw() {
+  const now = chosenPhone();
+  box.innerHTML = "";
+  for (const [name, p] of Object.entries(PHONES)) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = "btn"; b.title = p.note;
+    b.setAttribute("role", "radio"); b.setAttribute("aria-checked", String(name === now));
+    b.innerHTML = `<i style="background:${p.swatch}"></i>`;
+    b.append(p.label);
+    b.onclick = () => { choosePhone(name); draw(); };
+    box.append(b);
+  }
+}
+draw();
 </script>
 </body>
 </html>
