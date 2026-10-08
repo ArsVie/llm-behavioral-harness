@@ -13,6 +13,20 @@ body[data-presence="away"] .stage[data-phone] {
 body[data-presence="away"] .stage[data-phone]::before,
 body[data-presence="away"] .stage[data-phone]::after { content: none; }
 
+/* A whole phone on screen takes over the top bar (phones.js sets
+   body[data-phone] only then); the chat card grows into the room. */
+body[data-phone] .topbar { display: none; }
+body[data-phone] .chat-card { height: calc(100vh - 86px); }
+
+/* Keys that do something */
+.ph [data-act] { cursor: pointer; transition: filter .08s, transform .08s; }
+.ph [data-act]:hover { filter: brightness(1.06); }
+.ph [data-act]:active { filter: brightness(.9); transform: translateY(1px); }
+.ph [data-act]:focus-visible { outline: 2px solid var(--lav, #a78bfa); outline-offset: 2px; }
+.ph [data-act][aria-disabled] { opacity: .45; cursor: not-allowed; }
+.ph .sk [data-act] { padding: 0 3px; }
+.ph .sk [data-act]:hover { background: #fff; filter: none; }
+
 .ph { position: relative; flex: none; }
 
 /* ---------------------------------------------------------------- the LCD */
@@ -85,7 +99,8 @@ body[data-presence="away"] .stage[data-phone]::after { content: none; }
   background: linear-gradient(#9aa0a8, #f4f6f8 38%, #c2c7ce 60%, #868c94); }
 .ph-flip .hinge::before { left: 0; } .ph-flip .hinge::after { right: 0; }
 .ph-flip .led { position: absolute; left: 50%; top: 11px; width: 7px; height: 7px; margin-left: -3px; border-radius: 50%;
-  background: radial-gradient(#fff, #ff5aa5 50%, #c2185b); box-shadow: 0 0 8px #ff5aa5; }
+  background: radial-gradient(#fff, #ff5aa5 50%, #c2185b); opacity: .35; transition: opacity .2s; }
+.ph-flip .led.on { opacity: 1; box-shadow: 0 0 8px #ff5aa5; }
 .ph-flip .bot { position: relative; border-radius: 8px 8px 34px 34px; padding: 24px 16px 26px;
   background: linear-gradient(170deg, var(--s1), var(--s2) 70%, var(--s3));
   box-shadow: inset 0 -2px 1px rgba(0, 0, 0, .08), inset 0 2px 2px var(--hl), 0 20px 34px -12px rgba(80, 30, 50, .4); }
@@ -119,7 +134,8 @@ body[data-presence="away"] .stage[data-phone]::after { content: none; }
 .ph-noir .hinge { background: linear-gradient(#000, #2a2c33 30%, #6b6f7a 42%, #1a1b20 62%, #000 90%); }
 .ph-noir .fk.call { color: #5fe0a0; } .ph-noir .fk.end { color: #ff7b8a; }
 .ph-noir .nav { box-shadow: 0 3px 0 #000, inset 0 1px 1px #fff3, 0 0 0 4px #7fe3dc66; }
-.ph-noir .led { background: radial-gradient(#fff, #55e6dc 50%, #10857e); box-shadow: 0 0 8px #55e6dc; }
+.ph-noir .led { background: radial-gradient(#fff, #55e6dc 50%, #10857e); }
+.ph-noir .led.on { box-shadow: 0 0 8px #55e6dc; }
 .ph-noir .pad .k { box-shadow: inset 0 1px 0 #ffffff22; }
 .ph-noir .plate { color: #6c707c; }
 

@@ -3,7 +3,12 @@
 // status bar, clock and softkeys draw on top of it. "classic" is the plain
 // frame in app.css. The choice is per viewer (localStorage), set on /setup;
 // an open /chat follows a change made in another tab. Here (together) always
-// drops the phone, since the figure fills the page. ?phone=<name> forces a
+// drops the phone, since the figure fills the page.
+//
+// While a whole phone is on screen it replaces the page's top bar: its keys
+// do the bar's jobs (call, hang up, notifications, Setup, Debug) by clicking
+// the bar's own buttons, so chat.js stays the one owner of that behavior.
+// Classic, here, and the narrow layout (screen half only) keep the bar. ?phone=<name> forces a
 // design for review and captures, as ?presence= does.
 
 const KEY = "lily.phone";
@@ -61,10 +66,10 @@ function strap(kind, style) {
   return `<svg class="strap" style="${style}" width="60" height="150" viewBox="0 0 60 150" aria-hidden="true">${g}</svg>`;
 }
 
-const flipFn = `<div class="fn"><div class="fk">${ENVELOPE}</div>
-  <div class="nav"><i class="u"></i><i class="d"></i><i class="l"></i><i class="r"></i><b>OK</b></div><div class="fk">i</div>
-  <div class="fk">MENU</div><div class="fk">CLR</div>
-  <div class="fk call">${handset("currentColor")}</div><div class="fk end">${handset("currentColor")}</div></div>`;
+const flipFn = `<div class="fn"><div class="fk" data-act="notify">${ENVELOPE}</div>
+  <div class="nav"><i class="u"></i><i class="d"></i><i class="l"></i><i class="r"></i><b data-act="write">OK</b></div><div class="fk" data-act="debug">i</div>
+  <div class="fk" data-act="setup">MENU</div><div class="fk" data-act="attach">CAM</div>
+  <div class="fk call" data-act="call">${handset("currentColor")}</div><div class="fk end" data-act="hangup">${handset("currentColor")}</div></div>`;
 const flip = (strapKind) => `
   <div class="top"><div class="ear"></div>
     <div class="bez"><div class="glass"><div class="ph-lcd"></div></div><div class="plate">LILY · 905i</div></div></div>
@@ -80,27 +85,44 @@ const ROD = {
 };
 
 const BODIES = {
-  sakura: { cls: "ph-flip ph-sakura", keys: ["Mail", "MENU", "Web"], html: flip("pink") },
-  noir:   { cls: "ph-flip ph-noir",   keys: ["Mail", "MENU", "Web"], html: flip("glass") },
-  dphone: { cls: "ph-dphone", keys: ["Mail", "D-mail", "Menu"], html: `
+  sakura: { cls: "ph-flip ph-sakura", html: flip("pink") },
+  noir:   { cls: "ph-flip ph-noir",   html: flip("glass") },
+  dphone: { cls: "ph-dphone", html: `
     <div class="top"><div class="ear"></div><div class="cam"></div>
       <div class="glass"><div class="scr"><div class="ph-lcd"></div></div>
         <div class="band"><i></i><i></i><b></b><i></i><i></i></div></div></div>
     <div class="rods">
-      <div class="row a"><div class="seg">${ROD.book}</div><div class="seg">${ROD.camera}</div><div class="seg cap"></div></div>
-      <div class="row b"><div class="seg cap"></div><div class="seg">${ROD.mail}</div><div class="seg">${ROD.info}</div></div>
+      <div class="row a"><div class="seg" data-act="setup">${ROD.book}</div><div class="seg" data-act="attach">${ROD.camera}</div><div class="seg cap"></div></div>
+      <div class="row b"><div class="seg cap"></div><div class="seg" data-act="notify">${ROD.mail}</div><div class="seg" data-act="debug">${ROD.info}</div></div>
     </div>
     <div class="bot"><div class="deck">
-      <div class="fx"><div>—</div><div>—</div><div>—</div><div>${handset("#e9e9e9")}</div><div>—</div><div>${handset("#e9e9e9", 135)}</div></div>
+      <div class="fx"><div>—</div><div data-act="write">—</div><div>—</div><div data-act="call">${handset("#e9e9e9")}</div><div>—</div><div data-act="hangup">${handset("#e9e9e9", 135)}</div></div>
       ${pad(true)}</div><div class="mic"></div></div>` },
-  silver: { cls: "ph-silver", keys: ["Mail", "◆", "MENU"], tint: true, html: `
+  silver: { cls: "ph-silver", tint: true, html: `
     <div class="ant"></div><div class="ear"></div>
     <div class="bez"><div class="ph-lcd"></div><div class="plate">L I L Y</div></div>
-    <div class="fn"><div class="fk">${ENVELOPE}</div><div class="nav"><b></b></div><div class="fk">MENU</div>
-      <div class="fk">${handset("#1f9d55")}</div><div class="fk">${handset("#d6334a")}</div></div>
+    <div class="fn"><div class="fk" data-act="notify">${ENVELOPE}</div><div class="nav"><b data-act="write"></b></div><div class="fk" data-act="setup">MENU</div>
+      <div class="fk" data-act="call">${handset("#1f9d55")}</div><div class="fk" data-act="hangup">${handset("#d6334a")}</div></div>
     ${pad(false)}<div class="mic"></div>
     ${strap("red", "left:-26px;bottom:-124px")}` },
 };
+
+// What each key does. The top bar's buttons are hidden, not gone: a key
+// clicks them, so their handlers, disabled states and titles still apply.
+const click = (id) => () => document.getElementById(id)?.click();
+const ACTS = {
+  call:   { title: "Call her", run: click("call") },
+  hangup: { title: "Hang up", run: () => fetch("/api/chat/command", { method: "POST",
+            headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: "hangup", args: "" }) }) },
+  notify: { title: "Notifications for her messages", run: click("notify") },
+  attach: { title: "Attach photos", run: click("attach") },
+  write:  { title: "Write to her", run: () => document.getElementById("text")?.focus() },
+  setup:  { title: "Setup", run: () => { location.href = "/setup"; } },
+  debug:  { title: "Debug", run: () => { location.href = "/debug"; } },
+};
+// The softkeys under the screen: the same three on every phone.
+const SOFTKEYS = `<div class="sk"><span data-act="notify" class="sk-notify">Alerts</span>`
+  + `<span data-act="setup">Menu</span><span data-act="debug">Debug</span></div>`;
 
 const STATUS = `<div class="sb"><span class="ant"><i></i><i></i><i></i><i></i></span><span class="ico">3G</span>
   <span class="ico">✉</span><span class="bat"><i></i><i></i><i></i></span></div>`;
@@ -119,6 +141,7 @@ function unmount() {
   root.remove();
   root = null;
   delete stage.dataset.phone;
+  delete document.body.dataset.phone;
 }
 
 function mount(name) {
@@ -131,22 +154,46 @@ function mount(name) {
   if (expr) lcd.append(expr);
   lcd.insertAdjacentHTML("beforeend", (b.tint ? `<div class="tint"></div>` : "") + STATUS
     + `<div class="clock"><b></b><span></span></div>`
-    + `<div class="sk">${b.keys.map((k) => `<span>${k}</span>`).join("")}</div>`);
+    + SOFTKEYS);
+  for (const el of root.querySelectorAll("[data-act]")) {
+    const act = ACTS[el.dataset.act];
+    el.title = act.title;
+    el.setAttribute("role", "button");
+    el.tabIndex = 0;
+    el.onclick = act.run;
+    el.onkeydown = (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); act.run(); } };
+  }
   stage.prepend(root);
   stage.dataset.phone = name;
   tick();
+  mirror();
 }
 
-// Fit the device to the stage column and the window height (the chat card
-// beside it is 100vh - 190px tall); on narrow screens only the screen half
-// shows, above the conversation.
+// The bar's state shows on the phone: the alerts softkey and the hinge LED
+// follow the notifications button, the call keys dim while calling is off.
+function mirror() {
+  if (!root) return;
+  const n = document.getElementById("notify"), c = document.getElementById("call");
+  const on = n?.getAttribute("aria-pressed") === "true";
+  const sk = root.querySelector(".sk-notify");
+  sk.textContent = n?.disabled ? "Alerts ✕" : on ? "Alerts ON" : "Alerts off";
+  root.querySelector(".led")?.classList.toggle("on", on);
+  for (const k of root.querySelectorAll('[data-act="notify"]')) k.title = n?.title || n?.textContent || ACTS.notify.title;
+  for (const k of root.querySelectorAll('[data-act="call"]')) k.toggleAttribute("aria-disabled", !!c?.disabled);
+}
+
+// Fit the device to the stage column and the chat card's height; on narrow
+// screens only the screen half shows, above the conversation, and the top
+// bar comes back since the keys are gone.
 function fit() {
   if (!root) return;
   const compact = innerWidth <= 760;
   root.classList.toggle("ph-compact", compact);
+  if (compact) delete document.body.dataset.phone; else document.body.dataset.phone = current;
   root.style.zoom = 1;
   const w = root.offsetWidth, h = root.offsetHeight;
-  const availH = compact ? innerHeight * 0.48 : Math.max(420, innerHeight - 190);
+  const card = document.querySelector(".chat-card");
+  const availH = compact ? innerHeight * 0.48 : Math.max(420, card ? card.offsetHeight : innerHeight - 120);
   root.style.zoom = Math.min(stage.clientWidth / w, availH / h, 1.5).toFixed(3);
 }
 
@@ -173,4 +220,9 @@ if (stage && face) {
   addEventListener("storage", (e) => { if (e.key === KEY) apply(); });
   addEventListener("resize", fit);
   setInterval(tick, 15000);
+  const bar = { attributes: true, childList: true, characterData: true, subtree: true };
+  for (const id of ["notify", "call"]) {
+    const el = document.getElementById(id);
+    if (el) new MutationObserver(mirror).observe(el, bar);
+  }
 }

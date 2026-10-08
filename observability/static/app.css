@@ -943,6 +943,8 @@ body[data-presence="here"] .stage {
   overflow: visible;              /* no frame: the figure shows past the stage box */
 }
 body[data-presence="here"] #face { overflow: visible; }
+/* Here she stands in the room behind the conversation, not in front of it. */
+body[data-presence="here"] .chat-card { position: relative; z-index: 1; }
 /* Here the full-figure set replaces the bust crop, at the same apparent zoom
    as the phone (165% of the bust set ~ 163% of the full one), anchored to the
    stage top so her head never sits behind the topbar. */
