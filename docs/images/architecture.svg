@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="680" viewBox="0 0 1000 680" role="img" aria-labelledby="t d">
   <title id="t">Runtime architecture of the behavioral harness</title>
-  <desc id="d">Telegram or CLI messages enter the runtime, which runs one turn at a time through the session. The session assembles a request with a cached stable prefix, an append-only stream and a trailing state card, and sends it to any OpenAI-compatible model. A seeded engine supplies mood, cycle, energy and contact timing, rendered into a prose brief. The judge and the day planner are the only two forks. Everything is recorded in SQLite and read back by read-only inspectors.</desc>
+  <desc id="d">Messages from a channel enter the runtime, which runs one turn at a time through the session. The session assembles a request with a cached stable prefix, an append-only stream and a trailing state card, and sends it to any OpenAI-compatible model. A seeded engine supplies mood, cycle, energy and contact timing, rendered into a prose brief. The judge and the day planner are the only two forks. Everything is recorded in SQLite and read back by read-only inspectors.</desc>
   <defs>
     <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
       <path d="M0,0 L10,5 L0,10 z" fill="#52514e"/>
@@ -27,17 +27,17 @@
   <text x="24" y="59" class="sub">The engine decides when and in what state; the model decides what to say. Every step is recorded.</text>
 
   <!-- channels -->
-  <rect x="24" y="86" width="186" height="140" rx="10" fill="#eef4fc" stroke="#2a78d6"/>
-  <text x="38" y="109" class="bt">Telegram</text>
+  <rect x="24" y="86" width="186" height="206" rx="10" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="38" y="109" class="bt">Channels</text>
   <text x="152" y="109" class="p">channels/</text>
-  <text x="38" y="131" class="b">debounce: 4.5 s after the last</text>
-  <text x="38" y="148" class="b">message, 12 s at most</text>
-  <text x="38" y="170" class="b">typing indicator</text>
-  <text x="38" y="192" class="b">one send per paragraph,</text>
-  <text x="38" y="209" class="b">MarkdownV2 italics</text>
-  <rect x="24" y="240" width="186" height="52" rx="10" fill="#eef4fc" stroke="#2a78d6"/>
-  <text x="38" y="263" class="bt">CLI</text>
-  <text x="38" y="281" class="b">stdin / stdout</text>
+  <rect x="36" y="124" width="162" height="30" rx="6" fill="#ffffff" stroke="#bcd3f0"/>
+  <text x="46" y="143" class="b">Telegram</text>
+  <rect x="36" y="160" width="162" height="30" rx="6" fill="#ffffff" stroke="#bcd3f0"/>
+  <text x="46" y="179" class="b">CLI</text>
+  <text x="38" y="218" class="b">a channel only carries</text>
+  <text x="38" y="235" class="b">messages in and out;</text>
+  <text x="38" y="252" class="b">the turn is the same</text>
+  <text x="38" y="269" class="b">whichever one is used</text>
 
   <!-- runtime -->
   <rect x="250" y="86" width="210" height="206" rx="10" fill="#f4f3f0" stroke="#8a8984"/>
@@ -85,7 +85,6 @@
 
   <!-- top row wires -->
   <path d="M210 150 H246" class="w" marker-end="url(#a)"/>
-  <path d="M214 266 H246" class="w" marker-start="url(#a)" marker-end="url(#a)"/>
   <path d="M460 150 H496" class="w" marker-end="url(#a)"/>
   <path d="M496 232 H464" class="w" marker-end="url(#a)"/>
   <text x="478" y="226" class="l" text-anchor="middle">reply</text>

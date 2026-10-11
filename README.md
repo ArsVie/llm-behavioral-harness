@@ -129,11 +129,6 @@ Scale: single-file SQLite with WAL, an additive migration chain, and append-only
 `state_events` + `llm_calls` so `audit.py` can reconstruct what the model saw per
 call. Exact counts belong to dated result records, not this overview.
 
-On Telegram, one reply can arrive as several messages. The model marks the
-breaks itself, the reply is stored as one row, and the runtime paces the sends:
-
-![Telegram bubble flow: one stored reply, typing during generation, then paced bubbles](docs/images/telegram-bubbles.svg)
-
 Every run is inspectable read-only, without a query of your own:
 
 ```bash
