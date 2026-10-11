@@ -39,7 +39,23 @@ experiments/  experiment drivers and reproducibility helpers
 The store is one SQLite file (WAL, additive migrations). `state_events` and
 `llm_calls` are append-only, so the exact prompt of any call can be rebuilt.
 
+Voice calls ride the same session. When he calls, she decides whether to pick
+up inside her own turn; answered, a local voice client streams her reply
+sentence by sentence, and only what he actually heard is stored as her line.
+
+![Voice calls: her pick-up decision, the HTTP loop with the local voice client, and numbers from the live run](docs/images/voice-calls.svg)
+
 ## Results
+
+### The current live run
+
+![Live run, 3 to 10 October 2026: messages per day, prompt tokens by call type, cache hit per call, decisions by pop-up](docs/images/live-run.png)
+
+*Seed 8001, deepseek-v4.1-flash, 3 to 10 October 2026; counts and token totals
+only. 87% of all prompt tokens were served from the provider's cache, and most
+of her turns and decisions sit above 90%. The 30 calls near 0% are real: half
+came after more than an hour of quiet, the rest within a minute of another
+call.*
 
 ### A live two-week run
 
@@ -131,6 +147,13 @@ re-sent but not cached, an unmetered model lane, a skipped activity reported as
 done) and exits 1 on any error, so it is the post-run gate. `audit` renders the
 exact prompt of one call.
 
+`python -m observability` serves the same data as a run viewer:
+
+![The run viewer on the live run: spend and cache hit, the context window by block, the model-call ledger, and her mood by cycle phase](docs/images/observability.png)
+
+*The viewer on the live run. Panels that show message or prompt text are left
+out of this screenshot.*
+
 ## Reproducing
 
 Commands run inside the project virtualenv (`.venv/bin/python`).
@@ -141,7 +164,7 @@ Commands run inside the project virtualenv (`.venv/bin/python`).
 | Month figure | `python -m experiments.month_showcase` |
 | Week figure | `python -m experiments.week_showcase` |
 | Two-week live figures | `python -m experiments.live_two_weeks_figures` |
-| Judge and probe charts | `MPLBACKEND=Agg python scripts/readme_charts.py` |
+| Judge, probe and live-run charts | `MPLBACKEND=Agg python scripts/readme_charts.py` (live run needs its local database) |
 | Test suite | `MPLBACKEND=Agg python -m pytest -q` |
 
 ## Limitations
