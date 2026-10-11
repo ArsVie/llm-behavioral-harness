@@ -1,173 +1,157 @@
 # LLM Behavioral Harness
 
-An OpenAI-compatible harness that gives any LLM **initiative** and **measurable
-behavioral variability** — mood with memory, a simulated ~28-day cycle, circadian
-energy, and shifts in cadence, length, and warmth. The engine never modifies the
-base model; it operates entirely in the orchestration layer. The model is swappable.
+An orchestration layer that gives any OpenAI-compatible LLM **initiative** and
+**measurable behavioral variability**: mood with memory, a simulated ~28-day
+cycle, circadian energy, and shifts in cadence, length and warmth. The model is
+never modified and stays swappable. A seeded engine decides when and in what
+state; the model decides what to say; every step is recorded so a run replays.
 
 ![One 30-day run of the engine](results/one-month-showcase.png)
 
-*One 30-day run (seed 5001): sampled mood vs its 7-day expectation over cycle
-phases with a 5-seed ensemble band; proactive messages per day colored by phase;
-every proactive decision plotted at its fire hour against that day's mood, with
-its actual hook text ("Agenda: practice lifting…", "Finished: morning coffee");
-and when conversation happens across the month. Data: real engine runs from
-`results/it3-backfill-2026-08-09`. Reproduce with
-`python -m experiments.month_showcase`.*
+*One 30-day engine run (seed 5001): sampled mood against its 7-day expectation
+over cycle phases with a 5-seed band, proactive messages per day by phase, each
+proactive decision at its fire hour with its hook text, and when conversation
+happens. Data: `results/it3-backfill-2026-08-09`.*
 
-## Live: a real two-week run
+## How it works
 
-![Two-week live run overview](results/live-two-weeks/figures/overview.png)
-
-*The same four panels from a REAL accelerated two-week run (seed 6001,
-`stealth/ox-alpha` via OpenRouter): sampled mood vs its 7-day expectation with
-cycle phases shaded (menstrual trough → follicular climb → ovulatory entry);
-proactive messages per day colored by phase; every fired decision hook placed
-at its fire hour against that day's mood; and the conversation clock.
-71 messages, 20 of them proactive; day 8 is pure-proactive — the scripted user
-went silent and the companion still reached out 3×.*
-
-<details>
-<summary>Week view & proactive pipeline</summary>
-
-![Two-week live run week view](results/live-two-weeks/figures/week-view.png)
-
-*Week 1 vs week 2 side-by-side message timing, plus the proactive pipeline per
-day: fired vs suppressed intents (~50% suppression — quiet-hours deferral and
-salience gating reject more than half of all hooks). Data:
-`results/live-two-weeks/companion.db`. Reproduce with
-`python -m experiments.live_two_weeks_figures`; full report in
-[`results/two-week-live-run-report.md`](results/two-week-live-run-report.md).*
-
-</details>
-
-<details>
-<summary>More views</summary>
-
-![One simulated week of the engine](results/one-week-showcase.png)
-
-*One week at engine granularity: circadian energy by time-of-day × phase, and
-the behavior directives those states render into (natural-language briefs — the
-model never sees numbers). Reproduce with `python -m experiments.week_showcase`.*
-
-![35-cell ablation matrix](docs/ablation-matrix-summary.png)
-
-*Proactive contact and conversation volume across the 35-cell ablation matrix
-(7 conditions × 5 seeds). Removing the timing-feedback channel measurably changes
-proactive behavior; removing internal state does not — a clean negative result,
-reported with controls. Chart: `docs/ablation-matrix-summary.png`.*
-
-</details>
-
-## What it is
-
-A research instrument and a deployed system at the same time:
-
-- **Frozen stochastic engine** (`engine/`) owns timing, opportunity windows, and
-  affect state. The LLM only decides *whether and how* to act within them; every
-  decision is persisted with a replay ID.
-- **Behavioral briefs, never raw numbers** — state renders into natural-language
-  briefs; a forbidden-token test battery machine-enforces that no numeric state
-  leaks into prompts.
-- **The LLM judge as a noisy sensor** — empirically estimated neutral point,
-  temperature-0 anchored rubric, test–retest repeatability checks, documented
-  recalibration. The judge sits inside the system's only closed loop, so it is
-  measured like any other instrument.
-- **Replayability** — every stochastic step and LLM call persists with seeds and
-  a repro bundle; deterministic seed-keyed RNG replays are byte-identical across
-  resume.
-
-## Evidence, not claims
-
-| Artifact | What it shows |
-|---|---|
-| [Preregistered 8-criterion study](results/phase-1-report.md) | 5 waves, 10-seed verification, explicit PASS/FAIL per criterion |
-| [35-cell ablation matrix](results/it2-g6-matrix/traces.md) | 7 conditions × 5 seeds; each condition ablates exactly one channel |
-| [Horizon-split reconciliation](results/it3-g2-horizon-split-reconciliation-2026-08-10.md) | A gate that passed but the mechanism did not work — documented with corpus receipts |
-| [Decision probes r1–r3](results/decision-probe-real-2026-08-14-r3/) | 90 real model calls/run; exposed silent tool-protocol failures in a frontier model |
-| [30-day behavior showcase](results/behavior-showcase/) | Reproducible emulation: mood trajectories, phase semantics, auditable traces |
-
-Null results are reported as nulls: the affect-codebook classifier landed at
-chance (~0.31 vs 0.33) with a passing control to rule out instrument failure,
-and the Spike2 behavioral-eval machinery was shelved with a decision memo rather
-than quietly dropped.
-
-![Judge rubric v1 vs v2: daily judge scores and the engine mood baseline per month](docs/images/judge-calibration.png)
-
-*The judge is measured like any other instrument. On the live 3x2 ablation
-(deepseek-v4-flash, seed 1001, 7 days, harness-on cells), rubric v1 scored the
-horrible month near zero and let the flat month drift positive, so the
-horrible month's mood baseline never went negative (it ended at +0.10). Rubric v2 anchors on how the user treats her: the
-flat month sits at 0.00 and the baseline splits to +0.64 / 0.00 / -0.54. Data:
-`results/e2e-ablation-live` and `results/e2e-ablation-v2`; write-up in
-[`results/e2e-ablation-v1-v2-comparison.md`](results/e2e-ablation-v1-v2-comparison.md).*
-
-![Decision probe outcomes per transport over three real runs](docs/images/decision-probe.png)
-
-*Three real decision-probe runs (deepseek-v4-flash, 15 scenarios x 3 mood
-states x 2 transports). In run 1 every native tool call came back with the
-event fields echoed instead of a verdict, which reads as "hold" with an empty
-reason, and every textual reply failed to parse. Server draws are left out.
-Data: `results/decision-probe-real-2026-08-14{,-r2,-r3}/probe.json`.*
-
-<sub>Both charts: `MPLBACKEND=Agg .venv/bin/python scripts/readme_charts.py`.</sub>
-
-## Architecture
+- **Seeded engine, model renders.** `engine/` owns timing, opportunity windows
+  and affect state. The model only decides whether and how to act within them,
+  and every decision is stored with a replay id.
+- **Briefs, never numbers.** State reaches the prompt as natural-language
+  briefs. A forbidden-token test battery checks that no numeric state leaks.
+- **The judge is an instrument.** It sits inside the system's only closed loop,
+  so it gets an estimated neutral point, an anchored temperature-0 rubric,
+  test-retest checks and documented recalibration.
+- **Replayable.** Every stochastic step and model call is stored with its seed
+  and a repro bundle; seed-keyed replays are byte-identical across resume.
 
 ![Runtime architecture: channels, runtime, session turn, model, engine, the two forks, store and observability](docs/images/architecture.svg)
 
 ```
-engine/      frozen contracts: mood (beta-binomial in logit space, AR(1)
-             event memory), ~28-day cycle, circadian energy, Weibull
-             hazard contact timing, seed-keyed RNG, validation
-harness/     prompt assembly, steering, scheduling, judge, spend ledger,
-             negotiation, memory, summarization, proactive decisions, actuation
-experiments/ experiment drivers and reproducibility helpers
+engine/       mood (beta-binomial in logit space, AR(1) event memory), ~28-day
+              cycle, circadian energy, Weibull-hazard contact timing, seeded RNG
+harness/      prompt assembly, steering, scheduling, judge, memory, negotiation,
+              proactive decisions, spend ledger, SQLite store
+experiments/  experiment drivers and reproducibility helpers
 ```
 
-Scale: single-file SQLite with WAL, an additive migration chain, and append-only
-`state_events` + `llm_calls` so `audit.py` can reconstruct what the model saw per
-call. Exact counts belong to dated result records, not this overview.
+The store is one SQLite file (WAL, additive migrations). `state_events` and
+`llm_calls` are append-only, so the exact prompt of any call can be rebuilt.
 
-Every run is inspectable read-only, without a query of your own:
+## Results
+
+### A live two-week run
+
+![Two-week live run overview](results/live-two-weeks/figures/overview.png)
+
+*The same four panels from a real accelerated two-week run (seed 6001,
+`stealth/ox-alpha` via OpenRouter), with cycle phases shaded. 71 messages, 20 of
+them proactive. On day 8 the scripted user went silent and the companion still
+reached out three times. Report:
+[`results/two-week-live-run-report.md`](results/two-week-live-run-report.md).*
+
+<details>
+<summary>Week view and proactive pipeline</summary>
+
+![Two-week live run week view](results/live-two-weeks/figures/week-view.png)
+
+*Week 1 against week 2 message timing, and fired against suppressed intents per
+day: quiet-hours deferral and salience gating reject about half of all hooks.*
+
+</details>
+
+### The judge, measured
+
+![Judge rubric v1 vs v2: daily judge scores and the engine mood baseline per month](docs/images/judge-calibration.png)
+
+*Live 3x2 ablation (deepseek-v4-flash, seed 1001, 7 days, harness-on cells).
+Rubric v1 scored the horrible month near zero and let the flat month drift
+positive, so the horrible month's mood baseline never went negative (it ended
+at +0.10). Rubric v2 anchors on how the user treats her: the flat month sits at
+0.00 and the baseline splits to +0.64 / 0.00 / -0.54. Write-up:
+[`results/e2e-ablation-v1-v2-comparison.md`](results/e2e-ablation-v1-v2-comparison.md).*
+
+### The decision protocol, probed
+
+![Decision probe outcomes per transport over three real runs](docs/images/decision-probe.png)
+
+*Three real decision-probe runs (deepseek-v4-flash, 15 scenarios x 3 mood
+states x 2 transports). In run 1 every native tool call echoed the event fields
+instead of a verdict, which reads as "hold" with an empty reason, and every
+textual reply failed to parse. Server draws are left out.*
+
+### Ablations and null results
+
+![35-cell ablation matrix](docs/ablation-matrix-summary.png)
+
+*Proactive contact and conversation volume across 7 conditions x 5 seeds.
+Removing the timing-feedback channel changes proactive behavior; removing
+internal state does not, a negative result reported with controls.*
+
+Null results stay recorded as nulls: the affect-codebook classifier landed at
+chance (~0.31 against 0.33) with a passing control to rule out instrument
+failure, and the Spike2 behavioral-eval machinery was shelved with a decision
+memo.
+
+<details>
+<summary>One simulated week at engine granularity</summary>
+
+![One simulated week of the engine](results/one-week-showcase.png)
+
+*Circadian energy by time of day and phase, and the prose briefs those states
+render into.*
+
+</details>
+
+### Evidence index
+
+| Record | What it shows |
+|---|---|
+| [Preregistered 8-criterion study](results/phase-1-report.md) | 5 waves, 10-seed verification, PASS/FAIL per criterion |
+| [35-cell ablation matrix](results/it2-g6-matrix/traces.md) | 7 conditions x 5 seeds, each ablating exactly one channel |
+| [Horizon-split reconciliation](results/it3-g2-horizon-split-reconciliation-2026-08-10.md) | A gate that passed while the mechanism did not work, with corpus receipts |
+| [Decision probes r1 to r3](results/decision-probe-real-2026-08-14-r3/) | 90 real model calls per run; silent tool-protocol failures |
+| [30-day behavior showcase](results/behavior-showcase/) | Reproducible emulation: mood trajectories, phase semantics, traces |
+
+## Inspecting a run
+
+Every run can be read without writing a query:
 
 ```bash
-python -m harness.trace  --db results/live-companion/companion.db        # timeline
-python -m harness.trace  --db results/live-companion/companion.db checks # invariants
-python -m harness.audit  --store results/live-companion/companion.db --call 12
+python -m harness.trace --db results/live-companion/companion.db          # timeline
+python -m harness.trace --db results/live-companion/companion.db checks   # invariants
+python -m harness.audit --store results/live-companion/companion.db --call 12
 ```
 
 `trace` merges messages, steers, decisions, negotiations, agenda boundaries and
-provider calls into one stream against the real local clock, and its `checks`
-view asserts the run's invariants — a decision offered and never answered, a
-prefix re-sent but not cached, an unmetered model lane, a skipped activity the
-card reports as done. It exits 1 on any error, so it doubles as the post-run
-gate. `audit` renders one call's exact prompt.
+provider calls into one stream on the real local clock. Its `checks` view
+asserts the run's invariants (a decision offered and never answered, a prefix
+re-sent but not cached, an unmetered model lane, a skipped activity reported as
+done) and exits 1 on any error, so it is the post-run gate. `audit` renders the
+exact prompt of one call.
 
-## Design docs
+## Reproducing
 
-- [`DESIGN.md`](DESIGN.md) — architecture and mathematics of the system.
-- [`docs/architecture-overview.md`](docs/architecture-overview.md) — current runtime and context contract.
-- [`docs/context-flow-2026-08-14.md`](docs/context-flow-2026-08-14.md) — operational context flow.
+Commands run inside the project virtualenv (`.venv/bin/python`).
 
-## Honest caveats
+| What | Command |
+|---|---|
+| 30-day emulation, no network | `MPLBACKEND=Agg python -m experiments.behavior_showcase` |
+| Month figure | `python -m experiments.month_showcase` |
+| Week figure | `python -m experiments.week_showcase` |
+| Two-week live figures | `python -m experiments.live_two_weeks_figures` |
+| Judge and probe charts | `MPLBACKEND=Agg python scripts/readme_charts.py` |
+| Test suite | `MPLBACKEND=Agg python -m pytest -q` |
 
-Solo project, mostly single-model; live ablation is single-seed-per-cell —
-"directional, not inferential." Blind human rating is the recommended follow-up.
+## Limitations
 
----
+A solo project, mostly on one model. The live ablation has one seed per cell,
+so it is directional, not inferential. Blind human rating is the recommended
+next step.
 
-<details>
-<summary>Running it (for reviewers who want to reproduce)</summary>
+## Further reading
 
-```bash
-# reproducible 30-day emulation (no network needed)
-MPLBACKEND=Agg .venv/bin/python -m experiments.behavior_showcase
-
-# outputs: results/behavior-showcase/{30-day-behavior.png, phase-semantics.png,
-#          phase-summary.json, behavior-trace.json}
-```
-
-Test suite: `.venv/bin/python -m pytest -q`.
-
-</details>
+- [`DESIGN.md`](DESIGN.md): the engine's mathematics and parameters.
+- [`docs/architecture-overview.md`](docs/architecture-overview.md): the current
+  runtime and context contract.
