@@ -6,12 +6,14 @@ cycle, circadian energy, and shifts in cadence, length and warmth. The model is
 never modified and stays swappable. A seeded engine decides when and in what
 state; the model decides what to say; every step is recorded so a run replays.
 
-![One 30-day run of the engine](results/one-month-showcase.png)
+![A simulated conversation in the web chat, next to her state when she wrote first: mood 4 of 10, cycle day 5, her agenda, and the trigger "Finished: night reading"](docs/images/hero.png)
 
-*One 30-day engine run (seed 5001): sampled mood against its 7-day expectation
-over cycle phases with a 5-seed band, proactive messages per day by phase, each
-proactive decision at its fire hour with its hook text, and when conversation
-happens. Data: `results/it3-backfill-2026-08-09`.*
+*A moment from a simulated 30-day run (scripted user, gpt-5.6-luna), shown in
+the run viewer's web chat. He said goodnight at 7:53 PM; she did her night
+reading; the next afternoon she wrote first because that agenda item had
+finished, on a low-mood day early in her cycle. Messages are verbatim; the
+panel is read from the run database. Rendered by
+[`scripts/readme_hero.py`](scripts/readme_hero.py).*
 
 ## How it works
 
@@ -25,6 +27,12 @@ happens. Data: `results/it3-backfill-2026-08-09`.*
   test-retest checks and documented recalibration.
 - **Replayable.** Every stochastic step and model call is stored with its seed
   and a repro bundle; seed-keyed replays are byte-identical across resume.
+
+![The run viewer on the live run: spend and cache hit, the context window by block, the model-call ledger, and her mood by cycle phase](docs/images/observability.png)
+
+*`python -m observability`, the run viewer, on the live run: what each model
+call saw, block by block, what it cost, and her mood by cycle phase. Panels
+that show message or prompt text are left out of this screenshot.*
 
 ![Runtime architecture: channels, runtime, session turn, model, engine, the two forks, store and observability](docs/images/architecture.svg)
 
@@ -43,41 +51,41 @@ Voice calls ride the same session. When he calls, she decides whether to pick
 up inside her own turn; answered, a local voice client streams her reply
 sentence by sentence, and only what he actually heard is stored as her line.
 
+The same viewer serves the web chat, one of her channels next to Telegram, the
+CLI and voice calls. Her lines arrive with typing pauses (a simulated run,
+replayed):
+
+<img src="docs/images/chat.gif" width="560" alt="The web chat replaying a simulated run: she writes first the next afternoon, then answers his hello">
+
 ![Voice calls: her pick-up decision, the HTTP loop with the local voice client, and numbers from the live run](docs/images/voice-calls.svg)
 
 ## Results
 
-### The current live run
+### A month of her life
 
-![Live run, 3 to 10 October 2026: messages per day, prompt tokens by call type, cache hit per call, decisions by pop-up](docs/images/live-run.png)
+![A simulated month: her daily mood over cycle phases, each time she wrote first and why, the reasons the gate held back, and his messages](docs/images/month-timeline.png)
 
-*Seed 8001, deepseek-v4.1-flash, 3 to 10 October 2026; counts and token totals
-only. 87% of all prompt tokens were served from the provider's cache, and most
-of her turns and decisions sit above 90%. The 30 calls near 0% are real: half
-came after more than an hour of quiet, the rest within a minute of another
-call.*
+*A 30-day simulated run (seed 5001, scripted user,
+`results/it3-backfill-2026-08-09`). Mood is drawn once a day; each time she wrote first is marked by its
+trigger, and every one of the 15 came from her own agenda. Rendered by
+[`scripts/readme_timelines.py`](scripts/readme_timelines.py).*
 
-### The live run, day by day
+### The live run
 
-![Live run, 3 to 10 October 2026: mood per day, her unprompted messages, why she reached out, and messages per day and hour](docs/images/live-overview.png)
+![The live run, 3 to 10 October 2026: her daily mood, each time she wrote first and why, the reasons held back, and his messages](docs/images/live-timeline.png)
 
-*Same run, 3 to 10 October 2026, in real time. Mood is sampled once a day and
-shaded by cycle phase; her unprompted messages follow it. Every reach-out came
-from something on her own agenda: an item starting or one she just finished.
-Hook text is not drawn, since in a live run it quotes real plans. Rendered by
-[`scripts/live_run_figures.py`](scripts/live_run_figures.py).*
-
-<details>
-<summary>Who writes when, and what happens to her intents</summary>
-
-![Live run: his and her messages per day and hour, and intents fired, held back or still open per day](docs/images/live-week.png)
-
-*His messages against hers by hour, and her intents per day. In the first two
-days the gate held back 7 of 8; once the conversation had a rhythm, most fired.
+*The current live run in real time, 3 to 10 October 2026 (seed 8001,
+deepseek-v4.1-flash), in the same design. 27 of the 28 times she wrote first
+were tied to her agenda; one came with his call. Only times, counts and the
+daily mood are drawn: in a live run, message and plan text quote real life.
 An earlier accelerated two-week run against a scripted user is in
 [`results/two-week-live-run-report.md`](results/two-week-live-run-report.md).*
 
-</details>
+![The live run: prompt tokens per model-call lane, cached and fresh](docs/images/live-cache.png)
+
+*Prompt caching in the same run, per kind of model call: her messages and her
+decisions are mostly served from the provider's cache; the once-a-day planner
+and memory summaries mostly are not.*
 
 ### The judge, measured
 
@@ -101,26 +109,19 @@ textual reply failed to parse. Server draws are left out.*
 
 ### Ablations and null results
 
-![35-cell ablation matrix](docs/ablation-matrix-summary.png)
+![35-cell ablation matrix: change in her unprompted messages, all messages and his delivered messages against the full system, per seed](docs/images/ablation.png)
 
-*Proactive contact and conversation volume across 7 conditions x 5 seeds.
-Removing the timing-feedback channel changes proactive behavior; removing
-internal state does not, a negative result reported with controls.*
+*Each of 6 conditions removes one channel; 5 seeds x 30 simulated days each,
+compared seed by seed with the full system. Removing behavior actuators, her
+own life, internal state or structured memory left message counts unchanged
+in 20 of 25 seed pairs. Removing timing feedback changed every seed but in
+both directions, and most of those cells also lost scripted-user turns, so no
+interval excludes zero. A null result on volume, reported as one.*
 
 Null results stay recorded as nulls: the affect-codebook classifier landed at
 chance (~0.31 against 0.33) with a passing control to rule out instrument
 failure, and the Spike2 behavioral-eval machinery was shelved with a decision
 memo.
-
-<details>
-<summary>One simulated week at engine granularity</summary>
-
-![One simulated week of the engine](results/one-week-showcase.png)
-
-*Circadian energy by time of day and phase, and the prose briefs those states
-render into.*
-
-</details>
 
 ### Evidence index
 
@@ -149,12 +150,8 @@ re-sent but not cached, an unmetered model lane, a skipped activity reported as
 done) and exits 1 on any error, so it is the post-run gate. `audit` renders the
 exact prompt of one call.
 
-`python -m observability` serves the same data as a run viewer:
-
-![The run viewer on the live run: spend and cache hit, the context window by block, the model-call ledger, and her mood by cycle phase](docs/images/observability.png)
-
-*The viewer on the live run. Panels that show message or prompt text are left
-out of this screenshot.*
+`python -m observability` serves the same data as the run viewer shown
+above.
 
 ## Reproducing
 
@@ -163,10 +160,9 @@ Commands run inside the project virtualenv (`.venv/bin/python`).
 | What | Command |
 |---|---|
 | 30-day emulation, no network | `MPLBACKEND=Agg python -m experiments.behavior_showcase` |
-| Month figure | `python -m experiments.month_showcase` |
-| Week figure | `python -m experiments.week_showcase` |
-| Two-week live figures | `python -m experiments.live_two_weeks_figures` |
-| Judge, probe and live-run charts | `MPLBACKEND=Agg python scripts/readme_charts.py` (live run needs its local database) |
+| Month and live-run timelines | `python scripts/readme_timelines.py` (the live one needs its local database) |
+| Hero image and chat GIF | `python scripts/readme_hero.py [--gif]` (needs Node with playwright-core) |
+| Judge, probe, ablation and cache charts | `MPLBACKEND=Agg python scripts/readme_charts.py` (the cache chart needs the live database) |
 | Test suite | `MPLBACKEND=Agg python -m pytest -q` |
 
 ## Limitations
