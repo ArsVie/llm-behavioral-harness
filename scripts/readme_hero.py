@@ -4,11 +4,11 @@
     .venv/bin/python scripts/readme_hero.py --gif      # docs/images/chat.gif instead
 
 The moment is from a committed simulated run (30 days, scripted user,
-gpt-5.6-luna): she ends an evening chat, does her night reading, and the next
-afternoon writes first because that agenda item finished. The script reads
-the five messages and her state at that moment from the run database, serves
-the run viewer's /chat page on a free loopback port with HARNESS_CHAT_DB
-pointed at that run, and captures it with headless Chromium
+gpt-5.6-luna, full system): she signs off for the evening, reads about
+physics the next morning as her agenda planned, and at midday writes first
+about it. The script reads the three messages and her state at that moment
+from the run database, serves the run viewer's /chat page on a free loopback
+port with HARNESS_CHAT_DB pointed at that run, and captures it with headless Chromium
 (scripts/readme_capture.mjs). Nothing in the panel is typed in by hand:
 mood, cycle day, phase, agenda items and the trigger come from the database.
 
@@ -35,12 +35,13 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "docs" / "images"
-RUN = "results/it3-g5-matrix/no_timing_feedback/seed5002/cell_no_timing_feedback_seed5002.db"
-RUN_LABEL = ("simulated 30-day run, scripted user, gpt-5.6-luna, seed 5002 "
-             "(confirmatory matrix, timing-feedback ablation cell)")
-#: The excerpt: his goodnight, hers, her unprompted message the next
-#: afternoon, his hello that evening and her reply. Contiguous ids.
-FIRST, UNPROMPTED, LAST = 52, 54, 56
+RUN = "results/it3-g5-matrix/full/seed5003/cell_full_seed5003.db"
+RUN_LABEL = ("simulated 30-day run, scripted user, gpt-5.6-luna, seed 5003 "
+             "(confirmatory matrix, full system)")
+#: The excerpt: her goodnight, her unprompted message the next midday and
+#: his hello that evening. Contiguous ids; the lines either side contain
+#: dashes, which the README keeps out of its images.
+FIRST, UNPROMPTED, LAST = 61, 62, 63
 
 
 def clock(t_h: float) -> str:
@@ -76,7 +77,7 @@ def load(db: Path) -> dict:
     # Earlier tries on the same item that never reached him.
     held = q("SELECT created_t_h FROM proactive_intents WHERE source_id = ? AND "
              "status = 'suppressed' AND created_t_h < ? ORDER BY created_t_h", source_id, t)
-    his_last = max(m[3] for m in msgs if m[1] == "user" and m[3] < t)
+    (his_last,), = q("SELECT max(t_h) FROM messages WHERE role = 'user' AND t_h < ?", t)
     con.close()
     return {"msgs": msgs, "t": t, "day": day, "reason": reason, "hook": hook,
             "source": (src_day, src_start, src_end, src_act), "mood": mood,
@@ -93,21 +94,34 @@ def panel(s: dict) -> str:
     e = html.escape
     dots = "".join(f'<i class="{"on" if i < s["mood"] else ""}"></i>' for i in range(10))
     sd, s0, s1, act = s["source"]
-    rows = [f'<li class="d">Day {sd}</li>',
-            f'<li><b>{clock(s0)}</b><span>{e(act)} '
-            f'<span class="st done">done at {clock(s1)}</span></span></li>',
-            f'<li class="d">Day {s["day"]}</li>']
+    rows = []
+    if sd != s["day"]:
+        rows += [f'<li class="d">Day {sd}</li>',
+                 f'<li class="src"><b>{clock(s0)}</b><span>{e(act)} '
+                 f'<span class="st done">done</span></span></li>']
+    rows.append(f'<li class="d">Day {s["day"]}</li>')
     for start, _end, activity, status in s["today"]:
         if start > s["t"]:
             status = "later"
         word = {"completed": "done", "skipped": "skipped", "shifted": "moved",
                 "later": "later"}.get(status, status)
-        rows.append(f'<li><b>{clock(start)}</b><span>{e(activity)} '
+        src = ' class="src"' if (activity, round(start, 2)) == (act, round(s0, 2)) else ""
+        rows.append(f'<li{src}><b>{clock(start)}</b><span>{e(activity)} '
                     f'<span class="st {word}">{word}</span></span></li>')
+    kind, _, _ = s["hook"].partition(":")
+    hook = f"{kind}: {act}"
+    when = f"on day {sd} " if sd != s["day"] else ""
+    if kind.strip().lower() == "finished":
+        how = f"She finished it {when}at {clock(s1)},"
+    else:
+        c0, c1 = clock(s0), clock(s1)
+        if c0[-2:] == c1[-2:]:
+            c0 = c0[:-3]
+        how = f"It was on her agenda {when}from {c0} to {c1},"
     held = ""
     if s["held"]:
         held = (f'<p class="why-sub">A first try at {clock(s["held"][0])} was held back; '
-                f'this one fired at {clock(s["t"])}.</p>')
+                f'this one went out at {clock(s["t"])}.</p>')
     gap = s["t"] - s["his_last"]
     return f"""
 <section class="card hero-state">
@@ -119,9 +133,9 @@ def panel(s: dict) -> str:
   <div class="hs-k hs-block">Her agenda</div>
   <ul class="hs-agenda">{''.join(rows)}</ul>
   <div class="hs-k hs-block">Why she wrote first</div>
-  <p class="why"><span class="hook">{e(s["hook"])}</span></p>
-  <p class="why">An item on her own agenda ended, so the engine raised a reason
-    to reach out. He had been quiet for {gap:.1f} hours.</p>
+  <p class="why"><span class="hook">{e(hook)}</span></p>
+  <p class="why">{how} so the engine raised it as a reason to reach out.
+    He had been quiet for {gap:.1f} hours.</p>
   {held}
   <p class="hs-foot">The model never sees the mood score or the cycle day: the
     engine turns her state into plain-language briefs, and the model writes

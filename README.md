@@ -6,13 +6,13 @@ cycle, circadian energy, and shifts in cadence, length and warmth. The model is
 never modified and stays swappable. A seeded engine decides when and in what
 state; the model decides what to say; every step is recorded so a run replays.
 
-![A simulated conversation in the web chat, next to her state when she wrote first: mood 4 of 10, cycle day 5, her agenda, and the trigger "Finished: night reading"](docs/images/hero.png)
+![A simulated conversation in the web chat, next to her state when she wrote first: mood 4 of 10, cycle day 6, her agenda, and the trigger "Agenda: read about physics"](docs/images/hero.png)
 
-*A moment from a simulated 30-day run (scripted user, gpt-5.6-luna), shown in
-the run viewer's web chat. He said goodnight at 7:53 PM; she did her night
-reading; the next afternoon she wrote first because that agenda item had
-finished, on a low-mood day early in her cycle. Messages are verbatim; the
-panel is read from the run database. Rendered by
+*A moment from a simulated 30-day run of the full system (scripted user,
+gpt-5.6-luna), shown in the run viewer's web chat. She signed off at
+8:00 PM; the next morning her agenda had her reading about physics, and at
+12:19 PM she wrote first about it, hours before he came back. Messages are
+verbatim; the panel is read from the run database. Rendered by
 [`scripts/readme_hero.py`](scripts/readme_hero.py).*
 
 ## How it works
@@ -55,7 +55,7 @@ The same viewer serves the web chat, one of her channels next to Telegram, the
 CLI and voice calls. Her lines arrive with typing pauses (a simulated run,
 replayed):
 
-<img src="docs/images/chat.gif" width="560" alt="The web chat replaying a simulated run: she writes first the next afternoon, then answers his hello">
+<img src="docs/images/chat.gif" width="560" alt="The web chat replaying a simulated run: she writes first at midday about what she read, and he says hi that evening">
 
 ![Voice calls: her pick-up decision, the HTTP loop with the local voice client, and numbers from the live run](docs/images/voice-calls.svg)
 
