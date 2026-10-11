@@ -876,12 +876,37 @@ pre.aside {
 .when { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); align-self: center; margin-top: 10px; }
 #log .note { font-size: 12px; color: var(--ink-soft); align-self: center; text-align: center; max-width: 90%;
             white-space: pre-wrap; background: var(--sun-soft); border-radius: var(--radius-sm); padding: 4px 12px; }
-#log .callmark { align-self: center; margin-top: 10px; max-width: 92%; padding: 4px 14px;
-            font-family: var(--mono); font-size: 11px; color: var(--ink-faint); text-align: center;
-            background: var(--paper-2); border: 1px solid var(--line); border-radius: 999px; }
-#log .callmark b { font-weight: 600; color: var(--ink-soft); }
-#log .callmark[data-kind="missed_call"] { background: var(--rose-soft); border-color: var(--rose-soft); color: var(--rose); }
-#log .callmark[data-kind="missed_call"] b { color: var(--rose); }
+/* A call's entry: one card instead of a wall of bubbles. It opens when the
+   call starts, the lines between start and end fold inside (click the head
+   to read them), and the end fills in the duration; a missed call is a card
+   of its own. */
+#log .callcard { align-self: center; margin-top: 10px; width: min(92%, 400px); flex: none;
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-soft); overflow: hidden; }
+#log .callcard[data-state="missed"] { background: var(--rose-soft); border-color: var(--rose-soft); }
+#log .callcard .cc-head { display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 12px; background: transparent; border: 0; font: inherit; color: var(--ink);
+  text-align: left; cursor: pointer; }
+#log .callcard .cc-head[aria-disabled="true"] { cursor: default; }
+#log .callcard .cc-head:focus-visible { outline: 2px solid var(--lav); outline-offset: -2px; }
+#log .callcard .cc-icon { width: 34px; height: 34px; flex: none; border-radius: 50%;
+  display: grid; place-items: center; background: var(--mint-soft); color: #2f6a58; }
+#log .callcard .cc-icon svg { width: 16px; height: 16px; }
+#log .callcard[data-state="missed"] .cc-icon { background: #fff; color: var(--rose); }
+#log .callcard .cc-main { flex: 1; min-width: 0; }
+#log .callcard .cc-title { display: block; font-weight: 600; font-size: 13.5px; }
+#log .callcard[data-state="missed"] .cc-title { color: var(--rose); }
+#log .callcard .cc-sub { display: block; font-size: 11.5px; color: var(--ink-faint); }
+#log .callcard .cc-time { font-family: var(--mono); font-size: 11px; color: var(--ink-faint); }
+#log .callcard .cc-chev { color: var(--ink-faint); font-size: 10px; transition: transform .15s; }
+#log .callcard[data-open] .cc-chev { transform: rotate(180deg); }
+#log .callcard .cc-items { display: flex; flex-direction: column; gap: 5px; padding: 2px 12px 10px; }
+#log .callcard .cc-items[hidden] { display: none; }
+#log .callcard .cc-item { max-width: 88%; padding: 5px 10px; font-size: 12.5px;
+  background: var(--paper-2); border-radius: 11px 11px 11px 4px; white-space: pre-wrap;
+  overflow-wrap: anywhere; }
+#log .callcard .cc-item.him { align-self: flex-end; background: var(--lav-soft);
+  border-radius: 11px 11px 4px 11px; }
 #typing { padding: 0 20px 6px; font-size: 12px; color: var(--ink-faint); min-height: 22px; }
 .composer { display: flex; gap: 8px; padding: 10px 20px 16px; border-top: 1px solid var(--line); }
 .composer textarea { flex: 1; font: inherit; color: var(--ink); background: var(--paper);

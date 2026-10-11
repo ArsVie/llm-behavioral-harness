@@ -1,8 +1,10 @@
 // /chat: the live conversation (the same one Telegram carries), her sprite,
 // and the call button. History comes from the database (/api/chat/history):
-// his and her lines plus the call marks (started / ended / missed). What he
-// types and the call go to the bot's web channel (/api/chat/send,
-// /api/chat/command), which hands them to the runtime like any message.
+// his and her lines plus the call cards — a call's start opens one, the
+// lines between start and end fold inside it, the end fills the duration;
+// missed calls are cards of their own. What he types and the call go to the
+// bot's web channel (/api/chat/send, /api/chat/command), which hands them
+// to the runtime like any message.
 import { LiveFace } from "/face/live-face.js";
 
 const $ = (id) => document.getElementById(id);
@@ -10,7 +12,7 @@ const params = new URLSearchParams(location.search);
 const RUN = params.get("run") || "/sprites/runs/krea-v4s1/";
 const REST = "neutral";            // her face between lines
 const POLL_MS = 1200;
-const GAP_MIN = 30;                // a time label before a message after this many quiet minutes
+const GAP_MIN = 30;                // a time label before an entry after this many quiet minutes
 
 // Presence: "together" (he is here) fills the page with the scene and drops
 // the frame; "apart" (away) keeps the framed stage, dressed as a phone. The
@@ -136,13 +138,21 @@ function photoBubble(who, name) {
   el.append(img);
 }
 
+// His optimistic bubble (if any) gives way to the saved row.
+function dropPending(row) {
+  const i = pending.findIndex((p) => p.text === row.text);
+  if (i >= 0) { pending[i].els.forEach((e) => e.remove()); pending.splice(i, 1); }
+}
+
 function showRow(row, live) {
   shown.add(row.src + ":" + row.id);
   if (row.kind) { callmark(row); return; }
-  if (row.who === "him") {
-    const i = pending.findIndex((p) => p.text === row.text);
-    if (i >= 0) { pending[i].els.forEach((e) => e.remove()); pending.splice(i, 1); }
+  if (row.call) {                    // a line inside a call: folds into its card
+    if (row.who === "him") dropPending(row);
+    callItem(row);
+    return;
   }
+  if (row.who === "him") dropPending(row);
   stick(() => {
     timeLabel(row.at);
     const parts = paragraphs(row.text);
@@ -164,38 +174,131 @@ function timeRange(from, to) {
   return /[AP]M$/.test(b) && a.endsWith(b.slice(-2)) ? a.slice(0, -3) + "–" + b : a + "–" + b;
 }
 
-// A call mark in the flow: started / ended (the row's own times and duration)
-// / missed. Centered between the bubbles, like a date divider.
-function callmark(row) {
+// -- call cards --------------------------------------------------------------
+// A call reads as ONE entry: the card opens when the call starts, the lines
+// between start and end fold inside it (collapsed — click to read), and the
+// end fills in the duration. A missed call is a card of its own. Rows carry
+// the call's start id as `call`; cards are keyed by it.
+const cards = new Map();
+const PHONE_ICON = "M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1A17 17 0 0 1 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1l-2.3 2.2Z";
+
+const minutesText = (m) => (m === 1 ? "1 minute" : m + " minutes");
+
+function makeCard(key) {
+  const el = document.createElement("div");
+  el.className = "callcard";
+  el.dataset.call = key;
+  el._count = 0;                       // folded lines so far
+  el._sub = "";                        // "in progress" / "7 minutes" / …
+  const head = document.createElement("button");
+  head.type = "button";
+  head.className = "cc-head";
+  head.setAttribute("aria-disabled", "true");
+  head.setAttribute("aria-expanded", "false");
+  head.innerHTML = `<span class="cc-icon"><svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="${PHONE_ICON}"/></svg></span>`
+    + `<span class="cc-main"><span class="cc-title">Voice call</span><span class="cc-sub"></span></span>`
+    + `<span class="cc-time"></span><span class="cc-chev" hidden>▾</span>`;
+  head.onclick = () => {
+    if (!el._count) return;
+    const open = !el.hasAttribute("data-open");
+    el.toggleAttribute("data-open", open);
+    head.setAttribute("aria-expanded", String(open));
+    el.querySelector(".cc-items").hidden = !open;
+    if (open) el.scrollIntoView({ block: "nearest" });  // keep the transcript in view
+  };
+  const items = document.createElement("div");
+  items.className = "cc-items";
+  items.hidden = true;
+  el.append(head, items);
+  return el;
+}
+
+function paintCard(el) {
+  const bits = [];
+  if (el._sub) bits.push(el._sub);
+  if (el._count) bits.push(el._count + (el._count === 1 ? " message" : " messages"));
+  el.querySelector(".cc-sub").textContent = bits.join(" · ");
+  el.querySelector(".cc-chev").hidden = !el._count;
+  el.querySelector(".cc-head").setAttribute("aria-disabled", String(!el._count));
+}
+
+function cardFor(key) {
+  let el = cards.get(key);
+  if (!el) { el = makeCard(key); cards.set(key, el); $("log").append(el); }
+  return el;
+}
+
+// The call opened: the card appears at its start, "in progress" until the end.
+function openCall(row) {
   stick(() => {
-    const el = document.createElement("div");
-    el.className = "callmark";
-    el.dataset.kind = row.kind;
-    const title = row.kind === "call_started" ? "Voice call started"
-      : row.kind === "call_ended" ? "Call ended" : "Missed call";
-    const b = document.createElement("b");
-    b.textContent = title;
-    el.append(b);
-    const bits = [];
-    if (row.sub) bits.push(row.sub);
-    if (row.kind === "call_ended") {
+    timeLabel(row.at);               // a card can open a quiet-time block too
+    const el = cardFor(String(row.call ?? row.id));
+    el._sub = "in progress";
+    if (row.at) el.querySelector(".cc-time").textContent = clock(new Date(row.at));
+    paintCard(el);
+  });
+}
+
+// The call ended: the card takes the duration, the row's own times in its tooltip.
+function endCall(row) {
+  stick(() => {
+    let el = row.call != null ? cards.get(String(row.call)) : null;
+    if (!el) {
+      timeLabel(row.at);             // a lone end card opens its block too
+      const key = row.call != null ? String(row.call) : "end:" + row.id;
+      el = makeCard(key);
+      if (row.call != null) cards.set(key, el);
+      $("log").append(el);
+    }
+    el.dataset.state = "done";
+    const end = row.at ? new Date(row.at) : null;
+    if (end && row.minutes != null) {
       // the row's times are wall-clock text; show the call as instants in
       // the viewer's clock, like every other time on the page
-      const end = row.at ? new Date(row.at) : null;
-      if (end && row.minutes != null) {
-        bits.push(timeRange(end.getTime() - row.minutes * 60000, end));
-        bits.push(row.minutes + " min");
-      } else if (row.start && row.end) {
-        bits.push(row.start + "–" + row.end);
-      } else if (end) {
-        bits.push(clock(end));
-      }
-    } else if (row.at) {
-      bits.push(clock(new Date(row.at)));
+      const from = new Date(end.getTime() - row.minutes * 60000);
+      el.querySelector(".cc-time").textContent = clock(from);
+      el.title = timeRange(from, end) + " · " + row.minutes + " min";
+      el._sub = minutesText(row.minutes);
+    } else if (row.start && row.end) {
+      el._sub = row.start + "–" + row.end;
+    } else {
+      el._sub = "";
     }
-    if (bits.length) el.append(document.createTextNode(" · " + bits.join(" · ")));
+    paintCard(el);
+  });
+}
+
+// A missed call: a card of its own, no transcript.
+function missedCard(row) {
+  stick(() => {
+    timeLabel(row.at);               // the missed mark can open a quiet-time block
+    const el = makeCard(row.src + row.id);
+    el.dataset.state = "missed";
+    el.querySelector(".cc-title").textContent = "Missed call";
+    el._sub = row.sub || "";
+    if (row.at) el.querySelector(".cc-time").textContent = clock(new Date(row.at));
+    paintCard(el);
     $("log").append(el);
   });
+}
+
+// A line inside a call: folds into the card instead of the flow.
+function callItem(row) {
+  stick(() => {
+    const el = cardFor(String(row.call));
+    const item = document.createElement("div");
+    item.className = "cc-item " + (row.who === "him" ? "him" : "her");
+    item.innerHTML = render(row.text);
+    el.querySelector(".cc-items").append(item);
+    el._count += 1;
+    paintCard(el);
+  });
+}
+
+function callmark(row) {
+  if (row.kind === "call_started") openCall(row);
+  else if (row.kind === "call_ended") endCall(row);
+  else missedCard(row);
 }
 
 async function speakNext() {

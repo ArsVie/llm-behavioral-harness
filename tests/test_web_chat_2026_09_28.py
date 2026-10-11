@@ -11,8 +11,8 @@ Telegram: same session, same history. Proactive messages stay on Telegram.
 - Through a real ``AsyncRuntime``: a web message is answered on the web and
   saved in the same messages table; Telegram gets nothing.
 - The observability server serves the three pages, reads the chat history
-  (his and her lines plus the call marks: started / ended / missed) and
-  forwards the writes.
+  (his and her lines plus the call marks: started / ended / missed, with the
+  lines inside a call carrying its id) and forwards the writes.
 """
 
 import asyncio
@@ -272,6 +272,20 @@ def app(tmp_path, monkeypatch):
     store.log_event(0, 1.7, "call_decided", "call=deadbeef answer=False")
     store.add_message("assistant", "can't talk now", 1.7, 0)
     store.add_message("system", CALL_HUNG_UP_RINGING_ROW.format(time="22:00"), 1.8, 0)
+    # a call still open when the page loads: its lines fold into its card
+    store.add_message("system", CALL_START_ROW.format(time="23:10"), 2.0, 0)
+    store.add_message("user", "still here", 2.1, 0)
+    # the fold stops at the next call row — and past _OPEN_CALL_HOURS, so a
+    # call that never ended cannot swallow the evening
+    store.add_message("system", CALL_HUNG_UP_RINGING_ROW.format(time="23:40"), 2.2, 0)
+    store.add_message("user", "ok then", 2.3, 0)
+    store.add_message("system", CALL_START_ROW.format(time="23:50"), 3.0, 0)
+    store.add_message("user", "way later", 7.5, 0)
+    # same-instant ordering survives float precision: the missed mark and the
+    # line it explains share the raw t_h (one runtime float), so the mark
+    # still opens first — a rounded display value used to flip this
+    store.log_event(0, 8.1234567890123, "call_decided", "call=cafebabe answer=False")
+    store.add_message("assistant", "pick up next time", 8.1234567890123, 0)
     store.close()
     monkeypatch.setenv("HARNESS_CHAT_DB", str(db))
     (tmp_path / "amadeus/face").mkdir(parents=True)
@@ -300,14 +314,29 @@ def test_chat_history_marks_calls_and_keeps_other_system_rows_out(app):
     # call closes after its turns; the state card never reaches the page.
     assert [(m.get("kind") or m["who"]) for m in entries] == [
         "him", "her", "call_started", "him", "her", "call_ended",
-        "missed_call", "her", "missed_call"]
-    started = next(m for m in entries if m.get("kind") == "call_started")
+        "missed_call", "her", "missed_call",
+        "call_started", "him", "missed_call", "him", "call_started", "him",
+        "missed_call", "her"]
+    started, live_a, live_b = [m for m in entries if m.get("kind") == "call_started"]
     assert started["src"] == "m" and started["sub"] is None
+    assert started["call"] == started["id"]
     ended = next(m for m in entries if m.get("kind") == "call_ended")
     assert (ended["start"], ended["end"], ended["minutes"]) == ("21:46", "21:51", 5)
+    assert ended["call"] == started["id"]
+    # the lines between a call's start and end carry its id — the page folds
+    # them into the card; the lines after the end are plain again
+    inside = [m for m in entries if m.get("call") == started["id"] and not m.get("kind")]
+    assert [(m["who"], m["text"]) for m in inside] == [("him", "you there?"), ("her", "mhm")]
+    assert next(m for m in entries if m.get("text") == "can't talk now").get("call") is None
+    # an open call folds until the next call row (and _OPEN_CALL_HOURS at most)
+    assert [m["call"] for m in (live_a, live_b)] == [m["id"] for m in (live_a, live_b)]
+    assert next(m for m in entries if m.get("text") == "still here")["call"] == live_a["id"]
+    assert next(m for m in entries if m.get("text") == "ok then").get("call") is None
+    assert next(m for m in entries if m.get("text") == "way later").get("call") is None
     missed = [m for m in entries if m.get("kind") == "missed_call"]
     assert missed[0]["src"] == "e" and missed[0]["sub"] is None      # the ring-out
     assert missed[1]["sub"] == "hung up while ringing"               # his hang-up
+    assert len(missed) == 4 and all(m["call"] is None for m in missed)
     assert all("STATE UPDATE" not in (m.get("text") or "") for m in entries)
 
 
@@ -321,7 +350,8 @@ def test_chat_history_after_cursors_return_only_newer_rows(app):
     only_msg = _get(app + "/api/chat/history?after=3")
     assert [(m.get("kind") or m["who"]) for m in only_msg["messages"]] == [
         "call_started", "him", "her", "call_ended", "missed_call", "her",
-        "missed_call"]
+        "missed_call", "call_started", "him", "missed_call", "him",
+        "call_started", "him", "missed_call", "her"]
 
 
 def test_only_face_and_sprites_are_served_from_amadeus(app):
