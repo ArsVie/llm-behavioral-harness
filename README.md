@@ -57,23 +57,25 @@ of her turns and decisions sit above 90%. The 30 calls near 0% are real: half
 came after more than an hour of quiet, the rest within a minute of another
 call.*
 
-### A live two-week run
+### The live run, day by day
 
-![Two-week live run overview](results/live-two-weeks/figures/overview.png)
+![Live run, 3 to 10 October 2026: mood per day, her unprompted messages, why she reached out, and messages per day and hour](docs/images/live-overview.png)
 
-*The same four panels from a real accelerated two-week run (seed 6001,
-`stealth/ox-alpha` via OpenRouter), with cycle phases shaded. 71 messages, 20 of
-them proactive. On day 8 the scripted user went silent and the companion still
-reached out three times. Report:
-[`results/two-week-live-run-report.md`](results/two-week-live-run-report.md).*
+*Same run, 3 to 10 October 2026, in real time. Mood is sampled once a day and
+shaded by cycle phase; her unprompted messages follow it. Every reach-out came
+from something on her own agenda: an item starting or one she just finished.
+Hook text is not drawn, since in a live run it quotes real plans. Rendered by
+[`scripts/live_run_figures.py`](scripts/live_run_figures.py).*
 
 <details>
-<summary>Week view and proactive pipeline</summary>
+<summary>Who writes when, and what happens to her intents</summary>
 
-![Two-week live run week view](results/live-two-weeks/figures/week-view.png)
+![Live run: his and her messages per day and hour, and intents fired, held back or still open per day](docs/images/live-week.png)
 
-*Week 1 against week 2 message timing, and fired against suppressed intents per
-day: quiet-hours deferral and salience gating reject about half of all hooks.*
+*His messages against hers by hour, and her intents per day. In the first two
+days the gate held back 7 of 8; once the conversation had a rhythm, most fired.
+An earlier accelerated two-week run against a scripted user is in
+[`results/two-week-live-run-report.md`](results/two-week-live-run-report.md).*
 
 </details>
 
