@@ -1,0 +1,162 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="680" viewBox="0 0 1000 680" role="img" aria-labelledby="t d">
+  <title id="t">Runtime architecture of the behavioral harness</title>
+  <desc id="d">Telegram or CLI messages enter the runtime, which runs one turn at a time through the session. The session assembles a request with a cached stable prefix, an append-only stream and a trailing state card, and sends it to any OpenAI-compatible model. A seeded engine supplies mood, cycle, energy and contact timing, rendered into a prose brief. The judge and the day planner are the only two forks. Everything is recorded in SQLite and read back by read-only inspectors.</desc>
+  <defs>
+    <marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#52514e"/>
+    </marker>
+    <marker id="ao" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#d4561f"/>
+    </marker>
+  </defs>
+  <style>
+    text { font-family: -apple-system, "Segoe UI", Helvetica, Arial, sans-serif; fill: #0b0b0b; }
+    .h { font-size: 20px; font-weight: 600; }
+    .sub { font-size: 13px; fill: #52514e; }
+    .bt { font-size: 14px; font-weight: 600; }
+    .p { font-size: 11.5px; fill: #8a8984; }
+    .b { font-size: 12px; fill: #2b2a28; }
+    .m { font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 11.5px; fill: #1f4f8f; }
+    .l { font-size: 11px; fill: #52514e; }
+    .lo { font-size: 11px; fill: #b8461a; }
+    .w { stroke: #52514e; stroke-width: 1.6; fill: none; }
+    .wo { stroke: #d4561f; stroke-width: 1.8; fill: none; }
+  </style>
+  <rect x="0" y="0" width="1000" height="680" rx="14" fill="#fcfcfb" stroke="#d9d8d3"/>
+  <text x="24" y="38" class="h">How a turn runs</text>
+  <text x="24" y="59" class="sub">The engine decides when and in what state; the model decides what to say. Every step is recorded.</text>
+
+  <!-- channels -->
+  <rect x="24" y="86" width="186" height="140" rx="10" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="38" y="109" class="bt">Telegram</text>
+  <text x="152" y="109" class="p">channels/</text>
+  <text x="38" y="131" class="b">debounce: 4.5 s after the last</text>
+  <text x="38" y="148" class="b">message, 12 s at most</text>
+  <text x="38" y="170" class="b">typing indicator</text>
+  <text x="38" y="192" class="b">one send per paragraph,</text>
+  <text x="38" y="209" class="b">MarkdownV2 italics</text>
+  <rect x="24" y="240" width="186" height="52" rx="10" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="38" y="263" class="bt">CLI</text>
+  <text x="38" y="281" class="b">stdin / stdout</text>
+
+  <!-- runtime -->
+  <rect x="250" y="86" width="210" height="206" rx="10" fill="#f4f3f0" stroke="#8a8984"/>
+  <text x="264" y="109" class="bt">Runtime</text>
+  <text x="400" y="109" class="p">runtime.py</text>
+  <text x="264" y="128" class="l">one lock, real-time anchor</text>
+  <rect x="262" y="138" width="186" height="30" rx="6" fill="#ffffff" stroke="#d9d8d3"/>
+  <text x="272" y="157" class="b">inbound message: a turn</text>
+  <rect x="262" y="174" width="186" height="30" rx="6" fill="#ffffff" stroke="#d9d8d3"/>
+  <text x="272" y="193" class="b">firing loop: proactive intents</text>
+  <rect x="262" y="210" width="186" height="30" rx="6" fill="#ffffff" stroke="#d9d8d3"/>
+  <text x="272" y="229" class="b">life loop: her agenda instants</text>
+  <rect x="262" y="246" width="186" height="30" rx="6" fill="#ffffff" stroke="#d9d8d3"/>
+  <text x="272" y="265" class="b">rollover: midnight, replan</text>
+
+  <!-- session -->
+  <rect x="500" y="86" width="250" height="206" rx="10" fill="#eef4fc" stroke="#2a78d6"/>
+  <text x="514" y="109" class="bt">Session turn</text>
+  <text x="652" y="109" class="p">session.py</text>
+  <text x="514" y="128" class="l">on_message, fire_proactive: one _chat</text>
+  <text x="514" y="146" class="b">steering queue: events wait for a</text>
+  <text x="514" y="162" class="b">safe boundary, then enter as system</text>
+  <text x="514" y="184" class="l">the request, top to bottom:</text>
+  <rect x="512" y="192" width="226" height="28" rx="5" fill="#dcebfb" stroke="#2a78d6"/>
+  <text x="520" y="210" class="b">persona, card rules, tools</text>
+  <text x="730" y="210" class="l" text-anchor="end">cached</text>
+  <rect x="512" y="223" width="226" height="28" rx="5" fill="#ffffff" stroke="#2a78d6"/>
+  <text x="520" y="241" class="b">stamped stream</text>
+  <text x="730" y="241" class="l" text-anchor="end">append-only</text>
+  <rect x="512" y="254" width="226" height="28" rx="5" fill="#fdf1eb" stroke="#eb6834"/>
+  <text x="520" y="272" class="b">state card + [DECIDE] pop-up</text>
+  <text x="730" y="272" class="l" text-anchor="end">tail</text>
+
+  <!-- client and model -->
+  <rect x="790" y="86" width="186" height="74" rx="10" fill="#f4f3f0" stroke="#8a8984"/>
+  <text x="804" y="109" class="bt">Client</text>
+  <text x="920" y="109" class="p">client.py</text>
+  <text x="804" y="130" class="b">OpenAI-compatible HTTP</text>
+  <text x="804" y="148" class="b">usage + cache split metered</text>
+  <rect x="790" y="200" width="186" height="92" rx="10" fill="#0b0b0b" stroke="#0b0b0b"/>
+  <text x="804" y="224" class="bt" style="fill:#ffffff">Any LLM</text>
+  <text x="804" y="245" class="b" style="fill:#e6e5e0">swappable; reads words,</text>
+  <text x="804" y="262" class="b" style="fill:#e6e5e0">never the engine's numbers;</text>
+  <text x="804" y="279" class="b" style="fill:#e6e5e0">answers [DECIDE] in its reply</text>
+
+  <!-- top row wires -->
+  <path d="M210 150 H246" class="w" marker-end="url(#a)"/>
+  <path d="M214 266 H246" class="w" marker-start="url(#a)" marker-end="url(#a)"/>
+  <path d="M460 150 H496" class="w" marker-end="url(#a)"/>
+  <path d="M496 232 H464" class="w" marker-end="url(#a)"/>
+  <text x="478" y="226" class="l" text-anchor="middle">reply</text>
+  <path d="M246 196 H214" class="w" marker-end="url(#a)"/>
+  <text x="230" y="144" class="l" text-anchor="middle">in</text>
+  <text x="230" y="190" class="l" text-anchor="middle">out</text>
+  <path d="M750 120 H786" class="w" marker-end="url(#a)"/>
+  <path d="M883 160 V196" class="w" marker-end="url(#a)"/>
+  <path d="M790 250 H754" class="w" marker-end="url(#a)"/>
+  <text x="770" y="244" class="l" text-anchor="middle">text</text>
+
+  <!-- bottom row: engine, behavior, forks, store -->
+  <rect x="24" y="370" width="226" height="130" rx="10" fill="#fdf1eb" stroke="#eb6834"/>
+  <text x="38" y="393" class="bt">Engine</text>
+  <text x="196" y="393" class="p">engine/</text>
+  <text x="38" y="415" class="b">mood: beta-binomial in logit</text>
+  <text x="38" y="431" class="b">space, AR(1) event memory</text>
+  <text x="38" y="451" class="b">~28-day cycle, circadian energy</text>
+  <text x="38" y="471" class="b">Weibull-hazard contact timing</text>
+  <text x="38" y="489" class="l">pure and seeded: no I/O, no real clock</text>
+
+  <rect x="290" y="370" width="190" height="130" rx="10" fill="#fdf1eb" stroke="#eb6834"/>
+  <text x="304" y="393" class="bt">Behavior brief</text>
+  <text x="304" y="412" class="p">behavior.py, life.py</text>
+  <text x="304" y="434" class="b">state becomes prose,</text>
+  <text x="304" y="451" class="b">plus her agenda for the day</text>
+  <text x="304" y="473" class="b">no raw numbers reach</text>
+  <text x="304" y="490" class="b">the prompt (tested)</text>
+
+  <rect x="520" y="370" width="230" height="130" rx="10" fill="#eaf7f1" stroke="#1baf7a"/>
+  <text x="534" y="393" class="bt">The only two forks</text>
+  <text x="534" y="415" class="b">judge: scores the day</text>
+  <text x="534" y="432" class="b">day planner: names her activities</text>
+  <text x="534" y="454" class="b">each forks the mainline request,</text>
+  <text x="534" y="471" class="b">same prefix; output is engine</text>
+  <text x="534" y="488" class="b">state, never conversation</text>
+
+  <rect x="790" y="370" width="186" height="130" rx="10" fill="#f4f3f0" stroke="#8a8984"/>
+  <text x="804" y="393" class="bt">Store</text>
+  <text x="880" y="393" class="p">SQLite, WAL</text>
+  <text x="804" y="415" class="m">messages</text>
+  <text x="804" y="432" class="m">llm_calls</text>
+  <text x="804" y="449" class="m">state_events</text>
+  <text x="804" y="466" class="m">decision_records</text>
+  <text x="804" y="483" class="m">steering_queue</text>
+
+  <!-- bottom wires -->
+  <path d="M250 435 H286" class="w" marker-end="url(#a)"/>
+  <path d="M385 370 V330 H560 V296" class="w" marker-end="url(#a)"/>
+  <text x="392" y="346" class="l">brief into the state card</text>
+  <path d="M137 370 V330 H310 V296" class="w" marker-end="url(#a)"/>
+  <text x="150" y="346" class="l">contact timing</text>
+  <path d="M650 296 V366" class="w" marker-end="url(#a)"/>
+  <text x="658" y="336" class="l">fork</text>
+  <path d="M720 296 V316 H883 V366" class="w" marker-end="url(#a)"/>
+  <text x="760" y="331" class="l">every call, decision, event</text>
+  <path d="M635 500 V530 H137 V504" class="wo" marker-end="url(#ao)"/>
+  <text x="380" y="524" class="lo" text-anchor="middle">the judge's score moves the mood baseline: the system's one closed loop</text>
+
+  <!-- observability -->
+  <rect x="24" y="560" width="952" height="100" rx="10" fill="#ffffff" stroke="#8a8984" stroke-dasharray="5 4"/>
+  <text x="38" y="583" class="bt">Read-only observability</text>
+  <text x="204" y="583" class="l">reads the store, never writes it</text>
+  <text x="38" y="608" class="m">python -m harness.trace</text>
+  <text x="38" y="626" class="b">one timeline of messages, steers, decisions,</text>
+  <text x="38" y="642" class="b">agenda and calls; <tspan class="m">checks</tspan> is the post-run gate</text>
+  <text x="360" y="608" class="m">python -m harness.audit --call N</text>
+  <text x="360" y="626" class="b">the exact prompt the model saw</text>
+  <text x="360" y="642" class="b">on one call, with typed headers</text>
+  <text x="650" y="608" class="m">python -m observability</text>
+  <text x="650" y="626" class="b">run viewer: context composition,</text>
+  <text x="650" y="642" class="b">cache behaviour, event flow, calls</text>
+  <path d="M883 500 V556" class="w" marker-end="url(#a)"/>
+</svg>

@@ -92,7 +92,29 @@ chance (~0.31 vs 0.33) with a passing control to rule out instrument failure,
 and the Spike2 behavioral-eval machinery was shelved with a decision memo rather
 than quietly dropped.
 
+![Judge rubric v1 vs v2: daily judge scores and the engine mood baseline per month](docs/images/judge-calibration.png)
+
+*The judge is measured like any other instrument. On the live 3x2 ablation
+(deepseek-v4-flash, seed 1001, 7 days, harness-on cells), rubric v1 scored the
+horrible month near zero and let the flat month drift positive, so the
+horrible month's mood baseline never went negative (it ended at +0.10). Rubric v2 anchors on how the user treats her: the
+flat month sits at 0.00 and the baseline splits to +0.64 / 0.00 / -0.54. Data:
+`results/e2e-ablation-live` and `results/e2e-ablation-v2`; write-up in
+[`results/e2e-ablation-v1-v2-comparison.md`](results/e2e-ablation-v1-v2-comparison.md).*
+
+![Decision probe outcomes per transport over three real runs](docs/images/decision-probe.png)
+
+*Three real decision-probe runs (deepseek-v4-flash, 15 scenarios x 3 mood
+states x 2 transports). In run 1 every native tool call came back with the
+event fields echoed instead of a verdict, which reads as "hold" with an empty
+reason, and every textual reply failed to parse. Server draws are left out.
+Data: `results/decision-probe-real-2026-08-14{,-r2,-r3}/probe.json`.*
+
+<sub>Both charts: `MPLBACKEND=Agg .venv/bin/python scripts/readme_charts.py`.</sub>
+
 ## Architecture
+
+![Runtime architecture: channels, runtime, session turn, model, engine, the two forks, store and observability](docs/images/architecture.svg)
 
 ```
 engine/      frozen contracts: mood (beta-binomial in logit space, AR(1)
@@ -106,6 +128,11 @@ experiments/ experiment drivers and reproducibility helpers
 Scale: single-file SQLite with WAL, an additive migration chain, and append-only
 `state_events` + `llm_calls` so `audit.py` can reconstruct what the model saw per
 call. Exact counts belong to dated result records, not this overview.
+
+On Telegram, one reply can arrive as several messages. The model marks the
+breaks itself, the reply is stored as one row, and the runtime paces the sends:
+
+![Telegram bubble flow: one stored reply, typing during generation, then paced bubbles](docs/images/telegram-bubbles.svg)
 
 Every run is inspectable read-only, without a query of your own:
 
